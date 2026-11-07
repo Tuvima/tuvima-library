@@ -201,15 +201,17 @@ public sealed partial class WikidataBridgeWorker
 
                 // An audiobook that took its Wikidata ID from an owned, confirmed book keeps it: no
                 // bridge-ID or text lookup runs for it.
+                // A Wikidata item a person linked is never replaced, a removed link is not brought back, and a turned-down item is never chosen.
+                var personDecision = await ReadPersonDecisionAsync(mediaType, lineage, ct).ConfigureAwait(false);
                 var ownedBookQid = FindOwnedBookHandoffQid(job);
                 if (ownedBookQid is not null)
                 {
+                    context.RejectedQids = personDecision.RejectedQids;
                     ApplyOwnedBookHandoff(context, ownedBookQid);
                 }
-                else if (await FindPersonLinkedQidAsync(mediaType, lineage, ct).ConfigureAwait(false) is { } personLinkedQid)
+                else
                 {
-                    // A Wikidata item a person linked is never replaced by the automatic alignment.
-                    ApplyPersonLinked(context, personLinkedQid);
+                    ApplyPersonDecision(context, personDecision);
                 }
 
                 contexts.Add(context);
@@ -229,7 +231,7 @@ public sealed partial class WikidataBridgeWorker
             }
 
             var resolveRequests = contexts
-                .Where(ctx => ctx.ResolvedQid is null)
+                .Where(ctx => ctx.ResolvedQid is null && !ctx.LookupSkipped)
                 .Select(ctx => BuildResolveRequest(ctx, ctx.Job.Id.ToString()))
                 .ToList();
 

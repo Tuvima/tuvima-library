@@ -47,7 +47,7 @@ public static partial class MetadataEndpoints
           .WithSummary("Whether the provider match and the Wikidata item disagree (shared identifiers, year, title). Reads only; neither side is changed.")
           .Produces<EditorWikidataConflictDto>(StatusCodes.Status200OK)
           .ProducesProblem(StatusCodes.Status404NotFound)
-          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
-          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
     }
 }

@@ -154,11 +154,12 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
         var result = cut.Find("[data-testid=wikidata-result]");
         Assert.Empty(result.QuerySelectorAll("img"));
-        Assert.Equal("film · 1995", cut.Find("[data-testid=wikidata-result-line]").TextContent.Trim());
-        var evidence = cut.Find("[data-testid=wikidata-evidence]").TextContent;
-        Assert.Contains("✓", evidence, StringComparison.Ordinal);
-        Assert.Contains("IMDb", evidence, StringComparison.Ordinal);
-        Assert.Contains("not checked", evidence, StringComparison.Ordinal);
+        Assert.Equal("1995 crime film", cut.Find("[data-testid=wikidata-result-description]").TextContent.Trim());
+        Assert.Equal("film", cut.Find("[data-testid=wikidata-result-type]").TextContent.Trim());
+        var evidence = cut.Find("[data-testid=wikidata-evidence]");
+        Assert.Contains("Alignment evidence", evidence.TextContent, StringComparison.Ordinal);
+        Assert.Contains("✓", evidence.TextContent, StringComparison.Ordinal);
+        Assert.Contains("IMDb was not checked", cut.Find("[data-testid=wikidata-not-checked]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -227,6 +228,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
             Reason = EditorWikidataConflictReasons.Year,
             WikidataLabel = "Heat",
             WikidataYear = "1995",
+            WikidataType = "film",
             ProviderName = "TMDB",
             ProviderYear = "1986",
         };
@@ -238,10 +240,12 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         SwitchToWikidata(cut);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=wikidata-conflict]")));
-        Assert.Contains("disagree on the year", cut.Find("[data-testid=wikidata-conflict]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Your Wikidata item is a 1995 film; the TMDB match is from 1986. Check which is right.", cut.Find("[data-testid=wikidata-conflict]").TextContent.Trim());
         Assert.DoesNotContain(_session.Pending.Changes, change => change.Kind is EditSessionChangeKinds.WikidataLink or EditSessionChangeKinds.WikidataRemoval);
         Assert.Contains("Q202", cut.Find("[data-testid=wikidata-current]").TextContent, StringComparison.Ordinal);
         Assert.All(_comparisons, comparison => Assert.Equal("Q202", comparison.Qid));
+        Assert.All(_comparisons, comparison => Assert.Equal("tmdb", comparison.ProviderId));
+        Assert.All(_comparisons, comparison => Assert.Equal("TMDB", comparison.ProviderName));
     }
 
     [Fact]
@@ -251,6 +255,106 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(_comparisons));
         Assert.Empty(cut.FindAll("[data-testid=wikidata-conflict]"));
+    }
+
+    [Fact]
+    public void TheIdentityCard_SaysTheProviderMatchIsKeptSeparately()
+    {
+        var cut = RenderWikidataSide();
+
+        Assert.Equal("The TMDB match is kept separately. Linking here never changes it.", cut.Find("[data-testid=wikidata-independent]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void Results_AreOneSelectableRowEach_WithOneEvidenceCardForTheSelectedRow()
+    {
+        _answer = new EditorWikidataSearchResultDto
+        {
+            EntityId = ItemId,
+            Results = [Result("Q1", "Heat"), Result("Q2", "Heat (1986)")],
+        };
+        var cut = RenderWikidataSide();
+        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=wikidata-result]").Count));
+
+        var rows = cut.FindAll("[data-testid=wikidata-result]");
+        Assert.Equal("true", rows[0].GetAttribute("aria-selected"));
+        Assert.Equal("false", rows[1].GetAttribute("aria-selected"));
+        Assert.Equal("0", rows[1].GetAttribute("tabindex"));
+        Assert.Single(cut.FindAll("[data-testid=wikidata-evidence]"));
+        Assert.Empty(cut.FindAll("[data-testid=wikidata-result] button"));
+
+        rows[1].Click();
+
+        rows = cut.FindAll("[data-testid=wikidata-result]");
+        Assert.Equal("false", rows[0].GetAttribute("aria-selected"));
+        Assert.Equal("true", rows[1].GetAttribute("aria-selected"));
+        Assert.Single(cut.FindAll("[data-testid=wikidata-evidence]"));
+
+        rows[0].KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+
+        Assert.Equal("true", cut.FindAll("[data-testid=wikidata-result]")[0].GetAttribute("aria-selected"));
+    }
+
+    [Fact]
+    public void AParentRow_CanBeSelectedForContext_ButApplyIdentityStaysOffWithTheReasonShown()
+    {
+        _kind = "tv_episode";
+        _answer = new EditorWikidataSearchResultDto
+        {
+            EntityId = ItemId,
+            Results =
+            [
+                Result("Q777", "Pilot"),
+                Result("Q900", "The Wire", EditorWikidataRelations.Parent, canApply: false, reason: EditorWikidataMessageCodes.ParentNotAllowed),
+            ],
+        };
+        var cut = RenderWikidataSide();
+        cut.Find("input[aria-label='Search Wikidata']").Change("Wire");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=wikidata-result]").Count));
+        Assert.False(cut.Find("[data-testid=wikidata-apply]").HasAttribute("disabled"));
+
+        cut.FindAll("[data-testid=wikidata-result]")[1].Click();
+
+        Assert.True(cut.Find("[data-testid=wikidata-apply]").HasAttribute("disabled"));
+        Assert.Contains("cannot be its Wikidata link", cut.Find("[data-testid=wikidata-reason]").TextContent, StringComparison.Ordinal);
+        cut.Find("[data-testid=wikidata-apply]").Click();
+        Assert.Empty(_session.Pending.Changes);
+
+        cut.FindAll("[data-testid=wikidata-result]")[0].Click();
+        cut.Find("[data-testid=wikidata-apply]").Click();
+
+        Assert.Equal("Q777", Assert.Single(_session.Pending.Changes).TargetId);
+    }
+
+    [Fact]
+    public void Cancel_ClosesTheResults_AndStagesNothing()
+    {
+        _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q1", "Heat")] };
+        var cut = RenderWikidataSide();
+        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
+
+        cut.Find("[data-testid=wikidata-cancel]").Click();
+
+        Assert.Empty(cut.FindAll("[data-testid=wikidata-result]"));
+        Assert.Empty(_session.Pending.Changes);
+    }
+
+    [Fact]
+    public void ForAComic_TheParentIsTheSeries_AndTheItemIsAnIssue()
+    {
+        _kind = "comic";
+        _answer = new EditorWikidataSearchResultDto
+        {
+            EntityId = ItemId,
+            Results = [Result("Q900", "Saga", EditorWikidataRelations.Parent, canApply: false, reason: EditorWikidataMessageCodes.ParentNotAllowed)],
+        };
+        var cut = RenderWikidataSide();
+        cut.Find("input[aria-label='Search Wikidata']").Change("Saga");
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
+
+        Assert.Contains("Parent: the series, not this issue", cut.Find("[data-testid=wikidata-result]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

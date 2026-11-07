@@ -230,7 +230,7 @@
 
 [method] CompareEditorWikidataAsync
   input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input request | default=required | shape=fbd9777ff2ef8671dc8c6936785a65a52ee74730c31a5701e02a293a3d47286c
+  input request | default=required | shape=ef7a8a54c0cfe88a407e9ad10953952f3689b6df0346a97dba6fc370f38863d5
   response | shape=6b6db3bceace2565e5cd151f78e1c28b5844bd5cce028036f7fa8489e15fd62e
 
 [method] ComparePluginSourcesAsync
@@ -16442,6 +16442,16 @@ value=0 | json="Unstarted"
 value=1 | json="InProgress"
 value=2 | json="Completed"
 
+[shape] ef7a8a54c0cfe88a407e9ad10953952f3689b6df0346a97dba6fc370f38863d5
+direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=provider_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=provider_item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=provider_title | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=provider_year | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+sample={"qid":"sample","provider_id":"sample","provider_name":"sample","provider_item_id":"sample","provider_title":"sample","provider_year":"sample"}
+
 [shape] ef91f8772d67c88e225193884ac705aa8a81dc71e13fc75e0b8274a720c1acfe
 direction=read | kind=array | item=3bf13ee41107c6dfe0f9f02eece2a532bb4da7883794391762806e319ee70a94
 
@@ -17011,15 +17021,6 @@ property=choices | nullability=nullable | accessors=get,init | required=no | ord
 
 [shape] fbcedba1172bb55b0a8d9d4d40437913b04e8167cc5d8ac36162ff06ad41a613
 direction=read | kind=array | item=019de6ae3f4205e2c06dab21b5d16837b444a32e338f7c0a33ace2b654ec8523
-
-[shape] fbd9777ff2ef8671dc8c6936785a65a52ee74730c31a5701e02a293a3d47286c
-direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=provider_item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=provider_title | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=provider_year | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-sample={"qid":"sample","provider_name":"sample","provider_item_id":"sample","provider_title":"sample","provider_year":"sample"}
 
 [shape] fbee303adec6e641b9f060ac3b7539262f51a2ed09e2e22955cabeccb2dcc491
 direction=read | kind=array | item=10159f700eacc7f2e57e7a0be16280cb0ed16c4e6a786e3c17d2851240bf972b

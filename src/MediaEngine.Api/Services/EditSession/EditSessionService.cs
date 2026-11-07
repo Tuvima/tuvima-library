@@ -140,10 +140,12 @@ public sealed class EditSessionService(
             .Where(change => EditSessionChangeKinds.IsDataChange(change.Kind))
             .OrderBy(change => change.Kind switch
             {
-                EditSessionChangeKinds.ChildRematch => 5,
-                EditSessionChangeKinds.SiblingMatch => 4,
-                EditSessionChangeKinds.Identity or EditSessionChangeKinds.MatchRemoval or EditSessionChangeKinds.ExtraMove
-                    or EditSessionChangeKinds.WikidataLink or EditSessionChangeKinds.WikidataRemoval => 3,
+                EditSessionChangeKinds.ChildRematch => 6,
+                EditSessionChangeKinds.SiblingMatch => 5,
+                EditSessionChangeKinds.Identity or EditSessionChangeKinds.MatchRemoval or EditSessionChangeKinds.ExtraMove => 4,
+                // The Wikidata link goes before any provider match change, whatever order they were staged in, so a provider match saved
+                // after it finds the person's link already in place and leaves it alone.
+                EditSessionChangeKinds.WikidataLink or EditSessionChangeKinds.WikidataRemoval => 3,
                 // Supporting files can move files on disk (put back if a later change fails), so they go after the plain data changes.
                 EditSessionChangeKinds.SupportingFiles => 2,
                 // A video joins its series before the series is put in order, so the order can name the newcomer.

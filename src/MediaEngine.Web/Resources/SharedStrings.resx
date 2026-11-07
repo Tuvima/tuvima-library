@@ -12038,9 +12038,6 @@
   <data name="EditorWikidata_StagedRemoval" xml:space="preserve">
     <value>Wikidata link removal staged. Save changes writes it.</value>
   </data>
-  <data name="EditorWikidata_Apply" xml:space="preserve">
-    <value>Apply</value>
-  </data>
   <data name="EditorWikidata_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
@@ -12049,9 +12046,6 @@
   </data>
   <data name="EditorWikidata_SearchHint" xml:space="preserve">
     <value>Search Wikidata or paste a link above to choose another item.</value>
-  </data>
-  <data name="EditorWikidata_NotChecked" xml:space="preserve">
-    <value>not checked</value>
   </data>
   <data name="EditorWikidata_FactIdentifier" xml:space="preserve">
     <value>Identifier</value>
@@ -12078,7 +12072,7 @@
     <value>That is not a Wikidata link or QID.</value>
   </data>
   <data name="EditorWikidata_ItemNotFound" xml:space="preserve">
-    <value>That item is not on Wikidata.</value>
+    <value>That item wasn't found.</value>
   </data>
   <data name="EditorWikidata_ProviderSilent" xml:space="preserve">
     <value>Wikidata did not answer. Try again in a moment.</value>
@@ -12090,13 +12084,13 @@
     <value>That item could not be read.</value>
   </data>
   <data name="EditorWikidata_ConflictYear" xml:space="preserve">
-    <value>The Wikidata link ({0}, {1}) and the provider match ({2}, {3}) disagree on the year. Neither was changed.</value>
+    <value>Your Wikidata item is a {0}; the {1} match is from {2}. Check which is right.</value>
   </data>
   <data name="EditorWikidata_ConflictIdentifier" xml:space="preserve">
-    <value>The Wikidata item points to a different {0} record than the one matched. Neither was changed.</value>
+    <value>Your Wikidata item is a {0} that points to a different {1} record than the one matched. Check which is right.</value>
   </data>
   <data name="EditorWikidata_ConflictTitle" xml:space="preserve">
-    <value>The Wikidata item ({0}) and the provider match ({1}) share no words in their titles. Neither was changed.</value>
+    <value>Your Wikidata item is called {0}; the {1} match is called {2}. Check which is right.</value>
   </data>
   <data name="EditorWikidata_ItemEpisode" xml:space="preserve">
     <value>episode</value>
@@ -12130,5 +12124,38 @@
   </data>
   <data name="EditorWikidata_ParentGeneric" xml:space="preserve">
     <value>the parent</value>
+  </data>
+  <data name="EditorWikidata_ApplyIdentity" xml:space="preserve">
+    <value>Apply identity</value>
+  </data>
+  <data name="EditorWikidata_ColumnLabel" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="EditorWikidata_ColumnDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="EditorWikidata_ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="EditorWikidata_ColumnQid" xml:space="preserve">
+    <value>QID</value>
+  </data>
+  <data name="EditorWikidata_AlignmentEvidence" xml:space="preserve">
+    <value>Alignment evidence</value>
+  </data>
+  <data name="EditorWikidata_YourItem" xml:space="preserve">
+    <value>Your item</value>
+  </data>
+  <data name="EditorWikidata_NotCheckedNote" xml:space="preserve">
+    <value>{0} was not checked.</value>
+  </data>
+  <data name="EditorWikidata_ItemIssue" xml:space="preserve">
+    <value>issue</value>
+  </data>
+  <data name="EditorWikidata_Independent" xml:space="preserve">
+    <value>The {0} match is kept separately. Linking here never changes it.</value>
+  </data>
+  <data name="EditorWikidata_IndependentNoProvider" xml:space="preserve">
+    <value>The provider match is kept separately. Linking here never changes it.</value>
   </data>
 </root>

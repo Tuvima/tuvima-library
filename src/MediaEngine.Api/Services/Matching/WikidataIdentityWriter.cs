@@ -2,7 +2,10 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Matching;
 
@@ -26,7 +29,10 @@ public interface IWikidataIdentityWriter
 /// alignment that follows a retail match leaves it alone (see <c>WikidataBridgeWorker</c> and the retail-match write).
 /// <para>
 /// Claims are only appended to: removing a link retires the claims that carried it (kept as history, left out of scoring), never deletes them.
-/// Nothing is sent to Wikidata and no enrichment job is queued; the link is stored and the next refresh reads from it.
+/// Setting a link also queues one refresh (an identity job that starts from the linked item) so the record's unlocked fields take the linked
+/// item's values; fields the person set or locked stay theirs. The refresh is queued only where the pipeline stores the Wikidata item on the
+/// item's own Work (a film, a book, a show, an album): an episode's or a song's job is parent-scoped and would send the QID to the show or the
+/// album, so for those the link is stored and nothing is queued. Removing a link queues nothing.
 /// </para>
 /// </summary>
 public sealed class WikidataIdentityWriter(
@@ -37,7 +43,9 @@ public sealed class WikidataIdentityWriter(
     IWorkRepository works,
     ICollectionRepository collections,
     IItemCanonicalRepository itemCanonicalData,
-    ISystemActivityRepository activity) : IWikidataIdentityWriter
+    ISystemActivityRepository activity,
+    IHydrationPipelineService pipeline,
+    ILogger<WikidataIdentityWriter> logger) : IWikidataIdentityWriter
 {
     public async Task<string?> ReadAsync(Guid entityId, CancellationToken ct)
     {
@@ -101,6 +109,40 @@ public sealed class WikidataIdentityWriter(
             EntityType = "Work",
             Detail = was is null ? $"Wikidata link set to {qid}." : $"Wikidata link changed from {was} to {qid}.",
         }, ct).ConfigureAwait(false);
+
+        await QueueRefreshAsync(launch, qid, ct).ConfigureAwait(false);
+    }
+
+    // The link is saved by now; a refresh that cannot be queued is logged and the next scheduled refresh reads from the stored link.
+    private async Task QueueRefreshAsync(MetadataEditorLaunchContext launch, string qid, CancellationToken ct)
+    {
+        var mediaType = MediaTypeParser.Parse(launch.MediaType);
+        var storedOnOwnWork = !ClaimScopeCatalog.IsParentScoped(BridgeIdKeys.WikidataQid, mediaType) || launch.WorkId == launch.RootWorkId;
+        if (!storedOnOwnWork || launch.RepresentativeAssetId is not { } asset)
+        {
+            return;
+        }
+
+        try
+        {
+            var hints = (await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false))
+                .GroupBy(value => value.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.OrderByDescending(value => value.LastScoredAt).First().Value, StringComparer.OrdinalIgnoreCase);
+            await pipeline.EnqueueAsync(new HarvestRequest
+            {
+                EntityId = asset,
+                EntityType = EntityType.MediaAsset,
+                MediaType = mediaType,
+                Hints = hints,
+                PreResolvedQid = qid,
+                SuppressReviewCreation = true,
+                IsUserResolution = true,
+            }, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "The Wikidata link {Qid} was saved for Work {Work}, but its refresh could not be queued.", qid, launch.WorkId);
+        }
     }
 
     public async Task RemoveAsync(Guid entityId, CancellationToken ct)
@@ -111,14 +153,9 @@ public sealed class WikidataIdentityWriter(
         var was = await ReadOwnAsync(work, ct).ConfigureAwait(false);
         string[] keys = [BridgeIdKeys.WikidataQid];
 
-        // Retire, never delete: every provider's current claim for the key stays as history and drops out of scoring.
-        foreach (var provider in (await claims.GetByEntityAsync(work, ct).ConfigureAwait(false))
-                     .Where(claim => string.Equals(claim.ClaimKey, BridgeIdKeys.WikidataQid, StringComparison.OrdinalIgnoreCase))
-                     .Select(claim => claim.ProviderId)
-                     .Distinct())
-        {
-            await claims.ReplaceCurrentProviderClaimsAsync(work, provider, keys, [], ct).ConfigureAwait(false);
-        }
+        // Retire, never delete: every current claim for the key, the person's locked link included, stays as history and drops out of scoring,
+        // so no later scoring brings the removed item back.
+        await claims.RetireCurrentClaimsAsync(work, keys, ct).ConfigureAwait(false);
 
         await canonicals.DeleteByKeyAsync(work, BridgeIdKeys.WikidataQid, ct).ConfigureAwait(false);
         await bridges.DeleteByTypesAsync(work, keys, ct).ConfigureAwait(false);

@@ -4828,11 +4828,12 @@
 [contracts] MediaEngine.Contracts.Editing.EditorWikidataConflictRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Qid: System.String | json=qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderId: System.String | json=provider_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProviderItemId: System.String | json=provider_item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProviderTitle: System.String | json=provider_title | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProviderYear: System.String | json=provider_year | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"qid":"sample","provider_name":"sample","provider_item_id":"sample","provider_title":"sample","provider_year":"sample"}
+  sample={"qid":"sample","provider_id":"sample","provider_name":"sample","provider_item_id":"sample","provider_title":"sample","provider_year":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -217,7 +217,11 @@ public sealed class EditorWikidataConflictRequestDto
     [JsonPropertyName("qid")]
     public string? Qid { get; set; }
 
-    /// <summary>The provider's name in the Engine ("tmdb", "tvdb", "musicbrainz").</summary>
+    /// <summary>The provider's key in the Engine ("tmdb", "tvdb", "musicbrainz"); the identifier check compares by it, never by the display name.</summary>
+    [JsonPropertyName("provider_id")]
+    public string? ProviderId { get; set; }
+
+    /// <summary>The provider as shown to the person ("TMDB", "TheTVDB"); used for wording only.</summary>
     [JsonPropertyName("provider_name")]
     public string? ProviderName { get; set; }
 

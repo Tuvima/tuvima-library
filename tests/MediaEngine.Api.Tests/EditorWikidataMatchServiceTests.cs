@@ -135,6 +135,97 @@ public sealed class EditorWikidataMatchServiceTests
         Assert.Empty(http.Requests);
     }
 
+    // ----- a library that never looks anything up never asks Wikidata ------------------------------------------------------------
+
+    [Fact]
+    public async Task InALibraryThatNeverLooksAnythingUp_TheCurrentLinkIsShownFromTheStoredQidAlone()
+    {
+        using var http = new FakeWikidata();
+        var service = Service(http, "tv_episode", blocked: true, storedQid: EpisodeQid);
+
+        var identity = await service.ReadIdentityAsync(ItemId);
+
+        Assert.Equal(EpisodeQid, identity!.Qid);
+        Assert.True(identity.Offline);
+        Assert.Contains(EpisodeQid, identity.Url, StringComparison.Ordinal);
+        Assert.Empty(http.Requests);
+    }
+
+    [Fact]
+    public async Task InALibraryThatNeverLooksAnythingUp_TheComparisonAndTheSearchAskNothingOfWikidata()
+    {
+        using var http = new FakeWikidata();
+        var service = Service(http, "tv_episode", blocked: true, storedQid: EpisodeQid);
+
+        var compared = await service.CompareAsync(ItemId, new EditorWikidataConflictRequestDto { Qid = EpisodeQid, ProviderId = "tmdb", ProviderItemId = "1" });
+        var searched = await service.SearchAsync(ItemId, new EditorWikidataSearchRequestDto { Paste = EpisodeQid });
+        var typed = await service.SearchAsync(ItemId, new EditorWikidataSearchRequestDto { Query = "Pilot" });
+
+        Assert.False(compared!.Conflict);
+        Assert.Equal(EditorWikidataMessageCodes.LookupsOff, searched!.MessageCode);
+        Assert.Equal(EditorWikidataMessageCodes.LookupsOff, typed!.MessageCode);
+        Assert.Empty(http.Requests);
+    }
+
+    [Fact]
+    public async Task InALibraryThatNeverLooksAnythingUp_SavingALinkIsRefused_ButRemovingOneIsNot()
+    {
+        using var http = new FakeWikidata();
+        var writer = new WriterSpy { Stored = EpisodeQid };
+        var scopes = Scopes(http, "tv_episode", writer, blocked: true);
+
+        Assert.Equal(EditSessionReasons.WikidataLookupsOff, await new WikidataLinkEditSessionChangeHandler(scopes).CheckAsync(Link(EpisodeQid)));
+        Assert.Null(await new WikidataRemovalEditSessionChangeHandler(scopes).CheckAsync(
+            new EditSessionChange { Id = "c1", Kind = EditSessionChangeKinds.WikidataRemoval, EntityId = ItemId }));
+        Assert.Empty(http.Requests);
+    }
+
+    // ----- the provider match and the Wikidata item: compared by the provider's key --------------------------------------------
+
+    [Fact]
+    public async Task TheIdentifierCheck_ComparesByTheProvidersKey_AndAgreesWhenWikidataNamesTheSameRecord()
+    {
+        using var http = new FakeWikidata();
+        var service = Service(http, "tv_episode");
+
+        var same = await service.CompareAsync(ItemId, new EditorWikidataConflictRequestDto
+        {
+            Qid = EpisodeQid,
+            ProviderId = "tmdb",
+            ProviderName = "TMDB",
+            ProviderItemId = "949",
+            ProviderYear = "1999",
+        });
+        var other = await service.CompareAsync(ItemId, new EditorWikidataConflictRequestDto
+        {
+            Qid = EpisodeQid,
+            ProviderId = "tmdb",
+            ProviderName = "TMDB",
+            ProviderItemId = "1",
+        });
+
+        Assert.False(same!.Conflict);
+        Assert.True(other!.Conflict);
+        Assert.Equal(EditorWikidataConflictReasons.Identifier, other.Reason);
+        Assert.Equal("TMDB", other.ProviderName);
+    }
+
+    [Fact]
+    public async Task TheDisplayName_IsOnlyForWording_SoANameWithoutAKeyNeverRaisesAnIdentifierConflict()
+    {
+        using var http = new FakeWikidata();
+        var service = Service(http, "tv_episode");
+
+        var compared = await service.CompareAsync(ItemId, new EditorWikidataConflictRequestDto
+        {
+            Qid = EpisodeQid,
+            ProviderName = "tmdb",
+            ProviderItemId = "1",
+        });
+
+        Assert.NotEqual(EditorWikidataConflictReasons.Identifier, compared!.Reason);
+    }
+
     // ----- saving the link: the Engine refuses a parent too -------------------------------------------------------------------
 
     [Fact]
@@ -204,32 +295,43 @@ public sealed class EditorWikidataMatchServiceTests
 
     private static EditSessionChange Link(string qid) => new() { Id = "c1", Kind = EditSessionChangeKinds.WikidataLink, EntityId = ItemId, TargetId = qid };
 
-    private static WikidataLinkEditSessionChangeHandler Handler(FakeWikidata http, string kind, WriterSpy writer) =>
-        new(Scopes(http, kind, writer));
+    private static WikidataLinkEditSessionChangeHandler Handler(FakeWikidata http, string kind, WriterSpy writer, bool blocked = false) =>
+        new(Scopes(http, kind, writer, blocked));
 
-    private static IServiceScopeFactory Scopes(FakeWikidata http, string kind, WriterSpy writer)
+    private static IServiceScopeFactory Scopes(FakeWikidata http, string kind, WriterSpy writer, bool blocked = false)
     {
         var services = new ServiceCollection();
-        services.AddSingleton(Service(http, kind));
+        services.AddSingleton(Service(http, kind, blocked));
         services.AddSingleton<IWikidataIdentityWriter>(writer);
-        services.AddSingleton(Proxy<IExternalLookupGuard>((method, _) => method.Name == nameof(IExternalLookupGuard.BlocksEntityAsync) ? Task.FromResult(false) : null));
+        services.AddSingleton(Proxy<IExternalLookupGuard>((method, _) => method.Name == nameof(IExternalLookupGuard.BlocksEntityAsync) ? Task.FromResult(blocked) : null));
         services.AddLogging();
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
-    private static EditorWikidataMatchService Service(FakeWikidata http, string kind)
+    private static EditorWikidataMatchService Service(FakeWikidata http, string kind, bool blocked = false, string? storedQid = null)
     {
         var reconciler = new WikidataReconciler(new HttpClient(http, disposeHandler: false), new WikidataReconcilerOptions { UserAgent = "Tuvima-Tests/1.0", MaxLag = 0 });
         var launches = Proxy<IMetadataEditorRepository>((method, _) => method.Name == nameof(IMetadataEditorRepository.ResolveEditorLaunchAsync)
             ? Task.FromResult<MetadataEditorLaunchContext?>(new MetadataEditorLaunchContext(ItemId, "work", WorkId, null, WorkId, "TV", "episode", null, null, null))
             : null);
         var canonicals = Proxy<ICanonicalValueRepository>((method, _) => method.Name == nameof(ICanonicalValueRepository.GetByEntityAsync)
-            ? Task.FromResult<IReadOnlyList<CanonicalValue>>([new CanonicalValue { EntityId = WorkId, Key = MetadataFieldConstants.Title, Value = "Pilot", LastScoredAt = DateTimeOffset.UtcNow }])
+            ? Task.FromResult<IReadOnlyList<CanonicalValue>>(StoredValues(storedQid))
             : null);
-        var guard = Proxy<IExternalLookupGuard>((method, _) => method.Name == nameof(IExternalLookupGuard.BlocksEntityAsync) ? Task.FromResult(false) : null);
+        var guard = Proxy<IExternalLookupGuard>((method, _) => method.Name == nameof(IExternalLookupGuard.BlocksEntityAsync) ? Task.FromResult(blocked) : null);
         return new EditorWikidataMatchService(
             reconciler.Reconcile, reconciler.Entities, new FixedKind(kind), launches, canonicals, guard,
             new WikidataMatchConfigurationProvider(() => null), NullLogger<EditorWikidataMatchService>.Instance);
+    }
+
+    private static List<CanonicalValue> StoredValues(string? storedQid)
+    {
+        var values = new List<CanonicalValue> { new() { EntityId = WorkId, Key = MetadataFieldConstants.Title, Value = "Pilot", LastScoredAt = DateTimeOffset.UtcNow } };
+        if (storedQid is not null)
+        {
+            values.Add(new CanonicalValue { EntityId = WorkId, Key = BridgeIdKeys.WikidataQid, Value = storedQid, LastScoredAt = DateTimeOffset.UtcNow });
+        }
+
+        return values;
     }
 
     private sealed class FixedKind(string kind) : IEditorMatchKindResolver
@@ -314,6 +416,19 @@ public sealed class EditorWikidataMatchServiceTests
                 _ => null,
             };
             var claims = new Dictionary<string, object>();
+            if (id == EpisodeQid)
+            {
+                claims["P4947"] = new object[]
+                {
+                    new
+                    {
+                        mainsnak = new { snaktype = "value", property = "P4947", datatype = "external-id", datavalue = new { value = "949", type = "string" } },
+                        type = "statement",
+                        rank = "normal",
+                    },
+                };
+            }
+
             if (instanceOf is not null)
             {
                 claims["P31"] = new object[]

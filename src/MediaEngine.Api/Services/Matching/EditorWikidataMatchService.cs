@@ -120,6 +120,12 @@ public sealed partial class EditorWikidataMatchService(
             return new EditorWikidataIdentityDto { EntityId = entityId };
         }
 
+        // A library that never looks anything up never asks Wikidata, not even to describe a link it already has: only the stored QID is shown.
+        if (await lookupGuard.BlocksEntityAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return new EditorWikidataIdentityDto { EntityId = entityId, Qid = facts.Qid, Url = OutsideLinks.Wikidata(facts.Qid), Offline = true };
+        }
+
         try
         {
             var described = await DescribeAsync(facts, [facts.Qid], configuration.Current, ct).ConfigureAwait(false);
@@ -158,7 +164,7 @@ public sealed partial class EditorWikidataMatchService(
         }
 
         var qid = ParseQid(request.Qid);
-        if (qid is null)
+        if (qid is null || await lookupGuard.BlocksEntityAsync(entityId, ct).ConfigureAwait(false))
         {
             return new EditorWikidataConflictDto();
         }
@@ -180,6 +186,7 @@ public sealed partial class EditorWikidataMatchService(
             return new EditorWikidataConflictDto();
         }
 
+        var providerKey = request.ProviderId?.Trim();
         var providerName = request.ProviderName?.Trim();
         var providerId = request.ProviderItemId?.Trim();
         var providerYear = YearOnly(request.ProviderYear);
@@ -197,10 +204,10 @@ public sealed partial class EditorWikidataMatchService(
         };
 
         // 1. Identifiers: when Wikidata names the provider's record, they agree whatever else differs; when it names another record, they do not.
-        if (!string.IsNullOrWhiteSpace(providerName) && !string.IsNullOrWhiteSpace(providerId))
+        if (!string.IsNullOrWhiteSpace(providerKey) && !string.IsNullOrWhiteSpace(providerId))
         {
             var known = false;
-            foreach (var rule in rules.Identifiers.Where(rule => string.Equals(rule.Provider, providerName, StringComparison.OrdinalIgnoreCase)))
+            foreach (var rule in rules.Identifiers.Where(rule => string.Equals(rule.Provider, providerKey, StringComparison.OrdinalIgnoreCase)))
             {
                 var values = ValuesOf(one.Entity, rule.Properties);
                 if (values.Count == 0)

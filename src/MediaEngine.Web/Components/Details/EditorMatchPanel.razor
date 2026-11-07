@@ -31,7 +31,7 @@
         else if (_wikidata && !_loading)
         {
             <EditorWikidataMatch Subject="Subject" Kind="@_kind" Session="Session" CanEdit="CanEdit" SearchStart="@Subject.Title"
-                                 ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year"
+                                 ProviderKey="@ProviderSide?.Key" ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year"
                                  RowEnd="SwitchPart()">
                 @UniverseSection()
             </EditorWikidataMatch>
@@ -101,12 +101,12 @@
     private ProviderMatchSide? _stagedSide;
 
     // The provider match as the Wikidata side compares it: what the person has staged, else what the item is matched to. Only read; the two sides never change each other.
-    private sealed record ProviderMatchSide(string Name, string Id, string? Title, string? Year);
+    private sealed record ProviderMatchSide(string Key, string Name, string Id, string? Title, string? Year);
 
     private ProviderMatchSide? ProviderSide => RemovalStaged
         ? null
         : _stagedSide ?? (_current is { State: EditorCurrentMatchStates.Matched, Record: { } record } && !string.IsNullOrWhiteSpace(record.ProviderItemId)
-            ? new ProviderMatchSide(record.ProviderName, record.ProviderItemId, record.Title, record.Year)
+            ? new ProviderMatchSide(record.ProviderId, record.ProviderName, record.ProviderItemId, record.Title, record.Year)
             : null);
 
     /// <summary>The item being matched; null until the editor's fields have loaded.</summary>
@@ -425,7 +425,7 @@
             _staging = false;
         }
 
-        _stagedSide = new ProviderMatchSide(candidate.ProviderName, candidate.ProviderItemId ?? string.Empty, facts.Title, facts.Year);
+        _stagedSide = new ProviderMatchSide(candidate.ProviderId, candidate.ProviderName, candidate.ProviderItemId ?? string.Empty, facts.Title, facts.Year);
         _staged = $"{facts.Title} ({facts.Provider})";
         _changing = false;
         _found = null;
@@ -618,36 +618,25 @@
     {
         var checkedRows = current.Why.Where(row => row.State != EditorMatchEvidenceStates.NotChecked).ToList();
         var notChecked = current.Why.Where(row => row.State == EditorMatchEvidenceStates.NotChecked).ToList();
-        <section class="tl-matchcard tl-matchcard--why" aria-label="@L["EditorMatchPanel_WhyThisMatch"].Value" data-testid="match-why">
-            <div class="tl-match__title">
-                <h3 class="tl-match__section-heading">@L["EditorMatchPanel_WhyThisMatch"]</h3>
+        var rows = checkedRows.Select(row => new EditorEvidenceCard.Row(
+            WhyFieldLabel(row.Field), WhyValue(row, row.YourFile, true), WhyValue(row, row.MatchedRecord, false), row.State,
+            row.Verdict is null ? null : EditorMatchResults.VerdictText(row.Verdict))).ToList();
+        <EditorEvidenceCard Title="@L["EditorMatchPanel_WhyThisMatch"].Value" YourLabel="@L["EditorMatchPanel_YourFile"].Value" OtherLabel="@L["EditorMatchPanel_MatchedRecord"].Value"
+                            Rows="rows" data-testid="match-why">
+            <Header>
                 @if (current.Verdict is { } verdict)
                 {
                     <AppChip Text="@L["EditorMatchPanel_MatchVerdict", EditorMatchResults.VerdictText(verdict)].Value" Tone="@EditorMatchResults.VerdictTone(verdict)" />
                 }
-            </div>
-            <table class="tl-matchwhy">
-                <thead>
-                    <tr><th scope="col">@L["EditorMatchPanel_Field"]</th><th scope="col">@L["EditorMatchPanel_YourFile"]</th><th scope="col">@L["EditorMatchPanel_MatchedRecord"]</th><th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in checkedRows)
-                    {
-                        <tr data-state="@row.State">
-                            <th scope="row">@WhyFieldLabel(row.Field)</th>
-                            <td>@WhyValue(row, row.YourFile, true)</td>
-                            <td>@WhyValue(row, row.MatchedRecord, false)</td>
-                            <td>@WhyMark(row)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            @foreach (var row in notChecked)
-            {
-                <p class="tl-match__meta tl-matchwhy__footnote" data-testid="match-why-footnote">@L["EditorMatchPanel_NotCheckedNote", WhyFieldLabel(row.Field)]</p>
-            }
-            <p class="tl-match__meta">@L["EditorMatchPanel_ChangingKeepsLocked"]</p>
-        </section>
+            </Header>
+            <Footer>
+                @foreach (var row in notChecked)
+                {
+                    <p class="tl-match__meta tl-matchwhy__footnote" data-testid="match-why-footnote">@L["EditorMatchPanel_NotCheckedNote", WhyFieldLabel(row.Field)]</p>
+                }
+                <p class="tl-match__meta">@L["EditorMatchPanel_ChangingKeepsLocked"]</p>
+            </Footer>
+        </EditorEvidenceCard>
     };
 
     // The measured length and the provider's rounded one say so inside their cells.
@@ -660,11 +649,6 @@
 
         return row.Field != "runtime" ? value : yours ? L["EditorMatchPanel_Measured", value].Value : L["EditorMatchPanel_Rounded", value].Value;
     }
-
-    private RenderFragment WhyMark(EditorMatchEvidenceRowDto row) => __builder =>
-    {
-        <span class="tl-matchwhy__mark" data-state="@row.State">@(row.State == EditorMatchEvidenceStates.Agrees ? "✓" : "✕") @(row.Verdict is null ? null : EditorMatchResults.VerdictText(row.Verdict))</span>
-    };
 
     private string WhyFieldLabel(string field) => field switch
     {

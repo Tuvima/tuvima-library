@@ -4073,6 +4073,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConfli
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictRequestDto
   Qid: System.String | nullability=nullable | accessors=get,set
+  ProviderId: System.String | nullability=nullable | accessors=get,set
   ProviderName: System.String | nullability=nullable | accessors=get,set
   ProviderItemId: System.String | nullability=nullable | accessors=get,set
   ProviderTitle: System.String | nullability=nullable | accessors=get,set

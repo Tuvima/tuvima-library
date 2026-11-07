@@ -53,6 +53,7 @@
     private bool _loading;
     private bool _searching;
     private bool _changing;
+    private string? _selectedQid;
     private string _query = string.Empty;
     private string _paste = string.Empty;
     private EditorWikidataIdentityDto? _identity;
@@ -76,6 +77,8 @@
     [Parameter] public string? SearchStart { get; set; }
 
     /// <summary>The provider's name for the item's current (or staged) match, so the two sides can be compared; empty when it has none.</summary>
+    [Parameter] public string? ProviderKey { get; set; }
+
     [Parameter] public string? ProviderName { get; set; }
 
     [Parameter] public string? ProviderItemId { get; set; }
@@ -194,7 +197,7 @@
             return;
         }
 
-        var key = string.Join('|', qid, ProviderName, ProviderItemId, ProviderTitle, ProviderYear);
+        var key = string.Join('|', qid, ProviderKey, ProviderName, ProviderItemId, ProviderTitle, ProviderYear);
         if (key == _conflictKey)
         {
             return;
@@ -205,6 +208,7 @@
         var compared = await Api.CompareEditorWikidataAsync(id, new EditorWikidataConflictRequestDto
         {
             Qid = qid,
+            ProviderId = ProviderKey,
             ProviderName = ProviderName,
             ProviderItemId = ProviderItemId,
             ProviderTitle = ProviderTitle,
@@ -249,6 +253,7 @@
         _searching = true;
         _problem = null;
         _found = null;
+        _selectedQid = null;
         _changing = true;
         StateHasChanged();
         try
@@ -266,6 +271,11 @@
             {
                 _problem = L["EditorMatchPanel_CouldNotReachEngine"].Value;
             }
+            else
+            {
+                // The best row the item can take is chosen for the person; a parent is only ever chosen when nothing else was found.
+                _selectedQid = (found.Results.FirstOrDefault(result => result.CanApply) ?? found.Results.FirstOrDefault())?.Qid;
+            }
         }
         finally
         {
@@ -276,10 +286,12 @@
         }
     }
 
+    private EditorWikidataResultDto? Selected => _found?.Results.FirstOrDefault(result => result.Qid == _selectedQid);
+
     // Stages the link: one change in the pending list. The provider match is not touched. Nothing is written until Save changes.
-    private void Apply(EditorWikidataResultDto result)
+    private void ApplySelected()
     {
-        if (!CanStage || Subject is null || !result.CanApply)
+        if (Selected is not { CanApply: true } result || !CanStage || Subject is null)
         {
             return;
         }
@@ -300,6 +312,7 @@
 
         _hadStaged = StagedLink is not null;
         _found = null;
+        _selectedQid = null;
         _changing = false;
         _query = string.Empty;
         _paste = string.Empty;
@@ -336,6 +349,7 @@
     {
         _changing = false;
         _found = null;
+        _selectedQid = null;
         _problem = null;
     }
 
@@ -347,7 +361,8 @@
         "tv_season" => L["EditorWikidata_ItemSeason"].Value,
         "song" => L["EditorWikidata_ItemSong"].Value,
         "album" => L["EditorWikidata_ItemAlbum"].Value,
-        "book" or "audiobook" or "comic" => L["EditorWikidata_ItemBook"].Value,
+        "book" or "audiobook" => L["EditorWikidata_ItemBook"].Value,
+        "comic" => L["EditorWikidata_ItemIssue"].Value,
         "movie" => L["EditorWikidata_ItemFilm"].Value,
         _ => L["EditorWikidata_ItemGeneric"].Value,
     };
@@ -390,10 +405,14 @@
 
     private string ConflictText(EditorWikidataConflictDto conflict) => conflict.Reason switch
     {
-        EditorWikidataConflictReasons.Identifier => L["EditorWikidata_ConflictIdentifier", conflict.ProviderName ?? string.Empty].Value,
-        EditorWikidataConflictReasons.Title => L["EditorWikidata_ConflictTitle", conflict.WikidataLabel ?? string.Empty, conflict.ProviderTitle ?? string.Empty].Value,
-        _ => L["EditorWikidata_ConflictYear", conflict.WikidataLabel ?? string.Empty, conflict.WikidataYear ?? "–", conflict.ProviderName ?? string.Empty, conflict.ProviderYear ?? "–"].Value,
+        EditorWikidataConflictReasons.Identifier => L["EditorWikidata_ConflictIdentifier", TypeWord(conflict), conflict.ProviderName ?? string.Empty].Value,
+        EditorWikidataConflictReasons.Title => L["EditorWikidata_ConflictTitle", conflict.WikidataLabel ?? string.Empty, conflict.ProviderName ?? string.Empty, conflict.ProviderTitle ?? string.Empty].Value,
+        _ => L["EditorWikidata_ConflictYear", string.Join(' ', new[] { conflict.WikidataYear, TypeWord(conflict) }.Where(part => !string.IsNullOrWhiteSpace(part))),
+            conflict.ProviderName ?? string.Empty, conflict.ProviderYear ?? "–"].Value,
     };
+
+    private string TypeWord(EditorWikidataConflictDto conflict) =>
+        string.IsNullOrWhiteSpace(conflict.WikidataType) ? L["EditorWikidata_ItemGeneric"].Value : conflict.WikidataType;
 
     private RenderFragment StagedNote() => __builder =>
     {
@@ -411,8 +430,7 @@
     {
         var qid = EffectiveQid;
         var staged = StagedLink is not null;
-        <section class="tl-wikidata__card" aria-label="@L["EditorWikidata_CurrentLink"].Value" data-testid="wikidata-current">
-            <h3 class="tl-match__section-heading">@L["EditorWikidata_CurrentLink"]</h3>
+        <AppCard Title="@L["EditorWikidata_CurrentLink"].Value" Density="AppSurfaceDensity.Compact" data-testid="wikidata-current">
             @if (string.IsNullOrWhiteSpace(qid))
             {
                 <div class="tl-match__title"><span>@L["EditorWikidata_NoLink"]</span> <NotMatchedTag /></div>
@@ -448,8 +466,14 @@
                                Disabled="@(!CanStage)" OnClick="StartChange" data-testid="wikidata-change" />
                 </div>
             }
-        </section>
+            <p class="tl-match__meta" data-testid="wikidata-independent">@IndependenceText</p>
+        </AppCard>
     };
+
+    // G5: the two sides are kept apart, and the card says so.
+    private string IndependenceText => string.IsNullOrWhiteSpace(ProviderName)
+        ? L["EditorWikidata_IndependentNoProvider"].Value
+        : L["EditorWikidata_Independent", ProviderName].Value;
 
     // The staged label is "Q… · Name"; the card shows the name.
     private string? StagedLabel(EditSessionChange change)
@@ -497,80 +521,104 @@
             return;
         }
 
-        <ul class="tl-wikidata__results" data-testid="wikidata-results">
-            @foreach (var result in _found.Results)
-            {
-                <li class="tl-wikidata__result" data-relation="@result.Relation" data-qid="@result.Qid" data-testid="wikidata-result">
-                    <div class="tl-wikidata__resulttext">
-                        <div class="tl-match__title">
-                            <span class="tl-wikidata__name">@result.Label</span>
-                            <AppChip Text="@result.Qid" Tone="AppUiTone.Neutral" />
+        var selected = Selected;
+        <AppTable Hover="true" Dense="true" data-testid="wikidata-results">
+            <thead>
+                <tr>
+                    <th scope="col">@L["EditorWikidata_ColumnLabel"]</th>
+                    <th scope="col">@L["EditorWikidata_ColumnDescription"]</th>
+                    <th scope="col">@L["EditorWikidata_ColumnType"]</th>
+                    <th scope="col">@L["EditorWikidata_ColumnQid"]</th>
+                    <th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var result in _found.Results)
+                {
+                    var isSelected = result.Qid == _selectedQid;
+                    var current = result;
+                    <tr class="tl-wikidata__row" tabindex="0" aria-selected="@(isSelected ? "true" : "false")" data-selected="@(isSelected ? "true" : "false")"
+                        data-relation="@result.Relation" data-qid="@result.Qid" data-testid="wikidata-result"
+                        @onclick="@(() => Select(current))" @onkeydown="@(args => OnRowKey(args, current))">
+                        <td>
+                            <b>@result.Label</b>
                             @if (result.Relation == EditorWikidataRelations.Parent)
                             {
                                 <AppChip Text="@L["EditorWikidata_ParentChip", ParentWord, ItemWord].Value" Tone="AppUiTone.Warning" />
                             }
-                        </div>
-                        @{
-                            var line = string.Join(" · ", new[] { result.Type, result.Fact }.Where(part => !string.IsNullOrWhiteSpace(part)));
-                        }
-                        @if (line.Length > 0)
-                        {
-                            <div class="tl-match__meta" data-testid="wikidata-result-line">@line</div>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(result.Description))
-                        {
-                            <div class="tl-match__meta">@result.Description</div>
-                        }
-                        @if (result.Evidence.Count > 0)
-                        {
-                            <ul class="tl-wikidata__evidence" data-testid="wikidata-evidence">
-                                @foreach (var row in result.Evidence)
-                                {
-                                    <li data-state="@row.State">@EvidenceMark(row) @EvidenceFact(row)@EvidenceValues(row)</li>
-                                }
-                            </ul>
-                        }
-                        @if (!result.CanApply)
-                        {
-                            <div class="tl-wikidata__reason" data-testid="wikidata-reason">@ReasonText(result)</div>
-                        }
-                    </div>
-                    <div class="tl-wikidata__resultactions">
-                        @if (!string.IsNullOrWhiteSpace(result.Url))
-                        {
-                            <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@result.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
-                        }
-                        <AppButton Label="@L["EditorWikidata_Apply"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                                   Disabled="@(!CanStage || !result.CanApply)" OnClick="@(() => Apply(result))" data-testid="wikidata-apply" />
-                    </div>
-                </li>
-            }
-        </ul>
-        if (_changing)
+                        </td>
+                        <td data-testid="wikidata-result-description">@result.Description</td>
+                        <td data-testid="wikidata-result-type">@result.Type</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(result.Url))
+                            {
+                                <a href="@result.Url" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">@result.Qid</a>
+                            }
+                            else
+                            {
+                                @result.Qid
+                            }
+                        </td>
+                        <td class="tl-wikidata__fit" data-state="@FitState(result)">@FitMark(result)</td>
+                    </tr>
+                }
+            </tbody>
+        </AppTable>
+        if (selected is not null)
         {
-            <div class="tl-wikidata__actions">
-                <AppButton Label="@L["EditorWikidata_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CancelChange" />
-            </div>
+            @EvidenceCard(selected)
         }
+
+        <div class="tl-wikidata__actions">
+            <AppButton Label="@L["EditorWikidata_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="CancelChange" data-testid="wikidata-cancel" />
+            <AppButton Label="@L["EditorWikidata_ApplyIdentity"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(!CanStage || selected is not { CanApply: true })" OnClick="ApplySelected" data-testid="wikidata-apply" />
+        </div>
     };
 
-    private string EvidenceMark(EditorWikidataEvidenceDto row) => row.State switch
+    // One card for the selected row, looking like the provider side's "Why this match".
+    private RenderFragment EvidenceCard(EditorWikidataResultDto result) => __builder =>
     {
-        EditorWikidataEvidenceStates.Agrees => "✓",
-        EditorWikidataEvidenceStates.Differs => "✕",
-        _ => "–",
+        var checkedRows = result.Evidence.Where(row => row.State != EditorWikidataEvidenceStates.NotChecked)
+            .Select(row => new EditorEvidenceCard.Row(EvidenceFact(row), row.Yours, row.Wikidata, row.State)).ToList();
+        var skipped = result.Evidence.Where(row => row.State == EditorWikidataEvidenceStates.NotChecked).ToList();
+        <EditorEvidenceCard Title="@L["EditorWikidata_AlignmentEvidence"].Value" YourLabel="@L["EditorWikidata_YourItem"].Value" OtherLabel="@L["EditorMatchPanel_Wikidata"].Value"
+                            Rows="checkedRows" data-testid="wikidata-evidence">
+            <Footer>
+                @foreach (var row in skipped)
+                {
+                    <p class="tl-wikidata__note" data-testid="wikidata-not-checked">@L["EditorWikidata_NotCheckedNote", EvidenceFact(row)]</p>
+                }
+                @if (!result.CanApply)
+                {
+                    <p class="tl-wikidata__reason" data-testid="wikidata-reason">@ReasonText(result)</p>
+                }
+            </Footer>
+        </EditorEvidenceCard>
     };
 
-    private RenderFragment EvidenceValues(EditorWikidataEvidenceDto row) => __builder =>
+    private void Select(EditorWikidataResultDto result) => _selectedQid = result.Qid;
+
+    private void OnRowKey(KeyboardEventArgs args, EditorWikidataResultDto result)
     {
-        if (row.State == EditorWikidataEvidenceStates.NotChecked)
+        if (args.Key is "Enter" or " ")
         {
-            <text> · @L["EditorWikidata_NotChecked"]</text>
+            Select(result);
         }
-        else if (row.State == EditorWikidataEvidenceStates.Differs)
-        {
-            <text> · @(row.Yours ?? "–") / @(row.Wikidata ?? "–")</text>
-        }
+    }
+
+    // A tick when the evidence agrees and nothing differs; a dash for a parent (shown for context only); nothing otherwise.
+    private static string FitState(EditorWikidataResultDto result) => result.Relation == EditorWikidataRelations.Parent
+        ? "parent"
+        : result.Evidence.Any(row => row.State == EditorWikidataEvidenceStates.Differs) ? "differs"
+        : result.Evidence.Any(row => row.State == EditorWikidataEvidenceStates.Agrees) ? "agrees" : "unknown";
+
+    private static string FitMark(EditorWikidataResultDto result) => FitState(result) switch
+    {
+        "agrees" => "✓",
+        "differs" => "✕",
+        "parent" => "–",
+        _ => string.Empty,
     };
 
     public void Dispose()

@@ -359,6 +359,51 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         });
     }
 
+    // A link a person removed is not brought back by the automatic alignment: a rescan looks nothing up for the item. A later provider
+    // rematch clears that state (the retail-match write) and may align again, but never to an item the person turned down.
+    [Fact]
+    public async Task Audiobook_WhoseWikidataLinkAPersonRemoved_IsNotAlignedAgainByARescan()
+    {
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert", queued: false);
+        await SetWorkWikidataStateAsync(audiobook.WorkId, qid: null, WorkWikidataStatus.UserRejected, WorkWikidataMatchSource.User, locked: false, rejectedJson: $"[\"{BookQid}\"]");
+        await _bridgeIds.UpsertBatchAsync(
+        [
+            new BridgeIdEntry { EntityId = audiobook.AssetId, IdType = BridgeIdKeys.Isbn13, IdValue = "9780441172719" },
+        ]);
+
+        await RunBridgeAsync();
+
+        Assert.Empty(_http.Urls);
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Null(job!.ResolvedQid);
+        Assert.Empty(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId));
+        Assert.DoesNotContain(await _claims.GetByEntityAsync(audiobook.AssetId), claim => claim.ClaimKey == BridgeIdKeys.WikidataQid);
+    }
+
+    [Fact]
+    public async Task Audiobook_NeverAlignsToAnItemThePersonTurnedDown_EvenWhenAnOwnedBookNamesIt()
+    {
+        await SeedBookAsync("Dune", "Frank Herbert", BookQid);
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+        await RunRetailAsync();
+        await SetWorkWikidataStateAsync(audiobook.WorkId, qid: null, WorkWikidataStatus.ProviderOnly, WorkWikidataMatchSource.Retail, locked: false, rejectedJson: $"[\"{BookQid}\"]");
+
+        await RunBridgeAsync();
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.NotEqual(nameof(IdentityJobState.QidResolved), job!.State);
+        Assert.DoesNotContain(await _claims.GetByEntityAsync(audiobook.AssetId), claim => claim.ClaimKey == BridgeIdKeys.WikidataQid && claim.ClaimValue == BookQid);
+        Assert.DoesNotContain(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId), candidate => candidate.Qid == BookQid);
+    }
+
+    private async Task SetWorkWikidataStateAsync(Guid workId, string? qid, string status, string source, bool locked, string? rejectedJson)
+    {
+        using var conn = _db.CreateConnection();
+        await conn.ExecuteAsync(
+            "UPDATE works SET wikidata_qid = @qid, wikidata_status = @status, wikidata_match_source = @source, wikidata_match_locked = @locked, wikidata_rejected_qids_json = @rejectedJson WHERE id = @workId",
+            new { qid, status, source, locked = locked ? 1 : 0, rejectedJson, workId });
+    }
+
     private async Task SeedIsbnAndRetailCandidateAsync(SeededAudiobook audiobook)
     {
         await _bridgeIds.UpsertBatchAsync(

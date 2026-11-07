@@ -40,10 +40,13 @@ public sealed partial class WikidataBridgeWorker
                 job.EntityId);
         }
 
-        if (ctx.ResolvedQid is null)
+        if (ctx.ResolvedQid is null && !ctx.LookupSkipped)
         {
             await TryResolveSiblingVariantQidAsync(ctx, lineage, ct).ConfigureAwait(false);
         }
+
+        // An item a person turned down is never used, whichever way it was found.
+        DropRejectedQid(ctx);
 
         if (ctx.ResolvedQid is not null && ctx.MediaType == MediaType.Music
             && !MusicAlbumIdentityEvidence.Corroborates(ctx.ArtistHint, ctx.BridgeDict,
