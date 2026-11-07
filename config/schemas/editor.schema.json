@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tuvima editor numbers and per-kind rules",
+  "description": "The universal editor's thresholds and what each kind of item shows: tabs, the header's facts line, Quick facts and the Match search fields (universal editor v5, D34 and section 3a). The Dashboard reads these from the Engine and holds no numbers of its own. A key a person's file leaves out takes the value of the file shipped with the Engine; the shipped file itself states every key.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+
+    "inline_supporting_files": {
+      "description": "Up to this many supporting files at a scope appear inline in the item dropdown; above it the dropdown offers \"All supporting files\" and the browser.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "cards_per_group": {
+      "description": "The most cards one group shows on a details page before \"See all\".",
+      "type": "integer",
+      "minimum": 1
+    },
+    "rows_per_page": {
+      "description": "Rows a page of the supporting-files browser holds.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "item_list_page_size": {
+      "description": "Rows the item dropdown reads at a time before it pages in more.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "folder_tree_page_size": {
+      "description": "Entries one page of a folder in the folder tree holds.",
+      "type": "integer",
+      "minimum": 1
+    },
+
+    "suggest_details": {
+      "description": "How much of a document \"Suggest details from the document\" reads. Local only: no provider, no AI.",
+      "type": "object",
+      "properties": {
+        "first_lines": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "description_max_characters": { "type": "integer", "minimum": 50 }
+      },
+      "additionalProperties": false
+    },
+
+    "kinds": {
+      "description": "The rules of each kind of item, keyed by kind id. The kind \"item\" is the generic fallback; a kind the file leaves out takes the shipped rules.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$" },
+      "additionalProperties": { "$ref": "#/$defs/kind" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$" },
+    "idList": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
+    "kind": {
+      "type": "object",
+      "required": ["tabs", "facts_line", "quick_facts", "match_fields"],
+      "properties": {
+        "tabs": {
+          "description": "The tabs the editor shows, in order. Every kind has details; there is never a Contents or a Files tab.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "details" },
+          "items": { "enum": ["details", "artwork", "match", "preview", "pictures", "history"] }
+        },
+        "facts_line": {
+          "description": "The facts on the header's one line under the title, in order.",
+          "$ref": "#/$defs/idList"
+        },
+        "quick_facts": {
+          "description": "The facts the Quick facts card shows, in order.",
+          "$ref": "#/$defs/idList"
+        },
+        "match_fields": {
+          "description": "The fields the Match tab's search offers for this kind, in order.",
+          "$ref": "#/$defs/idList"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

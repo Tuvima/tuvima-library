@@ -69,6 +69,34 @@ public interface IItemExtraRepository
     /// <summary>Removes the row at this file path. Returns true when a row was removed.</summary>
     Task<bool> RemoveByPathAsync(string filePath, CancellationToken ct = default);
 
+    /// <summary>
+    /// The supporting files whose title shown, description or file name contains every one of <paramref name="words"/> (ignoring case, for
+    /// every letter, not only A to Z), A to Z by title, <paramref name="limit"/> at a time after skipping <paramref name="offset"/>. The
+    /// caller applies the visibility of the title each file belongs to and asks for the next page when too few were visible.
+    /// </summary>
+    Task<IReadOnlyList<ItemExtra>> SearchAsync(IReadOnlyList<string> words, int limit, int offset = 0, CancellationToken ct = default);
+
+    /// <summary>Removes the rows with these ids (and their tag links), whatever decided them. Ids that are not there are skipped. Returns how many were removed.</summary>
+    Task<int> RemoveManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
+    /// <summary>
+    /// Points a row at the new place of its file after the file was moved (a Belongs to change in a Managed folder). Everything a person
+    /// set stays with the row. Returns false when there is no such row.
+    /// <para>
+    /// <paramref name="nowSitsIn"/> is the place the file now sits in on disk. When it is given the row becomes one a person decided
+    /// (<see cref="ItemExtraOrigins.UserExtra"/>), so a rescan keeps it and the ingestion pipeline keeps claiming the file at its new
+    /// place as an Extra even where the folder rules alone would not, and the place read from the folder is that place.
+    /// </para>
+    /// </summary>
+    Task<bool> RelocateFileAsync(Guid id, string newFilePath, ExtraScope? nowSitsIn = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Puts rows back exactly as the snapshots show: the file path, origin, everything a person set (title, description, role, place,
+    /// shown-alongside, group, tags) and the place read from the folder. Used to undo a staged save that failed after these rows changed.
+    /// Rows that no longer exist are skipped. Returns how many were restored.
+    /// </summary>
+    Task<int> RestoreAsync(IReadOnlyCollection<ItemExtra> snapshots, CancellationToken ct = default);
+
     /// <summary>Removes every row whose item folder is this folder or inside it. Returns how many.</summary>
     Task<int> RemoveUnderFolderAsync(string folder, CancellationToken ct = default);
 
