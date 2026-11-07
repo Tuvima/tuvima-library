@@ -44,6 +44,10 @@ public enum PlaybackControlKey
     Episodes,
     /// <summary>Unified player v2 D4: the icon-only Now playing tool of music and audiobooks.</summary>
     NowPlaying,
+    /// <summary>Unified player v2 D5: the Like button beside a song title.</summary>
+    Like,
+    /// <summary>Unified player v2 D5: the Dislike button beside a song title.</summary>
+    Dislike,
 }
 
 public enum PlaybackControlSurface

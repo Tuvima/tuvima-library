@@ -43,7 +43,11 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<AiUnavailableQuarantineRecoveryHostedService>();
         services.AddHostedService<ScheduledTaskRunRecoveryHostedService>();
 
-        services.AddHostedService<EncodeQueueService>();
+        services.AddSingleton<EncodeQueueService>();
+        services.AddHostedService(sp => sp.GetRequiredService<EncodeQueueService>());
+        // Scrub previews: the lowest-priority job, one file at a time, plus the gradual pass that queues them.
+        services.AddHostedService<ScrubPreviewOperationWorker>();
+        services.AddHostedService<ScrubPreviewBackfillService>();
         services.AddHostedService(provider => provider.GetRequiredService<AdaptiveHlsCleanupService>());
         services.AddHostedService<FolderHealthService>();
         services.AddHostedService(sp => sp.GetRequiredService<MetadataHarvestingService>());

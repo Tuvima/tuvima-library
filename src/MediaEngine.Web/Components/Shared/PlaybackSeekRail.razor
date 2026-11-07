@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Shared
 @using Microsoft.JSInterop
+@using MediaEngine.Contracts.Playback
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
-<div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson">
+<div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson" data-scrub-index-url="@(HasPreview ? PreviewIndexUrl : null)" data-scrub-index="@PreviewJson">
     <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
     <div class="playback-seek-rail__track">
         @if (!string.IsNullOrWhiteSpace(Notice)) { <output class="playback-seek-rail__notice" role="status">@Notice</output> }
@@ -11,6 +12,7 @@
                              ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
                              AriaLabel="@L["PlaybackSeekRail_PlaybackPosition"].Value" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
         <output class="playback-seek-rail__bubble" data-seek-time aria-hidden="true"></output>
+        @if (HasPreview) { <div class="playback-seek-rail__tile" data-scrub-tile aria-hidden="true"></div> }
         @if (Bookmarks is { Count: > 0 } && Duration > 0)
         {
             <div class="playback-seek-rail__bookmarks" data-playback-bookmark-ticks>
@@ -86,6 +88,25 @@
     private void CloseQuickLook() { _pinnedId = null; _quickLookId = null; _moreId = null; _deleteId = null; }
     private async Task JumpAsync(PlaybackRailBookmark bookmark) { CloseQuickLook(); await BookmarkJump.InvokeAsync(bookmark); }
     [Parameter] public string Surface { get; set; } = "video";
+    /// <summary>
+    /// Where the Dashboard serves the video's scrub-preview index (see <see cref="PreviewIndexAddress"/>), or null when it has none.
+    /// While scrubbing, the picture for the target time shows above the timestamp. Video only; audio never has one.
+    /// </summary>
+    [Parameter] public string? PreviewIndexUrl { get; set; }
+    /// <summary>The index already read, when the page has it. Otherwise the rail reads <see cref="PreviewIndexUrl"/> once, on the first scrub.</summary>
+    [Parameter] public ScrubPreviewIndexDto? Preview { get; set; }
+    private bool HasPreview => string.Equals(Surface, "video", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(PreviewIndexUrl);
+    private string? PreviewJson => HasPreview && Preview is not null ? System.Text.Json.JsonSerializer.Serialize(Preview, PreviewJsonOptions) : null;
+    private static readonly System.Text.Json.JsonSerializerOptions PreviewJsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web);
+    /// <summary>The Dashboard address of a playback item's preview index, from the Engine address the manifest carries; null when there is none.</summary>
+    public static string? PreviewIndexAddress(string? engineIndexUrl)
+    {
+        // "/stream/{asset}/scrub/index.json" on the Engine is "/engine-scrub/{asset}/index.json" on the Dashboard.
+        var parts = (engineIndexUrl ?? string.Empty).Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return parts is ["stream", var asset, "scrub", var file] && Guid.TryParse(asset, out var id) && file.EndsWith(".json", StringComparison.Ordinal)
+            ? $"/engine-scrub/{id:D}/{file}"
+            : null;
+    }
     [Parameter] public bool? ShowRemaining { get; set; }
     [Parameter] public EventCallback<bool> ShowRemainingChanged { get; set; }
     private bool _remaining;

@@ -22,6 +22,14 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AdaptiveHlsPackageRepository>();
         services.AddSingleton<PlaybackCapabilitiesService>();
         services.AddSingleton<AdaptiveHlsService>();
+        // Scrub previews (Unified player v2 D9a): frames made ahead of time, in the Library's own cache.
+        services.AddSingleton<MediaEngine.Processors.VideoFrameExtractor>();
+        services.AddSingleton<ScrubPreviewCache>();
+        services.AddSingleton<ScrubPreviewQueue>();
+        services.AddSingleton<ScrubPreviewGenerator>();
+        services.AddSingleton<ScrubPreviewSettingsService>();
+        services.AddSingleton<MediaEngine.Storage.ScrubPreviewCandidateRepository>();
+        services.AddSingleton<ITranscodeActivitySignal, TranscodeActivitySignal>();
         services.AddSingleton<HlsAccessGrantService>();
         // Casting: a separate grant kind (its own Data Protection purpose) so HLS and cast grants can never be swapped.
         services.AddSingleton<CastAccessGrantService>();
