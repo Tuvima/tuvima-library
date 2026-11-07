@@ -125,6 +125,80 @@ public sealed class EditorFolderTreeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AShortcutToAFolderOutsideTheTitle_IsNotFollowedOrListed()
+    {
+        var episode = SeedSeasonTwo();
+        _world.Write("Season 02/The Expanse - S02E01.mkv", "video");
+        var elsewhere = Path.Combine(_world.Library, "Another title");
+        Directory.CreateDirectory(elsewhere);
+        File.WriteAllText(Path.Combine(elsewhere, "secret.mkv"), "someone else's video");
+        if (!TryLinkDirectory(Path.Combine(_world.TitleFolder, "Shortcut"), elsewhere))
+        {
+            return;
+        }
+
+        var tree = await _world.FolderTree().ReadAsync(episode, null, 0);
+        var through = await _world.FolderTree().ReadAsync(episode, "Shortcut", 0);
+
+        Assert.DoesNotContain(tree!.Entries, entry => entry.Name == "Shortcut");
+        Assert.Null(through);
+    }
+
+    [Fact]
+    public async Task AShortcutToAFileOutsideTheTitle_AndABrokenShortcut_AreLeftOutWithoutAnError()
+    {
+        var episode = SeedSeasonTwo();
+        _world.Write("Season 02/The Expanse - S02E01.mkv", "video");
+        var outside = Path.Combine(_world.Library, "outside.mkv");
+        File.WriteAllText(outside, "x");
+        var linkedFile = Path.Combine(_world.TitleFolder, "Season 02", "outside-link.mkv");
+        var brokenLink = Path.Combine(_world.TitleFolder, "Season 02", "broken-link.mkv");
+        try
+        {
+            File.CreateSymbolicLink(linkedFile, outside);
+            File.CreateSymbolicLink(brokenLink, Path.Combine(_world.Library, "missing.mkv"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        var tree = await _world.FolderTree().ReadAsync(episode, "Season 02", 0);
+
+        Assert.Equal(["The Expanse - S02E01.mkv"], tree!.Entries.Select(entry => entry.Name));
+        Assert.Equal(1, tree.Total);
+    }
+
+    [Fact]
+    public async Task AShortcutToAFolderInsideTheTitle_IsStillListed()
+    {
+        var episode = SeedSeasonTwo();
+        _world.Write("Season 02/The Expanse - S02E01.mkv", "video");
+        if (!TryLinkDirectory(Path.Combine(_world.TitleFolder, "Season Two"), Path.Combine(_world.TitleFolder, "Season 02")))
+        {
+            return;
+        }
+
+        var tree = await _world.FolderTree().ReadAsync(episode, null, 0);
+
+        Assert.Contains(tree!.Entries, entry => entry.Name == "Season Two" && entry.IsFolder);
+    }
+
+    private static bool TryLinkDirectory(string link, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(link, target);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            // This machine does not allow shortcuts to be made (Windows without developer mode); there is nothing to prove here.
+            return false;
+        }
+    }
+
+    [Fact]
     public async Task AFolderThatDoesNotExist_IsNotFound()
     {
         var episode = SeedSeasonTwo();

@@ -315,6 +315,27 @@ public sealed class EditorHeaderSupportingFileDto
 
     [JsonPropertyName("is_missing")]
     public bool IsMissing { get; init; }
+
+    /// <summary>The episode or lesson the file is shown alongside ("with lesson 02" under the file's group); null when it is shown with none.</summary>
+    [JsonPropertyName("shown_alongside")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EditorHeaderAlongsideDto? ShownAlongside { get; init; }
+
+    /// <summary>True for the supporting file the editor is open on, so the dropdown draws its row highlighted.</summary>
+    [JsonPropertyName("is_current")]
+    public bool IsCurrent { get; init; }
+}
+
+/// <summary>Where a supporting file is shown alongside: the scope key and the plain words for the dropdown row.</summary>
+public sealed class EditorHeaderAlongsideDto
+{
+    /// <summary>The scope key (<c>episode:2:3</c>, <c>file:02 Components/02 Passing parameters.mkv</c>, <c>track:4</c>).</summary>
+    [JsonPropertyName("key")]
+    public string Key { get; init; } = string.Empty;
+
+    /// <summary>The words under the file's group: "with lesson 02", "with episode 3".</summary>
+    [JsonPropertyName("label")]
+    public string Label { get; init; } = string.Empty;
 }
 
 /// <summary>The folder button that ends the item dropdown.</summary>
@@ -370,6 +391,10 @@ public sealed class EditorFileFactsDto
 /// <summary>The thresholds and the rules of the item's kind from <c>config/editor.json</c> (D34), so the Dashboard holds no numbers.</summary>
 public sealed class EditorHeaderConfigDto
 {
+    /// <summary>The kind these rules are for (an id from <c>config/editor.json</c> such as <c>person</c>, <c>supporting_file</c>, <c>universe</c> or <c>multiple</c>).</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; init; } = string.Empty;
+
     [JsonPropertyName("inline_supporting_files")]
     public int InlineSupportingFiles { get; init; }
 

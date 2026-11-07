@@ -87,6 +87,57 @@ public sealed class EditorHeaderContractTests
     }
 
     [Fact]
+    public void ASupportingFileRow_CarriesWhereItIsShownAlongside_AndWhetherItIsTheOneBeingEdited()
+    {
+        var alongside = new EditorHeaderSupportingFileDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "Component exercises",
+            TypeBadge = "PDF",
+            Role = "worksheet",
+            RoleLabel = "Worksheet",
+            Group = "Homework",
+            ShownAlongside = new EditorHeaderAlongsideDto { Key = "file:02 Components/02 Passing parameters.mkv", Label = "with lesson 02" },
+            IsCurrent = true,
+        };
+        var plain = new EditorHeaderSupportingFileDto { Id = Guid.NewGuid(), Title = "Notes" };
+
+        using var withTarget = JsonDocument.Parse(JsonSerializer.Serialize(alongside));
+        using var without = JsonDocument.Parse(JsonSerializer.Serialize(plain));
+        var back = JsonSerializer.Deserialize<EditorHeaderSupportingFileDto>(JsonSerializer.Serialize(alongside))!;
+
+        var target = withTarget.RootElement.GetProperty("shown_alongside");
+        Assert.Equal("file:02 Components/02 Passing parameters.mkv", target.GetProperty("key").GetString());
+        Assert.Equal("with lesson 02", target.GetProperty("label").GetString());
+        Assert.True(withTarget.RootElement.GetProperty("is_current").GetBoolean());
+        Assert.False(without.RootElement.TryGetProperty("shown_alongside", out _));
+        Assert.False(without.RootElement.GetProperty("is_current").GetBoolean());
+        Assert.Equal("with lesson 02", back.ShownAlongside!.Label);
+        Assert.True(back.IsCurrent);
+    }
+
+    [Fact]
+    public void TheKindConfig_NamesItsKind_AndCarriesTabsFactsAndSearchFields()
+    {
+        var config = new EditorHeaderConfigDto
+        {
+            Kind = "person",
+            RowsPerPage = 25,
+            Tabs = ["details", "artwork", "match", "history"],
+            FactsLine = ["roles"],
+            QuickFacts = ["item_count"],
+            MatchFields = ["title"],
+        };
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(config));
+
+        Assert.Equal("person", document.RootElement.GetProperty("kind").GetString());
+        Assert.Equal(25, document.RootElement.GetProperty("rows_per_page").GetInt32());
+        Assert.Equal("match", document.RootElement.GetProperty("tabs")[2].GetString());
+        Assert.Equal("title", document.RootElement.GetProperty("match_fields")[0].GetString());
+    }
+
+    [Fact]
     public void NavItemStates_AreTheWordsTheDropdownShows()
     {
         Assert.Equal("matched", EditorNavItemStates.Matched);

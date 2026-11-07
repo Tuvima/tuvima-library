@@ -85,8 +85,9 @@ public sealed class EditorConfigurationProviderTests : IDisposable
     [Theory]
     [InlineData("{ not json")]
     [InlineData("{\"version\":\"1\",\"inline_supporting_files\":0,\"cards_per_group\":1,\"rows_per_page\":1,\"item_list_page_size\":1,\"kinds\":{\"item\":{\"tabs\":[\"details\"]}}}")]
-    [InlineData("{\"version\":\"1\",\"inline_supporting_files\":4,\"cards_per_group\":1,\"rows_per_page\":1,\"item_list_page_size\":1,\"kinds\":{\"movie\":{\"tabs\":[\"details\"]}}}")]
     [InlineData("{\"version\":\"1\",\"inline_supporting_files\":4,\"cards_per_group\":1,\"rows_per_page\":1,\"item_list_page_size\":1,\"kinds\":{\"item\":{\"tabs\":[\"history\"]}}}")]
+    [InlineData("{\"version\":\"1\",\"cards_per_group\":-3}")]
+    [InlineData("{\"version\":\"1\",\"suggest_details\":{\"first_lines\":0}}")]
     public void ABrokenFile_IsNotUsed_AndTheShippedRulesApplyInstead(string content)
     {
         File.WriteAllText(Path.Combine(_directory, "editor.json"), content);
@@ -95,6 +96,55 @@ public sealed class EditorConfigurationProviderTests : IDisposable
 
         Assert.Equal(8, config.InlineSupportingFiles);
         Assert.Same(EditorConfigurationProvider.BuiltIn, config);
+    }
+
+    [Fact]
+    public void AFileThatOmitsAKey_GetsTheShippedValue_AndKeepsTheKeysItStates()
+    {
+        File.WriteAllText(Path.Combine(_directory, "editor.json"), "{ \"version\": \"1\", \"inline_supporting_files\": 3 }");
+        var shipped = EditorConfigurationProvider.BuiltIn;
+
+        var config = new EditorConfigurationProvider(() => _directory).Current;
+
+        Assert.Equal(3, config.InlineSupportingFiles);
+        Assert.Equal(shipped.CardsPerGroup, config.CardsPerGroup);
+        Assert.Equal(shipped.RowsPerPage, config.RowsPerPage);
+        Assert.Equal(shipped.ItemListPageSize, config.ItemListPageSize);
+        Assert.Equal(shipped.FolderTreePageSize, config.FolderTreePageSize);
+        Assert.Equal(shipped.SuggestDetails.FirstLines, config.SuggestDetails.FirstLines);
+        Assert.Equal(shipped.SuggestDetails.DescriptionMaxCharacters, config.SuggestDetails.DescriptionMaxCharacters);
+        Assert.Equal(shipped.Kinds.Keys.Order(), config.Kinds.Keys.Order());
+    }
+
+    [Fact]
+    public void AFileThatChangesOneKindOnly_KeepsEveryOtherKindFromTheShippedRules()
+    {
+        File.WriteAllText(
+            Path.Combine(_directory, "editor.json"),
+            "{ \"version\": \"1\", \"kinds\": { \"movie\": { \"tabs\": [\"details\", \"history\"], \"facts_line\": [], \"quick_facts\": [], \"match_fields\": [\"title\"] } } }");
+
+        var config = new EditorConfigurationProvider(() => _directory).Current;
+
+        Assert.Equal(["details", "history"], config.KindFor(EditorKinds.Movie).Tabs);
+        Assert.Equal(EditorConfigurationProvider.BuiltIn.KindFor(EditorKinds.Course).Tabs, config.KindFor(EditorKinds.Course).Tabs);
+        Assert.Equal(EditorConfigurationProvider.BuiltIn.InlineSupportingFiles, config.InlineSupportingFiles);
+    }
+
+    [Fact]
+    public void TheCountsOfTheShippedFile_AreNotWrittenInCode()
+    {
+        // A count the code carries would survive a file that leaves the key out; the blueprint holds none, so an unset count reads as missing.
+        var blank = new EditorConfiguration();
+
+        Assert.Equal(0, blank.InlineSupportingFiles);
+        Assert.Equal(0, blank.CardsPerGroup);
+        Assert.Equal(0, blank.RowsPerPage);
+        Assert.Equal(0, blank.ItemListPageSize);
+        Assert.Equal(0, blank.FolderTreePageSize);
+        Assert.Equal(0, blank.SuggestDetails.FirstLines);
+        Assert.Equal(0, blank.SuggestDetails.DescriptionMaxCharacters);
+        Assert.Null(EditorConfigurationProvider.TryRead("{ \"version\": \"1\" }", out var problem));
+        Assert.NotNull(problem);
     }
 
     private void WriteConfig(int inlineSupportingFiles) => File.WriteAllText(

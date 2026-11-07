@@ -6,7 +6,9 @@ namespace MediaEngine.Domain.Configuration;
 /// The editor's numbers and per-kind rules, loaded from <c>config/editor.json</c> (universal editor v5 D34): how many supporting files the
 /// item dropdown lists inline, how many cards a details-page group shows, how many rows a page of the browser has, which tabs each kind of
 /// item gets, which facts its facts line and Quick facts show, and which fields its Match search offers. The shipped file is also built
-/// into the Engine, so a config folder without it still works. The Dashboard holds none of these numbers; it reads them from the Engine.
+/// into the Engine, so a config folder without it still works, and a key a person's file leaves out is filled from the shipped one. No number
+/// of the D34 table is written in code: a count left unset (0) is read as missing. The Dashboard holds none of these numbers; it reads them
+/// from the Engine.
 /// </summary>
 public sealed class EditorConfiguration
 {
@@ -15,23 +17,23 @@ public sealed class EditorConfiguration
 
     /// <summary>Up to this many supporting files at a scope appear inline in the item dropdown; above it the dropdown offers "All supporting files".</summary>
     [JsonPropertyName("inline_supporting_files")]
-    public int InlineSupportingFiles { get; set; } = 8;
+    public int InlineSupportingFiles { get; set; }
 
     /// <summary>The most cards one group shows on a details page before "See all".</summary>
     [JsonPropertyName("cards_per_group")]
-    public int CardsPerGroup { get; set; } = 12;
+    public int CardsPerGroup { get; set; }
 
     /// <summary>Rows a page of the supporting-files browser holds.</summary>
     [JsonPropertyName("rows_per_page")]
-    public int RowsPerPage { get; set; } = 25;
+    public int RowsPerPage { get; set; }
 
     /// <summary>Rows the item dropdown reads at a time before it pages in more.</summary>
     [JsonPropertyName("item_list_page_size")]
-    public int ItemListPageSize { get; set; } = 50;
+    public int ItemListPageSize { get; set; }
 
     /// <summary>Entries one page of a folder in the folder tree holds.</summary>
     [JsonPropertyName("folder_tree_page_size")]
-    public int FolderTreePageSize { get; set; } = 100;
+    public int FolderTreePageSize { get; set; }
 
     [JsonPropertyName("suggest_details")]
     public EditorSuggestDetailsConfiguration SuggestDetails { get; set; } = new();
@@ -52,11 +54,11 @@ public sealed class EditorSuggestDetailsConfiguration
 {
     /// <summary>How many non-empty lines of the document's first page are read when the file has no description of its own.</summary>
     [JsonPropertyName("first_lines")]
-    public int FirstLines { get; set; } = 6;
+    public int FirstLines { get; set; }
 
     /// <summary>The longest description the read proposes, in characters.</summary>
     [JsonPropertyName("description_max_characters")]
-    public int DescriptionMaxCharacters { get; set; } = 500;
+    public int DescriptionMaxCharacters { get; set; }
 }
 
 /// <summary>The rules of one kind of item.</summary>

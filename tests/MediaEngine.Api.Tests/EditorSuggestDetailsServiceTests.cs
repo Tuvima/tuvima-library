@@ -100,6 +100,44 @@ public sealed class EditorSuggestDetailsServiceTests : IDisposable
         Assert.Empty(suggestions.FirstLines);
     }
 
+    [Theory]
+    [InlineData("Season 02.nfo")]
+    [InlineData("Notes.rtf")]
+    public async Task AnNfoOrRtfFile_IsNotReadAsText_AndGivesNoSuggestions(string name)
+    {
+        var path = _world.Write(name, "<episodedetails><title>Safe</title></episodedetails>");
+        var id = await StoreAsync(path);
+
+        var suggestions = await Service().ReadAsync(id);
+
+        Assert.Equal(EditorSuggestDetailsSources.None, suggestions!.Source);
+        Assert.Empty(suggestions.FirstLines);
+    }
+
+    [Fact]
+    public async Task ABigEpubWithManyChaptersAndAPicture_StillGivesItsOpeningFromTheFirstChapters()
+    {
+        var path = WriteEpub("Big.epub", extraChapters: 40, imageBytes: 4 * 1024 * 1024);
+        var id = await StoreAsync(path);
+
+        var suggestions = await Service().ReadAsync(id);
+
+        Assert.Equal(EditorSuggestDetailsSources.Epub, suggestions!.Source);
+        Assert.Equal("A Companion Guide", suggestions.Title);
+        Assert.Equal("Chapter one", suggestions.FirstLines[0]);
+    }
+
+    [Fact]
+    public async Task ACallerWhoGivesUp_StopsTheRead()
+    {
+        var path = _world.Write("notes.txt", "hello");
+        var id = await StoreAsync(path);
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Service().ReadAsync(id, cancelled.Token));
+    }
+
     [Fact]
     public async Task AFileThatLeftTheDisk_GivesNoSuggestions()
     {
@@ -133,7 +171,7 @@ public sealed class EditorSuggestDetailsServiceTests : IDisposable
     private Task<Guid> StoreAsync(string absolutePath, string kind = ItemExtraKinds.Document) =>
         _world.SupportingFileAsync(Path.GetRelativePath(_world.TitleFolder, absolutePath), ExtraScope.Root, kind);
 
-    private string WriteEpub(string relativePath)
+    private string WriteEpub(string relativePath, int extraChapters = 0, int imageBytes = 0)
     {
         var path = Path.Combine(_world.TitleFolder, relativePath);
         using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
@@ -147,12 +185,28 @@ public sealed class EditorSuggestDetailsServiceTests : IDisposable
                 + "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:identifier id=\"id\">urn:uuid:1</dc:identifier><dc:title>A Companion Guide</dc:title>"
                 + "<dc:creator>Ada Writer</dc:creator><dc:description>Notes on the series.</dc:description><dc:language>en</dc:language></metadata>"
                 + "<manifest><item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>"
-                + "<item id=\"c1\" href=\"c1.xhtml\" media-type=\"application/xhtml+xml\"/></manifest><spine><itemref idref=\"c1\"/></spine></package>");
+                + "<item id=\"c1\" href=\"c1.xhtml\" media-type=\"application/xhtml+xml\"/>"
+                + string.Concat(Enumerable.Range(2, extraChapters).Select(n => $"<item id=\"c{n}\" href=\"c{n}.xhtml\" media-type=\"application/xhtml+xml\"/>"))
+                + (imageBytes > 0 ? "<item id=\"img\" href=\"cover.jpg\" media-type=\"image/jpeg\"/>" : string.Empty)
+                + "</manifest><spine><itemref idref=\"c1\"/>"
+                + string.Concat(Enumerable.Range(2, extraChapters).Select(n => $"<itemref idref=\"c{n}\"/>"))
+                + "</spine></package>");
             Add(archive, "nav.xhtml",
                 "<?xml version=\"1.0\"?><html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\"><head><title>nav</title></head>"
                 + "<body><nav epub:type=\"toc\"><ol><li><a href=\"c1.xhtml\">One</a></li></ol></nav></body></html>");
             Add(archive, "c1.xhtml",
                 "<?xml version=\"1.0\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>c1</title></head><body><h1>Chapter one</h1><p>It begins.</p></body></html>");
+            for (var n = 2; n <= extraChapters + 1; n++)
+            {
+                Add(archive, $"c{n}.xhtml", $"<?xml version=\"1.0\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>c{n}</title></head><body><h1>Chapter {n}</h1><p>{new string('x', 20000)}</p></body></html>");
+            }
+
+            if (imageBytes > 0)
+            {
+                var image = archive.CreateEntry("cover.jpg", CompressionLevel.NoCompression);
+                using var stream = image.Open();
+                stream.Write(new byte[imageBytes]);
+            }
         }
 
         return path;

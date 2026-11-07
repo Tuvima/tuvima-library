@@ -10,6 +10,7 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Services.EditSession;
 
@@ -28,13 +29,36 @@ public sealed class EditorHeaderReadService(
     ILibraryFolderResolver folders,
     ItemQuickFactsService quickFacts,
     MediaEditorWorkVersionReadRepository versions,
-    IExtrasConfigurationSource? extrasRules = null)
+    IExtrasConfigurationSource? extrasRules = null,
+    ILogger<EditorHeaderReadService>? logger = null)
 {
     // The same threshold the collection rules and the Watch rows use for "watched".
     private const double WatchedProgressPercent = 99.5;
 
-    /// <summary>The header of the item with this work id; null when no such item is in the Library.</summary>
-    public async Task<EditorHeaderDto?> GetHeaderAsync(Guid workId, Guid? profileId, CancellationToken ct = default)
+    // How many of a container's files are looked at to find the folder its members share.
+    private const int MembersSampled = 3;
+
+    private readonly ILogger _logger = logger ?? NullLogger<EditorHeaderReadService>.Instance;
+
+    /// <summary>
+    /// The header of the item with this work id; null when no such item is in the Library, or when the header could not be built (the
+    /// failure is logged with the item id, and the editor still opens without a header rather than failing the whole read).
+    /// <paramref name="supportingFileId"/> is the supporting file the editor is open on, so its row in the dropdown is marked current.
+    /// </summary>
+    public async Task<EditorHeaderDto?> GetHeaderAsync(Guid workId, Guid? profileId, CancellationToken ct = default, Guid? supportingFileId = null)
+    {
+        try
+        {
+            return await BuildHeaderAsync(workId, profileId, supportingFileId, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "The editor header of item {ItemId} could not be built; the editor opens without it", workId);
+            return null;
+        }
+    }
+
+    private async Task<EditorHeaderDto?> BuildHeaderAsync(Guid workId, Guid? profileId, Guid? supportingFileId, CancellationToken ct)
     {
         var family = await ReadFamilyAsync(workId, ct).ConfigureAwait(false);
         if (family is null)
@@ -50,9 +74,12 @@ public sealed class EditorHeaderReadService(
 
         var secondLevel = BuildSecondLevel(family, support);
         var levelChoice = ChooseLevel(family, current, secondLevel);
-        var level = await BuildLevelAsync(family, levelChoice, support, query: null, offset: 0, profileId, ct).ConfigureAwait(false);
+        var level = await BuildLevelAsync(family, levelChoice, support, query: null, offset: 0, profileId, supportingFileId, ct).ConfigureAwait(false);
 
         var cover = await ReadCoverAsync(family.Root.EntityId, ct).ConfigureAwait(false);
+
+        // A movie, a book or a comic under a Series keeps the home button, with the Series as home: the same rule as a book in a Series
+        // (spec 3a, "Book or comic in a Series"; L7, "a film series"). Only an item with no family at all has none.
         var showHome = family.HasFamily;
         var root = new EditorHeaderRootDto
         {
@@ -87,7 +114,7 @@ public sealed class EditorHeaderReadService(
     /// belong to it. <paramref name="levelId"/> null means the root. Null when the item or the level is not in the family.
     /// </summary>
     public async Task<EditorHeaderLevelDto?> GetLevelAsync(
-        Guid workId, Guid? levelId, string? query, int offset, Guid? profileId, CancellationToken ct = default)
+        Guid workId, Guid? levelId, string? query, int offset, Guid? profileId, CancellationToken ct = default, Guid? supportingFileId = null)
     {
         var family = await ReadFamilyAsync(workId, ct).ConfigureAwait(false);
         if (family is null)
@@ -106,15 +133,43 @@ public sealed class EditorHeaderReadService(
         var choice = secondLevel?.Entries.Any(entry => entry.Id == wanted) == true
             ? new LevelChoice(wanted, LevelKinds.Mid)
             : new LevelChoice(wanted, family.HasSecondLevel ? LevelKinds.Root : LevelKinds.All);
-        return await BuildLevelAsync(family, choice, support, query, Math.Max(0, offset), profileId, ct).ConfigureAwait(false);
+        return await BuildLevelAsync(family, choice, support, query, Math.Max(0, offset), profileId, supportingFileId, ct).ConfigureAwait(false);
     }
 
-    /// <summary>The title's own folder (what the folder button opens) for the item with this work id; null when its files are in no title folder.</summary>
+    /// <summary>
+    /// The title's own folder (what the folder button opens) for the item with this work id; null when its files are in no title folder.
+    /// For a book or film in a Series this is the item's own folder, not a sibling's. Reads the family's structure only (no values).
+    /// </summary>
     public async Task<string?> GetItemFolderAsync(Guid workId, CancellationToken ct = default)
     {
-        var family = await ReadFamilyAsync(workId, ct).ConfigureAwait(false);
-        return family is null ? null : await ResolveItemFolderAsync(ReadTreePaths(family.Root.EntityId), ct).ConfigureAwait(false);
+        var navigator = await navigation.GetNavigatorAsync(workId, ct, structureOnly: true).ConfigureAwait(false);
+        if (navigator is null)
+        {
+            return null;
+        }
+
+        var rootId = navigator.Enabled
+            ? navigator.Nodes.FirstOrDefault(node => node.IsRoot)?.EntityId ?? navigator.SelectedEntityId
+            : navigator.SelectedEntityId;
+        return await ResolveItemFolderAsync(ReadTreePaths(rootId), navigator.SelectedEntityId, ct).ConfigureAwait(false);
     }
+
+    /// <summary>True when this supporting file sits in the item's own title folder (a book's neighbour in its Series does not).</summary>
+    public async Task<bool> OwnsSupportingFileAsync(Guid workId, Guid supportingFileId, CancellationToken ct = default)
+    {
+        var extra = await extras.GetAsync(supportingFileId, ct).ConfigureAwait(false);
+        var itemFolder = extra is null ? null : await GetItemFolderAsync(workId, ct).ConfigureAwait(false);
+        return extra is not null && itemFolder is not null
+            && string.Equals(Path.GetFullPath(extra.ItemFolder), Path.GetFullPath(itemFolder), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The rules of one kind of item, for the editors that do not open on a work (a person, a Universe, a supporting file, a View photo
+    /// or gallery, several items at once), so the Dashboard never writes their tabs, facts or search fields itself. Null for a kind
+    /// <c>config/editor.json</c> does not know.
+    /// </summary>
+    public EditorHeaderConfigDto? GetKindConfig(string kind) =>
+        EditorKinds.All.Contains(kind, StringComparer.Ordinal) ? BuildConfig(editorConfig.Current, kind) : null;
 
     // -- Family ---------------------------------------------------------------------------------------------------------------------
 
@@ -261,6 +316,7 @@ public sealed class EditorHeaderReadService(
         var rules = config.KindFor(kind);
         return new EditorHeaderConfigDto
         {
+            Kind = kind,
             InlineSupportingFiles = config.InlineSupportingFiles,
             CardsPerGroup = config.CardsPerGroup,
             RowsPerPage = config.RowsPerPage,
@@ -341,7 +397,7 @@ public sealed class EditorHeaderReadService(
     }
 
     private async Task<EditorHeaderLevelDto> BuildLevelAsync(
-        Family family, LevelChoice choice, Support support, string? query, int offset, Guid? profileId, CancellationToken ct)
+        Family family, LevelChoice choice, Support support, string? query, int offset, Guid? profileId, Guid? supportingFileId, CancellationToken ct)
     {
         var config = editorConfig.Current;
         var pageSize = config.ItemListPageSize;
@@ -353,6 +409,13 @@ public sealed class EditorHeaderReadService(
             : choice.LevelId is { } levelId
                 ? [.. family.Leaves.Where(node => node.ParentNodeId == levelId)]
                 : [];
+
+        // A lesson with no stored number is numbered by its place in the whole ordered list, so a search never renumbers the lessons.
+        var places = new Dictionary<Guid, int>(members.Count);
+        for (var place = 0; place < members.Count; place++)
+        {
+            places.TryAdd(members[place].EntityId, place + 1);
+        }
 
         var matching = string.IsNullOrWhiteSpace(query)
             ? members
@@ -371,7 +434,7 @@ public sealed class EditorHeaderReadService(
         var items = new List<EditorNavItemDto>(page.Count);
         for (var index = 0; index < page.Count; index++)
         {
-            items.Add(BuildItem(family, page[index], values.GetValueOrDefault(page[index].EntityId), seasonNumber, offset + index + 1));
+            items.Add(BuildItem(family, page[index], values.GetValueOrDefault(page[index].EntityId), seasonNumber, places.GetValueOrDefault(page[index].EntityId)));
         }
 
         return new EditorHeaderLevelDto
@@ -383,7 +446,7 @@ public sealed class EditorHeaderReadService(
             PageSize = pageSize,
             HasMore = offset + page.Count < matching.Count,
             Items = items,
-            SupportingFiles = support.SummaryFor(choice, editorConfig.Current.InlineSupportingFiles),
+            SupportingFiles = support.SummaryFor(choice, config.InlineSupportingFiles, supportingFileId),
         };
     }
 
@@ -393,11 +456,7 @@ public sealed class EditorHeaderReadService(
         var isTv = string.Equals(family.MediaType, "TV", StringComparison.Ordinal);
         var number = isTv ? values?.EpisodeNumber ?? values?.Ordinal
             : string.Equals(family.MediaType, "Music", StringComparison.Ordinal) ? values?.TrackNumber ?? values?.Ordinal
-            : values?.Ordinal ?? (isVideo ? position : null);
-        if (number is null && !family.HasFamily)
-        {
-            number = null;
-        }
+            : values?.Ordinal ?? (isVideo && position > 0 ? position : null);
 
         // A course shows a plain number and a length, never an S/E code; only a show's episodes carry one.
         string? code = null;
@@ -454,99 +513,102 @@ public sealed class EditorHeaderReadService(
         public bool? Watched { get; set; }
     }
 
-    private sealed class ItemValueRow
-    {
-        public Guid WorkId { get; init; }
-
-        public long? Ordinal { get; init; }
-
-        public string? WorkSeason { get; init; }
-
-        public string? AssetSeason { get; init; }
-
-        public string? AssetEpisode { get; init; }
-
-        public string? AssetTrack { get; init; }
-
-        public string? WorkRuntimeMinutes { get; init; }
-
-        public Guid? AssetId { get; init; }
-
-        public double? DurationSeconds { get; init; }
-    }
-
     private async Task<Dictionary<Guid, ItemValues>> ReadItemValuesAsync(IReadOnlyList<Guid> workIds, Guid? profileId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        await Task.CompletedTask.ConfigureAwait(false);
         var result = new Dictionary<Guid, ItemValues>();
-        var hexes = workIds.Select(id => id.ToString("N")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        if (hexes.Length == 0)
+        var ids = workIds.Distinct().ToArray();
+        if (ids.Length == 0)
         {
             return result;
         }
 
+        // Four small reads by id (the work's own values, its representative file, that file's length and values), joined here, so a 50-row
+        // page never multiplies the work's values by the file's values inside the data store.
+        var blobs = ids.Select(GuidSql.ToBlob).ToArray();
         using var connection = db.CreateConnection();
-        var rows = connection.Query<ItemValueRow>("""
-            WITH representative AS (
-                SELECT e.work_id AS WorkId, MIN(ma.id) AS AssetId
-                FROM editions e
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-                WHERE LOWER(HEX(e.work_id)) IN @hexes
-                GROUP BY e.work_id
-            )
-            SELECT w.id AS WorkId,
-                   CAST(w.ordinal AS INTEGER) AS Ordinal,
-                   CAST(MAX(CASE WHEN wv.key = 'season_number' THEN wv.value END) AS TEXT) AS WorkSeason,
-                   CAST(MAX(CASE WHEN av.key = 'season_number' THEN av.value END) AS TEXT) AS AssetSeason,
-                   CAST(MAX(CASE WHEN av.key = 'episode_number' THEN av.value END) AS TEXT) AS AssetEpisode,
-                   CAST(MAX(CASE WHEN av.key = 'track_number' THEN av.value END) AS TEXT) AS AssetTrack,
-                   CAST(MAX(CASE WHEN wv.key = 'runtime' THEN wv.value END) AS TEXT) AS WorkRuntimeMinutes,
-                   rep.AssetId AS AssetId,
-                   pic.duration_secs AS DurationSeconds
-            FROM works w
-            LEFT JOIN representative rep ON rep.WorkId = w.id
-            LEFT JOIN media_assets ma ON ma.id = rep.AssetId
-            LEFT JOIN playback_inspection_cache pic ON pic.asset_id = rep.AssetId AND pic.source_hash = ma.content_hash
-            LEFT JOIN canonical_values wv ON wv.entity_id = w.id
-            LEFT JOIN canonical_values av ON av.entity_id = rep.AssetId
-            WHERE LOWER(HEX(w.id)) IN @hexes
-            GROUP BY w.id, rep.AssetId, pic.duration_secs, w.ordinal;
-            """, new { hexes }).ToList();
+        var ordinals = connection.Query<(Guid WorkId, long? Ordinal)>(
+            "SELECT id AS WorkId, CAST(ordinal AS INTEGER) AS Ordinal FROM works WHERE id IN @blobs;", new { blobs })
+            .ToDictionary(row => row.WorkId, row => row.Ordinal);
+        if (ordinals.Count == 0)
+        {
+            return result;
+        }
+
+        var workValues = ReadKeyValues(connection, blobs, WorkValueKeys);
+        var representatives = connection.Query<(Guid WorkId, Guid AssetId)>("""
+            SELECT e.work_id AS WorkId, MIN(ma.id) AS AssetId
+            FROM editions e
+            INNER JOIN media_assets ma ON ma.edition_id = e.id
+            WHERE e.work_id IN @blobs
+            GROUP BY e.work_id;
+            """, new { blobs }).ToDictionary(row => row.WorkId, row => row.AssetId);
+
+        var assetBlobs = representatives.Values.Distinct().Select(GuidSql.ToBlob).ToArray();
+        var assetValues = assetBlobs.Length == 0
+            ? new Dictionary<(Guid EntityId, string Key), string?>()
+            : ReadKeyValues(connection, assetBlobs, AssetValueKeys);
+        var durations = assetBlobs.Length == 0
+            ? new Dictionary<Guid, double>()
+            : connection.Query<(Guid AssetId, double Duration)>("""
+                SELECT pic.asset_id AS AssetId, pic.duration_secs AS Duration
+                FROM media_assets ma
+                INNER JOIN playback_inspection_cache pic ON pic.asset_id = ma.id AND pic.source_hash = ma.content_hash
+                WHERE ma.id IN @assetBlobs AND pic.duration_secs IS NOT NULL;
+                """, new { assetBlobs }).ToDictionary(row => row.AssetId, row => row.Duration);
 
         var watched = new Dictionary<Guid, bool>();
-        if (profileId is { } profile && rows.Any(row => row.AssetId.HasValue))
+        if (profileId is { } profile && assetBlobs.Length > 0)
         {
-            var assetHexes = rows.Where(row => row.AssetId.HasValue).Select(row => row.AssetId!.Value.ToString("N")).ToArray();
             foreach (var state in connection.Query<(Guid AssetId, double Progress)>("""
                 SELECT asset_id AS AssetId, progress_pct AS Progress
                 FROM user_states
-                WHERE user_id = @profile AND LOWER(HEX(asset_id)) IN @assetHexes;
-                """, new { profile, assetHexes }))
+                WHERE user_id = @profile AND asset_id IN @assetBlobs;
+                """, new { profile, assetBlobs }))
             {
                 watched[state.AssetId] = state.Progress >= WatchedProgressPercent;
             }
         }
 
-        foreach (var row in rows)
+        foreach (var (workId, ordinal) in ordinals)
         {
-            double? duration = row.DurationSeconds is > 0
-                ? row.DurationSeconds
-                : double.TryParse(row.WorkRuntimeMinutes, NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes) && minutes > 0
+            Guid? assetId = representatives.TryGetValue(workId, out var representative) ? representative : null;
+            string? OfWork(string key) => workValues.GetValueOrDefault((workId, key));
+            string? OfAsset(string key) => assetId is { } asset ? assetValues.GetValueOrDefault((asset, key)) : null;
+            double? duration = assetId is { } timed && durations.TryGetValue(timed, out var seconds) && seconds > 0
+                ? seconds
+                : double.TryParse(OfWork("runtime"), NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes) && minutes > 0
                     ? minutes * 60
                     : null;
-            result[row.WorkId] = new ItemValues
+            result[workId] = new ItemValues
             {
-                Ordinal = row.Ordinal is > 0 and <= int.MaxValue ? (int)row.Ordinal : null,
-                SeasonNumber = ParseNumber(row.AssetSeason) ?? ParseNumber(row.WorkSeason) ?? (row.Ordinal is >= 0 and <= int.MaxValue ? (int?)row.Ordinal : null),
-                EpisodeNumber = ParseNumber(row.AssetEpisode),
-                TrackNumber = ParseNumber(row.AssetTrack),
+                Ordinal = ordinal is > 0 and <= int.MaxValue ? (int)ordinal : null,
+                SeasonNumber = ParseNumber(OfAsset("season_number")) ?? ParseNumber(OfWork("season_number"))
+                    ?? (ordinal is >= 0 and <= int.MaxValue ? (int?)ordinal : null),
+                EpisodeNumber = ParseNumber(OfAsset("episode_number")),
+                TrackNumber = ParseNumber(OfAsset("track_number")),
                 DurationSeconds = duration,
-                Watched = row.AssetId is { } asset && profileId.HasValue ? watched.GetValueOrDefault(asset) : null,
+                Watched = assetId is { } owner && profileId.HasValue ? watched.GetValueOrDefault(owner) : null,
             };
         }
 
         return result;
     }
+
+    private static readonly string[] WorkValueKeys = ["season_number", "runtime"];
+
+    private static readonly string[] AssetValueKeys = ["season_number", "episode_number", "track_number"];
+
+    // One value per (entity, key): the same largest value the earlier joined read picked.
+    private static Dictionary<(Guid EntityId, string Key), string?> ReadKeyValues(
+        System.Data.IDbConnection connection, byte[][] entityBlobs, string[] keys) =>
+        connection.Query<(Guid EntityId, string Key, string? Value)>("""
+            SELECT entity_id AS EntityId, key AS Key, CAST(MAX(value) AS TEXT) AS Value
+            FROM canonical_values
+            WHERE entity_id IN @entityBlobs AND key IN @keys
+            GROUP BY entity_id, key;
+            """, new { entityBlobs, keys }).ToDictionary(row => (row.EntityId, row.Key), row => row.Value);
 
     private static int? ParseNumber(string? text)
     {
@@ -563,7 +625,7 @@ public sealed class EditorHeaderReadService(
 
     private sealed record SupportEntry(
         Guid Id, string Kind, string Title, string TypeBadge, string Role, string RoleLabel, string? Group,
-        int? PageCount, double? DurationSeconds, int ItemCount, bool IsMissing, ExtraScope Scope);
+        int? PageCount, double? DurationSeconds, int ItemCount, bool IsMissing, ExtraScope Scope, EditorHeaderAlongsideDto? Alongside);
 
     private sealed class Support
     {
@@ -582,11 +644,11 @@ public sealed class EditorHeaderReadService(
         /// <summary>Per season or section: the folder below the title folder its files sit in, when it has one.</summary>
         public Dictionary<Guid, string> MidFolders { get; init; } = [];
 
-        public required Func<LevelChoice, int, EditorHeaderSupportingFilesDto> Summary { get; init; }
+        public required Func<LevelChoice, int, Guid?, EditorHeaderSupportingFilesDto> Summary { get; init; }
 
         public int CountFor(Guid midId) => MidScopes.TryGetValue(midId, out var scope) ? Entries.Count(entry => scope.Contains(entry.Scope)) : 0;
 
-        public EditorHeaderSupportingFilesDto SummaryFor(LevelChoice choice, int inline) => Summary(choice, inline);
+        public EditorHeaderSupportingFilesDto SummaryFor(LevelChoice choice, int inline, Guid? currentFileId) => Summary(choice, inline, currentFileId);
     }
 
     /// <summary>The scope a season or section's supporting files are counted under.</summary>
@@ -616,13 +678,13 @@ public sealed class EditorHeaderReadService(
     private async Task<Support> ReadSupportAsync(Family family, CancellationToken ct)
     {
         var tree = ReadTreePaths(family.Root.EntityId);
-        var itemFolder = await ResolveItemFolderAsync(tree, ct).ConfigureAwait(false);
+        var itemFolder = await ResolveItemFolderAsync(tree, family.Current.EntityId, ct).ConfigureAwait(false);
 
         var entries = new List<SupportEntry>();
         if (itemFolder is not null)
         {
             var stored = await extras.ListByItemFoldersAsync([itemFolder], ct).ConfigureAwait(false);
-            entries = BuildEntries(stored);
+            entries = BuildEntries(stored, family.MediaType);
         }
 
         // Each season or section: its number and, for a section, the folder its videos sit in below the title folder.
@@ -661,13 +723,11 @@ public sealed class EditorHeaderReadService(
             }
         }
 
-        var rootFolder = itemFolder;
         var inlineEntries = entries;
         var scopes = midScopes;
-        var foldersByMid = midFolders;
         var hasSecondLevel = family.HasSecondLevel;
 
-        EditorHeaderSupportingFilesDto Summary(LevelChoice choice, int inline)
+        EditorHeaderSupportingFilesDto Summary(LevelChoice choice, int inline, Guid? currentFileId)
         {
             IEnumerable<SupportEntry> inLevel;
             string? scopeKey = null;
@@ -696,12 +756,10 @@ public sealed class EditorHeaderReadService(
                 Count = list.Count,
                 TotalInRoot = inlineEntries.Count,
                 ShowAll = list.Count > inline,
-                Files = [.. list.Take(inline).Select(ToHeaderFile)],
+                Files = [.. list.Take(inline).Select(entry => ToHeaderFile(entry, currentFileId))],
             };
         }
 
-        _ = rootFolder;
-        _ = foldersByMid;
         return new Support
         {
             ItemFolder = itemFolder,
@@ -713,7 +771,7 @@ public sealed class EditorHeaderReadService(
         };
     }
 
-    private List<SupportEntry> BuildEntries(IReadOnlyList<ItemExtra> stored)
+    private List<SupportEntry> BuildEntries(IReadOnlyList<ItemExtra> stored, string mediaType)
     {
         var rules = extrasRules?.Current;
         var entries = new List<SupportEntry>();
@@ -730,13 +788,13 @@ public sealed class EditorHeaderReadService(
                     continue;
                 }
 
-                var first = ToEntry(extra, rules, string.IsNullOrWhiteSpace(extra.GroupKey) ? extra.DisplayTitle : extra.GroupKey);
+                var first = ToEntry(extra, rules, string.IsNullOrWhiteSpace(extra.GroupKey) ? extra.DisplayTitle : extra.GroupKey, mediaType);
                 pictureFolders[key] = first;
                 entries.Add(first);
                 continue;
             }
 
-            entries.Add(ToEntry(extra, rules, extra.DisplayTitle));
+            entries.Add(ToEntry(extra, rules, extra.DisplayTitle, mediaType));
         }
 
         // The folder entries above were added as the first picture; swap in the counted ones.
@@ -752,7 +810,7 @@ public sealed class EditorHeaderReadService(
         return entries;
     }
 
-    private static SupportEntry ToEntry(ItemExtra extra, ExtrasConfiguration? rules, string title) => new(
+    private static SupportEntry ToEntry(ItemExtra extra, ExtrasConfiguration? rules, string title, string mediaType) => new(
         extra.Id,
         extra.Kind switch
         {
@@ -769,9 +827,41 @@ public sealed class EditorHeaderReadService(
         extra.DurationSeconds,
         1,
         extra.IsMissingFromDisk,
-        extra.EffectiveScope);
+        extra.EffectiveScope,
+        AlongsideOf(extra.EffectiveAlongside, mediaType));
 
-    private static EditorHeaderSupportingFileDto ToHeaderFile(SupportEntry entry) => new()
+    // "with lesson 02" in a course, "with episode 3" on a show, "with track 4" on an album: the words under the file's group.
+    private static EditorHeaderAlongsideDto? AlongsideOf(ExtraScope? alongside, string mediaType)
+    {
+        if (alongside is not { } scope || scope.Level is ExtraScopeLevel.None or ExtraScopeLevel.Root)
+        {
+            return null;
+        }
+
+        var label = scope.Label();
+        if (label.Length == 0)
+        {
+            return null;
+        }
+
+        if (scope.Level == ExtraScopeLevel.File && string.Equals(mediaType, VideoFolderWording.FolderMediaType, StringComparison.Ordinal))
+        {
+            var number = new string(label.TakeWhile(char.IsDigit).ToArray());
+            label = number.Length > 0 ? $"lesson {number}" : label;
+        }
+        else if (scope.Level == ExtraScopeLevel.Episode && scope.Episode is { } episode)
+        {
+            label = $"episode {episode.ToString(CultureInfo.InvariantCulture)}";
+        }
+        else
+        {
+            label = char.ToLowerInvariant(label[0]) + label[1..];
+        }
+
+        return new EditorHeaderAlongsideDto { Key = scope.Key, Label = $"with {label}" };
+    }
+
+    private static EditorHeaderSupportingFileDto ToHeaderFile(SupportEntry entry, Guid? currentFileId) => new()
     {
         Id = entry.Id,
         Kind = entry.Kind,
@@ -784,6 +874,8 @@ public sealed class EditorHeaderReadService(
         DurationSeconds = entry.DurationSeconds,
         ItemCount = entry.ItemCount,
         IsMissing = entry.IsMissing,
+        ShownAlongside = entry.Alongside,
+        IsCurrent = currentFileId == entry.Id,
     };
 
     private sealed record TreePath(Guid WorkId, Guid? ParentWorkId, string FilePath);
@@ -810,18 +902,41 @@ public sealed class EditorHeaderReadService(
             .ToList();
     }
 
-    private async Task<string?> ResolveItemFolderAsync(IReadOnlyList<TreePath> tree, CancellationToken ct)
+    // The title folder of the item the editor is on. Its own file decides when it has one, so a book or film in a Series gets its own
+    // folder, not a sibling's. An item with no file of its own (a show, a season, an album, a course, a Series) takes the folder its
+    // members share; members spread over several folders (a Series of books) have no single title folder.
+    private async Task<string?> ResolveItemFolderAsync(IReadOnlyList<TreePath> tree, Guid currentId, CancellationToken ct)
     {
-        foreach (var path in tree.Take(3))
+        var own = tree.FirstOrDefault(path => path.WorkId == currentId);
+        if (own is not null)
         {
-            var title = await scanner.ResolveTitleFolderAsync(path.FilePath, ct).ConfigureAwait(false);
+            var title = await scanner.ResolveTitleFolderAsync(own.FilePath, ct).ConfigureAwait(false);
             if (title is not null)
             {
                 return title.ItemFolder;
             }
         }
 
-        return null;
+        string? shared = null;
+        foreach (var path in tree.Take(MembersSampled))
+        {
+            var title = await scanner.ResolveTitleFolderAsync(path.FilePath, ct).ConfigureAwait(false);
+            if (title is null)
+            {
+                continue;
+            }
+
+            if (shared is null)
+            {
+                shared = title.ItemFolder;
+            }
+            else if (!string.Equals(shared, title.ItemFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+        }
+
+        return shared;
     }
 
     // The folder below the title folder that holds this file ("Season 02"); null when the file sits in the title folder itself.

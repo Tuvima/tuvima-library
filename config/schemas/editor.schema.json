@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Tuvima editor numbers and per-kind rules",
-  "description": "The universal editor's thresholds and what each kind of item shows: tabs, the header's facts line, Quick facts and the Match search fields (universal editor v5, D34 and section 3a). The Dashboard reads these from the Engine and holds no numbers of its own.",
+  "description": "The universal editor's thresholds and what each kind of item shows: tabs, the header's facts line, Quick facts and the Match search fields (universal editor v5, D34 and section 3a). The Dashboard reads these from the Engine and holds no numbers of its own. A key a person's file leaves out takes the value of the file shipped with the Engine; the shipped file itself states every key.",
   "type": "object",
-  "required": ["version", "inline_supporting_files", "cards_per_group", "rows_per_page", "item_list_page_size", "kinds"],
+  "required": ["version"],
   "properties": {
     "version": { "type": "string", "minLength": 1 },
 
@@ -44,9 +44,8 @@
     },
 
     "kinds": {
-      "description": "The rules of each kind of item, keyed by kind id. The kind \"item\" is the generic fallback and must be present.",
+      "description": "The rules of each kind of item, keyed by kind id. The kind \"item\" is the generic fallback; a kind the file leaves out takes the shipped rules.",
       "type": "object",
-      "required": ["item"],
       "propertyNames": { "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$" },
       "additionalProperties": { "$ref": "#/$defs/kind" }
     }
