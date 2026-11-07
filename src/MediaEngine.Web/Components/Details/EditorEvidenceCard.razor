@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Details
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tab's evidence card (universal editor v5, 3c): one table of facts, what the item says against what the other side says, with a tick or a
+   cross at the end of each row. The provider side shows it as "Why this match" and the Wikidata side as "Alignment evidence", so both read the
+   same way. A fact one side cannot speak to is left out of the table and said under it by the caller. *@
+<AppCard Title="@Title" Density="AppSurfaceDensity.Compact" @attributes="AdditionalAttributes">
+    <Actions>@Header</Actions>
+    <ChildContent>
+    <table class="tl-evidence__table">
+        <thead>
+            <tr>
+                <th scope="col">@L["EditorMatchPanel_Field"]</th>
+                <th scope="col">@YourLabel</th>
+                <th scope="col">@OtherLabel</th>
+                <th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr data-state="@row.State">
+                    <th scope="row">@row.Field</th>
+                    <td>@(string.IsNullOrWhiteSpace(row.Yours) ? "–" : row.Yours)</td>
+                    <td>@(string.IsNullOrWhiteSpace(row.Other) ? "–" : row.Other)</td>
+                    <td><span class="tl-evidence__mark" data-state="@row.State">@Mark(row)</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @Footer
+    </ChildContent>
+</AppCard>
+
+@code {
+    /// <summary>One checked fact: its name, what each side says, whether they agree ("agrees" or "differs") and an optional verdict word after the mark.</summary>
+    public sealed record Row(string Field, string? Yours, string? Other, string State, string? Verdict = null);
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The heading of the column that holds what the item says ("Your file", "Your item").</summary>
+    [Parameter, EditorRequired] public string YourLabel { get; set; } = string.Empty;
+
+    /// <summary>The heading of the column that holds what the other side says ("Matched record", "Wikidata").</summary>
+    [Parameter, EditorRequired] public string OtherLabel { get; set; } = string.Empty;
+
+    [Parameter] public IReadOnlyList<Row> Rows { get; set; } = [];
+
+    /// <summary>Beside the title (a verdict chip).</summary>
+    [Parameter] public RenderFragment? Header { get; set; }
+
+    /// <summary>Under the table (notes about facts that were not checked).</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private static string Mark(Row row) =>
+        $"{(row.State == "agrees" ? "✓" : "✕")}{(string.IsNullOrWhiteSpace(row.Verdict) ? string.Empty : " " + row.Verdict)}";
+}

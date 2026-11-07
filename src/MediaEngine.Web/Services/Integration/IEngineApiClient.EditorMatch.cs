@@ -27,4 +27,13 @@ public partial interface IEngineApiClient
 
     /// <summary>Lines several ticked episodes or songs up with one show and season, or one release, by their own numbers (D36). A read. Null when the Engine could not be reached.</summary>
     Task<EditorGroupMatchDto?> LineUpEditorGroupMatchAsync(Guid entityId, EditorGroupMatchRequestDto request, CancellationToken ct = default);
+
+    /// <summary>The Wikidata item the item itself is linked to, found by its stored QID (never a search). The Engine's answer carries no QID when the item has no link. Null when the Engine could not be reached.</summary>
+    Task<EditorWikidataIdentityDto?> GetEditorCurrentWikidataAsync(Guid entityId, CancellationToken ct = default);
+
+    /// <summary>Searches Wikidata for the item, or resolves a pasted link or QID: text-only results with type, relation (itself or parent) and alignment evidence. Writes nothing. Null when the Engine could not be reached.</summary>
+    Task<EditorWikidataSearchResultDto?> SearchEditorWikidataAsync(Guid entityId, EditorWikidataSearchRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Whether the provider match and the Wikidata item disagree (identifiers, year, title). A read; neither side is changed. Null when the Engine could not be reached.</summary>
+    Task<EditorWikidataConflictDto?> CompareEditorWikidataAsync(Guid entityId, EditorWikidataConflictRequestDto request, CancellationToken ct = default);
 }

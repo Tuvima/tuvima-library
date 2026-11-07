@@ -509,6 +509,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             {
                 EditSessionChangeKinds.Artwork => "Artwork",
                 EditSessionChangeKinds.Identity or EditSessionChangeKinds.MatchRemoval => "Match",
+                EditSessionChangeKinds.WikidataLink or EditSessionChangeKinds.WikidataRemoval => "Wikidata link",
                 EditSessionChangeKinds.Relationship => "Relationship",
                 EditSessionChangeKinds.FileMove => "File move",
                 EditSessionChangeKinds.ExtraMove => "Extras move",

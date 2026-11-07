@@ -51,6 +51,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, MatchRemovalEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, WikidataLinkEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, WikidataRemovalEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, SupportingFilesEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, BookmarksEditSessionChangeHandler>();
@@ -118,6 +120,10 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchCandidateSearch, MediaEngine.Api.Services.Matching.CanonicalEditorMatchCandidateSearch>();
         services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchSearchService>();
         services.AddScoped<MediaEngine.Api.Services.Matching.EditorMusicMatchService>();
+        // The Match tab's Wikidata side: search, pasted link, evidence and conflict (config/wikidata_match.json), and the link's own write.
+        services.AddSingleton<MediaEngine.Api.Services.Matching.WikidataMatchConfigurationProvider>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorWikidataMatchService>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IWikidataIdentityWriter, MediaEngine.Api.Services.Matching.WikidataIdentityWriter>();
         services.AddScoped<EditorSuggestDetailsService>();
         services.AddScoped<MediaEngine.Api.Services.Extras.SupportingFileEditorReadService>();
         services.AddScoped<EditorFolderTreeService>();
