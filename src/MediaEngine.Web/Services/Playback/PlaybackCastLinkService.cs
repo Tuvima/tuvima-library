@@ -20,14 +20,22 @@ public sealed record PlaybackCastLink(string? Url, string? ContentType, string? 
 /// </summary>
 public sealed class PlaybackCastLinkService(IEngineApiClient api, NavigationManager navigation, ILogger<PlaybackCastLinkService> logger)
 {
-    public async Task<PlaybackCastLink> RequestAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<PlaybackCastLink> RequestAsync(Guid assetId, CancellationToken ct = default, bool aheadOfClick = false)
     {
         var attempt = await api.CreateCastSessionAsync(assetId, ct);
         var link = Build(new Uri(navigation.BaseUri), attempt);
         if (!link.IsReady)
         {
             // Not an error to the person: the row says "Can't play on another device yet". The reason is kept here so a refusal is never silent.
-            logger.LogInformation("Play on another device was not started: {Reason}.", link.Reason);
+            // A fetch ahead of the click is logged apart, so the log never reads as if the person had tried to cast.
+            if (aheadOfClick)
+            {
+                logger.LogDebug("Play on another device: no cast link yet ahead of the click: {Reason}.", link.Reason);
+            }
+            else
+            {
+                logger.LogInformation("Play on another device was not started: {Reason}.", link.Reason);
+            }
         }
 
         return link;

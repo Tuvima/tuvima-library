@@ -7,6 +7,7 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
@@ -595,6 +596,30 @@ public sealed class PlaybackRemoteTests : AsyncBunitContext
         await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
 
         Assert.Equal(1, CastLinkRequests);
+    }
+
+    [Fact]
+    public async Task WhenTheBrowserRaisesAnErrorWhileFetchingAhead_ItIsLogged_AndNothingIsFetched()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        _module.Setup<PlaybackRemoteDescription?>("readOn", _ => true).SetException(new JSException("The media element is gone."));
+
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(0, CastLinkRequests);
+        Assert.Contains(_log.Entries, entry => entry.Level == LogLevel.Information && entry.Message.Contains("fetched ahead of time", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task APrefetchThatTheEngineRefuses_IsNotLoggedAsAFailedCast()
+    {
+        var remote = Arrange(attempt: Refused);
+
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(1, CastLinkRequests);
+        Assert.DoesNotContain(_log.Entries, entry => entry.Message.Contains("was not started", StringComparison.Ordinal));
+        Assert.Contains(_log.Entries, entry => entry.Level == LogLevel.Debug && entry.Message.Contains("ahead of the click", StringComparison.Ordinal));
     }
 
     [Theory]

@@ -139,13 +139,13 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
                 return;
             }
 
-            var link = await _links.RequestAsync(asset);
+            var link = await _links.RequestAsync(asset, aheadOfClick: true);
             if (link.IsReady && !_disposed)
             {
                 _cached = new CachedLink(asset, link, link.ExpiresAt?.Subtract(LinkMargin) ?? DateTimeOffset.UtcNow.Add(UnstatedLinkLife));
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JSDisconnectedException or InvalidOperationException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JSDisconnectedException or JSException or InvalidOperationException)
         {
             _logger.LogInformation(ex, "Play on another device: the cast link could not be fetched ahead of time.");
         }
