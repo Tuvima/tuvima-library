@@ -30,8 +30,8 @@
     else if (_open)
     {
         @* Drawn through the shared popover so it sits in the top layer and no table row or card can clip it. *@
-        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" Class="lib-folders__panel">
-            <div role="dialog" aria-label="@PanelLabel" data-folder-list @onkeydown="KeyDown">
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" Size="AppPopoutSize.Panel" Role="dialog" AriaLabel="@PanelLabel" Class="lib-folders__panel">
+            <div data-folder-list @onkeydown="KeyDown">
                 @ListBody
             </div>
         </AppPopover>

@@ -300,8 +300,10 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("font-weight:500", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("font-size:var(--tl-font-size-xs)", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"@(AriaLabel ?? (IsPlaying ? \"Now playing\" : \"Current item paused\"))\"", activityMark, StringComparison.Ordinal);
-        Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
-        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
+        // The tool sheet draws through the shared Pop-out surface, which owns the role, aria-modal and focus contract (Look v3 D14).
+        Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AppPopout.razor")), StringComparison.Ordinal);
         Assert.Contains("attachModal", focusModule, StringComparison.Ordinal);
         Assert.Contains("restoreFocus", focusModule, StringComparison.Ordinal);
         Assert.Contains("event.key === 'Escape'", focusModule, StringComparison.Ordinal);
@@ -384,9 +386,9 @@ public sealed class PlaybackPrimitiveTests
 
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
         Assert.Contains("--playback-tool-width: 400px;", tokens, StringComparison.Ordinal);
-        Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Icon=\"@Icon\"", toolSheet, StringComparison.Ordinal);
-        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
         Assert.Contains("max-height: 82svh;", toolSheetCss, StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);

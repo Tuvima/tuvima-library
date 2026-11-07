@@ -9,7 +9,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <AppFocusTrap DefaultFocus="true">
-<div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="@L["MediaViewerShell_MediaViewer"].Value" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
+<AppViewer @ref="_viewer" Class="@($"media-viewer{(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")}")" Label="@L["MediaViewerShell_MediaViewer"].Value" tabindex="-1" OnKeyDown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
         <div class="media-viewer__identity">
@@ -100,7 +100,7 @@
             </aside>
         }
     </div>
-</div>
+</AppViewer>
 </AppFocusTrap>
 
 @code {
@@ -153,7 +153,9 @@
     [Parameter] public EventCallback OnCreateGallery { get; set; }
 
     private IJSObjectReference? _chromeModule;
-    private ElementReference _root, _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
+    private AppViewer? _viewer;
+    private ElementReference _root => _viewer?.Root ?? default;
+    private ElementReference _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
     private string? _observedVideoUrl; private double _videoPosition, _videoDuration, _videoVolume = 1, _videoSpeed = 1; private bool _videoIsPlaying, _videoIsMuted, _videoCanPiP, _videoCanFullscreen;
     private int _videoSkipBackSeconds = 10, _videoSkipForwardSeconds = 30;
     private IReadOnlyList<ViewerVideoTrack> _videoTextTracks = [], _videoAudioTracks = [];

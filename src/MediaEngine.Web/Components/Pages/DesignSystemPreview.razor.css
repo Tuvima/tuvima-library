@@ -176,3 +176,8 @@
     }
 }
 .design-system-preview__icon-step { display: inline-flex; flex-direction: column; align-items: center; gap: var(--tl-space-1); color: var(--tl-text-secondary); }
+
+.design-system-preview__popout-anchor { display: inline-flex; }
+.design-system-preview__popout-panel { padding: 16px; }
+.design-system-preview__window-body { margin: 0; padding: 16px 24px; color: var(--tl-text-secondary); }
+.design-system-preview__viewer-body { display: grid; place-items: center; height: 100%; color: var(--tl-text-secondary); }
