@@ -65,15 +65,16 @@
       "tl-art-picker__action",
       "tl-art-picker__prefer"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorFamilyRail.razor": [
-      "is-selected",
-      "tl-rail__img",
-      "tl-rail__option"
+    "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor": [
+      "is-open",
+      "tl-hnav__img",
+      "tl-hnav__trigger",
+      "tl-hnav__trigger--item"
     ],
     "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor": [
       "tl-editor-header__img",
       "tl-editor-header__link",
-      "tl-editor-header__menu"
+      "tl-editor-header__wash"
     ],
     "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
       "is-current",
