@@ -76,7 +76,7 @@ else if (Slides.Count > 0)
 
                 @if (!string.IsNullOrEmpty(CarouselContextLabel) && !IsVideoHero)
                 {
-                    <div class="cinematic-hero-carousel__context" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
+                    <div class="cinematic-hero-carousel__context" data-overflow-tooltip="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
                 }
 
                 <DetailHeroContent Title="@ActiveHero.Title"
@@ -89,7 +89,7 @@ else if (Slides.Count > 0)
                         @* A video's label sits right over its title ("Video folder", "Video", "Continue Watching"), as in the Home hero mock. *@
                         @if (!string.IsNullOrEmpty(CarouselContextLabel) && IsVideoHero)
                         {
-                            <div class="cinematic-hero-carousel__context cinematic-hero-carousel__context--above-title" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
+                            <div class="cinematic-hero-carousel__context cinematic-hero-carousel__context--above-title" data-overflow-tooltip="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
                         }
                     </IdentityBeforeTitle>
                     <MetadataContent>
@@ -162,7 +162,6 @@ else if (Slides.Count > 0)
                                          Class="@TimelineItemClass(isActive)"
                                          AriaLabel="@TimelineItemLabel(slideIndex)"
                                          aria-current="@(isActive ? "true" : null)"
-                                         Title="@Slides[slideIndex].Title"
                                          OnClick="@(_ => SelectSlideAsync(slideIndex))">
                             <span class="cinematic-hero-carousel__dash" aria-hidden="true">
                                 @if (isActive)
@@ -182,7 +181,7 @@ else if (Slides.Count > 0)
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--previous"
                                      AriaLabel="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
-                                     Title="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
+                                     Tooltip="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
                                      OnClick="PreviousAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" />
                     </AppNativeButton>
@@ -190,7 +189,7 @@ else if (Slides.Count > 0)
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--next"
                                      AriaLabel="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
-                                     Title="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
+                                     Tooltip="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
                                      OnClick="NextAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                     </AppNativeButton>
@@ -198,7 +197,7 @@ else if (Slides.Count > 0)
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--pause"
                                      AriaLabel="@PauseButtonLabel"
-                                     Title="@PauseButtonLabel"
+                                     Tooltip="@PauseButtonLabel"
                                      OnClick="TogglePauseAsync">
                         <AppMaterialIcon Icon="@PauseButtonIcon" />
                     </AppNativeButton>

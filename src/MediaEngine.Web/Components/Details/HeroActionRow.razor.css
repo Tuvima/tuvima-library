@@ -21,3 +21,8 @@
 .cinematic-hero--landing .tl-detail-actions { flex-direction:row; align-items:center; }
 .cinematic-hero--landing .tl-detail-actions ::deep .app-icon-button__label { display:none; }
 .tl-detail-actions:has(.media-rate-control.is-open) { position:relative; z-index:40; }
+/* On the phone Home card the row is one line: the main button takes the width and the companions sit beside it without their names. */
+.phone-hero__actions .tl-detail-actions { flex-direction:row; align-items:center; flex-wrap:nowrap; gap:8px; }
+.phone-hero__actions .tl-detail-primary-actions { flex:1 1 auto; width:auto; }
+.phone-hero__actions .tl-detail-actions ::deep .tl-detail-action--primary { width:100%; min-width:0; }
+.phone-hero__actions .tl-detail-actions ::deep .app-icon-button__label { display:none; }

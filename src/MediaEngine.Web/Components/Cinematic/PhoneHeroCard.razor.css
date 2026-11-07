@@ -205,12 +205,6 @@
     margin-top: var(--tl-space-2, 0.5rem);
 }
 
-/* One row on the phone card: the main button takes the width, the companions sit beside it without their names. */
-.phone-hero__actions ::deep .tl-detail-actions { flex-direction: row; align-items: center; flex-wrap: nowrap; gap: var(--tl-space-2, 0.5rem); }
-.phone-hero__actions ::deep .tl-detail-primary-actions { flex: 1 1 auto; width: auto; }
-.phone-hero__actions ::deep .tl-detail-action--primary { width: 100%; min-width: 0; }
-.phone-hero__actions ::deep .app-icon-button__label { display: none; }
-
 .phone-hero__dots {
     display: flex;
     justify-content: center;
