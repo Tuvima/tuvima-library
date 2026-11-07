@@ -39,15 +39,9 @@
     else if (Selection.Panel == BulkPanelKind.Match)
     {
         <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
-            <EditorLineUpPanel ParentId="@(Selection.Rows[0].ParentId ?? Guid.Empty)"
-                               MediaType="@(IsEpisodes ? "TV" : "Music")"
-                               ParentScope="@(IsEpisodes ? "season" : "album")"
-                               ParentName="@MatchParentName"
-                               Rows="@Selection.Rows"
-                               Pending="Pending"
-                               CanEdit="@CanChange"
-                               OnStaged="@(_ => BackToEdit())"
-                               OnCancel="BackToEdit" />
+            @* Matching many items at once is rebuilt with the TV and music flows (universal editor v5, WP9a); one item at a time is matched in its own Match tab. *@
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["BulkEditPanel_MatchOneAtATime"]</AppAlert>
+            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit" />
         </section>
     }
     else
@@ -150,6 +144,7 @@
     private Guid? _artworkTarget;
     private readonly Dictionary<string, ListDraft> _drafts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, string> _movedLabels = [];
+    private readonly HashSet<string> _unlocked = new(StringComparer.OrdinalIgnoreCase);
     private BulkEditFields _fields = default!;
     private List<Guid> _loadedIds = [];
     private int _loadedVersion = -1;
@@ -179,9 +174,6 @@
     /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
-    /// <summary>What the show or album the ticked rows sit in is called; the Match step starts its search from it. Null when the list does not know.</summary>
-    [Parameter] public string? MatchParentName { get; set; }
-
     private bool CanChange => CanEdit && EditorDeviceRule.CanEdit(Device) && !_fields.Forbidden;
 
     private string PanelName => Selection.Panel switch
@@ -195,8 +187,6 @@
     private BulkItemKind Kind => BulkEditRules.KindOf(Selection.Rows, Selection.MediaType);
 
     private string Noun => BulkEditRules.Noun(Selection.Rows, Selection.MediaType);
-
-    private bool IsEpisodes => Selection.Rows.Count > 0 && Selection.Rows.All(row => row.Kind == DetailEntityType.TvEpisode);
 
     private bool ShowsSongTools => BulkEditRules.CanChangeAlbum(Selection.Rows, Selection.MediaType);
 
@@ -324,18 +314,61 @@
     private RenderFragment EditableRow(BulkFieldView field, BulkFieldView shown) => __builder =>
     {
         var staged = field.HasStaged(Pending);
-        <div class="tl-editor-field" data-field-key="@field.Key">
+        // The same form lock as one item (EditorFieldLocks): a provider field starts locked and is unlocked to edit the shared value. A
+        // field with a change staged is the person's own value and stays open; tags and the Explicit mark are never locked.
+        var own = EditorFieldLocks.IsOwnField(field.Key);
+        var locked = !own && !staged && !_unlocked.Contains(field.Key);
+        <div class="@(locked ? "tl-editor-field tl-editor-field--form-locked" : "tl-editor-field")" data-field-key="@field.Key" data-locked="@(locked ? "true" : "false")">
             <div class="tl-editor-field__label">
                 <span>@field.Label</span>
-                @if (staged)
+                @if (!own || staged)
                 {
-                    <AppTooltip Text="Will change when you save"><span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} will change")"></span></AppTooltip>
+                    <span class="tl-editor-field__tools">
+                        @if (staged)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       Tone="AppUiTone.Primary"
+                                       Size="AppControlSize.Compact"
+                                       StartIcon="@AppMaterialIcons.Outlined.Replay"
+                                       Class="tl-editor-field__reset"
+                                       aria-label="@($"Undo changes to {field.Label}")"
+                                       OnClick="@(() => UndoField(field))">@L["EditorDetailsPanel_Revert"]</AppButton>
+                        }
+                        @if (!own)
+                        {
+                        <span class="tl-editor-field__lockstate" data-lock-state="@(staged ? "yours" : locked ? "locked" : "unlocked")">
+                            @if (staged)
+                            {
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
+                                <span>@L["EditorDetailsPanel_YoursKept"]</span>
+                            }
+                            else
+                            {
+                                var lockText = locked ? L["EditorDetailsPanel_UnlockToEdit", field.Label].Value : L["EditorDetailsPanel_Lock", field.Label].Value;
+                                <AppIconButton Icon="@(locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
+                                               Size="AppControlSize.Compact"
+                                               Tone="AppUiTone.Primary"
+                                               ButtonStyle="AppButtonStyle.Text"
+                                               Class="tl-editor-field__lock-toggle"
+                                               Disabled="@(!CanChange)"
+                                               Tooltip="@lockText"
+                                               AriaLabel="@lockText"
+                                               OnClick="@(() => ToggleLock(field, locked))" />
+                                <span>@(locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
+                            }
+                        </span>
+                        }
+                    </span>
                 }
             </div>
             <span class="@(shown.IsMixed ? "tl-editor-field__note tl-bulk__mixed" : "tl-editor-field__note")">@CurrentText(shown)</span>
             @if (field.IsList)
             {
-                @ListControl(field)
+                @* A locked list shows only what the items hold; unlocking brings in the controls that change it. *@
+                @if (!locked)
+                {
+                    @ListControl(field)
+                }
             }
             else if (string.Equals(field.Key, BulkEditRules.ExplicitKey, StringComparison.OrdinalIgnoreCase))
             {
@@ -352,6 +385,7 @@
                               Placeholder="@(shown.IsMixed ? BulkEditRules.MixedLeaveUnchanged : null)"
                               InputType="@InputTypeOf(field)"
                               Disabled="@(!CanChange)"
+                              ReadOnly="@locked"
                               aria-label="@field.Label" />
             }
 
@@ -360,11 +394,6 @@
                 <span class="tl-editor-field__note">@LockedText(field)</span>
             }
 
-            @if (staged)
-            {
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Class="tl-editor-field__reset" OnClick="@(() => UndoField(field))">Undo changes to @field.Label</AppButton>
-            }
         </div>
     };
 
@@ -642,8 +671,27 @@
         Restage(field, draft);
     }
 
+    // Unlocking only lets the shared value be typed in; locking again stages nothing.
+    private void ToggleLock(BulkFieldView field, bool locked)
+    {
+        if (!CanChange)
+        {
+            return;
+        }
+
+        if (locked)
+        {
+            _unlocked.Add(field.Key);
+        }
+        else
+        {
+            _unlocked.Remove(field.Key);
+        }
+    }
+
     private void UndoField(BulkFieldView field)
     {
+        _unlocked.Remove(field.Key);
         BulkEditStager.ClearField(Pending, field);
         if (_drafts.TryGetValue(field.Key, out var draft))
         {

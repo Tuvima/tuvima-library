@@ -26,6 +26,21 @@ public sealed class PaletteConfiguration
 
     [JsonPropertyName("review_trigger")]
     public ReviewTriggerPalette ReviewTrigger { get; set; } = new();
+
+    /// <summary>How the universal editor's header gradient is built from the cover's two main colours (editor v5 D9).</summary>
+    [JsonPropertyName("editor_header")]
+    public EditorHeaderPalette EditorHeader { get; set; } = new();
+}
+
+/// <summary>
+/// The editor header's gradient (universal editor v5 D9, D34): the cover's primary and secondary colours are mixed into the window surface,
+/// so a bright cover never overpowers the title. Each value is how much of the cover colour is kept, from 0 (the plain surface) to 100
+/// (the cover colour as it is).
+/// </summary>
+public sealed class EditorHeaderPalette
+{
+    [JsonPropertyName("primary_percent")] public int PrimaryPercent { get; set; } = 55;
+    [JsonPropertyName("secondary_percent")] public int SecondaryPercent { get; set; } = 70;
 }
 
 public sealed class ThemePalette

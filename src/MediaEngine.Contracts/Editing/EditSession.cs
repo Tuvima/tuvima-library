@@ -78,7 +78,14 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string SupportingFiles = "supporting_files";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles];
+    /// <summary>
+    /// The item's match is taken away (universal editor v5, Match tab "Remove match"). <see cref="EditSessionChange.EntityId"/> is the item;
+    /// nothing else is needed. The provider record ids stop being the item's; its details, locked fields, pictures and Wikidata id stay, no
+    /// file moves, and the item does not go to Needs Review. Same permission as choosing a match.
+    /// </summary>
+    public const string MatchRemoval = "match_removal";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles, MatchRemoval];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 

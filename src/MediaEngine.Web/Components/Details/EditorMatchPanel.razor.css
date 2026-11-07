@@ -1,24 +1,120 @@
-/* The Match row (Look v3 D15.5): one flex line, both groups on the row's centre line, nothing wrapping in a cell. */
-.tl-match__matchrow {
+/* The Match tab's first row (editor v5, 3c): provider dropdown, icon-only Search and the file name at the start, the source switch at the end. */
+.tl-matchrow {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--tl-space-3);
-    min-height: var(--tl-row-h-compact);
     min-width: 0;
 }
 
-.tl-match__matchrow-start {
+.tl-matchrow__start {
     display: flex;
     flex: 1 1 auto;
-    align-items: center;
-    gap: var(--tl-space-2);
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tl-space-3);
     min-width: 0;
 }
 
-.tl-match__matchrow-end {
+.tl-matchrow__provider {
+    flex: 0 1 14rem;
+    min-width: 0;
+}
+
+.tl-matchrow__field {
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.tl-matchrow__end {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+}
+
+/* The current match and its reasons. */
+.tl-matchcard {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md, 8px);
+}
+
+.tl-matchcard--why {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.tl-matchcard__art {
+    flex: 0 0 4rem;
+    width: 4rem;
+    height: 6rem;
+}
+
+.tl-matchcard__name {
+    font-size: var(--tl-font-size-lg);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-matchcard__actions {
     display: flex;
     flex: 0 0 auto;
+    flex-wrap: wrap;
     align-items: center;
-    margin-inline-start: auto;
+    gap: var(--tl-space-2);
+}
+
+.tl-matchwhy {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-matchwhy th,
+.tl-matchwhy td {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-divider);
+    text-align: left;
+}
+
+.tl-matchwhy tbody th {
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-matchwhy small {
+    display: block;
+    font-weight: var(--tl-font-weight-regular);
+}
+
+.tl-matchwhy__mark[data-state="agrees"] {
+    color: var(--tl-status-success, #2e7d32);
+}
+
+.tl-matchwhy__mark[data-state="differs"] {
+    color: var(--tl-status-warning, #b26a00);
+}
+
+/* The compact search. */
+.tl-matchsearch {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+.tl-matchsearch__heading {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-matchsearch__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-inline-start: var(--tl-space-2);
+}
+
+.tl-matchwhy__footnote {
+    margin: 0;
 }

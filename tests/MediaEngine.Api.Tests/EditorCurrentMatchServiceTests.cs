@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Services.EditSession;
+using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
@@ -221,6 +222,45 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
         Assert.Null(await Service(new TvdbSpy(), connected: true).ReadAsync(Guid.NewGuid()));
     }
 
+    [Fact]
+    public async Task AMatchedMovie_SaysHowStronglyItFits_WithAVerdictOnEveryRow_AndAMeasuredRuntimeRow()
+    {
+        var movie = _world.Work("Movies", "standalone", "The Matrix");
+        _world.File(movie, "The.Matrix.1999.1080p.BluRay.mkv", durationSeconds: 8160);
+        _world.Canonical(movie, BridgeIdKeys.TmdbId, "603");
+        _world.Canonical(movie, MetadataFieldConstants.Year, "1999");
+        _world.Canonical(movie, MetadataFieldConstants.Runtime, "136");
+
+        var match = await Service(new TvdbSpy(), connected: false).ReadAsync(movie);
+
+        Assert.Equal(EditorCurrentMatchStates.Matched, match!.State);
+        Assert.Equal("TMDB", match.Record!.ProviderName);
+        Assert.Equal(EditorMatchVerdicts.Strong, match.Verdict);
+        Assert.False(match.Pinned);
+        Assert.All(match.Why.Where(row => row.State != EditorMatchEvidenceStates.NotChecked), row => Assert.Equal(EditorMatchVerdicts.Strong, row.Verdict));
+        var runtime = Assert.Single(match.Why, row => row.Field == "runtime");
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, runtime.State);
+        Assert.Equal("2:16:00", runtime.YourFile);
+        Assert.Equal("136 min", runtime.MatchedRecord);
+        Assert.Contains("rounded", runtime.Note);
+    }
+
+    [Fact]
+    public async Task AMatchWhoseTitleDiffers_ReadsAsCheck_AndAPersonsMatchIsPinned()
+    {
+        var movie = _world.Work("Movies", "standalone", "Totally Different");
+        _world.File(movie, "The.Matrix.1999.1080p.BluRay.mkv");
+        _world.Canonical(movie, BridgeIdKeys.TmdbId, "999");
+        _world.Canonical(movie, MetadataFieldConstants.Year, "1999");
+        _world.Canonical(movie, MetadataFieldConstants.MatchPinned, "true");
+
+        var match = await Service(new TvdbSpy(), connected: false).ReadAsync(movie);
+
+        Assert.Equal(EditorMatchVerdicts.Check, match!.Verdict);
+        Assert.True(match.Pinned);
+        Assert.Equal(EditorMatchVerdicts.Check, match.Why.Single(row => row.Field == "title").Verdict);
+    }
+
     private EditorCurrentMatchService Service(TvdbSpy handler, bool connected)
     {
         Directory.CreateDirectory(_config);
@@ -243,6 +283,8 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
             new MetadataClaimRepository(_world.Database),
             client,
             _previews,
+            new EditorMatchVerdictCalculator(new MatchVerdictSettings()),
+            _world.QuickFacts,
             NullLogger<EditorCurrentMatchService>.Instance);
     }
 

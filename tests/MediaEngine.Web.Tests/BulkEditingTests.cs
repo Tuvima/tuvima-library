@@ -230,11 +230,16 @@ public sealed class BulkEditingTests : AsyncBunitContext
         return bar.FindAll("[role='menuitem']");
     }
 
-    private static void TypeScalar(IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> panel, string key, string text) =>
+    // Provider fields start locked (editor v5 D5): the person unlocks one before typing the shared value.
+    private static void TypeScalar(IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> panel, string key, string text)
+    {
+        panel.UnlockField(key);
         panel.Find($"[data-field-key='{key}'] input").Input(text);
+    }
 
     private static void AddListValue(IRenderedComponent<BulkEditPanel> panel, string key, string value)
     {
+        panel.UnlockField(key);
         panel.Find($"[data-field-key='{key}'] input[aria-label='Tag to add']").Input(value);
         panel.Find($"[data-field-key='{key}'] form").Submit();
     }
@@ -713,15 +718,47 @@ public sealed class BulkEditingTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Panel_ASharedProviderField_OpensLocked_AndUnlockingItStagesNothing()
+    {
+        var (panel, pending, _) = await OpenPanelAsync();
+
+        var year = panel.WaitForElement("[data-field-key='year']");
+
+        Assert.Equal("true", year.GetAttribute("data-locked"));
+        Assert.True(year.QuerySelector("input")!.HasAttribute("readonly"));
+        Assert.False(year.QuerySelector("input")!.HasAttribute("disabled"));
+        Assert.Equal("Unlock Year to edit", year.QuerySelector("button.tl-editor-field__lock-toggle")!.GetAttribute("aria-label"));
+        Assert.Contains(BulkEditRules.MixedLeaveUnchanged, panel.Find("[data-field-key='genre']").TextContent, StringComparison.Ordinal);
+
+        year.QuerySelector("button.tl-editor-field__lock-toggle")!.Click();
+
+        panel.WaitForAssertion(() =>
+        {
+            Assert.Equal("false", panel.Find("[data-field-key='year']").GetAttribute("data-locked"));
+            Assert.False(panel.Find("[data-field-key='year'] input").HasAttribute("readonly"));
+        });
+        Assert.True(pending.IsEmpty);
+
+        panel.Find("[data-field-key='year'] button.tl-editor-field__lock-toggle").Click();
+
+        panel.WaitForAssertion(() => Assert.Equal("true", panel.Find("[data-field-key='year']").GetAttribute("data-locked")));
+        Assert.True(pending.IsEmpty);
+    }
+
+    [Fact]
     public async Task Panel_UndoingAField_TakesItsStagedValuesBackOut()
     {
         var (panel, pending, _) = await OpenPanelAsync();
         TypeScalar(panel, "year", "2021");
         panel.WaitForAssertion(() => Assert.False(pending.IsEmpty));
 
-        panel.Find("[data-field-key='year'] .tl-editor-field__reset").Click();
+        // Revert sits in the label row beside the field's name, as it does for one item.
+        var revert = panel.Find("[data-field-key='year'] .tl-editor-field__label .tl-editor-field__reset");
+        Assert.Equal("Revert", revert.TextContent.Trim());
+        revert.Click();
 
         panel.WaitForAssertion(() => Assert.True(pending.IsEmpty));
+        Assert.Empty(panel.FindAll("[data-field-key='year'] .tl-editor-field__reset"));
     }
 
     [Fact]
@@ -891,7 +928,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
         // The list is still there under the pop-over, with its ticks.
         Assert.Equal("4 selected", list.Find(".tl-batch__count").TextContent.Trim());
-        Assert.Empty(popover.FindAll(".tl-rail"));
+        Assert.Empty(popover.FindAll(".tl-hnav"));
     }
 
     [Fact]
@@ -903,7 +940,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
         list.Find(".tl-batch__edit").Click();
         popover.WaitForElement("[data-field-key='year']");
         TypeScalar(popover, "year", "2021");
-        popover.WaitForAssertion(() => Assert.Equal("Save 4 changes", popover.Find("button.tl-editor-window__save").TextContent.Trim()));
+        popover.WaitForAssertion(() => Assert.Equal("Save changes", popover.Find("button.tl-editor-window__save").TextContent.Trim()));
 
         // Save changes opens Review changes; nothing is saved until its own Save.
         popover.Find("button.tl-editor-window__save").Click();
