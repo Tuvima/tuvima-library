@@ -31,6 +31,11 @@ internal sealed class ExtrasRuleBook
         TransientNames = Set(config.TransientFiles.Names);
         FolderRoles = new Dictionary<string, string>(config.FolderRoles, StringComparer.OrdinalIgnoreCase);
         TitleSeparators = [.. config.TitleSeparators.Where(text => text.Length == 1).Select(text => text[0])];
+        SkipWords = new HashSet<string>(
+            config.RoleWords.SelectMany(entry => entry.Words)
+                .Concat(config.DocumentHintWords)
+                .SelectMany(word => word.Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+            StringComparer.OrdinalIgnoreCase);
 
         RoleWords = [.. config.RoleWords
             .Where(entry => entry.Words.Count > 0)
@@ -85,6 +90,9 @@ internal sealed class ExtrasRuleBook
     public Dictionary<string, string> FolderRoles { get; }
 
     public char[] TitleSeparators { get; }
+
+    /// <summary>The words that only say what a file is (role words and document-hint words), left out when comparing names.</summary>
+    public HashSet<string> SkipWords { get; }
 
     /// <summary>The file-name words per role, in the order they are tried.</summary>
     public IReadOnlyList<(string Role, Regex Words)> RoleWords { get; }

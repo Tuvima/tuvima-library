@@ -104,7 +104,7 @@ public sealed class SupportingFilePlacementTests : IDisposable
         Assert.Equal(ExtraScope.ForFolder("Section 1"), worksheet.Scope);
         Assert.Equal(ExtraScope.ForFile("Section 1/02 Components.mkv"), worksheet.Alongside);
         Assert.Equal(ExtraRoles.Worksheet, worksheet.Role);
-        Assert.Equal("02-component-exercises", worksheet.Title);
+        Assert.Equal("02 component exercises", worksheet.Title);
     }
 
     [Fact]
@@ -175,6 +175,7 @@ public sealed class SupportingFilePlacementTests : IDisposable
     [Theory]
     [InlineData("Show/Trailer.mkv", ExtraRoles.Trailer)]
     [InlineData("Show/Extras/Behind the scenes of the pilot.mkv", ExtraRoles.BehindTheScenes)]
+    [InlineData("Show/Extras/Behind the camera.mkv", ExtraRoles.BehindTheScenes)]
     [InlineData("Show/Extras/Deleted scenes.mkv", ExtraRoles.DeletedScene)]
     [InlineData("Show/Extras/Cast interview.mkv", ExtraRoles.Interview)]
     [InlineData("Show/Extras/Something else.mkv", ExtraRoles.Clip)]
@@ -202,6 +203,19 @@ public sealed class SupportingFilePlacementTests : IDisposable
 
         // "trailer" is a video role; a document can only be a document role ("script" says Transcript).
         Assert.Equal(ExtraRoles.Transcript, Placed(Tv(), "Show", "Show/Documents/Trailer script.pdf").Role);
+    }
+
+    [Theory]
+    [InlineData("Show/Documents/week_1 - overview.pdf", "week 1 overview")]
+    [InlineData("Show/Documents/02-component-exercises.pdf", "02 component exercises")]
+    [InlineData("Show/Documents/Study.guide  v2.pdf", "Study guide v2")]
+    [InlineData("Show/Documents/- notes -.pdf", "notes")]
+    public void ATitleIsTheFileNameWithSeparatorsAsSpaces_LeadingNumbersKept_AndRunsOfSpacesCollapsed(string relative, string expected)
+    {
+        Touch("Show/Season 01/Show S01E01.mkv");
+        Touch(relative);
+
+        Assert.Equal(expected, Placed(Tv(), "Show", relative).Title);
     }
 
     [Fact]
@@ -352,13 +366,75 @@ public sealed class SupportingFilePlacementTests : IDisposable
     {
         Touch("Show/Season 1/Show S01E01.mkv");
         Touch("Show/Documents/Syllabus-2024.pdf");
-        var rules = ExtrasConfigurationProvider.TryRead(File.ReadAllText(FindRepoFile("config/extras.json")))!;
-        rules.RoleWords.Single(entry => entry.Role == ExtraRoles.Guide).Words.Add("syllabus");
+        // A rules file is compiled once when it is read, so the word goes into the file text, as a person would add it.
+        var json = File.ReadAllText(FindRepoFile("config/extras.json"))
+            .Replace("{ \"role\": \"guide\", \"words\": [\"guide\",", "{ \"role\": \"guide\", \"words\": [\"syllabus\", \"guide\",", StringComparison.Ordinal);
+        var rules = ExtrasConfigurationProvider.TryRead(json)!;
+        Assert.Contains("syllabus", rules.RoleWords.Single(entry => entry.Role == ExtraRoles.Guide).Words);
         var context = Tv() with { Rules = rules };
 
         var guide = ExtrasRule.ScanItemFolder(context, Path.Combine(_root, "Show")).Single();
 
         Assert.Equal(ExtraRoles.Guide, guide.Role);
+    }
+
+    [Fact]
+    public void ARulesFileWithAPatternThatDoesNotCompile_IsRefused_NotLeftToBreakTheFirstScan()
+    {
+        var json = File.ReadAllText(FindRepoFile("config/extras.json"))
+            .Replace("\"picture_sidecar_name_pattern\": \"", "\"picture_sidecar_name_pattern\": \"(unclosed", StringComparison.Ordinal);
+        Assert.Contains("(unclosed", json, StringComparison.Ordinal);
+
+        var read = ExtrasConfigurationProvider.TryRead(json, out var problem);
+
+        Assert.Null(read);
+        Assert.Contains("pattern", problem, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ABrokenRulesFileInTheConfigFolder_FallsBackToTheShippedRules_AndSaysSoInTheLog()
+    {
+        var folder = Path.Combine(_root, "config");
+        Directory.CreateDirectory(folder);
+        var json = File.ReadAllText(FindRepoFile("config/extras.json"))
+            .Replace("\"picture_sidecar_name_pattern\": \"", "\"picture_sidecar_name_pattern\": \"(unclosed", StringComparison.Ordinal);
+        File.WriteAllText(Path.Combine(folder, "extras.json"), json);
+        var log = new CapturingLogger();
+
+        var provider = new ExtrasConfigurationProvider(() => folder, log);
+
+        Assert.Same(ExtrasConfigurationProvider.BuiltIn, provider.Current);
+        var warning = Assert.Single(log.Warnings);
+        Assert.Contains("extras.json", warning, StringComparison.Ordinal);
+        Assert.Contains("shipped rules", warning, StringComparison.Ordinal);
+
+        // A fixed file is picked up again, with no restart.
+        File.WriteAllText(Path.Combine(folder, "extras.json"), File.ReadAllText(FindRepoFile("config/extras.json")));
+        File.SetLastWriteTimeUtc(Path.Combine(folder, "extras.json"), DateTime.UtcNow.AddMinutes(1));
+        Assert.NotSame(ExtrasConfigurationProvider.BuiltIn, provider.Current);
+    }
+
+    private sealed class CapturingLogger : Microsoft.Extensions.Logging.ILogger
+    {
+        public List<string> Warnings { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            Microsoft.Extensions.Logging.LogLevel logLevel,
+            Microsoft.Extensions.Logging.EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == Microsoft.Extensions.Logging.LogLevel.Warning)
+            {
+                Warnings.Add(formatter(state, exception));
+            }
+        }
     }
 
     private static string FindRepoFile(string relative)
@@ -454,6 +530,28 @@ public sealed class SupportingFileRescanTests : IDisposable
         Assert.Equal(ExtraScopeSources.You, after.ScopeSource);
         Assert.Equal(ExtraScope.ForFolder("Section 1"), after.InferredScope);
         Assert.Equal(ExtraScope.ForFile("Section 1/02 Components of a page.mkv"), after.InferredAlongside);
+    }
+
+    [Fact]
+    public async Task ARenamedFolderGroup_StaysRenamed_AfterARescanOfTheSameFolder()
+    {
+        var course = Path.Combine(_root, "Course");
+        Touch("Course/Section 1/01 Welcome.mkv");
+        var people = Touch("Course/Extras/Character guides/people.pdf");
+        var places = Touch("Course/Extras/Character guides/places.pdf");
+        await _scanner.SyncItemFolderAsync(course);
+        var group = Assert.Single(await _extras.ListGroupsAsync(course));
+        Assert.Equal("Character guides", group.Name);
+
+        Assert.True(await _extras.RenameGroupAsync(group.Id, "Guides"));
+        await _scanner.SyncItemFolderAsync(course);
+        await _scanner.SyncItemFolderAsync(course);
+
+        var after = Assert.Single(await _extras.ListGroupsAsync(course));
+        Assert.Equal("Guides", after.Name);
+        Assert.Equal(2, after.FileCount);
+        Assert.Equal("Guides", (await _extras.GetByPathAsync(people))!.GroupName);
+        Assert.Equal("Guides", (await _extras.GetByPathAsync(places))!.GroupName);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Extras;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Tests;
@@ -51,6 +52,22 @@ public sealed class SupportingFileReadTests
         Assert.Equal("02-exercises.pdf", dto.FileName);
         Assert.Equal(DetailExtraCardKinds.Document, dto.Kind);
         Assert.Equal("file:Section 1/02 Components.mkv", dto.InferredAlongsideKey);
+    }
+
+    [Fact]
+    public void TheRoleLabel_IsTheWordsInTheConfiguration_WhenTheRulesAreGiven()
+    {
+        var rules = new ExtrasConfiguration
+        {
+            Roles = new Dictionary<string, List<ExtrasRoleEntry>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["document"] = [new() { Id = ExtraRoles.Worksheet, Label = "Homework sheet" }],
+            },
+        };
+
+        Assert.Equal("Homework sheet", Assert.Single(ExtraCardBuilder.Build([Worksheet()], _ => true, rules)).RoleLabel);
+        Assert.Equal("Homework sheet", ExtraCardBuilder.ToSupportingFile(Worksheet(), _ => true, rules).RoleLabel);
+        Assert.Equal("Worksheet", ExtraCardBuilder.ToSupportingFile(Worksheet(), _ => true).RoleLabel);
     }
 
     [Fact]
