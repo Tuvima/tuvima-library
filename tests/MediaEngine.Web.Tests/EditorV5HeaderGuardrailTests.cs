@@ -39,9 +39,10 @@ public sealed partial class EditorV5HeaderGuardrailTests
     }
 
     [Fact]
-    public void TheEditorOffersOnlyDetailsArtworkMatchAndHistory_NeverAContentsOrFilesTool()
+    public void TheEditorOffersOnlyDetailsArtworkMatchBookmarksHistoryAndAFilesPreview_NeverAContentsOrFilesTool()
     {
-        Assert.Equal(["Details", "Artwork", "Match", "History"], Enum.GetNames<EditTool>());
+        // Preview is the one tab a supporting file adds (universal editor v5 WP7) and Bookmarks the administrators' tab (WP15); Contents and Files stay gone.
+        Assert.Equal(["Details", "Artwork", "Match", "Bookmarks", "History", "Preview"], Enum.GetNames<EditTool>());
         Assert.DoesNotContain("contents", EditorTabRules.Standard);
         Assert.DoesNotContain("files", EditorTabRules.Standard);
     }

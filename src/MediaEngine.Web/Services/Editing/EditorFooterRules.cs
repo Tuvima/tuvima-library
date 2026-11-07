@@ -40,6 +40,13 @@ public static class EditorFooterRules
                 : new EditorFooterState(EditorFooterStatus.WillMove);
         }
 
+        // A Belongs to change on a supporting file in a Managed folder moves the file the same way; the Engine's check named the two paths.
+        var fileMove = pending?.SupportingFileStages.FirstOrDefault(stage => stage.HasMove);
+        if (fileMove is not null)
+        {
+            return new EditorFooterState(EditorFooterStatus.WillMove, fileMove.MoveFrom, fileMove.MoveTo);
+        }
+
         return new EditorFooterState(setting.State switch
         {
             FileWriteState.On => EditorFooterStatus.WriteBackOn,

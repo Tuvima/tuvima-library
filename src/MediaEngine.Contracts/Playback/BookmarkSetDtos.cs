@@ -49,6 +49,9 @@ public sealed record BookmarkSetItemDto
     public string? Description { get; init; }
     /// <summary>For a book bookmark: the saved reader location (an EPUB location). Null for a film or audiobook bookmark.</summary>
     public string? Locator { get; init; }
+
+    /// <summary>The picture of that moment the file carried (a small JPEG, base64), or null when it carried none.</summary>
+    public string? FrameBase64 { get; init; }
 }
 
 /// <summary>The nearest bookmark the person already has (their own or a Global one).</summary>
@@ -100,41 +103,4 @@ public sealed record BookmarkSetCompareDto
     public IReadOnlyList<BookmarkSetCompareRowDto> Rows { get; init; } = [];
     /// <summary>How many Global bookmarks the title has now (shown beside "Replace the whole Global set").</summary>
     public int GlobalCount { get; init; }
-}
-
-public sealed record BookmarkSetRowChoiceDto
-{
-    public int Index { get; init; }
-    /// <summary>See <see cref="BookmarkRowChoices"/>.</summary>
-    public string Choice { get; init; } = BookmarkRowChoices.Incoming;
-}
-
-public sealed record BookmarkSetApplyRequestDto
-{
-    public BookmarkSetRequestDto Set { get; init; } = new();
-    /// <summary>The person's choice per row. A row with no entry takes its default.</summary>
-    public IReadOnlyList<BookmarkSetRowChoiceDto> Choices { get; init; } = [];
-    /// <summary>Administrators only: delete every existing Global bookmark on the title and add the whole set instead.</summary>
-    public bool ReplaceGlobalSet { get; init; }
-}
-
-public sealed record BookmarkSetApplyResultDto
-{
-    public int Added { get; init; }
-    public int Replaced { get; init; }
-    public int Kept { get; init; }
-    public int Skipped { get; init; }
-    /// <summary>True when the added bookmarks are Global (an administrator applied them).</summary>
-    public bool AddedToGlobal { get; init; }
-}
-
-/// <summary>Asks the Engine to save this title's Global bookmarks as a file (administrators only).</summary>
-public sealed record ExportGlobalBookmarksRequestDto
-{
-    public Guid? ProfileId { get; init; }
-    public Guid AssetId { get; init; }
-    /// <summary>The running time of the copy being played, in seconds.</summary>
-    public double? RunningTimeSeconds { get; init; }
-    /// <summary>The chapters of the copy being played, so each bookmark can carry how far into its chapter it is.</summary>
-    public IReadOnlyList<BookmarkPackChapterDto> Chapters { get; init; } = [];
 }

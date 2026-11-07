@@ -12,7 +12,9 @@ public enum EditingSection
     Details,
     Artwork,
     Match,
+    Bookmarks,
     History,
+    Preview,
 }
 
 /// <summary>The person's answer to "Save or discard?". Closing the dialog (Esc or the close button) is <see cref="Cancel"/>.</summary>

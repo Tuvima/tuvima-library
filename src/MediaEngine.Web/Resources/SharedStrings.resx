@@ -1727,9 +1727,6 @@
   <data name="BookReader_BookmarkThisPage" xml:space="preserve">
     <value>Bookmark this page</value>
   </data>
-  <data name="BookReader_BackToMine" xml:space="preserve">
-    <value>Back to mine</value>
-  </data>
   <data name="BookReader_NoBookmarksYet" xml:space="preserve">
     <value>No bookmarks yet.</value>
   </data>
@@ -6980,12 +6977,6 @@
   <data name="AudiobookBookmarkDialog_OptionalLongerDescription" xml:space="preserve">
     <value>Optional longer description</value>
   </data>
-  <data name="AudiobookBookmarkDialog_ShareWithEveryone" xml:space="preserve">
-    <value>Make Global</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_EveryoneWhoCanSeeThis" xml:space="preserve">
-    <value>Everyone who can see this title will see it. Only administrators can change it.</value>
-  </data>
   <data name="AudiobookBookmarkDialog_SavedBookmarks" xml:space="preserve">
     <value>Saved bookmarks</value>
   </data>
@@ -9362,156 +9353,6 @@
   <data name="VideoBookmarkPane_Global" xml:space="preserve">
     <value>Global</value>
   </data>
-  <data name="VideoBookmarkPane_Everyones" xml:space="preserve">
-    <value>Everyone’s</value>
-  </data>
-  <data name="VideoBookmarkPane_Promote" xml:space="preserve">
-    <value>Promote</value>
-  </data>
-  <data name="VideoBookmarkPane_Name" xml:space="preserve">
-    <value>Name</value>
-  </data>
-  <data name="VideoBookmarkPane_Description" xml:space="preserve">
-    <value>Description</value>
-  </data>
-  <data name="VideoBookmarkPane_Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="BookmarkFind_Back" xml:space="preserve">
-    <value>Back</value>
-  </data>
-  <data name="BookmarkFind_Title" xml:space="preserve">
-    <value>Find bookmarks</value>
-  </data>
-  <data name="BookmarkFind_CompareTitle" xml:space="preserve">
-    <value>Compare with your bookmarks</value>
-  </data>
-  <data name="BookmarkFind_YourFile" xml:space="preserve">
-    <value>Your file</value>
-  </data>
-  <data name="BookmarkFind_DropPrompt" xml:space="preserve">
-    <value>Drop a bookmark file here, or choose one</value>
-  </data>
-  <data name="BookmarkFind_ExportGlobal" xml:space="preserve">
-    <value>Export Global bookmarks</value>
-  </data>
-  <data name="BookmarkFind_ExportHint" xml:space="preserve">
-    <value>Saves this title’s Global bookmarks as a file. Personal bookmarks are never included.</value>
-  </data>
-  <data name="BookmarkFind_OneBookmark" xml:space="preserve">
-    <value>1 bookmark</value>
-  </data>
-  <data name="BookmarkFind_ManyBookmarks" xml:space="preserve">
-    <value>{0} bookmarks</value>
-  </data>
-  <data name="BookmarkFind_ByAuthor" xml:space="preserve">
-    <value> · by {0}</value>
-  </data>
-  <data name="BookmarkFind_Compare" xml:space="preserve">
-    <value>Compare</value>
-  </data>
-  <data name="BookmarkFind_AlignByChapter" xml:space="preserve">
-    <value>Align by chapter</value>
-  </data>
-  <data name="BookmarkFind_Incoming" xml:space="preserve">
-    <value>Incoming</value>
-  </data>
-  <data name="BookmarkFind_Yours" xml:space="preserve">
-    <value>Yours</value>
-  </data>
-  <data name="BookmarkFind_PickIncoming" xml:space="preserve">
-    <value>Keep the incoming bookmark at {0}</value>
-  </data>
-  <data name="BookmarkFind_PickYours" xml:space="preserve">
-    <value>Keep your bookmark at {0}</value>
-  </data>
-  <data name="BookmarkFind_NothingNearby" xml:space="preserve">
-    <value>Nothing nearby</value>
-  </data>
-  <data name="BookmarkFind_LeaveOut" xml:space="preserve">
-    <value>Leave out</value>
-  </data>
-  <data name="BookmarkFind_AddThis" xml:space="preserve">
-    <value>Add</value>
-  </data>
-  <data name="BookmarkFind_SkippedNote" xml:space="preserve">
-    <value>{0} bookmarks in this file could not be placed on your copy and are left out.</value>
-  </data>
-  <data name="BookmarkFind_ReplaceWhole" xml:space="preserve">
-    <value>Replace the whole Global set with this one</value>
-  </data>
-  <data name="BookmarkFind_ReplaceWholeHint" xml:space="preserve">
-    <value>Removes the {0} Global bookmarks this title has now and adds every bookmark in the file.</value>
-  </data>
-  <data name="BookmarkFind_Apply" xml:space="preserve">
-    <value>Apply</value>
-  </data>
-  <data name="BookmarkFind_ApplyGlobalHint" xml:space="preserve">
-    <value>Nothing changes until Apply. Bookmarks you keep from the file become Global for everyone.</value>
-  </data>
-  <data name="BookmarkFind_ApplyMineHint" xml:space="preserve">
-    <value>Nothing changes until Apply. Bookmarks you keep from the file become yours.</value>
-  </data>
-  <data name="BookmarkFind_NotABookmarkFile" xml:space="preserve">
-    <value>That is not a bookmark file, or it is too large.</value>
-  </data>
-  <data name="BookmarkFind_ApplyFailed" xml:space="preserve">
-    <value>The bookmarks could not be applied.</value>
-  </data>
-  <data name="BookmarkFind_AppliedGlobal" xml:space="preserve">
-    <value>Added {0} Global bookmarks</value>
-  </data>
-  <data name="BookmarkFind_AppliedMine" xml:space="preserve">
-    <value>Added {0} bookmarks</value>
-  </data>
-  <data name="BookmarkFind_ExportFailed" xml:space="preserve">
-    <value>The file could not be made.</value>
-  </data>
-  <data name="BookmarkFind_Exported" xml:space="preserve">
-    <value>Saved a file with {0} Global bookmarks.</value>
-  </data>
-  <data name="BookmarkFind_Matches" xml:space="preserve">
-    <value>Matches this cut</value>
-  </data>
-  <data name="BookmarkFind_DifferentCut" xml:space="preserve">
-    <value>Different cut</value>
-  </data>
-  <data name="BookmarkFind_NotThisTitle" xml:space="preserve">
-    <value>Not this title</value>
-  </data>
-  <data name="BookmarkFind_SameSpot" xml:space="preserve">
-    <value>Same spot · {0}</value>
-  </data>
-  <data name="BookmarkFind_Close" xml:space="preserve">
-    <value>Close · {0}</value>
-  </data>
-  <data name="BookmarkFind_Far" xml:space="preserve">
-    <value>Far · {0}</value>
-  </data>
-  <data name="BookmarkFind_SameParagraph" xml:space="preserve">
-    <value>same paragraph</value>
-  </data>
-  <data name="BookmarkFind_SameChapter" xml:space="preserve">
-    <value>same chapter</value>
-  </data>
-  <data name="BookmarkFind_OneChapterAway" xml:space="preserve">
-    <value>1 chapter away</value>
-  </data>
-  <data name="BookmarkFind_ChaptersAway" xml:space="preserve">
-    <value>{0} chapters away</value>
-  </data>
-  <data name="BookmarkFind_ChapterNumber" xml:space="preserve">
-    <value>Chapter {0}</value>
-  </data>
-  <data name="BookmarkFind_New" xml:space="preserve">
-    <value>New</value>
-  </data>
-  <data name="VideoBookmarkPane_Find" xml:space="preserve">
-    <value>Find bookmarks</value>
-  </data>
-  <data name="AudiobookGlobalExtras_Nobody" xml:space="preserve">
-    <value>Nobody else has bookmarked this title.</value>
-  </data>
   <data name="NeedsReviewList_ShowAriaLabel" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -11659,5 +11500,302 @@
   </data>
   <data name="EditorMatchResults_IdEmbeddedTitle" xml:space="preserve">
     <value>embedded title</value>
+  </data>
+  <data name="EditorSupportingFile_Loading" xml:space="preserve">
+    <value>Loading this file's details</value>
+  </data>
+  <data name="EditorSupportingFile_ReadOnlyDevice" xml:space="preserve">
+    <value>You can look at these details here. Changing them needs a larger screen with a mouse.</value>
+  </data>
+  <data name="EditorSupportingFile_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestDetails" xml:space="preserve">
+    <value>Suggest details from the document</value>
+  </data>
+  <data name="EditorSupportingFile_TitleCleared" xml:space="preserve">
+    <value>Goes back to the name read from the file when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_TitleSet" xml:space="preserve">
+    <value>Shown instead of the name read from the file.</value>
+  </data>
+  <data name="EditorSupportingFile_Group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="EditorSupportingFile_NoGroup" xml:space="preserve">
+    <value>No group</value>
+  </data>
+  <data name="EditorSupportingFile_CreateGroup" xml:space="preserve">
+    <value>Create "{0}"</value>
+  </data>
+  <data name="EditorSupportingFile_NewGroupHint" xml:space="preserve">
+    <value>New group. It is created when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_GroupFromFolder" xml:space="preserve">
+    <value>From its folder. Pick another group to change it.</value>
+  </data>
+  <data name="EditorSupportingFile_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="EditorSupportingFile_BelongsTo" xml:space="preserve">
+    <value>Belongs to</value>
+  </data>
+  <data name="EditorSupportingFile_UseFolderLocation" xml:space="preserve">
+    <value>Use folder location</value>
+  </data>
+  <data name="EditorSupportingFile_ScopeFromFolder" xml:space="preserve">
+    <value>From its folder location ({0}).</value>
+  </data>
+  <data name="EditorSupportingFile_ScopeSetByYou" xml:space="preserve">
+    <value>Set by you.</value>
+  </data>
+  <data name="EditorSupportingFile_ScopeSetByYouReadOnly" xml:space="preserve">
+    <value>Set by you. The file stays where it is.</value>
+  </data>
+  <data name="EditorSupportingFile_MoveNote" xml:space="preserve">
+    <value>The file moves to the folder for its new place when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_MoveCheckFailed" xml:space="preserve">
+    <value>Could not check whether the file moves. It is checked again when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_ShownAlongside" xml:space="preserve">
+    <value>Shown alongside · optional</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideNone" xml:space="preserve">
+    <value>Pick an episode, lesson or track to list this file with it.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideGuessed" xml:space="preserve">
+    <value>Guessed from the file name. It is listed with that item.</value>
+  </data>
+  <data name="EditorSupportingFile_TagsHelp" xml:space="preserve">
+    <value>Tags are private to your Library. They are never written into the file.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFilled" xml:space="preserve">
+    <value>Filled in from the document. Nothing is kept until you save.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFilledTitle" xml:space="preserve">
+    <value>Filled in the title from the document. Nothing is kept until you save.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFilledDescription" xml:space="preserve">
+    <value>Filled in the description from the document. Nothing is kept until you save.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestEmpty" xml:space="preserve">
+    <value>This document has no title or description of its own to suggest. Nothing was changed.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFailed" xml:space="preserve">
+    <value>This document could not be read just now. Nothing was changed.</value>
+  </data>
+  <data name="EditorSupportingFile_Chip" xml:space="preserve">
+    <value>Supporting file</value>
+  </data>
+  <data name="EditorBookmarks_Add" xml:space="preserve">
+    <value>Add to Everyone's</value>
+  </data>
+  <data name="EditorBookmarks_AddChosen" xml:space="preserve">
+    <value>Add {0} to Everyone's</value>
+  </data>
+  <data name="EditorBookmarks_ChangeTime" xml:space="preserve">
+    <value>Change time</value>
+  </data>
+  <data name="EditorBookmarks_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="EditorBookmarks_DefinitiveCount" xml:space="preserve">
+    <value>{0} with a definitive set</value>
+  </data>
+  <data name="EditorBookmarks_EpisodeNotInShow" xml:space="preserve">
+    <value>No such episode in this show</value>
+  </data>
+  <data name="EditorBookmarks_EveryoneEmpty" xml:space="preserve">
+    <value>Nothing in Everyone's yet.</value>
+  </data>
+  <data name="EditorBookmarks_EveryoneHeading" xml:space="preserve">
+    <value>Everyone's bookmarks</value>
+  </data>
+  <data name="EditorBookmarks_Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="EditorBookmarks_ExportFailed" xml:space="preserve">
+    <value>The bookmarks could not be exported.</value>
+  </data>
+  <data name="EditorBookmarks_ExportShow" xml:space="preserve">
+    <value>Export the show</value>
+  </data>
+  <data name="EditorBookmarks_Exported" xml:space="preserve">
+    <value>Exported {0} bookmarks.</value>
+  </data>
+  <data name="EditorBookmarks_Far" xml:space="preserve">
+    <value>Far apart</value>
+  </data>
+  <data name="EditorBookmarks_FileCount" xml:space="preserve">
+    <value>{0} bookmarks in the file</value>
+  </data>
+  <data name="EditorBookmarks_FileTooLarge" xml:space="preserve">
+    <value>That file is too large to read.</value>
+  </data>
+  <data name="EditorBookmarks_From" xml:space="preserve">
+    <value>from {0}</value>
+  </data>
+  <data name="EditorBookmarks_FromProfiles" xml:space="preserve">
+    <value>From profiles</value>
+  </data>
+  <data name="EditorBookmarks_FromProfilesHint" xml:space="preserve">
+    <value>Every profile's own bookmarks. Add one to Everyone's to put it in the list above.</value>
+  </data>
+  <data name="EditorBookmarks_FromYou" xml:space="preserve">
+    <value>from you</value>
+  </data>
+  <data name="EditorBookmarks_Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="EditorBookmarks_ImportShow" xml:space="preserve">
+    <value>Import for the show</value>
+  </data>
+  <data name="EditorBookmarks_InEveryone" xml:space="preserve">
+    <value>In Everyone's</value>
+  </data>
+  <data name="EditorBookmarks_LoadFailed" xml:space="preserve">
+    <value>The bookmarks could not be read.</value>
+  </data>
+  <data name="EditorBookmarks_Loading" xml:space="preserve">
+    <value>Loading this title's bookmarks</value>
+  </data>
+  <data name="EditorBookmarks_LoadingOverview" xml:space="preserve">
+    <value>Loading the bookmarks of every episode</value>
+  </data>
+  <data name="EditorBookmarks_MarkAdded" xml:space="preserve">
+    <value>Staged: added</value>
+  </data>
+  <data name="EditorBookmarks_MarkImported" xml:space="preserve">
+    <value>Staged: imported</value>
+  </data>
+  <data name="EditorBookmarks_MarkMoved" xml:space="preserve">
+    <value>Staged: moved</value>
+  </data>
+  <data name="EditorBookmarks_MarkRemoved" xml:space="preserve">
+    <value>Staged: removed</value>
+  </data>
+  <data name="EditorBookmarks_MarkRenamed" xml:space="preserve">
+    <value>Staged: renamed</value>
+  </data>
+  <data name="EditorBookmarks_MoreFor" xml:space="preserve">
+    <value>More actions for the bookmark at {0}</value>
+  </data>
+  <data name="EditorBookmarks_NameLabel" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorBookmarks_Nearest" xml:space="preserve">
+    <value>Nearest in Everyone's: {0} {1}</value>
+  </data>
+  <data name="EditorBookmarks_New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="EditorBookmarks_NewOfFile" xml:space="preserve">
+    <value>{0} new of {1} in the file</value>
+  </data>
+  <data name="EditorBookmarks_NoFile" xml:space="preserve">
+    <value>This title has no file yet, so it has no bookmarks.</value>
+  </data>
+  <data name="EditorBookmarks_NotABookmarkFile" xml:space="preserve">
+    <value>That is not a bookmark file.</value>
+  </data>
+  <data name="EditorBookmarks_NotThisTitle" xml:space="preserve">
+    <value>This file is not for this title.</value>
+  </data>
+  <data name="EditorBookmarks_NothingNear" xml:space="preserve">
+    <value>Nothing near it in Everyone's</value>
+  </data>
+  <data name="EditorBookmarks_OpenEpisode" xml:space="preserve">
+    <value>Open the bookmarks of {0}</value>
+  </data>
+  <data name="EditorBookmarks_OverviewTotals" xml:space="preserve">
+    <value>{0} bookmarks in Everyone's across {1} titles</value>
+  </data>
+  <data name="EditorBookmarks_ProfilesEmpty" xml:space="preserve">
+    <value>No profile has bookmarked this title.</value>
+  </data>
+  <data name="EditorBookmarks_Remove" xml:space="preserve">
+    <value>Remove from Everyone's</value>
+  </data>
+  <data name="EditorBookmarks_Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="EditorBookmarks_SameSpot" xml:space="preserve">
+    <value>Same spot</value>
+  </data>
+  <data name="EditorBookmarks_Staged" xml:space="preserve">
+    <value>Staged</value>
+  </data>
+  <data name="EditorBookmarks_StagedCount" xml:space="preserve">
+    <value>+{0} staged</value>
+  </data>
+  <data name="EditorBookmarks_StartOver" xml:space="preserve">
+    <value>Start over from profiles</value>
+  </data>
+  <data name="EditorBookmarks_StateDefinitive" xml:space="preserve">
+    <value>Definitive set</value>
+  </data>
+  <data name="EditorBookmarks_StatePooled" xml:space="preserve">
+    <value>Pooled from every profile's bookmarks</value>
+  </data>
+  <data name="EditorBookmarks_Take" xml:space="preserve">
+    <value>Take this bookmark</value>
+  </data>
+  <data name="EditorBookmarks_TakeAllNew" xml:space="preserve">
+    <value>Take all new</value>
+  </data>
+  <data name="EditorBookmarks_TimeInvalid" xml:space="preserve">
+    <value>Enter a time like 12:04 that falls inside the title.</value>
+  </data>
+  <data name="EditorBookmarks_TimeLabel" xml:space="preserve">
+    <value>Time (m:ss or h:mm:ss)</value>
+  </data>
+  <data name="EditorBookmarks_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="EditorBookmarks_UnmatchedEpisodes" xml:space="preserve">
+    <value>{0} episodes in the file are not in this show and will be skipped.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosenEpisode" xml:space="preserve">
+    <value>Also listed on that episode's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosenLesson" xml:space="preserve">
+    <value>Also listed on that lesson's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosenTrack" xml:space="preserve">
+    <value>Also listed on that track's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_ChooseEpisode" xml:space="preserve">
+    <value>Choose an episode</value>
+  </data>
+  <data name="EditorSupportingFile_ChooseLesson" xml:space="preserve">
+    <value>Choose a lesson</value>
+  </data>
+  <data name="EditorSupportingFile_ChooseTrack" xml:space="preserve">
+    <value>Choose a track</value>
+  </data>
+  <data name="EditorBookmarks_StartOverHint" xml:space="preserve">
+    <value>Bookmarks at the same spot are merged when you save.</value>
+  </data>
+  <data name="EditorBookmarks_ColEpisode" xml:space="preserve">
+    <value>Episode</value>
+  </data>
+  <data name="EditorBookmarks_ColEveryone" xml:space="preserve">
+    <value>Everyone's</value>
+  </data>
+  <data name="EditorBookmarks_ColSet" xml:space="preserve">
+    <value>Set</value>
+  </data>
+  <data name="EditorBookmarks_ColTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorBookmarks_SetDefinitiveStaged" xml:space="preserve">
+    <value>Definitive (staged)</value>
+  </data>
+  <data name="EditorBookmarks_SetPooled" xml:space="preserve">
+    <value>Pooled from profiles</value>
+  </data>
+  <data name="EditorBookmarks_SetPooledStaged" xml:space="preserve">
+    <value>Pooled from profiles (staged)</value>
   </data>
 </root>

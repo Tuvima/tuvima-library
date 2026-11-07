@@ -50,20 +50,6 @@ public sealed class ReaderBookmarkRepository : IReaderBookmarkRepository
         return Task.FromResult<IReadOnlyList<ReaderBookmark>>(rows.ConvertAll(MapRow));
     }
 
-    public Task<IReadOnlyList<ReaderBookmark>> ListEveryonesByAssetAsync(Guid assetId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query<BookmarkRow>(
-            Select + """
-
-            WHERE  b.position_kind = 'text' AND b.asset_id = @assetId AND b.is_global = 0
-            ORDER BY b.chapter_index, b.created_at;
-            """, new { assetId }).AsList();
-
-        return Task.FromResult<IReadOnlyList<ReaderBookmark>>(rows.ConvertAll(MapRow));
-    }
-
     public Task<ReaderBookmark?> FindByIdAsync(Guid id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -114,115 +100,6 @@ public sealed class ReaderBookmarkRepository : IReaderBookmarkRepository
             innerCt.ThrowIfCancellationRequested();
             conn.Execute("DELETE FROM audiobook_bookmarks WHERE id = @id AND position_kind = 'text';", new { id }, tx);
             return 0;
-        }, ct);
-    }
-
-    public Task<ReaderBookmark?> PromoteAsync(Guid id, string? name, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        return _db.ExecuteWriteAsync<ReaderBookmark?>((conn, tx, innerCt) =>
-        {
-            innerCt.ThrowIfCancellationRequested();
-            var row = conn.QueryFirstOrDefault<BookmarkRow>(
-                Select + """
-
-                WHERE  b.position_kind = 'text' AND b.id = @id AND b.is_global = 0
-                LIMIT  1;
-                """, new { id }, tx);
-            if (row is null)
-            {
-                return null;
-            }
-
-            // Personal bookmarks in the same paragraph of the same file are the same place: the Global one replaces them.
-            var spot = ReaderLocation.TryParse(row.CfiPosition);
-            if (spot is not null)
-            {
-                var others = conn.Query<BookmarkRow>(
-                    Select + """
-
-                    WHERE  b.position_kind = 'text' AND b.asset_id = @assetId AND b.is_global = 0 AND b.id <> @id;
-                    """, new { assetId = row.AssetId, id }, tx).AsList();
-                foreach (var other in others.Where(other => ReaderLocation.TryParse(other.CfiPosition) is { } there && there == spot))
-                {
-                    conn.Execute("DELETE FROM audiobook_bookmarks WHERE id = @id;", new { id = other.Id }, tx);
-                }
-            }
-
-            var label = string.IsNullOrWhiteSpace(name) ? row.Label : name.Trim();
-            conn.Execute("UPDATE audiobook_bookmarks SET is_global = 1, label = @label WHERE id = @id;", new { id, label }, tx);
-            row.IsGlobal = true;
-            row.Label = label;
-            return MapRow(row);
-        }, ct);
-    }
-
-    public Task<ReaderSetOutcome> ApplySetAsync(
-        Guid profileId, Guid assetId, IReadOnlyList<ReaderSetBookmark> adds, IReadOnlyCollection<Guid> deleteIds,
-        bool addAsGlobal, bool replaceGlobalSet, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
-        {
-            innerCt.ThrowIfCancellationRequested();
-            var replaced = 0;
-            if (replaceGlobalSet && addAsGlobal)
-            {
-                replaced += conn.Execute(
-                    "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'text' AND asset_id = @assetId;",
-                    new { assetId }, tx);
-            }
-
-            foreach (var id in deleteIds)
-            {
-                replaced += conn.Execute(
-                    """
-                    DELETE FROM audiobook_bookmarks
-                    WHERE id = @id AND asset_id = @assetId AND position_kind = 'text'
-                      AND ((is_global = 0 AND profile_id = @profileId) OR (is_global = 1 AND @addAsGlobal = 1));
-                    """,
-                    new { id, assetId, profileId, addAsGlobal = addAsGlobal ? 1 : 0 }, tx);
-            }
-
-            var now = DateTimeOffset.UtcNow.ToString("O");
-            foreach (var add in adds)
-            {
-                if (addAsGlobal && ReaderLocation.TryParse(add.Locator) is { } spot)
-                {
-                    // A Global bookmark replaces personal ones in the same paragraph, so a place is never listed twice.
-                    var personal = conn.Query<BookmarkRow>(
-                        Select + """
-
-                        WHERE  b.position_kind = 'text' AND b.asset_id = @assetId AND b.is_global = 0;
-                        """, new { assetId }, tx).AsList();
-                    foreach (var other in personal.Where(other => ReaderLocation.TryParse(other.CfiPosition) is { } there && there == spot))
-                    {
-                        replaced += conn.Execute("DELETE FROM audiobook_bookmarks WHERE id = @id;", new { id = other.Id }, tx);
-                    }
-                }
-
-                conn.Execute(
-                    """
-                    INSERT INTO audiobook_bookmarks
-                        (id, profile_id, work_id, asset_id, chapter_index, label, is_global, created_at, position_kind, locator)
-                    SELECT @id, @profileId, e.work_id, @assetId, @chapter, @label, @isGlobal, @now, 'text', @locator
-                    FROM media_assets ma JOIN editions e ON e.id = ma.edition_id
-                    WHERE ma.id = @assetId;
-                    """,
-                    new
-                    {
-                        id = Guid.NewGuid(),
-                        profileId,
-                        assetId,
-                        chapter = add.Chapter,
-                        label = string.IsNullOrWhiteSpace(add.Label) ? null : add.Label.Trim(),
-                        isGlobal = addAsGlobal ? 1 : 0,
-                        now,
-                        locator = add.Locator,
-                    }, tx);
-            }
-
-            return new ReaderSetOutcome(adds.Count, replaced);
         }, ct);
     }
 

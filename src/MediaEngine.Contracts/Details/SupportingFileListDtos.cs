@@ -171,6 +171,13 @@ public sealed class SupportingFileBulkChangesDto
     [JsonPropertyName("clearGroup")]
     public bool ClearGroup { get; init; }
 
+    /// <summary>
+    /// Put the files in no group at all, even where their folder names one. A rescan keeps it. (<see cref="ClearGroup"/> goes back to the
+    /// group the folder names; this says "none".)
+    /// </summary>
+    [JsonPropertyName("noGroup")]
+    public bool NoGroup { get; init; }
+
     /// <summary>The role to give (a role id from the list for the files' kind in <c>config/extras.json</c>).</summary>
     [JsonPropertyName("role")]
     public string? Role { get; init; }
@@ -192,6 +199,39 @@ public sealed class SupportingFileBulkChangesDto
 
     [JsonPropertyName("removeTags")]
     public IReadOnlyList<string> RemoveTags { get; init; } = [];
+
+    /// <summary>
+    /// The title to give the file. A title belongs to one file, so a change that names more than one file and a title is refused. A blank
+    /// text counts as <see cref="ClearTitle"/>.
+    /// </summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    /// <summary>Go back to the title read from the file name.</summary>
+    [JsonPropertyName("clearTitle")]
+    public bool ClearTitle { get; init; }
+
+    /// <summary>The description to give the file (one file only, like the title). A blank text counts as <see cref="ClearDescription"/>.</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+
+    /// <summary>Take the description away.</summary>
+    [JsonPropertyName("clearDescription")]
+    public bool ClearDescription { get; init; }
+
+    /// <summary>
+    /// The episode or lesson the files are shown alongside (a scope key). Shown alongside never moves a file and never changes where it belongs.
+    /// </summary>
+    [JsonPropertyName("alongsideKey")]
+    public string? AlongsideKey { get; init; }
+
+    /// <summary>Say the files are shown alongside no episode or lesson, overriding a guess from the file name.</summary>
+    [JsonPropertyName("noAlongside")]
+    public bool NoAlongside { get; init; }
+
+    /// <summary>Go back to the episode or lesson guessed from the file name.</summary>
+    [JsonPropertyName("useGuessedAlongside")]
+    public bool UseGuessedAlongside { get; init; }
 }
 
 /// <summary>

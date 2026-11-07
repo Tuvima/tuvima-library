@@ -24,5 +24,6 @@ Components/Vault/VaultImageViewer.razor|@VaultArtworkUrls.ImagePreview(imageId)|
 Components/Shared/AppSwitchRow.razor|@ImageIcon|The 14px Tuvima mark, a small static SVG served from wwwroot/images; nothing to resize.
 Components/Details/ExtrasSection.razor|@ThumbnailSrc(previewId)|Extras card picture: the Engine makes one small thumbnail per file; it has no size copies.
 Components/Details/ExtrasSection.razor|@ThumbnailSrc(card.Id)|Extras clip frame: the Engine makes one small thumbnail per file; it has no size copies.
-Components/Pages/ExtraViewerPage.razor|@ThumbnailHref(item.Id)|Extras gallery thumbnail: one small thumbnail per picture, no size copies.
-Components/Pages/ExtraViewerPage.razor|@FileHref(picture.Id)|The full-size picture the person opened in the gallery; shown at its own size on purpose.
+Components/Details/ExtraViewerContent.razor|@ThumbnailHref(item.Id)|Extras gallery thumbnail: one small thumbnail per picture, no size copies.
+Components/Details/ExtraViewerContent.razor|@FileHref(picture.Id)|The full-size picture the person opened in the gallery; shown at its own size on purpose.
+Components/Details/EditorBookmarkTitle.razor|@frame|Bookmark picture: the Engine makes one small frame per bookmark (served through the Dashboard's frame route); it has no size copies.

@@ -64,7 +64,7 @@
           "minItems": 1,
           "uniqueItems": true,
           "contains": { "const": "details" },
-          "items": { "enum": ["details", "artwork", "match", "preview", "pictures", "history"] }
+          "items": { "enum": ["details", "artwork", "match", "preview", "pictures", "bookmarks", "history"] }
         },
         "facts_line": {
           "description": "The facts on the header's one line under the title, in order.",

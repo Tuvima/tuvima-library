@@ -9,16 +9,16 @@ using MediaEngine.Storage.Playback;
 
 namespace MediaEngine.Api.Tests;
 
-// Find bookmarks for books (Global bookmarks spec D6 to D10, D14). A bookmark file holds reader locations; two places are compared only
+// The editor's bookmark files for books (universal editor v5 D37). A bookmark file holds reader locations; two places are compared only
 // inside one file (same paragraph is the same spot, same chapter is close, up to two chapters away is far); a file made on another
-// edition is placed by chapter name; an administrator's apply changes Global and anyone else's changes only their own bookmarks.
+// edition is placed by chapter name; comparing changes nothing, and a Vault book never exports or imports.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     private (ReaderBookmarkSetService Sets, ReaderBookmarkRepository Bookmarks) ReaderSetService(Guid account, Guid? session)
     {
         var (_, scope) = BookmarkPlayer(account, session);
         var bookmarks = new ReaderBookmarkRepository(_database);
-        return (new ReaderBookmarkSetService(scope, bookmarks, new BookmarkRecognitionRepository(_database),
+        return (new ReaderBookmarkSetService(scope, new BookmarkRecognitionRepository(_database),
             new VaultLibraryRepository(_database), new BookmarkClosenessProvider(() => null)), bookmarks);
     }
 
@@ -54,7 +54,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         new(chapter, null, chapterTitle, chapter, $"incoming {cfi}", null, cfi);
 
     [Fact]
-    public async Task FindBookmarks_Books_Compare_LabelsEachRowByChaptersApart()
+    public async Task Import_Books_Compare_LabelsEachRowByChaptersApart()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (sets, bookmarks) = ReaderSetService(shape.Account, NewVaultSession(shape.Account));
@@ -63,8 +63,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await OwnPlaceAsync(bookmarks, shape.Normal.AssetId, Spot(10, 2), 10);
         var file = BookFileOf(ImdbOfTheFilm, null, Place(Spot(3, 5, 40), 3), Place(Spot(3, 9), 3), Place(Spot(12, 1), 12), Place(Spot(30, 1), 30));
 
-        var compare = await sets.CompareAsync(VaultProfile, shape.Normal.AssetId,
-            new BookmarkSetRequestDto { AssetId = shape.Normal.AssetId, ContentBase64 = file.ContentBase64 });
+        var compare = await sets.CompareWithEveryoneAsync(shape.Normal.AssetId,
+            new BookmarkSetRequestDto { AssetId = shape.Normal.AssetId, ContentBase64 = file.ContentBase64 },
+            await bookmarks.ListByAssetAsync(VaultProfile.ToString("D"), shape.Normal.AssetId));
 
         Assert.Equal(BookmarkPackMatchResults.Match, compare.Match);
         Assert.True(compare.RowsReady);
@@ -76,32 +77,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task FindBookmarks_Books_Apply_AsAnAdministrator_AddsGlobal_AndReplacesTheBookmarkAtTheSameSpot()
-    {
-        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
-        var (sets, bookmarks) = ReaderSetService(shape.Account, NewVaultSession(shape.Account));
-        GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
-        await OwnPlaceAsync(bookmarks, shape.Normal.AssetId, Spot(3, 5), 3);
-        await OwnPlaceAsync(bookmarks, shape.Normal.AssetId, Spot(7, 2), 7);
-        var file = BookFileOf(ImdbOfTheFilm, null, Place(Spot(3, 5, 40), 3), Place(Spot(7, 8), 7), Place(Spot(20, 1), 20));
-
-        var result = await sets.ApplyAsync(VaultProfile, shape.Normal.AssetId, new BookmarkSetApplyRequestDto
-        {
-            Set = new BookmarkSetRequestDto { AssetId = shape.Normal.AssetId, ContentBase64 = file.ContentBase64 },
-        });
-
-        // Defaults: same spot takes the incoming one, close keeps yours, new is added.
-        Assert.True(result.AddedToGlobal);
-        Assert.Equal(2, result.Added);
-        Assert.Equal(1, result.Kept);
-        var after = await bookmarks.ListByAssetAsync(VaultProfile.ToString("D"), shape.Normal.AssetId);
-        Assert.Equivalent(new[] { Spot(3, 5, 40), Spot(20, 1) }, after.Where(item => item.IsGlobal).Select(item => item.CfiPosition).ToArray());
-        Assert.Contains(after, item => !item.IsGlobal && item.CfiPosition == Spot(7, 2));
-        Assert.DoesNotContain(after, item => item.CfiPosition == Spot(3, 5));
-    }
-
-    [Fact]
-    public async Task FindBookmarks_Books_AnotherEdition_IsPlacedByChapterName_AtTheStartOfThatChapter()
+    public async Task Import_Books_AnotherEdition_IsPlacedByChapterName_AtTheStartOfThatChapter()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (sets, bookmarks) = ReaderSetService(shape.Account, NewVaultSession(shape.Account));
@@ -119,49 +95,38 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             Chapters = [new BookmarkPackChapterDto { Title = "part  two", StartSeconds = 5 }],
         };
 
-        var asIs = await sets.CompareAsync(VaultProfile, shape.Normal.AssetId, request);
+        var asIs = await sets.CompareWithEveryoneAsync(shape.Normal.AssetId, request, []);
         Assert.Equal(BookmarkPackMatchResults.DifferentCut, asIs.Match);
         Assert.False(asIs.RowsReady);
         Assert.True(asIs.CanAlignByChapter);
 
-        var aligned = await sets.CompareAsync(VaultProfile, shape.Normal.AssetId, request with { Mode = BookmarkPackImportModes.AlignByChapter });
+        var aligned = await sets.CompareWithEveryoneAsync(shape.Normal.AssetId, request with { Mode = BookmarkPackImportModes.AlignByChapter }, []);
         Assert.True(aligned.RowsReady);
         Assert.Equal(1, aligned.SkippedCount);
         Assert.Equal(ReaderBookmarkSetService.ChapterStartLocator(5), Assert.Single(aligned.Rows).Incoming.Locator);
     }
 
+
     [Fact]
-    public async Task FindBookmarks_Books_RefusesAFileMadeForAFilm_AndExportNeedsGlobalBookmarks()
+    public async Task Import_Books_RefusesAFileMadeForAFilm_AndExportNeedsBookmarksToExport()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (sets, bookmarks) = ReaderSetService(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var film = FileOf(ImdbOfTheFilm, 7200, Item(100));
 
-        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => sets.CompareAsync(VaultProfile, shape.Normal.AssetId,
-            new BookmarkSetRequestDto { AssetId = shape.Normal.AssetId, ContentBase64 = film.ContentBase64 }));
-        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => sets.ExportGlobalAsync(VaultProfile, shape.Normal.AssetId, new ExportGlobalBookmarksRequestDto()));
+        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => sets.CompareWithEveryoneAsync(shape.Normal.AssetId,
+            new BookmarkSetRequestDto { AssetId = shape.Normal.AssetId, ContentBase64 = film.ContentBase64 }, []));
+        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => sets.ExportEveryoneAsync(shape.Normal.AssetId, []));
 
         await OwnPlaceAsync(bookmarks, shape.Normal.AssetId, Spot(4, 3), 4, global: true);
-        await OwnPlaceAsync(bookmarks, shape.Normal.AssetId, Spot(8, 3), 8);
-        var exported = await sets.ExportGlobalAsync(VaultProfile, shape.Normal.AssetId, new ExportGlobalBookmarksRequestDto());
+        var listed = await bookmarks.ListByAssetAsync(VaultProfile.ToString("D"), shape.Normal.AssetId);
+        var exported = await sets.ExportEveryoneAsync(shape.Normal.AssetId, listed);
         Assert.Equal(1, exported.BookmarkCount);
     }
 
     [Fact]
-    public async Task FindBookmarks_Books_ExportGlobal_IsForAdministratorsOnly_AndHoldsNoPathOrProfile()
-    {
-        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
-        var (sets, bookmarks) = ReaderSetService(shape.Account, NewVaultSession(shape.Account));
-        GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
-        await OwnPlaceAsync(bookmarks, shape.Normal.AssetId, Spot(4, 3), 4, global: true);
-
-        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() =>
-            sets.ExportGlobalAsync(VaultProfile, shape.Normal.AssetId, new ExportGlobalBookmarksRequestDto()));
-    }
-
-    [Fact]
-    public async Task FindBookmarks_Books_AVaultBook_NeverExportsOrImports()
+    public async Task Import_Books_AVaultBook_NeverExportsOrImports()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
@@ -170,10 +135,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         GiveIds(shape.Secret.WorkId, "tt7777777");
         await OwnPlaceAsync(bookmarks, shape.Secret.AssetId, Spot(4, 3), 4, global: true);
         var file = BookFileOf("tt7777777", null, Place(Spot(4, 3), 4));
+        var listed = await bookmarks.ListByAssetAsync(VaultProfile.ToString("D"), shape.Secret.AssetId);
 
-        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() =>
-            sets.ExportGlobalAsync(VaultProfile, shape.Secret.AssetId, new ExportGlobalBookmarksRequestDto()));
-        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => sets.CompareAsync(VaultProfile, shape.Secret.AssetId,
-            new BookmarkSetRequestDto { AssetId = shape.Secret.AssetId, ContentBase64 = file.ContentBase64 }));
+        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => sets.ExportEveryoneAsync(shape.Secret.AssetId, listed));
+        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => sets.CompareWithEveryoneAsync(shape.Secret.AssetId,
+            new BookmarkSetRequestDto { AssetId = shape.Secret.AssetId, ContentBase64 = file.ContentBase64 }, listed));
     }
 }

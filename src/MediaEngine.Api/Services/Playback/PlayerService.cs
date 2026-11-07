@@ -25,7 +25,6 @@ public sealed class PlayerService
     private readonly IUserPlaybackSettingsService _settings;
     private readonly AudiobookListenHistoryRepository _history;
     private readonly AudiobookBookmarkRepository _bookmarks;
-    private readonly BookmarkClosenessProvider? _closeness;
     private readonly BookmarkFrameService? _frames;
     private readonly MusicPlayStatsRepository _musicStats;
     private readonly PlayerCatalogueScope _scope;
@@ -46,10 +45,8 @@ public sealed class PlayerService
         PlayerCatalogueScope scope,
         PlaybackTelemetryLifecycleService telemetry,
         PlayerDeviceStateRepository deviceStates,
-        BookmarkClosenessProvider? closeness = null,
         BookmarkFrameService? frames = null)
     {
-        _closeness = closeness;
         _frames = frames;
         _sessions = sessions;
         _playback = playback;
@@ -1129,18 +1126,6 @@ public sealed class PlayerService
         return created;
     }
 
-    /// <summary>Every profile's personal bookmarks on a title, with the owner's name. Administrators only (the Everyone's filter).</summary>
-    public async Task<IReadOnlyList<AudiobookBookmarkDto>> GetEveryonesBookmarksAsync(
-        Guid? profileId,
-        Guid workId,
-        CancellationToken ct = default)
-    {
-        await _scope.RequireProfileAsync(profileId, ct);
-        await RequireBookmarkAdministratorAsync(ct);
-        var everyones = await _bookmarks.GetEveryonesByWorkAsync(workId, ct, await _scope.AssetIdsAsync(ct));
-        return _frames?.Decorate(everyones) ?? everyones;
-    }
-
     /// <summary>
     /// The file of a video bookmark's frame, only for a profile that may see the bookmark by exactly the rule of the bookmark list (its
     /// own, a Global one, or any profile's for a server administrator), on a file it may play (Vault and Kid limits included). Anything
@@ -1157,75 +1142,6 @@ public sealed class PlayerService
         var bookmark = await _bookmarks.GetVisibleAsync(
             normalizedProfile, bookmarkId, await _scope.IsServerAdministratorAsync(ct), await _scope.AssetIdsAsync(ct), ct);
         return bookmark is null ? null : await _frames.ResolveFrameAsync(bookmark, ct);
-    }
-
-    /// <summary>
-    /// Makes a personal bookmark Global at once. Personal bookmarks within <see cref="PromoteMergeWindowSeconds"/> of it on the
-    /// same file are replaced by it, so a spot is never listed twice. Returns null when the bookmark does not exist.
-    /// </summary>
-    public async Task<AudiobookBookmarkDto?> PromoteAudiobookBookmarkAsync(
-        Guid? profileId,
-        Guid bookmarkId,
-        PromoteAudiobookBookmarkRequestDto? request,
-        CancellationToken ct = default)
-    {
-        await _scope.RequireProfileAsync(profileId, ct);
-        await RequireBookmarkAdministratorAsync(ct);
-        if (!AudiobookBookmarkNotePolicy.TryNormalize(request?.Name, out var name))
-        {
-            throw new ArgumentException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
-        }
-
-        var replaced = new List<Guid>();
-        var promoted = await _bookmarks.PromoteAsync(
-            bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct), replaced);
-        if (promoted is not null && _frames is not null)
-        {
-            // Bookmarks it replaced are gone, so their pictures go; the promoted one gets its picture if it has none yet.
-            _frames.RemoveFrames(promoted.AssetId, replaced);
-            await _frames.TryEnqueueAsync(promoted, ct);
-            return _frames.Decorate(promoted);
-        }
-
-        return promoted;
-    }
-
-    /// <summary>Changes a Global bookmark's name, note and description. Administrators only. Returns null when it does not exist.</summary>
-    public async Task<AudiobookBookmarkDto?> UpdateGlobalAudiobookBookmarkAsync(
-        Guid? profileId,
-        Guid bookmarkId,
-        UpdateAudiobookBookmarkRequestDto request,
-        CancellationToken ct = default)
-    {
-        await _scope.RequireProfileAsync(profileId, ct);
-        await RequireBookmarkAdministratorAsync(ct);
-        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Label, out var label)
-            || !AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
-        {
-            throw new ArgumentException($"A bookmark name or note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
-        }
-
-        if (!AudiobookBookmarkNotePolicy.TryNormalizeDescription(request.Description, out var description))
-        {
-            throw new ArgumentException($"A bookmark description cannot exceed {AudiobookBookmarkNotePolicy.MaximumDescriptionLength} characters.", nameof(request));
-        }
-
-        var updated = await _bookmarks.UpdateGlobalAsync(bookmarkId, label, note, description, ct, await _scope.AssetIdsAsync(ct));
-        return updated is null || _frames is null ? updated : _frames.Decorate(updated);
-    }
-
-    /// <summary>
-    /// Personal bookmarks this close together on one file are the same moment when one is promoted to Global. Used only when
-    /// <c>config/bookmarks.json</c> cannot be read; the configured same-spot gap normally decides.
-    /// </summary>
-    public const double PromoteMergeWindowSeconds = 3d;
-
-    private async Task RequireBookmarkAdministratorAsync(CancellationToken ct)
-    {
-        if (!await _scope.IsServerAdministratorAsync(ct))
-        {
-            throw new PlayerBookmarkAdminDeniedException();
-        }
     }
 
     public static bool TryNormalizeAudiobookBookmarkRequest(

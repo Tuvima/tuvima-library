@@ -356,7 +356,7 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         Assert.Equal(12, episode.CardsPerGroup);
         Assert.Equal(25, episode.RowsPerPage);
         Assert.Equal(50, episode.ItemListPageSize);
-        Assert.Equal(["details", "artwork", "match", "history"], episode.Tabs);
+        Assert.Equal(["details", "artwork", "match", "bookmarks", "history"], episode.Tabs);
         Assert.Equal(["show", "year"], episode.MatchFields);
         Assert.Equal(["episode_number", "runtime", "air_date", "match_state"], episode.FactsLine);
         Assert.Contains("file_quality", episode.QuickFacts);

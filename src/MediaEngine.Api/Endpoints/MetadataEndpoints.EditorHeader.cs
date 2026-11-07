@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.EditSession;
+using MediaEngine.Api.Services.Extras;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Paging;
@@ -13,8 +14,8 @@ public static partial class MetadataEndpoints
 {
     /// <summary>
     /// The editor's v5 header reads (universal editor v5, section 5 "Engine reads"): one more page of the item dropdown, the Match tab's
-    /// current match found by its stored id, "Suggest details" for a supporting file's document, the folder button's tree, and the rules of
-    /// one kind of item. The first view of the header itself rides on the editor-context read. All five are reads: nothing is written until Save.
+    /// current match found by its stored id, the supporting-file editor's read, "Suggest details" for a supporting file's document, the folder button's tree, and the rules of
+    /// one kind of item. The first view of the header itself rides on the editor-context read. All six are reads: nothing is written until Save.
     /// </summary>
     private static void MapEditorHeaderEndpoints(RouteGroupBuilder group)
     {
@@ -111,6 +112,20 @@ public static partial class MetadataEndpoints
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
 
+        // Everything the supporting-file editor needs to open one file: the file as set and as read from the folders, the lists the form
+        // chooses from, and the owner's header with this file marked current. A read; the form's changes are staged and saved as a change.
+        group.MapGet("/{entityId:guid}/supporting-files/{supportingFileId:guid}/editor", async (
+            Guid entityId, Guid supportingFileId, HttpContext http, SupportingFileEditorReadService editor, CancellationToken ct) =>
+        {
+            var read = await editor.GetAsync(entityId, supportingFileId, await CollectionEndpoints.ResolveViewerProfileIdAsync(http, ct), ct);
+            return read is null ? ApiErrors.NotFound("That supporting file was not found.") : Results.Ok(read);
+        }).WithName("GetSupportingFileEditor")
+          .WithSummary("One supporting file for the editor: its values, the roles, groups and places the form offers, and the owner's header.")
+          .Produces<EditorSupportingFileDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
         group.MapGet("/{entityId:guid}/supporting-files/{supportingFileId:guid}/suggest-details", async (
             Guid entityId, Guid supportingFileId, EditorHeaderReadService header, EditorSuggestDetailsService suggest, CancellationToken ct) =>
         {
@@ -125,6 +140,23 @@ public static partial class MetadataEndpoints
         }).WithName("GetSupportingFileSuggestDetails")
           .WithSummary("What a supporting file's document says about itself (title, subject, author, first lines). Local only: no provider, no AI.")
           .Produces<EditorSuggestDetailsDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
+        // The History tab of a supporting file: what was changed in the editor and when, one row per changed field, move or delete.
+        group.MapGet("/{entityId:guid}/supporting-files/{supportingFileId:guid}/history", async (
+            Guid entityId, Guid supportingFileId, EditorHeaderReadService header, IEntityTimelineRepository timeline, CancellationToken ct) =>
+        {
+            if (!await header.OwnsSupportingFileAsync(entityId, supportingFileId, ct))
+            {
+                return ApiErrors.NotFound("That supporting file was not found.");
+            }
+
+            return Results.Ok(await SupportingFileHistory.Read(timeline, supportingFileId, ct));
+        }).WithName("GetSupportingFileHistory")
+          .WithSummary("What was changed in the editor on one supporting file, newest first: its fields, its moves and its removal.")
+          .Produces<IReadOnlyList<MediaEngine.Contracts.Items.LibraryItemHistoryDto>>(StatusCodes.Status200OK)
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);

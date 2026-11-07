@@ -17,7 +17,13 @@
     var fields = Fields;
     var header = fields.Loaded && !EditorUniverseRules.IsUniverseSubject(fields.SubjectKind) ? fields.Header : null;
     var subject = fields.Loaded ? fields.MatchSubject() : null;
-    var title = string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
+    var file = fields.Loaded ? fields.SupportingFile : null;
+    var fileTitle = file is null
+        ? null
+        : SupportingFileStaging.TitleOf(file, Flow.Session.Pending.FindSupportingFile(Guid.TryParse(file.File.Id, out var fileId) ? fileId : Guid.Empty));
+    var title = file is not null
+        ? string.IsNullOrWhiteSpace(fileTitle) ? file.File.Title : fileTitle
+        : string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
     var isUniverse = EditorUniverseRules.IsUniverseSubject(fields.SubjectKind);
     var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
     var image = header?.Root.CoverUrl;
@@ -31,7 +37,9 @@
     if (header is not null)
     {
         label = header.Label;
-        facts = string.Join(" · ", EditorHeaderFacts.Parts(header.Config, FieldText, fields.QuickFacts, header));
+        facts = file is not null
+            ? string.Join(" · ", EditorHeaderFacts.Parts(fields.Config, FieldText, null, header, file))
+            : string.Join(" · ", EditorHeaderFacts.Parts(header.Config, FieldText, fields.QuickFacts, header));
     }
     else
     {
@@ -93,7 +101,13 @@
                     <div class="tl-editor-header__facts">@facts</div>
                 }
 
-                @if (showState)
+                @if (file is not null && EditorHeaderFacts.ShowsSupportingFileChip(fields.Config))
+                {
+                    <div class="tl-editor-header__chips" data-supporting-file-chip="true">
+                        <AppStatusBadge Tone="AppUiTone.Neutral" Text="@L["EditorSupportingFile_Chip"].Value" />
+                    </div>
+                }
+                else if (showState)
                 {
                     <div class="tl-editor-header__chips">
                         @if (Unmatched)

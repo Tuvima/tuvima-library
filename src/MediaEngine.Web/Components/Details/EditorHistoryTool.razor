@@ -76,6 +76,7 @@
 
     private List<LibraryItemHistoryDto> _all = [];
     private Guid _loadedFor;
+    private Guid _loadedForTitle;
     private string _filter = "all";
     private string? _error;
     private bool _loading;
@@ -85,6 +86,12 @@
 
     /// <summary>The item is a Universe or one of its things, whose history is what was changed in the editor (read from its own Engine connection point).</summary>
     [Parameter] public bool ForUniverse { get; set; }
+
+    /// <summary>
+    /// When the item is a supporting file, the title it belongs to (<see cref="EntityId"/> is then the file's id): its history is what was
+    /// changed on the file in the editor, read from the title's own supporting-file connection point.
+    /// </summary>
+    [Parameter] public Guid SupportingFileTitleId { get; set; }
 
     private IReadOnlyList<LibraryItemHistoryDto> Visible => _all
         .Where(entry => _filter switch
@@ -107,12 +114,13 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (EntityId == _loadedFor)
+        if (EntityId == _loadedFor && SupportingFileTitleId == _loadedForTitle)
         {
             return;
         }
 
         _loadedFor = EntityId;
+        _loadedForTitle = SupportingFileTitleId;
         _all = [];
         _error = null;
         if (EntityId == Guid.Empty)
@@ -123,8 +131,10 @@
         _loading = true;
         try
         {
-            var (items, error) = ForUniverse ? await Api.GetEditorSubjectHistoryAsync(EntityId) : await Api.GetItemHistoryWithStatusAsync(EntityId);
-            if (_loadedFor != EntityId)
+            var (items, error) = SupportingFileTitleId != Guid.Empty ? await Api.GetSupportingFileHistoryAsync(SupportingFileTitleId, EntityId)
+                : ForUniverse ? await Api.GetEditorSubjectHistoryAsync(EntityId)
+                : await Api.GetItemHistoryWithStatusAsync(EntityId);
+            if (_loadedFor != EntityId || _loadedForTitle != SupportingFileTitleId)
             {
                 return;
             }

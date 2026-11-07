@@ -1,0 +1,182 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@inject IJSRuntime JS
+@inject ILogger<ExtraViewerContent> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* What an Extras card shows when it is opened (the body of the Extra viewer page, shared with the supporting-file editor's Preview tab): a
+   guidebook in the browser's own reader, a picture folder in a gallery with a full-size view, a clip in a plain video or audio player. A clip
+   never touches watching progress: it is not an episode. EPUB guidebooks are download-only. The heading and Back button belong to the page. *@
+@if (Loading)
+{
+    <div class="tl-extra-viewer__state" role="status">
+        <AppSkeleton Height="@(Compact ? "24rem" : "60vh")" Width="100%" />
+    </div>
+}
+else if (View is null || View.Items.Count == 0)
+{
+    <div class="tl-extra-viewer__state" data-testid="extra-unavailable">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppIconSize.Row24" />
+        <p>@L["ExtraViewerPage_ThisExtraIsnTAvailable"]</p>
+    </div>
+}
+else if (Current is { IsMissing: true })
+{
+    <div class="tl-extra-viewer__state" data-testid="extra-missing">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppIconSize.Row24" />
+        <p>@L["ExtraViewerPage_FileNotFoundItIs"]</p>
+    </div>
+}
+else if (View.Kind == DetailExtraCardKinds.Clip)
+{
+    @if (Current!.MimeType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+    {
+        <audio class="tl-extra-viewer__audio" controls preload="metadata" src="@FileHref(Current.Id)"></audio>
+    }
+    else
+    {
+        <video class="tl-extra-viewer__video" controls preload="metadata" playsinline src="@FileHref(Current.Id)"></video>
+    }
+}
+else if (View.Kind == DetailExtraCardKinds.Pictures)
+{
+    <ul class="tl-extra-viewer__grid" data-testid="extra-pictures">
+        @for (var index = 0; index < View.Items.Count; index++)
+        {
+            var captured = index;
+            var item = View.Items[index];
+            <li>
+                <div class="tl-extra-viewer__thumb" role="button" tabindex="0" aria-label="@item.Title"
+                     @onclick="() => OpenPicture(captured)" @onkeydown="e => OnThumbKey(e, captured)">
+                    <img src="@ThumbnailHref(item.Id)" alt="@item.Title" loading="lazy" decoding="async" />
+                </div>
+            </li>
+        }
+    </ul>
+
+    @if (_lightboxIndex is int open && open >= 0 && open < View.Items.Count)
+    {
+        var picture = View.Items[open];
+        <div class="tl-extra-viewer__lightbox-host">
+            <AppViewer @ref="_viewer" Class="tl-extra-viewer__lightbox" Label="@picture.Title" tabindex="0" OnKeyDown="OnLightboxKey"
+                       OnClose="CloseLightbox" CloseLabel="@L["Common_Close"].Value">
+                @if (open > 0)
+                {
+                    <div class="tl-extra-viewer__lightbox-prev">
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["Home_CarouselPrevious"].Value" OnClick="() => Step(-1)" />
+                    </div>
+                }
+                <img src="@FileHref(picture.Id)" alt="@picture.Title" />
+                @if (open < View.Items.Count - 1)
+                {
+                    <div class="tl-extra-viewer__lightbox-next">
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["Home_CarouselNext"].Value" OnClick="() => Step(1)" />
+                    </div>
+                }
+                <span class="tl-extra-viewer__lightbox-count">@(open + 1) of @View.Items.Count</span>
+            </AppViewer>
+        </div>
+    }
+}
+else if (IsReadableInBrowser(Current!))
+{
+    <iframe class="@(Compact ? "tl-extra-viewer__frame tl-extra-viewer__frame--compact" : "tl-extra-viewer__frame")" title="@View.Title" src="@FileHref(Current!.Id)" data-testid="extra-document"></iframe>
+}
+else
+{
+    <div class="tl-extra-viewer__state" data-testid="extra-download-only">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Row24" />
+        <p>@L["ExtraViewerPage_ThisKindOfFileOpens"]</p>
+        <a class="tl-extra-viewer__download" href="@FileHref(Current!.Id)" download="@Current.FileName">@L["ExtraViewerPage_Download", Current.FileName]</a>
+    </div>
+}
+
+@code {
+    private int? _lightboxIndex;
+    private string? _shownId;
+    private AppViewer? _viewer;
+    private ElementReference _lightbox => _viewer?.Root ?? default;
+    private bool _focusLightbox;
+
+    /// <summary>What to show; null with <see cref="Loading"/> false means the Extra is not available.</summary>
+    [Parameter] public ExtraViewDto? View { get; set; }
+
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>Drawn inside the editor window: the reader is shorter than a page's, because the window keeps one size.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    private ExtraViewItemDto? Current => View?.Items.FirstOrDefault();
+
+    protected override void OnParametersSet()
+    {
+        // Another Extra: the full-size picture of the last one is closed.
+        if (!string.Equals(_shownId, View?.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            _shownId = View?.Id;
+            _lightboxIndex = null;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusLightbox && _lightboxIndex is not null)
+        {
+            _focusLightbox = false;
+            try { await _lightbox.FocusAsync(); }
+            catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+            {
+                Logger.LogDebug(ex, "Could not focus the picture viewer");
+            }
+        }
+    }
+
+    private static string FileHref(string id) => $"/engine-extra/{Uri.EscapeDataString(id)}/file";
+
+    private static string ThumbnailHref(string id) => $"/engine-extra/{Uri.EscapeDataString(id)}/thumbnail";
+
+    // PDFs and plain text open in the browser's own reader. EPUB (and anything else) is download-only: Library's book reader is for books in the Library.
+    public static bool IsReadableInBrowser(ExtraViewItemDto item) =>
+        item.MimeType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase)
+        || item.MimeType.StartsWith("text/", StringComparison.OrdinalIgnoreCase);
+
+    private void OpenPicture(int index)
+    {
+        _lightboxIndex = index;
+        _focusLightbox = true;
+    }
+
+    private void OnThumbKey(KeyboardEventArgs e, int index)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            OpenPicture(index);
+        }
+    }
+
+    private void CloseLightbox() => _lightboxIndex = null;
+
+    private void Step(int delta)
+    {
+        if (View is null || _lightboxIndex is not int index)
+        {
+            return;
+        }
+
+        var next = index + delta;
+        if (next >= 0 && next < View.Items.Count)
+        {
+            _lightboxIndex = next;
+        }
+    }
+
+    private void OnLightboxKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape": CloseLightbox(); break;
+            case "ArrowLeft": Step(-1); break;
+            case "ArrowRight": Step(1); break;
+        }
+    }
+}

@@ -28,13 +28,19 @@ public enum QuickFactsKind
 
     /// <summary>A character, place, faction or other thing of a Universe.</summary>
     Thing,
+
+    /// <summary>A supporting file of a title (universal editor v5 WP7): its type, name and folder, with a Preview button.</summary>
+    SupportingFile,
 }
 
 /// <summary>One read-only fact: a short value with the label that says what it is.</summary>
 public sealed record QuickFact(string Key, string Icon, string Value, string Label);
 
 /// <summary>The facts the panel shows, and the plain notes under them ("Read-only library", "File write-back off").</summary>
-public sealed record QuickFactsModel(QuickFactsKind Kind, IReadOnlyList<QuickFact> Facts, IReadOnlyList<string> Notes)
+/// <param name="OffersPreview">True for a supporting file the panel can preview: a button under the facts opens the Preview tab.</param>
+/// <param name="PreviewLabel">The words on that button ("Preview PDF").</param>
+public sealed record QuickFactsModel(
+    QuickFactsKind Kind, IReadOnlyList<QuickFact> Facts, IReadOnlyList<string> Notes, bool OffersPreview = false, string? PreviewLabel = null)
 {
     public static QuickFactsModel Empty { get; } = new(QuickFactsKind.None, [], []);
 
@@ -277,8 +283,73 @@ public static class EditorQuickFactsBuilder
         return new QuickFactsModel(kind, facts.Take(5).ToList(), notes);
     }
 
+    /// <summary>
+    /// The Quick facts of a supporting file (universal editor v5 WP7, screens C and D): what kind of file it is with its pages or length and
+    /// size, its name with the folder it sits in, a "Read-only folder" note where Library only reads, "File not found" when it is gone from disk,
+    /// and the Preview button. Only the facts the kind's own list in <c>config/editor.json</c> asks for are shown.
+    /// </summary>
+    public static QuickFactsModel ForSupportingFile(EditorSupportingFileDto file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var wanted = file.Config.QuickFacts;
+        var facts = new List<QuickFact>();
+        var notes = new List<string>();
+        var sizeText = file.File.SizeBytes > 0 ? DisplayFormat.FormatFileSize(file.File.SizeBytes) : null;
+
+        if (wanted.Contains("file_type", StringComparer.Ordinal))
+        {
+            string? extent = null;
+            if (file.File.ItemCount > 1)
+            {
+                extent = $"{Count(file.File.ItemCount)} pictures";
+            }
+            else if (file.File.PageCount is > 0)
+            {
+                extent = $"{Count(file.File.PageCount.Value)} {(file.File.PageCount == 1 ? "page" : "pages")}";
+            }
+            else if (file.File.DurationSeconds is > 0)
+            {
+                extent = DisplayFormat.FormatDurationHoursMinutesRounded(file.File.DurationSeconds.Value);
+            }
+
+            var label = string.Join(" · ", new[] { extent, sizeText }.Where(piece => !string.IsNullOrWhiteSpace(piece)));
+            facts.Add(new QuickFact("file_type", FileIcon, KindWords(file), label));
+        }
+
+        var folder = Clean(file.Folder);
+        if (wanted.Contains("file_name", StringComparer.Ordinal))
+        {
+            facts.Add(new QuickFact("file_name", Folder, file.File.FileName, folder ?? string.Empty));
+        }
+        else if (wanted.Contains("folder", StringComparer.Ordinal) && folder is not null)
+        {
+            facts.Add(new QuickFact("folder", Folder, folder, "Folder"));
+        }
+
+        if (file.File.IsMissing)
+        {
+            notes.Add(folder is null ? FileNotFoundNote : $"{FileNotFoundNote} · last known folder {folder}");
+        }
+        else if (file.ReadOnly && wanted.Contains("read_only", StringComparer.Ordinal))
+        {
+            notes.Add(SupportingFileReadOnlyNote);
+        }
+
+        var preview = wanted.Contains("preview", StringComparer.Ordinal) && !file.File.IsMissing;
+        return new QuickFactsModel(QuickFactsKind.SupportingFile, facts, notes, preview, preview ? $"Preview {file.TypeLabel}" : null);
+    }
+
+    // "PDF document", "Text document", "Image", "Pictures", "Video", "Audio": the type column's words, with "document" added where it helps.
+    private static string KindWords(EditorSupportingFileDto file) =>
+        file.Type == MediaEngine.Contracts.Details.SupportingFileListDefaults.TypeDocument && !file.TypeLabel.Equals("Document", StringComparison.Ordinal)
+            ? $"{file.TypeLabel} document"
+            : file.TypeLabel;
+
     /// <summary>The note under the facts for a file in a folder the library only reads.</summary>
     public const string ReadOnlyFolderNote = "Read-only folder";
+
+    /// <summary>The note under a supporting file's facts when its folder is only read: it is never moved or deleted.</summary>
+    public const string SupportingFileReadOnlyNote = "Read-only folder. The file is read where it is.";
 
     /// <summary>The note for a file the Engine knows but can no longer find; the last known folder follows it.</summary>
     public const string FileNotFoundNote = "File not found";

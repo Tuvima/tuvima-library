@@ -76,6 +76,36 @@ public sealed class SupportingFileBrowserContractTests
     }
 
     [Fact]
+    public void ABulkUpdateRequest_CanRenameDescribeAndPickTheEpisodeAFileIsShownWith()
+    {
+        var request = JsonSerializer.Deserialize<SupportingFileBulkUpdateRequest>(
+            """{"ids":["a"],"changes":{"title":"Workbook","description":"Drills","alongsideKey":"episode:s2e3","clearTitle":false}}""",
+            Web)!;
+
+        Assert.Equal("Workbook", request.Changes.Title);
+        Assert.Equal("Drills", request.Changes.Description);
+        Assert.Equal("episode:s2e3", request.Changes.AlongsideKey);
+        Assert.False(request.Changes.ClearTitle);
+
+        var clearing = JsonSerializer.Serialize(
+            new SupportingFileBulkChangesDto { ClearTitle = true, ClearDescription = true, NoAlongside = true, UseGuessedAlongside = true }, Web);
+        using var document = JsonDocument.Parse(clearing);
+        var root = document.RootElement;
+        Assert.True(root.GetProperty("clearTitle").GetBoolean());
+        Assert.True(root.GetProperty("clearDescription").GetBoolean());
+        Assert.True(root.GetProperty("noAlongside").GetBoolean());
+        Assert.True(root.GetProperty("useGuessedAlongside").GetBoolean());
+
+        var untouched = new SupportingFileBulkChangesDto();
+        Assert.Null(untouched.Title);
+        Assert.False(untouched.ClearTitle);
+        Assert.Null(untouched.Description);
+        Assert.Null(untouched.AlongsideKey);
+        Assert.False(untouched.NoAlongside);
+        Assert.False(untouched.UseGuessedAlongside);
+    }
+
+    [Fact]
     public void ABulkUpdateResult_CarriesPerFileStatuses_AndThePlannedMoves()
     {
         var result = new SupportingFileBulkUpdateResultDto

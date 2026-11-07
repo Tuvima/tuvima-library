@@ -46,9 +46,6 @@ public sealed class ReaderBookmarkDto
     public DateTime CreatedAt { get; init; }
 }
 
-/// <summary>Optional name for a bookmark being made Global.</summary>
-public sealed record PromoteReaderBookmarkRequestDto(string? Name);
-
 /// <summary>A text highlight stored for an EPUB asset.</summary>
 public sealed class ReaderHighlightDto
 {

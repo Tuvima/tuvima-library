@@ -30,7 +30,7 @@ public sealed class EditorHeaderReadService(
     ItemQuickFactsService quickFacts,
     MediaEditorWorkVersionReadRepository versions,
     IExtrasConfigurationSource? extrasRules = null,
-    ILogger<EditorHeaderReadService>? logger = null)
+    ILogger<EditorHeaderReadService>? logger = null) : IEditorFamilySource
 {
     // The same threshold the collection rules and the Watch rows use for "watched".
     private const double WatchedProgressPercent = 99.5;
@@ -163,6 +163,9 @@ public sealed class EditorHeaderReadService(
             && string.Equals(Path.GetFullPath(extra.ItemFolder), Path.GetFullPath(itemFolder), StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>The most characters a description may hold, from <c>config/editor.json</c> (<c>suggest_details.description_max_characters</c>).</summary>
+    public int DescriptionMaxCharacters => editorConfig.Current.SuggestDetails.DescriptionMaxCharacters;
+
     /// <summary>
     /// The rules of one kind of item, for the editors that do not open on a work (a person, a Universe, a supporting file, a View photo
     /// or gallery, several items at once), so the Dashboard never writes their tabs, facts or search fields itself. Null for a kind
@@ -170,6 +173,63 @@ public sealed class EditorHeaderReadService(
     /// </summary>
     public EditorHeaderConfigDto? GetKindConfig(string kind) =>
         EditorKinds.All.Contains(kind, StringComparer.Ordinal) ? BuildConfig(editorConfig.Current, kind) : null;
+
+    /// <summary>
+    /// The owned members of the family around an item, grouped the way the editor's dropdowns group them (a show's seasons, an album's
+    /// tracks), each with its season, episode or track number. For the Bookmarks overview of a show, season or album; null when the item
+    /// is not in the Library. When the item is a season, only that season is listed.
+    /// </summary>
+    public async Task<EditorFamilyMembers?> GetFamilyMembersAsync(Guid workId, CancellationToken ct = default)
+    {
+        var family = await ReadFamilyAsync(workId, ct).ConfigureAwait(false);
+        if (family is null)
+        {
+            return null;
+        }
+
+        var leaves = family.Leaves.Where(node => node.IsOwned).ToList();
+        var groups = new List<EditorFamilyGroup>();
+        if (family.HasSecondLevel)
+        {
+            var mids = family.Mids.Where(mid => family.Current.IsRoot || mid.EntityId == family.Current.EntityId || family.Current.ParentId == mid.EntityId);
+            foreach (var mid in mids)
+            {
+                var members = leaves.Where(node => node.ParentNodeId == mid.EntityId).Select(ToMember).OrderBy(member => member.Number ?? int.MaxValue).ThenBy(member => member.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+                groups.Add(new EditorFamilyGroup(mid.EntityId, mid.Title, FirstNumber(mid.OrdinalLabel), members));
+            }
+        }
+        else
+        {
+            var members = leaves.Select(ToMember).OrderBy(member => member.Number ?? int.MaxValue).ThenBy(member => member.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+            groups.Add(new EditorFamilyGroup(null, string.Empty, null, members));
+        }
+
+        return new EditorFamilyMembers(family.Root.EntityId, family.Root.Title, family.MediaType, groups);
+
+        static EditorFamilyMember ToMember(MediaEditorNavigatorNodeEnvelope node) => new(node.EntityId, node.Title, FirstNumber(node.OrdinalLabel));
+    }
+
+    private static int? FirstNumber(string? label)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return null;
+        }
+
+        var start = label.IndexOfAny("0123456789".ToCharArray());
+        if (start < 0)
+        {
+            return null;
+        }
+
+        var end = start;
+        while (end < label.Length && char.IsAsciiDigit(label[end]))
+        {
+            end++;
+        }
+
+        return int.TryParse(label.AsSpan(start, end - start), NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : null;
+    }
 
     // -- Family ---------------------------------------------------------------------------------------------------------------------
 
@@ -841,7 +901,7 @@ public sealed class EditorHeaderReadService(
         AlongsideOf(extra.EffectiveAlongside, mediaType));
 
     // "with lesson 02" in a course, "with episode 3" on a show, "with track 4" on an album: the words under the file's group.
-    private static EditorHeaderAlongsideDto? AlongsideOf(ExtraScope? alongside, string mediaType)
+    internal static EditorHeaderAlongsideDto? AlongsideOf(ExtraScope? alongside, string mediaType)
     {
         if (alongside is not { } scope || scope.Level is ExtraScopeLevel.None or ExtraScopeLevel.Root)
         {

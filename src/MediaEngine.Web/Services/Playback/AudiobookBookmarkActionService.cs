@@ -21,7 +21,7 @@ public sealed record AudiobookBookmarkActionSnapshot(
     bool SaveOutcomeUnknown = false);
 
 /// <summary>What a person typed when saving: the short note, the optional longer description, and whether to share with everyone.</summary>
-public sealed record AudiobookBookmarkSaveFields(string? Note, string? Description = null, bool ShareWithEveryone = false);
+public sealed record AudiobookBookmarkSaveFields(string? Note, string? Description = null);
 
 /// <summary>
 /// The shared main-window bookmark owner. Popup hosts will later adapt this interface
@@ -325,7 +325,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             }
 
             if (!state.DraftLease.TryBeginSave(draftGeneration, context.ProfileId, context.WorkId,
-                    context.SessionLeaseId, authorizedAssetIds, note, out attempt, fields.Description, fields.ShareWithEveryone))
+                    context.SessionLeaseId, authorizedAssetIds, note, out attempt, fields.Description))
             {
                 return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed(
                     "The captured bookmark is no longer valid or is already being saved.");
