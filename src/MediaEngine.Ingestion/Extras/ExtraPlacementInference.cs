@@ -252,13 +252,8 @@ internal static partial class ExtraPlacementInference
     /// <summary>The words of a name worth comparing: four letters or more, and not one of the words that only say what a file is.</summary>
     private static HashSet<string> Tokens(ExtrasRuleBook book, string name)
     {
-        var skip = new HashSet<string>(
-            book.Config.RoleWords.SelectMany(entry => entry.Words)
-                .Concat(book.Config.DocumentHintWords)
-                .SelectMany(word => word.Split(' ', StringSplitOptions.RemoveEmptyEntries)),
-            StringComparer.OrdinalIgnoreCase);
         return new HashSet<string>(
-            Regex.Split(name.ToLowerInvariant(), @"[^\p{L}\p{N}]+").Where(token => token.Length >= 4 && !skip.Contains(token) && !token.All(char.IsDigit)),
+            Regex.Split(name.ToLowerInvariant(), @"[^\p{L}\p{N}]+").Where(token => token.Length >= 4 && !book.SkipWords.Contains(token) && !token.All(char.IsDigit)),
             StringComparer.Ordinal);
     }
 

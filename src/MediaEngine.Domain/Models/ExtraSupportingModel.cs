@@ -65,7 +65,10 @@ public static class ExtraRoles
         _ => ExtraKinds.DefaultFor(fileKind),
     };
 
-    /// <summary>The words shown for a role when the configuration does not give any ("Behind the scenes").</summary>
+    /// <summary>
+    /// The words shown for a role when the configuration (<c>roles</c> in <c>config/extras.json</c>) does not give any ("Behind the scenes").
+    /// Callers with the rules at hand use <c>ExtrasConfiguration.LabelFor</c>, which reads the configured words first.
+    /// </summary>
     public static string Label(string? role) => role switch
     {
         Guide => "Guide",
@@ -82,6 +85,18 @@ public static class ExtraRoles
         Pictures => "Pictures",
         _ => "Other",
     };
+}
+
+/// <summary>
+/// A role was set that the configured list for the file's kind does not offer (a Trailer on a document, a Worksheet on a picture).
+/// Nothing is changed when it is thrown; the endpoints turn it into a plain "not available for this kind of file" answer.
+/// </summary>
+public sealed class ExtraRoleNotAllowedException(string role, string fileKind)
+    : ArgumentException($"The role \"{role}\" is not one a {fileKind} supporting file can have.")
+{
+    public string Role { get; } = role;
+
+    public string FileKind { get; } = fileKind;
 }
 
 /// <summary>How far down a title a supporting file belongs.</summary>

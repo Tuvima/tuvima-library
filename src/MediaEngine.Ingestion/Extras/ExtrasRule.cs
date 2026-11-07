@@ -418,10 +418,14 @@ public static class ExtrasRule
     /// <summary>The card title for a file name without its extension.</summary>
     internal static string TitleFor(string stem) => TitleOf(ExtrasRuleBook.For(ExtrasConfigurationProvider.Active), stem);
 
-    /// <summary>Step 5: the file name without its extension, separators turned into spaces.</summary>
+    /// <summary>
+    /// Step 5: the file name without its extension, separators turned into spaces, runs of spaces collapsed and the ends trimmed.
+    /// Leading numbers stay ("02-component-exercises" is "02 component exercises"); noise words are removed by the name-cleaning rules, not here.
+    /// </summary>
     internal static string TitleOf(ExtrasRuleBook book, string stem)
     {
-        var cleaned = book.TitleSeparators.Aggregate(stem, (text, separator) => text.Replace(separator, ' ')).Trim();
+        var spaced = book.TitleSeparators.Aggregate(stem, (text, separator) => text.Replace(separator, ' '));
+        var cleaned = string.Join(' ', spaced.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         return cleaned.Length == 0 ? stem : cleaned;
     }
 

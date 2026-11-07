@@ -58,7 +58,7 @@
   "role_words": [
     { "role": "trailer", "words": ["trailer", "trailers", "teaser", "teasers", "promo", "promos"] },
     { "role": "featurette", "words": ["featurette", "featurettes"] },
-    { "role": "behind_the_scenes", "words": ["behind the scenes", "behindthescenes", "bts", "making of", "the making of", "makingof"] },
+    { "role": "behind_the_scenes", "words": ["behind the scenes", "behindthescenes", "behind", "bts", "making of", "the making of", "makingof"] },
     { "role": "deleted_scene", "words": ["deleted scene", "deleted scenes", "deletedscene", "deleted", "outtake", "outtakes", "blooper", "bloopers", "gag reel"] },
     { "role": "interview", "words": ["interview", "interviews"] },
     { "role": "worksheet", "words": ["workbook", "exercise", "exercises", "homework", "worksheet", "worksheets", "assignment", "assignments"] },
@@ -112,7 +112,7 @@
   "specials_words": ["specials", "special"],
   "episode_words": ["episode", "ep", "e", "lesson", "chapter", "part", "session", "module", "class", "day", "video"],
 
-  "title_separators": ["_"],
+  "title_separators": ["_", "-", "."],
 
   "missing_file_keep_days": 30
 }

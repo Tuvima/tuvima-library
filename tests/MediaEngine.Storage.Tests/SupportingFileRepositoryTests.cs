@@ -1,4 +1,6 @@
 using Dapper;
+using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Storage.Tests;
@@ -266,6 +268,73 @@ public sealed class SupportingFileRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ARenamedFolderGroup_KeepsItsFilesAcrossARescan_AndTheOldFolderGroupDoesNotComeBack()
+    {
+        await _extras.SyncItemFolderAsync(Show, [Found("A.pdf", group: "Character guides"), Found("B.pdf", group: "Character guides")], []);
+        var group = Assert.Single(await _extras.ListGroupsAsync(Show));
+        Assert.True(await _extras.RenameGroupAsync(group.Id, "Guides"));
+
+        // The folder on disk still says "Character guides".
+        await _extras.SyncItemFolderAsync(Show, [Found("A.pdf", group: "Character guides"), Found("B.pdf", group: "Character guides")], []);
+
+        var groups = await _extras.ListGroupsAsync(Show);
+        var only = Assert.Single(groups);
+        Assert.Equal("Guides", only.Name);
+        Assert.Equal(2, only.FileCount);
+        foreach (var name in new[] { "A.pdf", "B.pdf" })
+        {
+            var row = (await _extras.GetByPathAsync($"{Show}/{name}"))!;
+            Assert.Equal("Guides", row.GroupName);
+            Assert.Equal(ExtraGroupSources.You, row.GroupSource);
+            Assert.Equal("Character guides", row.InferredGroup);
+        }
+    }
+
+    [Fact]
+    public async Task AFileTheRuleNoLongerReadsAsAnExtra_KeepsItsRecordWhenAPersonSetAnything_AndLosesItOtherwise()
+    {
+        await _extras.SyncItemFolderAsync(Show, [Found("Plain.pdf"), Found("Titled.pdf"), Found("Tagged.pdf"), Found("Grouped.pdf"), Found("Moved.pdf")], []);
+        async Task<Guid> IdOf(string name) => (await _extras.GetByPathAsync($"{Show}/{name}"))!.Id;
+        await _extras.UpdateOwnedAsync(await IdOf("Titled.pdf"), new ExtraOwnedUpdate { Title = ExtraValue<string>.Set("My title") });
+        await _extras.UpdateOwnedAsync(await IdOf("Tagged.pdf"), new ExtraOwnedUpdate { AddTags = ["maths"] });
+        await _extras.UpdateOwnedAsync(await IdOf("Grouped.pdf"), new ExtraOwnedUpdate { GroupName = ExtraValue<string>.Set("Homework") });
+        await _extras.UpdateOwnedAsync(await IdOf("Moved.pdf"), new ExtraOwnedUpdate { Scope = ExtraValue<ExtraScope>.Set(ExtraScope.ForSeason(2)) });
+
+        // The files are all still on disk (none is in goneFiles) but the rule now reads none of them.
+        await _extras.SyncItemFolderAsync(Show, [], []);
+
+        Assert.Null(await _extras.GetByPathAsync($"{Show}/Plain.pdf"));
+        Assert.Equal("My title", (await _extras.GetByPathAsync($"{Show}/Titled.pdf"))!.DisplayTitle);
+        Assert.Equal(["maths"], (await _extras.GetByPathAsync($"{Show}/Tagged.pdf"))!.TagList);
+        Assert.Equal("Homework", (await _extras.GetByPathAsync($"{Show}/Grouped.pdf"))!.GroupName);
+        Assert.Equal(ExtraScope.ForSeason(2), (await _extras.GetByPathAsync($"{Show}/Moved.pdf"))!.EffectiveScope);
+    }
+
+    [Fact]
+    public async Task ARoleTheConfiguredListDoesNotOfferForTheKindOfFile_IsRefused_AndNothingChanges()
+    {
+        var rules = new ItemExtraRepository(_db, new FixedRules());
+        await rules.SyncItemFolderAsync(Show, [Found("Guide.pdf"), Found("Photo.jpg", ItemExtraKinds.Picture)], []);
+        var document = (await rules.GetByPathAsync($"{Show}/Guide.pdf"))!.Id;
+        var picture = (await rules.GetByPathAsync($"{Show}/Photo.jpg"))!.Id;
+
+        var refused = await Assert.ThrowsAsync<ExtraRoleNotAllowedException>(
+            () => rules.UpdateOwnedAsync(document, new ExtraOwnedUpdate { Role = ExtraValue<string>.Set(ExtraRoles.Trailer) }));
+        Assert.Equal(ExtraRoles.Trailer, refused.Role);
+        Assert.False((await rules.GetAsync(document))!.RoleIsSetByYou);
+
+        var accepted = await rules.UpdateOwnedAsync(document, new ExtraOwnedUpdate { Role = ExtraValue<string>.Set(ExtraRoles.Worksheet) });
+        Assert.Equal(ExtraRoles.Worksheet, accepted!.EffectiveRole);
+
+        // Clearing is always allowed, and a bulk change that includes a file the role does not fit changes none of them.
+        var cleared = await rules.UpdateOwnedAsync(document, new ExtraOwnedUpdate { Role = ExtraValue<string>.Clear });
+        Assert.False(cleared!.RoleIsSetByYou);
+        await Assert.ThrowsAsync<ExtraRoleNotAllowedException>(
+            () => rules.UpdateOwnedManyAsync([document, picture], new ExtraOwnedUpdate { Role = ExtraValue<string>.Set(ExtraRoles.Guide) }));
+        Assert.False((await rules.GetAsync(document))!.RoleIsSetByYou);
+    }
+
+    [Fact]
     public async Task RemovingATitlesExtras_AlsoRemovesItsGroupsAndTagLinks()
     {
         await _extras.SyncItemFolderAsync(Show, [Found("A.pdf")], []);
@@ -305,6 +374,20 @@ public sealed class SupportingFileRepositoryTests : IDisposable
         Assert.Equal("file:Section 1/02 Intro.mkv", ExtraScope.ForFile("Section 1\\02 Intro.mkv").Key);
         Assert.False(ExtraScope.TryParse("season:x", out _));
         Assert.False(ExtraScope.TryParse("folder:", out _));
+    }
+
+    /// <summary>A small role list per kind of file, as <c>config/extras.json</c> gives.</summary>
+    private sealed class FixedRules : IExtrasConfigurationSource
+    {
+        public ExtrasConfiguration Current { get; } = new()
+        {
+            Roles = new Dictionary<string, List<ExtrasRoleEntry>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["document"] = [new() { Id = ExtraRoles.Guide, Label = "Guide" }, new() { Id = ExtraRoles.Worksheet, Label = "Worksheet" }],
+                ["picture"] = [new() { Id = ExtraRoles.Pictures, Label = "Pictures" }],
+                ["clip"] = [new() { Id = ExtraRoles.Trailer, Label = "Trailer" }, new() { Id = ExtraRoles.Clip, Label = "Clip" }],
+            },
+        };
     }
 
     private static ItemExtra Found(

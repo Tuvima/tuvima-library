@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Services.Extras;
@@ -9,7 +10,7 @@ public static class ExtraCardBuilder
 {
     private const int MosaicSize = 4;
 
-    public static IReadOnlyList<DetailExtraCardViewModel> Build(IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists)
+    public static IReadOnlyList<DetailExtraCardViewModel> Build(IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists, ExtrasConfiguration? rules = null)
     {
         ArgumentNullException.ThrowIfNull(extras);
         ArgumentNullException.ThrowIfNull(fileExists);
@@ -30,7 +31,7 @@ public static class ExtraCardBuilder
                 IsMissing = !fileExists(document.FilePath),
                 Description = document.Description,
                 Role = document.EffectiveRole,
-                RoleLabel = ExtraRoles.Label(document.EffectiveRole),
+                RoleLabel = RoleLabelOf(document, rules),
                 Group = document.GroupName,
                 ScopeKey = document.EffectiveScope.Key,
                 ScopeSource = document.ScopeSource,
@@ -60,7 +61,7 @@ public static class ExtraCardBuilder
                 IsMissing = pictures.All(picture => !fileExists(picture.FilePath)),
                 Description = pictures[0].Description,
                 Role = pictures[0].EffectiveRole,
-                RoleLabel = ExtraRoles.Label(pictures[0].EffectiveRole),
+                RoleLabel = RoleLabelOf(pictures[0], rules),
                 Group = pictures[0].GroupName,
                 ScopeKey = pictures[0].EffectiveScope.Key,
                 ScopeSource = pictures[0].ScopeSource,
@@ -83,7 +84,7 @@ public static class ExtraCardBuilder
                 IsMissing = !fileExists(clip.FilePath),
                 Description = clip.Description,
                 Role = clip.EffectiveRole,
-                RoleLabel = ExtraRoles.Label(clip.EffectiveRole),
+                RoleLabel = RoleLabelOf(clip, rules),
                 Group = clip.GroupName,
                 ScopeKey = clip.EffectiveScope.Key,
                 ScopeSource = clip.ScopeSource,
@@ -96,7 +97,7 @@ public static class ExtraCardBuilder
     }
 
     /// <summary>One supporting file as the editor and the browser read it: what a person set and what the folder says, side by side.</summary>
-    public static SupportingFileDto ToSupportingFile(ItemExtra extra, Func<string, bool> fileExists)
+    public static SupportingFileDto ToSupportingFile(ItemExtra extra, Func<string, bool> fileExists, ExtrasConfiguration? rules = null)
     {
         ArgumentNullException.ThrowIfNull(extra);
         ArgumentNullException.ThrowIfNull(fileExists);
@@ -117,7 +118,7 @@ public static class ExtraCardBuilder
             Group = extra.GroupName,
             GroupSource = extra.GroupName is null ? null : extra.GroupSource,
             Role = extra.EffectiveRole,
-            RoleLabel = ExtraRoles.Label(extra.EffectiveRole),
+            RoleLabel = RoleLabelOf(extra, rules),
             RoleIsSetByYou = extra.RoleIsSetByYou,
             ScopeKey = extra.EffectiveScope.Key,
             InferredScopeKey = extra.InferredScope.Key,
@@ -146,6 +147,10 @@ public static class ExtraCardBuilder
 
         return extra.EffectiveScope.Label() is { Length: > 0 } scope ? scope : null;
     }
+
+    /// <summary>The words for the file's role: the configured label for its kind of file, else the built-in words.</summary>
+    private static string RoleLabelOf(ItemExtra extra, ExtrasConfiguration? rules) =>
+        rules?.LabelFor(extra.Kind, extra.EffectiveRole) ?? ExtraRoles.Label(extra.EffectiveRole);
 
     private static string BadgeOf(ItemExtra extra) =>
         PlaceOf(extra) is { } place ? $"{ExtraKinds.Label(KindOf(extra))} · {place}" : ExtraKinds.Label(KindOf(extra));

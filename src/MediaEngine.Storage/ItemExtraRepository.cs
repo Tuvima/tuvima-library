@@ -1,5 +1,6 @@
 using System.Globalization;
 using Dapper;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Contracts;
@@ -13,7 +14,7 @@ namespace MediaEngine.Storage;
 /// description, role, scope, shown-alongside, a chosen group, tags) live in their own columns that a rescan never writes; the values
 /// the Engine reads from folder and file names are stored beside them and recomputed on every pass. Every call uses a short-lived connection.
 /// </summary>
-public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepository
+public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigurationSource? rules = null) : IItemExtraRepository
 {
     private const int TagQueryChunk = 400;
 
@@ -208,8 +209,13 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
                 var stillFound = foundPaths.Contains(row.FilePath);
                 if (row.Origin == ItemExtraOrigins.Rule && !stillFound && !fileIsGone)
                 {
-                    // The file is there but the rule no longer reads it as an Extra: the record goes.
-                    DeleteRows(connection, transaction, "id = @id", new { id = row.Id }, token);
+                    // The file is there but the rule no longer reads it as an Extra: the record goes,
+                    // unless a person has set something on it. Their values are theirs to keep.
+                    if (!HasPersonValues(connection, transaction, row, token))
+                    {
+                        DeleteRows(connection, transaction, "id = @id", new { id = row.Id }, token);
+                    }
+
                     continue;
                 }
 
@@ -420,12 +426,19 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
                 return false;
             }
 
-            // A group a person renamed is theirs, so a rescan no longer drops it when its folder goes.
-            return connection.Execute(new CommandDefinition(
+            // A group a person renamed is theirs: the group stays, and so does the grouping of its files,
+            // so a rescan neither recreates the old folder group nor drops the renamed one.
+            var renamed = connection.Execute(new CommandDefinition(
                 "UPDATE item_extra_groups SET name = @name, source = 'you' WHERE id = @groupId;",
                 new { name = trimmed, groupId },
                 transaction,
                 cancellationToken: token)) > 0;
+            connection.Execute(new CommandDefinition(
+                "UPDATE item_extras SET group_source = 'you' WHERE group_id = @groupId;",
+                new { groupId },
+                transaction,
+                cancellationToken: token));
+            return renamed;
         }, ct);
     }
 
@@ -519,7 +532,7 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
                     continue;
                 }
 
-                ApplyOwned(connection, transaction, row, update, token);
+                ApplyOwned(connection, transaction, row, update, rules?.Current, token);
                 changed++;
             }
 
@@ -527,7 +540,25 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
         }, ct);
     }
 
-    private static void ApplyOwned(SqliteConnection connection, SqliteTransaction transaction, Row row, ExtraOwnedUpdate update, CancellationToken token)
+    /// <summary>True when a person has set anything on this record: title, description, role, scope, alongside, group or tags.</summary>
+    private static bool HasPersonValues(SqliteConnection connection, SqliteTransaction transaction, Row row, CancellationToken token)
+    {
+        if (row.OwnTitle is not null || row.OwnDescription is not null || row.Role is not null
+            || row.Scope is not null || row.Alongside is not null || row.GroupSource == ExtraGroupSources.You
+            || row.PlaceSeason is not null || row.PlaceEpisode is not null || row.PlaceTrack is not null)
+        {
+            return true;
+        }
+
+        return connection.ExecuteScalar<long>(new CommandDefinition(
+            "SELECT COUNT(*) FROM item_extra_tag_links WHERE extra_id = @id;",
+            new { id = row.Id },
+            transaction,
+            cancellationToken: token)) > 0;
+    }
+
+    private static void ApplyOwned(
+        SqliteConnection connection, SqliteTransaction transaction, Row row, ExtraOwnedUpdate update, ExtrasConfiguration? rules, CancellationToken token)
     {
         var sets = new List<string>();
         var parameters = new DynamicParameters();
@@ -553,6 +584,12 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
         {
             if (update.Role.IsSet && Blank(update.Role.Value) is { } role)
             {
+                // The roles a person may pick are the configured list for this kind of file (config/extras.json).
+                if (rules is not null && !rules.RoleFits(row.Kind, role))
+                {
+                    throw new ExtraRoleNotAllowedException(role, row.Kind);
+                }
+
                 Set("role", role);
                 Set("extra_kind", ExtraRoles.ToExtraKind(role, row.Kind));
             }
