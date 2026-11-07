@@ -47,6 +47,9 @@ public enum PlaybackUtilityGlyphKind
     Reset,
     Book,
     Film,
+    SubtitleAppearance,
+    Search,
+    ChevronRight,
 }
 
 public static class PlaybackUtilityGlyphMap

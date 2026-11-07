@@ -152,56 +152,13 @@
                             }
                             break;
                         case PlaybackControlKey.AudioSubtitles:
-                    <PlaybackPanel Title="@tool.AriaLabel" ToolId="video-captions" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
-                                     OpenChanged="HandleSettingsOpenChangedAsync" TriggerClass="@(_captionTracks.Any(track => track.Selected) || Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? "is-on" : null)">
-                        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.AudioSubtitles" /></TriggerContent>
-                        <ChildContent>
-                            <PlayerSettingsMenu AudioSummary="@AudioSummary" SubtitlesSummary="@SubtitlesSummary" NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
-                                               StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync"
-                                               PlaybackRate="@Playback.PlaybackRate" PlaybackRateChanged="SelectPlaybackRateAsync">
-                                <Audio>
-                                    <PlaybackSheetList>
-                                        @for (var index = 0; index < AudioTracks.Count; index++)
-                                        {
-                                            var trackIndex = index;
-                                            var track = AudioTracks[index];
-                                            var audioSelected = _selectedAudioTrackIndex == trackIndex || (_selectedAudioTrackIndex is null && track.IsDefault) || AudioTracks.Count == 1;
-                                            <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectAudioTrackAsync(trackIndex))" IsActive="@audioSelected"
-                                                              AriaLabel="@(AudioTracks.Count == 1 ? L["PlayerSettings_OnlyAudioTrack", AudioTrackLabel(track, trackIndex)].Value : $"Select {AudioTrackLabel(track, trackIndex)}")">
-                                                <span class="playback-sheet-row__copy"><strong>@AudioTrackLabel(track, trackIndex)</strong></span>
-                                                @if (audioSelected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
-                                            </PlaybackSheetRow>
-                                        }
-                                        @if (AudioTracks.Count == 0) { <p class="video-playback-host__track-status">@L["VideoPlaybackHost_NoAudioInformationForThis"]</p> }
-                                    </PlaybackSheetList>
-                                </Audio>
-                                <Subtitles>
-                                    <PlaybackSheetList>
-                                        <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(null))" IsActive="@(!_captionTracks.Any(track => track.Selected))" AriaLabel="@L["VideoPlaybackHost_TurnSubtitlesOff"].Value">
-                                            <span class="playback-sheet-row__copy"><strong>@L["Common_Off"]</strong></span>
-                                            @if (!_captionTracks.Any(track => track.Selected)) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
-                                        </PlaybackSheetRow>
-                                        @foreach (var track in _captionTracks)
-                                        {
-                                            <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(track.Key))" IsActive="@track.Selected" AriaLabel="@($"Select {track.Label} subtitles")">
-                                                <span class="playback-sheet-row__copy"><strong>@track.Label</strong></span>
-                                                @if (track.Selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
-                                            </PlaybackSheetRow>
-                                        }
-                                        @if (!_noSubtitleSource)
-                                        {
-                                            @if (_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)
-                                            {
-                                                <PlaybackSheetRow Appearance="outlined" OnClick="SetPreferredSubtitleAsync" AriaLabel="@L["VideoPlaybackHost_SetSelectedSubtitlesAsPreferred"].Value"><span class="playback-sheet-row__copy"><strong>@L["VideoPlaybackHost_SetPreferredVersion"]</strong></span></PlaybackSheetRow>
-                                            }
-                                            <PlaybackSheetRow Appearance="outlined" OnClick="RefreshSubtitlesAsync" AriaLabel="@L["VideoPlaybackHost_FindBetterSubtitles2"].Value"><span class="playback-sheet-row__copy"><strong>@(_textTrackLoading ? L["PlayerSettings_Searching"].Value : L["VideoPlaybackHost_FindBetterSubtitles"].Value)</strong></span></PlaybackSheetRow>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(_textTrackStatus)) { <p role="status" class="video-playback-host__track-status">@_textTrackStatus</p> }
-                                    </PlaybackSheetList>
-                                </Subtitles>
-                            </PlayerSettingsMenu>
-                        </ChildContent>
-                    </PlaybackPanel>
+                    <AudioSubtitlesPanel ToolId="video-captions" Surface="video" ItemKey="@VideoInstanceKey" OpenChanged="HandleSettingsOpenChangedAsync"
+                                         TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)"
+                                         Audio="@AudioChoices" Subtitles="@SubtitleChoices" Position="@Playback.CurrentTimeSeconds" OnSwitch="HandleTrackSwitchAsync" Notice="@_trackNotice"
+                                         Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync"
+                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" SearchLoading="@_textTrackLoading" SearchStatus="@_textTrackStatus"
+                                         CanSetPreferred="@(_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)"
+                                         OnSearch="RefreshSubtitlesAsync" OnSetPreferred="SetPreferredSubtitleAsync" />
                             break;
                     }
                 </ToolContent>
@@ -299,6 +256,8 @@
     private IReadOnlyList<CaptionTrackMetric> _captionTracks = [];
     private string? _selectedCaptionKey;
     private string? _textTrackStatus;
+    // Why an audio switch did not happen, shown under the Audio & subtitles lists.
+    private string? _trackNotice;
     private bool _textTrackLoading;
 
     private string StageClass =>
@@ -362,18 +321,15 @@
         (Playback.CurrentManifest?.SubtitleTracks ?? [])
             .Where(track => !string.IsNullOrWhiteSpace(track.DeliveryUrl))
             .ToList();
-    // The right-hand side of the Settings rows (unified player D9): what is chosen now.
-    private string AudioSummary
-    {
-        get
-        {
-            if (AudioTracks.Count == 0) return string.Empty;
-            var index = _selectedAudioTrackIndex ?? Math.Max(0, AudioTracks.ToList().FindIndex(track => track.IsDefault));
-            return AudioTrackLabel(AudioTracks[Math.Clamp(index, 0, AudioTracks.Count - 1)], index);
-        }
-    }
-
-    private string SubtitlesSummary => _captionTracks.FirstOrDefault(track => track.Selected)?.Label ?? L["Common_Off"].Value;
+    // Audio & subtitles (unified player v2 D12): the rows the panel draws, built from the file's track data and the tracks the player reports.
+    // Audio can be switched when the browser sees every track, or when the Engine can stream them (the player then resumes at the same second).
+    private bool AudioSwitchPossible => AudioTracks.Count > 1
+        && (CanSwitchAudio || Playback.CurrentManifest?.HlsStatus is not ("failed" or "unavailable"));
+    private IReadOnlyList<AudioChoice> AudioChoices => AudioSubtitlesChoices.BuildAudio(AudioTracks, _selectedAudioTrackIndex, AudioSwitchPossible);
+    private IReadOnlyList<SubtitleChoice> SubtitleChoices => _captionTracks
+        .Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))
+        .Prepend(new SubtitleChoice(null, L["Common_Off"].Value, !_captionTracks.Any(track => track.Selected)))
+        .ToList();
 
     private IReadOnlyList<PlaybackTrackDto> AudioTracks => Playback.CurrentManifest?.AudioTracks ?? [];
     // Profile defaults (Settings > Playback > Subtitles & audio). The size and background reach the cues through
@@ -536,7 +492,7 @@
         _presentationContext = null;
         _loadedSubtitleAssetId = null;
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
-        _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _textTrackStatus = null; _textTrackLoading = false;
+        _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _textTrackStatus = null; _trackNotice = null; _textTrackLoading = false;
         _profileAudioAppliedFor = null;
         _savedRail = [];
         _everyonesRail = [];
@@ -1411,43 +1367,50 @@
     private static string ManagedSubtitleLabel(TextTrackDto track) =>
         $"{track.Language.ToUpperInvariant()}{(track.IsHearingImpaired ? " SDH" : "")}";
 
-    private string CaptionChoiceSubtitle(CaptionTrackMetric track)
+    // A subtitle row keeps what kind of track it is: "English", "English · SDH", "English · Forced".
+    private string CaptionChoiceLabel(CaptionTrackMetric track)
     {
         if (track.Key.StartsWith("managed:", StringComparison.Ordinal)
             && Guid.TryParse(track.Key[8..], out var id)
             && ManagedSubtitleTracks.FirstOrDefault(candidate => candidate.Id == id) is { } managed)
         {
-            return $"{managed.Provider} · {(managed.IsHearingImpaired ? "SDH" : managed.TimingMode)}{(managed.IsPreferred ? " · Preferred" : "")}";
+            return AudioSubtitlesChoices.SubtitleLabel(managed.Language, track.Label, isForced: false, managed.IsHearingImpaired);
         }
         if (track.Key.StartsWith("manifest:", StringComparison.Ordinal)
             && int.TryParse(track.Key[9..], out var index)
             && SubtitleTracks.FirstOrDefault(candidate => candidate.Index == index) is { } manifest)
         {
-            return manifest.IsForced ? "Forced" : "Embedded";
+            return AudioSubtitlesChoices.SubtitleLabel(manifest.Language, manifest.DisplayName ?? track.Label, manifest.IsForced, AudioSubtitlesChoices.NamesHearingImpaired(manifest.DisplayName));
         }
-        return string.IsNullOrWhiteSpace(track.Language) ? "Available track" : track.Language;
+        return AudioSubtitlesChoices.SubtitleLabel(track.Language, track.Label, isForced: false, AudioSubtitlesChoices.NamesHearingImpaired(track.Label));
     }
+
+    // One choice from the Audio & subtitles panel. Subtitles switch in the browser (the picture is untouched); audio switches in the browser or, when it
+    // cannot see the file's tracks, through the Engine stream, which restarts at the second the player is at (SwitchVideoToAdaptiveAsync). The request
+    // carries that second too, so the panel's promise (A9: within one second) is stated where the choice is made.
+    private Task HandleTrackSwitchAsync(TrackSwitchRequest request) => request.Kind == TrackSwitchKind.Audio
+        ? SelectAudioTrackAsync(request.AudioIndex)
+        : SelectCaptionAsync(request.CaptionKey);
 
     private async Task SelectAudioTrackAsync(int index)
     {
         if (AudioTracks.Count < 2 || _switchingAudio) return;
+        _trackNotice = null;
         if (CanSwitchAudio && await JS.InvokeAsync<bool>("listenPlayback.selectAudioTrack", _videoRef, index))
         {
             _selectedAudioTrackIndex = index;
-            CloseToolSheet();
             return;
         }
 
         // The browser cannot see this file's audio tracks: ask the Engine for the stream that carries them and resume from the same second.
         _pendingAudioIndex = index;
         _switchingAudio = true;
-        CloseToolSheet();
         await InvokeAsync(StateHasChanged);
         if (!await Playback.SwitchVideoToAdaptiveAsync(_lifetimeCancellation.Token))
         {
             _switchingAudio = false;
             _pendingAudioIndex = null;
-            _textTrackStatus = L["VideoPlaybackHost_AudioCanTBeSwitched"].Value;
+            _trackNotice = L["VideoPlaybackHost_AudioCanTBeSwitched"].Value;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -1461,16 +1424,6 @@
         _switchingAudio = false;
         await InvokeAsync(StateHasChanged);
     }
-
-    private static string? AudioTrackDetail(PlaybackTrackDto track) =>
-        string.Join(" · ", new[] { track.Codec?.ToUpperInvariant(), track.Channels switch { 1 => "Mono", 2 => "Stereo", 6 => "5.1", 8 => "7.1", { } count => $"{count} ch", _ => null } }.Where(part => !string.IsNullOrWhiteSpace(part)));
-
-    private static string AudioTrackLabel(PlaybackTrackDto track, int index) =>
-        StringHelpers.FirstNonBlankOr(
-            $"Audio {index + 1}",
-            track.DisplayName,
-            track.Language?.ToUpperInvariant(),
-            $"Audio {index + 1}");
 
     private Task ToggleFullscreenAsync()
         => JS.InvokeVoidAsync("listenPlayback.toggleFullscreen", _hostRef, _videoRef).AsTask();

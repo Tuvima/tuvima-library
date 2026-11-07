@@ -1,0 +1,103 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The body of Audio & subtitles (unified player v2 D12; mockup screen 3 and the phone sheet of screen 15). Desktop draws two columns in the wide panel:
+   Audio (language, then the format and channels; commentary and audio description named and listed last) and Subtitles (Off first, labels kept).
+   A chosen row has a check and the soft purple background. On a phone the same two lists become two tabs in one sheet. Choosing a row asks the
+   host to switch and carries the second the player is at, so the picture never restarts (A9). *@
+<div class="asv" data-audio-subtitles data-layout="@(IsSheet ? "tabs" : "columns")">
+    @if (IsSheet)
+    {
+        <div class="asv__tabs" role="tablist" aria-label="@L["AudioSubtitles_Title"].Value">
+            <AppNativeButton Type="button" Class="@TabClass("audio")" role="tab" aria-selected="@(_tab == "audio" ? "true" : "false")" data-asv-tab="audio"
+                             OnClick="@(() => _tab = "audio")">@L["AudioSubtitles_Audio"]</AppNativeButton>
+            <AppNativeButton Type="button" Class="@TabClass("subtitles")" role="tab" aria-selected="@(_tab == "subtitles" ? "true" : "false")" data-asv-tab="subtitles"
+                             OnClick="@(() => _tab = "subtitles")">@L["Common_Subtitles"]</AppNativeButton>
+        </div>
+    }
+    <div class="asv__columns">
+        @if (!IsSheet || _tab == "audio")
+        {
+            <section class="asv__column" data-asv-column="audio" aria-label="@L["AudioSubtitles_Audio"].Value">
+                @if (!IsSheet) { <h3 class="asv__heading">@L["AudioSubtitles_Audio"]</h3> }
+                <div role="radiogroup" aria-label="@L["AudioSubtitles_Audio"].Value">
+                    @foreach (var row in Audio)
+                    {
+                        var choice = row;
+                        var note = !choice.Selected && !choice.Switchable && Audio.Count > 1 ? L["AudioSubtitles_NotSwitchable"].Value : null;
+                        <AppNativeButton Type="button" Class="@RowClass(choice.Selected, choice.Switchable || choice.Selected)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
+                                         Disabled="@(!choice.Switchable)" data-asv-audio="@choice.Index" data-asv-purpose="@choice.Purpose.ToString().ToLowerInvariant()"
+                                         OnClick="@(() => ChooseAudioAsync(choice))">
+                            <span class="asv__label">@choice.Label</span>
+                            @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
+                            @if (!string.IsNullOrWhiteSpace(choice.Detail) || note is not null)
+                            {
+                                <span class="asv__sub">@(note ?? choice.Detail)</span>
+                            }
+                        </AppNativeButton>
+                    }
+                    @if (Audio.Count == 0)
+                    {
+                        <p class="asv__empty">@L["VideoPlaybackHost_NoAudioInformationForThis"]</p>
+                    }
+                </div>
+            </section>
+        }
+        @if (!IsSheet || _tab == "subtitles")
+        {
+            <section class="asv__column" data-asv-column="subtitles" aria-label="@L["Common_Subtitles"].Value">
+                @if (!IsSheet) { <h3 class="asv__heading">@L["Common_Subtitles"]</h3> }
+                <div role="radiogroup" aria-label="@L["Common_Subtitles"].Value">
+                    @foreach (var row in Subtitles)
+                    {
+                        var choice = row;
+                        <AppNativeButton Type="button" Class="@RowClass(choice.Selected, true)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
+                                         data-asv-subtitle="@(choice.Key ?? "off")" OnClick="@(() => ChooseSubtitleAsync(choice))">
+                            <span class="asv__label">@choice.Label</span>
+                            @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
+                        </AppNativeButton>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Notice)) { <p class="asv__notice" role="status">@Notice</p> }
+</div>
+
+@code {
+    /// <summary>The Audio rows, already ordered (commentary and audio description last).</summary>
+    [Parameter] public IReadOnlyList<AudioChoice> Audio { get; set; } = [];
+
+    /// <summary>The Subtitles rows; the Off row comes first.</summary>
+    [Parameter] public IReadOnlyList<SubtitleChoice> Subtitles { get; set; } = [];
+
+    /// <summary>The second the video is at now; every switch request carries it so the host resumes there.</summary>
+    [Parameter] public double Position { get; set; }
+
+    [Parameter] public EventCallback<TrackSwitchRequest> OnSwitch { get; set; }
+
+    /// <summary>A line under the lists saying why a choice did not happen.</summary>
+    [Parameter] public string? Notice { get; set; }
+
+    /// <summary>True when the panel is drawn as a phone bottom sheet (set by PlaybackPanel).</summary>
+    [CascadingParameter(Name = "PlaybackPanelSheet")] public bool IsSheet { get; set; }
+
+    private string _tab = "subtitles";
+
+    private string TabClass(string tab) => _tab == tab ? "asv__tab is-on" : "asv__tab";
+
+    private static string RowClass(bool selected, bool available) =>
+        $"asv__row{(selected ? " is-selected" : null)}{(available ? null : " is-unavailable")}";
+
+    private Task ChooseAudioAsync(AudioChoice choice) =>
+        choice.Selected || !choice.Switchable
+            ? Task.CompletedTask
+            : OnSwitch.InvokeAsync(new TrackSwitchRequest(TrackSwitchKind.Audio, Position, AudioIndex: choice.Index));
+
+    private Task ChooseSubtitleAsync(SubtitleChoice choice) =>
+        choice.Selected
+            ? Task.CompletedTask
+            : OnSwitch.InvokeAsync(new TrackSwitchRequest(TrackSwitchKind.Subtitles, Position, CaptionKey: choice.Key));
+}

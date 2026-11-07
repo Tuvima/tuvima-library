@@ -403,7 +403,6 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<PlaybackPrimaryButton", shell, StringComparison.Ordinal);
         // Unified player D10: video speed lives inside Settings, not as its own bar button.
         Assert.DoesNotContain("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
-        Assert.Contains("PlaybackRateChanged=", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPanel", videoHost, StringComparison.Ordinal);
 
         foreach (var css in playbackStyles)
