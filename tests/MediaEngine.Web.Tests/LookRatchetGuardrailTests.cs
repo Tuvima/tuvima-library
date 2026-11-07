@@ -12,7 +12,7 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 374;
     private const int AdHocFontSizeCeiling = 150;
-    private const int HandTypedHexCeiling = 902;
+    private const int HandTypedHexCeiling = 853;
     private const int ForcedOverrideCeiling = 1501;
     private const int HandTypedLayerCeiling = 307;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.

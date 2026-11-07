@@ -876,7 +876,6 @@ code{
     /* One colour per area (Library setup D39): the Libraries screens and Add folder tiles read these. */
     --app-font-sans: var(--font-ui);
     --app-font-brand: var(--font-brand);
-    --app-surface-muted: rgba(21, 30, 47, 0.72);
     --app-card-padding: var(--tl-space-5);
     --app-section-padding: var(--tl-space-6);
     --app-topbar-height: 65px;
@@ -2124,8 +2123,8 @@ input.app-control.tl-input-slot,
 
 .app-chip.browse-shell__grouping-chip.is-active {
     color: var(--tl-text-primary);
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 42%, rgba(148, 163, 184, 0.22));
-    background: color-mix(in srgb, var(--tl-accent-primary) 18%, rgba(7, 12, 27, 0.72));
+    border-color: var(--tl-accent-primary-border);
+    background: var(--tl-accent-primary-soft);
 }
 
 .app-chip--clickable {
@@ -2753,7 +2752,7 @@ input.app-control.tl-input-slot,
    their own component roots outside MainLayout's CSS-isolation scope. */
 .main-content-with-topbar--cinematic.tl-main-content {
     padding-top: 0 !important;
-    background: #05070c !important;
+    background: var(--tl-bg-page) !important;
 }
 
 .layout-shell__appbar--cinematic.tl-appbar {
@@ -2914,7 +2913,7 @@ button.app-menu-item {
 /* Shared selected state for persistent navigation menus. Editor rails, settings
    selectors, and lane menus use this treatment instead of relying on icon color. */
 .app-selection-nav__item.is-active {
-    border-color: var(--tl-accent-primary-border) !important;
+    border-color: transparent !important;
     color: var(--tl-text-primary) !important;
     background: var(--tl-menu-item-selected) !important;
     box-shadow: inset var(--tl-space-1) 0 0 var(--tl-accent-primary) !important;
@@ -4569,8 +4568,8 @@ input[type="reset"],
 
 .profile-switcher__item:hover,
 .profile-switcher__item:focus-visible {
-    color: #fff;
-    background: rgba(136, 82, 252, 0.16);
+    color: var(--tl-text-primary);
+    background: var(--tl-menu-item-hover);
 }
 
 .profile-switcher__item:focus-visible,
@@ -4825,7 +4824,7 @@ input[type="reset"],
 
 .phone-nav-menu__item:hover,
 .phone-nav-menu__item:focus-visible {
-    background: var(--tl-accent-primary-soft);
+    background: var(--tl-menu-item-hover);
 }
 
 .phone-nav-menu__item:focus-visible {
