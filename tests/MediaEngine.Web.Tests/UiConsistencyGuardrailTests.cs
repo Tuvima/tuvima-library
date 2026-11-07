@@ -12,11 +12,11 @@ public sealed partial class UiConsistencyGuardrailTests
     public void PlaybackSongActionRows_UseOneOwnerForIconTypeAndGeometry()
     {
         // The persistent bar draws its actions through PlaybackIdentityActions (unified player v2 D5: square 44 px buttons, Like and Dislike apart);
-        // Now playing keeps PlaybackSongActions until its own packet.
+        // The phone player keeps PlaybackSongActions; the desktop Now playing page draws no second set of controls (D24).
         var bar = Read("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
         Assert.Contains("<PlaybackIdentityActions", bar, StringComparison.Ordinal);
         Assert.DoesNotContain("<SongActions", bar, StringComparison.Ordinal);
-        foreach (var host in new[] { "PlaybackFullPlayer", "PlaybackDesktopScene" })
+        foreach (var host in new[] { "PlaybackFullPlayer" })
         {
             var source = Read($"src/MediaEngine.Web/Components/Listen/{host}.razor");
             Assert.Contains("<PlaybackSongActions", source, StringComparison.Ordinal);

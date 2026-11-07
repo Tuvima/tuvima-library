@@ -190,7 +190,7 @@ button.playback-lyrics__line:focus-visible {
     transform: translateX(-50%);
 }
 
-.playback-lyrics__resume-chip {
+.playback-lyrics ::deep .playback-lyrics__resume-chip {
     align-items: center;
     background: var(--playback-state-selected);
     border: 0;
@@ -205,11 +205,11 @@ button.playback-lyrics__line:focus-visible {
     --playback-glyph-size: 20px;
 }
 
-.playback-lyrics__resume-chip:hover {
+.playback-lyrics ::deep .playback-lyrics__resume-chip:hover {
     background: var(--playback-state-pressed);
 }
 
-.playback-lyrics__resume-chip:focus-visible {
+.playback-lyrics ::deep .playback-lyrics__resume-chip:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: var(--playback-focus-ring-offset);
 }

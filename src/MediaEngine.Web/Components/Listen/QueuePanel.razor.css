@@ -1,0 +1,93 @@
+/* Mockup screen 8: the "Now playing" and "Up next" headings are 12 px tertiary labels with 10 / 16 / 4 padding (sentence case here, the app draws no capitals by CSS);
+   Clear sits at the right in 14 px primary; the footer line is secondary with the source in bold primary. */
+.qp__label,
+.qp__heading {
+    align-items: center;
+    color: var(--playback-text-muted);
+    display: flex;
+    font: 500 12px/1.45 var(--font-ui);
+    letter-spacing: 0.02em;
+    padding: 10px 8px 4px;
+}
+
+.qp__heading ::deep .qp__clear {
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    font: 400 14px/1.45 var(--font-ui);
+    letter-spacing: 0;
+    margin-left: auto;
+    padding: 2px 6px;
+}
+
+.qp__heading ::deep .qp__clear:hover:not(:disabled) {
+    background: var(--playback-state-hover);
+    color: var(--playback-text);
+}
+
+.qp__heading ::deep .qp__clear:disabled {
+    color: var(--playback-text-muted);
+    cursor: default;
+}
+
+.qp__heading ::deep .qp__clear:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 1px;
+}
+
+.qp__empty {
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 12px 8px;
+}
+
+.qp__drop ::deep .qp__handle {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: var(--playback-text-muted);
+    cursor: grab;
+    display: inline-flex;
+    height: 24px;
+    justify-content: center;
+    padding: 0;
+    width: 24px;
+}
+
+.qp__drop ::deep .qp__handle:hover {
+    color: var(--playback-text);
+}
+
+.qp__drop ::deep .qp__handle:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 1px;
+}
+
+.qp__drop {
+    height: 52px;
+}
+
+.qp__source {
+    align-items: center;
+    color: var(--playback-text-secondary);
+    display: inline-flex;
+    gap: 4px;
+    min-width: 0;
+}
+
+.qp__source b {
+    color: var(--playback-text);
+    font-weight: 600;
+    margin-left: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qp__failure {
+    margin: 6px 8px;
+}

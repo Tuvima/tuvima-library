@@ -1,0 +1,36 @@
+/* Mockup screen 9: the Season dropdown and the episode count on one line (10 / 16 padding), the "Up next" chip small and accent-colored beside the title, and the
+   autoplay switch in the footer. */
+.eps__head {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    padding: 10px 16px;
+}
+
+.eps__count {
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.eps__chip {
+    background: var(--playback-state-selected);
+    border-radius: 4px;
+    color: var(--playback-accent-hover);
+    flex: none;
+    font: 600 11px/1.45 var(--font-ui);
+    padding: 0 6px;
+    white-space: nowrap;
+}
+
+.eps__empty {
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 12px 8px;
+}
+
+.eps__autoplay {
+    flex: 1;
+}

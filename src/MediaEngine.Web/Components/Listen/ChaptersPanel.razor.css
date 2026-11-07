@@ -1,0 +1,82 @@
+/* Mockup screen 10: a 64 px cover with the title (18 / 600) and the author (secondary), the "Chapter 8 of 24" line (14 px, the book's share at the right), then rows
+   and a no-wrap footer with the segmented control. */
+.chp__book {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+    padding: 12px 16px;
+}
+
+.chp__cover {
+    background: var(--playback-state-pressed);
+    border-radius: 6px;
+    flex: none;
+    height: 64px;
+    overflow: hidden;
+    width: 64px;
+}
+
+.chp__cover img {
+    display: block;
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.chp__book-copy {
+    min-width: 0;
+}
+
+.chp__book-title {
+    font: 600 18px/1.45 var(--font-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chp__book-author {
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chp__progress {
+    display: flex;
+    font: 400 14px/1.45 var(--font-ui);
+    padding: 0 16px 8px;
+}
+
+.chp__progress-book {
+    color: var(--playback-text-secondary);
+    margin-left: auto;
+}
+
+.chp__empty {
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 12px 8px;
+}
+
+.chp__failure {
+    margin: 6px 8px;
+}
+
+.chp__footer {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.chp__footer-hint {
+    color: var(--playback-text-secondary);
+    font-size: 13px;
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

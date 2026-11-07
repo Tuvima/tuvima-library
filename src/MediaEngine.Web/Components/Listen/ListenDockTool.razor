@@ -14,7 +14,7 @@
 else
 {
 <PlaybackPanel @ref="_popover" Title="@Title" ToolId="@($"audio-{PanelKey}")" ItemKey="@ItemKey"
-               Kind="@(PanelKey == "lyrics" ? "lyrics" : "ordinary")" ShowHeading="false" OpenChanged="OnOpenChanged">
+               Kind="@(PanelKey == "lyrics" ? "lyrics" : ListPanel ? PanelKey : "ordinary")" ShowHeading="@ListPanel" OpenChanged="OnOpenChanged">
     <TriggerContent><PlaybackUtilityGlyph Glyph="@Glyph" /></TriggerContent>
     <ChildContent>@ChildContent</ChildContent>
 </PlaybackPanel>
@@ -27,6 +27,9 @@ else
     [Parameter] public PlaybackUtilityGlyphKind Glyph { get; set; }
     [Parameter] public string? ItemKey { get; set; }
     [Parameter] public bool Inline { get; set; }
+
+    /// <summary>True for the Queue and Chapters lists, which are drawn from the mockup with the panel's own header (title and close).</summary>
+    [Parameter] public bool ListPanel { get; set; }
     [Parameter] public bool IsSelected { get; set; }
     [Parameter] public EventCallback OnInlineSelected { get; set; }
     private AppNativeButton? _inlineButton;

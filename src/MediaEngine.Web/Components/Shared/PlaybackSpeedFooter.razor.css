@@ -6,7 +6,7 @@
     justify-content: center;
 }
 
-.psf__reset {
+.psf ::deep .psf__reset {
     background: transparent;
     border: 0;
     border-radius: 6px;
@@ -17,21 +17,21 @@
     padding: 4px 12px;
 }
 
-.psf__reset:hover {
+.psf ::deep .psf__reset:hover {
     background: var(--playback-state-hover);
 }
 
-.psf__reset:active {
+.psf ::deep .psf__reset:active {
     background: var(--playback-state-pressed);
 }
 
-.psf__reset:focus-visible {
+.psf ::deep .psf__reset:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
 
 @media (pointer: coarse) {
-    .psf__reset {
+    .psf ::deep .psf__reset {
         min-height: var(--playback-control-target);
     }
 }

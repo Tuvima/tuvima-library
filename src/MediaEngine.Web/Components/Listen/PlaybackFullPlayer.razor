@@ -71,7 +71,7 @@
                 <div class="playback-full__middle">
                     @if (_tool == "bookmarks") { @BookmarksContent }
                     else if (_tool == "output") { <PlaybackOutputPanel Snapshot="displayed" Commands="Commands" /> }
-                    else { <PlaybackPanelCard Snapshot="displayed" Commands="Commands" PanelKey="@_tool" FullPlayer="true"
+                    else { <PlaybackPanelCard Snapshot="displayed" Commands="Commands" PanelKey="@_tool" FullPlayer="true" ShowChaptersFooter="@(!IsPopup)"
                         ShowTabs="@(!IsBook && _tool is "queue" or "history")" PanelChanged="PanelSelectedAsync" /> }
                 </div>
             }
@@ -109,12 +109,11 @@
                                         OpenChanged="@(state => ToolVisibilityChanged.InvokeAsync(state.IsOpen))" />
                     <PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="@L["Common_AudiobookControls"].Value">
                         <SettingsContent Context="settings">
-                            <AudiobookSettingsPopover Surface="phone" Title="@settings.AriaLabel" IsOn="@settings.IsActive"
-                                                      Open="@_settingsOpen" OpenChanged="SettingsMenuChangedAsync"
-                                                      SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability"
-                                                      SleepTimerOptionsMinutes="@Snapshot.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Snapshot.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Snapshot.AllowEndOfChapterSleepTimer"
-                                                      SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
-                                                      ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="ChangeShowBookmarksOnBarAsync" />
+                            @* The moon opens the Sleep timer panel (unified player v2 D16); the phone layout packet reshapes this row. *@
+                            <SleepTimerPanel Surface="phone" ItemKey="@Subject" Open="@_settingsOpen" OpenChanged="SettingsMenuChangedAsync"
+                                             State="Snapshot.SleepTimerState" Availability="Snapshot.SleepTimerAvailability" Chapters="@(Current?.Chapters ?? [])"
+                                             OffersEndOfChapter="@Snapshot.AllowEndOfChapterSleepTimer"
+                                             SelectionChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))" />
                         </SettingsContent>
                     </PlaybackControlStrip>
                 </div>
@@ -287,29 +286,6 @@
         }
     }
 
-    private async Task ChangeShowBookmarksOnBarAsync(bool show)
-    {
-        _settings ??= new UserPlaybackSettingsDto();
-        _settings.General.ShowBookmarksOnBar = show;
-        var reload = RefreshMarkersAsync();
-        var preferences = Services.GetService<PlayerPreferenceService>();
-        if (preferences is not null)
-        {
-            try
-            {
-                if (!await preferences.UpdateAsync(settings => settings.General.ShowBookmarksOnBar = show))
-                {
-                    Logger?.LogInformation("The bookmark markers choice could not be saved.");
-                }
-            }
-            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
-            {
-                Logger?.LogWarning(ex, "The bookmark markers choice could not be saved.");
-            }
-        }
-
-        await reload;
-    }
     public Task DismissToolsAsync() => InvokeAsync(async () =>
     {
         CloseTransientTools();

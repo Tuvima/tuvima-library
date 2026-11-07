@@ -1,0 +1,72 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* The two tabs of the Queue panel (unified player v2 D18; mockup screen 8): 15 / 600 labels 20 px apart under a hairline, the chosen one in the primary text color with
+   a 2 px accent underline. One Tab stop for the group: the arrow keys, Home and End move between the tabs (roving-focus.js) and Enter or Space chooses. *@
+<div class="@($"plt{(Flush ? " plt--flush" : null)}")" role="tablist" aria-label="@AriaLabel" @ref="_group">
+    @foreach (var tab in Tabs)
+    {
+        var chosen = tab.Key == Active;
+        <AppNativeButton Type="button" Class="@($"plt__tab{(chosen ? " is-on" : null)}")" role="tab" id="@TabId(IdPrefix, tab.Key)" aria-selected="@(chosen ? "true" : "false")"
+                         aria-controls="@PanelId(IdPrefix)" tabindex="@(chosen ? 0 : -1)" data-playback-list-tab="@tab.Key" OnClick="@(() => ActiveChanged.InvokeAsync(tab.Key))">@tab.Label</AppNativeButton>
+    }
+</div>
+
+@code {
+    /// <summary>One tab: a stable key and the words on it.</summary>
+    public sealed record Tab(string Key, string Label);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Tab> Tabs { get; set; } = [];
+    [Parameter] public string? Active { get; set; }
+    [Parameter] public EventCallback<string> ActiveChanged { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Drops the strip's own side padding and hairline, for a row that owns them (the Now playing page, mockup 13).</summary>
+    [Parameter] public bool Flush { get; set; }
+
+    /// <summary>Makes the tab and panel ids unique to this panel.</summary>
+    [Parameter, EditorRequired] public string IdPrefix { get; set; } = string.Empty;
+
+    public static string TabId(string prefix, string key) => $"{prefix}-tab-{key}";
+    public static string PanelId(string prefix) => $"{prefix}-panel";
+
+    private ElementReference _group;
+    private IJSObjectReference? _roving;
+    private bool _attached, _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _attached) return;
+        try
+        {
+            _roving ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            await _roving.InvokeVoidAsync("attach", _group, "[role=tab]");
+            _attached = true;
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering has no browser yet; the tabs are ordinary buttons until the arrow keys attach.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the tabs were drawing; there is nothing left to attach to.
+        }
+        catch (JSException)
+        {
+            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every tab.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_roving is null) return;
+        try { await _roving.DisposeAsync(); }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
+}

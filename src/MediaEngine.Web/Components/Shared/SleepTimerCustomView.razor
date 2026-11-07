@@ -1,0 +1,57 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Globalization
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Custom duration view of the Sleep timer panel (unified player v2 D16), slid in over the main view with a back arrow: one minutes field, validated
+   from 1 to 720, and a Set timer button. Enter in the field does the same as the button. A bad value keeps the view open and says why under the field. *@
+<div class="stc" data-sleep-custom>
+    <label class="stc__label" for="@_inputId">@L["SleepTimer_CustomMinutes"]</label>
+    <AppNativeInput Type="number" Class="stc__input" Min="@AudiobookSleepTimerLimits.MinimumMinutes" Max="@AudiobookSleepTimerLimits.MaximumMinutes" Step="1"
+                    Value="@_text" OnInput="HandleInput" OnKeyDown="HandleKeyDownAsync" id="@_inputId" inputmode="numeric"
+                    aria-invalid="@(_error ? "true" : null)" aria-describedby="@_helperId" data-sleep-custom-input />
+    @if (_error)
+    {
+        <p class="stc__message stc__message--error" id="@_helperId" role="alert" data-sleep-custom-error>@L["SleepTimer_CustomError", AudiobookSleepTimerLimits.MinimumMinutes, AudiobookSleepTimerLimits.MaximumMinutes]</p>
+    }
+    else
+    {
+        <p class="stc__message" id="@_helperId">@L["SleepTimer_CustomHelper", AudiobookSleepTimerLimits.MinimumMinutes, AudiobookSleepTimerLimits.MaximumMinutes]</p>
+    }
+    <AppNativeButton Type="button" Class="stc__set" data-sleep-custom-set OnClick="SetAsync">@L["SleepTimer_CustomSet"]</AppNativeButton>
+</div>
+
+@code {
+    private readonly string _inputId = $"sleep-custom-{Guid.NewGuid():N}";
+    private string _helperId => $"{_inputId}-help";
+    private string _text = string.Empty;
+    private bool _error;
+
+    /// <summary>Called with the length in minutes once the field holds a valid one.</summary>
+    [Parameter] public EventCallback<int> OnSet { get; set; }
+
+    private void HandleInput(ChangeEventArgs args)
+    {
+        _text = Convert.ToString(args.Value, CultureInfo.InvariantCulture) ?? string.Empty;
+        _error = false;
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await SetAsync();
+        }
+    }
+
+    private async Task SetAsync()
+    {
+        if (!PlaybackSleepTimerChoices.TryReadCustomMinutes(_text, out var minutes))
+        {
+            _error = true;
+            return;
+        }
+
+        await OnSet.InvokeAsync(minutes);
+    }
+}

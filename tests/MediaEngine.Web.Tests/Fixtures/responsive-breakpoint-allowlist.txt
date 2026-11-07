@@ -119,8 +119,6 @@ src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css:980px
 src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor.css:520px
 src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor.css:5rem
 src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor.css:900px
-src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css:400px
-src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css:96px
 src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css:280px
 src/MediaEngine.Web/Shared/MainLayout.razor.css:1100px
 src/MediaEngine.Web/Shared/MainLayout.razor.css:841px

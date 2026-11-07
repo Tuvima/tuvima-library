@@ -17,13 +17,13 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("<AudioSubtitlesPanel ToolId=\"video-captions\"", razor);
         Assert.DoesNotContain("<PlayerSettingsMenu", razor);
         Assert.DoesNotContain("video-subtitle-style", razor);
-        Assert.Contains("<VideoContextPanel", razor);
+        Assert.Contains("<EpisodesPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
         Assert.Contains("object-fit:contain", css);
         Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
-        Assert.Contains("width:min(320px", css);
+        Assert.Contains("width: min(360px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoEndCard.razor.css")));
         Assert.Contains("<PlaybackSeekRail", razor);
         Assert.Contains("<PlaybackVolumeControl", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor")));
         Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));

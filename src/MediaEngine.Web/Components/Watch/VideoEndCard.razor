@@ -1,0 +1,61 @@
+@namespace MediaEngine.Web.Components.Watch
+@using System.Globalization
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The end card (unified player v2 D25a): "Up next" as an episode or lesson ends, on the shared panel surface. Rows, top to bottom: the next item's
+   still and title, "Next episode" or "Next lesson", and for a course the "Homework: ..." line. Then the countdown and Play now / Cancel. It sits above the bar
+   (never over it) and the host removes it as soon as the next item starts. *@
+<aside class="video-end-card" aria-label="@L["VideoPlaybackHost_UpNext"]" data-end-card data-playback-chrome data-chrome-hold>
+    <div class="video-end-card__head">
+        <h3 class="video-end-card__title">@L["VideoPlaybackHost_UpNext"]</h3>
+        @if (AutoAdvance) { <span class="video-end-card__countdown" role="timer">@L["VideoPlaybackHost_StartsInSeconds", (int)Math.Ceiling(RemainingSeconds)]</span> }
+    </div>
+    <div class="video-end-card__item">
+        @if (Next.StillUrl is { } still && MediaTileArtworkUrl.SupportsRenditions(still))
+        {
+            <img class="video-end-card__still" src="@MediaTileArtworkUrl.ForDrawnSize(still, 112)" srcset="@(EpisodesPanel.EpisodeArtworkSrcSet(Next) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(still, 112))"
+                 width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" />
+        }
+        else
+        {
+            <span class="video-end-card__still video-end-card__still--empty" aria-hidden="true"></span>
+        }
+        <span class="video-end-card__words">
+            <strong class="video-end-card__name" data-end-card-title>@Next.Title</strong>
+            <span class="video-end-card__kind" data-end-card-kind>@KindLabel</span>
+        </span>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Homework))
+    {
+        <div class="video-end-card__homework" data-end-card-homework>@L["VideoEndCard_Homework", Homework.Trim()]</div>
+    }
+    <div class="video-end-card__actions">
+        <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" data-end-card-cancel OnClick="Cancel">@L["VideoEndCard_Cancel"]</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Size="AppControlSize.Compact" data-end-card-play OnClick="PlayNow">@L["VideoEndCard_PlayNow"]</AppButton>
+    </div>
+</aside>
+
+@code {
+    /// <summary>The episode or lesson that plays next.</summary>
+    [Parameter, EditorRequired] public VideoOwnedEpisode Next { get; set; } = default!;
+
+    /// <summary>True for a course or a folder of videos ("Next lesson"); false for a TV show ("Next episode").</summary>
+    [Parameter] public bool Lesson { get; set; }
+
+    /// <summary>False when the viewer turned autoplay off: the card stays with no countdown.</summary>
+    [Parameter] public bool AutoAdvance { get; set; } = true;
+    [Parameter] public double RemainingSeconds { get; set; }
+
+    /// <summary>
+    /// The course's supporting files marked "Shown alongside" the lesson, already joined into one line. The Editor v5 supporting-files data feeds it; the card draws
+    /// the line only when it is given.
+    /// </summary>
+    [Parameter] public string? Homework { get; set; }
+
+    [Parameter] public EventCallback PlayNow { get; set; }
+    [Parameter] public EventCallback Cancel { get; set; }
+
+    private string KindLabel => Lesson ? L["VideoEndCard_NextLesson"].Value : L["VideoPlaybackHost_NextEpisode"].Value;
+}

@@ -80,6 +80,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ContextSidebarPreferences>();
         Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
         Services.AddScoped<ListenContextSidebarState>();
+        Services.AddScoped<NowPlayingLauncher>();
         Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
@@ -910,12 +911,13 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Unified player v2 D14: Autoplay, Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11); skips and subtitle look moved to the player.
-            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
+            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11); skips and subtitle look moved to the player.
+            Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
             Assert.NotEmpty(cut.FindAll(".app-setting-row"));
-            Assert.Contains("Autoplay", cut.Markup);
+            // Unified player v2 D19: Autoplay next episode moved into the Episodes panel.
+            Assert.DoesNotContain("Autoplay", cut.Markup);
             Assert.Contains("Resume", cut.Markup);
             Assert.DoesNotContain("Subtitles &amp; Languages", cut.Markup);
             Assert.DoesNotContain("Theme", cut.Markup);
@@ -951,7 +953,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Equal("overview", cut.Find(".settings-playback-page").GetAttribute("data-playback-section"));
-            Assert.Contains("Autoplay next episode", cut.Markup);
+            Assert.DoesNotContain("Autoplay next episode", cut.Markup);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);

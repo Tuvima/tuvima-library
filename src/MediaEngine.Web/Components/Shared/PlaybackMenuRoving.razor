@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* Gives the menu this sits in (a menu element whose rows are menu items) its arrow keys: Up and Down, Home and End move between the rows (roving-focus.js).
+   Place it as the first child of the menu element; it draws nothing a person can see. *@
+<span hidden @ref="_anchor" data-playback-menu-roving></span>
+
+@code {
+    private ElementReference _anchor;
+    private IJSObjectReference? _roving;
+    private bool _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || !firstRender) return;
+        try
+        {
+            _roving = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            await _roving.InvokeVoidAsync("attachMenu", _anchor);
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering has no browser yet; the rows are ordinary buttons until the arrow keys attach.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the menu was drawing; there is nothing left to attach to.
+        }
+        catch (JSException)
+        {
+            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every row.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_roving is null) return;
+        try
+        {
+            await _roving.InvokeVoidAsync("detachMenu", _anchor);
+            await _roving.DisposeAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // The browser side is already gone.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+        catch (JSException)
+        {
+            // The element is already gone from the page, so there is nothing to detach.
+        }
+    }
+}

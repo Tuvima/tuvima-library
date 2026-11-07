@@ -81,7 +81,8 @@ public sealed class ListeningSettingsPageTests : AsyncBunitContext
             Assert.Contains("Skip forward", cut.Markup);
             Assert.Contains("Resume rewind", cut.Markup);
             Assert.Contains("Rewind slightly when resuming so spoken context is not lost.", cut.Markup);
-            Assert.Contains("Default length", cut.Markup);
+            // Unified player v2 D16: the sleep timer's presets are fixed, so there is no default length to choose here.
+            Assert.DoesNotContain("Default length", cut.Markup);
             Assert.Contains("Offer end of chapter", cut.Markup);
             Assert.Equal(2, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("speed", cut.Markup, StringComparison.OrdinalIgnoreCase);

@@ -86,7 +86,11 @@
     width: 100%;
 }
 
-.psp__reset {
+.psp__footer {
+    display: contents;
+}
+
+.psp__footer ::deep .psp__reset {
     --playback-glyph-size: 20px;
     --playback-glyph-stroke: 1.8;
     align-items: center;
@@ -103,22 +107,22 @@
     padding: 4px 8px;
 }
 
-.psp__reset:hover {
+.psp__footer ::deep .psp__reset:hover {
     background: var(--playback-state-hover);
     color: var(--playback-text);
 }
 
-.psp__reset:active {
+.psp__footer ::deep .psp__reset:active {
     background: var(--playback-state-pressed);
 }
 
-.psp__reset:focus-visible {
+.psp__footer ::deep .psp__reset:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
 
 @media (pointer: coarse) {
-    .psp__reset {
+    .psp__footer ::deep .psp__reset {
         min-height: var(--playback-control-target);
     }
 }

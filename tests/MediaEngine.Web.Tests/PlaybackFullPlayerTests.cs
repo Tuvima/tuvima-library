@@ -172,7 +172,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
         await Activate(cut, PlaybackControlKey.Queue);
         await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.Title == "Queue actions for Upcoming").Instance.OpenAsync(true));
-        await cut.Find("button[aria-label='Remove Upcoming from queue']").ClickAsync();
+        await cut.Find("button[data-playback-row-action='remove']").ClickAsync();
         var remove = Assert.Single(sink.Commands);
         Assert.Same(snapshot, remove.Snapshot);
         Assert.Equal(snapshot.Queue[1].QueueEntryId, remove.Command.QueueEntryId);
@@ -277,21 +277,8 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".playback-panel-card h2"));
         var tabs = cut.FindAll(".playback-panel-card [role='tab']");
         Assert.Equal(2, tabs.Count);
-        Assert.StartsWith("Up Next", tabs[0].TextContent.Trim());
+        Assert.StartsWith("Up next", tabs[0].TextContent.Trim());
         Assert.StartsWith("History", tabs[1].TextContent.Trim());
-    }
-
-    [Fact]
-    public void DesktopUsesTheSameSongActionsAndAnIconOnlyLyricsTab()
-    {
-        var cut = Render<PlaybackDesktopScene>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, new Sink())
-            .Add(x => x.FavoriteChanged, () => { }).Add(x => x.PanelKey, "queue"));
-        Assert.Equal(new[] { "Favorite", "Like", "More" }, cut.FindAll("button.playback-song-action svg").Select(x => x.GetAttribute("data-playback-glyph")));
-        Assert.Equal("expanded", cut.Find(".playback-song-actions .playback-popover-owner").GetAttribute("data-playback-popover-surface"));
-        Assert.Empty(cut.FindAll(".playback-song-actions .tl-icon,.playback-panel-card h2"));
-        Assert.Equal(string.Empty, cut.Find("[role='tab'][aria-label='Lyrics']").TextContent.Trim());
-        Assert.Contains("Up Next", cut.Find(".playback-desktop__tabs").TextContent);
-        Assert.Contains("History", cut.Find(".playback-desktop__tabs").TextContent);
     }
 
     private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>

@@ -1,0 +1,123 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Web
+@using MediaEngine.Web.Services.MediaTiles
+
+@* The compact row of the Queue, Episodes and Chapters panels (unified player v2 D18 to D20; mockup screens 8, 9 and 10). One grid per variant, no card and no
+   repeated Play button: the title block is the one control that plays the row, and a transparent layer over the whole row makes the row itself the target,
+   while the handle and the "..." menu sit above it. Queue: handle, 40 px art, title and artist, length, menu. Now playing and History: art, text, length, mark or
+   menu. Episode: 96 x 54 still, text. Chapter: number, text, length, check or sound bars. The current row is the soft purple selected state. *@
+<div class="@RootClass" data-playback-list-row="@Variant" data-playback-current="@(IsCurrent ? "true" : null)" aria-current="@(IsCurrent ? "true" : null)" @attributes="AdditionalAttributes">
+    @if (HasLeadingCell)
+    {
+        <div class="plr__lead">@Leading</div>
+    }
+    @if (HasArtCell)
+    {
+        <div class="@($"plr__art plr__art--{(IsEpisode ? "still" : "square")}")" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(ArtUrl))
+            {
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtUrl, ArtDrawnPx)" srcset="@(ArtSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(ArtUrl, ArtDrawnPx))" sizes="@($"{ArtDrawnPx}px")"
+                     width="@ArtDrawnPx" height="@ArtDrawnHeightPx" alt="" loading="lazy" decoding="async" data-image-display="playback-list-thumbnail" />
+            }
+            else if (!string.IsNullOrWhiteSpace(ArtFallbackText))
+            {
+                <span class="plr__art-text">@ArtFallbackText</span>
+            }
+        </div>
+    }
+    <div class="plr__body">
+        @if (OnClick.HasDelegate)
+        {
+            <AppNativeButton Type="button" Class="plr__main" AriaLabel="@ResolvedAriaLabel" OnClick="HandleClickAsync">@Copy</AppNativeButton>
+        }
+        else
+        {
+            <div class="plr__main">@Copy</div>
+        }
+    </div>
+    @if (HasLengthCell)
+    {
+        <span class="plr__length">@Length</span>
+    }
+    <div class="plr__trail">@Trailing</div>
+</div>
+
+@code {
+    private const int SquareArtPx = 40;
+    private const int StillArtWidthPx = 96;
+    private const int StillArtHeightPx = 54;
+
+    /// <summary>"queue", "now", "history", "episode" or "chapter": which cells the row has and how its grid is laid out.</summary>
+    [Parameter] public string Variant { get; set; } = "queue";
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The second line (artist, "22:38 · synopsis", "12:08 elapsed · 18:32 remaining").</summary>
+    [Parameter] public string? Secondary { get; set; }
+
+    /// <summary>Draws part of the second line in the accent color (the "Playing" of "Playing · 2:23 of 22:41").</summary>
+    [Parameter] public string? SecondaryAccent { get; set; }
+
+    /// <summary>A small chip after the title (the "Up next" chip of the next episode).</summary>
+    [Parameter] public RenderFragment? TitleChip { get; set; }
+
+    /// <summary>The length at the right of the row (queue, history and chapter rows).</summary>
+    [Parameter] public string? Length { get; set; }
+
+    /// <summary>The thin progress line under the text, as a percent from 0 to 100; null draws none.</summary>
+    [Parameter] public double? ProgressPercent { get; set; }
+
+    /// <summary>The first column: the drag handle (queue) or the chapter number.</summary>
+    [Parameter] public RenderFragment? Leading { get; set; }
+
+    /// <summary>The last column: the "..." menu, the sound-bars mark or the completed check.</summary>
+    [Parameter] public RenderFragment? Trailing { get; set; }
+
+    [Parameter] public string? ArtUrl { get; set; }
+    [Parameter] public string? ArtSrcSet { get; set; }
+
+    /// <summary>Drawn on the neutral tile when there is no picture (an episode's number).</summary>
+    [Parameter] public string? ArtFallbackText { get; set; }
+
+    [Parameter] public bool IsCurrent { get; set; }
+
+    /// <summary>Plays or selects the row. Without it the row is plain text.</summary>
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool IsEpisode => Variant == "episode";
+    private bool HasLeadingCell => Variant is "queue" or "chapter";
+    private bool HasArtCell => Variant is "queue" or "now" or "history" or "episode";
+    private bool HasLengthCell => Variant != "episode";
+    private int ArtDrawnPx => IsEpisode ? StillArtWidthPx : SquareArtPx;
+    private int ArtDrawnHeightPx => IsEpisode ? StillArtHeightPx : SquareArtPx;
+
+    private string RootClass => string.Join(" ", new[] { "plr", $"plr--{Variant}", IsCurrent ? "is-current" : null, OnClick.HasDelegate ? "is-actionable" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) ? string.Join(" ", new[] { Title, Secondary }.Where(value => !string.IsNullOrWhiteSpace(value))) : AriaLabel;
+
+    private RenderFragment Copy =>
+        @<text>
+            <span class="plr__titleline">
+                <span class="plr__title" data-overflow-tooltip="@Title">@Title</span>
+                @TitleChip
+            </span>
+            @if (!string.IsNullOrWhiteSpace(Secondary) || !string.IsNullOrWhiteSpace(SecondaryAccent))
+            {
+                <span class="plr__secondary">
+                    @if (!string.IsNullOrWhiteSpace(SecondaryAccent)) { <span class="plr__accent">@SecondaryAccent</span> }
+                    @if (!string.IsNullOrWhiteSpace(SecondaryAccent) && !string.IsNullOrWhiteSpace(Secondary)) { <text> · </text> }
+                    @if (!string.IsNullOrWhiteSpace(Secondary)) { <span class="plr__secondary-text" data-overflow-tooltip="@Secondary">@Secondary</span> }
+                </span>
+            }
+            @if (ProgressPercent is { } percent)
+            {
+                <span class="plr__progress" style="--plr-progress:@(Math.Clamp(percent, 0, 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%" aria-hidden="true"></span>
+            }
+        </text>;
+
+    private Task HandleClickAsync(MouseEventArgs _) => OnClick.InvokeAsync();
+}

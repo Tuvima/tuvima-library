@@ -1,0 +1,44 @@
+/* Mockup screens 8 to 10: header strip, identity, one scrolling list (4 / 8 padding on the Queue, 0 / 8 on the others), and a footer with a hairline above it. The
+   panel frame fixes the height, so the panel never grows with its list. */
+.playback-list-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.playback-list-panel__header,
+.playback-list-panel__identity {
+    flex: none;
+}
+
+.playback-list-panel__scroll {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 8px;
+    scrollbar-width: thin;
+}
+
+.playback-list-panel--inset .playback-list-panel__scroll {
+    padding-bottom: 4px;
+    padding-top: 4px;
+}
+
+.playback-list-panel__scroll:focus:not(:focus-visible) {
+    outline: none;
+}
+
+.playback-list-panel__footer {
+    align-items: center;
+    border-top: 1px solid var(--tl-border-default);
+    box-sizing: border-box;
+    display: flex;
+    flex: none;
+    font: 400 var(--tl-font-size-sm)/1.45 var(--font-ui);
+    gap: 10px;
+    padding: 10px 16px;
+}

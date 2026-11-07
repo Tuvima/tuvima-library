@@ -52,13 +52,13 @@
                                     @if (TitleAdornment is not null && Navigator.Depth == 0)
                                     {
                                         <div class="playback-panel__heading">
-                                            <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                            <h2 class="playback-panel__title">@CurrentTitle@if (!string.IsNullOrWhiteSpace(Subtitle) && Navigator.Depth == 0) { <span class="playback-panel__subtitle">@Subtitle</span> }</h2>
                                             @TitleAdornment
                                         </div>
                                     }
                                     else
                                     {
-                                        <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                        <h2 class="playback-panel__title">@CurrentTitle@if (!string.IsNullOrWhiteSpace(Subtitle) && Navigator.Depth == 0) { <span class="playback-panel__subtitle">@Subtitle</span> }</h2>
                                     }
                                     @if (HeaderActions is not null && Navigator.Depth == 0)
                                     {
@@ -94,7 +94,7 @@
     [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? ParentPanel { get; set; }
     [Parameter] public string? ToolId { get; set; }
 
-    /// <summary>What the panel holds ("lyrics", "video", "menu", "speed", "settings" or ordinary). Also picks the default <see cref="Size"/>.</summary>
+    /// <summary>What the panel holds ("lyrics", "video", "menu", "speed", "settings", "queue", "episodes", "chapters" or ordinary). Also picks the default <see cref="Size"/>.</summary>
     [Parameter] public string Kind { get; set; } = "ordinary";
 
     /// <summary>"menu" (272 px, 44 px rows), "panel" (360 to 420 px) or "wide" (560 px, Audio &amp; subtitles). Defaults from <see cref="Kind"/>.</summary>
@@ -106,6 +106,9 @@
 
     /// <summary>The trigger's accessible name and tooltip when they differ from the panel's title (the Speed chip is named "Playback speed 1.25×" so its visible text is in its name).</summary>
     [Parameter] public string? TriggerLabel { get; set; }
+
+    /// <summary>The small line under the header title on the panel's main view (Episodes names its show there).</summary>
+    [Parameter] public string? Subtitle { get; set; }
 
     /// <summary>True draws the fixed header (back, title, close). False leaves the heading to the content (menus, and panels not rebuilt yet).</summary>
     [Parameter] public bool ShowHeading { get; set; } = true;
@@ -140,7 +143,7 @@
     private string PanelId => $"{_instanceId}-panel";
     private string EffectiveToolId => ToolId ?? _instanceId;
     private string EffectiveSize => Size is "menu" or "panel" or "wide" ? Size : Kind == "menu" ? "menu" : "panel";
-    private string PanelClass => $"playback-panel playback-panel--{EffectiveSize} playback-panel--{(Kind is "lyrics" or "video" or "menu" or "speed" or "settings" ? Kind : "ordinary")}{(_mobile ? " playback-panel--sheet" : "")}";
+    private string PanelClass => $"playback-panel playback-panel--{EffectiveSize} playback-panel--{(Kind is "lyrics" or "video" or "menu" or "speed" or "settings" or "queue" or "episodes" or "chapters" ? Kind : "ordinary")}{(_mobile ? " playback-panel--sheet" : "")}";
     private string BodyClass => string.Join(" ", new[] { EffectiveSize == "menu" ? "playback-panel__body--menu" : null, !ShowHeading && EffectiveSize != "menu" && Kind != "settings" ? "playback-panel__body--legacy" : null, Navigator.Depth > 0 ? "playback-panel__body--nested" : null }.Where(value => value is not null));
     private string SheetClass => Kind == "lyrics" ? "playback-tool-sheet--framed playback-tool-sheet--lyrics" : "playback-tool-sheet--framed";
     private bool ShowHeader => ShowHeading && EffectiveSize != "menu";

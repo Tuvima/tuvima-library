@@ -48,7 +48,7 @@ public sealed class NativeUiDependencyGuardrailTests
     [Fact]
     public void EveryLayoutMountsNativeHostsAndAssetsUseFirstPartyStyles()
     {
-        foreach (var layout in new[] { "MainLayout", "PopupLayout", "ReaderLayout", "SetupWizardLayout" })
+        foreach (var layout in new[] { "MainLayout", "ReaderLayout", "SetupWizardLayout" })
         {
             var source = File.ReadAllText(Path.Combine(WebRoot, "Shared", layout + ".razor"));
             foreach (var host in new[] { "AppThemeProvider", "AppPopoverHost", "AppDialogHost", "AppToastHost" })

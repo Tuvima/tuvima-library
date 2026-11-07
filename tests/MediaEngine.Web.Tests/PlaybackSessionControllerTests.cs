@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
@@ -85,7 +86,7 @@ public sealed class PlaybackSessionControllerTests
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => playback.SetAudiobookSleepTimerAsync(profileId,
             workId, firstAsset, playback.PlaybackRequestVersion,
-            new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 7 }));
+            new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 721 }));
         Assert.Equal(armed, playback.SleepTimerState);
 
         await playback.HandleNativeSleepTimerExpiredAsync(armed.TimerGeneration, firstAsset,
@@ -279,6 +280,85 @@ public sealed class PlaybackSessionControllerTests
         Assert.Equal(200, armed.TargetEndSeconds);
         await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
             playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Off });
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(7)]
+    [InlineData(90)]
+    [InlineData(720)]
+    public async Task SleepTimerAcceptsAnyWholeMinuteLengthFromOneToTwelveHours(int minutes)
+    {
+        var (playback, profileId, workId, assetId) = CreateRunningAudiobook();
+
+        var before = DateTimeOffset.UtcNow;
+        var armed = await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = minutes });
+
+        Assert.Equal(AudiobookSleepTimerModes.Timer, armed.Mode);
+        Assert.Equal(minutes, armed.ChosenMinutes);
+        Assert.InRange(armed.DeadlineUtc!.Value - before, TimeSpan.FromMinutes(minutes), TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(30));
+        await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Off });
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(721)]
+    public async Task SleepTimerRejectsLengthsOutsideOneToTwelveHoursAndKeepsTheRunningTimer(int minutes)
+    {
+        var (playback, profileId, workId, assetId) = CreateRunningAudiobook();
+        var running = await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 30 });
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = minutes }));
+
+        Assert.Equal(running, playback.SleepTimerState);
+        await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Off });
+    }
+
+    [Fact]
+    public async Task PlusFiveMinutesMovesTheSessionsDeadlineLaterByAtLeastFiveMinutesThroughTheSameSetAction()
+    {
+        var (playback, profileId, workId, assetId) = CreateRunningAudiobook();
+        var first = await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 30 });
+
+        var extension = PlaybackSleepTimerChoices.Extension(first, DateTimeOffset.UtcNow);
+        Assert.NotNull(extension);
+        var extended = await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, extension);
+
+        Assert.Equal(AudiobookSleepTimerModes.Timer, extended.Mode);
+        Assert.Equal(first.TimerSessionId, extended.TimerSessionId);
+        Assert.True(extended.DeadlineUtc - first.DeadlineUtc >= TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(1),
+            $"The deadline moved by {extended.DeadlineUtc - first.DeadlineUtc}.");
+        Assert.True(extended.DeadlineUtc - first.DeadlineUtc < TimeSpan.FromMinutes(6) + TimeSpan.FromSeconds(1));
+        Assert.Equal(extended, playback.SleepTimerState);
+        await playback.SetAudiobookSleepTimerAsync(profileId, workId, assetId,
+            playback.PlaybackRequestVersion, new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Off });
+    }
+
+    private static (PlaybackSessionController Playback, Guid ProfileId, Guid WorkId, Guid AssetId) CreateRunningAudiobook()
+    {
+        var profileId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var item = CreateAudiobookItem("Book", "stream://book") with { WorkId = workId, AudiobookWorkId = workId, AssetId = assetId };
+        var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
+        playback.RestoreState(new ListenPlaybackSnapshot
+        {
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            CurrentTimeSeconds = 12,
+            DurationSeconds = 200,
+        });
+        playback.SleepTimerNativeArmRequested += _ => Task.FromResult(true);
+        return (playback, profileId, workId, assetId);
     }
 
     [Fact]
@@ -2215,6 +2295,43 @@ public sealed class PlaybackSessionControllerTests
         public void UpdateCache(UserPlaybackSettingsDto next) { }
 
         public void Invalidate() { }
+    }
+
+    [Theory]
+    [InlineData(20)]
+    [InlineData(90)]
+    public void RestoreState_KeepsARunningTimerWhoseLengthWasNeverOneOfTheOptionPresets(int minutes)
+    {
+        // Unified player v2 D16: the presets are fixed and Custom duration takes any whole number from 1 to 720, so a stored timer is judged by the limits
+        // alone and not by the old option list.
+        var profileId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var asset = Guid.NewGuid();
+        var item = CreateAudiobookItem("Book", "stream://book") with { WorkId = workId, AudiobookWorkId = workId, AssetId = asset };
+        var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
+        var stored = new AudiobookSleepTimerStateDto
+        {
+            Mode = AudiobookSleepTimerModes.Timer,
+            ChosenMinutes = minutes,
+            DeadlineUtc = DateTimeOffset.UtcNow.AddMinutes(minutes),
+            TimerGeneration = 3,
+            ProfileId = profileId,
+            WorkId = workId,
+            BoundAssetId = asset,
+            TimerSessionId = Guid.NewGuid(),
+        };
+
+        playback.RestoreState(new ListenPlaybackSnapshot
+        {
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            SleepTimerState = stored,
+        });
+
+        Assert.Equal(AudiobookSleepTimerModes.Timer, playback.SleepTimerState.Mode);
+        Assert.Equal(minutes, playback.SleepTimerState.ChosenMinutes);
+        Assert.Equal(stored.TimerSessionId, playback.SleepTimerState.TimerSessionId);
     }
 
     [Theory]

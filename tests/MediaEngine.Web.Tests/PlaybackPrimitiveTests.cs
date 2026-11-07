@@ -187,53 +187,54 @@ public sealed class PlaybackPrimitiveTests
         var root = FindRepoRoot();
         var bar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
         var sidebar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor"));
-        var popup = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor"));
         var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor"));
         var strip = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
         var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor"));
         var speedView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor"));
-        var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor"));
-        var sleepChoices = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
+        var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor"));
+        var sleepView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor"));
         var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor"));
 
         Assert.Contains("<PlaybackShell", bar, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackFullPlayer", popup, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackFullPlayer", bar, StringComparison.Ordinal);
         Assert.Contains("RateChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSpeedPanel", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSpeedPanel", full, StringComparison.Ordinal);
-        Assert.Contains("<AudiobookSettingsPopover", bar, StringComparison.Ordinal);
-        Assert.Contains("<AudiobookSettingsPopover", full, StringComparison.Ordinal);
+        Assert.Contains("<SleepTimerPanel", bar, StringComparison.Ordinal);
+        Assert.Contains("<SleepTimerPanel", full, StringComparison.Ordinal);
         Assert.Contains("ListenPlaybackCommandActions.SetSpeed", full, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", bar, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerAvailability=\"@Playback.SleepTimerAvailability\"", bar, StringComparison.Ordinal);
+        Assert.Contains("State=\"@Playback.SleepTimerState\"", bar, StringComparison.Ordinal);
+        Assert.Contains("Availability=\"@Playback.SleepTimerAvailability\"", bar, StringComparison.Ordinal);
         // The audiobook controls no longer draw a Speed or a Sleep button of their own.
         Assert.DoesNotContain("SpeedChanged=", bar + full, StringComparison.Ordinal);
         Assert.DoesNotContain("<PlaybackSleepTimerControl", bar + full, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerChanged=\"SetAudiobookSleepTimerSelectionAsync\"", bar, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", full, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerChanged=", full, StringComparison.Ordinal);
+        Assert.DoesNotContain("AudiobookSettingsPopover", bar + full, StringComparison.Ordinal);
+        Assert.Contains("SelectionChanged=\"SetAudiobookSleepTimerSelectionAsync\"", bar, StringComparison.Ordinal);
+        Assert.Contains("State=\"Snapshot.SleepTimerState\"", full, StringComparison.Ordinal);
+        Assert.Contains("SelectionChanged=", full, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", bar, StringComparison.Ordinal);
         Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full, StringComparison.Ordinal);
         // Unified player v2 D15: the speed value on the bar opens the Speed panel; the strip no longer draws a speed control of its own.
         Assert.DoesNotContain("PlaybackSpeedControl", strip, StringComparison.Ordinal);
-        Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
+        Assert.DoesNotContain("PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
+        Assert.DoesNotContain("PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPanel", speed, StringComparison.Ordinal);
         Assert.Contains("<AppRangeSlider", speedView, StringComparison.Ordinal);
-        Assert.Contains("availability.CanEndCurrent", sleepChoices, StringComparison.Ordinal);
-        Assert.Contains("availability.CanEndNext", sleepChoices, StringComparison.Ordinal);
+        Assert.Contains("Availability.CanEndCurrent", sleepView, StringComparison.Ordinal);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
-        Assert.DoesNotContain("<AppRangeSlider", sleep, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppRangeSlider", sleep + sleepView, StringComparison.Ordinal);
         Assert.Contains("<AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
-        Assert.Contains("<AudiobookBookmarkDialog", popup, StringComparison.Ordinal);
         Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("OpenDockPanelAsync(control.Sheet)", bar, StringComparison.Ordinal);
-        Assert.Contains("PlaybackContextRow Variant=\"chapter\"", sidebar, StringComparison.Ordinal);
+        var chaptersPanel = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor"));
+        var chaptersRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanelRow.razor"));
+        Assert.Contains("<ChaptersPanelRow @key=\"chapter.Index\"", chaptersPanel, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackListRow Variant=\"chapter\"", chaptersRow, StringComparison.Ordinal);
         Assert.Contains("PlaybackContextRow Variant=\"history\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("Subtitle=\"@AudiobookHistorySubtitle(entry)\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", sidebar, StringComparison.Ordinal);
-        Assert.DoesNotContain("add-audiobook-bookmark", popup, StringComparison.Ordinal);
+        Assert.DoesNotContain("add-audiobook-bookmark", bar, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -384,7 +385,6 @@ public sealed class PlaybackPrimitiveTests
             .EnumerateFiles(Path.Combine(root, "src/MediaEngine.Web/Components"), "*Playback*.razor.css", SearchOption.AllDirectories)
             .Select(File.ReadAllText)
             .Append(LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css")))
-            .Append(LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css")))
             .ToList();
 
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
@@ -395,7 +395,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
         Assert.Contains("max-height: 85svh;", toolSheetCss, StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", listenBar, StringComparison.Ordinal);
+        Assert.Contains("State=\"@Playback.SleepTimerState\"", listenBar, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", listenBar, StringComparison.Ordinal);
         Assert.Contains("<ListenDockTool", listenBar, StringComparison.Ordinal);
         Assert.Contains("PanelKey=\"queue\"", listenBar, StringComparison.Ordinal);

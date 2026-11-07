@@ -92,6 +92,8 @@ public static partial class PlaybackControlCatalog
                 {
                     tools.Add(BarTool(PlaybackControlKey.Queue, "Queue", "queue", state));
                 }
+                // Music has no Sleep timer tool: the Engine only starts a sleep timer for audiobooks, so nothing could ever start one here. Music sleep timers are
+                // not supported yet (follow-up for Shy: D16 mentions music, but the timer controller allows audiobooks only).
                 if (state.CanBookmark)
                 {
                     tools.Add(BarTool(PlaybackControlKey.Bookmarks, "Bookmarks", "bookmarks", state));

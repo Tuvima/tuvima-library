@@ -12,7 +12,7 @@
     flex: 1;
 }
 
-.asa__action {
+.asa ::deep .asa__action {
     align-items: center;
     background: transparent;
     border: 0;
@@ -28,24 +28,24 @@
 }
 
 /* The first action's text lines up with the panel's 16 px edge, as the mockup footer does. */
-.asa[data-layout="bar"] .asa__action:first-child {
+.asa[data-layout="bar"] ::deep .asa__action:first-child {
     margin-left: -8px;
 }
 
-.asa__action:hover {
+.asa ::deep .asa__action:hover {
     background: var(--playback-state-hover);
 }
 
-.asa__action:active {
+.asa ::deep .asa__action:active {
     background: var(--playback-state-pressed);
 }
 
-.asa__action:focus-visible {
+.asa ::deep .asa__action:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
 
-.asa__action ::deep .playback-utility-glyph {
+.asa ::deep .asa__action .playback-utility-glyph {
     flex-basis: 20px;
     height: 20px;
     stroke-width: 1.8;
@@ -59,7 +59,7 @@
     padding-top: 6px;
 }
 
-.asa[data-layout="rows"] .asa__action {
+.asa[data-layout="rows"] ::deep .asa__action {
     font: 500 16px/1.25 var(--font-ui);
     gap: 12px;
     min-height: 52px;
@@ -67,14 +67,14 @@
     width: 100%;
 }
 
-.asa[data-layout="rows"] .asa__action ::deep .playback-utility-glyph {
+.asa[data-layout="rows"] ::deep .asa__action .playback-utility-glyph {
     flex-basis: var(--playback-control-glyph);
     height: var(--playback-control-glyph);
     width: var(--playback-control-glyph);
 }
 
 @media (pointer: coarse) {
-    .asa__action {
+    .asa ::deep .asa__action {
         min-height: var(--playback-control-target);
     }
 }
