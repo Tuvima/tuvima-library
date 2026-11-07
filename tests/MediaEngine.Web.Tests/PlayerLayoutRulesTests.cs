@@ -23,8 +23,9 @@ public sealed class PlayerLayoutRulesTests
 
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css, StringComparison.Ordinal);
         Assert.DoesNotContain("grid-template-columns: auto minmax(0, 1fr) auto;", css, StringComparison.Ordinal);
-        Assert.Contains(".playback-shell__title,", css, StringComparison.Ordinal);
-        Assert.Contains("text-overflow: ellipsis;", css, StringComparison.Ordinal);
+        var identityCss = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css");
+        Assert.Contains(".playback-identity__title,", identityCss, StringComparison.Ordinal);
+        Assert.Contains("text-overflow: ellipsis;", identityCss, StringComparison.Ordinal);
     }
 
     [Fact]

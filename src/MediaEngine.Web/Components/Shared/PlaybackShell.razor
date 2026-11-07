@@ -13,41 +13,9 @@
         <div class="playback-shell__timeline" data-playback-zone="timeline">@TimelineContent</div>
     }
     <div class="playback-shell__row">
-        <div class="playback-shell__identity" data-playback-zone="identity">
-            @if (ShowArtwork)
-            {
-                @if (ArtworkClick.HasDelegate)
-                {
-                    <AppNativeButton @ref="_artworkButton" Type="button" Class="@ArtworkClass" OnClick="ArtworkClick" AriaLabel="@ArtworkLabel">@ArtworkImage</AppNativeButton>
-                }
-                else
-                {
-                    <div class="@ArtworkClass">@ArtworkImage</div>
-                }
-            }
-            <div class="playback-shell__text">
-                <div class="playback-shell__title">@RenderLink(Identity.Title, Identity.TitleLinkKind, Identity.TitleLinkId)</div>
-                @if (Identity.Secondary.Count > 0)
-                {
-                    <div class="playback-shell__secondary">
-                        @for (var index = 0; index < Identity.Secondary.Count; index++)
-                        {
-                            var part = Identity.Secondary[index];
-                            @if (index > 0) { <span class="playback-shell__separator">@part.Separator</span> }
-                            @RenderLink(part.Text, part.LinkKind, part.LinkId)
-                        }
-                    </div>
-                }
-                @if (!string.IsNullOrWhiteSpace(ErrorText))
-                {
-                    <div class="playback-shell__error" role="status">@ErrorText</div>
-                }
-            </div>
-            @if (IdentityActions is not null && !Compact)
-            {
-                <div class="playback-shell__actions">@IdentityActions</div>
-            }
-        </div>
+        <PlaybackIdentity @ref="_identity" Media="@Media" Compact="@Compact" Identity="@Identity" LinkContent="@LinkContent"
+                          ArtworkSrc="@ArtworkSrc" ArtworkSrcSet="@ArtworkSrcSet" ArtworkAlt="@ArtworkAlt" ArtworkDisplay="@ArtworkDisplay" ArtworkIsPoster="@ArtworkIsPoster"
+                          ArtworkClick="@ArtworkClick" ArtworkLabel="@ArtworkLabel" Actions="@IdentityActions" ErrorText="@ErrorText" />
 
         <div class="playback-shell__transport" role="group" aria-label="@TransportLabel" data-playback-zone="transport">
             @foreach (var control in TransportControls)
@@ -134,11 +102,14 @@
     [Parameter] public string? ArtworkAlt { get; set; }
     [Parameter] public string? ArtworkDisplay { get; set; }
 
+    /// <summary>True when the picture is a portrait poster in a landscape slot: it is drawn whole on a blurred fill (see <see cref="PlaybackArtworkUrl.ForBarSlot"/>).</summary>
+    [Parameter] public bool ArtworkIsPoster { get; set; }
+
     /// <summary>The artwork becomes a button (it opens Now playing) when the host listens.</summary>
     [Parameter] public EventCallback ArtworkClick { get; set; }
     [Parameter] public string ArtworkLabel { get; set; } = "Open Now playing";
 
-    /// <summary>Favorite, Like, Dislike and More for music, drawn beside the text.</summary>
+    /// <summary>Favorite, Like, Dislike and More for music; Favorite and More for the other media. Drawn beside the text (see <see cref="PlaybackIdentityActions"/>).</summary>
     [Parameter] public RenderFragment? IdentityActions { get; set; }
 
     /// <summary>Shown under the second line in the error color when playback failed.</summary>
@@ -172,16 +143,14 @@
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private AppNativeButton? _artworkButton;
+    private PlaybackIdentity? _identity;
 
     /// <summary>The artwork button, so a host can anchor a panel to it or return focus to it.</summary>
-    public ElementReference? ArtworkElement => _artworkButton?.Element;
+    public ElementReference? ArtworkElement => _identity?.ArtworkElement;
 
-    private bool IsVideoMedia => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;
     private string NormalizedSurface => Surface == "video" ? "video" : "dock";
     private string IconSurface => NormalizedSurface == "video" ? "video" : "dock";
     private string MediaName => Media.ToString().ToLowerInvariant();
-    private bool ShowArtwork => !Compact || !IsVideoMedia;
     private string TransportLabel => Media switch
     {
         PlaybackBarMedia.Music => "Music playback controls",
@@ -198,9 +167,6 @@
         Compact ? "playback-shell--compact" : null,
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    private string ArtworkClass => $"playback-shell__art {(IsVideoMedia ? "playback-shell__art--wide" : "playback-shell__art--square")}"
-        + (ArtworkClick.HasDelegate ? " playback-shell__art--button" : null);
 
     /// <summary>The transport, trimmed for the phone's collapsed bar: Play and Next (Skip forward for audiobooks), nothing else.</summary>
     private IReadOnlyList<PlaybackControlDefinition> TransportControls
@@ -232,42 +198,4 @@
             return Compact ? all.Where(control => control.Key == PlaybackControlKey.NowPlaying).ToList() : all;
         }
     }
-
-    private RenderFragment ArtworkImage => builder =>
-    {
-        if (string.IsNullOrWhiteSpace(ArtworkSrc))
-        {
-            builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "class", "playback-shell__art-placeholder");
-            builder.AddAttribute(2, "aria-hidden", "true");
-            builder.CloseElement();
-            return;
-        }
-
-        builder.OpenElement(10, "img");
-        builder.AddAttribute(11, "src", ArtworkSrc);
-        if (!string.IsNullOrWhiteSpace(ArtworkSrcSet))
-        {
-            builder.AddAttribute(12, "srcset", ArtworkSrcSet);
-        }
-        if (!string.IsNullOrWhiteSpace(ArtworkDisplay))
-        {
-            builder.AddAttribute(13, "data-image-display", ArtworkDisplay);
-        }
-        builder.AddAttribute(14, "alt", ArtworkAlt ?? string.Empty);
-        builder.AddAttribute(15, "decoding", "async");
-        builder.CloseElement();
-    };
-
-    private RenderFragment RenderLink(string text, string? kind, Guid? id) => builder =>
-    {
-        if (LinkContent is not null && !string.IsNullOrEmpty(kind) && id is not null)
-        {
-            builder.AddContent(0, LinkContent(new PlaybackIdentityLinkRequest(text, kind, id.Value)));
-        }
-        else
-        {
-            builder.AddContent(1, text);
-        }
-    };
 }

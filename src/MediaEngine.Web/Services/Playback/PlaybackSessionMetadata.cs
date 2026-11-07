@@ -85,7 +85,7 @@ public sealed record PlaybackSessionMetadata(
                     .Where(part => !string.IsNullOrWhiteSpace(part)));
                 return (title, second);
             default:
-                var identity = PlaybackBarIdentity.Build(context.Media, item, context.ShowTitle, context.ChapterTitle, context.HideEpisodeTitle);
+                var identity = PlaybackBarIdentity.Build(context.Media, item, context.ShowTitle, context.ChapterTitle, context.HideEpisodeTitle, includeAlbum: true);
                 return (identity.Title, identity.SecondaryText);
         }
     }

@@ -1683,7 +1683,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css": {
       "important": 0,
-      "deep": 15
+      "deep": 13
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
       "important": 0,
@@ -1812,6 +1812,10 @@
     "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
       "important": 0,
       "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css": {
+      "important": 0,
+      "deep": 1
     }
   },
   "lineExceptions": {},
@@ -3804,6 +3808,16 @@
       "deep": 15,
       "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
       "reason": "The persistent bar is now drawn by one shared shell for music, audiobooks, TV and movies; the dock rules that styled the audio bar's trigger buttons, glyphs, song actions and links moved there with the markup (the audio bar went from 29 to 14 deep rules).",
+      "important": 0
+    },
+    {
+      "selectors": [
+        ".playback-item-menu__row ::deep .playback-utility-glyph"
+      ],
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "deep": 1,
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "reason": "The item actions menu rows ask the shared glyph for the mockup's 24 px size; the identity zone's own text and action rules left the bar shell, which keeps two fewer deep rules than it was budgeted.",
       "important": 0
     }
   ],

@@ -442,6 +442,14 @@ public sealed partial class LibraryItemDeletionService
             }
         }
 
+        // Scrub previews are kept per media asset in the Library's own cache; they go with the file (Unified player v2 D9a).
+        foreach (var id in data.AssetIds)
+        {
+            RemoveOwnedFolder(
+                Path.Combine(assetPaths.ScrubPreviewsRoot, id.ToString("D", CultureInfo.InvariantCulture)),
+                assetPaths.ScrubPreviewsRoot, data.StillReferencedFiles);
+        }
+
         foreach (var kindFolder in SafeSubfolders(assetPaths.TextTracksRoot))
         {
             foreach (var id in data.AssetIds)

@@ -35,15 +35,22 @@ public sealed record PlaybackBarIdentity(
     /// <param name="showTitle">The show's name for a TV episode when the presentation context has loaded; the queue's show name is used until then.</param>
     /// <param name="chapterTitle">The audiobook's current chapter name, when it has chapters.</param>
     /// <param name="hideEpisodeTitle">True when the profile's Spoilers setting hides the episode title: it is then left out of the line.</param>
-    public static PlaybackBarIdentity Build(PlaybackBarMedia media, ListenQueueItem item, string? showTitle = null, string? chapterTitle = null, bool hideEpisodeTitle = false)
+    /// <param name="includeAlbum">True adds the album after the artist for music (the lock screen's second line); the bar leaves it out.</param>
+    /// <param name="showWorkId">The show of a TV episode once its presentation context has loaded; the show name and the episode title link only then.</param>
+    public static PlaybackBarIdentity Build(PlaybackBarMedia media, ListenQueueItem item, string? showTitle = null, string? chapterTitle = null, bool hideEpisodeTitle = false, Guid? showWorkId = null, bool includeAlbum = false)
     {
         var parts = new List<PlaybackIdentityPart>();
         switch (media)
         {
             case PlaybackBarMedia.Music:
                 AddIfText(parts, item.Subtitle, item.ArtistPersonId is not null ? "artist" : null, item.ArtistPersonId);
-                AddIfText(parts, item.Album, item.AlbumWorkId is not null ? "album" : null, item.AlbumWorkId);
-                return new(item.Title, null, null, parts);
+                // The bar shows track · artist (D5, mockup screen 1); the lock screen adds the album (D27).
+                if (includeAlbum)
+                {
+                    AddIfText(parts, item.Album, item.AlbumWorkId is not null ? "album" : null, item.AlbumWorkId);
+                }
+                // There is no page of its own for one song, so the title opens the album it is on (D5: title and names are links).
+                return new(item.Title, item.AlbumWorkId is not null ? "album" : null, item.AlbumWorkId, parts);
 
             case PlaybackBarMedia.Audiobook:
                 var bookId = item.AudiobookWorkId ?? item.WorkId;
@@ -70,17 +77,18 @@ public sealed record PlaybackBarIdentity(
                 }
 
                 AddIfText(parts, EpisodeLabel(item), null, null);
+                var hasShow = showWorkId is { } known && known != Guid.Empty;
                 if (!hideEpisodeTitle)
                 {
-                    AddIfText(parts, StringHelpers.FirstNonBlank(item.EpisodeTitle, item.Title), null, null);
+                    AddIfText(parts, StringHelpers.FirstNonBlank(item.EpisodeTitle, item.Title), hasShow ? "episode" : null, hasShow ? item.WorkId : null);
                 }
                 // The bar names the show (the queue's show name until the presentation context has loaded); the episode name is on the second line.
-                return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), null, null, parts);
+                return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), hasShow ? "show" : null, hasShow ? showWorkId : null, parts);
 
             default:
                 AddIfText(parts, item.Year, null, null);
                 parts.Add(new("Movie"));
-                return new(item.Title, null, null, parts);
+                return new(item.Title, item.WorkId != Guid.Empty ? "movie" : null, item.WorkId != Guid.Empty ? item.WorkId : null, parts);
         }
     }
 

@@ -28,6 +28,7 @@ public sealed class AdaptiveHlsService
     private readonly ILogger<AdaptiveHlsService> _logger;
     private readonly ConcurrentDictionary<Guid, Lazy<Task>> _preparations = new();
     private readonly ConcurrentDictionary<Guid, int> _activeReaders = new();
+    private long _lastServedTicks;
     private readonly SemaphoreSlim _encodeSlots;
     private readonly PlaybackStateRepository? _inspection;
 
@@ -150,6 +151,7 @@ public sealed class AdaptiveHlsService
         }
 
         _activeReaders.AddOrUpdate(packageId, 1, (_, current) => current + 1);
+        Interlocked.Exchange(ref _lastServedTicks, DateTime.UtcNow.Ticks);
         await _packages.TouchAsync(packageId, ct).ConfigureAwait(false);
         try
         {
@@ -167,6 +169,21 @@ public sealed class AdaptiveHlsService
             Release(packageId);
             throw;
         }
+    }
+
+    /// <summary>
+    /// True while any adaptive package is being prepared or read, or one was read within <paramref name="quietFor"/>. A read-only signal
+    /// that lets low-priority background work (scrub previews) stay out of the way of a transcode that is being served.
+    /// </summary>
+    public bool IsServing(TimeSpan quietFor)
+    {
+        if (!_preparations.IsEmpty || _activeReaders.Values.Any(count => count > 0))
+        {
+            return true;
+        }
+
+        var last = Interlocked.Read(ref _lastServedTicks);
+        return last != 0 && DateTime.UtcNow - new DateTime(last, DateTimeKind.Utc) < quietFor;
     }
 
     public bool IsActive(Guid packageId) => _preparations.ContainsKey(packageId) || (_activeReaders.TryGetValue(packageId, out var count) && count > 0);

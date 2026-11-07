@@ -48,6 +48,12 @@ public sealed class AssetPathService
 
     public string PeopleRoot => Path.Combine(AssetsRoot, "people");
 
+    /// <summary>
+    /// The Library's cache of scrub-preview sprite sheets, one folder per media asset. It sits beside <c>assets/</c>, not inside it, because
+    /// it is a cache that can be rebuilt at any time and must never be counted as a managed asset or swept as an orphan.
+    /// </summary>
+    public string ScrubPreviewsRoot => Path.Combine(DataRoot, "scrub-previews");
+
     public bool IsHybridMode => _policy.Mode == StorageMode.Hybrid;
 
     public bool IsArtworkCentralized => _policy.Mode != StorageMode.CoLocated;
