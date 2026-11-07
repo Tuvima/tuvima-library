@@ -15,7 +15,7 @@
         @foreach (var fact in model.Facts)
         {
             <div class="tl-quick-facts__row" data-fact="@fact.Key">
-                <span class="tl-quick-facts__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(fact.Icon)" Size="AppSize.Small" /></span>
+                <span class="tl-quick-facts__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(fact.Icon)" Size="AppIconSize.Control20" /></span>
                 <div class="tl-quick-facts__text">
                     <strong class="tl-quick-facts__value">@fact.Value</strong>
                     <small class="tl-quick-facts__label">@fact.Label</small>

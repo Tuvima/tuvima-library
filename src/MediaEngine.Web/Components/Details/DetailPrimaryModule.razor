@@ -47,7 +47,7 @@
                                         @* A small square kind label; on a person page it is the icon alone, without the word "Movie" (spec D10). *@
                                         <AppTooltip Text="@MediaTypeLabel(item.EntityType)" Suppressed="@(!IsPersonSurface)">
                                             <span class="@MediaTypeBadgeClass(item)">
-                                                <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
+                                                <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppIconSize.Control20" />
                                                 @if (IsPersonSurface)
                                                 {
                                                     <span class="sr-only">@MediaTypeLabel(item.EntityType)</span>
@@ -248,7 +248,7 @@
                                          aria-pressed="@(_selectedLane == lane.Key)">
                             @if (LaneIcon(lane.Key) is { } icon)
                             {
-                                <AppMaterialIcon Icon="@icon" Size="AppSize.Small" />
+                                <AppMaterialIcon Icon="@icon" Size="AppIconSize.Control20" />
                             }
                             <span class="tl-detail-primary-module__filter-label">@lane.Label</span>
                             <span class="tl-detail-primary-module__filter-count">@lane.Count</span>

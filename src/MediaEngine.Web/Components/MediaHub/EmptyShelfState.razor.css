@@ -13,7 +13,7 @@
 
 .empty-shelf-state .tl-icon-root {
     color: var(--tl-accent-primary);
-    font-size: 2rem;
+    font-size: var(--tl-icon-size-lg);
 }
 
 .empty-shelf-state h2 {

@@ -1,29 +1,28 @@
 @namespace MediaEngine.Web.Components.Settings
 
-@* One square tile of Add library (Libraries v3 D23): the area's or kind's icon in its colour, and its name. Every tile is the same size; its hover
-   card (D24) says what belongs in it. A chosen tile is marked; a tile that cannot be used is greyed and its card says why. *@
+@* One tile of Add library (Libraries v3 D23, Look v3 D13): the area's or kind's icon above its name, drawn by the shared choice tile. Its hover card (D24) says what
+   belongs in it. A chosen tile is marked; a tile that cannot be used is greyed and its card says why. *@
 <div class="lib-tile-host">
 <LibraryPeek Title="@Title" About="@About" Examples="@Examples" LibraryDoes="@LibraryDoes" Note="@Note">
-    <AppButton ButtonStyle="AppButtonStyle.Text"
-                     Class="@RootClass"
-                     aria-pressed="@(Selected ? "true" : "false")"
-                     aria-disabled="@(Disabled ? "true" : null)"
-                     OnClick="@(() => Disabled ? Task.CompletedTask : OnClick.InvokeAsync())">
-        <span class="@IconClass" aria-hidden="true"><AppMaterialIcon Icon="@Icon" /></span>
-        <strong class="lib-tile__name">@Title</strong>
+    <AppChoiceTile Icon="@Icon"
+                   Label="@Title"
+                   Area="@AreaKey"
+                   Class="lib-tile"
+                   LabelClass="lib-tile__name"
+                   Selected="@Selected"
+                   Disabled="@Disabled"
+                   OnClick="@OnClick">
         @if (!string.IsNullOrWhiteSpace(Badge))
         {
             <small class="lib-tile__badge">@Badge</small>
         }
-    </AppButton>
+    </AppChoiceTile>
 </LibraryPeek>
 </div>
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
-    /// <summary>Classes for the icon tile, usually <c>lib-kind-tile lib-kind-tile--lookup lib-area--watch</c>.</summary>
-    [Parameter] public string? IconTileClass { get; set; }
     [Parameter] public bool Selected { get; set; }
     [Parameter] public bool Disabled { get; set; }
     /// <summary>A small line under the name, for example "Added".</summary>
@@ -33,11 +32,6 @@
     [Parameter] public string? LibraryDoes { get; set; }
     [Parameter] public string? Note { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
+    /// <summary>The area key that colours the icon square ("watch", "listen", ...); null is neutral (a kind that files as it is).</summary>
     [Parameter] public string? AreaKey { get; set; }
-
-    private string RootClass => $"lib-tile{(Selected ? " is-selected" : string.Empty)}{(Disabled ? " is-disabled" : string.Empty)}";
-
-    private string IconClass => string.IsNullOrWhiteSpace(IconTileClass)
-        ? $"lib-kind-tile lib-kind-tile--lookup lib-area--{AreaKey}"
-        : IconTileClass;
 }

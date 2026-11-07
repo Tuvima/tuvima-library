@@ -24,7 +24,7 @@
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? Class { get; set; }
 
-    private AppSize ResolvedSize => AppUiMaps.ToAppSize(Size);
+    private AppIconSize ResolvedSize => AppIconSizes.ForControl(Size);
 
     private string? AccentStyle =>
         string.IsNullOrWhiteSpace(AccentColor) ? null : $"--app-provider-logo-accent: {AccentColor};";

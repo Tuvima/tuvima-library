@@ -2,7 +2,7 @@
 <div class="@RootClass" @attributes="AdditionalAttributes">
     <div class="app-setting-row__line">
         <div class="app-setting-row__text">
-            @if (!string.IsNullOrWhiteSpace(LeadingIcon)) { <span class="app-setting-row__icon"><AppMaterialIcon Icon="@LeadingIcon" Size="AppSize.Medium" /></span> }
+            @if (!string.IsNullOrWhiteSpace(LeadingIcon)) { <span class="app-setting-row__icon"><AppMaterialIcon Icon="@LeadingIcon" Size="AppIconSize.Row24" /></span> }
             <div class="app-setting-row__copy">
                 @if (!string.IsNullOrWhiteSpace(For)) { <label class="app-setting-row__label" for="@For">@Label</label> }
                 else { <span class="app-setting-row__label">@Label</span> }

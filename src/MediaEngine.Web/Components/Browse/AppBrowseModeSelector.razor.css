@@ -46,7 +46,7 @@
 }
 
 .app-browse-mode ::deep .app-browse-mode__option .tl-icon-root {
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 html[data-form-factor="phone"] .app-browse-mode {

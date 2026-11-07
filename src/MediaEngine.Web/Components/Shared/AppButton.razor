@@ -10,9 +10,9 @@ else
 @code {
     private RenderFragment Contents => @<text>
         @if (Loading) { <AppSpinner Size="MediaEngine.Web.Components.Shared.AppSize.Small" Color="AppColor.Inherit" Class="app-button__spinner" /> }
-        else if (!string.IsNullOrWhiteSpace(StartIcon)) { <AppMaterialIcon Icon="@StartIcon" Class="tl-button-icon tl-button-icon--start" /> }
+        else if (!string.IsNullOrWhiteSpace(StartIcon)) { <AppMaterialIcon Icon="@StartIcon" Size="AppIconSizes.ForControl(ResolvedSize)" Class="tl-button-icon tl-button-icon--start" /> }
         <span class="tl-button-label">@if (ChildContent is not null) { @ChildContent } else { @Label }</span>
-        @if (!string.IsNullOrWhiteSpace(EndIcon)) { <AppMaterialIcon Icon="@EndIcon" Class="tl-button-icon tl-button-icon--end" /> }
+        @if (!string.IsNullOrWhiteSpace(EndIcon)) { <AppMaterialIcon Icon="@EndIcon" Size="AppIconSizes.ForControl(ResolvedSize)" Class="tl-button-icon tl-button-icon--end" /> }
     </text>;
     [Parameter] public string? Label { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }

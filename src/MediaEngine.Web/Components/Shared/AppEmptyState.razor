@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 
 <AppPageState Kind="AppPageStateKind.Empty"
+              Icon="@Icon"
               Title="@Title"
               Message="@Message"
               Actions="@Action"
@@ -9,6 +10,9 @@
 @code {
     [Parameter] public string Title { get; set; } = "Nothing here";
     [Parameter] public string? Message { get; set; }
+
+    /// <summary>An optional Material icon drawn at 64px above the title, with no tinted square (Look v3 D13).</summary>
+    [Parameter] public string? Icon { get; set; }
     [Parameter] public RenderFragment? Action { get; set; }
     [Parameter] public string? Class { get; set; }
 }

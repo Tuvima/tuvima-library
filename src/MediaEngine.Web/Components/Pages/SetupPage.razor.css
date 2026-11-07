@@ -7,7 +7,7 @@
 ::deep .setup-stage__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-left: auto; }
 ::deep .setup-stage-content { display: grid; align-content: start; gap: 20px; min-width: 0; min-height: 100%; }
 ::deep .setup-stage__heading { display: flex; align-items: flex-start; gap: 13px; }
-::deep .setup-stage__heading > .tl-icon-root { flex: 0 0 auto; display: grid; width: 48px; height: 48px; margin-top: 1px; padding: 11px; border-radius: 12px; color: white; background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: 26px; }
+::deep .setup-stage__heading > .tl-icon-root { flex: 0 0 auto; display: grid; width: var(--tl-icon-size-xl); height: var(--tl-icon-size-xl); margin-top: 1px; padding: 11px; border-radius: 12px; color: white; background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: var(--tl-icon-size-md); }
 ::deep .setup-stage__heading h2, ::deep .setup-stage__heading p, ::deep .setup-restore h3, ::deep .setup-restore p, ::deep .setup-preparing h3, ::deep .setup-preparing p{ margin: 0; }
 ::deep .setup-stage__heading p, ::deep .setup-restore p, ::deep .setup-preparing p{ margin-top: 5px; color: var(--tl-text-muted); line-height: 1.55; }
 ::deep .setup-actions { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -32,7 +32,7 @@
 ::deep .setup-checks code, ::deep .setup-checks small, ::deep .setup-runtime { color: var(--tl-text-muted); overflow-wrap: anywhere; }
 ::deep .setup-checks a { display: inline-flex; align-items: center; gap: 5px; width: fit-content; color: var(--tl-accent-primary); font-weight: 600; text-decoration: none; }
 ::deep .setup-checks__icon { display: grid; width: 52px; height: 52px; place-items: center; color: var(--tl-text-secondary); border: 1px solid var(--tl-border-subtle); border-radius: 12px; background: var(--tl-bg-surface-raised); }
-::deep .setup-checks__icon > .tl-icon-root { font-size: 27px; }
+::deep .setup-checks__icon > .tl-icon-root { font-size: var(--tl-icon-size-md); }
 ::deep .setup-runtime { font-size: var(--tl-font-size-secondary); }
 ::deep .setup-technical { padding: 14px; border: 1px solid var(--tl-border-subtle); border-radius: 10px; }
 ::deep .setup-technical summary { cursor: pointer; font-weight: 600; }

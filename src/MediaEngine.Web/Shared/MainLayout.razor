@@ -188,7 +188,7 @@
     @if (ShouldShowEngineStatusBanner)
     {
         <div class="layout-shell__engine-banner" role="status" aria-live="polite">
-            <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppIconSize.Control20" />
             <span>@GetEngineStatusBannerText()</span>
             @if (Orchestrator.EngineConnectionState == EngineConnectionState.LiveUpdatesDisconnected)
             {
