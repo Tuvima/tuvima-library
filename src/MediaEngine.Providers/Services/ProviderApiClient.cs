@@ -78,6 +78,15 @@ public sealed class ProviderApiClient(
         return (config, config.Api ?? throw new InvalidOperationException($"Provider '{provider}' declares no api block."));
     }
 
+    /// <summary>True for an answer that says nothing: no data, an empty list or an empty object.</summary>
+    internal static bool IsEmptyAnswer(JsonNode? data) => data switch
+    {
+        null => true,
+        JsonArray list => list.Count == 0,
+        JsonObject entry => entry.Count == 0,
+        _ => false,
+    };
+
     private static JsonNode? Data(ProviderApiConfiguration api, JsonNode? envelope) =>
         string.IsNullOrEmpty(api.DataPath) ? envelope : JsonPathEvaluator.Evaluate(envelope, api.DataPath);
 
@@ -131,7 +140,8 @@ public sealed class ProviderApiClient(
 
             response.EnsureSuccessStatusCode();
             var envelope = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct).ConfigureAwait(false);
-            if (envelope is not null)
+            // An empty answer is never kept: a search that found nothing a moment ago (a slow index, a misspelling fixed upstream) must ask again.
+            if (envelope is not null && !IsEmptyAnswer(Data(api, envelope)))
             {
                 if (session.Cache.Count >= api.CacheMaxEntries)
                 {

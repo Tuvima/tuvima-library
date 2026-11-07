@@ -360,7 +360,7 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         Assert.Equal(["show", "year"], episode.MatchFields);
         Assert.Equal(["episode_number", "runtime", "air_date", "match_state"], episode.FactsLine);
         Assert.Contains("file_quality", episode.QuickFacts);
-        Assert.Equal(["title", "year"], film.MatchFields);
+        Assert.Equal(["title", "year", "provider_id"], film.MatchFields);
     }
 
     [Fact]

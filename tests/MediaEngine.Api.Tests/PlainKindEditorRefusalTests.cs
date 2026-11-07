@@ -105,8 +105,9 @@ public sealed class PlainKindEditorRefusalTests : IDisposable
     {
         var source = File.ReadAllText(RepoFile("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
 
-        var search = source[source.IndexOf("/{entityId:guid}/canonical-search\"", StringComparison.Ordinal)..];
-        search = search[..search.IndexOf("/{entityId:guid}/canonical-apply", StringComparison.Ordinal)];
+        // The search body is shared by the older canonical-search route and the Match tab's search (universal editor v5): both call it.
+        Assert.Contains("SearchCanonicalCandidatesAsync(", source[source.IndexOf("/{entityId:guid}/canonical-search\"", StringComparison.Ordinal)..], StringComparison.Ordinal);
+        var search = source[source.IndexOf("internal static async Task<IResult> SearchCanonicalCandidatesAsync(", StringComparison.Ordinal)..];
         var searchRefusal = search.IndexOf("RefuseInLibraryThatNeverLooksAnythingUpAsync", StringComparison.Ordinal);
         Assert.True(searchRefusal >= 0);
         Assert.True(searchRefusal < search.IndexOf("retailMatchPreview.SearchAsync", StringComparison.Ordinal));

@@ -1,0 +1,25 @@
+/* The reset every row button shares; the page that uses it adds the look (size, fill, border) through its own class. The selectors are :where() so that class always wins. */
+:where(.app-row-button) {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+:where(.app-row-button):focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+:where(.app-row-button):disabled {
+    cursor: default;
+    opacity: 0.6;
+}

@@ -475,6 +475,15 @@ public sealed class EditorCurrentMatchDto
     [JsonPropertyName("why")]
     public IReadOnlyList<EditorMatchEvidenceRowDto> Why { get; init; } = [];
 
+    /// <summary>How well the matched record fits the file overall, one of <see cref="EditorMatchVerdicts"/>; null when the item is not matched.</summary>
+    [JsonPropertyName("verdict")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Verdict { get; init; }
+
+    /// <summary>True when the match was applied by a person; a pinned match is never re-identified from its folder or file name by a later scan.</summary>
+    [JsonPropertyName("pinned")]
+    public bool Pinned { get; init; }
+
     /// <summary>The original file name, shown as muted text beside the provider dropdown; null when the item has no single file.</summary>
     [JsonPropertyName("file_name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -573,6 +582,16 @@ public sealed class EditorMatchEvidenceRowDto
     /// <summary>One of <see cref="EditorMatchEvidenceStates"/>.</summary>
     [JsonPropertyName("state")]
     public string State { get; init; } = EditorMatchEvidenceStates.NotChecked;
+
+    /// <summary>This row's verdict label, one of <see cref="EditorMatchVerdicts"/>; null when the fact was not checked.</summary>
+    [JsonPropertyName("verdict")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Verdict { get; init; }
+
+    /// <summary>A note under an approximate fact ("Runtime consistent"); null otherwise.</summary>
+    [JsonPropertyName("note")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Note { get; init; }
 }
 
 /// <summary>Where a "Suggest details from the document" read found its answer.</summary>

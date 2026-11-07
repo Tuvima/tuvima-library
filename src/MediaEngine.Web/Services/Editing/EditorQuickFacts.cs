@@ -277,6 +277,83 @@ public static class EditorQuickFactsBuilder
         return new QuickFactsModel(kind, facts.Take(5).ToList(), notes);
     }
 
+    /// <summary>The note under the facts for a file in a folder the library only reads.</summary>
+    public const string ReadOnlyFolderNote = "Read-only folder";
+
+    /// <summary>The note for a file the Engine knows but can no longer find; the last known folder follows it.</summary>
+    public const string FileNotFoundNote = "File not found";
+
+    /// <summary>
+    /// Adds the file facts the Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, folder, the number of
+    /// supporting files on a container, a read-only mark and a "File not found" note with the last known folder. Only the facts the kind's
+    /// own list in <c>config/editor.json</c> asks for are added, and a fact the header does not know is left out.
+    /// </summary>
+    public static QuickFactsModel WithFileFacts(QuickFactsModel model, EditorHeaderDto? header, string? providerName = null)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        if (header is null || model.Kind == QuickFactsKind.None)
+        {
+            return model;
+        }
+
+        var wanted = header.Config.QuickFacts;
+        var facts = model.Facts.ToList();
+        var notes = model.Notes.ToList();
+        void Add(string key, string icon, string? value, string label)
+        {
+            if (wanted.Contains(key, StringComparer.Ordinal) && !string.IsNullOrWhiteSpace(value) && facts.All(fact => fact.Key != key))
+            {
+                facts.Add(new QuickFact(key, icon, value.Trim(), label));
+            }
+        }
+
+        // The match state leads the card, as in the mock-up: "Matched with TheTVDB" once a provider record is attached, or a plain "Not matched".
+        if (wanted.Contains("match_state", StringComparer.Ordinal) && facts.All(fact => fact.Key != "match_state"))
+        {
+            var state = header.Level.Items.FirstOrDefault(item => item.IsCurrent)?.State;
+            if (state is EditorNavItemStates.Matched)
+            {
+                var provider = Clean(providerName);
+                facts.Insert(0, new QuickFact("match_state", Check, provider is null ? "Matched" : $"Matched with {provider}", "Identity verified"));
+            }
+            else if (state is EditorNavItemStates.NotMatched)
+            {
+                facts.Insert(0, new QuickFact("match_state", Check, "Not matched yet", "Use the Match tab to find it"));
+            }
+        }
+
+        if (header.FileFacts is { } file)
+        {
+            if (facts.All(fact => fact.Key != "quality"))
+            {
+                Add("file_quality", Quality, Clean(file.Quality), "Quality");
+            }
+
+            Add("container", FileIcon, Clean(file.Container), "Container");
+            Add("folder", Folder, Clean(file.Folder), "Folder");
+            if (file.IsMissing)
+            {
+                notes.Add(string.IsNullOrWhiteSpace(file.Folder) ? FileNotFoundNote : $"{FileNotFoundNote} · last known folder {file.Folder!.Trim()}");
+            }
+            else if (file.ReadOnly)
+            {
+                notes.Add(ReadOnlyFolderNote);
+            }
+        }
+
+        var supporting = header.Level.SupportingFiles.TotalInRoot;
+        if (supporting > 0)
+        {
+            Add("supporting_file_count", SupportingFiles, Count(supporting), supporting == 1 ? "Supporting file" : "Supporting files");
+        }
+
+        return new QuickFactsModel(model.Kind, facts, notes);
+    }
+
+    private const string Check = "Check";
+    private const string FileIcon = "InsertDriveFile";
+    private const string SupportingFiles = "Collections";
+
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string? TotalRuntime(ItemQuickFactsDto? totals) =>

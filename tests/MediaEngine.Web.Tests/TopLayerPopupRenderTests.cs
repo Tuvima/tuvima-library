@@ -51,7 +51,7 @@ public sealed class TopLayerPopupRenderTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("Components/Details/EditorFamilyRail.razor")]
+    [InlineData("Components/Details/EditorHeaderNav.razor")]
     [InlineData("Components/Details/EditorUniverseRail.razor")]
     [InlineData("Components/Details/ViewEditRail.razor")]
     [InlineData("Components/Collections/CollectionRuleValuePicker.razor")]

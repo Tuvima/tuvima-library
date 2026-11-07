@@ -581,100 +581,17 @@ public static partial class ItemCanonicalEndpoints
         group.MapPost("/{entityId:guid}/video-identify", async (
             Guid entityId,
             VideoIdentifyRequest request,
-            IVideoSeriesRepository series,
-            IItemCanonicalRepository itemCanonicalData,
-            IMediaAssetRepository assets,
-            ILibraryFolderResolver libraries,
-            IVideoOnlineLookup lookup,
-            IProviderAudienceGate audienceGate,
-            IMetadataClaimRepository claimRepo,
-            ICanonicalValueRepository canonicalRepo,
-            ISystemActivityRepository activityRepo,
+            IVideoIdentifyWriter writer,
             CancellationToken ct) =>
         {
-            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
-            var membership = await series.GetMembershipAsync(workId, ct);
-            if (membership is null || membership.AssetId == Guid.Empty)
+            var outcome = await writer.ApplyAsync(entityId, request.Link, ct);
+            return outcome.Status switch
             {
-                return ApiErrors.NotFound("That is not a video.");
-            }
-
-            if (!YoutubeLink.TryGetVideoId(request.Link, out var videoId))
-            {
-                return ApiErrors.BadRequest("That does not look like a YouTube link. Paste the video's link or its 11-character ID.");
-            }
-
-            var asset = await assets.FindByIdAsync(membership.AssetId, ct);
-            if (asset is null || libraries.ResolveForPath(asset.FilePathRoot)?.YoutubeLookup != true)
-            {
-                return ApiErrors.Conflict("Online lookup is switched off for this library. Turn it on in Settings first.");
-            }
-
-            // YouTube is never asked about a Vault video, even if its library's switch says yes (Videos spec D21, D26).
-            if (!await audienceGate.MayAskAboutItemAsync("youtube", membership.AssetId, ct))
-            {
-                return ApiErrors.Conflict("Online lookup from YouTube is not available for this library.");
-            }
-
-            var info = await lookup.LookupAsync(videoId, ct);
-            if (info is null || string.IsNullOrWhiteSpace(info.Title))
-            {
-                return ApiErrors.NotFound("No match found for that video.");
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            var claims = new List<MetadataClaim>();
-            var canonicals = new List<CanonicalValue>();
-            void Lock(string key, string? value)
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    return;
-                }
-
-                claims.Add(new MetadataClaim
-                {
-                    Id = Guid.NewGuid(),
-                    EntityId = membership.AssetId,
-                    ProviderId = WellKnownProviders.UserManual,
-                    ClaimKey = key,
-                    ClaimValue = value,
-                    ClaimedAt = now,
-                    Confidence = 1.0,
-                    IsUserLocked = true,
-                });
-                canonicals.Add(new CanonicalValue
-                {
-                    EntityId = membership.AssetId,
-                    Key = key,
-                    Value = value,
-                    LastScoredAt = now,
-                    WinningProviderId = WellKnownProviders.UserManual,
-                });
-            }
-
-            Lock(MetadataFieldConstants.YoutubeVideoId, videoId);
-            Lock(MetadataFieldConstants.VideoLookupSource, "youtube");
-            Lock(MetadataFieldConstants.Title, info.Title);
-            Lock(MetadataFieldConstants.Network, info.Channel);
-            Lock(MetadataFieldConstants.Description, info.Description);
-            if (info.Published is { } published)
-            {
-                Lock(MetadataFieldConstants.OriginalReleaseDate, published.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-                Lock(MetadataFieldConstants.Year, published.Year.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            }
-
-            await claimRepo.InsertBatchAsync(claims, ct);
-            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
-            await activityRepo.LogAsync(new SystemActivityEntry
-            {
-                OccurredAt = now,
-                ActionType = SystemActionType.MetadataManualOverride,
-                EntityId = workId,
-                EntityType = "Work",
-                Detail = "Identified a video from a YouTube link.",
-            }, ct);
-            return Results.Ok(new VideoIdentifyResponse { Title = info.Title });
+                VideoIdentifyStatus.Ok => Results.Ok(new VideoIdentifyResponse { Title = outcome.Info!.Title! }),
+                VideoIdentifyStatus.NotAVideo or VideoIdentifyStatus.NotFound => ApiErrors.NotFound(outcome.Message!),
+                VideoIdentifyStatus.BadLink => ApiErrors.BadRequest(outcome.Message!),
+                _ => ApiErrors.Conflict(outcome.Message!),
+            };
         })
         .WithName("IdentifyVideoFromLink")
         .WithSummary("Look a video up on YouTube from a pasted link or ID and save the match. Only the ID leaves the machine.")
@@ -771,143 +688,8 @@ public static partial class ItemCanonicalEndpoints
             [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
-            var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
-            if (context is null)
-            {
-                return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
-            }
-
-            // The search asks retail providers and Wikidata, so it is refused where the library never looks anything up.
-            if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
-            {
-                return refused;
-            }
-
-            var mediaType = ResolveMediaType(request.MediaType, context.MediaType);
-            var policy = ResolveTargetPolicy(mediaType, request.TargetKind, request.TargetFieldGroup);
-            if (policy is null)
-            {
-                return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{mediaType}'.");
-            }
-
-            var draftFields = request.DraftFields
-                .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
-                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
-
-            var query = CanonicalCandidateBuilder.BuildCanonicalQuery(policy, draftFields, request.QueryOverride);
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return ApiErrors.BadRequest("A search query or draft field values are required.");
-            }
-
-            var missingRequired = policy.RequiredFieldKeys
-                .Where(key => !draftFields.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
-                .ToList();
-
-            var retailCandidates = new List<ItemCanonicalRetailCandidateDto>();
-            var linkedCandidates = new List<ItemCanonicalLinkedCandidateDto>();
-            var searchProviders = new List<ItemCanonicalSearchProviderDto>();
-
-            var searchMode = NormalizeSearchMode(request.SearchMode);
-            var shouldSearchRetail = (searchMode is "retail_only" or "combined") && policy.SearchRetail;
-            var shouldSearchUniverse = (searchMode is "wikidata_only" or "combined") && policy.SearchUniverse;
-
-            var providerErrors = new List<string>();
-            if (shouldSearchRetail)
-            {
-                // Explicit user search is allowed to discover a different
-                // container. Keep the current draft as soft file hints, but do
-                // not send it as structured search fields that a provider can
-                // interpret as a hard show/season constraint.
-                // Search and score against the identity being edited.  An editor
-                // can be opened from a child (a track, issue, or episode), but a
-                // container lookup must never compare that child title to an
-                // album, series, or show candidate.
-                var retailSearch = BuildRetailSearchContext(
-                    policy,
-                    draftFields,
-                    request.QueryOverride,
-                    context.WorkTitle,
-                    context.PrimaryCreator,
-                    context.Year);
-                var retail = await retailMatchPreview.SearchAsync(
-                    new Domain.Models.SearchRetailRequest(
-                        Query: query,
-                        MediaType: mediaType,
-                        MaxCandidates: Math.Clamp(request.MaxCandidates, 1, 10),
-                        LocalTitle: retailSearch.LocalTitle,
-                        LocalAuthor: retailSearch.LocalAuthor,
-                        LocalYear: retailSearch.LocalYear,
-                        FileHints: retailSearch.FileHints,
-                        SearchFields: retailSearch.SearchFields,
-                        ProviderName: request.ProviderName),
-                    ct);
-
-                providerErrors.AddRange(retail.ProviderErrors);
-                searchProviders = retail.Providers
-                    .Select(provider => new ItemCanonicalSearchProviderDto { Name = provider.Name, DisplayName = provider.DisplayName })
-                    .ToList();
-                retailCandidates = retail.Candidates
-                    .Select(candidate => CanonicalCandidateBuilder.BuildRetailCandidate(candidate, mediaType, policy))
-                    .ToList();
-                // Result tiles never load provider originals directly. A small,
-                // allow-listed preview keeps the editor responsive and gives all
-                // supported provider results the same artwork contract.
-                await Task.WhenAll(retailCandidates.Select(async candidate =>
-                    candidate.PreviewUrl = await RetailCandidateArtworkPreview.LoadAsync(
-                        candidate.ProviderName, candidate.CoverUrl, httpFactory, cache, ct)));
-            }
-
-            if (shouldSearchUniverse)
-            {
-                var universe = await wikidataMatchPreview.PreviewCandidatesAsync(
-                    context.AssetId,
-                    mediaType,
-                    query,
-                    draftFields,
-                    Math.Clamp(request.MaxCandidates, 1, 10),
-                    ct);
-
-                linkedCandidates = universe.Candidates
-                    .Select(candidate => CanonicalCandidateBuilder.BuildLinkedCandidate(candidate, mediaType, policy))
-                    .ToList();
-            }
-
-            var unlinkedFields = policy.RequiredFieldKeys
-                .Concat(policy.SuggestedFieldKeys)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Where(draftFields.ContainsKey)
-                .ToDictionary(key => key, key => draftFields[key], StringComparer.OrdinalIgnoreCase);
-
-            return Results.Ok(new ItemCanonicalSearchResponseDto
-            {
-                EntityId = entityId,
-                MediaType = mediaType,
-                TargetKind = policy.TargetKind,
-                TargetFieldGroup = policy.TargetFieldGroup,
-                Query = query,
-                RetailCandidates = retailCandidates,
-                Providers = searchProviders,
-                ProviderErrors = providerErrors,
-                LinkedCandidates = linkedCandidates,
-                DraftFields = draftFields,
-                FallbackActions =
-                [
-                    "Keep current canonical value",
-                    "Save as preference only",
-                    "Apply as unlinked canonical value",
-                ],
-                NoResultMessage = providerErrors.Count > 0 && retailCandidates.Count == 0
-                    ? "Retail search could not complete. Retry before treating this as no match."
-                    : retailCandidates.Count == 0 && linkedCandidates.Count == 0
-                    ? searchMode == "wikidata_only"
-                        ? "No Wikidata identity was found. Keep the retail match as provider-only, mark Wikidata missing, or try a different query."
-                        : "No retail results were found. Keep the current value, save the draft as a preference, or apply an unlinked canonical value when the required anchors are present."
-                    : null,
-                CanApplyUnlinkedCanonical = policy.AllowsTextOnly && missingRequired.Count == 0 && unlinkedFields.Count > 0,
-                MissingRequiredFields = missingRequired,
-                UnlinkedFields = unlinkedFields,
-            });
+            return await SearchCanonicalCandidatesAsync(
+                entityId, request, retailMatchPreview, wikidataMatchPreview, itemCanonicalData, httpFactory, cache, lookupGuard, ct);
         })
         .WithName("SearchItemCanonicalCandidates")
         .WithSummary("Run a targeted canonical search for a specific item field group.")
@@ -1645,6 +1427,160 @@ public static partial class ItemCanonicalEndpoints
         && !string.Equals(status, WorkWikidataStatus.UserConfirmed, StringComparison.OrdinalIgnoreCase)
         && !string.Equals(status, WorkWikidataStatus.UserReplaced, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The canonical search behind the editor's Match tab and the older canonical-search connection point: one body so both ask the same
+    /// providers the same way. Returns the search response, or the refusal (not found, a library that never looks anything up, bad input).
+    /// </summary>
+    internal static async Task<IResult> SearchCanonicalCandidatesAsync(
+        Guid entityId,
+        ItemCanonicalSearchRequestDto request,
+        RetailMatchPreviewService retailMatchPreview,
+        WikidataMatchPreviewService wikidataMatchPreview,
+        IItemCanonicalRepository itemCanonicalData,
+        IHttpClientFactory httpFactory,
+        IMemoryCache cache,
+        IExternalLookupGuard lookupGuard,
+        CancellationToken ct)
+    {
+        var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
+        if (context is null)
+        {
+            return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+        }
+
+        // The search asks retail providers and Wikidata, so it is refused where the library never looks anything up.
+        if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
+        {
+            return refused;
+        }
+
+        var mediaType = ResolveMediaType(request.MediaType, context.MediaType);
+        var policy = ResolveTargetPolicy(mediaType, request.TargetKind, request.TargetFieldGroup);
+        if (policy is null)
+        {
+            return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{mediaType}'.");
+        }
+
+        var draftFields = request.DraftFields
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+
+        var query = CanonicalCandidateBuilder.BuildCanonicalQuery(policy, draftFields, request.QueryOverride);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return ApiErrors.BadRequest("A search query or draft field values are required.");
+        }
+
+        var missingRequired = policy.RequiredFieldKeys
+            .Where(key => !draftFields.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+            .ToList();
+
+        var retailCandidates = new List<ItemCanonicalRetailCandidateDto>();
+        var linkedCandidates = new List<ItemCanonicalLinkedCandidateDto>();
+        var searchProviders = new List<ItemCanonicalSearchProviderDto>();
+
+        var searchMode = NormalizeSearchMode(request.SearchMode);
+        var shouldSearchRetail = (searchMode is "retail_only" or "combined") && policy.SearchRetail;
+        var shouldSearchUniverse = (searchMode is "wikidata_only" or "combined") && policy.SearchUniverse;
+
+        var providerErrors = new List<string>();
+        if (shouldSearchRetail)
+        {
+            // Explicit user search is allowed to discover a different
+            // container. Keep the current draft as soft file hints, but do
+            // not send it as structured search fields that a provider can
+            // interpret as a hard show/season constraint.
+            // Search and score against the identity being edited.  An editor
+            // can be opened from a child (a track, issue, or episode), but a
+            // container lookup must never compare that child title to an
+            // album, series, or show candidate.
+            var retailSearch = BuildRetailSearchContext(
+                policy,
+                draftFields,
+                request.QueryOverride,
+                context.WorkTitle,
+                context.PrimaryCreator,
+                context.Year);
+            var retail = await retailMatchPreview.SearchAsync(
+                new Domain.Models.SearchRetailRequest(
+                    Query: query,
+                    MediaType: mediaType,
+                    MaxCandidates: Math.Clamp(request.MaxCandidates, 1, 10),
+                    LocalTitle: retailSearch.LocalTitle,
+                    LocalAuthor: retailSearch.LocalAuthor,
+                    LocalYear: retailSearch.LocalYear,
+                    FileHints: retailSearch.FileHints,
+                    SearchFields: MergeLookupFields(retailSearch.SearchFields, request.LookupFields),
+                    ProviderName: request.ProviderName),
+                ct);
+
+            providerErrors.AddRange(retail.ProviderErrors);
+            searchProviders = retail.Providers
+                .Select(provider => new ItemCanonicalSearchProviderDto { Name = provider.Name, DisplayName = provider.DisplayName })
+                .ToList();
+            retailCandidates = retail.Candidates
+                .Select(candidate => CanonicalCandidateBuilder.BuildRetailCandidate(candidate, mediaType, policy))
+                .ToList();
+            // Result tiles never load provider originals directly. A small,
+            // allow-listed preview keeps the editor responsive and gives all
+            // supported provider results the same artwork contract.
+            await Task.WhenAll(retailCandidates.Select(async candidate =>
+                candidate.PreviewUrl = await RetailCandidateArtworkPreview.LoadAsync(
+                    candidate.ProviderName, candidate.CoverUrl, httpFactory, cache, ct)));
+        }
+
+        if (shouldSearchUniverse)
+        {
+            var universe = await wikidataMatchPreview.PreviewCandidatesAsync(
+                context.AssetId,
+                mediaType,
+                query,
+                draftFields,
+                Math.Clamp(request.MaxCandidates, 1, 10),
+                ct);
+
+            linkedCandidates = universe.Candidates
+                .Select(candidate => CanonicalCandidateBuilder.BuildLinkedCandidate(candidate, mediaType, policy))
+                .ToList();
+        }
+
+        var unlinkedFields = policy.RequiredFieldKeys
+            .Concat(policy.SuggestedFieldKeys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(draftFields.ContainsKey)
+            .ToDictionary(key => key, key => draftFields[key], StringComparer.OrdinalIgnoreCase);
+
+        return Results.Ok(new ItemCanonicalSearchResponseDto
+        {
+            EntityId = entityId,
+            MediaType = mediaType,
+            TargetKind = policy.TargetKind,
+            TargetFieldGroup = policy.TargetFieldGroup,
+            Query = query,
+            RetailCandidates = retailCandidates,
+            Providers = searchProviders,
+            ProviderErrors = providerErrors,
+            LinkedCandidates = linkedCandidates,
+            DraftFields = draftFields,
+            FallbackActions =
+            [
+                "Keep current canonical value",
+                "Save as preference only",
+                "Apply as unlinked canonical value",
+            ],
+            NoResultMessage = providerErrors.Count > 0 && retailCandidates.Count == 0
+                ? "Retail search could not complete. Retry before treating this as no match."
+                : retailCandidates.Count == 0 && linkedCandidates.Count == 0
+                ? searchMode == "wikidata_only"
+                    ? "No Wikidata identity was found. Keep the retail match as provider-only, mark Wikidata missing, or try a different query."
+                    : "No retail results were found. Keep the current value, save the draft as a preference, or apply an unlinked canonical value when the required anchors are present."
+                : null,
+            CanApplyUnlinkedCanonical = policy.AllowsTextOnly && missingRequired.Count == 0 && unlinkedFields.Count > 0,
+            MissingRequiredFields = missingRequired,
+            UnlinkedFields = unlinkedFields,
+        });
+    }
+
     private static string ResolveMediaType(string? requestedMediaType, string fallbackMediaType) =>
         !string.IsNullOrWhiteSpace(requestedMediaType)
             ? requestedMediaType
@@ -1716,6 +1652,27 @@ public static partial class ItemCanonicalEndpoints
             year,
             fields.Count == 0 ? null : fields,
             BuildRetailSearchFields(policy, fields, queryOverride));
+    }
+
+    // Identifiers the Match tab typed for a direct lookup ride along as search fields, so the provider's own id strategy can run.
+    private static IReadOnlyDictionary<string, string>? MergeLookupFields(
+        IReadOnlyDictionary<string, string>? fields, IReadOnlyDictionary<string, string>? lookup)
+    {
+        if (lookup is not { Count: > 0 })
+        {
+            return fields;
+        }
+
+        var merged = new Dictionary<string, string>(fields ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in lookup)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                merged[key] = value;
+            }
+        }
+
+        return merged;
     }
 
     internal static IReadOnlyDictionary<string, string>? BuildRetailSearchFields(

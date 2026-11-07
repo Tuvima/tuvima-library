@@ -53,7 +53,10 @@
                     <li class="review-changes__row" data-row="@row.RowId" data-state="@shown.State">
                         <div class="review-changes__what">
                             <strong>@row.Item</strong>
-                            <span>@row.What</span>
+                            <span>@row.What@if (row.NowYours)
+                            {
+                                <span class="review-changes__yours" data-now-yours> &mdash; @L["ReviewChangesView_NowYours"]</span>
+                            }</span>
                         </div>
                         <div class="review-changes__values">
                             @if (row.Before is not null)

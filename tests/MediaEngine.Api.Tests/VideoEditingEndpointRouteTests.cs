@@ -87,9 +87,11 @@ public sealed class VideoEditingEndpointRouteTests
     [Fact]
     public void IdentifyingFromALink_OnlyRunsWhereTheLibraryAllowsTheYoutubeLookup()
     {
-        var source = ReadCanonicalEndpoints();
-        var identify = Between(source, "group.MapPost(\"/{entityId:guid}/video-identify\"", "group.MapPut(\"/{entityId:guid}/display-overrides\"");
+        // The route hands the link to the one video writer the Match tab also uses; the checks live there.
+        var route = Between(ReadCanonicalEndpoints(), "group.MapPost(\"/{entityId:guid}/video-identify\"", "group.MapPut(\"/{entityId:guid}/display-overrides\"");
+        var identify = ReadSource("src/MediaEngine.Api/Services/Matching/VideoIdentifyWriter.cs");
 
+        Assert.Contains("writer.ApplyAsync(", route, StringComparison.Ordinal);
         var gate = identify.IndexOf("YoutubeLookup != true", StringComparison.Ordinal);
         var lookup = identify.IndexOf("lookup.LookupAsync(", StringComparison.Ordinal);
         Assert.True(gate >= 0 && lookup > gate, "the library switch must be checked before anything is sent");
@@ -100,7 +102,7 @@ public sealed class VideoEditingEndpointRouteTests
     [Fact]
     public void IdentifyingFromALink_NeverAsksYoutubeAboutAVaultVideo()
     {
-        var identify = Between(ReadCanonicalEndpoints(), "group.MapPost(\"/{entityId:guid}/video-identify\"", "group.MapPut(\"/{entityId:guid}/display-overrides\"");
+        var identify = ReadSource("src/MediaEngine.Api/Services/Matching/VideoIdentifyWriter.cs");
 
         var gate = identify.IndexOf("audienceGate.MayAskAboutItemAsync(\"youtube\"", StringComparison.Ordinal);
         var lookup = identify.IndexOf("lookup.LookupAsync(videoId", StringComparison.Ordinal);

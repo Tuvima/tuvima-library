@@ -1322,6 +1322,15 @@ public static class JsonConfigValidator
         ValidateColorMap(palette.MediaType, "media_type", errors);
         ValidateColorMap(palette.Confidence, "confidence", errors);
         ValidateColorMap(palette.ReviewTrigger, "review_trigger", errors);
+        if (palette.EditorHeader.PrimaryPercent is < 0 or > 100)
+        {
+            errors.Add("editor_header.primary_percent must be between 0 and 100.");
+        }
+
+        if (palette.EditorHeader.SecondaryPercent is < 0 or > 100)
+        {
+            errors.Add("editor_header.secondary_percent must be between 0 and 100.");
+        }
     }
 
     private static void ValidateLibraryPreferences(LibraryPreferencesSettings preferences, List<string> errors)

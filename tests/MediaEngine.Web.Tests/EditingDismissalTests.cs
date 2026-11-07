@@ -145,6 +145,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     private void TypeIntoTheTitle(IRenderedComponent<DetailPage> cut, string value)
     {
         OpenDetails();
+        _editor.UnlockField("title");
         _editor.Find("input[aria-label='Title']").Input(value);
     }
 
@@ -214,7 +215,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         host.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
         Assert.Single(_editor.FindAll(".tl-editor-window"));
         Assert.Equal("Dune", _editor.Find("input[aria-label='Title']").GetAttribute("value"));
-        Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
+        Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
     }
 
     [Fact]
@@ -244,7 +245,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.True(await esc);
         Assert.NotEmpty(_editor.FindAll(".tl-editor-panel"));
         Assert.Single(_editor.FindAll(".tl-editor-window"));
-        Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
+        Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
         Assert.Empty(_steps);
     }
 
@@ -279,7 +280,9 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         overlay.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         overlay.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']")));
-        _editor.WaitForElement("input[aria-label='Title']").Input("Dune");
+        _editor.WaitForElement("input[aria-label='Title']");
+        _editor.UnlockField("title");
+        _editor.Find("input[aria-label='Title']").Input("Dune");
 
         // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel. The editor is a
         // window, so with changes staged the very first one asks.
@@ -290,7 +293,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.Empty(_steps);
         Assert.True(State.IsOpen);
         Assert.Single(_editor.FindAll(".tl-editor-window"));
-        Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
+        Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
         Assert.Empty(_saves);
     }
 
@@ -370,7 +373,9 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.True(await CanDismissAsync(cut));
 
         ChooseEdit(cut);
-        _editor.WaitForElement("input[aria-label='Title']").Input("Dune");
+        _editor.WaitForElement("input[aria-label='Title']");
+        _editor.UnlockField("title");
+        _editor.Find("input[aria-label='Title']").Input("Dune");
         var host = Render<AppDialogHost>();
         var asked = CanDismissAsync(cut);
         host.WaitForElement(".app-confirm");
@@ -394,7 +399,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
 
         TypeIntoTheTitle(cut, "Dune Messiah");
 
-        _editor.WaitForAssertion(() => Assert.Contains("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent));
+        _editor.WaitForAssertion(() => Assert.Contains("Save changes", _editor.Find("button.tl-editor-window__save").TextContent));
         Assert.DoesNotContain("Dune Messiah", cut.Find(".tl-detail-stage").TextContent);
         Assert.Empty(_saves);
         Assert.Empty(_sessionCalls);
@@ -439,7 +444,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     public async Task ThePencilsTheOldBannerAndTheSectionBelowTheHeroStayGoneWhileThePopOverIsOpen()
     {
         var cut = await StartEditingAsync();
-        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match & Identity").Click();
+        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match").Click();
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-panel")));
 
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));

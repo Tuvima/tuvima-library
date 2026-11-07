@@ -163,6 +163,9 @@ public interface IWorkRepository
         CancellationToken ct = default,
         bool overwrite = false);
 
+    /// <summary>Removes these keys from <c>works.external_identifiers</c> and leaves every other key as it is.</summary>
+    Task RemoveExternalIdentifiersAsync(Guid workId, IReadOnlyCollection<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+
     /// <summary>
     /// Resolves the parent/child lineage for a given media asset.
     /// Walks <c>media_assets → editions → works</c> and returns the asset's

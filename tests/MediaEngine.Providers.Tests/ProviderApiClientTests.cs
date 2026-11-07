@@ -138,6 +138,32 @@ public sealed class ProviderApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task ASearchThatFoundNothing_IsAskedAgainNextTime()
+    {
+        var handler = new TvdbHandler(search: """{"status":"success","data":[]}""");
+        var client = CreateClient(CreateLoader("installation-key"), handler);
+        var query = ProviderApiClient.Args(("query", "Solo Leveling"));
+
+        await client.GetAsync("tvdb", "search", query);
+        await client.GetAsync("tvdb", "search", query);
+
+        Assert.Equal(2, handler.Paths.Count(path => path.Contains("/search", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task ASearchThatFoundSomething_IsKeptForTheNextAsk()
+    {
+        var handler = new TvdbHandler();
+        var client = CreateClient(CreateLoader("installation-key"), handler);
+        var query = ProviderApiClient.Args(("query", "Solo Leveling"));
+
+        await client.GetAsync("tvdb", "search", query);
+        await client.GetAsync("tvdb", "search", query);
+
+        Assert.Equal(1, handler.Paths.Count(path => path.Contains("/search", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public async Task ArgumentsAreCheckedBeforeAnythingIsSent()
     {
         var handler = new TvdbHandler();

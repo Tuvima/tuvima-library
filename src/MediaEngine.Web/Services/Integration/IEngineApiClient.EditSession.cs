@@ -39,6 +39,19 @@ public partial interface IEngineApiClient
     /// <summary>DELETE /library/editor-subjects/things/{id} - deletes a character, place or faction someone added by hand to a Universe, at once. False when it did not go through.</summary>
     Task<bool> DeleteEditorUniverseThingAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>
+    /// GET /metadata/{id}/editor-nav/level - one searchable, paged list of the editor header's item dropdown: the items of a season, a section
+    /// or the whole title, with the supporting files that belong to it. <paramref name="levelId"/> null means the title itself. Null when the
+    /// read fails; the dropdown then keeps the page it has.
+    /// </summary>
+    Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(Guid entityId, Guid? levelId, string? query, int offset, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /metadata/editor-config?kind= - the editor's tabs, facts and search fields for a kind of item that does not open on a work (a
+    /// person, a Series, a Universe). Null when the kind is not known or the read fails.
+    /// </summary>
+    Task<EditorHeaderConfigDto?> GetEditorKindConfigAsync(string kind, CancellationToken ct = default);
+
     /// <summary>GET /library/editor-subjects/{id}/history - what was changed in the editor on a Universe or one of its things, newest first.</summary>
     Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetEditorSubjectHistoryAsync(Guid id, CancellationToken ct = default);
 }

@@ -27,6 +27,9 @@ public static class TuvimaLibraryMoveServiceCollectionExtensions
         services.AddSingleton<IEditSessionChangeHandler, RelationshipEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ChildRematchEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, FileMoveEditSessionChangeHandler>();
+
+        // Where applying a match would put an item and its file: a read over the same places and previews (universal editor v5, D8).
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchPlacementService>();
         return services;
     }
 }

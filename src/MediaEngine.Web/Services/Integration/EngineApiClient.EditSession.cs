@@ -39,6 +39,27 @@ public sealed partial class EngineApiClient
     public Task<ItemQuickFactsDto?> GetEditorQuickFactsAsync(Guid id, CancellationToken ct = default) =>
         GetAsync<ItemQuickFactsDto>("GET /library/editor-quick-facts/{id}", $"/library/editor-quick-facts/{id:D}", ct: ct);
 
+    public Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(Guid entityId, Guid? levelId, string? query, int offset, CancellationToken ct = default)
+    {
+        var parts = new List<string> { $"offset={Math.Max(0, offset)}" };
+        if (levelId is { } level)
+        {
+            parts.Add($"level_id={level:D}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+        }
+
+        return GetAsync<EditorHeaderLevelDto>(
+            "GET /metadata/{id}/editor-nav/level", $"/metadata/{entityId:D}/editor-nav/level?{string.Join('&', parts)}", ct: ct);
+    }
+
+    public Task<EditorHeaderConfigDto?> GetEditorKindConfigAsync(string kind, CancellationToken ct = default) =>
+        GetAsync<EditorHeaderConfigDto>(
+            "GET /metadata/editor-config", $"/metadata/editor-config?kind={Uri.EscapeDataString(kind)}", logAsWarning: false, ct: ct);
+
     public Task<EditorUniverseThingsDto?> GetEditorUniverseThingsAsync(
         string qid, string? kindKey, string? search, int offset, int limit, CancellationToken ct = default)
     {
