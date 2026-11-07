@@ -108,7 +108,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.False(atNormalSpeed.IsActive);
         var fasterOnly = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1.5d))
             .Single(control => control.Key == PlaybackControlKey.Settings);
-        Assert.True(fasterOnly.IsActive);
+        // Speed has its own chip on the bar, so a faster speed alone does not light the gear (unified player v2 WP6).
+        Assert.False(fasterOnly.IsActive);
         Assert.Equal("Settings", fasterOnly.AriaLabel);
 
         var noChapters = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState());
