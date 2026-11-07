@@ -45,4 +45,32 @@ public sealed partial class EngineApiClient
         Guid titleId, SupportingFileBulkDeleteRequest request, CancellationToken ct = default) =>
         PostBatchEditAsync<SupportingFileBulkDeleteRequest, SupportingFileBulkDeleteResultDto>(
             $"/api/v1/supporting-files/titles/{titleId:D}/bulk-delete", request, "POST /api/v1/supporting-files/titles/{id}/bulk-delete", ct);
+
+    public Task<SupportingFileListDto?> ListSupportingFilesAsync(Guid titleId, SupportingFileListRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var query = new Dictionary<string, string?>
+        {
+            ["q"] = string.IsNullOrWhiteSpace(request.Query) ? null : request.Query.Trim(),
+            ["where"] = request.Where,
+            ["type"] = request.Type,
+            ["group"] = request.Group,
+            ["sort"] = request.Sort,
+            ["desc"] = request.Descending ? "true" : null,
+            ["page"] = request.Page.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        return GetAsync<SupportingFileListDto>(
+            "GET /api/v1/supporting-files/titles/{id}", $"/api/v1/supporting-files/titles/{titleId:D}", query, ct: ct);
+    }
+
+    public Task<EditorFolderTreeDto?> GetEditorFolderTreeAsync(Guid entityId, string? folder, int offset, CancellationToken ct = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["folder"] = string.IsNullOrEmpty(folder) ? null : folder,
+            ["offset"] = offset > 0 ? offset.ToString(System.Globalization.CultureInfo.InvariantCulture) : null,
+        };
+        return GetAsync<EditorFolderTreeDto>(
+            "GET /metadata/{id}/folder-tree", $"/metadata/{entityId:D}/folder-tree", query, ct: ct);
+    }
 }

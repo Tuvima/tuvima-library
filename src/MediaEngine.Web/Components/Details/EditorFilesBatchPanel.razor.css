@@ -1,0 +1,5 @@
+.tl-fbatch__note {
+    margin: 0 0 var(--tl-space-3);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}

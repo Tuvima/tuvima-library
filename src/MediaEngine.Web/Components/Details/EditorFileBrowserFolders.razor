@@ -1,0 +1,178 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The "Folders and files" view of the supporting-files browser (universal editor v5 screen E, note 4; 3a): the real folder tree of the title,
+   folders first and then files, each file marked as the title's media, a supporting file, one Library never shows ("Not shown in the library") or
+   one that is not placed yet. A file the Engine has an item for offers "What is this file?", the v4 question (an episode, an Extra of a kind and
+   place, another title, or ignored), which stages its answer for Review. On a Videos series the series order sits above the tree. It never leaves
+   the title's folder: the Engine answers only for folders inside it. *@
+<div class="tl-fbfolders" data-testid="file-browser-folders">
+    @if (Subject is not null)
+    {
+        @* A video chooses its series here (it used to sit under Match): the panel shows itself only for a video. *@
+        <EditorVideoSeriesPanel Subject="Subject" Session="Session" Family="Family" CanEdit="@Editable" ShowOrder="false" />
+    }
+
+    @if (IsVideoSeries)
+    {
+        <section class="tl-fbfolders__order" aria-label="@L["EditorBrowser_VideoOrder"].Value">
+            <h4 class="tl-fbfolders__heading">@L["EditorBrowser_VideoOrder"]</h4>
+            <EditorVideoOrderList EntityId="State.TitleId" SeriesTitle="@State.TitleName" Session="Session" Family="Family" CanEdit="@Editable" Compact="true" />
+        </section>
+    }
+
+    <div class="tl-fbfolders__path" data-testid="file-browser-path">
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ArrowUpward"
+                   Disabled="@(State.Tree?.ParentFolder is null)" data-folder-up="true"
+                   OnClick="@(() => State.OpenFolderAsync(State.Tree?.ParentFolder, 0))">@L["EditorBrowser_Up"]</AppButton>
+        <span class="tl-fbfolders__crumbs">@PathText</span>
+        @if (State.Tree is { ReadOnly: true })
+        {
+            <AppStatusBadge Tone="AppUiTone.Neutral" Text="@L["EditorBrowser_ReadOnly"].Value" />
+        }
+    </div>
+
+    @if (State.TreeError is { } error)
+    {
+        <AppAlert Severity="AppSeverity.Error" Dense="true">
+            @error
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                       OnClick="@(() => State.OpenFolderAsync(State.Folder, 0))">@L["Common_TryAgain"]</AppButton>
+        </AppAlert>
+    }
+    else if (State.TreeLoading && State.FolderEntries.Count == 0)
+    {
+        <div class="tl-fbfolders__busy" aria-busy="true"><AppSkeleton Height="2.75rem" Width="100%" /><AppSkeleton Height="2.75rem" Width="100%" /></div>
+    }
+    else if (State.FolderEntries.Count == 0)
+    {
+        <p class="tl-fbfolders__empty">@L["EditorBrowser_FolderEmpty"]</p>
+    }
+    else
+    {
+        <ul class="tl-fbfolders__list">
+            @foreach (var entry in State.FolderEntries)
+            {
+                <li @key="entry.Path" class="@(entry.State == EditorFolderEntryStates.Hidden ? "tl-fbfolders__entry is-hidden" : "tl-fbfolders__entry")" data-entry="@entry.Path" data-state="@(entry.IsFolder ? "folder" : entry.State)">
+                    @if (entry.IsFolder)
+                    {
+                        <AppRowButton Class="tl-fbfolders__row" OnClick="@(() => State.OpenFolderAsync(entry.Path, 0))">
+                            <span class="tl-fbfolders__icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" /></span>
+                            <span class="tl-fbfolders__name">@entry.Name</span>
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                        </AppRowButton>
+                    }
+                    else
+                    {
+                        <div class="tl-fbfolders__row tl-fbfolders__row--file">
+                            <span class="tl-fbfolders__icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" Size="AppIconSize.Control20" /></span>
+                            <span class="tl-fbfolders__name" data-overflow-tooltip="@entry.Name">@entry.Name</span>
+                            @if (entry.SizeBytes is { } size)
+                            {
+                                <span class="tl-fbfolders__size">@EditorFileBrowserRules.SizeText(size)</span>
+                            }
+
+                            @Mark(entry)
+                            @Actions(entry)
+                        </div>
+                        @if (_sorting == entry.Path && entry.ItemId is { } itemId)
+                        {
+                            <div class="tl-fbfolders__sort">
+                                <EditorFileSortPanel Subject="@SubjectFor(itemId, entry.Name)" Session="Session" CanEdit="@Editable" />
+                            </div>
+                        }
+                    }
+                </li>
+            }
+        </ul>
+
+        @if (State.FolderHasMore)
+        {
+            <div class="tl-fbfolders__more">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Disabled="@State.TreeLoading" data-folder-more="true"
+                           OnClick="@(() => State.ShowMoreFolderAsync())">@string.Format(L["EditorNav_ShowingOf"].Value, State.FolderEntries.Count, State.Tree?.Total ?? 0)</AppButton>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private string? _sorting;
+
+    [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    [Parameter] public EditSessionState? Session { get; set; }
+
+    /// <summary>The item being edited, when it is a video: it can be moved to another series from here.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    [Parameter] public EditorFamilyState? Family { get; set; }
+
+    /// <summary>True for a Videos series, where the order of the videos is edited above the tree.</summary>
+    [Parameter] public bool IsVideoSeries { get; set; }
+
+    /// <summary>False outside a desktop editing session: the answers and the order are shown but not changeable.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    private bool Editable => CanEdit && Session is { IsActive: true };
+
+    /// <summary>A file or media file in the tree was opened.</summary>
+    [Parameter] public EventCallback<EditorFileBrowserOutcome> OnChoose { get; set; }
+
+    private string PathText => string.IsNullOrEmpty(State.Folder)
+        ? State.Tree?.RootName ?? State.TitleName
+        : $"{State.Tree?.RootName ?? State.TitleName} / {State.Folder.Replace("/", " / ")}";
+
+    // The question needs only the item's id: it reads the rest (the file name, the kinds, the guess) from the Engine.
+    private static EditorMatchSubject SubjectFor(Guid itemId, string name) =>
+        new(itemId, string.Empty, string.Empty, string.Empty, name, null, null, null, new Dictionary<string, string>(), []);
+
+    private RenderFragment Mark(EditorFolderEntryDto entry) => __builder =>
+    {
+        switch (entry.State)
+        {
+            case EditorFolderEntryStates.Main:
+                <AppStatusBadge Tone="AppUiTone.Primary" Text="@L["EditorBrowser_MarkMain"].Value" />
+                break;
+            case EditorFolderEntryStates.Supporting:
+                <AppStatusBadge Tone="AppUiTone.Neutral" Text="@L["EditorBrowser_MarkSupporting"].Value" />
+                break;
+            case EditorFolderEntryStates.Unsorted:
+                <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorBrowser_MarkUnsorted"].Value" />
+                break;
+            case EditorFolderEntryStates.Hidden:
+                <span class="tl-fbfolders__hidden">@L["EditorBrowser_MarkHidden"]</span>
+                break;
+        }
+    };
+
+    private RenderFragment Actions(EditorFolderEntryDto entry) => __builder =>
+    {
+        if (entry.SupportingFileId is { } fileId)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-entry-open="file"
+                       OnClick="@(() => OnChoose.InvokeAsync(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenFile, fileId)))">@L["EditorBrowser_Open"]</AppButton>
+        }
+        else if (entry.ItemId is { } itemId && entry.State == EditorFolderEntryStates.Main)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-entry-open="item"
+                       OnClick="@(() => OnChoose.InvokeAsync(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenItem, itemId)))">@L["EditorBrowser_Open"]</AppButton>
+        }
+
+        if (entry.ItemId is not null && entry.State is EditorFolderEntryStates.Main or EditorFolderEntryStates.Unsorted)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" data-entry-sort="true"
+                       OnClick="@(() => _sorting = _sorting == entry.Path ? null : entry.Path)">@L["EditorFileSort_Heading"]</AppButton>
+        }
+    };
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

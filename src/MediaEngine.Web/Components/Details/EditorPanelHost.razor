@@ -20,7 +20,14 @@
     var railTools = RailTools(mode, ShowHistory, IsAdministrator).ToList();
     // A tool the item switched to does not have (Match on a course video) falls back to Details instead of drawing nothing.
     var shown = railTools.Any(entry => entry.Item1 == tool) ? tool : EditTool.Details;
-    var framed = ItemHeader is not null && TitleOverride is null && !_reviewing;
+    // Several supporting files edited together keep the framed header and offer Details and History only (WP8, screen F); the tab is the host's own.
+    if (FilesBatch)
+    {
+        shown = _filesHistory ? EditTool.History : EditTool.Details;
+        railTools = [(EditTool.Details, TitleFor(EditTool.Details), IconFor(EditTool.Details)), (EditTool.History, TitleFor(EditTool.History), IconFor(EditTool.History))];
+    }
+
+    var framed = ItemHeader is not null && (TitleOverride is null || FilesBatch) && !_reviewing;
     var tabs = railTools.Select(entry => new EditorWindowChrome.Tab(entry.Item1.ToString(), entry.Item2, entry.Item3)).ToList();
     var title = _reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown);
     <EditorWindowChrome Framed="framed"
@@ -29,11 +36,12 @@
                         Title="@title"
                         CloseName="@(TitleOverride ?? TitleFor(shown))"
                         HeaderExtra="HeaderContent"
-                        ShowTabs="@(TitleOverride is null && !_reviewing)"
+                        ShowTabs="@((TitleOverride is null || FilesBatch) && !_reviewing)"
                         Tabs="tabs"
                         ActiveKey="@shown.ToString()"
                         TabsDisabled="@(flow.Saving || flow.Switching)"
-                        OnTab="@(key => Enum.TryParse<EditTool>(key, out var picked) && picked != shown ? flow.SelectToolAsync(picked) : Task.CompletedTask)"
+                        OnTab="@(key => PickTab(key, shown, flow))"
+                        ChangeSuffix="@ChangeSuffix"
                         ShowFooter="@(!_reviewing)"
                         ReadOnly="@mode.Fields.IsReadOnlySeries"
                         ChangeCount="count"
@@ -92,6 +100,26 @@
 
     /// <summary>A title for the panel in place of the tool's name ("Edit 4 songs" while several ticked items are edited together).</summary>
     [Parameter] public string? TitleOverride { get; set; }
+
+    /// <summary>Several supporting files are edited together: the framed header stays and the tabs are Details and History.</summary>
+    [Parameter] public bool FilesBatch { get; set; }
+
+    /// <summary>Text after the unsaved count in the footer ("· 2 files").</summary>
+    [Parameter] public string? ChangeSuffix { get; set; }
+
+    private bool _filesHistory;
+
+    private Task PickTab(string key, EditTool shown, EditSessionFlow flow)
+    {
+        if (FilesBatch)
+        {
+            _filesHistory = key == nameof(EditTool.History);
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
+
+        return Enum.TryParse<EditTool>(key, out var picked) && picked != shown ? flow.SelectToolAsync(picked) : Task.CompletedTask;
+    }
 
     /// <summary>What the open tool shows; the page decides (the Details fields, or the section the tool hosts).</summary>
     [Parameter] public RenderFragment<EditTool>? ChildContent { get; set; }

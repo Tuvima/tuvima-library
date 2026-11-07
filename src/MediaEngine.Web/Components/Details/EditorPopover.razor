@@ -36,18 +36,36 @@
         <EditorPanelHost Mode="mode"
                          Flow="flow"
                          Picker="Editor.Picker"
-                         TitleOverride="@BulkPanelTitle"
+                         TitleOverride="@(BulkPanelTitle ?? FilesBatchTitle)"
+                         FilesBatch="@Editor.FileBatch.IsOpen"
+                         ChangeSuffix="@(Editor.FileBatch.IsOpen ? string.Format(L["EditorFilesBatch_FilesCount"].Value, Editor.FileBatch.Rows.Count) : null)"
                          ShowHistory="@(binding?.ShowHistory == true)"
-                         ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
-                         FooterStart="@(Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
+                         ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
+                         FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
-                @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
+                @if (Editor.FileBatch.IsOpen)
+                {
+                    @* The framed header carries Back to the list. *@
+                }
+                else if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
                 {
                     <span class="tl-editor-popover__editing" data-overflow-tooltip="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
                 }
             </HeaderContent>
             <ChildContent Context="tool">
-                @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
+                @if (Editor.FileBatch.IsOpen)
+                {
+                    @* Several supporting files edited together: Details, or History with one collapsed section per file (read when opened). *@
+                    @if (tool == EditTool.History)
+                    {
+                        <EditorFilesBatchHistory Rows="Editor.FileBatch.Rows" TitleId="Editor.FileBatch.TitleId" />
+                    }
+                    else
+                    {
+                        <EditorFilesBatchPanel State="Editor.FileBrowser" CanEdit="@mode.CanEdit" />
+                    }
+                }
+                else if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
                     @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
                     <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
@@ -95,14 +113,6 @@
                                       IsUnmatched="@IsActiveUnmatched"
                                       Universe="@binding?.UniverseLink?.Invoke()"
                                       OnOpenUniverse="OpenUniverseAsync" />
-                    <EditorVideoSeriesPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
-                                            Session="flow.Session"
-                                            Family="Editor.Family"
-                                            CanEdit="@mode.CanEdit" />
-                    <EditorFileSortPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
-                                         Extras="binding?.Extras"
-                                         Session="flow.Session"
-                                         CanEdit="@mode.CanEdit" />
                 }
                 else if (tool == EditTool.Bookmarks)
                 {
@@ -140,6 +150,54 @@
             </Selects>
         </EditorItemHeader>
     };
+
+    // "Editing N files": the framed header in group mode (WP8, screen F), with the home button and "Back to the list".
+    private RenderFragment FilesBatchHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family"
+                          GroupRows="Editor.FileBatch.Rows"
+                          GroupLabel="@Editor.FileBatch.TitleName"
+                          GroupTitle="@EditorFileBrowserRules.EditingTitle(L, Editor.FileBatch.Rows.Count)"
+                          OnGroupBack="BackToTheListAsync"
+                          OnGroupHome="HomeFromFilesAsync" />
+    };
+
+    // Delete in "Editing N files": asks once naming the count, then runs the browser's bulk delete (D29); the group then shrinks or closes.
+    private RenderFragment FilesBatchDeleteFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
+                   StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching || !mode.CanEdit)" data-files-batch-delete="true"
+                   OnClick="DeleteFilesAsync">
+            @L["EditorFilesBatch_Delete"]
+        </AppButton>
+    };
+
+    private async Task DeleteFilesAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            var rows = Editor.FileBatch.Rows.ToList();
+            await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, Toasts, L);
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    // The home button: the group form closes and the editor goes to the title itself.
+    private async Task HomeFromFilesAsync()
+    {
+        var root = Editor.Mode.Fields.Header?.Root.Id ?? Editor.FileBatch.TitleId;
+        Editor.FileBatch.Close();
+        await Editor.Flow.SwitchToAsync(root);
+    }
 
     // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). It asks once, naming the item and what goes with
     // it, and then happens at once; it does not wait for Save.
@@ -229,7 +287,11 @@
     private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
         && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
 
-    private string DialogLabel => Editor.Batch.Panel == BulkPanelKind.None
+    private string? FilesBatchTitle => Editor.FileBatch.IsOpen ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count) : null;
+
+    private string DialogLabel => Editor.FileBatch.IsOpen
+        ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count)
+        : Editor.Batch.Panel == BulkPanelKind.None
         ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"
         : BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType);
 
@@ -247,7 +309,87 @@
     {
         Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
         Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
+        Editor.HeaderHooks.OpenSupportingFiles = request => OpenBrowserAsync(EditorBrowserView.Files);
+        Editor.HeaderHooks.OpenFolders = _ => OpenBrowserAsync(EditorBrowserView.Folders);
         Editor.Changed += OnChanged;
+    }
+
+    // The supporting-files browser (v5 WP8): "All supporting files" and the folder button open it over the editor. It always shows the whole
+    // title (the header's root), so the files of one level and of the whole show are one list with a Where filter.
+    private async Task OpenBrowserAsync(EditorBrowserView view)
+    {
+        if (_browsing || Editor.Mode.Fields.Header is not { } header)
+        {
+            return;
+        }
+
+        _browsing = true;
+        try
+        {
+            // The dialog opens first and shows its loading state while the list is read; the folder button opens the Folders view at its own level.
+            var reading = Editor.FileBrowser.OpenAsync(
+                header.Root.Id, header.Root.Title, view, folder: header.FolderButton?.RelativeFolder, mediaType: Editor.Mode.Fields.MediaType);
+            var dialog = await Dialogs.ShowAsync<EditorFileBrowserDialog>(
+                string.Empty,
+                new AppDialogParameters<EditorFileBrowserDialog>
+                {
+                    { component => component.State, Editor.FileBrowser },
+                    { component => component.Session, Editor.Flow.Session },
+                    { component => component.IsVideoSeries, EditorNavText.CanReorder(header) },
+                    { component => component.Subject, Editor.Mode.Fields.Loading ? null : Editor.Mode.Fields.MatchSubject() },
+                    { component => component.Family, Editor.Family },
+                    { component => component.CanEdit, Editor.Mode.CanEdit },
+                },
+                new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, BackdropClick = false, CloseOnEscapeKey = true });
+            await reading;
+            if (await dialog.Result is { Canceled: false, Data: EditorFileBrowserOutcome outcome })
+            {
+                await HandleBrowserOutcomeAsync(outcome);
+            }
+        }
+        finally
+        {
+            _browsing = false;
+        }
+    }
+
+    private bool _browsing;
+
+    private async Task HandleBrowserOutcomeAsync(EditorFileBrowserOutcome outcome)
+    {
+        switch (outcome.Action)
+        {
+            case EditorFileBrowserAction.EditSelected:
+                var ticked = Editor.FileBrowser.Ticked;
+                if (ticked.Count >= 2)
+                {
+                    Editor.FileBatch.Open(Editor.FileBrowser.TitleId, Editor.FileBrowser.TitleName, ticked);
+                }
+                else if (ticked.Count == 1 && Guid.TryParse(ticked[0].Id, out var only))
+                {
+                    await Editor.HeaderHooks.OpenSupportingFile!(only);
+                }
+
+                break;
+            case EditorFileBrowserAction.OpenFile:
+                await Editor.HeaderHooks.OpenSupportingFile!(outcome.Id);
+                if (outcome.Preview)
+                {
+                    await Editor.Flow.SelectToolAsync(EditTool.Preview);
+                }
+
+                break;
+            case EditorFileBrowserAction.OpenItem:
+                await Editor.Flow.SwitchToAsync(outcome.Id);
+                break;
+        }
+    }
+
+    // "Back to the list": the several-files form closes and the browser opens again with the same ticks and filters.
+    private async Task BackToTheListAsync()
+    {
+        Editor.FileBatch.Close();
+        await OpenBrowserAsync(EditorBrowserView.Files);
     }
 
     public void Dispose()
@@ -255,6 +397,8 @@
         Editor.Changed -= OnChanged;
         Editor.AskSaveOrDiscard = null;
         Editor.ConfirmDiscard = null;
+        Editor.HeaderHooks.OpenSupportingFiles = null;
+        Editor.HeaderHooks.OpenFolders = null;
     }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);

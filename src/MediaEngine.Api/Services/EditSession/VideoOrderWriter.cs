@@ -19,6 +19,51 @@ public sealed class VideoOrderWriter(
     ICanonicalValueRepository canonicalRepo,
     ISystemActivityRepository activityRepo)
 {
+    /// <summary>
+    /// Saves the hand order of a series' sections: the positions in the order store, and the same positions as locked
+    /// <c>video_section_index</c> claims on the sections so a re-scan does not undo them. Null when the list does not name exactly the sections that hold videos.
+    /// </summary>
+    public async Task<IReadOnlyList<VideoSectionPlacement>?> SaveSectionsAsync(Guid seriesWorkId, IReadOnlyList<Guid> orderedSectionIds, CancellationToken ct)
+    {
+        var placements = await order.ReorderSectionsAsync(seriesWorkId, orderedSectionIds, ct).ConfigureAwait(false);
+        if (placements is null)
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var claims = placements.Select(placement => new MetadataClaim
+        {
+            Id = Guid.NewGuid(),
+            EntityId = placement.SectionWorkId,
+            ProviderId = WellKnownProviders.UserManual,
+            ClaimKey = MetadataFieldConstants.VideoSectionIndex,
+            ClaimValue = placement.Position.ToString(CultureInfo.InvariantCulture),
+            ClaimedAt = now,
+            Confidence = 1.0,
+            IsUserLocked = true,
+        }).ToList();
+        var canonicals = placements.Select(placement => new CanonicalValue
+        {
+            EntityId = placement.SectionWorkId,
+            Key = MetadataFieldConstants.VideoSectionIndex,
+            Value = placement.Position.ToString(CultureInfo.InvariantCulture),
+            LastScoredAt = now,
+            WinningProviderId = WellKnownProviders.UserManual,
+        }).ToList();
+        await claimRepo.InsertBatchAsync(claims, ct).ConfigureAwait(false);
+        await canonicalRepo.UpsertBatchAsync(canonicals, ct).ConfigureAwait(false);
+        await activityRepo.LogAsync(new SystemActivityEntry
+        {
+            OccurredAt = now,
+            ActionType = SystemActionType.MetadataManualOverride,
+            EntityId = seriesWorkId,
+            EntityType = "Work",
+            Detail = $"Put {placements.Count} sections in a new order.",
+        }, ct).ConfigureAwait(false);
+        return placements;
+    }
+
     /// <summary>The placements saved, or null when the list does not name exactly the videos that are there now (nothing is saved).</summary>
     public async Task<IReadOnlyList<VideoOrderPlacement>?> SaveAsync(Guid parentWorkId, IReadOnlyList<Guid> orderedWorkIds, CancellationToken ct)
     {

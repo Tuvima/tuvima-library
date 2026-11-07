@@ -2970,6 +2970,9 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileRowDto
   Description: System.String | nullability=nullable | accessors=get,init
   WhereKey: System.String | nullability=not-null | accessors=get,init
   WhereLabel: System.String | nullability=not-null | accessors=get,init
+  ScopeSource: System.String | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  AlongsideLabel: System.String | nullability=nullable | accessors=get,init
   GroupId: System.String | nullability=nullable | accessors=get,init
   Group: System.String | nullability=nullable | accessors=get,init
   Role: System.String | nullability=not-null | accessors=get,init
@@ -3687,6 +3690,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderDto
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
   FolderName: System.String | nullability=not-null | accessors=get,init
   PathLabel: System.String | nullability=not-null | accessors=get,init
+  RelativeFolder: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderLevelDto
   LevelId: System.Guid? | nullability=nullable | accessors=get,init

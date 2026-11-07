@@ -109,6 +109,39 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".tl-hnav__home"));
     }
 
+    // -- D19: Reorder videos ------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void ACoursesLessonDropdown_OffersReorderVideos_AndChoosingItShowsTheOrderListInPlaceOfTheLessons()
+    {
+        var cut = Show(EditorHeaderTestData.CourseLesson());
+        cut.Find("#tl-hnav-item").Click();
+
+        cut.Find("#tl-hnav-reorder").Click();
+
+        Assert.Single(cut.FindAll("[data-testid=reorder-videos]"));
+        Assert.Empty(cut.FindAll(".tl-hnav__option[data-state]"));
+    }
+
+    [Fact]
+    public void AShowsEpisodeDropdown_HasNoReorderRow()
+    {
+        var cut = Show(EditorHeaderTestData.TvEpisode());
+        _page = (_, _) => EditorHeaderTestData.TvEpisode().Level;
+        cut.Find("#tl-hnav-item").Click();
+
+        Assert.Empty(cut.FindAll("#tl-hnav-reorder"));
+    }
+
+    [Fact]
+    public void AMoviesDropdown_HasNoReorderRow()
+    {
+        var cut = Show(EditorHeaderTestData.Movie(withSupportingFiles: true));
+        cut.Find("#tl-hnav-item").Click();
+
+        Assert.Empty(cut.FindAll("#tl-hnav-reorder"));
+    }
+
     [Fact]
     public void ACoursesLesson_ShowsSectionAndNumbers_NeverSeasonAndEpisodeCodes()
     {
@@ -116,7 +149,7 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
 
         Assert.Equal("Section", cut.Find("#tl-hnav-second").GetAttribute("data-level"));
         cut.Find("#tl-hnav-item").Click();
-        var codes = cut.FindAll(".tl-hnav__option .tl-hnav__text > small").Select(code => code.TextContent.Trim()).ToList();
+        var codes = cut.FindAll(".tl-hnav__option:not(#tl-hnav-reorder) .tl-hnav__text > small").Select(code => code.TextContent.Trim()).ToList();
         Assert.Equal(["01 · 12 min", "02 · 14 min"], codes);
         Assert.DoesNotContain("Season", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Episode", cut.Markup, StringComparison.Ordinal);

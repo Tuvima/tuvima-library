@@ -1041,13 +1041,15 @@ public sealed class EditorHeaderReadService(
             return null;
         }
 
-        var levelFolder = choice.Kind == LevelKinds.Mid && choice.LevelId is { } mid && support.MidFolders.TryGetValue(mid, out var folder)
-            ? folder.Split('/').Last()
+        var levelRelative = choice.Kind == LevelKinds.Mid && choice.LevelId is { } mid && support.MidFolders.TryGetValue(mid, out var folder)
+            ? folder.Trim('/')
             : null;
+        var levelFolder = levelRelative?.Split('/').Last();
         var parent = Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(root) ?? string.Empty));
         return new EditorHeaderFolderButtonDto
         {
             FolderName = name,
+            RelativeFolder = levelRelative ?? string.Empty,
             PathLabel = levelFolder is not null
                 ? $"{name} / {levelFolder}"
                 : string.IsNullOrEmpty(parent) ? name : $"{parent} / {name}",
