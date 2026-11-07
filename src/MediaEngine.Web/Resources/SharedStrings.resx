@@ -9614,6 +9614,27 @@
   <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
     <value>Managed folder · Moved and renamed to match the new details</value>
   </data>
+  <data name="EditorSeries_ReadOnlyNotice" xml:space="preserve">
+    <value>A Series is a grouping made from its members' own matches, so it can't be edited here. To change it, edit one of its members.</value>
+  </data>
+  <data name="EditorSeries_BooksInOrder" xml:space="preserve">
+    <value>Books in order</value>
+  </data>
+  <data name="EditorSeries_FilmsInOrder" xml:space="preserve">
+    <value>Films in order</value>
+  </data>
+  <data name="EditorSeries_ComicsInOrder" xml:space="preserve">
+    <value>Comics in order</value>
+  </data>
+  <data name="EditorSeries_AudiobooksInOrder" xml:space="preserve">
+    <value>Audiobooks in order</value>
+  </data>
+  <data name="EditorSeries_ReadOnlyTitle" xml:space="preserve">
+    <value>Read-only</value>
+  </data>
+  <data name="EditorSeries_ReadOnlyDetail" xml:space="preserve">
+    <value>Series come from their members' matches.</value>
+  </data>
   <data name="EditorFooter_EditsSaveHere" xml:space="preserve">
     <value>Edits save in Library.</value>
   </data>

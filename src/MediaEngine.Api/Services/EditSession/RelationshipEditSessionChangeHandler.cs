@@ -23,12 +23,18 @@ namespace MediaEngine.Api.Services.EditSession;
 public sealed class RelationshipEditSessionChangeHandler(
     ILibraryMoveService moves,
     ILibraryMoveRepository moveItems,
-    EditSessionCallerAccessor callers) : IEditSessionChangeHandler
+    EditSessionCallerAccessor callers,
+    EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     public string Kind => EditSessionChangeKinds.Relationship;
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            return EditSessionReasons.SeriesIsReadOnly;
+        }
+
         if (callers.Current is not { } caller)
         {
             return EditSessionReasons.SessionUnavailable;
@@ -61,6 +67,11 @@ public sealed class RelationshipEditSessionChangeHandler(
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
+        }
+
         var caller = callers.Current ?? throw new InvalidOperationException(EditSessionReasons.SessionUnavailable);
         if (!TryDestination(change, out var destination))
         {
