@@ -76,6 +76,9 @@
       "tl-editor-header__link",
       "tl-editor-header__wash"
     ],
+    "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor": [
+      "tl-matchcard__art"
+    ],
     "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
       "is-current",
       "is-selected",
