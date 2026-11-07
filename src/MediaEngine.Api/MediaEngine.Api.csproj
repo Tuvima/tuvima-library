@@ -51,6 +51,8 @@
     <EmbeddedResource Include="..\..\config\exiftool\tuvima.config" LogicalName="MediaEngine.Api.exiftool.tuvima.config" />
     <!-- The editor's numbers and per-kind rules (universal editor v5 D34). The config folder's copy wins; this one is used when that folder predates it. -->
     <EmbeddedResource Include="..\..\config\editor.json" LogicalName="MediaEngine.Api.editor.json" />
+    <!-- The Match tab's Wikidata side: result count, year tolerance and the Wikidata classes that are an item itself or its parent (universal editor v5 D34). Same rule as above. -->
+    <EmbeddedResource Include="..\..\config\wikidata_match.json" LogicalName="MediaEngine.Api.wikidata_match.json" />
     <!-- The providers that ship with the Library, kept so a missing or unreadable provider file can be put back at start-up (Plugins screens v4 D37). -->
     <EmbeddedResource Include="..\..\config\providers\*.json" LogicalName="MediaEngine.Api.shipped-providers.%(Filename)%(Extension)" />
     <!-- The settings of the Local AI feature plugins, kept as JSON beside their code (Plugins screens v5 D51, D58). -->

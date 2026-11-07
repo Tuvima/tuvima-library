@@ -25,6 +25,31 @@ public static partial class ItemCanonicalEndpoints
     internal static readonly TimeSpan TvVisibleRefreshBudget = TimeSpan.FromSeconds(10);
 
     /// <summary>
+    /// What a retail match does to the Work's Wikidata state before the automatic alignment runs again. A Wikidata link a person set is theirs
+    /// (universal editor v5, 3c "Independence"): a retail match changes the provider side only, so that state and its QID are left alone. An
+    /// automatic link is put back to pending so it is looked up again; an item with no link starts from the provider's match alone.
+    /// </summary>
+    internal static async Task ResetAutomaticWikidataStateAsync(
+        IItemCanonicalRepository itemCanonicalData, ICollectionRepository collectionRepo, Guid workId, CancellationToken ct)
+    {
+        var currentState = await itemCanonicalData.LoadWorkWikidataStateAsync(workId, ct);
+        var hasQid = !string.IsNullOrWhiteSpace(currentState?.Qid);
+        if (hasQid && !IsAutomationOwnedWikidataState(currentState!.Status, currentState.Source, currentState.Locked))
+        {
+            return;
+        }
+
+        if (hasQid)
+        {
+            await collectionRepo.UpdateWorkWikidataMatchStateAsync(workId, WorkWikidataStatus.Pending, WorkWikidataMatchSource.Retail, false, "", ct: ct);
+        }
+        else
+        {
+            await collectionRepo.UpdateWorkWikidataMatchStateAsync(workId, WorkWikidataStatus.ProviderOnly, WorkWikidataMatchSource.Retail, false, ct: ct);
+        }
+    }
+
+    /// <summary>
     /// Replaces the item's retail match. The one write path behind both the editor's retail-match action and the edit session's
     /// identity change. <paramref name="allowParentMove"/> false leaves the item where it is (only identity and details change);
     /// <paramref name="validateOnly"/> runs every verification the save runs (including TheTVDB reads) and writes nothing.
@@ -476,17 +501,7 @@ public static partial class ItemCanonicalEndpoints
             await canonicalRepo.DeleteByKeyAsync(postAlignmentWorkId, MetadataFieldConstants.EpisodeCount, ct);
         }
 
-        var currentState = await itemCanonicalData.LoadWorkWikidataStateAsync(postAlignmentWorkId, ct);
-        if (request.ClearAutoAlignedWikidata
-            && !string.IsNullOrWhiteSpace(currentState?.Qid)
-            && IsAutomationOwnedWikidataState(currentState.Status, currentState.Source, currentState.Locked))
-        {
-            await collectionRepo.UpdateWorkWikidataMatchStateAsync(postAlignmentWorkId, WorkWikidataStatus.Pending, WorkWikidataMatchSource.Retail, false, "", ct: ct);
-        }
-        else
-        {
-            await collectionRepo.UpdateWorkWikidataMatchStateAsync(postAlignmentWorkId, WorkWikidataStatus.ProviderOnly, WorkWikidataMatchSource.Retail, false, ct: ct);
-        }
+        await ResetAutomaticWikidataStateAsync(itemCanonicalData, collectionRepo, postAlignmentWorkId, ct);
 
         var identityJobId = await pipeline.EnqueueAsync(new HarvestRequest
         {
