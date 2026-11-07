@@ -100,17 +100,6 @@
 
 .network-settings ::deep .network-setting-row__control code{ color: var(--tl-text-primary); font-family: var(--tl-typography-default-family); }
 
-
-
-
-
-
-
-
-
-
-
-
 .network-settings ::deep .network-card-actions { justify-content: flex-end; margin-top: 16px; }
 .network-settings ::deep .network-advanced { gap: 10px; }
 /* Each advanced group sits inside a standard settings card, so the disclosure draws no box of its own. */

@@ -87,28 +87,6 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HeroProgressBlock_UsesStructuredListeningProgressSemantics()
-    {
-        var cut = Render<HeroProgressBlock>(parameters => parameters
-            .Add(component => component.Progress, new ProgressViewModel
-            {
-                Kind = DetailProgressKind.Listening,
-                Percent = 13,
-                Label = "Continue listening",
-                ContextLabel = "Track 6 of 50",
-                PercentLabel = "13% complete",
-                RemainingLabel = "11h 46m remaining",
-                SecondaryLabel = "44 tracks remaining",
-            }));
-
-        var progressbar = cut.Find("[role='progressbar']");
-        Assert.Equal("13", progressbar.GetAttribute("aria-valuenow"));
-        Assert.Equal("Continue listening", progressbar.GetAttribute("aria-label"));
-        Assert.Contains("Track 6 of 50", cut.Markup);
-        Assert.Contains("44 tracks remaining", cut.Markup);
-    }
-
-    [Fact]
     public void HeroActionRow_KeepsMusicModeExplicit()
     {
         var cut = Render<HeroActionRow>(parameters => parameters

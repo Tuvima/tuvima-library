@@ -229,7 +229,7 @@ public static class DashboardAuthenticationEndpoints
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
-                return Results.Redirect("/account/security");
+                return Results.Redirect("/settings/security");
             }
 
             var token = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
@@ -479,7 +479,7 @@ public static class DashboardAuthenticationEndpoints
                 return Results.NotFound();
             }
 
-            var properties = new AuthenticationProperties { RedirectUri = "/settings/account" };
+            var properties = new AuthenticationProperties { RedirectUri = "/settings/security" };
             properties.Items["tuvima:external-purpose"] = ExternalIdentityTransactionPurposes.Link;
             return Results.Challenge(properties, [provider.AuthenticationScheme]);
         });
@@ -497,11 +497,6 @@ public static class DashboardAuthenticationEndpoints
             return Results.Redirect(SignedOutRedirect);
         });
 
-
-        app.MapGet("/account/security", (string? emailTest) => Results.Redirect(
-            string.IsNullOrWhiteSpace(emailTest)
-                ? "/settings/account"
-                : $"/settings/account?emailTest={Uri.EscapeDataString(emailTest)}"));
 
         // "Secure your account": the this-computer-only owner adds a password. The Engine ends the old no-password
         // session and starts a normal one, so the sign-in cookie is replaced here (a circuit cannot set a cookie).
@@ -549,7 +544,7 @@ public static class DashboardAuthenticationEndpoints
                 }).ConfigureAwait(false);
 
             return Results.Content(
-                RecoveryCodesPage(issued.RecoveryCodes, "/settings/account", "Continue to Library",
+                RecoveryCodesPage(issued.RecoveryCodes, "/settings/security", "Continue to Library",
                     "Your account is secure. You can now sign in from other devices at home."),
                 "text/html", Encoding.UTF8);
         });
@@ -563,18 +558,18 @@ public static class DashboardAuthenticationEndpoints
             {
                 var sent = await SendCurrentAccountTestEmailAsync(
                     identity, emailSender, context.RequestAborted).ConfigureAwait(false);
-                return Results.Redirect($"/settings/account?emailTest={(sent ? "sent" : "failed")}");
+                return Results.Redirect($"/settings/security?emailTest={(sent ? "sent" : "failed")}");
             }
             if (action == "recovery-codes")
             {
                 var codes = await identity.RegenerateRecoveryCodesAsync(context.RequestAborted).ConfigureAwait(false);
                 return codes is null
                     ? Results.Content(LoginFailurePage("Recovery codes could not be created. Confirm it's you on the account page and try again."), "text/html", Encoding.UTF8, StatusCodes.Status403Forbidden)
-                    : Results.Content(RecoveryCodesPage(codes, "/settings/account", "Return to Account Security"), "text/html", Encoding.UTF8);
+                    : Results.Content(RecoveryCodesPage(codes, "/settings/security", "Return to Account Security"), "text/html", Encoding.UTF8);
             }
             // Password, passkey, provider and session changes live on the Account page, which can ask the person
             // to confirm it's them and shows any failure; this form only handles the two actions above.
-            return Results.Redirect("/settings/account");
+            return Results.Redirect("/settings/security");
         });
 
         return app;
@@ -835,7 +830,7 @@ public static class DashboardAuthenticationEndpoints
         Shell($"<h1>Account recovery failed</h1><p class=\"error\">{H(message)}</p><p><a href=\"/auth/recover\">Try again</a></p><p><a href=\"/auth/login\">Return to sign in</a></p>");
 
     private static string SecureAccountFailurePage(string message) =>
-        Shell($"<h1>Your account is not secured yet</h1><p class=\"error\">{H(message)}</p><p><a href=\"/settings/account\">Go back</a></p>");
+        Shell($"<h1>Your account is not secured yet</h1><p class=\"error\">{H(message)}</p><p><a href=\"/settings/security\">Go back</a></p>");
 
     private static string RecoveryCodesPage(
         IReadOnlyList<string> codes,

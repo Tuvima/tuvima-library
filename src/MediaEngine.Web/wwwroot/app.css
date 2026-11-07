@@ -83,8 +83,6 @@ body {
     box-shadow: none !important;
 }
 
-
-
 /* -- Logo colour -------------------------------------------------------- */
 
 /* -- Typography utilities ----------------------------------------------- */
@@ -128,40 +126,21 @@ body {
 
 /* -- Shared primary CTA button (no current Dashboard consumer) ----------------- */
 
-
-
-
-
-
-
-
-
-
 /* -- Page ambient background - dominant colour radiates from hero across full viewport -- */
 /* Fixed behind all content, uses the hero collection's dominant hex colour as a soft top glow.  */
 
-
 /* -- Blazor error boundary --------------------------------------------- */
-
-
-
 
 /* -- Shared fixed-hero detail page layers ----------------------------------
    Used by CollectionDetail and reusable for any future detail page. ---------------- */
 
 /* The hero image that sits fixed in the background while content scrolls. */
 
-
-
-
 /* When no hero.jpg exists - CSS-blur the cover art as fallback. */
-
 
 /* Gradient fade: transparent top ? solid page background at 65vh. */
 
-
 /* Content scrolls on top of the fixed hero. */
-
 
 /* -- Mobile overflow safety net ------------------------------------------- */
 @media (max-width: 840px){
@@ -171,8 +150,7 @@ body {
 }
 
 /* High-priority legacy surface alignment for provider/settings panels and playback sheets. */
-.provider-card,
-.drawer-panel{
+.provider-card {
     background: var(--tl-bg-surface) !important;
     border-color: var(--tl-border-default) !important;
     border-radius: var(--tl-radius-lg) !important;
@@ -181,21 +159,9 @@ body {
     -webkit-backdrop-filter: none !important;
 }
 
-.drawer-header {
-    border-color: var(--tl-border-default) !important;
-}
-
-
-
-
-.drawer-stat,
 .provider-chip {
     color: var(--tl-text-muted) !important;
     font-family: var(--font-ui) !important;
-}
-
-.drawer-backdrop {
-    background: rgba(0, 0, 0, 0.56) !important;
 }
 
 .category-item.active {
@@ -217,15 +183,10 @@ body {
     color: var(--tl-text-primary) !important;
 }
 
-
 .provider-card:hover {
     border-color: var(--tl-accent-primary) !important;
     box-shadow: var(--tl-shadow-sm) !important;
 }
-
-
-
-
 
 .health-online { background: var(--tl-status-success) !important; box-shadow: none !important; }
 .health-degraded { background: var(--tl-status-warning) !important; box-shadow: none !important; }
@@ -278,14 +239,6 @@ body {
 .app-table-shell{
     padding: var(--tl-card-padding);
 }
-
-
-
-
-
-
-
-
 
 /* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
    no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
@@ -643,7 +596,7 @@ body {
     border-color: var(--app-tone-border);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
     .app-dialog-shell__footer {
         flex-direction: column-reverse;
         align-items: stretch;
@@ -665,27 +618,10 @@ body {
     background: rgba(39, 40, 50, 0.36);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 .app-timeline {
     display: flex;
     flex-direction: column;
 }
-
-
-
-
-
-
 
 code{
     color: var(--tl-status-info) !important;
@@ -758,17 +694,6 @@ code{
 
 .app-media-card { --app-media-card-width: 180px; display: flex; flex: 0 0 auto; flex-direction: column; gap: 8px; width: var(--app-media-card-width); min-width: 0; padding: 0; color: var(--tl-text-primary); background: transparent; border: 0; text-align: left; cursor: pointer; scroll-snap-align: start; }
 
-
-
-
-
-
-
-
-
-
-
-
 .tl-card-hover--quiet,
 .tl-card-hover--standard,
 .tl-card-hover--media {
@@ -819,11 +744,6 @@ code{
     transform: scale(var(--tl-hover-artwork-scale)) translateY(var(--tl-hover-artwork-pan-y));
     filter: saturate(1.08) contrast(1.04);
 }
-
-
-
-
-
 
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
@@ -926,17 +846,11 @@ body,
     box-shadow: none !important;
 }
 
-
-
 .app-media-card.is-selected,
 .tl-table-row.selected {
     background: var(--tl-accent-primary-soft) !important;
     border-color: var(--tl-accent-primary-border) !important;
 }
-
-
-
-
 
 :where(.tl-button.app-button--filled).app-tone--primary {
     color: var(--tl-text-on-accent) !important;
@@ -1027,39 +941,6 @@ body,
     box-shadow: var(--tl-shadow-lg) !important;
 }
 
-
-
-
-
-.search-result-row {
-    display: flex;
-    gap: var(--tl-control-gap);
-    padding: var(--tl-space-3) var(--tl-space-4);
-    cursor: pointer;
-    border-bottom: 1px solid var(--tl-divider);
-    border-left: 3px solid transparent;
-    transition: background var(--tl-control-transition), border-color var(--tl-control-transition);
-}
-
-.search-result-row:hover {
-    background: var(--tl-bg-surface-hover);
-}
-
-.search-result-row.search-result-selected {
-    background: var(--tl-accent-primary-soft);
-    border-left-color: var(--tl-accent-primary);
-}
-
-
-
-
-
-
-
-
-
-
-
 /* ---------------------------------------------------------------------------
    Control and form foundation
    Migration-safe primitives for new UI work. Legacy settings/dialog classes
@@ -1072,20 +953,14 @@ body,
     gap: var(--tl-page-gap);
 }
 
-
 .app-page-header {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-2);
 }
 
-
-
-
-
 .tl-card,
 .provider-card,
-.drawer-panel,
 .app-dialog-shell,
 .tl-card {
     padding: var(--tl-card-padding);
@@ -1095,8 +970,6 @@ body,
     border-radius: var(--tl-radius-lg) !important;
     box-shadow: none !important;
 }
-
-
 
 .tl-card--compact {
     padding: var(--tl-space-3) !important;
@@ -1113,10 +986,6 @@ body,
     gap: var(--tl-form-row-gap);
 }
 
-
-
-
-
 .tl-field-label {
     color: var(--tl-text-secondary) !important;
     font-size: var(--tl-font-size-xs) !important;
@@ -1128,7 +997,6 @@ body,
     color: var(--tl-status-danger) !important;
 }
 
-
 .app-dialog-field input,
 .app-dialog-field textarea,
 .app-dialog-select input,
@@ -1139,8 +1007,6 @@ body,
     background: var(--tl-bg-surface-raised) !important;
     border-radius: var(--tl-control-radius) !important;
 }
-
-
 
 .app-dialog-textarea textarea,
 .sme-textarea textarea {
@@ -1251,10 +1117,6 @@ body,
     width: 100% !important;
 }
 
-
-
-
-
 @media (max-width: 1100px){
     .layout-shell__appbar .tl-toolbar {
         --shell-topbar-gap: 0.9rem;
@@ -1304,10 +1166,6 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     box-shadow: 0 0.35rem 1.1rem color-mix(in srgb, var(--tl-accent-primary) 72%, transparent);
 }
 
-.layout-shell__review-badge {
-    overflow: visible !important;
-}
-
 .tl-button {
     min-height: var(--tl-control-height-md) !important;
     border-radius: var(--tl-control-radius) !important;
@@ -1326,44 +1184,11 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     opacity: 0.72 !important;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .activity-entry {
     position: relative;
     display: flex;
     align-items: flex-start;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .tl-card--compact {
   background: var(--tl-bg-surface-raised);
@@ -1413,8 +1238,6 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     background: transparent !important;
 }
 
-
-
 .top-nav-account-menu__popover.tl-popover {
     color: var(--tl-text-primary, #e5edf5) !important;
     background: #0d0f14 !important;
@@ -1448,30 +1271,6 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     box-shadow: none;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* ---------------------------------------------------------------------------
    Canonical App Component Primitives
    New UI should consume Components/Shared/App*.razor wrappers and these classes
@@ -1481,14 +1280,15 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 .app-field {
     display: flex;
     flex-direction: column;
-    gap: var(--tl-space-2);
+    gap: var(--tl-field-label-gap, 6px);
     min-width: 0;
 }
 
+/* Form field (Look v3 D15.2): the label sits above the field, 13 / 500, 6 px gap, on every width; helper under the field at 13 muted. */
 .app-field__label {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 500;
     line-height: 1.2;
     letter-spacing: 0;
 }
@@ -1499,6 +1299,10 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     line-height: 1.4;
+}
+
+.app-field__help {
+    font-size: var(--tl-font-size-secondary);
 }
 
 .app-control.app-control--compact,
@@ -1622,7 +1426,6 @@ input.app-control.tl-input-slot,
 
 }
 
-
 .browse-multi-select__popover.tl-popover {
     color: var(--tl-text-primary) !important;
     background: #0c1525 !important;
@@ -1632,7 +1435,6 @@ input.app-control.tl-input-slot,
     padding: 0 !important;
     overflow: hidden !important;
 }
-
 
 .browse-multi-select__popover .tl-list {
     margin: 0 !important;
@@ -1792,6 +1594,27 @@ input.app-control.tl-input-slot,
     flex-wrap: wrap;
     gap: var(--tl-control-gap);
     min-width: 0;
+    min-height: var(--tl-row-h-compact);
+}
+
+/* Toolbar and button labels never wrap (Look v3 D15.1): they shorten with an ellipsis, and data-overflow-tooltip shows the full text. */
+.app-button .tl-button-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Phones (Look v3 D15.3): a button row stacks full width and the primary button comes first. */
+@media (max-width: 600px) {
+    .app-action-bar {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .app-action-bar > .app-button {
+        width: 100%;
+    }
 }
 
 .app-action-bar--end {
@@ -2048,10 +1871,6 @@ input.app-control.tl-input-slot,
     }
 }
 
-
-
-
-
 .app-chip,
 .app-status-badge {
     display: inline-flex;
@@ -2300,6 +2119,7 @@ input.app-control.tl-input-slot,
 .app-segmented-control__item {
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
     gap: var(--tl-space-2);
     min-height: var(--app-control-height, var(--tl-control-height-md));
     padding: 0 var(--tl-control-padding-x);
@@ -2323,6 +2143,14 @@ input.app-control.tl-input-slot,
 .app-segmented-control__item:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+}
+
+/* A segmented label never wraps either (Look v3 D15.1). */
+.app-segmented-control__item > span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .app-chip__remove { display: inline-flex; align-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
@@ -2437,8 +2265,6 @@ input.app-control.tl-input-slot,
 .tl-u-color-hex-f97316 { color: #F97316 !important; }
 .tl-u-color-inherit { color: inherit !important; }
 
-
-
 .tl-u-color-rgba-248-248-248-0-40 { color: rgba(248,248,248,0.40) !important; }
 .tl-u-color-rgba-248-248-248-0-65 { color: rgba(248,248,248,0.65) !important; }
 .tl-u-color-rgba-248-248-248-0-70 { color: rgba(248,248,248,0.70) !important; }
@@ -2475,8 +2301,6 @@ input.app-control.tl-input-slot,
 .tl-u-font-size-0-9rem { font-size: var(--tl-font-size-sm) !important; }
 
 .tl-u-font-size-12px { font-size: var(--tl-font-size-xs) !important; }
-
-
 
 .tl-u-font-size-14px { font-size: var(--tl-font-size-sm) !important; }
 
@@ -2530,12 +2354,10 @@ input.app-control.tl-input-slot,
 
 .tl-u-margin-left-4px { margin-left: 4px !important; }
 
-
 .tl-u-margin-top-2px { margin-top: 2px !important; }
 .tl-u-margin-top-4px { margin-top: 4px !important; }
 .tl-u-margin-top-8px { margin-top: 8px !important; }
 .tl-u-max-height-500px { max-height: 500px !important; }
-
 
 .tl-u-max-width-100px { max-width: 100px !important; }
 .tl-u-max-width-160px { max-width: 160px !important; }
@@ -2561,8 +2383,6 @@ input.app-control.tl-input-slot,
 .tl-u-overflow-hidden { overflow: hidden !important; }
 
 .tl-u-overflow-y-auto { overflow-y: auto !important; }
-
-
 
 .tl-u-padding-32px-0 { padding: 32px 0 !important; }
 .tl-u-padding-left-75px { padding-left: 75px !important; }
@@ -3270,9 +3090,7 @@ button.app-menu-item {
     :root:root .listen-song-table-cards__more-button,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
-    :root:root .sme-match-search-modes .sme-match-search-mode,
     :root:root .sme-close,
-    :root:root .sme-artwork-gallery-check,
     :root:root .media-viewer__icon-action,
     :root:root .tl-embedded-audio__row-play,
     :root:root .tl-select-trigger,
@@ -3382,7 +3200,6 @@ button.app-menu-item {
        variable is raised by that border. Phones keep the browse search's own 44px input rule above, so only the
        Universe explorer field and the browse field on tablets and desktops take this variable. */
     :root:root .chronicle-explorer-search,
-    :root:root:not([data-form-factor="phone"]) .recently-added-filters__search,
     :root:root:not([data-form-factor="phone"]) .browse-shell__search {
         --app-control-height: calc(var(--tl-tap-target-min) + 2px);
     }
@@ -3718,8 +3535,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     }
 }
 
-
-
 /* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
 .listen-playlist-track-row__art-play {
     position: absolute;
@@ -3812,7 +3627,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 /* The browse search box sits in a 44px outlined container whose text input is 2px shorter (the border). On phones the
    input itself covers the full 44px, so the whole box is the tap target. */
 :root:root[data-form-factor="phone"] .browse-shell__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
-:root:root[data-form-factor="phone"] .recently-added-filters__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
 :root:root[data-form-factor="phone"] .chronicle-explorer-search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
 :root:root[data-form-factor="phone"] .search-page__input .tl-input-container.tl-input-container.tl-input-container > input.tl-input {
     height: 44px !important;
@@ -3902,7 +3716,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 
 /* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */
 .sme-close,
-.sme-artwork-gallery-check,
 .listen-icon-button,
 .tl-embedded-audio__row-play {
     min-width: 36px;
@@ -3912,7 +3725,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 /* Touch floor (Look pass v2 A9): on touch screens small icon buttons and chips never drop below 44px. */
 @media (hover: none), (pointer: coarse) {
     .sme-close,
-    .sme-artwork-gallery-check,
     .listen-icon-button,
     .tl-embedded-audio__row-play,
     .settings-notice__dismiss,
@@ -4114,16 +3926,6 @@ input[type="reset"],
     background: var(--tl-secondary-action-bg-hover) !important;
 }
 
-.app-dismissible-surface__dismiss {
-    position: fixed !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
 .tl-detail-overflow-popover--compact {
     width: max-content !important;
     min-width: 9.75rem !important;
@@ -4171,8 +3973,6 @@ input[type="reset"],
 
 /* Temporary drawers are rendered outside component CSS isolation. */
 
-
-
 /* The picker host is fit-content by default, which squeezed the picker; give it a real width. */
 .tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1100px) !important; }
 .tl-dialog.server-folder-picker-host .app-dialog-shell { width: 100%; height: min(680px, calc(100dvh - 32px)); max-height: none; }
@@ -4200,19 +4000,6 @@ input[type="reset"],
 }
 
 /* Rich editor menus are portalled: sizing and option layout belong here. */
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* Universe hierarchy inside the shared artwork workspace. */
 .artwork-workspace-core__hierarchy { display:flex; gap:.45rem; padding:0 1.5rem .8rem; overflow-x:auto; }
@@ -4314,8 +4101,7 @@ input[type="reset"],
 @media (prefers-reduced-motion: reduce) { .pin-pad__dots.is-wrong { animation: none; } .pin-pad__dot, .pin-pad__key { transition: none; } .pin-pad__key:active:not(:disabled) { transform: none; } }
 /* Profile editor sheet and avatar choices (ProfileEditorSheet.razor, ProfileAvatarPicker.razor). Bottom sheet on phones, centred dialog from 641px. */
 
-.profile-editor-backdrop { position: fixed; inset: 0; z-index: 1300; display: grid; align-items: end; justify-items: center; overflow-y: auto; background: rgb(0 0 0 / 62%); animation: profile-editor-fade 160ms ease-out; }
-.profile-editor { display: grid; gap: 14px; box-sizing: border-box; width: 100%; max-height: 92svh; overflow-y: auto; padding: 22px 20px calc(20px + env(safe-area-inset-bottom)); color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 18px 18px 0 0; background: var(--tl-bg-surface-elevated); box-shadow: 0 -12px 48px rgb(0 0 0 / 40%); outline: none; animation: profile-editor-rise 200ms ease-out; }
+.profile-editor { display: grid; gap: 14px; box-sizing: border-box; width: 100%; padding: 20px 24px; color: var(--tl-text-primary); outline: none; }
 .profile-editor__title { margin: 0; font-size: var(--tl-font-size-dialog-title); text-align: center; }
 .profile-editor__preview { display: grid; justify-items: center; gap: 10px; }
 .profile-editor__avatar { display: block; width: 104px; height: 104px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
@@ -4353,22 +4139,10 @@ input[type="reset"],
 .avatar-picker__file { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .avatar-picker__upload:focus-within { box-shadow: 0 0 0 3px var(--tl-accent-primary); }
 .avatar-picker__hint { margin: 0; }
-@keyframes profile-editor-rise { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes profile-editor-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (min-width: 641px) { .profile-editor-backdrop { align-items: center; padding: 24px; } .profile-editor { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } .profile-editor__avatar { width: 120px; height: 120px; } }
-@media (min-width: 1600px) { .profile-editor { width: min(640px, 100%); gap: 22px; } .avatar-picker__grid { gap: 14px; } .profile-editor__avatar { width: 144px; height: 144px; } .profile-editor .who-button, .profile-editor__limit .app-segmented-control__item { min-height: 56px; } }
-@media (prefers-reduced-motion: reduce) { .profile-editor-backdrop, .profile-editor { animation: none; } .avatar-picker__option { transition: none; } .avatar-picker__option:hover:not(:disabled) { transform: none; } }
-/* Settings > Security: the sheet a row opens. A bottom sheet on phones, a centred dialog from 641px. */
-.settings-sheet-backdrop { position: fixed; inset: 0; z-index: 1400; display: grid; align-items: end; justify-items: center; overflow-y: auto; background: rgb(0 0 0 / 62%); animation: profile-editor-fade 160ms ease-out; }
-.settings-sheet { display: grid; gap: 14px; box-sizing: border-box; width: 100%; max-height: 92svh; overflow-y: auto; padding: 22px 20px calc(20px + env(safe-area-inset-bottom)); color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 18px 18px 0 0; background: var(--tl-bg-surface-elevated); box-shadow: 0 -12px 48px rgb(0 0 0 / 40%); outline: none; animation: profile-editor-rise 200ms ease-out; }
+@media (min-width: 641px) { .profile-editor__avatar { width: 120px; height: 120px; } }
+@media (min-width: 1600px) { .profile-editor { gap: 22px; } .avatar-picker__grid { gap: 14px; } .profile-editor__avatar { width: 144px; height: 144px; } .profile-editor .who-button, .profile-editor__limit .app-segmented-control__item { min-height: 56px; } }
+@media (prefers-reduced-motion: reduce) { .avatar-picker__option { transition: none; } .avatar-picker__option:hover:not(:disabled) { transform: none; } }
 
-@media (min-width: 641px) { .settings-sheet-backdrop { align-items: center; padding: 24px; } .settings-sheet { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } }
-@media (min-width: 1600px) { .settings-sheet { width: min(640px, 100%); gap: 22px; } }
-.settings-sheet.settings-sheet--card { display: block; width: min(560px, 100%); padding: 0; gap: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
-
-
-
-@media (prefers-reduced-motion: reduce) { .settings-sheet-backdrop, .settings-sheet { animation: none; } }
 .invitation-qr {
     width: 11rem;
     max-width: 100%;
@@ -4597,19 +4371,6 @@ input[type="reset"],
     border-radius: var(--tl-kids-radius);
 }
 
-.kids-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 10px;
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-kids-accent, var(--tl-accent-primary, #8852FC));
-    color: #fff;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
-    line-height: 1.4;
-    letter-spacing: .04em;
-}
-
 @media (max-width: 640px) {
     .layout-kids {
         --tl-kids-tile-scale: 1.06;
@@ -4727,30 +4488,6 @@ input[type="reset"],
 }
 
 /* Editor "This file covers" picker (global so it stays out of the scoped-CSS bundle ceiling). */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* Settings list rows (SettingsNavRow): a link, a button or a disabled row, 56 px tall, shared by Profile detail and Security. */
 .settings-nav-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: var(--tl-text-primary); border: 0; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
@@ -5146,7 +4883,7 @@ a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 6
 
 /* The document viewer fills the window above everything else, like the photo viewer. */
 .view-document-viewer { position: fixed; inset: 0; z-index: 1300; display: flex; flex-direction: column; background: var(--tl-bg-surface); color: var(--tl-text-primary); outline: none; }
-.view-document-viewer__bar { display: flex; align-items: center; gap: var(--tl-space-3); padding: var(--tl-space-2) var(--tl-space-3); border-bottom: 1px solid var(--tl-border-subtle); }
+.view-document-viewer__bar { display: flex; align-items: center; gap: var(--tl-space-3); padding: var(--tl-space-2) calc(var(--tl-viewer-close) + var(--tl-space-3) * 2) var(--tl-space-2) var(--tl-space-3); border-bottom: 1px solid var(--tl-border-subtle); }
 .view-document-viewer__title { flex: 1; min-width: 0; }
 .view-document-viewer__title h2 { margin: 0; overflow: hidden; font-size: var(--tl-font-size-md); text-overflow: ellipsis; white-space: nowrap; }
 .view-document-viewer__title p { margin: 0; overflow: hidden; color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); text-overflow: ellipsis; white-space: nowrap; }
@@ -5353,10 +5090,6 @@ html[data-form-factor="tv"] :is(a.media-tile-shelf-link, a.recent-view-all) {
     justify-content: center;
 }
 
-html[data-form-factor="tv"] .media-tile-caption__title {
-    font-size: var(--tl-font-size-sm);
-}
-
 html[data-form-factor="tv"] .tl-detail-hero__subtitle,
 html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     max-width: 60ch;
@@ -5449,10 +5182,9 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-match{padding:var(--tl-space-4)}
 .tl-match__searchrow{display:flex;align-items:flex-start;gap:var(--tl-space-2)}
 .tl-match__searchrow>:first-child{flex:1 1 auto;min-width:0}
-.tl-match__provider{display:flex;align-items:center;gap:var(--tl-space-2)}
 .tl-match__why{border-collapse:collapse;margin-top:var(--tl-space-2);font-size:var(--tl-font-size-sm);color:var(--tl-text-secondary)}.tl-match__why caption{text-align:left;color:var(--tl-text-muted);padding-bottom:var(--tl-space-1)}.tl-match__why th{text-align:left;font-weight:400;padding-right:var(--tl-space-4)}.tl-match__why td{text-align:right}
 .tl-match__provider-name{display:flex;align-items:center;gap:var(--tl-space-2)}
-.tl-match__provider-label,.tl-match__meta,.tl-match__provider-name{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
+.tl-match__meta,.tl-match__provider-name{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__leftout{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2);margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__results{display:flex;flex-direction:column}
 .tl-match__row{display:flex;align-items:center;gap:var(--tl-space-3);padding:var(--tl-space-2) 0;border-bottom:1px solid var(--tl-divider)}
@@ -5542,7 +5274,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 
 /* A Kids profile's Profile pages sit outside Settings, so the section-card headings they reuse get their layout here. */
 
-
 /* Media pills: the design-system media colours as a soft pill (spec plugins-and-integrations-screens-v3 D23). */
 .app-media-pill {
     color: var(--tl-media-unknown);
@@ -5558,12 +5289,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .app-media-pill--music { --app-media-pill-colour: var(--tl-media-music); }
 .app-media-pill--videos { --app-media-pill-colour: var(--tl-media-video); }
 .app-media-pill--photos { --app-media-pill-colour: var(--tl-media-document); }
-
-/* Summary counts carry colour by meaning (spec plugins-and-integrations-screens-v3 D22). */
-.app-summary-strip__item--accent .app-summary-strip__value { color: var(--tl-accent-primary); }
-.app-summary-strip__item--ok .app-summary-strip__value { color: var(--tl-status-success, #34d399); }
-.app-summary-strip__item--warn .app-summary-strip__value { color: var(--tl-status-warning, #fbbf24); }
-.app-summary-strip__item--mute .app-summary-strip__value { color: var(--tl-text-muted); }
 
 .app-official-pill__icon { display: block; flex: 0 0 auto; }
 
@@ -5723,6 +5448,53 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 .tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
 .tl-editor-tab svg{color:var(--tl-editor-tab-icon,currentColor)}
 .tl-editor-tab--details{--tl-editor-tab-icon:#9a8cf0}.tl-editor-tab--contents{--tl-editor-tab-icon:#4fb3d9}.tl-editor-tab--artwork{--tl-editor-tab-icon:#e58fb4}.tl-editor-tab--match{--tl-editor-tab-icon:#4ec9a0}.tl-editor-tab--files{--tl-editor-tab-icon:#e8b24a}.tl-editor-tab--history{--tl-editor-tab-icon:#8aa0c8}
+/* -------------------------------------------------------------------------
+   Viewer (Look v3 D14): the full-screen kind, drawn by AppViewer. Zero specificity on purpose, so a viewer's own
+   classes (bars, stages, panels) always win and this only supplies the kind's defaults: full screen, black or the
+   page surface, and the 44 px close X at the top right.
+   ---------------------------------------------------------------------- */
+:where(.app-viewer) {
+    position: fixed;
+    inset: 0;
+    box-sizing: border-box;
+    z-index: var(--tl-z-modal);
+    margin: 0;
+    color: var(--tl-text-primary);
+}
+
+:where(dialog.app-viewer) {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    border: 0;
+}
+
+:where(.app-viewer--black) {
+    background: var(--tl-viewer-black);
+}
+
+:where(.app-viewer--page) {
+    background: var(--tl-bg-root);
+}
+
+:where(.app-viewer__close) {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    width: var(--tl-viewer-close);
+    height: var(--tl-viewer-close);
+}
+
+/* Window footer (Look v3 D14, D15.3): Cancel or Discard sits alone at the far left, a quiet text button beside it; the right-hand group
+   (destructive outlined red, then the one primary) ends with the primary. A lone button, or a destructive button first, stays on the right. */
+.app-dialog-shell__footer > :first-child:not(:last-child):not(.app-tone--error):not(.app-button--text),
+.app-dialog-shell__footer > .app-button--text:first-child + :not(:last-child):not(.app-tone--error) {
+    margin-inline-end: auto;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
@@ -5906,10 +5678,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-deta
     width: 100%;
     min-width: 0;
 }
-
-
-
-
 
 html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump {
     flex-direction: column;
@@ -6185,4 +5953,3 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
-

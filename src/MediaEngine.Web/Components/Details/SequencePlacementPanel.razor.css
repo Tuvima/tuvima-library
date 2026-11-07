@@ -1522,21 +1522,6 @@
     filter: saturate(0.78);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @media (min-width: 840px) {
 
     .tl-series-detail.is-season-container .tl-series-detail__carousel {
@@ -1544,17 +1529,10 @@
     }
 }
 
-@media (width < 840px) {
-
-
-
-}
-
 .sequence-episode-tile { min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
 .sequence-episode-tile ::deep .media-tile { width: 100%; }
 .sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
 .sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); box-shadow: 0 0 22px rgba(136, 82, 252,.5); }
-
 
 .tl-series-detail__footer-utilities { display:flex; align-items:center; margin-left:auto; }
 .tl-series-detail__ownership .tl-series-detail__missing { min-height:0; height:auto; }

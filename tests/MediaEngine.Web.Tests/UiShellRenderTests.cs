@@ -795,15 +795,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(expectedTitle, (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!));
     }
 
-    // The earlier group address is redirected by the Libraries page to the matching tab of the overview.
-    [Fact]
-    public void SettingsPage_OnAnEarlierGroupAddress_RedirectsToThatAreasTab()
-    {
-        RenderLibraries("watch", null);
-
-        Assert.EndsWith("/settings/libraries?area=watch", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
-    }
-
     // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
     [Theory]
     [InlineData(null, null, "Libraries", "Libraries", true)]
@@ -1808,7 +1799,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains(".tl-form", css);
         Assert.Contains(".tl-card--flush", css);
         Assert.Contains(".app-select", css);
-        Assert.Contains(".search-result-row", css);
         Assert.Contains("border-right: 1px solid var(--tl-divider)", css);
         Assert.DoesNotContain("Legacy settings shared UI components", css);
     }

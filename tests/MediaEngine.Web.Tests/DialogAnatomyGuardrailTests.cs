@@ -28,9 +28,10 @@ public sealed class DialogAnatomyGuardrailTests
     [Fact]
     public void PlainDialogHeaderCloseButtonIsTheTouchSize()
     {
-        var css = ReadShared("AppDialogFrame.razor.css");
+        var markup = ReadShared("AppDialogFrame.razor");
 
-        Assert.Contains("width:var(--tl-control-height-md,44px);height:var(--tl-control-height-md,44px)", css);
+        // The plain header's close X is the shared icon button at its 44 px (Normal) size, not a hand-sized glyph.
+        Assert.Contains("<AppIconButton Icon=\"@AppMaterialIcons.Outlined.Close\" Size=\"AppControlSize.Normal\"", markup);
     }
 
     private static string ReadShared(string file)

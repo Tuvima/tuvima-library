@@ -158,8 +158,8 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [Fact]
     public void AudiobookLabel_InChapterMode_ReadsChapterElapsedAndTimeLeft()
     {
-        Assert.Equal("Chapter 8", PlaybackTimelineMetaRow.ChapterLabel(L, 8));
-        Assert.Equal($"Chapter 8 · 12:08 · {Minus}18:32", PlaybackTimelineMetaRow.ChapterSummary(L, 8, 12 * 60 + 8, 18 * 60 + 32));
+        Assert.Equal("Chapter 8", PlaybackTimelineLabels.ChapterLabel(L, 8));
+        Assert.Equal($"Chapter 8 · 12:08 · {Minus}18:32", PlaybackTimelineLabels.ChapterSummary(L, 8, 12 * 60 + 8, 18 * 60 + 32));
     }
 
     [Fact]
@@ -167,8 +167,8 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     {
         const double book = 8 * 3600 + 30 * 60; // 8 h 30 m
         const double position = book * 0.32;
-        Assert.Equal("Book · 32%", PlaybackTimelineMetaRow.BookLabel(L, position, book));
-        Assert.Equal("Book · 32% · 5h 46m left", PlaybackTimelineMetaRow.BookSummary(L, position, book));
+        Assert.Equal("Book · 32%", PlaybackTimelineLabels.BookLabel(L, position, book));
+        Assert.Equal("Book · 32% · 5h 46m left", PlaybackTimelineLabels.BookSummary(L, position, book));
     }
 
     [Theory]
@@ -179,23 +179,23 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [InlineData(-5, "Less than a minute left")]
     public void AudiobookLabel_TimeLeftIsHoursAndMinutes(double seconds, string expected)
     {
-        Assert.Equal(expected, PlaybackTimelineMetaRow.TimeLeft(L, seconds));
+        Assert.Equal(expected, PlaybackTimelineLabels.TimeLeft(L, seconds));
     }
 
     [Fact]
     public void AudiobookLabel_PercentRoundsDownSoItReadsOneHundredOnlyWhenTheBookIsDone()
     {
-        Assert.Equal("Book · 99%", PlaybackTimelineMetaRow.BookLabel(L, 999, 1000));
-        Assert.Equal("Book · 100%", PlaybackTimelineMetaRow.BookLabel(L, 1000, 1000));
-        Assert.Equal("Book · 0%", PlaybackTimelineMetaRow.BookLabel(L, 5, 0));
+        Assert.Equal("Book · 99%", PlaybackTimelineLabels.BookLabel(L, 999, 1000));
+        Assert.Equal("Book · 100%", PlaybackTimelineLabels.BookLabel(L, 1000, 1000));
+        Assert.Equal("Book · 0%", PlaybackTimelineLabels.BookLabel(L, 5, 0));
     }
 
     [Fact]
     public void Timeline_ShowsTheAudiobookLabelBetweenElapsedAndTheRailAndSpeaksTheWholeLine()
     {
         var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 3000).Add(c => c.Position, 728)
-            .Add(c => c.Label, PlaybackTimelineMetaRow.ChapterLabel(L, 8))
-            .Add(c => c.Summary, PlaybackTimelineMetaRow.ChapterSummary(L, 8, 728, 2272)));
+            .Add(c => c.Label, PlaybackTimelineLabels.ChapterLabel(L, 8))
+            .Add(c => c.Summary, PlaybackTimelineLabels.ChapterSummary(L, 8, 728, 2272)));
 
         var rail = cut.Find("[data-playback-seek-rail]");
         Assert.Equal("group", rail.GetAttribute("role"));
@@ -434,8 +434,8 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [Fact]
     public void AudiobookLabel_ReadsItsWordsFromTheStringTable()
     {
-        Assert.Equal("Chapter 8", PlaybackTimelineMetaRow.ChapterLabel(L, 8));
-        Assert.Equal("Less than a minute left", PlaybackTimelineMetaRow.TimeLeft(L, 30));
+        Assert.Equal("Chapter 8", PlaybackTimelineLabels.ChapterLabel(L, 8));
+        Assert.Equal("Less than a minute left", PlaybackTimelineLabels.TimeLeft(L, 30));
         var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30).Add(c => c.Label, "Chapter 8").Add(c => c.LabelClick, EventCallback.Factory.Create(this, () => { })));
         Assert.Equal("Chapter 8. Switch between the chapter and the whole book", cut.Find("button.playback-seek-rail__label").GetAttribute("aria-label"));
         Assert.Equal("Elapsed time 0:30", cut.Find(".playback-seek-rail__start").GetAttribute("aria-label"));

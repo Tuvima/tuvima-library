@@ -16,12 +16,6 @@
     overflow-x: auto;
 }
 
-
-
-
-
-
-
 .view-artwork-tabs ::deep .view-artwork-tab {
     display: inline-flex;
     align-items: center;
@@ -88,10 +82,6 @@
     gap: 1.15rem;
 }
 
-
-
-
-
 .view-artwork-grid ::deep .view-artwork-card {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -114,54 +104,6 @@
     outline-color: rgba(156, 103, 255, .85);
     box-shadow: 0 12px 30px rgba(0, 0, 0, .28), 0 0 0 3px rgba(126, 76, 219, .14);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @media (max-width: 720px) {
     .view-artwork-filters {

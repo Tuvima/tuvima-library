@@ -183,27 +183,6 @@
     gap: 0.72rem;
 }
 
-::deep .tl-detail-hero-progress__label {
-    color: rgba(255, 255, 255, 0.86);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
-}
-
-::deep .tl-detail-hero-progress__track {
-    height: 6px;
-    border-radius: var(--tl-radius-round);
-    background: rgba(255, 255, 255, 0.18);
-    overflow: hidden;
-}
-
-::deep .tl-detail-hero-progress__fill {
-    display: block;
-    width: var(--hero-progress, 0%);
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(to right, rgba(var(--hero-accent-rgb, 136, 82, 252), 0.92), rgba(255, 224, 150, 0.96));
-}
-
 @media (max-width: 1180px) {
     .tl-detail-hero__inner {
         padding-inline: clamp(1.5rem, 5vw, 3rem);

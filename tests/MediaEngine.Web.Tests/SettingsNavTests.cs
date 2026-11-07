@@ -115,7 +115,6 @@ public sealed class SettingsNavTests
         Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: true));
         Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: false, restricted: true));
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
-        Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).IsCanonicalRoute);
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview));
         Assert.Equal(SettingsSection.Overview, SettingsNav.GetDefaultSection("personal"));
     }
@@ -251,22 +250,26 @@ public sealed class SettingsNavTests
 
         Assert.Equal(section, resolution.Section);
         Assert.Equal(expectedRoute, resolution.CanonicalRoute);
-        Assert.True(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.True(resolution.RequestedSectionAllowed);
-        Assert.False(resolution.ShouldRedirect);
     }
 
     [Fact]
-    public void ResolveRoute_BaseSettings_MapsToUserOverview()
+    public void ActivityLogRoute_IsBuiltInOnePlace_WithAnOptionalFilter()
+    {
+        Assert.Equal("/settings/system/logs?tab=events", SettingsNav.ActivityLogRoute());
+        Assert.Equal("/settings/system/logs?tab=events", SettingsNav.ActivityLogRoute("  "));
+        Assert.Equal("/settings/system/logs?tab=events&filter=added", SettingsNav.ActivityLogRoute("added"));
+    }
+
+    [Fact]
+    public void ResolveRoute_BaseSettings_OpensTheFirstPageThePersonMaySee()
     {
         var resolution = SettingsNav.ResolveRoute(null, true);
 
         Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/settings/overview", resolution.CanonicalRoute);
-        Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -277,20 +280,29 @@ public sealed class SettingsNavTests
         Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
-        Assert.True(resolution.ShouldRedirect);
+    }
+
+    [Theory]
+    [InlineData("profile")]
+    [InlineData("household")]
+    [InlineData("account")]
+    [InlineData("provider-tester")]
+    [InlineData("tester")]
+    [InlineData("harness")]
+    public void ResolveRoute_AnOldOrMisspeltSegment_IsNotFound(string segment)
+    {
+        // No address forwarding (look-pass-v3 D17): only the spelled slug of a page answers.
+        var resolution = SettingsNav.ResolveRoute(segment, true);
+
+        Assert.False(resolution.IsKnownRoute);
+        Assert.Equal("/not-found", resolution.CanonicalRoute);
     }
 
     [Fact]
-    public void ResolveRoute_ProfileSegment_MapsToProfile()
+    public void ResolveRoute_APunctuationVariantOfASlug_IsNotFound()
     {
-        var resolution = SettingsNav.ResolveRoute("profile", true);
-
-        Assert.Equal(SettingsSection.Profiles, resolution.Section);
-        Assert.Equal("/settings/profiles", resolution.CanonicalRoute);
-        Assert.False(resolution.IsCanonicalRoute);
-        Assert.True(resolution.IsKnownRoute);
-        Assert.True(resolution.RequestedSectionAllowed);
-        Assert.True(resolution.ShouldRedirect);
+        Assert.False(SettingsNav.ResolveRoute("libraryactivity", true).IsKnownRoute);
+        Assert.True(SettingsNav.ResolveRoute("Library-Activity", true).IsKnownRoute);
     }
 
     [Fact]
@@ -300,10 +312,8 @@ public sealed class SettingsNavTests
 
         Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
-        Assert.False(resolution.IsCanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
         Assert.False(resolution.RequestedSectionAllowed);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Theory]
@@ -325,7 +335,6 @@ public sealed class SettingsNavTests
 
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -336,10 +345,8 @@ public sealed class SettingsNavTests
 
         Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/settings/overview", resolution.CanonicalRoute);
-        Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.False(resolution.RequestedSectionAllowed);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Theory]
@@ -352,7 +359,6 @@ public sealed class SettingsNavTests
         Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -517,14 +523,9 @@ public sealed class SettingsNavTests
     [InlineData("ai", SettingsSection.LocalAi, "/settings/ai")]
     [InlineData("plugins", SettingsSection.Plugins, "/settings/plugins")]
     [InlineData("developer", SettingsSection.ProviderTester, "/settings/developer")]
-    [InlineData("provider-tester", SettingsSection.ProviderTester, "/settings/developer")]
     [InlineData("enrichment-tester", SettingsSection.EnrichmentTester, "/settings/enrichment-tester")]
     [InlineData("development-data", SettingsSection.DevHarness, "/settings/development-data")]
-    [InlineData("dev-harness", SettingsSection.DevHarness, "/settings/development-data")]
-    [InlineData("harness", SettingsSection.DevHarness, "/settings/development-data")]
-    [InlineData("ingestion-harness", SettingsSection.DevHarness, "/settings/development-data")]
-    [InlineData("test-harness", SettingsSection.DevHarness, "/settings/development-data")]
-    public void EveryPreExistingSettingsAddress_StillOpensTheSamePage(string segment, SettingsSection section, string canonicalRoute)
+    public void EverySettingsAddress_OpensItsPage(string segment, SettingsSection section, string canonicalRoute)
     {
         var resolution = SettingsNav.ResolveRoute(segment, true);
 
@@ -680,7 +681,7 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData("review", SettingsSection.Review, "/settings/review")]
-    [InlineData("provider-tester", SettingsSection.ProviderTester, "/settings/developer")]
+    [InlineData("developer", SettingsSection.ProviderTester, "/settings/developer")]
     [InlineData("enrichment-tester", SettingsSection.EnrichmentTester, "/settings/enrichment-tester")]
     public void ResolveRoute_SecondaryRoutes_StillResolveForAdmins(string segment, SettingsSection expectedSection, string expectedRoute)
     {
@@ -787,26 +788,6 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ResolveRoute_Household_MapsToManageProfiles()
-    {
-        var household = SettingsNav.ResolveRoute("household", false);
-        Assert.Equal(SettingsSection.Profiles, household.Section);
-        Assert.False(household.IsCanonicalRoute);
-        Assert.True(household.RequestedSectionAllowed);
-    }
-
-    [Fact]
-    public void ResolveRoute_AccountAlias_MapsToSecurity()
-    {
-        var resolution = SettingsNav.ResolveRoute("account", false);
-
-        Assert.Equal(SettingsSection.Security, resolution.Section);
-        Assert.Equal("/settings/security", resolution.CanonicalRoute);
-        Assert.False(resolution.IsCanonicalRoute);
-        Assert.True(resolution.ShouldRedirect);
-    }
-
-    [Fact]
     public void ServerAdministrator_HasHouseholdsInUsersAndHouseholds_AndThereIsNoMyHouseholdTab()
     {
         var personalLabels = SettingsNav.FilteredMenuGroups(true).Single(group => group.Key == "personal").Nodes
@@ -833,7 +814,6 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain(SettingsSection.Access, visible);
         var access = SettingsNav.ResolveRoute("access", false);
         Assert.False(access.RequestedSectionAllowed);
-        Assert.True(access.ShouldRedirect);
     }
 
     private static string GetRepoFilePath(string relativePath) =>

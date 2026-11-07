@@ -42,3 +42,59 @@ The Look v3 rules were derived from the shared parts and from searches over ever
 ## Plain English summary
 
 The app has 42 pages and about 660 building blocks. Thirty of those blocks are never used by the app (half only by tests), one script is dead, six addresses are reachable only by typing them (five of them an old redirect page that a decision already retired), and three more places quietly forward old or misspelled addresses to new ones, which Shy has ruled out for the whole app, and a few hundred style rules point at nothing. One file still carries 26 naming lists from the move off the old component library. Cleaning this up is mechanical, with a build after each removal to prove nothing needed it. What has not happened yet is a page-by-page walk of all 42 pages against the new rules; that is packet WP14 and its results get recorded here.
+
+## WP13 results (dead code sweep)
+
+> Built 2026-11-07. Every item below was deleted or changed with a build after each batch; the whole Dashboard test project passes.
+
+### Deleted
+
+- **Addresses and forwards (D17).** `Pages/Operations.razor` (the `/operations/*` shim and its five addresses); `LibrariesTab` `LegacyAddress()`, `RedirectSavedLink()` and `RenamedTypeKeys`; `SettingsRouteResolution.ShouldRedirect` / `IsCanonicalRoute` and the "replace the address with the canonical spelling" block in `Settings.razor`; `DetailTabRouteResolution.ShouldRedirect`; the Settings page address aliases (`profile`, `household`, `account`, `provider-tester`, `tester`, `dev-harness` and three more: the `Aliases` list on `SettingsItemDef`); the lenient punctuation matching of Settings slugs and detail tabs (only the exact spelling answers now, in any letter case; an unknown tab shows the first tab and the address stays); the four `/view/artwork/media|people|universes|assets` addresses and the legacy query reader; the `/for-me?view=my-list` and all-areas My List / Liked forwards in `ForMe` (the top-bar bookmark now opens `/my-library` directly); the `/account/security` GET forward in the sign-in endpoints (and the `/settings/account` alias targets there now point at `/settings/security`).
+- **Parts nothing renders (15).** `RecentlyAddedPageContent`, `IngestionMediaDrawer` (only drawn by it), `AppCompactPager` (only drawn by it), `AvailablePluginsPanel`, `LibraryActivityTab`, `PlaybackPopoutShell`, `AppSummaryStrip` (with `AppSummaryItem`), `PlaybackPositionRow`, `PlaybackPositionList`, `PlaybackTimelineMetaRow`, `AppWarningStrip`, `AppFormFieldRow`, `ProviderAccessCard`, `HeroProgressBlock`, `SetupAreaCards`; each with its `.razor.css`, its string-table keys (36 keys in `SharedStrings*.resx`) and the tests that only tested it.
+- **Script.** `wwwroot/js/watch-player.js` (referenced by nothing, including the service worker and tests).
+- **Styles.** 61 classes defined in `app.css` and component sheets that no app code names (listed by the tightened `NoStyleRuleTargetsAClassNothingUses`), and the blank runs in `MediaBrowseShell`, `ViewArtworkPage`, `Settings`, `SequencePlacementPanel`, `NetworkRemoteAccessSettings`, `SidebarPageHeader`, `ListenPage` and `app.css`. `maplibregl-ctrl-bottom-*` and `notifications-page__channel--needs_attention` stay (built at runtime).
+- **Old vocabulary file.** `Shared/AppLegacyUiTypes.cs` is gone. The 25 enums in use now live in files named for what they are: `AppAppearanceTypes.cs` (variant, colour, size, text style, underline, severity, object fit, margin), `AppLayoutTypes.cs` (align, justify, position, anchor, placement, origin, max width), `AppFieldTypes.cs` (input type and mode, adornment, button type), `AppDialogTypes.cs`, `AppDrawerVariant.cs`, `AppTableCardsMode.cs`, `AppChartType.cs`. `AppBreakpoint` had no use and was deleted. No enum was renamed: none has an equivalent in `AppUiTypes.cs` with the same members (`AppButtonStyle` matches `AppVariant` in names but `AppVariant` styles text fields and chips, so merging them would change meaning); renaming 134 and 148 call sites was not worth the churn.
+
+### Kept, with the reason
+
+| Item | Why it stays |
+|---|---|
+| `Pages/DesignSystemPreview` | The proof page for the Look rules (a page, so the never-rendered check skips it; named in the allowlist). |
+| `DevHarnessTab`, `EnrichmentTesterToolTab`, `ProviderTesterToolTab` | `Settings.razor` draws them by type name (`RenderInternalTool("…ProviderTesterToolTab")`) for a development build. |
+| `EditorPopover`, `ViewEditorPopover`, `ViewSavedRibbon`, `OverviewTab`, `NsfwQuickCheck`, `VaultArea`, `VaultHiddenReminder`, `VaultProfileSettings`, `VaultSceneView`, `PwaInstallAction`, `SessionEndedRedirect`, `IngestionMediaCard`, `AlsoAppearsInPanel` | The audit's scripted search missed them: they are drawn by fully-qualified name (`<MediaEngine.Web.Components.Vault.VaultArea />`), by static members (`IngestionMediaCard.MediaIcon`) or from a namespace-qualified markup tag. They are rendered. |
+| `/vault/scene/{id}` | Linked: `VaultViews.ScenePath` is the route of every Vault scene tile (`EngineVaultCatalogue`). |
+| Query-string `replace: true` in browse, search, View all, Needs Review and the Libraries area chip | A page rewriting its own filter in its own address, not a forward (named in `NoRedirectsGuardrailTests`). |
+| `ProfilesTab` (member opens their own profile), `ProfileDetailPage` (back to the list when the person is gone or not manageable), `Settings.razor` Kids/disabled-page gate and `/not-found` | Role-dependent landing, profile delete and access gates, not old addresses. Flagged for Shy: `ProfilesTab` is a landing forward by role. |
+| `POST /account/security` in `DashboardAuthenticationEndpoints` | A form handler with no in-app caller left; not an address forward, so untouched. Candidate for a follow-up. |
+| `style-ownership-baseline.json` (test fixture) | A finalized historical baseline; stale file names in it are harmless. |
+
+### Guardrails added or tightened
+
+- `NoRedirectsGuardrailTests` (new): no `@page` that only forwards; no `replace: true`, `Results.Redirect`, `Response.Redirect` outside a written allowlist (file and reason, stale entries fail); no file or method named `Legacy*Address`, `*Redirect*` or `*Alias*` outside a written allowlist; the retired forwards and helpers are absent.
+- `LookRatchetGuardrailTests.EveryComponentIsRenderedByTheAppSomewhere` (was `EveryComponentIsUsedSomewhere`): it used to count a test, a comment or a document as a use, which is why thirty parts survived. It now counts only the app's own code, with comments removed.
+- `LookRatchetGuardrailTests.NoStyleRuleTargetsAClassNothingUses`: same tightening (app code only), ceiling still 0.
+- `DetailsOverlayGuardrailTests` replace allowlist: ForMe, Operations and LibrariesTab entries removed, Settings count 7 to 6.
+
+### "Legacy" in the code (22 places)
+
+| Where | What it is | Finish or delete |
+|---|---|---|
+| `wwwroot/app.css:47` | "Legacy layout rules" header | Delete the word when WP7/WP14 re-sections the sheet; no code change. |
+| `wwwroot/app.css:152` | "legacy surface alignment for provider/settings panels and playback sheets" | Finish: fold the `!important` block into the parts' own sheets (WP7 ratchet) and delete the comment. |
+| `wwwroot/app.css:204` | "Legacy Hybrid Paces + Metronic dark admin migration layer" | Delete: the migration is over; reword to what the block now does. |
+| `wwwroot/app.css:782` | "maps legacy app variables to the canonical token file" | Delete with the last `--app-*` aliases (WP7 count 159). |
+| `wwwroot/app.css:946` | "Migration-safe primitives… Legacy settings/dialog classes" | Delete the sentence; the classes it names are gone. |
+| `wwwroot/app.css:2536` | "so legacy the shared UI layer overrides" | Delete (garbled comment). |
+| `wwwroot/tuvima.tokens.css:5` | "legacy --app-* aliases in app.css" | Delete with the alias block (WP7). |
+| `Models/ViewDTOs/LibraryDtos.cs:102` | "Legacy compact views still use these combined stages" | Finish: check the combined stages are still read; delete them and the note if not. |
+| `Services/Editing/ArtworkPickerSession.cs:653` | `UsesLegacyPersonImage: false` | Finish: remove the always-false parameter. |
+| `Services/Integration/EngineApiClient.cs:1143, 1164, 1192, 1331, 1333` | "legacy LastError-only" PUT shape | Finish: move the PUTs to the ProblemDetails shape, then delete the notes (Engine contract; separate packet). |
+| `Services/Integration/ViewMediaEngineClient.cs:16` | "temporary legacy Engine media route behind the Dashboard proxy" | Finish: needs an Engine change (not in this packet); delete when the Engine route is replaced. |
+| `Services/Playback/PlaybackSessionController.cs:2930` | "the legacy stream" route fallback | Finish: remove the fallback once no catalogue manifest lacks the resource route. |
+| `Services/Playback/PlaybackSessionController.cs:3408-3411` | `legacyBookId` for restored book queues | Finish: decide with the playback owner whether restored old queues still exist (pre-release data may simply reset); rename `legacyBookId` to what it is. |
+| `Services/Playback/PlaybackArtworkUrl.cs:5` | "restored legacy book queues" | Same decision as above; delete the phrase. |
+| `Components/Artwork/ArtworkWorkspace.razor:58, 60, 109, 111, 205, 484` | `LegacyRoleUrl` / `LegacyRoleUrlFor`: the role image taken from the item itself | Finish: rename to `ItemRoleUrl` (no behaviour change). |
+| `Components/Pages/ListenPage.razor.css:1680` | "overrides the legacy native-select chrome" | Delete the comment; the rule is the select's current look. |
+| `Components/Shared/AppSelectItem.razor:21` | "Legacy child-content options have no text parameter" | Delete if no call site still passes child content; otherwise reword to "child-content options". |
+| `Components/Details/DetailPage.razor.css:611` | "replaces its legacy…" navigation logic | Delete the word; the replacement is built. |
+| `Components/Details/DetailPage.razor.css:844` | "Keep after every legacy density rule" | Delete with the density rules in WP7/WP14. |

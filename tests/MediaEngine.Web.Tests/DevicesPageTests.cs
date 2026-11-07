@@ -40,7 +40,7 @@ public sealed class DevicesNavTests
         var server = SettingsNav.MenuGroups.Single(group => group.Key == "server");
 
         Assert.DoesNotContain(server.Nodes, node => node.Label == "Devices" || node.Tabs.Any(tab => tab.Label == "Devices"));
-        Assert.DoesNotContain(SettingsNav.AllItems, item => item.Slug == "devices" || item.Aliases.Contains("apps"));
+        Assert.DoesNotContain(SettingsNav.AllItems, item => item.Slug == "devices");
         Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Network), subsection => subsection.Slug == "apps");
 
         foreach (var segment in new[] { "devices", "apps" })
@@ -97,7 +97,7 @@ public sealed class DevicesNavTests
 
         // A Kids profile never reaches Settings: every Settings address goes Home, and the menu lists nothing else.
         Assert.Contains("_restricted = _activeProfile?.IsRestricted == true;", settings, StringComparison.Ordinal);
-        var resolve = settings[settings.IndexOf("private void ResolveSectionAndNormalize()", StringComparison.Ordinal)..];
+        var resolve = settings[settings.IndexOf("private void ResolveSection()", StringComparison.Ordinal)..];
         Assert.Contains("if (_restricted)", resolve, StringComparison.Ordinal);
         Assert.False(SettingsNav.IsVisible(SettingsSection.Security, administrationAllowed: false, restricted: true));
         Assert.False(SettingsNav.ResolveRoute("security", administrationAllowed: false, restricted: true).RequestedSectionAllowed);

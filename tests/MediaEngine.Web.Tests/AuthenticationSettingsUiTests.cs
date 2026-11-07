@@ -84,7 +84,7 @@ public sealed class AuthenticationSettingsUiTests
         Assert.Contains("Who viewed your photos", account, StringComparison.Ordinal);
         Assert.DoesNotContain("::deep", accountCss, StringComparison.Ordinal);
         Assert.Contains("max-width: none", accountCss, StringComparison.Ordinal);
-        Assert.Contains("/settings/account", endpoints, StringComparison.Ordinal);
+        Assert.Contains("/settings/security", endpoints, StringComparison.Ordinal);
         Assert.DoesNotContain("private static string SecurityPage", endpoints, StringComparison.Ordinal);
     }
 

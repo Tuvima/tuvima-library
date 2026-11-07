@@ -284,6 +284,81 @@
             </AppTable>
         </AppCard>
 
+        <AppCard Title="Alignment: one axis per row, one order for buttons" Description="Look v3 D15: rows sit on one centre line, fields keep their label above, status text gets its own reserved line, and a footer reads quiet, destructive, Discard, primary." data-testid="design-system-alignment">
+            <AppSettingsGroup Heading="Settings row with a status line" Helper="Label and helper left, controls at the right end, the result on its own line under the row.">
+                <AppSettingRow Label="Metadata key" Helper="Tested before it is saved." LabelColumn="true" ReserveStatus="true" data-testid="preview-alignment-row">
+                    <Control>
+                        <AppButton Label="Test" Size="AppControlSize.Compact" />
+                        <AppButton Label="Remove" Size="AppControlSize.Compact" />
+                    </Control>
+                    <Status><span class="design-system-preview__ok">Connected</span></Status>
+                </AppSettingRow>
+            </AppSettingsGroup>
+            <div class="design-system-preview__matchrow" data-testid="preview-alignment-matchrow">
+                <div class="design-system-preview__matchrow-start">
+                    <AppSelect T="string" Value="tvdb" Options="@ProviderRowOptions" AriaLabel="Search in" FullWidth="false" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="Search" Size="AppControlSize.Compact" />
+                </div>
+                <AppSegmentedControl Options="@SegmentOptions" Value="providers" AriaLabel="What to match" />
+            </div>
+            <div class="design-system-preview__form-grid" data-testid="preview-alignment-form">
+                <AppTextField Label="Title" Value="Dune Part One" />
+                <AppTextField Label="Sort title" Value="Dune Part One" HelpText="Used only for ordering" />
+                <AppNumericField Label="Year" Value="2021" />
+            </div>
+            <div data-testid="preview-alignment-footer"><AppActionBar Align="AppHorizontalAlignment.End">
+                <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" />
+                <AppButton Label="Delete" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Outlined" />
+                <AppButton Label="Discard" />
+                <AppButton Label="Save changes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+            </AppActionBar></div>
+        </AppCard>
+
+        <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 272 and Panel 400; Viewer full screen. Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
+            <div class="design-system-preview__row">
+                <AppButton Label="Window S 480" OnClick="@(() => _windowOpen = AppWindowSize.Small)" data-testid="preview-window-s" />
+                <AppButton Label="Window M 640" OnClick="@(() => _windowOpen = AppWindowSize.Medium)" data-testid="preview-window-m" />
+                <AppButton Label="Window L 900" OnClick="@(() => _windowOpen = AppWindowSize.Large)" data-testid="preview-window-l" />
+                <span class="design-system-preview__popout-anchor">
+                    <AppButton Label="Pop-out Menu 272" OnClick="@(() => _popoutOpen = _popoutOpen == AppPopoutSize.Menu ? AppPopoutSize.None : AppPopoutSize.Menu)" data-testid="preview-popout-menu" />
+                    @if (_popoutOpen == AppPopoutSize.Menu)
+                    {
+                        <AppPopover Open="true" OpenChanged="@(_ => _popoutOpen = AppPopoutSize.None)" Size="AppPopoutSize.Menu" Role="menu" AriaLabel="Speed">
+                            <div><AppMenuItem Label="0.75x" /><AppMenuItem Label="1x" /><AppMenuItem Label="1.25x" /><AppMenuItem Label="1.5x" /></div>
+                        </AppPopover>
+                    }
+                </span>
+                <span class="design-system-preview__popout-anchor">
+                    <AppButton Label="Pop-out Panel 400" OnClick="@(() => _popoutOpen = _popoutOpen == AppPopoutSize.Panel ? AppPopoutSize.None : AppPopoutSize.Panel)" data-testid="preview-popout-panel" />
+                    @if (_popoutOpen == AppPopoutSize.Panel)
+                    {
+                        <AppPopover Open="true" OpenChanged="@(_ => _popoutOpen = AppPopoutSize.None)" Size="AppPopoutSize.Panel" Role="dialog" AriaLabel="Library folders">
+                            <div class="design-system-preview__popout-panel"><p>A tool panel: the player's speed, audio, subtitles and queue, and the library folders list.</p></div>
+                        </AppPopover>
+                    }
+                </span>
+                <AppButton Label="Viewer" OnClick="@(() => _viewerOpen = true)" data-testid="preview-viewer" />
+            </div>
+            @if (_windowOpen is { } windowSize)
+            {
+                <AppDialog Visible="true" Title="@($"Window {WindowWidth(windowSize)}")" Subtitle="One anatomy at every size: title, one-line description, close, body, footer." Options="@(new AppDialogOptions { Size = windowSize, NoHeader = true, CloseOnEscapeKey = true, BackdropClick = true })"
+                           OnClose="@(() => _windowOpen = null)">
+                    <ChildContent><p class="design-system-preview__window-body">The body scrolls inside the window. Under 600 px this same window slides up from the bottom as a Sheet.</p></ChildContent>
+                    <FooterContent>
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _windowOpen = null)" />
+                        <AppButton Label="Delete" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="@(() => _windowOpen = null)" />
+                        <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _windowOpen = null)" />
+                    </FooterContent>
+                </AppDialog>
+            }
+            @if (_viewerOpen)
+            {
+                <AppViewer Label="Viewer" OnClose="@(() => _viewerOpen = false)" data-testid="preview-viewer-surface">
+                    <div class="design-system-preview__viewer-body">photo, page, document or search</div>
+                </AppViewer>
+            }
+        </AppCard>
+
         <AppCard Title="Media And Provider Primitives" Description="Reusable artwork, provider logo, and avatar sizing.">
             <div class="design-system-preview__row">
                 @foreach (var size in Sizes)
@@ -328,6 +403,10 @@
     private string _listTab = "all";
     private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3), new("metadata", "Metadata", 1), new("services", "Services", 1)];
     private bool _sheetOpen;
+    private bool _viewerOpen;
+    private AppWindowSize? _windowOpen;
+    private AppPopoutSize _popoutOpen;
+    private static string WindowWidth(AppWindowSize size) => size switch { AppWindowSize.Small => "S 480", AppWindowSize.Medium => "M 640", _ => "L 900" };
     private static readonly AppDialogOptions SheetDialogOptions = new() { NoHeader = true, MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, BackdropClick = true, Sheet = AppDialogSheetMode.Phone };
     private static readonly IReadOnlyList<PhoneTableRow> PhoneTableRows =
     [
@@ -365,6 +444,8 @@
         AppUiTone.Warning,
         AppUiTone.Error,
     ];
+
+    private static readonly IReadOnlyList<AppSelectOption> ProviderRowOptions = [new AppSelectOption("tvdb", "TheTVDB"), new AppSelectOption("tmdb", "TMDB")];
 
     private static readonly IReadOnlyList<AppSelectOption> LanguageOptions =
     [

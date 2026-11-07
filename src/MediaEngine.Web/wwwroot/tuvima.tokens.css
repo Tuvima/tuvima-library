@@ -342,6 +342,19 @@
     --tl-radius-pill: 3px;
     --tl-radius-round: 999px;
 
+    /* Four window kinds, one ladder (Look v3 D14): Window S/M/L, Sheet under 600 px, Pop-out Menu/Panel, Viewer. */
+    --tl-window-s: 480px;
+    --tl-window-m: 640px;
+    --tl-window-l: 900px;
+    --tl-window-radius: 12px;
+    --tl-sheet-radius: 16px;
+    --tl-popout-menu: 272px;
+    --tl-popout-panel: 400px;
+    --tl-popout-radius: 8px;
+    --tl-popout-row: 44px;
+    --tl-viewer-close: 44px;
+    --tl-viewer-black: #000000;
+
     --tl-space-1: 4px;
     --tl-space-2: 8px;
     --tl-space-3: 12px;
@@ -362,6 +375,12 @@
     --tl-control-height-compact: var(--tl-control-height-sm);
     --tl-control-height-normal: var(--tl-control-height-md);
     --tl-control-height-large: var(--tl-control-height-lg);
+    /* Alignment (Look v3 D15): the row-height ladder, the left label column of a settings or list row, and the gap between a form field's label and its field. */
+    --tl-row-h-compact: 44px;
+    --tl-row-h-default: 56px;
+    --tl-row-h-media: 64px;
+    --tl-row-label-column: 200px;
+    --tl-field-label-gap: 6px;
     /* One icon button (Look v3 D9): icons 20 in the 36 px size, 24 in 44 and 48. */
     --tl-icon-button-icon-sm: 20px;
     --tl-icon-button-icon-lg: 24px;

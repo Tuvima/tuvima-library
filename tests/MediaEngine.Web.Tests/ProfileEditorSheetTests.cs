@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Web.Components.Profiles;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 
 namespace MediaEngine.Web.Tests;
@@ -27,6 +28,7 @@ public sealed class ProfileEditorSheetTests
         bool selfEdit = false)
     {
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddNativeUiServices();
         return ctx.Render<ProfileEditorSheet>(parameters => parameters
             .Add(p => p.Open, true)
             .Add(p => p.Profile, profile)
@@ -308,10 +310,10 @@ public sealed class ProfileEditorSheetTests
         var closes = 0;
         var cut = Render(ctx, closed: () => closes++);
 
-        cut.Find(".profile-editor").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
-        cut.Find(".profile-editor-backdrop").Click();
+        // Escape and a press outside the window are both the shared Window frame's cancel, which the sheet routes to CloseAsync.
+        cut.InvokeAsync(() => cut.FindComponent<AppDialogFrame>().Instance.RequestCancel());
 
-        Assert.Equal(2, closes);
+        Assert.Equal(1, closes);
     }
 
     [Fact]

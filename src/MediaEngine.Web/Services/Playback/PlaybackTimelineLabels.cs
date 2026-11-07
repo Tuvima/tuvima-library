@@ -1,42 +1,14 @@
-@namespace MediaEngine.Web.Components.Shared
-@using System.Linq
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Resources;
+using Microsoft.Extensions.Localization;
 
-@if (HasContent)
+namespace MediaEngine.Web.Services.Playback;
+
+/// <summary>The audiobook timeline labels (unified player v2 D9): chapter mode and whole-book mode.</summary>
+public static class PlaybackTimelineLabels
 {
-    <div class="@RootClass">
-        <span class="playback-timeline-meta-row__main">
-            @if (!string.IsNullOrWhiteSpace(Icon))
-            {
-                <AppMaterialIcon Icon="@Icon" Class="playback-timeline-meta-row__icon" />
-            }
-            <strong>@Label</strong>
-        </span>
-        @if (!string.IsNullOrWhiteSpace(TrailingText))
-        {
-            <span class="playback-timeline-meta-row__trailing">@TrailingText</span>
-        }
-    </div>
-}
-
-@code {
-    [Parameter]
-    public string? Icon { get; set; }
-
-    [Parameter]
-    public string? Label { get; set; }
-
-    [Parameter]
-    public string? TrailingText { get; set; }
-
-    [Parameter]
-    public string Size { get; set; } = "standard";
-
-    [Parameter]
-    public string? Class { get; set; }
-
-    // The audiobook's timeline labels (unified player v2 D9). The bar draws them in the mockup's order (elapsed, label, rail, time left) through
-    // PlaybackSeekRail; Summary is the same line as one sentence ("Chapter 8 · 12:08 · −18:32"), which is what a screen reader hears
-    // and what this row prints where there is no rail beside it.
+    // The bar draws these in the mockup's order (elapsed, label, rail, time left) through PlaybackSeekRail; Summary is the same line as one
+    // sentence ("Chapter 8 · 12:08 · −18:32"), which is what a screen reader hears.
     private const string Separator = " \u00B7 ";
 
     /// <summary>"Chapter 8" (chapter mode).</summary>
@@ -69,22 +41,4 @@
         durationSeconds > 0 && double.IsFinite(durationSeconds) && double.IsFinite(positionSeconds)
             ? (int)Math.Clamp(Math.Floor(positionSeconds / durationSeconds * 100d), 0d, 100d)
             : 0;
-
-    private bool HasContent => !string.IsNullOrWhiteSpace(Label) || !string.IsNullOrWhiteSpace(TrailingText);
-
-    private string NormalizedSize => Size switch
-    {
-        "compact" => "compact",
-        "large" => "large",
-        _ => "standard"
-    };
-
-    private string RootClass => string.Join(
-        " ",
-        new[]
-        {
-            "playback-timeline-meta-row",
-            $"playback-timeline-meta-row--{NormalizedSize}",
-            Class
-        }.Where(value => !string.IsNullOrWhiteSpace(value)));
 }

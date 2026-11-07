@@ -1,14 +1,9 @@
 @page "/view/artwork"
-@page "/view/artwork/media"
-@page "/view/artwork/people"
-@page "/view/artwork/universes"
-@page "/view/artwork/assets"
 @using MediaEngine.Contracts.Artwork
 @using MediaEngine.Web.Components.Artwork
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
 @using MediaEngine.Web.Services.Navigation
-@inject NavigationManager Navigation
 @inject ViewRibbonVoice Snackbar
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
@@ -36,13 +31,7 @@
     private ArtworkAssetDto? _selected;
     private int _total;
 
-    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
-
-    private ArtworkAssetQuery InitialQuery => LegacyQuery(new Uri(RoutedPageAddress.AbsoluteFor(Navigation, Overlay)).AbsolutePath);
-
-    private static ArtworkAssetQuery LegacyQuery(string path) => path.EndsWith("/people", StringComparison.OrdinalIgnoreCase)
-        ? new ArtworkAssetQuery(Roles: ["Portrait"], EntityTypes: ["Person"], Sort: ArtworkAssetSort.Newest)
-        : new ArtworkAssetQuery(Sort: ArtworkAssetSort.Newest);
+    private static readonly ArtworkAssetQuery InitialQuery = new(Sort: ArtworkAssetSort.Newest);
 
     private Task SelectedAsync(ArtworkAssetDto? asset) { _selected = asset; return Task.CompletedTask; }
     private Task ResultsChangedAsync(int total) { _total = total; return Task.CompletedTask; }

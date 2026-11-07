@@ -66,7 +66,6 @@ public sealed record SettingsItemDef(
     string Label,
     bool AdminOnly,
     string? BadgeKey,
-    IReadOnlyList<string> Aliases,
     string Source = "mixed",
     bool Placeholder = false,
     SettingsStatusKind Status = SettingsStatusKind.Planned,
@@ -188,12 +187,8 @@ public sealed record SettingsMenuLocation(
 public sealed record SettingsRouteResolution(
     SettingsSection Section,
     string CanonicalRoute,
-    bool IsCanonicalRoute,
     bool IsKnownRoute,
-    bool RequestedSectionAllowed)
-{
-    public bool ShouldRedirect => !IsCanonicalRoute || !RequestedSectionAllowed;
-}
+    bool RequestedSectionAllowed);
 
 /// <summary>
 /// Explicit route map for the Settings shell.
@@ -314,37 +309,37 @@ public static class SettingsNav
     public static readonly SettingsItemDef[] AllItems =
     [
         // Profile is the page everyone lands on, a Kids profile included (D12): your own profile, counts, recent activity and taste.
-        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Profile", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Profile", false, null, "sqlite", Status: SettingsStatusKind.Live),
         // Manage Profiles opens the household list for an administrator and your own profile for everyone else. Playback, Listening,
         // Reading and Home are sections of a profile's Preferences tab, not pages of their own.
-        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Manage Profiles", false, null, ["profile", "household"], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Manage Profiles", false, null, "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, "sqlite", Status: SettingsStatusKind.Live),
 
         // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
-        new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.RecentlyAdded, "library", "library-activity", AppMaterialIcons.Outlined.History, "Activity", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.Playback, "library", "playback", AppMaterialIcons.Outlined.Stream, "Playback", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.RecentlyAdded, "library", "library-activity", AppMaterialIcons.Outlined.History, "Activity", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.Playback, "library", "playback", AppMaterialIcons.Outlined.Stream, "Playback", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
 
         // Server: this machine and who may reach it. Retired addresses are not forwarded (settings-and-setup-simplified D19).
-        new(SettingsSection.General, "server", "general", AppMaterialIcons.Outlined.Settings, "General", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Access, "server", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users & Households", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Tools, "server", "tools", AppMaterialIcons.Outlined.Build, "Tools", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.LocalAi, "server", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Plugins, "server", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Integrations, "server", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Backups, "server", "backups", AppMaterialIcons.Outlined.Backup, "Backups", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.AdminOverview, "server", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.General, "server", "general", AppMaterialIcons.Outlined.Settings, "General", true, null, "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Access, "server", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users & Households", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Tools, "server", "tools", AppMaterialIcons.Outlined.Build, "Tools", true, null, "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.LocalAi, "server", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Plugins, "server", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Integrations, "server", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Backups, "server", "backups", AppMaterialIcons.Outlined.Backup, "Backups", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.AdminOverview, "server", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
 
-        // Developer Tools opens on the Provider Tester, so that page owns the "developer" address and its old "provider-tester" address.
+        // Developer Tools opens on the Provider Tester, so that page owns the "developer" address.
         // Enrichment Tester and Development data are its other tabs; they are offered only when the running Engine is a development
         // build (see DevelopmentToolsState). The Enrichment Tester is temporary: it is removed at beta.
-        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, ["provider-tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, ["tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, ["dev-harness", "harness", "ingestion-harness", "test-harness"], "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
     ];
 
     /// <summary>
@@ -522,12 +517,6 @@ public static class SettingsNav
             .Where(item => !string.IsNullOrWhiteSpace(item.Slug))
             .ToDictionary(item => NormalizeKey(item.Slug!), item => item, StringComparer.OrdinalIgnoreCase);
 
-    private static readonly Dictionary<string, SettingsItemDef> _itemsByAlias =
-        AllItems
-            .SelectMany(item => item.Aliases.Select(alias => new KeyValuePair<string, SettingsItemDef>(NormalizeKey(alias), item)))
-            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
 
     private static readonly Dictionary<string, SettingsGroupDef> _groupsByKey =
         AllGroups.ToDictionary(group => group.Key, StringComparer.OrdinalIgnoreCase);
@@ -822,7 +811,6 @@ public static class SettingsNav
             return new SettingsRouteResolution(
                 landing,
                 RouteFor(landing),
-                IsCanonicalRoute: false,
                 IsKnownRoute: true,
                 RequestedSectionAllowed: true);
         }
@@ -836,7 +824,6 @@ public static class SettingsNav
                 return new SettingsRouteResolution(
                     canonicalItem.Value,
                     RouteFor(canonicalItem.Value),
-                    IsCanonicalRoute: true,
                     IsKnownRoute: true,
                     RequestedSectionAllowed: true);
             }
@@ -845,28 +832,6 @@ public static class SettingsNav
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
-                IsCanonicalRoute: false,
-                IsKnownRoute: true,
-                RequestedSectionAllowed: false);
-        }
-
-        if (_itemsByAlias.TryGetValue(normalized, out var aliasedItem))
-        {
-            if (IsVisible(aliasedItem.Value, administrationAllowed, restricted))
-            {
-                return new SettingsRouteResolution(
-                    aliasedItem.Value,
-                    RouteFor(aliasedItem.Value),
-                    IsCanonicalRoute: false,
-                    IsKnownRoute: true,
-                    RequestedSectionAllowed: true);
-            }
-
-            var fallback = FirstVisibleSection(administrationAllowed, restricted);
-            return new SettingsRouteResolution(
-                fallback,
-                RouteFor(fallback),
-                IsCanonicalRoute: false,
                 IsKnownRoute: true,
                 RequestedSectionAllowed: false);
         }
@@ -874,7 +839,6 @@ public static class SettingsNav
         return new SettingsRouteResolution(
             FirstVisibleSection(administrationAllowed, restricted),
             "/not-found",
-            IsCanonicalRoute: false,
             IsKnownRoute: false,
             RequestedSectionAllowed: false);
     }
@@ -890,14 +854,11 @@ public static class SettingsNav
         return resolution.IsKnownRoute ? resolution.Section : null;
     }
 
-    /// <summary>A route segment reduced to lower-case letters and digits, the form every slug and alias is compared in.</summary>
+    /// <summary>A route segment trimmed and lower-cased, the form every slug is compared in.</summary>
     public static string NormalizeSlug(string value) => NormalizeKey(value);
 
-    private static string NormalizeKey(string value)
-    {
-        var chars = value.Where(char.IsLetterOrDigit).ToArray();
-        return new string(chars).ToLowerInvariant();
-    }
+    // An address segment matches a slug by its exact spelling (any letter case): a differently spelled address is not found.
+    private static string NormalizeKey(string value) => value.Trim().ToLowerInvariant();
 
     /// <summary>The address every page of a section sits under (<c>/settings/network</c>), without a tab.</summary>
     public static string BaseRouteFor(SettingsSection section) => SectionRouteFor(section);

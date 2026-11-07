@@ -28,7 +28,7 @@ public sealed class PhonePrimitivesTests : AsyncBunitContext
     [InlineData("phone", AppDialogSheetMode.PhoneAndTablet, true)]
     [InlineData("tablet", AppDialogSheetMode.PhoneAndTablet, true)]
     [InlineData("desktop", AppDialogSheetMode.PhoneAndTablet, false)]
-    [InlineData("phone", AppDialogSheetMode.Never, false)]
+    [InlineData("phone", AppDialogSheetMode.Never, true)]
     public async Task DialogIsASheetOnlyForTheMatchingFormFactor(string formFactor, AppDialogSheetMode mode, bool expectSheet)
     {
         await UseAsync(formFactor);

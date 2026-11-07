@@ -33,17 +33,6 @@ public sealed class IngestionWaitingForToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Drawer_ForAFileWaitingForTools_ShowsTheLabelWithAnHourglass()
-    {
-        var cut = Render<IngestionMediaDrawer>(parameters => parameters
-            .Add(component => component.Item, Waiting()));
-
-        var status = cut.Find(".ingestion-drawer__progress > span.is-waiting_for_tools");
-        Assert.Contains("Waiting for media tools", status.TextContent, StringComparison.Ordinal);
-        Assert.Contains(HourglassPathStart, status.InnerHtml, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Notice_WhenAnyVisibleItemIsWaiting_LinksToTheToolsPage()
     {
         var cut = Render<MediaToolsWaitingNotice>(parameters => parameters
