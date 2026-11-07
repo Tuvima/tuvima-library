@@ -221,7 +221,7 @@ Everything that floats over the page is one of four kinds, each one shared part.
 - **Pop-out** (`AppPopover`): anchored to its control, no scrim, closes on an outside press or Escape. Menu (44 px rows) or Panel (tools such as the player's speed, audio, subtitles and queue, and the library folders pop-over), on the elevated surface. On phones a Pop-out becomes a Sheet.
 - **Viewer** (`AppViewer`): full screen, for the reader, photo and document viewers, search and the details overlay. It has its own close X at 44 px.
 
-**Footer order, left to right:** a quiet (text) button first, then a destructive button (outlined red), then Cancel or Discard, then the one primary button last. Buttons sit in one right-aligned row at one height and never stack on desktop; on phones they stack full width, primary first. A destructive confirmation is marked by the screen that asks (`AppDialogOptions.DestructiveConfirm`), never guessed from the label.
+**Footer order, left to right (as in the Look v3 mock, Shy 2026-11-07):** an optional quiet extra action (such as Reset, marked `app-footer-start`) alone at the far left; then, together on the right, a destructive button (outlined red), then Cancel or Discard, then the one primary button last. Cancel and Discard never sit apart from the primary. Buttons sit in one row at one height and never stack on desktop; on phones they stack full width, primary first. A destructive confirmation is marked by the screen that asks (`AppDialogOptions.DestructiveConfirm`), never guessed from the label.
 
 ## Buttons
 

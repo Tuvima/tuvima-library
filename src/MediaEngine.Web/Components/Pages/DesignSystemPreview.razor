@@ -461,7 +461,7 @@
                 <AppNumericField Label="Year" Value="2021" />
             </div>
             <div data-testid="preview-alignment-footer"><AppActionBar Align="AppHorizontalAlignment.End">
-                <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" />
+                <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" Class="app-footer-start" />
                 <AppButton Label="Delete" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Outlined" />
                 <AppButton Label="Discard" />
                 <AppButton Label="Save changes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
@@ -499,8 +499,8 @@
                            OnClose="@(() => _windowOpen = null)">
                     <ChildContent><p class="design-system-preview__window-body">The body scrolls inside the window. Under 600 px this same window slides up from the bottom as a Sheet.</p></ChildContent>
                     <FooterContent>
-                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _windowOpen = null)" />
                         <AppButton Label="Delete" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="@(() => _windowOpen = null)" />
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _windowOpen = null)" />
                         <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _windowOpen = null)" />
                     </FooterContent>
                 </AppDialog>
