@@ -24,7 +24,7 @@
                     @* Select mode: the whole tile is the control. A tap toggles it and Space does the same on the focused tile, because it is a native button. *@
                     <AppNativeButton Type="button" Class="view-tile__surface" aria-pressed="@(Selected.Contains(item.Id) ? "true" : "false")" AriaLabel="@($"Select {Title(item)}")" OnClick="@(args => ToggleAsync(item.Id, args))">
                         @TileFace(item)
-                        <span class="view-tile__check" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" /></span>
+                        <span class="view-tile__check" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppIconSize.Control20" /></span>
                     </AppNativeButton>
                 }
                 else

@@ -19,7 +19,7 @@
                     {
                         <div class="tl-extras-card tl-extras-card--missing" data-kind="@card.Kind" aria-disabled="true">
                             <div class="tl-extras-card__art" aria-hidden="true">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppIconSize.Row24" />
                             </div>
                             <div class="tl-extras-card__text">
                                 <span class="tl-extras-card__title">@card.Title</span>
@@ -43,11 +43,11 @@
                                 else if (card.Kind == DetailExtraCardKinds.Clip)
                                 {
                                     <img src="@ThumbnailSrc(card.Id)" alt="" loading="lazy" decoding="async" />
-                                    <span class="tl-extras-card__play"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayCircle" Size="AppSize.Medium" /></span>
+                                    <span class="tl-extras-card__play"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayCircle" Size="AppIconSize.Row24" /></span>
                                 }
                                 else
                                 {
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppSize.Medium" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Row24" />
                                 }
                             </div>
                             <div class="tl-extras-card__text">

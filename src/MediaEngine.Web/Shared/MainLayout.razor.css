@@ -459,7 +459,7 @@
 .layout-shell__my-list-slot ::deep .layout-shell__my-list-icon {
     width: 1.78rem;
     height: 1.78rem;
-    font-size: 1.78rem;
+    font-size: var(--tl-icon-size-lg);
 }
 
 @media (max-width: 1100px) {
@@ -574,9 +574,9 @@ html[data-form-factor="phone"] .layout-shell__intent-dock-link::before {
 }
 
 html[data-form-factor="phone"] .layout-shell__intent-dock-link ::deep .tl-icon-root {
-    width: 22px;
-    height: 22px;
-    font-size: 22px;
+    width: var(--tl-icon-size-md);
+    height: var(--tl-icon-size-md);
+    font-size: var(--tl-icon-size-md);
 }
 
 html[data-form-factor="phone"] .layout-shell__intent-dock-link span {
@@ -672,7 +672,7 @@ html[data-form-factor="phone"] .layout-shell__my-list-slot ::deep .layout-shell_
 html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .tl-icon-root {
     width: 24px;
     height: 24px;
-    font-size: 24px;
+    font-size: var(--tl-icon-size-md);
 }
 
 

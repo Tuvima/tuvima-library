@@ -51,7 +51,7 @@
 
 ::deep .browse-multi-select__trigger .tl-icon-root {
     color: var(--tl-text-secondary);
-    font-size: 1.15rem;
+    font-size: var(--tl-icon-size-sm);
 }
 
 ::deep .browse-multi-select__chevron {

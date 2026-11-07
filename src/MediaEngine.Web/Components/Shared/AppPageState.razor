@@ -6,7 +6,7 @@
      aria-busy="@(Kind == AppPageStateKind.Loading ? "true" : "false")">
     @if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <AppMaterialIcon Icon="@Icon" Class="app-page-state__icon" aria-hidden="true" />
+        <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Hero64" Class="app-page-state__icon" aria-hidden="true" />
     }
     @if (!string.IsNullOrWhiteSpace(Title))
     {

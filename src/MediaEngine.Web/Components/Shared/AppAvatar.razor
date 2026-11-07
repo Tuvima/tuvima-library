@@ -30,7 +30,7 @@
     };
     // Drawn at the control height (tuvima.tokens.css: compact 36, normal 42, large 48; 56 on TV): the tiny copy.
     private int DrawnPx => ControlSize switch { AppControlSize.Compact => 36, AppControlSize.Large => 48, _ => 42 };
-    private AppSize IconSize => ControlSize switch { AppControlSize.Compact => AppSize.Small, AppControlSize.Large => AppSize.Large, _ => AppSize.Medium };
+    private AppIconSize IconSize => ControlSize switch { AppControlSize.Compact => AppIconSize.Control20, AppControlSize.Large => AppIconSize.Tile32, _ => AppIconSize.Row24 };
     private string AvatarStyle => $"{(AccentColor is null ? "" : $"--app-avatar-accent:{AccentColor};")}{(ForegroundColor is null ? "" : $"--app-avatar-foreground:{ForegroundColor};")}{Style}";
     private string RootClass => $"app-avatar tl-avatar tl-color-{Color.ToString().ToLowerInvariant()} {AppUiMaps.SizeClass(ControlSize)} {Class}";
 }

@@ -221,7 +221,7 @@
 
 .browse-shell__control-group--browse ::deep .app-browse-mode__option .tl-icon-root {
     display: inline-block;
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .browse-shell__filter-row {
@@ -283,7 +283,7 @@
 }
 
 .browse-shell__search ::deep .tl-icon-root {
-    font-size: 1.42rem;
+    font-size: var(--tl-icon-size-md);
 }
 
 .browse-shell__multi-select {
@@ -556,7 +556,7 @@
 }
 
 .browse-shell__groupings ::deep .browse-shell__grouping-icon {
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .browse-shell__layout-toggle {

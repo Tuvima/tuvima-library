@@ -85,7 +85,7 @@
 
 .provider-onboarding__success ::deep .tl-icon-root {
     color: var(--tl-success);
-    font-size: 2rem;
+    font-size: var(--tl-icon-size-lg);
 }
 
 .provider-onboarding__footer {

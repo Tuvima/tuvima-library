@@ -30,7 +30,7 @@
 }
 
 .app-active-filter-summary ::deep .app-active-filter-summary__chip .tl-icon-root {
-    font-size: 0.95rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .app-active-filter-summary ::deep .app-active-filter-summary__clear {

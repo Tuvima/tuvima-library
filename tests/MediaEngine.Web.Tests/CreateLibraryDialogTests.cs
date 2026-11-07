@@ -204,6 +204,32 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     // The folder window's friendly name field (Libraries v3 D18); the library itself is never named by the person.
     private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find(".server-folder-picker input");
 
+    // Local-check bug 1: the Add library tiles drew a 28px icon beside the text. They are the shared choice tile: a 48px icon above the name.
+    [Fact]
+    public async Task TheAddLibraryAreaTilesUseTheChoiceTile()
+    {
+        await OpenAsync(noArea: true, chooseFolder: false);
+
+        var tiles = _dialogs.Find("[data-area-tiles]").QuerySelectorAll("button.app-choice-tile").ToArray();
+        Assert.Equal(4, tiles.Length);
+        Assert.All(tiles, tile =>
+        {
+            var square = tile.QuerySelector(".app-choice-tile__square")!;
+            Assert.NotNull(square.QuerySelector("svg.tl-icon-size-choice48"));
+            Assert.NotNull(tile.QuerySelector(".app-choice-tile__label"));
+            // The icon square comes first in the tile, so the name sits under it (the tile is a column).
+            Assert.Same(square, tile.Children[0]);
+            Assert.Null(tile.QuerySelector("svg.tl-icon-size-control20, svg.tl-icon-size-inline16"));
+        });
+
+        AreaTiles.Single(x => Text(x).StartsWith("Listen", StringComparison.Ordinal)).Click();
+        Next();
+        _dialogs.WaitForAssertion(() => Assert.Equal("Step 2 of 3", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
+        var kindTiles = _dialogs.Find("[data-kind-tiles]").QuerySelectorAll("button.app-choice-tile").ToArray();
+        Assert.NotEmpty(kindTiles);
+        Assert.All(kindTiles, tile => Assert.NotNull(tile.QuerySelector("svg.tl-icon-size-choice48")));
+    }
+
     [Fact]
     public async Task TheDialogIsThreeStepsOfSquareTilesAndNeverAsksForAName()
     {

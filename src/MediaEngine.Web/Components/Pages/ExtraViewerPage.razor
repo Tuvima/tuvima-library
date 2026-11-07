@@ -37,14 +37,14 @@
     else if (_view is null || _view.Items.Count == 0)
     {
         <div class="tl-extra-viewer__state" data-testid="extra-unavailable">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppIconSize.Row24" />
             <p>@L["ExtraViewerPage_ThisExtraIsnTAvailable"]</p>
         </div>
     }
     else if (Current is { IsMissing: true })
     {
         <div class="tl-extra-viewer__state" data-testid="extra-missing">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppIconSize.Row24" />
             <p>@L["ExtraViewerPage_FileNotFoundItIs"]</p>
         </div>
     }
@@ -107,7 +107,7 @@
     else
     {
         <div class="tl-extra-viewer__state" data-testid="extra-download-only">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppSize.Medium" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Row24" />
             <p>@L["ExtraViewerPage_ThisKindOfFileOpens"]</p>
             <a class="tl-extra-viewer__download" href="@FileHref(Current!.Id)" download="@Current.FileName">@L["ExtraViewerPage_Download", Current.FileName]</a>
         </div>

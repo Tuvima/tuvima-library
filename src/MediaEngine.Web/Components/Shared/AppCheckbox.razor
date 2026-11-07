@@ -2,7 +2,7 @@
 <label class="@RootClass">
     <span class="app-checkbox__control">
         <input type="checkbox" class="tl-checkbox-input" checked="@Value" disabled="@Disabled" aria-readonly="@ReadOnly.ToString().ToLowerInvariant()" @onchange="ChangedAsync" @onclick:preventDefault="@ReadOnly" @attributes="AdditionalAttributes" />
-        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppSize.Medium" Class="app-checkbox__glyph" />
+        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppIconSize.Row24" Class="app-checkbox__glyph" />
     </span>
     @if (!string.IsNullOrWhiteSpace(Label)) { <span class="@(HideLabel ? "sr-only" : null)">@Label</span> }
     @ChildContent

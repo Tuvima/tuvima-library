@@ -9,10 +9,10 @@
         <button @ref="_trigger" id="@InputId" type="button" tabindex="0" class="tl-select-trigger tl-select-input tl-input tl-input-slot"
                 disabled="@Disabled" role="combobox" aria-haspopup="listbox" aria-expanded="@_open.ToString().ToLowerInvariant()"
                 aria-controls="@_listId" aria-activedescendant="@ActiveId" @onclick="ToggleAsync" @onkeydown="KeyDownAsync" @attributes="AdditionalAttributes">
-            @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /> }
+            @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /> }
             <span class="tl-select-value">@(SelectedText ?? Placeholder)</span>
-            @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /> }
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.KeyboardArrowDown" Size="AppSize.Medium" Class="tl-select-arrow" />
+            @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /> }
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.KeyboardArrowDown" Size="AppIconSize.Row24" Class="tl-select-arrow" />
         </button>
         <AppPopover Open="@_open" OpenChanged="SetOpenAsync" Class="@PopoverClass" MatchAnchorWidth="true" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
             <div id="@_listId" role="listbox" class="tl-list tl-select-options" aria-multiselectable="@(MultiSelection ? "true" : null)">@ChildContent</div>

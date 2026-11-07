@@ -20,7 +20,7 @@
                tabindex="@(selected ? 0 : -1)"
                @onclick="() => SelectAsync(tab.Key)"
                @onkeydown="args => KeyDownAsync(args, position)">
-                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" Size="@(tab.Advanced ? AppSize.Small : AppSize.Medium)" /> }
+                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" Size="@(tab.Advanced ? AppIconSize.Control20 : AppIconSize.Row24)" /> }
                 <span>@tab.Label</span>
                 @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </a>

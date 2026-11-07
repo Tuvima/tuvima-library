@@ -5,9 +5,13 @@
 ::-webkit-scrollbar-thumb:hover { background:#a6a6a6; }
 html, body * { scrollbar-color:#c4c4c4 transparent;scrollbar-width:thin; }
 strong,b { font-weight:600; }
-.tl-icon { width:1em;height:1em;font-size:1.5rem;display:inline-block;fill:currentColor;flex-shrink:0;vertical-align:middle; }
-.tl-icon-size-small { font-size:1.25rem; }
-.tl-icon-size-large { font-size:2.25rem; }
+.tl-icon { width:1em;height:1em;font-size:var(--tl-icon-size-md);display:inline-block;fill:currentColor;flex-shrink:0;vertical-align:middle; }
+.tl-icon-size-inline16 { font-size:var(--tl-icon-size-xs); }
+.tl-icon-size-control20 { font-size:var(--tl-icon-size-sm); }
+.tl-icon-size-row24 { font-size:var(--tl-icon-size-md); }
+.tl-icon-size-tile32 { font-size:var(--tl-icon-size-lg); }
+.tl-icon-size-choice48 { font-size:var(--tl-icon-size-xl); }
+.tl-icon-size-hero64 { font-size:var(--tl-icon-size-2xl); }
 .tl-color-inherit,.tl-color-default { color:inherit; }
 .tl-color-primary { color:var(--tl-accent-primary,#8852fc); }
 .tl-color-secondary { color:var(--tl-accent-secondary,#38bdf8); }

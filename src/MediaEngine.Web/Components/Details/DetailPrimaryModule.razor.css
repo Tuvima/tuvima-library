@@ -344,7 +344,7 @@
 }
 
 .tl-detail-primary-module__media-type .tl-icon-root {
-    font-size: 0.9rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .tl-detail-primary-module__media-type--read {
