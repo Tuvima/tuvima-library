@@ -5858,7 +5858,7 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 }
 
 :where(.app-viewer--page) {
-    background: var(--tl-bg-page);
+    background: var(--tl-bg-root);
 }
 
 :where(.app-viewer__close) {
