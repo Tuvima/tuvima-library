@@ -87,6 +87,9 @@
     private readonly string _toolId = $"item-actions-{Guid.NewGuid():N}";
     private PlaybackRemoteController? _remote;
     private PlaybackPanel? _menuPanel;
+
+    /// <summary>The "..." button, so a row added through <see cref="ExtraRows"/> can hand focus back to it once the menu has closed.</summary>
+    public ElementReference? TriggerElement => _menuPanel?.TriggerElement;
     private bool _settingsOpen;
     private PersonalStatusInfo? _status;
     private (DetailEntityType Type, Guid Id)? _statusSubject;

@@ -59,7 +59,7 @@ public sealed class Wave6HardeningGuardrailTests
         Assert.Contains("window.unregisterCtrlK", appJs);
         Assert.Contains("unregisterStateHandler", appJs);
         Assert.Contains("unregisterCommandHandler", appJs);
-        Assert.Contains("unregisterPopupWindow", appJs);
+        Assert.DoesNotContain("unregisterPopupWindow", appJs);
         Assert.Contains("@implements IAsyncDisposable", layout);
         Assert.Contains("unregisterCtrlK", layout);
         Assert.Contains("@implements IAsyncDisposable", nowPlaying);

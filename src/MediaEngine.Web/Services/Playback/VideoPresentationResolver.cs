@@ -180,7 +180,7 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             }
         }
         Check();
-        if (!IsTvEpisode(playback.CurrentItem))
+        if (!HasOwnedSequence(playback.CurrentItem))
         {
             return VideoPresentationContext.Empty(identity);
         }
@@ -284,10 +284,20 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
                 item.EpisodeStillWidthPx, item.EpisodeStillHeightPx, item.ProgressPercent)).ToList();
     }
 
+    /// <summary>
+    /// True for an episode of a TV show. A numbered video from a Videos or Other videos library is not one, even though it carries an episode number:
+    /// it is a lesson or a video, and the player never says "Episode" or "Season" for it (issue 703). Use <see cref="HasOwnedSequence"/> where the
+    /// behavior (the list of the other videos, Previous and Next) is wanted for both.
+    /// </summary>
     public static bool IsTvEpisode(ListenQueueItem? item) => item is not null
+        && !VideoPlayerWording.IsFolderVideo(item)
         && (item.MediaType.Contains("tv", StringComparison.OrdinalIgnoreCase)
             || item.MediaType.Equals("Television", StringComparison.OrdinalIgnoreCase)
             || !string.IsNullOrWhiteSpace(item.EpisodeNumber));
+
+    /// <summary>True when the item sits in a numbered sequence the library owns: a TV episode, or a numbered video from a Videos or Other videos library.</summary>
+    public static bool HasOwnedSequence(ListenQueueItem? item) => IsTvEpisode(item)
+        || item is not null && VideoPlayerWording.IsFolderVideo(item) && !string.IsNullOrWhiteSpace(item.EpisodeNumber);
     /// <summary>
     /// What the video context panel lists (player-controls-v3 D7): the season's episodes for a TV episode, Up next for a TV episode with
     /// nothing owned beside it, Lessons for other video that belongs to a series, and nothing for a film. Chapters belong to audiobooks.

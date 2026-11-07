@@ -54,3 +54,54 @@
 
 
 .video-playback-host__media { font-size:clamp(var(--tl-font-size-xs),1.15vw,var(--tl-font-size-lg)); }
+
+/* The phone's header over the picture (unified player v2 D26): the title and second line at the left, Playback settings and Close at the right. */
+.video-playback-host__phone-header {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+}
+
+.video-playback-host__phone-title {
+    color: var(--playback-text);
+    flex: 1;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The Playback settings trigger is drawn by PlaybackPanel, so the bar's tool-button look is repeated for the header: 44 px, transparent, selected in soft purple. */
+.video-playback-host__phone-header ::deep .playback-popover-trigger {
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    display: grid;
+    height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: 0;
+    place-items: center;
+    width: var(--playback-control-target);
+}
+
+.video-playback-host__phone-header ::deep .playback-popover-trigger:not(:disabled):is([aria-expanded="true"], [aria-pressed="true"], .is-on) {
+    background: var(--playback-state-selected);
+    color: var(--tl-accent-primary-hover);
+}
+
+.video-playback-host__phone-header ::deep .playback-popover-trigger:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.video-playback-host__phone-header ::deep .playback-utility-glyph {
+    height: var(--playback-control-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
+}

@@ -21,21 +21,225 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Render<AppPopoverHost>();
     }
 
-    [Fact]
-    public void PopupHasTheHorizontalVolumeSliderAndMusicModeControls()
+
+    // ---- The phone's Now playing (unified player v2 D26; mockup screen 15 marker 2) ----
+
+    private static ListenPlaybackSnapshot BookSnapshot()
     {
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(c => c.Snapshot, Snapshot()).Add(c => c.Commands, new Sink()).Add(c => c.IsPopup, true));
-        Assert.Single(cut.FindAll(".playback-full__volume input[aria-orientation='horizontal'][aria-label='Volume']"));
-        Assert.Empty(cut.FindAll("input[aria-orientation='vertical']"));
-        Assert.Equal("0:37", cut.Find(".playback-full__timeline .playback-seek-rail__start").TextContent);
-        Assert.Equal("\u22122:23", cut.Find(".playback-full__timeline .playback-seek-rail__end").TextContent);
-        Assert.Single(cut.FindAll("button[aria-label='Turn shuffle on']"));
-        foreach (var label in new[] { "Lyrics", "Queue" })
+        var snapshot = Snapshot();
+        return snapshot with { Experience = PlayerExperienceModes.Audiobook, Queue = [snapshot.Queue[0] with { MediaType = "Audiobook", Title = "The Way Beyond", AuthorName = "Maya Ellis" }] };
+    }
+
+    private IRenderedComponent<PlaybackFullPlayer> RenderPlayer(ListenPlaybackSnapshot snapshot, PlaybackBarState? state = null, Action<ComponentParameterCollectionBuilder<PlaybackFullPlayer>>? more = null) =>
+        Render<PlaybackFullPlayer>(p =>
         {
-            var button = cut.Find($".playback-full__modes button[aria-label='{label}']");
-            Assert.Equal(string.Empty, button.TextContent.Trim());
-            Assert.Equal(label, button.ParentElement!.GetAttribute("data-playback-tooltip"));
+            p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new Sink())
+                .Add(x => x.State, state ?? new PlaybackBarState(CanPrevious: true, CanNext: true, HasChapters: true, CanBookmark: true))
+                .Add(x => x.TimelineContent, builder => builder.AddMarkupContent(0, "<div data-test-timeline></div>"))
+                .Add(x => x.HostedTools, new HashSet<PlaybackControlKey> { PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer })
+                .Add(x => x.ToolContent, tool => builder => builder.AddMarkupContent(0, $"<button type=\"button\" data-hosted-tool=\"{tool.Key}\" aria-label=\"{tool.AriaLabel}\"></button>"));
+            more?.Invoke(p);
+        });
+
+    private static IReadOnlyList<string> Tools(IRenderedComponent<PlaybackFullPlayer> cut) =>
+        cut.FindAll("[data-playback-tool-row] [data-playback-tool]").Select(slot => slot.GetAttribute("data-playback-tool")!).ToList();
+
+    private static IReadOnlyList<string> Transport(IRenderedComponent<PlaybackFullPlayer> cut) =>
+        cut.FindAll("[data-playback-full-transport] button").Select(button => button.GetAttribute("aria-label")!).ToList();
+
+    [Fact]
+    public void Music_TopLineHasTheCollapseChevronPlayingFromAndTheMoreMenu()
+    {
+        var cut = RenderPlayer(Snapshot() with { SourceLabel = "Northern Lights" });
+
+        var top = cut.Find(".playback-full__top");
+        Assert.NotNull(top.QuerySelector("button[aria-label='Collapse player']"));
+        Assert.Equal("Playing from Northern Lights", cut.Find("[data-playback-full-from]").TextContent.Trim());
+        Assert.NotNull(top.QuerySelector("button.playback-item-more"));
+    }
+
+    [Fact]
+    public void WithoutASourceTheTopLineNamesTheAlbumAndWithoutAnAlbumJustNowPlaying()
+    {
+        var snapshot = Snapshot();
+        var withAlbum = RenderPlayer(snapshot with { Queue = [snapshot.Queue[0] with { Album = "Northern Lights" }] });
+        var bare = RenderPlayer(snapshot);
+
+        Assert.Equal("Playing from Northern Lights", withAlbum.Find("[data-playback-full-from]").TextContent.Trim());
+        Assert.Equal("Now playing", bare.Find("[data-playback-full-from]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void Music_ShowsArtworkTheTitleLineWithFavoriteLikeAndDislikeAndTheTimeline()
+    {
+        var cut = RenderPlayer(Snapshot(), more: p => p.Add(x => x.IsFavorite, false));
+
+        Assert.NotNull(cut.Find("[data-playback-full-art]"));
+        Assert.Equal("Current", cut.Find(".playback-full__title").TextContent.Trim());
+        var actions = cut.FindAll("[data-playback-full-actions] button").Select(button => button.GetAttribute("aria-label")!).ToList();
+        Assert.Equal(3, actions.Count);
+        Assert.Contains("Favorites", actions[0]);
+        Assert.StartsWith("Like", actions[1]);
+        Assert.StartsWith("Dislike", actions[2]);
+        Assert.NotNull(cut.Find("[data-playback-full-timeline] [data-test-timeline]"));
+    }
+
+    [Fact]
+    public void Audiobook_TitleLineHasFavoriteOnly()
+    {
+        var cut = RenderPlayer(BookSnapshot());
+
+        var actions = cut.FindAll("[data-playback-full-actions] button");
+        Assert.Single(actions);
+        Assert.Contains("Favorites", actions[0].GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void Music_TransportIsPreviousPlayNextWithTheLargePlayAndTheToolRowIsShuffleLyricsQueueRepeat()
+    {
+        var cut = RenderPlayer(Snapshot());
+
+        Assert.Equal(["Previous track", "Play", "Next track"], Transport(cut));
+        Assert.NotNull(cut.Find("[data-playback-full-transport] .playback-phone-play"));
+        Assert.Equal(["Shuffle", "Lyrics", "Queue", "Repeat"], Tools(cut));
+    }
+
+    [Fact]
+    public void Audiobook_TransportIsTheFiveButtonsAndTheToolRowIsChaptersSpeedSleepTimerBookmarks()
+    {
+        var cut = RenderPlayer(BookSnapshot());
+
+        Assert.Equal(["Previous chapter", "Skip back 10 seconds", "Play", "Skip forward 30 seconds", "Next chapter"], Transport(cut));
+        Assert.Equal(["Chapters", "Speed", "SleepTimer", "Bookmarks"], Tools(cut));
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public void TheToolRowNeverHoldsMoreThanFourToolsWhateverTheMediaOffers(bool audiobook, bool everything)
+    {
+        var state = new PlaybackBarState(CanPrevious: everything, CanNext: everything, HasChapters: everything, HasEpisodes: everything, CanBookmark: everything, IsSleepTimerActive: everything, HasQueue: everything);
+        var cut = RenderPlayer(audiobook ? BookSnapshot() : Snapshot(), state);
+
+        Assert.InRange(Tools(cut).Count, 1, 4);
+    }
+
+    [Fact]
+    public void ThereIsNoVolumeControlOnAPhone()
+    {
+        foreach (var snapshot in new[] { Snapshot(), BookSnapshot() })
+        {
+            var cut = RenderPlayer(snapshot);
+
+            Assert.Empty(cut.FindAll("[aria-label='Volume'],[aria-label='Mute'],[aria-label='Unmute'],.playback-volume,input[type='range']"));
+            Assert.Empty(cut.FindAll("[data-playback-tool='Volume']"));
         }
+    }
+
+    [Fact]
+    public async Task Music_BookmarksAreInTheMoreMenuNotInTheToolRow()
+    {
+        var cut = RenderPlayer(Snapshot());
+
+        Assert.DoesNotContain("Bookmarks", Tools(cut));
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-playback-item-action='bookmarks']")));
+    }
+
+    [Fact]
+    public async Task Music_BookmarksFromTheMoreMenuAreAnchoredToTheMoreButtonSoFocusReturnsThere()
+    {
+        var tools = new List<PlaybackControlActivation>();
+        var cut = RenderPlayer(Snapshot(), more: p => p.Add(x => x.OnTool, activation => tools.Add(activation)));
+
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+        await cut.WaitForElement("[data-playback-item-action='bookmarks']").ClickAsync();
+
+        var activation = Assert.Single(tools);
+        Assert.Equal("open-bookmarks", activation.Control.Command);
+        var moreButton = cut.FindComponent<PlaybackItemMenu>().Instance.TriggerElement;
+        Assert.NotNull(moreButton);
+        Assert.Equal(moreButton.Value.Id, activation.Trigger.Id);
+    }
+
+    [Fact]
+    public void Audiobook_WithoutChaptersTheSlotOfChaptersHoldsHistory()
+    {
+        var withChapters = RenderPlayer(BookSnapshot());
+        var without = RenderPlayer(BookSnapshot(), new PlaybackBarState(CanPrevious: true, CanNext: true, HasChapters: false, CanBookmark: true));
+
+        Assert.Equal(["Chapters", "Speed", "SleepTimer", "Bookmarks"], Tools(withChapters));
+        Assert.Equal(["History", "Speed", "SleepTimer", "Bookmarks"], Tools(without));
+    }
+
+    [Fact]
+    public async Task Audiobook_BookmarksStayInTheToolRowAndNotInTheMoreMenu()
+    {
+        var cut = RenderPlayer(BookSnapshot());
+
+        Assert.Contains("Bookmarks", Tools(cut));
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-playback-item-menu]")));
+        Assert.Empty(cut.FindAll("[data-playback-item-action='bookmarks']"));
+    }
+
+    [Fact]
+    public async Task APlainToolGoesToTheHostWithItsButtonAndShuffleActsAsATransportCommand()
+    {
+        var transport = new List<string>();
+        var tools = new List<PlaybackControlActivation>();
+        var cut = RenderPlayer(BookSnapshot(), more: p => p
+            .Add(x => x.OnTransport, control => transport.Add(control.Command))
+            .Add(x => x.OnTool, activation => tools.Add(activation)));
+
+        await cut.Find("[data-playback-tool='Bookmarks'] button").ClickAsync();
+        await cut.Find("[data-playback-full-transport] button[aria-label='Play']").ClickAsync();
+
+        Assert.Equal("open-bookmarks", Assert.Single(tools).Control.Command);
+        Assert.Equal(["toggle-play"], transport);
+
+        var music = RenderPlayer(Snapshot(), more: p => p.Add(x => x.OnTransport, control => transport.Add(control.Command)));
+        await music.Find("[data-playback-tool='Shuffle'] button").ClickAsync();
+        Assert.Equal("shuffle", transport.Last());
+    }
+
+    [Fact]
+    public void ThePanelsOfTheHostedToolsAreDrawnInsideTheToolRowSoTheyOpenAsSheetsOverThisView()
+    {
+        var cut = RenderPlayer(Snapshot());
+
+        foreach (var key in new[] { "Lyrics", "Queue" })
+        {
+            Assert.NotNull(cut.Find($"[data-playback-tool='{key}'] [data-hosted-tool='{key}']"));
+        }
+    }
+
+    [Fact]
+    public async Task CollapsingDismissesOnlyThePresentationAndSendsNoPlaybackCommand()
+    {
+        var snapshot = Snapshot();
+        var sink = new Sink();
+        var collapsed = 0;
+        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.OnCollapse, () => collapsed++));
+
+        await cut.Find("button[aria-label='Collapse player']").ClickAsync();
+        await cut.Find("section.playback-full").KeyDownAsync("Escape");
+
+        Assert.Equal(2, collapsed);
+        Assert.Empty(sink.Commands);
+        Assert.Empty(cut.FindAll("audio,video"));
+    }
+
+    [Fact]
+    public void ThePhoneViewIsOneColumnWithNoSecondSetOfControlsOrVolume()
+    {
+        var cut = RenderPlayer(Snapshot());
+
+        Assert.Single(cut.FindAll("[data-playback-full-transport]"));
+        Assert.Single(cut.FindAll("[data-playback-tool-row]"));
+        Assert.Empty(cut.FindAll(".playback-full__modes,.playback-full__volume,.playback-full__middle"));
     }
 
     [Fact]
@@ -87,15 +291,16 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Assert.Equal(title, cut.Find(".playback-identity-owner").TextContent.Trim());
     }
 
+
     [Fact]
-    public async Task PhoneFocusBoundaryRebindsOnSubjectChangeAndDetachesWhenTheSubjectDisappears()
+    public async Task FocusBoundaryRebindsOnSubjectChangeAndDetachesWhenTheSubjectDisappears()
     {
         var module = JSInterop.SetupModule("./js/playback-full-focus.js");
         module.SetupVoid("attach"); module.SetupVoid("detach");
         var snapshot = Snapshot(); var sink = new Sink();
         var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink));
         var initial = module.Invocations.Single(call => call.Identifier == "attach");
-        Assert.Equal(false, initial.Arguments[2]); // Phone host captures its originating Expand first.
+        Assert.Equal(false, initial.Arguments[2]); // The host captures its originating Expand first.
         var next = snapshot with { PlaybackRequestVersion = snapshot.PlaybackRequestVersion + 1 };
         cut.Render(p => p.Add(x => x.Snapshot, next).Add(x => x.Commands, sink));
         var rebind = module.Invocations.Last(call => call.Identifier == "attach");
@@ -108,181 +313,6 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Assert.Empty(sink.Commands);
     }
 
-    [Fact]
-    public async Task PopupFocusBoundaryEstablishesFocusAndDisposesWithoutAnExitOrTransportCommand()
-    {
-        var module = JSInterop.SetupModule("./js/playback-full-focus.js");
-        module.SetupVoid("attach"); module.SetupVoid("detach");
-        var sink = new Sink();
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
-        var attach = Assert.Single(module.Invocations, call => call.Identifier == "attach");
-        Assert.Equal(true, attach.Arguments[2]);
-        await cut.Instance.DisposeAsync();
-        var detach = Assert.Single(module.Invocations, call => call.Identifier == "detach");
-        Assert.Equal(attach.Arguments[0], detach.Arguments[0]);
-        Assert.Empty(sink.Commands);
-    }
-
-    [Fact]
-    public void PopupKeepsTheFullCompositionWhenTheMainWindowReturnsToDockedPresentation()
-    {
-        var playback = new PlaybackSessionController(null!, null!);
-        playback.RestoreState(Snapshot());
-        playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
-        var sink = new Sink();
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, playback.CreateSnapshot()).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
-        playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
-        cut.Render(p => p.Add(x => x.Snapshot, playback.CreateSnapshot()).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
-        Assert.Single(cut.FindAll(".playback-full--popup"));
-        Assert.Empty(cut.FindAll(".playback-full__header"));
-        Assert.Empty(sink.Commands);
-    }
-
-    [Fact]
-    public async Task PhoneCollapseDismissesOnlyPresentationAndPopupHasNoExitSlotOrShortcut()
-    {
-        var snapshot = Snapshot();
-        var sink = new Sink();
-        var collapsed = 0;
-        var phone = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.OnCollapse, () => collapsed++));
-        await Activate(phone, PlaybackControlKey.Queue);
-        Assert.Single(phone.FindAll(".playback-full__middle"));
-        await phone.Find("button[aria-label='Collapse player']").ClickAsync();
-        Assert.Equal(1, collapsed);
-        Assert.Empty(phone.FindAll("[role='dialog']"));
-        Assert.Empty(sink.Commands);
-        Assert.Same(snapshot, phone.Instance.Snapshot);
-        Assert.Empty(phone.FindAll("audio,video"));
-        Assert.Equal(snapshot.SleepTimerState.DeadlineUtc, phone.Instance.Snapshot.SleepTimerState.DeadlineUtc);
-
-        var popup = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
-        Assert.Empty(popup.FindAll(".playback-full__header"));
-        Assert.Empty(popup.FindAll("button[aria-label='Collapse player'],button[aria-label='Close player']"));
-        await popup.Find("section.playback-full").KeyDownAsync("Escape");
-        Assert.Empty(sink.Commands);
-        Assert.Equal(phone.Find(".playback-full__timeline").TextContent, popup.Find(".playback-full__timeline").TextContent);
-        Assert.Equal(phone.FindComponents<ListenTransportControls>().Single().Instance.Variant, popup.FindComponents<ListenTransportControls>().Single().Instance.Variant);
-    }
-
-    [Fact]
-    public async Task QueueHistoryAndStableRemovalUseSharedBodyWithoutChangingTheCurrentSong()
-    {
-        var snapshot = Snapshot();
-        var sink = new Sink();
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
-        await Activate(cut, PlaybackControlKey.Queue);
-        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.Title == "Queue actions for Upcoming").Instance.OpenAsync(true));
-        await cut.Find("button[data-playback-row-action='remove']").ClickAsync();
-        var remove = Assert.Single(sink.Commands);
-        Assert.Same(snapshot, remove.Snapshot);
-        Assert.Equal(snapshot.Queue[1].QueueEntryId, remove.Command.QueueEntryId);
-        await cut.Find("[role='tab'][aria-selected='false']").ClickAsync();
-        Assert.Single(cut.FindAll("[role='tablist']"));
-        await cut.Find("section.playback-full").KeyDownAsync("Escape");
-        Assert.Empty(cut.FindAll("[role='dialog']"));
-        Assert.Single(sink.Commands);
-    }
-
-    [Fact]
-    public async Task ImmediateNativeToggleIsConsumedOnceAndNewSubjectDismissesAnObsoleteTool()
-    {
-        var snapshot = Snapshot();
-        var sink = new Sink();
-        JSInterop.Setup<bool>("listenPlayback.consumeImmediateToggleHandled").SetResult(true);
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink));
-        await cut.Find("button.playback-primary-button").ClickAsync();
-        Assert.Empty(sink.Commands);
-        await Activate(cut, PlaybackControlKey.Queue);
-        cut.Render(p => p.Add(x => x.Snapshot, snapshot with { ProfileId = Guid.NewGuid(), PlaybackRequestVersion = 12 }).Add(x => x.Commands, sink));
-        Assert.Empty(cut.FindAll("[role='dialog']"));
-    }
-
-    [Fact]
-    public async Task BookKeepsOneNativeSeekRailCombinedContextAndExistingBookmarkCallback()
-    {
-        var snapshot = Snapshot();
-        var asset = snapshot.Queue[0].AssetId;
-        snapshot = snapshot with
-        {
-            Experience = PlayerExperienceModes.Audiobook,
-            Queue = [snapshot.Queue[0] with
-            { MediaType = "Audiobooks", AudiobookWorkId = Guid.NewGuid(), Chapters = [new() { Index = 0, AssetId = asset, Title = "Source intro", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = asset, Title = "Source chapter", StartSeconds = 30, EndSeconds = 90 }] }]
-        };
-        var bookmarks = 0;
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new Sink()).Add(x => x.BookmarkRequested, _ => bookmarks++));
-        Assert.Single(cut.FindAll("input[aria-label='Playback position']"));
-        Assert.Single(cut.FindAll(".playback-full__book-progress"));
-        await Activate(cut, PlaybackControlKey.Chapters);
-        Assert.Empty(cut.FindAll("[role='tab']"));
-        Assert.Contains("Source chapter", cut.Markup);
-        await Activate(cut, PlaybackControlKey.Bookmarks);
-        Assert.Equal(1, bookmarks);
-        Assert.Empty(cut.FindAll("[role='dialog']"));
-    }
-
-    [Fact]
-    public void MusicHasOneCompleteSongMenuOnPhoneAndPopup()
-    {
-        foreach (var popup in new[] { false, true })
-        {
-            var cut = Render<PlaybackFullPlayer>(p => p.Add(c => c.Snapshot, Snapshot()).Add(c => c.Commands, new Sink()).Add(c => c.IsPopup, popup));
-            Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
-        }
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SongActionRowSharesTheGlyphFamilyAndTargetsOnPhoneAndPopup(bool popup)
-    {
-        var favorites = 0;
-        var sink = new Sink();
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, sink)
-            .Add(x => x.IsPopup, popup).Add(x => x.FavoriteChanged, () => favorites++));
-        var row = cut.Find(".playback-song-actions");
-        var targets = row.QuerySelectorAll("button.playback-song-action");
-        Assert.Equal(3, targets.Length);
-        Assert.Equal(new[] { "Favorite", "Like", "More" }, targets.Select(button =>
-        {
-            var svg = Assert.Single(button.QuerySelectorAll("svg"));
-            Assert.Equal("0 0 24 24", svg.GetAttribute("viewBox"));
-            Assert.Contains("playback-utility-glyph", svg.ClassList);
-            Assert.Equal("true", svg.GetAttribute("aria-hidden"));
-            Assert.False(string.IsNullOrWhiteSpace(button.GetAttribute("aria-label")));
-            Assert.Equal(string.Empty, button.TextContent.Trim());
-            return svg.GetAttribute("data-playback-glyph");
-        }));
-        Assert.Empty(row.QuerySelectorAll(".tl-icon"));
-        Assert.Equal(popup ? "popup" : "phone", row.QuerySelector(".playback-popover-owner")!.GetAttribute("data-playback-popover-surface"));
-        await cut.Find("button[aria-label='Add song to Favorites']").ClickAsync();
-        Assert.Equal(1, favorites);
-        Assert.Empty(sink.Commands);
-        await cut.Find(".playback-song-actions button[aria-label='Rate']").ClickAsync();
-        Assert.Equal("true", cut.Find(".playback-song-actions button[aria-label='Rate']").GetAttribute("aria-expanded"));
-        Assert.Equal(new[] { "Dislike", "Like" }, cut.FindAll(".media-rate-control__choices svg").Select(x => x.GetAttribute("data-playback-glyph")));
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task LyricsKeepsAccessibleContextWithoutRepeatingAVisibleHeading(bool popup)
-    {
-        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, new Sink()).Add(x => x.IsPopup, popup));
-        await Activate(cut, PlaybackControlKey.Lyrics);
-        Assert.Equal("Lyrics", cut.Find(".playback-panel-card").GetAttribute("aria-label"));
-        Assert.Empty(cut.FindAll(".playback-panel-card h2,.playback-lyrics__sync"));
-        Assert.Single(cut.FindAll(".playback-full__volume input[aria-label='Volume']"));
-        Assert.Equal("0:37", cut.Find(".playback-full__timeline .playback-seek-rail__start").TextContent);
-        await Activate(cut, PlaybackControlKey.Queue);
-        Assert.Empty(cut.FindAll(".playback-panel-card h2"));
-        var tabs = cut.FindAll(".playback-panel-card [role='tab']");
-        Assert.Equal(2, tabs.Count);
-        Assert.StartsWith("Up next", tabs[0].TextContent.Trim());
-        Assert.StartsWith("History", tabs[1].TextContent.Trim());
-    }
-
-    private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>
-        cut.Find($".playback-full__modes button[aria-label='{key}']").ClickAsync();
     private static ListenPlaybackSnapshot Snapshot() => new()
     {
         ProfileId = Guid.NewGuid(),

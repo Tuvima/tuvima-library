@@ -1,131 +1,94 @@
 @namespace MediaEngine.Web.Components.Listen
-@using System.Globalization
 @using MediaEngine.Contracts.Playback
-@using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Shared
-@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @inject IServiceProvider Services
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
 
+@* The phone's Now playing (unified player v2 D26; mockup screen 15): the expanded player itself. A top line with a collapse chevron, "Playing from ..." and
+   the "..." menu; large artwork; the title and artist on one line with Favorite, Like and Dislike at its right end (Favorite alone for an audiobook); the
+   timeline; the transport of this media with a 64 px Play; and one row of at most four tools. Everything else (Playback settings, the item actions and,
+   for music, Bookmarks) is in the "..." menu. Volume is the phone's own buttons, so there is no volume control. The tools open the same panels as the desktop
+   bar, as bottom sheets over this view; the host (ListenNowPlayingBar) owns them and every playback command, and passes them in. *@
 @if (Current is { } item)
 {
-    var displayed = Snapshot;
     <div class="playback-full-owner">
-    <AppCssElement Tag="section" Class="@($"playback-full {(IsBook ? "playback-full--book" : "playback-full--music")} {(IsPopup ? "playback-full--popup" : "playback-full--phone")}")"
-                   Css="@Atmosphere" aria-label="@(IsBook ? "Audiobook player" : "Music player")" tabindex="-1" @onkeydown="HandleKeyDown" @ref="_section">
-        @if (OnCollapse.HasDelegate)
-        {
-            <header class="playback-full__header">
-                <AppTooltip Text="@L["PlaybackFullPlayer_CollapsePlayer"].Value"><AppNativeButton Type="button" Class="playback-full__collapse" AriaLabel="@L["PlaybackFullPlayer_CollapsePlayer"].Value" OnClick="CollapseAsync"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Collapse" /></AppNativeButton></AppTooltip>
-            </header>
-        }
-        <div class="playback-full__content" data-player-mode="@(_tool ?? "art")">
-            @if (_tool is null)
+    <AppCssElement Tag="section" Class="@($"playback-full playback-full--{MediaName} playback-full--phone")"
+                   aria-label="@(IsBook ? L["PlaybackFullPlayer_AudiobookPlayer"].Value : L["PlaybackFullPlayer_MusicPlayer"].Value)" tabindex="-1"
+                   data-playback-full data-playback-media="@MediaName" @onkeydown="HandleKeyDown" @ref="_section">
+        <header class="playback-full__top">
+            <AppTooltip Text="@L["PlaybackFullPlayer_CollapsePlayer"].Value">
+                <AppNativeButton Type="button" Class="playback-full__collapse" AriaLabel="@L["PlaybackFullPlayer_CollapsePlayer"].Value" OnClick="CollapseAsync" data-playback-full-collapse>
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronDown" />
+                </AppNativeButton>
+            </AppTooltip>
+            <span class="playback-full__from" data-playback-full-from data-overflow-tooltip="@PlayingFrom">@PlayingFrom</span>
+            <PlaybackItemMenu @ref="_itemMenu" Media="@Media" Item="@item" Surface="dock" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
+                              NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows" />
+        </header>
+        <div class="playback-full__art" data-playback-full-art>
+            @if (!string.IsNullOrEmpty(PlaybackArtworkUrl.ForDrawnSize(item, 260)))
             {
-            <div class="playback-full__art">
-                @if (PlaybackArtworkUrl.ForItem(item) is not null)
-                { <img src="@PlaybackArtworkUrl.ForItem(item)" data-image-display="full-audio-artwork" alt="" decoding="async" /> }
-                else { <AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /> }
-            </div>
+                <img src="@PlaybackArtworkUrl.ForDrawnSize(item, 260)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(item, 260)" data-image-display="full-audio-artwork" alt="" decoding="async" />
             }
-            <div class="playback-full__identity @(_tool is not null ? "playback-full__identity--compact" : null)">
-                @if (_tool is not null && PlaybackArtworkUrl.ForDrawnSize(item, 56) is not null)
-                { <img class="playback-full__compact-art" src="@PlaybackArtworkUrl.ForDrawnSize(item, 56)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(item, 56)" data-image-display="audio-panel-identity" alt="" /> }
-                <div class="playback-full__title">
-                    <h1>@if (IsBook) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId)" Text="@item.Title" NavigationCompleted="NavigationCompleted" /> }
-                        else { @item.Title }</h1>
-                </div>
-                @if (!IsBook) {
-                    <div class="playback-full__song-actions">
-                        <PlaybackSongActions Item="@item" Snapshot="Snapshot" Commands="Commands" IsFavorite="IsFavorite"
-                                             FavoriteChanged="FavoriteChanged" Surface="@(IsPopup ? "popup" : "phone")" NavigationCompleted="NavigationCompleted" />
+            else
+            {
+                <span class="playback-full__art-placeholder" aria-hidden="true"></span>
+            }
+        </div>
+        <div class="playback-full__identity" data-playback-full-identity>
+            <div class="playback-full__text">
+                <div class="playback-full__title" data-overflow-tooltip="@IdentityLine.Title">@RenderLink(IdentityLine.Title, IdentityLine.TitleLinkKind, IdentityLine.TitleLinkId)</div>
+                @if (IdentityLine.Secondary.Count > 0)
+                {
+                    <div class="playback-full__secondary" data-overflow-tooltip="@IdentityLine.SecondaryText">
+                        @for (var index = 0; index < IdentityLine.Secondary.Count; index++)
+                        {
+                            var part = IdentityLine.Secondary[index];
+                            @if (index > 0) { <span>@part.Separator</span> }
+                            @RenderLink(part.Text, part.LinkKind, part.LinkId)
+                        }
                     </div>
                 }
-                @if (IsBook)
+                @if (RemoteLine is { } remoteLine)
                 {
-                    <p class="playback-full__byline">By @if (item.Authors.Count > 0)
-                    { @for (var index = 0; index < item.Authors.Count; index++) { var person = item.Authors[index]; if (index > 0) { <text>; </text> } <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="person" Id="person.PersonId" Text="@person.Name" NavigationCompleted="NavigationCompleted" /> } }
-                    else { @(item.AuthorName ?? item.Subtitle) }</p>
-                    @if (item.Narrators.Count > 0 || !string.IsNullOrWhiteSpace(item.NarratorName))
-                    { <p class="playback-full__secondary">Narrated by @if (item.Narrators.Count > 0)
-                        { @for (var index = 0; index < item.Narrators.Count; index++) { var person = item.Narrators[index]; if (index > 0) { <text>; </text> } <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="person" Id="person.PersonId" Text="@person.Name" NavigationCompleted="NavigationCompleted" /> } }
-                        else { @item.NarratorName }</p> }
-                    @if (BookProgress is { } progress) { <p class="playback-full__book-progress">@L["PlaybackFullPlayer_Of", progress.Label, FormatTime(progress.Position), FormatTime(progress.Total)]</p> }
-                    @if (BookProgress?.ActiveChapter is { } chapter) { <p class="playback-full__chapter">@chapter.Title</p> }
-                    else if (!string.IsNullOrWhiteSpace(item.Subtitle) && item.Subtitle != item.Title) { <p class="playback-full__chapter">@item.Subtitle</p> }
-                }
-                else
-                {
-                    <p class="playback-full__byline"><PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="artist" Id="item.ArtistPersonId" Text="@item.Subtitle" NavigationCompleted="NavigationCompleted" /></p>
-                    @if (!string.IsNullOrWhiteSpace(item.Album)) { <p class="playback-full__secondary"><PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="album" Id="item.AlbumWorkId" Text="@item.Album" NavigationCompleted="NavigationCompleted" /></p> }
-                }
-                @if (item.PlaylistId is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
-                { <p class="playback-full__source">@L["Common_From"] <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="playlist" Id="playlist" Text="@Snapshot.SourceLabel" NavigationCompleted="NavigationCompleted" /></p> }
-            </div>
-            @if (_tool is not null)
-            {
-                <div class="playback-full__middle">
-                    @if (_tool == "bookmarks") { @BookmarksContent }
-                    else if (_tool == "output") { <PlaybackOutputPanel Snapshot="displayed" Commands="Commands" /> }
-                    else { <PlaybackPanelCard Snapshot="displayed" Commands="Commands" PanelKey="@_tool" FullPlayer="true" ShowChaptersFooter="@(!IsPopup)"
-                        ShowTabs="@(!IsBook && _tool is "queue" or "history")" PanelChanged="PanelSelectedAsync" /> }
-                </div>
-            }
-            <div class="playback-full__timeline" aria-label="@L["PlaybackFullPlayer_PlaybackProgress"].Value">
-                <PlaybackSeekRail Surface="phone" Duration="@Duration" Position="@Math.Min(Snapshot.CurrentTimeSeconds, Duration)"
-                                  ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))"
-                                  Bookmarks="@BarMarkers" BookmarkJump="@(marker => SendAsync(displayed, ListenPlaybackCommandActions.Seek, marker.Seconds))" />
-            </div>
-            <PlaybackQualityBadge Item="@item" BrowserStreamUrl="@Snapshot.CurrentBrowserStreamUrl" />
-            <ListenTransportControls Variant="phone" ShowMusicModeButtons="@(!IsBook)" ShuffleEnabled="Snapshot.ShuffleEnabled" RepeatEnabled="@(Snapshot.RepeatMode != PlayerRepeatModes.Off)"
-                OnShuffle="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleShuffle))" OnRepeat="@(() => SendAsync(displayed, ListenPlaybackCommandActions.CycleRepeat))" IsAudiobookMode="IsBook" IsPlaying="Snapshot.IsPlaying" NeedsUserGestureToStart="Snapshot.NeedsUserGestureToStart"
-                IsMuted="Snapshot.IsMuted" HasChapters="@(item.Chapters.Count > 1)" CanPreviousTrack="@(Snapshot.CurrentIndex > 0)" CanNextTrack="CanNext"
-                SkipBackSeconds="Snapshot.SkipBackSeconds" SkipForwardSeconds="Snapshot.SkipForwardSeconds" CurrentBrowserStreamUrl="Snapshot.CurrentBrowserStreamUrl"
-                CurrentTimeSeconds="Snapshot.CurrentTimeSeconds" PlaybackRate="Snapshot.PlaybackRate" Volume="Snapshot.Volume"
-                OnTogglePlay="@(() => SendAsync(displayed, ListenPlaybackCommandActions.TogglePlay))"
-                OnPreviousTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPrevious))" OnNextTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNext))"
-                OnPreviousChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPreviousChapter))" OnNextChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNextChapter))"
-                OnSkipBack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipBack))" OnSkipForward="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipForward))" />
-            <div class="playback-full__modes" aria-label="@L["PlaybackFullPlayer_PlayerViews"].Value">
-                @foreach (var mode in Modes)
-                {
-                    <AppTooltip Text="@mode.Label" Suppressed="@(mode.Key is not "lyrics" and not "queue")">
-                    <AppNativeButton Type="button" Class="@($"playback-full__mode {(ModeIsSelected(mode.Key) ? "is-selected" : null)}")"
-                        aria-pressed="@(ModeIsSelected(mode.Key) ? "true" : "false")" AriaLabel="@mode.Label"
-                        @ref="_modeButtons[mode.Key]" OnClick="@(() => SelectModeAsync(mode.Key))"><PlaybackUtilityGlyph Glyph="@mode.Glyph" />@if (mode.Key is not "lyrics" and not "queue") { <span>@mode.Label</span> }</AppNativeButton>
-                    </AppTooltip>
+                    <div class="playback-full__remote" role="status" data-playback-remote-line data-overflow-tooltip="@remoteLine">@remoteLine</div>
                 }
             </div>
-            @if (IsBook)
-            {
-                <div class="playback-full__book-tools">
-                    <PlaybackSpeedPanel Surface="phone" Rate="@Snapshot.PlaybackRate" ItemKey="@Subject" TriggerText="@(PlaybackRateOptions.IsValid(Snapshot.PlaybackRate) ? PlaybackSpeedChoices.Format(Snapshot.PlaybackRate) : null)" TriggerClass="playback-shell__chip"
-                                        IsOn="@(!PlaybackSpeedChoices.IsNormal(Snapshot.PlaybackRate))"
-                                        RateChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
-                                        OpenChanged="@(state => ToolVisibilityChanged.InvokeAsync(state.IsOpen))" />
-                    <PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="@L["Common_AudiobookControls"].Value">
-                        <SettingsContent Context="settings">
-                            @* The moon opens the Sleep timer panel (unified player v2 D16); the phone layout packet reshapes this row. *@
-                            <SleepTimerPanel Surface="phone" ItemKey="@Subject" Open="@_settingsOpen" OpenChanged="SettingsMenuChangedAsync"
-                                             State="Snapshot.SleepTimerState" Availability="Snapshot.SleepTimerAvailability" Chapters="@(Current?.Chapters ?? [])"
-                                             OffersEndOfChapter="@Snapshot.AllowEndOfChapterSleepTimer"
-                                             SelectionChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))" />
-                        </SettingsContent>
-                    </PlaybackControlStrip>
-                </div>
-            }
-            <div class="playback-full__volume">
-                <PlaybackVolumeControl Surface="popup" Size="standard" CommitOnChange="true" Volume="@Snapshot.Volume" IsMuted="@Snapshot.IsMuted" Supported="@Snapshot.SoftwareVolumeSupported"
-                                       OnToggleMute="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleMute))"
-                                       OnVolumeChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" />
+            <div class="playback-full__actions" data-playback-full-actions>
+                <PlaybackIdentityActions Media="@Media" Item="@item" Surface="dock" ShowMore="false" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
+                                         IsFavorite="@IsFavorite" FavoriteChanged="@FavoriteChanged" NavigationCompleted="@NavigationCompleted" />
             </div>
-            @if (!Snapshot.SoftwareVolumeSupported) { <p class="playback-full__status">@L["PlaybackFullPlayer_UseYourDeviceVolumeButtons"]</p> }
-            @if (!string.IsNullOrWhiteSpace(_commandError)) { <p class="playback-full__status" role="status">@_commandError</p> }
         </div>
+        <div class="playback-full__timeline" data-playback-full-timeline aria-label="@L["PlaybackFullPlayer_PlaybackProgress"].Value">@TimelineContent</div>
+        <div class="playback-full__transport" role="group" aria-label="@(IsBook ? L["Common_AudiobookControls"].Value : L["PlaybackFullPlayer_MusicPlayer"].Value)" data-playback-full-transport>
+            @foreach (var control in TransportControls)
+            {
+                @switch (control.Key)
+                {
+                    case PlaybackControlKey.PlayPause:
+                        <PlaybackPrimaryButton Size="phone" IsPlaying="@State.IsPlaying" NeedsUserGestureToStart="@State.NeedsUserGestureToStart"
+                                               Disabled="@control.IsDisabled" AriaLabel="@control.AriaLabel"
+                                               OnClick="@(() => OnTransport.InvokeAsync(control))" @attributes="PlayButtonAttributes" />
+                        break;
+                    case PlaybackControlKey.SkipBack:
+                    case PlaybackControlKey.SkipForward:
+                        <PlaybackRelativeSkipButton Size="bar" Direction="@(control.Key == PlaybackControlKey.SkipBack ? "back" : "forward")"
+                                                    Seconds="@(control.Key == PlaybackControlKey.SkipBack ? State.SkipBackSeconds : State.SkipForwardSeconds)"
+                                                    Disabled="@control.IsDisabled" OnClick="@(() => OnTransport.InvokeAsync(control))" />
+                        break;
+                    default:
+                        <PlaybackIconButton Control="@control" Surface="phone" Appearance="bare" OnClick="@(() => OnTransport.InvokeAsync(control))" />
+                        break;
+                }
+            }
+        </div>
+        <PlaybackToolRow Tools="@ToolControls" AriaLabel="@L["PlaybackFullPlayer_PhoneTools"].Value" HostedTools="@HostedTools" ToolContent="@ToolContent"
+                         OnTransport="@OnTransport" OnTool="@OnTool" />
     </AppCssElement>
     </div>
 }
@@ -133,64 +96,127 @@
 @code {
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+
+    /// <summary>What the transport and tools are drawn from (the same state the bar is drawn from).</summary>
+    [Parameter] public PlaybackBarState State { get; set; } = new();
+
+    /// <summary>The title and second line; without it they are built from the playing item.</summary>
+    [Parameter] public PlaybackBarIdentity? Identity { get; set; }
+
     [Parameter] public EventCallback OnCollapse { get; set; }
-    [Parameter] public bool IsPopup { get; set; }
-    [Parameter] public bool IsFavorite { get; set; }
+    [Parameter] public bool? IsFavorite { get; set; }
     [Parameter] public EventCallback FavoriteChanged { get; set; }
-    [Parameter] public EventCallback<ElementReference> BookmarkRequested { get; set; }
-    [Parameter] public EventCallback<string> PanelChanged { get; set; }
-    [Parameter] public string? SelectedPanelKey { get; set; }
-    [Parameter] public EventCallback<bool> ToolVisibilityChanged { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
-    [Parameter] public EventCallback<string?> ModeChanged { get; set; }
-    [Parameter] public RenderFragment? BookmarksContent { get; set; }
-    public string? ActiveMode => _tool;
-    private string? _tool;
-    private string? _toolFamily;
+    [Parameter] public Func<bool>? IsCurrent { get; set; }
+
+    /// <summary>The timeline (the host passes its PlaybackSeekRail so the bar and this view show the same chapter or book scope).</summary>
+    [Parameter] public RenderFragment? TimelineContent { get; set; }
+
+    /// <summary>Extra attributes for the Play button (the audio bar's start-on-gesture data).</summary>
+    [Parameter] public IReadOnlyDictionary<string, object>? PlayButtonAttributes { get; set; }
+
+    [Parameter] public EventCallback<PlaybackControlDefinition> OnTransport { get; set; }
+    [Parameter] public EventCallback<PlaybackControlActivation> OnTool { get; set; }
+    [Parameter] public IReadOnlySet<PlaybackControlKey> HostedTools { get; set; } = new HashSet<PlaybackControlKey>();
+    [Parameter] public RenderFragment<PlaybackControlDefinition>? ToolContent { get; set; }
+
+    /// <summary>The Playback settings panel the "..." menu opens (unified player v2 D14).</summary>
+    [Parameter] public RenderFragment<PlaybackAnchoredPanel>? SettingsPanel { get; set; }
+
     private AppCssElement? _section;
     private IJSObjectReference? _focusModule;
     private ElementReference? _focusRoot;
     private readonly SemaphoreSlim _focusLifecycle = new(1, 1);
     private bool _disposed;
+    private string? _subject;
+
     public ElementReference Element => _section?.Element ?? default;
-    private bool _settingsOpen;
-    private readonly Dictionary<string, AppNativeButton> _modeButtons = [];
-    private string? _subject, _commandError;
     private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
     private bool IsBook => Current?.PlaybackExperience == PlaybackExperience.Audiobook;
+    private PlaybackBarMedia Media => IsBook ? PlaybackBarMedia.Audiobook : PlaybackBarMedia.Music;
+    private string MediaName => IsBook ? "audiobook" : "music";
     private string Subject => $"{Snapshot.ProfileId}:{Current?.WorkId}:{Current?.AssetId}:{Snapshot.PlaybackRequestVersion}";
-    private string Atmosphere => PlaybackArtworkUrl.ForItem(Current) is { } cover ? $"--playback-full-cover:url('{cover.Replace("'", "%27", StringComparison.Ordinal)}');" : string.Empty;
-    private double Duration => Snapshot.DurationSeconds > 0 ? Snapshot.DurationSeconds : PlaybackTimeParser.TryParseDurationSeconds(Current?.Duration) ?? 1;
-    private bool CanNext => Snapshot.CurrentIndex < Snapshot.Queue.Count - 1 || Snapshot.Queue.Count > 1 && (Snapshot.ShuffleEnabled || Snapshot.RepeatMode == PlayerRepeatModes.All);
-    private AudiobookPlaybackProjection? BookProgress => IsBook ? AudiobookPlaybackProjection.Create(Current?.Chapters, Current?.AssetId, Snapshot.CurrentTimeSeconds, Snapshot.DurationSeconds) : null;
-    private IReadOnlyList<PlaybackControlDefinition> BookTools => PlaybackControlCatalog.BuildToolStrip(PlaybackExperience.Audiobook, PlaybackControlSurface.Phone,
-        new PlaybackControlState(PlaybackRate: Snapshot.PlaybackRate, IsSleepTimerActive: Snapshot.SleepTimerState.Mode != AudiobookSleepTimerModes.Off))
-        .Where(control => control.Key == PlaybackControlKey.Settings).ToList();
-    private IEnumerable<(string Key, string Label, PlaybackUtilityGlyphKind Glyph)> Modes => IsBook
-        ? [("chapters", "Chapters", PlaybackUtilityGlyphKind.Chapters), ("bookmarks", "Bookmarks", PlaybackUtilityGlyphKind.Bookmark), ("history", "History", PlaybackUtilityGlyphKind.History)]
-        : Snapshot.OutputSupported
-            ? [("lyrics", "Lyrics", PlaybackUtilityGlyphKind.Lyrics), ("output", "Output", PlaybackUtilityGlyphKind.Cast), ("queue", "Queue", PlaybackUtilityGlyphKind.Queue)]
-            : [("lyrics", "Lyrics", PlaybackUtilityGlyphKind.Lyrics), ("queue", "Queue", PlaybackUtilityGlyphKind.Queue)];
-    private bool ModeIsSelected(string key) => _tool == key || key == "queue" && _tool == "history" && !IsBook;
-    private async Task SelectModeAsync(string key)
+    private PlaybackBarIdentity IdentityLine => Identity ?? PlaybackBarIdentity.Build(Media, Current!);
+
+    // The source of the queue, else the album or the book the item belongs to, else just "Now playing".
+    private string PlayingFrom
     {
-        CloseTransientTools();
-        _settingsOpen = false;
-        if (ModeIsSelected(key)) { await DismissToolsAsync(); return; }
-        _tool = key; _toolFamily = key;
-        await ModeChanged.InvokeAsync(key);
-        // Inline modes do not acquire a modal lease or hide playback controls.
-        if (key == "bookmarks") await BookmarkRequested.InvokeAsync(_modeButtons.GetValueOrDefault(key)?.Element ?? _section?.Element ?? default);
-        await ToolVisibilityChanged.InvokeAsync(false);
+        get
+        {
+            var name = Snapshot.SourceLabel;
+            if (string.IsNullOrWhiteSpace(name)) name = IsBook ? Current?.Title : Current?.Album;
+            return string.IsNullOrWhiteSpace(name) ? L["Common_NowPlaying"].Value : L["PlaybackFullPlayer_PlayingFrom", name.Trim()].Value;
+        }
     }
+
+    private IReadOnlyList<PlaybackControlDefinition> TransportControls => PlaybackControlCatalog.BuildPhoneTransport(Media, State);
+    private IReadOnlyList<PlaybackControlDefinition> ToolControls => PlaybackControlCatalog.BuildPhoneTools(Media, State);
+
+    // Music Bookmarks live in the "..." menu on a phone (the audiobook row has its own Bookmarks tool).
+    private RenderFragment MenuRows => builder =>
+    {
+        if (IsBook || !State.CanBookmark) return;
+        var bookmarks = PlaybackControlCatalog.BuildBarTools(Media, State).FirstOrDefault(control => control.Key == PlaybackControlKey.Bookmarks);
+        if (bookmarks is null) return;
+        builder.OpenComponent<PlaybackFullPlayerMenuRow>(0);
+        builder.AddAttribute(1, nameof(PlaybackFullPlayerMenuRow.Label), L["PlaybackFullPlayer_Bookmarks"].Value);
+        builder.AddAttribute(2, nameof(PlaybackFullPlayerMenuRow.Glyph), PlaybackUtilityGlyphKind.Bookmark);
+        builder.AddAttribute(3, nameof(PlaybackFullPlayerMenuRow.Activated), EventCallback.Factory.Create<ElementReference>(this, trigger => OpenMenuRowAsync(bookmarks, trigger)));
+        builder.CloseComponent();
+    };
+
+    private PlaybackItemMenu? _itemMenu;
+
+    // The row leaves the page as the menu closes, so the panel is anchored to the "..." button and focus returns there.
+    private async Task OpenMenuRowAsync(PlaybackControlDefinition control, ElementReference row)
+    {
+        Services.GetService<PlaybackTransientToolCoordinator>()?.Close();
+        await OnTool.InvokeAsync(new PlaybackControlActivation(control, _itemMenu?.TriggerElement ?? row));
+    }
+
+    private RenderFragment RenderLink(string text, string? kind, Guid? id) => builder =>
+    {
+        if (!string.IsNullOrEmpty(kind) && id is { } target)
+        {
+            builder.OpenComponent<PlaybackIdentityLink>(0);
+            builder.AddAttribute(1, nameof(PlaybackIdentityLink.Snapshot), Snapshot);
+            builder.AddAttribute(2, nameof(PlaybackIdentityLink.Commands), Commands);
+            builder.AddAttribute(3, nameof(PlaybackIdentityLink.Kind), kind);
+            builder.AddAttribute(4, nameof(PlaybackIdentityLink.Id), (Guid?)target);
+            builder.AddAttribute(5, nameof(PlaybackIdentityLink.Text), text);
+            builder.AddAttribute(6, nameof(PlaybackIdentityLink.NavigationCompleted), NavigationCompleted);
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(7, text);
+        }
+    };
+
+    private PlaybackRemoteController? _remote;
+
+    protected override void OnInitialized()
+    {
+        // Optional: a host with no remote controller draws the player as it always did.
+        _remote = Services.GetService<PlaybackRemoteController>();
+        if (_remote is not null) _remote.Changed += OnRemoteChanged;
+    }
+
+    private void OnRemoteChanged() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+
+    /// <summary>"Playing on Living room TV" under the title while a receiver plays (unified player v2 D28); "another device" when the browser gives no name.</summary>
+    private string? RemoteLine => _remote is { IsRemote: true } remote
+        ? L["PlaybackRemote_PlayingOn", remote.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : null;
+
     protected override void OnParametersSet()
     {
         if (_subject == Subject) return;
         _subject = Subject;
-        _tool = null; _toolFamily = null; _settingsOpen = false; _commandError = null;
-        _markers = [];
-        _ = RefreshMarkersAsync();
+        // A different song or book closes whatever panel was open for the last one.
+        Services.GetService<PlaybackTransientToolCoordinator>()?.Close();
     }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_disposed) return;
@@ -209,16 +235,19 @@
             var root = _section.Element;
             if (_focusRoot is { } old && old.Id != root.Id) await _focusModule.InvokeVoidAsync("detach", old);
             _focusRoot = root;
-            await _focusModule.InvokeVoidAsync("attach", root, Subject, IsPopup);
+            // The host captures the control that expanded the player and focuses the player itself, so the boundary only keeps Tab inside it.
+            await _focusModule.InvokeVoidAsync("attach", root, Subject, false);
         }
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }
         finally { _focusLifecycle.Release(); }
     }
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
+        if (_remote is not null) _remote.Changed -= OnRemoteChanged;
         await _focusLifecycle.WaitAsync();
         try
         {
@@ -234,68 +263,12 @@
         finally { _focusLifecycle.Release(); }
     }
 
-    private static bool SameSubject(ListenPlaybackSnapshot first, ListenPlaybackSnapshot second) =>
-        first.ProfileId == second.ProfileId && first.PlaybackRequestVersion == second.PlaybackRequestVersion
-        && first.CurrentIndex >= 0 && second.CurrentIndex >= 0 && first.CurrentIndex < first.Queue.Count && second.CurrentIndex < second.Queue.Count
-        && first.Queue[first.CurrentIndex].WorkId == second.Queue[second.CurrentIndex].WorkId && first.Queue[first.CurrentIndex].AssetId == second.Queue[second.CurrentIndex].AssetId;
-    private async Task SendAsync(ListenPlaybackSnapshot displayed, string action, double? value = null, AudiobookSleepTimerSelectionDto? sleep = null)
+    private async Task CollapseAsync()
     {
-        if (!SameSubject(displayed, Snapshot)) return;
-        if (action is ListenPlaybackCommandActions.TogglePlay or ListenPlaybackCommandActions.SkipBack or ListenPlaybackCommandActions.SkipForward)
-        {
-            var consume = action == ListenPlaybackCommandActions.TogglePlay ? "listenPlayback.consumeImmediateToggleHandled" : "listenPlayback.consumeImmediateSeekHandled";
-            try { if (await JS.InvokeAsync<bool>(consume)) return; } catch (JSDisconnectedException) { return; }
-            if (!SameSubject(displayed, Snapshot)) return;
-        }
-        try
-        {
-            var reply = await Commands.SendAsync(displayed, new() { Action = action, Value = value, SleepTimer = sleep });
-            if (SameSubject(displayed, Snapshot)) _commandError = reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success ? null : reply?.Message ?? "The main player did not confirm this control action.";
-        }
-        catch (Exception) { if (SameSubject(displayed, Snapshot)) _commandError = L["Common_TheMainPlayerConnectionWas"].Value; }
-    }
-    private async Task PanelSelectedAsync(string key) { _tool = key; await PanelChanged.InvokeAsync(key); }
-    private async Task SettingsMenuChangedAsync(PlaybackToolOpenState state) { _settingsOpen = state.IsOpen; await ToolVisibilityChanged.InvokeAsync(_settingsOpen); }
-
-    // Unified player D10: "Show bookmarks on the bar" is the profile's own setting (the one the video player and Settings > Playback use), off by default.
-    private ILogger<PlaybackFullPlayer>? Logger => Services.GetService<ILogger<PlaybackFullPlayer>>();
-    private UserPlaybackSettingsDto? _settings;
-    private IReadOnlyList<AudiobookBookmarkDto> _markers = [];
-    private int _markersVersion;
-    private bool ShowBookmarksOnBar => _settings?.General.ShowBookmarksOnBar == true;
-    private IReadOnlyList<PlaybackRailBookmark> BarMarkers => IsBook ? AudiobookBarMarkers.ForBar(_markers, ShowBookmarksOnBar, Duration, null) : [];
-
-    private async Task RefreshMarkersAsync()
-    {
-        if (_disposed || !IsBook || Current is not { AssetId: Guid assetId } item || Snapshot.ProfileId is not Guid profileId || profileId == Guid.Empty) return;
-        var version = Interlocked.Increment(ref _markersVersion);
-        try
-        {
-            var preferences = Services.GetService<PlayerPreferenceService>();
-            if (_settings is null && preferences is not null) _settings = await preferences.GetAsync();
-            var saved = ShowBookmarksOnBar
-                ? await AudiobookBarMarkers.LoadAsync(Services.GetService<IEngineApiClient>(), item.AudiobookWorkId ?? item.WorkId, profileId, assetId, CancellationToken.None)
-                : [];
-            if (_disposed || version != _markersVersion) return;
-            _markers = saved;
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
-        {
-            Logger?.LogInformation(ex, "The bookmark markers for the audiobook bar could not be loaded; the bar shows none.");
-        }
+        Services.GetService<PlaybackTransientToolCoordinator>()?.Close();
+        await OnCollapse.InvokeAsync();
     }
 
-    public Task DismissToolsAsync() => InvokeAsync(async () =>
-    {
-        CloseTransientTools();
-        _tool = null; _settingsOpen = false;
-        await ModeChanged.InvokeAsync(null);
-        await ToolVisibilityChanged.InvokeAsync(false);
-        StateHasChanged();
-    });
-    private async Task CollapseAsync() { await DismissToolsAsync(); await OnCollapse.InvokeAsync(); }
-    private void CloseTransientTools() => Services.GetService<PlaybackTransientToolCoordinator>()?.Close();
-    private Task HandleKeyDown(KeyboardEventArgs args) => args.Key == "Escape" ? DismissToolsAsync() : Task.CompletedTask;
-    private static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, double.IsFinite(seconds) ? seconds : 0)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss", CultureInfo.InvariantCulture);
+    // An open panel handles its own Escape first (playback-popover.js); Escape with none open collapses the player.
+    private Task HandleKeyDown(KeyboardEventArgs args) => args.Key == "Escape" ? CollapseAsync() : Task.CompletedTask;
 }

@@ -7,15 +7,12 @@ public sealed class ListenPlaybackCommandRoundTripTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    [Theory]
-    [InlineData("navigate-identity")]
-    [InlineData("register-popup")]
-    [InlineData("popup-closed")]
-    public void PresentationIdentityAndPassiveWindowRegistrationRoundTripWithoutArbitraryRoutes(string action)
+    [Fact]
+    public void PresentationIdentityRoundTripsWithoutArbitraryRoutes()
     {
         var command = new ListenPlaybackCommandDto
         {
-            Action = action,
+            Action = "navigate-identity",
             CommandId = Guid.NewGuid(),
             SenderId = Guid.NewGuid(),
             RecipientId = Guid.NewGuid(),
@@ -25,13 +22,12 @@ public sealed class ListenPlaybackCommandRoundTripTests
             ExpectedPlaybackRequestVersion = 42,
             IdentityKind = "album",
             IdentityId = Guid.NewGuid(),
-            PopupWindowId = Guid.NewGuid(),
             OwnerGeneration = 1730000000000
         };
         var json = JsonSerializer.Serialize(command, JsonOptions);
         Assert.Equal(command, JsonSerializer.Deserialize<ListenPlaybackCommandDto>(json, JsonOptions));
         Assert.Contains("\"identityKind\":\"album\"", json);
-        Assert.Contains("\"popupWindowId\"", json);
+        Assert.DoesNotContain("popupWindowId", json, StringComparison.Ordinal);
         Assert.DoesNotContain("url", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("/details", json);
     }

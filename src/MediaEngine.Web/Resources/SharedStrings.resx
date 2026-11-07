@@ -1502,23 +1502,8 @@
   <data name="ListenSongTable_DeleteFromLibrary" xml:space="preserve">
     <value>Delete from library…</value>
   </data>
-  <data name="ListenTransportControls_PlayOrPause" xml:space="preserve">
-    <value>Play or pause</value>
-  </data>
   <data name="Common_Shuffle" xml:space="preserve">
     <value>Shuffle</value>
-  </data>
-  <data name="ListenTransportControls_PreviousTrack" xml:space="preserve">
-    <value>Previous track</value>
-  </data>
-  <data name="ListenTransportControls_NextTrack" xml:space="preserve">
-    <value>Next track</value>
-  </data>
-  <data name="ListenTransportControls_QueueOptions" xml:space="preserve">
-    <value>Queue options</value>
-  </data>
-  <data name="ListenTransportControls_Repeat" xml:space="preserve">
-    <value>Repeat</value>
   </data>
   <data name="Common_Remove" xml:space="preserve">
     <value>Remove</value>
@@ -1535,17 +1520,11 @@
   <data name="PlaybackContextPanel_PlaybackContextPanel" xml:space="preserve">
     <value>Playback context panel</value>
   </data>
-  <data name="PlaybackFullPlayer_Of" xml:space="preserve">
-    <value>{0} · {1} of {2}</value>
-  </data>
   <data name="Common_Dates" xml:space="preserve">
     <value>Dates</value>
   </data>
   <data name="Common_From" xml:space="preserve">
     <value>From</value>
-  </data>
-  <data name="PlaybackFullPlayer_UseYourDeviceVolumeButtons" xml:space="preserve">
-    <value>Use your device volume buttons.</value>
   </data>
   <data name="PlaybackFullPlayer_CollapsePlayer" xml:space="preserve">
     <value>Collapse player</value>
@@ -1553,8 +1532,20 @@
   <data name="PlaybackFullPlayer_PlaybackProgress" xml:space="preserve">
     <value>Playback progress</value>
   </data>
-  <data name="PlaybackFullPlayer_PlayerViews" xml:space="preserve">
-    <value>Player views</value>
+  <data name="PlaybackFullPlayer_PlayingFrom" xml:space="preserve">
+    <value>Playing from {0}</value>
+  </data>
+  <data name="PlaybackFullPlayer_PhoneTools" xml:space="preserve">
+    <value>Playback tools</value>
+  </data>
+  <data name="PlaybackFullPlayer_MusicPlayer" xml:space="preserve">
+    <value>Music player</value>
+  </data>
+  <data name="PlaybackFullPlayer_AudiobookPlayer" xml:space="preserve">
+    <value>Audiobook player</value>
+  </data>
+  <data name="PlaybackFullPlayer_Bookmarks" xml:space="preserve">
+    <value>Bookmarks</value>
   </data>
   <data name="Common_AudiobookControls" xml:space="preserve">
     <value>Audiobook controls</value>
@@ -1591,30 +1582,6 @@
   </data>
   <data name="PlaybackLyrics_Instrumental" xml:space="preserve">
     <value>Instrumental</value>
-  </data>
-  <data name="PlaybackOutputPanel_Output" xml:space="preserve">
-    <value>Output</value>
-  </data>
-  <data name="PlaybackOutputPanel_LoadingPermittedOutputs" xml:space="preserve">
-    <value>Loading permitted outputs…</value>
-  </data>
-  <data name="PlaybackOutputPanel_UseYourDeviceSSound" xml:space="preserve">
-    <value>Use your device's sound settings to change output.</value>
-  </data>
-  <data name="PlaybackOutputPanel_AudioOutput" xml:space="preserve">
-    <value>Audio output</value>
-  </data>
-  <data name="Common_SongActions" xml:space="preserve">
-    <value>Song actions</value>
-  </data>
-  <data name="SongActions_MoreSongActions" xml:space="preserve">
-    <value>More song actions</value>
-  </data>
-  <data name="SongActions_ILikeThisSong" xml:space="preserve">
-    <value>I like this song</value>
-  </data>
-  <data name="SongActions_IDonTLikeThis" xml:space="preserve">
-    <value>I don't like this song</value>
   </data>
   <data name="SongActions_GoToAlbum" xml:space="preserve">
     <value>Go to album</value>

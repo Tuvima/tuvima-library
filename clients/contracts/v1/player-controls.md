@@ -168,19 +168,67 @@ Films:
 | 6 | close | Close | always |
 
 Folder videos and lessons have a film's controls and add the list of the other
-videos when there are any. The tool is named Episodes in the Dashboard today and
-its panel is titled Lessons:
+videos when there are any. The tool and its panel are both named Lessons:
 
 <!-- contract-table: tools-lesson -->
 | Order | Control | Label | Shown when |
 | --- | --- | --- | --- |
-| 1 | episodes | Episodes | has episodes |
+| 1 | episodes | Lessons | has episodes |
 | 2 | audio-subtitles | Audio & subtitles | always |
 | 3 | bookmarks | Bookmarks | can bookmark |
 | 4 | volume | Volume | always |
 | 5 | playback-settings | Playback settings | always |
 | 6 | fullscreen | Fullscreen | can fullscreen |
 | 7 | close | Close | always |
+
+## Phone
+
+On a phone (a phone form factor, or a window 720 px wide or narrower) the bar
+becomes a small collapsed bar and the player grows into a full-screen Now
+playing view that a tap on the bar opens. The Dashboard decides "phone" once
+(`PlaybackFormFactor`), so the music, audiobook and video players always agree.
+Order, names and defaults are the ones above; only the layout changes.
+
+The collapsed bar is 56 px high: the art, the title and the second line, then
+these buttons. It has no tools and no Favorite.
+
+<!-- contract-table: phone-bar -->
+| Media | Buttons |
+| --- | --- |
+| Music | play-pause: Play, next: Next track |
+| Audiobook | play-pause: Play, skip-forward: Skip forward 30 s |
+| Video | play-pause: Play |
+
+The expanded player for music and audiobooks has a top line (collapse, "Playing
+from ...", the "..." menu), the artwork, the title line with Favorite (and Like
+and Dislike for music), the timeline, these transport buttons with a large Play,
+and then one row of at most four tools. There is no volume control: the phone's
+own buttons set the volume. Music Bookmarks, Playback settings and the item
+actions are in the "..." menu.
+
+<!-- contract-table: phone-transport -->
+| Media | Buttons |
+| --- | --- |
+| Music | previous: Previous track, play-pause: Play, next: Next track |
+| Audiobook | previous: Previous chapter, skip-back: Skip back 10 s, play-pause: Play, skip-forward: Skip forward 30 s, next: Next chapter |
+
+Video on a phone keeps its overlay with the five transport buttons of the TV
+episode and film tables above, and its own tool row. The tool row of every phone
+player, with every "Shown when" condition on:
+
+<!-- contract-table: phone-tools -->
+| Media | Tools |
+| --- | --- |
+| Music | shuffle: Shuffle, lyrics: Lyrics, queue: Queue, repeat: Repeat |
+| Audiobook | chapters: Chapters, speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
+| Audiobook without chapters | history: History, speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
+| TV episode | audio-subtitles: Audio & subtitles, episodes: Episodes, bookmarks: Bookmarks, fullscreen: Fullscreen |
+| Film | audio-subtitles: Audio & subtitles, bookmarks: Bookmarks, fullscreen: Fullscreen |
+| Folder video or lesson | audio-subtitles: Audio & subtitles, episodes: Lessons, bookmarks: Bookmarks, fullscreen: Fullscreen |
+
+Panels are bottom sheets on a phone and on a touch tablet up to 1024 px wide;
+nothing depends on hover, and the name of an icon-only button shows on a long
+press.
 
 ## Panels
 
@@ -196,7 +244,7 @@ Words with `{0}` are filled in. Items are separated by semicolons.
 | --- | --- | --- | --- | --- |
 | Queue | Music | Queue | Up next · {0}; History; Clear; Play next; Move up; Move down; Remove; Go to album; Go to artist | Playing from |
 | Episodes | TV episodes | Episodes | Season; {0} episodes; Up next; Playing; Paused | Autoplay next episode |
-| Lessons | Folder videos and lessons | Episodes | {0} lessons; Up next; Playing; Paused | Autoplay next episode |
+| Lessons | Folder videos and lessons | Lessons | {0} lessons; Up next; Playing; Paused | Autoplay next episode |
 | Chapters | Audiobooks | Chapters | Chapter {0} of {1}; Book · {0}% complete; {0} elapsed · {1} remaining; Finished | Timeline shows; Chapter; Whole book; Select a chapter to start listening. |
 | Lyrics | Music | Lyrics | Synced; Unsynced; Open Now playing; Resume following; Select a line to jump to that moment.; Looking for lyrics…; Find lyrics; Add a lyrics file | Synced lyrics · {0}; Unsynced lyrics · {0}; Local file; LRCLIB; Find another; About lyrics sources |
 | Audio & subtitles | TV episodes, films, folder videos and lessons | Audio & subtitles | Audio; Subtitles; Director commentary; Audio description; {0} · SDH; {0} · Forced; Not switchable in this browser | Subtitle appearance; Find subtitles… |
@@ -357,8 +405,8 @@ Close (a television is already full screen):
 
 - TV episodes: Episodes, Audio & subtitles, Bookmarks, Playback settings;
 - films: Audio & subtitles, Bookmarks, Playback settings;
-- folder videos and lessons: Episodes, Audio & subtitles, Bookmarks, Playback
-  settings (Episodes only when other videos follow).
+- folder videos and lessons: Lessons, Audio & subtitles, Bookmarks, Playback
+  settings (Lessons only when other videos follow).
 
 A tool opens a **side panel on the right** with the same name, rows and footer as
 the Panels table. The paused details, the end card, the Everyone | Mine

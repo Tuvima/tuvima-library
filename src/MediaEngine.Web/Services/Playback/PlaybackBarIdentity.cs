@@ -86,6 +86,13 @@ public sealed record PlaybackBarIdentity(
                 return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), hasShow ? "show" : null, hasShow ? showWorkId : null, parts);
 
             default:
+                // A numbered video from a Videos library is drawn as the other media draw a lesson: "3 · Ball handling", never "Movie" (issue 703).
+                if (VideoPlayerWording.IsFolderVideo(item))
+                {
+                    AddIfText(parts, VideoPlayerWording.TitleLine(item), null, null);
+                    return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), null, null, parts);
+                }
+
                 AddIfText(parts, item.Year, null, null);
                 parts.Add(new("Movie"));
                 return new(item.Title, item.WorkId != Guid.Empty ? "movie" : null, item.WorkId != Guid.Empty ? item.WorkId : null, parts);

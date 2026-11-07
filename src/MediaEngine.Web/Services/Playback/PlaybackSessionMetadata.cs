@@ -76,6 +76,7 @@ public sealed record PlaybackSessionMetadata(
         switch (context.Media)
         {
             case PlaybackBarMedia.Tv:
+            case PlaybackBarMedia.Movie when VideoPlayerWording.IsFolderVideo(item):
                 var show = StringHelpers.FirstNonBlankOr(string.Empty, context.ShowTitle, item.Album);
                 // A folder video says "3 · Ball handling" and never a season (issue 703); EpisodeLabel is empty for it.
                 var episodeTitle = VideoPlayerWording.IsFolderVideo(item) ? VideoPlayerWording.TitleLine(item)
@@ -94,7 +95,7 @@ public sealed record PlaybackSessionMetadata(
     {
         PlaybackBarMedia.Music => ["play", "pause", "previoustrack", "nexttrack", "seekto"],
         PlaybackBarMedia.Audiobook => ["play", "pause", "seekbackward", "seekforward", "previoustrack", "nexttrack", "seekto"],
-        PlaybackBarMedia.Tv when context.HasNextEpisode => ["play", "pause", "seekbackward", "seekforward", "seekto", "nexttrack"],
+        PlaybackBarMedia.Tv or PlaybackBarMedia.Movie when context.HasNextEpisode => ["play", "pause", "seekbackward", "seekforward", "seekto", "nexttrack"],
         _ => ["play", "pause", "seekbackward", "seekforward", "seekto"],
     };
 }

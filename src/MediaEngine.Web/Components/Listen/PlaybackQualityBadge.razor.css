@@ -1,2 +1,0 @@
-.playback-quality { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--playback-text-secondary); font-size:var(--tl-font-size-xs); }
-.playback-quality ::deep svg { width:var(--tl-icon-size-md); height:var(--tl-icon-size-md); }

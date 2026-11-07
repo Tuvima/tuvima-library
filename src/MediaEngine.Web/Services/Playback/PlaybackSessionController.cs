@@ -142,7 +142,6 @@ public sealed partial class PlaybackSessionController
     public long PlaybackStartVersion { get; private set; }
     public string Experience { get; private set; } = PlayerExperienceModes.Music;
     public bool NeedsUserGestureToStart { get; private set; }
-    public bool IsPopupOpen { get; private set; }
     public bool IsVideoExpanded { get; private set; }
     public ViewPlaybackSessionState? ViewSession { get; private set; }
     public PlaybackPresentationSurface PresentationSurface { get; private set; } = PlaybackPresentationSurface.Docked;
@@ -213,7 +212,6 @@ public sealed partial class PlaybackSessionController
         Experience = MediaKindClassifier.FromPlayerExperienceString(Experience),
         Phase = Phase,
         NeedsUserGestureToStart = NeedsUserGestureToStart,
-        IsPopupOpen = IsPopupOpen,
         IsVideoExpanded = IsVideoExpanded,
         PresentationSurface = PresentationSurface,
         CurrentError = CurrentError,
@@ -309,9 +307,6 @@ public sealed partial class PlaybackSessionController
                 break;
             case PlaybackCommandKind.PlayAudiobookHistory when command.AudiobookHistoryItem is not null:
                 await PlayAudiobookHistoryAsync(command.AudiobookHistoryItem, cancellationToken);
-                break;
-            case PlaybackCommandKind.SetPopupOpen when command.Flag.HasValue:
-                SetPopupOpen(command.Flag.Value);
                 break;
             case PlaybackCommandKind.ClosePlayer:
                 ClosePlayer();
@@ -2437,17 +2432,6 @@ public sealed partial class PlaybackSessionController
         NotifyChanged();
     }
 
-    public void SetPopupOpen(bool isOpen)
-    {
-        if (IsPopupOpen == isOpen)
-        {
-            return;
-        }
-
-        IsPopupOpen = isOpen;
-        NotifyChanged();
-    }
-
     public void SetVideoExpanded(bool isExpanded)
     {
         if (IsVideoMode)
@@ -2501,7 +2485,6 @@ public sealed partial class PlaybackSessionController
         Experience = PlayerExperienceModes.Music;
         NeedsUserGestureToStart = false;
         IsPlaying = false;
-        IsPopupOpen = false;
         IsVideoExpanded = false;
         PresentationSurface = PlaybackPresentationSurface.Docked;
         CurrentError = null;
@@ -2577,7 +2560,6 @@ public sealed partial class PlaybackSessionController
         NeedsUserGestureToStart = snapshot.NeedsUserGestureToStart;
         PlaybackRequestVersion = Math.Max(PlaybackRequestVersion, snapshot.PlaybackRequestVersion);
         IsPlaying = snapshot.IsPlaying && _queue.Count > 0 && !invalidSavedRate;
-        IsPopupOpen = snapshot.IsPopupOpen;
         IsVideoExpanded = snapshot.IsVideoExpanded && IsVideoMode;
         PresentationSurface = IsVideoMode
             ? IsVideoExpanded ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.RestorableVideo
@@ -2649,7 +2631,6 @@ public sealed partial class PlaybackSessionController
         RepeatMode = RepeatMode,
         NeedsUserGestureToStart = NeedsUserGestureToStart,
         IsPlaying = IsPlaying,
-        IsPopupOpen = IsPopupOpen,
         IsVideoExpanded = IsVideoExpanded,
         CurrentError = CurrentError,
         SkipBackSeconds = SkipBackSeconds,

@@ -66,7 +66,7 @@
            the bottom-left above the bar. The details hide while a panel is open or the end card is up, and come back when it closes. *@
         <VideoRatingCard ContentRating="@Playback.CurrentItem.ContentRating" Playing="@VideoIsPlaying" @key="@VideoInstanceKey" />
         <VideoPausedDetails Content="@PausedDetails" Visible="@(!VideoIsPlaying && Playback.Phase != PlaybackPhase.Loading && string.IsNullOrWhiteSpace(Playback.CurrentError) && Tools.OpenToolId is null && !_endCard.Visible)" />
-        <PlaybackVideoChrome>
+        <PlaybackVideoChrome HeaderContent="@(IsPhoneVideo ? PhoneHeader : null)">
             <BottomContent>
             @if (VisibleSkipSegment is { } segment)
             {
@@ -76,7 +76,7 @@
                         AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
-            <PlaybackShell Media="@BarMedia" Surface="video" Class="video-playback-host__bar" AriaLabel="@L["VideoPlaybackHost_VideoPlayback"].Value"
+            <PlaybackShell Media="@BarMedia" Surface="video" Phone="@IsPhoneVideo" Class="video-playback-host__bar" AriaLabel="@L["VideoPlaybackHost_VideoPlayback"].Value"
                            State="@BarState" Identity="@BarIdentity"
                            ArtworkSrc="@BarArtwork.Src" ArtworkSrcSet="@BarArtwork.SrcSet" ArtworkIsPoster="@BarArtwork.IsPoster"
                            ArtworkAlt="" ArtworkDisplay="video-bar-thumbnail"
@@ -146,11 +146,7 @@
                                          OnSearch="RefreshSubtitlesAsync" OnSetPreferred="SetPreferredSubtitleAsync" />
                             break;
                         case PlaybackControlKey.Settings:
-                            <PlaybackSettingsPanel Media="@BarMedia" Surface="video" ToolId="video-settings" ItemKey="@VideoInstanceKey"
-                                                   Rate="@Playback.PlaybackRate" RateChanged="SelectPlaybackRateAsync"
-                                                   SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
-                                                   CanPictureInPicture="@_canPictureInPicture" OnPictureInPicture="EnterPictureInPictureAsync"
-                                                   Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />
+                            @SettingsTool
                             break;
                     }
                 </ToolContent>
@@ -257,7 +253,7 @@
         _presentationContext?.Episodes.FirstOrDefault(episode => episode.WorkId == Playback.CurrentItem?.WorkId)?.Synopsis, Playback.DurationSeconds, L);
     private string VideoInstanceKey => $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}";
     private IReadOnlyList<ListenQueueItem> UpcomingVideo => Playback.Queue.Skip(Playback.CurrentIndex + 1).Where(item => MediaKindClassifier.IsVideo(item.MediaType)).ToList();
-    private string? ContextKind => VideoPresentationResolver.ContextKind(VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem),
+    private string? ContextKind => VideoPresentationResolver.ContextKind(VideoPresentationResolver.HasOwnedSequence(Playback.CurrentItem),
         Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true,
         _presentationContext?.Episodes.Count ?? 0, UpcomingVideo.Count);
     private bool IsMovie => Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true;
@@ -279,7 +275,7 @@
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();
     private string SegmentStyle(PlaybackSegmentDto segment) => $"left:{(segment.StartSeconds / ProgressMax * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;width:{((segment.EndSeconds!.Value - segment.StartSeconds) / ProgressMax * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;";
-    private bool CanGoToPreviousEpisode => Playback.CurrentIndex > 0 && VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
+    private bool CanGoToPreviousEpisode => Playback.CurrentIndex > 0 && VideoPresentationResolver.HasOwnedSequence(Playback.CurrentItem);
     private VideoOwnedEpisode? EligibleNextEpisode => _presentationContext is { NextEpisode: { } next } context
         && context.Identity.IsCurrent(Playback) && Playback.Queue.Skip(Playback.CurrentIndex + 1).FirstOrDefault()?.WorkId == next.WorkId ? next : null;
     [JSInvokable] public Task HandleFullscreenChanged(bool fullscreen) { _isFullscreen = fullscreen; return InvokeAsync(StateHasChanged); }
@@ -382,6 +378,29 @@
                 CanPictureInPicture: _canPictureInPicture,
                 CanFullscreen: true,
                 IsMuted: PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported));
+    // Playback settings, drawn in the bar's tool zone on a desktop and in the header on a phone (unified player v2 D26).
+    private RenderFragment SettingsTool => @<PlaybackSettingsPanel Media="@BarMedia" Surface="video" ToolId="video-settings" ItemKey="@VideoInstanceKey"
+                                                   Rate="@Playback.PlaybackRate" RateChanged="SelectPlaybackRateAsync"
+                                                   SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
+                                                   CanPictureInPicture="@_canPictureInPicture" OnPictureInPicture="EnterPictureInPictureAsync"
+                                                   Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />;
+
+    // A phone keeps the overlay with the same five transport buttons and one row of Audio & subtitles, Episodes (Lessons), Bookmarks and Fullscreen; the title,
+    // Playback settings and Close sit in a header. "A phone" is the one rule the audio bar uses too (PlaybackFormFactor), so the two never disagree.
+    private bool IsPhoneVideo => PlaybackFormFactor.IsPhone(_deviceContext);
+    private MediaEngine.Web.Services.Theming.DeviceContextService? _deviceContext;
+    private void HandleDeviceContextChanged() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+    private RenderFragment PhoneHeader => @<div class="video-playback-host__phone-header" data-video-phone-header>
+        <span class="video-playback-host__phone-title" data-overflow-tooltip="@PhoneHeaderTitle">@PhoneHeaderTitle</span>
+        @* The "..." menu (Go to show, Mark as watched ...) that the phone's bar no longer shows beside the title. *@
+        <PlaybackIdentityActions Media="@BarMedia" Item="@Playback.CurrentItem" Surface="video" ShowWorkId="@BarShowWorkId" SeasonId="@BarSeasonId" ShowReactions="false" />
+        @SettingsTool
+        <PlaybackIconButton Control="@PhoneCloseControl" Surface="video" Appearance="bare"
+                            OnActivated="@(trigger => HandleBarToolAsync(new PlaybackControlActivation(PhoneCloseControl, trigger)))" />
+    </div>;
+    private string PhoneHeaderTitle => BarIdentity is { } identity && !string.IsNullOrEmpty(identity.SecondaryText) ? $"{identity.Title} · {identity.SecondaryText}" : BarIdentity.Title;
+    private PlaybackControlDefinition PhoneCloseControl => PlaybackControlCatalog.BuildBarTools(BarMedia, BarState).Single(control => control.Key == PlaybackControlKey.Close);
+
     // The persistent bar (unified player v2 D1 to D6). PlaybackShell draws it from PlaybackControlCatalog; these are the host's answers.
     private PlaybackBarMedia BarMedia => IsTvEpisode ? PlaybackBarMedia.Tv : PlaybackBarMedia.Movie;
     // The episode as the presentation context lists it, for its still and its season; both are known only once that context has loaded.
@@ -401,6 +420,7 @@
         SkipForwardSeconds: Playback.SkipForwardSeconds,
         PlaybackRate: Playback.PlaybackRate,
         HasEpisodes: ContextKind is not null && !IsMovie,
+        IsFolderVideo: IsFolderVideoNow,
         CanBookmark: VideoControlState.CanBookmark,
         CanFullscreen: true,
         IsFullscreen: _isFullscreen,
@@ -447,6 +467,8 @@
         Playback.TransportCommandRequested += HandleTransportCommandAsync;
         Nav.LocationChanged += HandleLocationChanged;
         Tools.Changed += HandleToolsChanged;
+        _deviceContext = Services.GetService<MediaEngine.Web.Services.Theming.DeviceContextService>();
+        if (_deviceContext is not null) _deviceContext.OnChanged += HandleDeviceContextChanged;
         ObservePresentationIdentity();
     }
 
@@ -1513,7 +1535,7 @@
         }
         // Close may be pressed before the owned episode metadata has arrived.
         // Wait for that identity's existing read so its show-scoped destination is retained.
-        if (VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem) && _presentationResolution is { } resolution)
+        if (VideoPresentationResolver.HasOwnedSequence(Playback.CurrentItem) && _presentationResolution is { } resolution)
         {
             await resolution;
             if (!IsCurrentClose()) return;
@@ -1586,6 +1608,7 @@
         _lifetimeCancellation.Cancel();
         _metadataCancellation?.Cancel(); _metadataCancellation?.Dispose();
         Tools.Changed -= HandleToolsChanged;
+        if (_deviceContext is not null) _deviceContext.OnChanged -= HandleDeviceContextChanged;
         Playback.Changed -= HandlePlaybackChanged;
         Playback.PlaybackRequestChanged -= HandleRequestChanged;
         Playback.TransportCommandRequested -= HandleTransportCommandAsync;

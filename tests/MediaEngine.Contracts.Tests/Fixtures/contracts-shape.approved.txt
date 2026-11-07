@@ -7743,7 +7743,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackComm
   LyricTrackId: System.Guid? | nullability=nullable | accessors=get,init
   IdentityKind: System.String | nullability=nullable | accessors=get,init
   IdentityId: System.Guid? | nullability=nullable | accessors=get,init
-  PopupWindowId: System.Guid? | nullability=nullable | accessors=get,init
   Index: System.Int32? | nullability=nullable | accessors=get,init
   ExpectedQueueRevision: System.Int64? | nullability=nullable | accessors=get,init
   OutputDeviceId: System.String | nullability=nullable | accessors=get,init

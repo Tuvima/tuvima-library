@@ -26,7 +26,8 @@ public sealed record PlaybackBarState(
     bool IsSleepTimerActive = false,
     bool HasQueue = true,
     bool Disabled = false,
-    string? ActiveSheet = null);
+    string? ActiveSheet = null,
+    bool IsFolderVideo = false);
 
 public static partial class PlaybackControlCatalog
 {
@@ -116,7 +117,7 @@ public static partial class PlaybackControlCatalog
             default:
                 if (state.HasEpisodes)
                 {
-                    tools.Add(BarTool(PlaybackControlKey.Episodes, "Episodes", "episodes", state));
+                    tools.Add(BarTool(PlaybackControlKey.Episodes, state.IsFolderVideo ? "Lessons" : "Episodes", "episodes", state));
                 }
                 tools.Add(BarTool(PlaybackControlKey.AudioSubtitles, "Audio & subtitles", "audio-subtitles", state));
                 if (state.CanBookmark)

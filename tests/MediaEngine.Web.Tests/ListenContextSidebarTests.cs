@@ -207,16 +207,11 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         Assert.True(device.IsMobile);
         Assert.Equal(phone ? 1 : 0, cut.FindAll(".playback-full--phone").Count);
-        // The phone's collapsed bar keeps one tool (Now playing); the desktop bar hosts Chapters, and it follows the open page inline.
+        // The phone's collapsed bar has no tools and its expanded player holds Chapters in its one tool row, as a sheet over the view; the desktop bar hosts
+        // Chapters, and it follows the open page inline.
         var chapterTools = cut.FindComponents<ListenDockTool>().Where(tool => tool.Instance.PanelKey == "chapters").ToList();
-        if (phone)
-        {
-            Assert.Empty(chapterTools);
-        }
-        else
-        {
-            Assert.True(Assert.Single(chapterTools).Instance.Inline);
-        }
+        Assert.Equal(!phone, Assert.Single(chapterTools).Instance.Inline);
+        Assert.Equal(phone ? 1 : 0, cut.FindAll("[data-playback-tool-row] [data-playback-tool='Chapters']").Count);
         Assert.Equal(requestVersion, playback.PlaybackRequestVersion);
     }
 
@@ -518,8 +513,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("listen-transport--phone-audiobook", cut.Markup);
-            Assert.Contains("playback-full__modes", cut.Markup);
+            Assert.NotEmpty(cut.FindAll(".playback-full--phone [data-playback-tool-row]"));
+            Assert.Empty(cut.FindAll(".playback-full--phone input[aria-label='Volume']"));
             Assert.DoesNotContain("Desktop only synopsis for responsive playback.", cut.Markup);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
@@ -548,10 +543,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Empty(phoneFull.FindAll("[data-playback-speed-view]")));
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
-        await cut.InvokeAsync(() => cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync());
+        var chapters = phoneFull.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters");
+        await cut.InvokeAsync(() => chapters.Instance.OpenAsync());
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("playback-full__middle", cut.Markup);
             Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });

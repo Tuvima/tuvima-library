@@ -20,12 +20,12 @@ function harness() {
         removeAttribute(name) { if (name === "src") this.removed = true; },
         load() { this.loadCalls++; }
     };
-    let cleared = 0, popupClosed = 0;
+    let cleared = 0;
     const context = {
         URL, console, clearPreparedCaptions() {},
         document: { baseURI: "https://dashboard.test/", getElementById: () => audio },
         localStorage: { getItem: () => stored }, stateKey: "state",
-        window: { listenPlayback: { clearState() { cleared++; stored = null; }, closePopup() { popupClosed++; } } }
+        window: { listenPlayback: { clearState() { cleared++; stored = null; } } }
     };
     runInNewContext([
         block("    function samePlaybackUrl(", "    function audioAssetId"),
@@ -35,7 +35,7 @@ function harness() {
         block("    function captureAudiobookBookmarkPosition(", "    function readCurrentAudiobookPosition"),
         `globalThis.api = { ${block("        pauseAudioForClose: function", "        captureAudiobookBookmarkPosition:")} };`
     ].join("\n"), context);
-    return { audio, api: context.api, setStored(value) { stored = JSON.stringify(value); }, get cleared() { return cleared; }, get popupClosed() { return popupClosed; } };
+    return { audio, api: context.api, setStored(value) { stored = JSON.stringify(value); }, get cleared() { return cleared; } };
 }
 
 test("Close pauses the captured native source and preserves its stopped position before cleanup", () => {
@@ -48,7 +48,6 @@ test("Close pauses the captured native source and preserves its stopped position
     assert.equal(h.cleared, 0, "resume persistence can finish before clearing the session");
     assert.equal(h.api.finalizeAudioClose("asset-a", 21, "/stream/a"), true);
     assert.equal(h.cleared, 1);
-    assert.equal(h.popupClosed, 1);
     assert.equal(h.audio.loadCalls, 1);
 });
 
@@ -61,7 +60,6 @@ test("A stale Close cannot pause, release, or clear a successor native session",
     assert.equal(h.audio.pauseCalls, 0);
     assert.equal(h.audio.loadCalls, 0);
     assert.equal(h.cleared, 0);
-    assert.equal(h.popupClosed, 0);
 });
 
 test("Successor storage and a different native source both prevent old-session cleanup", () => {

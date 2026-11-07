@@ -139,7 +139,7 @@ public static class DisplayFormat
     /// "{rate}×" clamped to 0.5-32x with up to two decimal places (invariant
     /// culture). Originally duplicated (byte-identical) in
     /// Components/Listen/ListenNowPlayingBar.razor and
-    /// Components/Listen/ListenTransportControls.razor.
+    /// a transport control that no longer exists.
     /// </summary>
     public static string FormatSpeedListen(double rate)
         => $"{Math.Clamp(rate, 0.5d, 32d).ToString("0.##", CultureInfo.InvariantCulture)}×";
