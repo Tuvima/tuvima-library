@@ -56,6 +56,14 @@ public sealed class MediaEditorContextDto
 
     [JsonPropertyName("scopes")]
     public List<MediaEditorScopeDto> Scopes { get; set; } = [];
+
+    /// <summary>
+    /// What the editor's header needs beyond the fields (universal editor v5): the way around the family, the cover's colours, the file
+    /// facts and the numbers and per-kind rules from config/editor.json. Null only when the Engine could not build it.
+    /// </summary>
+    [JsonPropertyName("header")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Editing.EditorHeaderDto? Header { get; set; }
 }
 
 public sealed class MediaEditorTargetSummaryDto
