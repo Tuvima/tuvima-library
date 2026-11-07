@@ -15,4 +15,16 @@ public partial interface IEngineApiClient
 
     /// <summary>Where the item would go if this record were applied: the new parent, whether its folder is Managed, and the file's paths before and after. A read that moves nothing. Null when the Engine could not be reached.</summary>
     Task<EditorMatchPlacementDto?> GetEditorMatchPlacementAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default);
+
+    /// <summary>Judges a record picked in the TV or music flow (an episode, a track) against the item's file: Strong, Possible or Check with its reasons. A read. Null when the Engine could not be reached.</summary>
+    Task<EditorMatchResultDto?> GetEditorMatchVerdictAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default);
+
+    /// <summary>The releases of an album that fit the artist, album or song words, with the current one marked and the one that fits the file suggested. Null when the Engine could not be reached.</summary>
+    Task<EditorMusicReleasesDto?> GetEditorMusicReleasesAsync(Guid entityId, string? artist, string? album, string? song, CancellationToken ct = default);
+
+    /// <summary>One release's discs and tracks, the track that fits the file marked. Null when the Engine could not be reached or the release cannot be read.</summary>
+    Task<EditorMusicReleaseTracksDto?> GetEditorMusicReleaseTracksAsync(Guid entityId, string releaseId, CancellationToken ct = default);
+
+    /// <summary>Lines several ticked episodes or songs up with one show and season, or one release, by their own numbers (D36). A read. Null when the Engine could not be reached.</summary>
+    Task<EditorGroupMatchDto?> LineUpEditorGroupMatchAsync(Guid entityId, EditorGroupMatchRequestDto request, CancellationToken ct = default);
 }

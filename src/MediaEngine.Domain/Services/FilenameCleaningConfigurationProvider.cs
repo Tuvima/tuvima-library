@@ -136,6 +136,11 @@ public sealed class FilenameCleaningConfigurationProvider
             read.SeasonEpisodePatterns = shipped.SeasonEpisodePatterns;
         }
 
+        if (!Has(root, "absolute_episode_patterns"))
+        {
+            read.AbsoluteEpisodePatterns = shipped.AbsoluteEpisodePatterns;
+        }
+
         if (!Has(root, "season_folder_pattern"))
         {
             read.SeasonFolderPattern = shipped.SeasonFolderPattern;

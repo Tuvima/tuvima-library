@@ -1,21 +1,4 @@
-/* The Match tab's first row (editor v5, 3c): provider dropdown, icon-only Search and the file name at the start, the source switch at the end. */
-.tl-matchrow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--tl-space-3);
-    min-width: 0;
-}
-
-.tl-matchrow__start {
-    display: flex;
-    flex: 1 1 auto;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: var(--tl-space-3);
-    min-width: 0;
-}
-
+/* The Match tab: the provider and box slots of the first row (the row itself is EditorMatchRow), the current match and its reasons, and the compact search. */
 .tl-matchrow__provider {
     flex: 0 1 14rem;
     min-width: 0;
@@ -24,11 +7,6 @@
 .tl-matchrow__field {
     flex: 1 1 10rem;
     min-width: 0;
-}
-
-.tl-matchrow__end {
-    flex: 0 0 auto;
-    margin-inline-start: auto;
 }
 
 /* The current match and its reasons. */
@@ -46,7 +24,7 @@
     align-items: stretch;
 }
 
-.tl-matchcard__art {
+.tl-match ::deep .tl-matchcard__art {
     flex: 0 0 4rem;
     width: 4rem;
     height: 6rem;

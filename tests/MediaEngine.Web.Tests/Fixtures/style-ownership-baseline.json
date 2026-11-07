@@ -1195,7 +1195,7 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
       "important": 15,
-      "deep": 90
+      "deep": 89
     },
     "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
       "important": 0,
@@ -1876,6 +1876,10 @@
     "src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor.css": {
       "important": 0,
       "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css": {
+      "important": 0,
+      "deep": 1
     }
   },
   "lineExceptions": {},
@@ -4429,6 +4433,16 @@
         "::deep .tl-extra-viewer__lightbox > img"
       ],
       "reason": "The picture lightbox is an AppViewer, so its rules go through a wrapper of the viewer's own (Editor v5 WP7 moved the viewer out of the Extra page). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        "::deep .tl-matchcard__art"
+      ],
+      "reason": "The current match card's picture is an AppImage, so its size rule goes through the Match panel root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
     }
   ],
   "finalBundleBytes": 1283347,

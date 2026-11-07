@@ -38,11 +38,7 @@
     }
     else if (Selection.Panel == BulkPanelKind.Match)
     {
-        <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
-            @* Matching many items at once is rebuilt with the TV and music flows (universal editor v5, WP9a); one item at a time is matched in its own Match tab. *@
-            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["BulkEditPanel_MatchOneAtATime"]</AppAlert>
-            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit" />
-        </section>
+        <EditorGroupMatchPanel Rows="Selection.OrderedRows().ToList()" MediaType="@Selection.MediaType" Pending="Pending" CanChange="CanChange" OnDone="BackToEdit" />
     }
     else
     {

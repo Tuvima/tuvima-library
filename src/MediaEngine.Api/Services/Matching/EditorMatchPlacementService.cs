@@ -19,7 +19,7 @@ public sealed class EditorMatchPlacementService(
     ILibraryMoveService moves,
     ILibraryMoveRepository moveItems,
     IItemCanonicalRepository items,
-    IAutoOrganizeService organizer)
+    IAutoOrganizeService organizer) : IEditorMatchPlacement
 {
     /// <summary>Null when no such item is in the Library.</summary>
     public async Task<EditorMatchPlacementDto?> PlanAsync(
@@ -54,12 +54,28 @@ public sealed class EditorMatchPlacementService(
             }
         }
 
+        // The item moves only to a place other than the one it sits in; places are compared by id, never by their labels.
+        if (target is not null && current is not null && target.Id == current.Id)
+        {
+            target = null;
+        }
+
         var file = await PlanFileAsync(entityId, target, actor, canEdit, ct).ConfigureAwait(false);
+        int? keeps = null;
+        if (target is not null && current is not null)
+        {
+            var siblings = await moveItems.GetChildrenAsync(current.Id, ct).ConfigureAwait(false);
+            keeps = Math.Max(0, siblings.Count(child => child.WorkId != entityId));
+        }
+
         return new EditorMatchPlacementDto
         {
             DestinationId = target?.Id,
             ParentLabel = target is null ? null : Describe(target),
             CurrentParentLabel = current is null ? null : Describe(current),
+            CurrentParentId = current?.Id,
+            CurrentParentKeeps = keeps,
+            Position = target is not null && string.Equals(context.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? TrackNumberOf(candidate) : null,
             Managed = file.Managed,
             FromPath = file.From,
             ToPath = file.To,
@@ -141,6 +157,12 @@ public sealed class EditorMatchPlacementService(
         var series = Field(candidate, MetadataFieldConstants.Series);
         return series is null ? null : new ProposedParent(series, null);
     }
+
+    // The track a song takes in the album it moves to: the chosen track's own number.
+    private static int? TrackNumberOf(ItemCanonicalRetailCandidateDto candidate) =>
+        int.TryParse(Field(candidate, MetadataFieldConstants.TrackNumber), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) && number is >= 1 and <= EditSessionPosition.MaxNumber
+            ? number
+            : null;
 
     private static string PlaceQuery(ProposedParent proposed) =>
         proposed.Label.StartsWith("Season ", StringComparison.OrdinalIgnoreCase) || string.Equals(proposed.Label, "Specials", StringComparison.OrdinalIgnoreCase)

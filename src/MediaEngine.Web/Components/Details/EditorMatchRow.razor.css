@@ -1,0 +1,22 @@
+/* The Match tab's first row (editor v5, 3c): the provider dropdown and the boxes of the kind at the start, the source switch at the end. */
+.tl-matchrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-matchrow__start {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-matchrow__end {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+}

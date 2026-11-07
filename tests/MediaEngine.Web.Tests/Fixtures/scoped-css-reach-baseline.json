@@ -65,9 +65,6 @@
       "tl-art-picker__action",
       "tl-art-picker__prefer"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor": [
-      "tl-matchcard__art"
-    ],
     "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
       "is-current",
       "is-selected",

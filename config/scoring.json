@@ -23,5 +23,15 @@
       "comic": ["title", "number", "year"],
       "video": ["identifier"]
     }
+  },
+  "music_match": {
+    "max_releases": 10,
+    "release_title_points": 4,
+    "release_track_count_exact_points": 3,
+    "release_track_count_more_points": 1,
+    "track_title_points": 4,
+    "track_number_points": 2,
+    "track_length_points": 2,
+    "track_min_points": 4
   }
 }

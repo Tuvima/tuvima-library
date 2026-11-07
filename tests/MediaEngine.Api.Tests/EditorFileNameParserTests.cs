@@ -21,6 +21,37 @@ public sealed class EditorFileNameParserTests
         Assert.Equal(title, parsed.Title);
     }
 
+    [Theory]
+    [InlineData("[Group] Sky Pirates - 047 [1080p].mkv", 47)]
+    [InlineData("Sky Pirates Episode 12.mkv", 12)]
+    [InlineData("Sky.Pirates.ep103.mkv", 103)]
+    public void AnAbsolutelyNumberedFileName_GivesTheAbsoluteNumber_AndNoSeasonOrEpisode(string path, int absolute)
+    {
+        var parsed = EditorFileNameParser.Parse(path, isTv: true);
+
+        Assert.Equal(absolute, parsed.Absolute);
+        Assert.Null(parsed.Season);
+        Assert.Null(parsed.Episode);
+    }
+
+    [Fact]
+    public void AYearInATvFileName_IsNeverTakenForAnAbsoluteNumber()
+    {
+        var parsed = EditorFileNameParser.Parse("Sky Pirates - 2019 [1080p].mkv", isTv: true);
+
+        Assert.Null(parsed.Absolute);
+    }
+
+    [Fact]
+    public void ASeasonAndEpisodeNumber_WinOverAnAbsoluteNumber()
+    {
+        var parsed = EditorFileNameParser.Parse("Sky Pirates S02E05 - 047.mkv", isTv: true);
+
+        Assert.Equal(2, parsed.Season);
+        Assert.Equal(5, parsed.Episode);
+        Assert.Null(parsed.Absolute);
+    }
+
     [Fact]
     public void ATvFileWithNoShowInItsName_TakesTheShowFromTheFolderAboveTheSeasonFolder()
     {

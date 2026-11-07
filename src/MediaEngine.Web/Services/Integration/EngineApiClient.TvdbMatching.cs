@@ -71,6 +71,11 @@ public sealed partial class EngineApiClient
             "TV match browser episodes",
             $"/metadata/{entityId}/tv-match-browser/shows/{Uri.EscapeDataString(seriesId)}/seasons/{seasonNumber}/episodes", ct: ct);
 
+    public async Task<TvMatchBrowserEpisodeDto?> GetTvMatchBrowserAbsoluteEpisodeAsync(Guid entityId, string seriesId, int absoluteNumber, CancellationToken ct = default) =>
+        await GetAsync<TvMatchBrowserEpisodeDto>(
+            "TV match browser absolute episode",
+            $"/metadata/{entityId}/tv-match-browser/shows/{Uri.EscapeDataString(seriesId)}/absolute/{absoluteNumber}", ct: ct);
+
     public async Task<EditorMatchContextDto?> GetEditorMatchContextAsync(Guid entityId, CancellationToken ct = default) =>
         await GetAsync<EditorMatchContextDto>("Editor match context", $"/metadata/{entityId}/match-context", ct: ct);
 

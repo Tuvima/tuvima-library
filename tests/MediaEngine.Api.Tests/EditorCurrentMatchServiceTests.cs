@@ -205,6 +205,53 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AnEpisodeWhoseMatchWasRemoved_ReadsNotMatchedYet_EvenWhenItsShowStillCarriesTheShowsId()
+    {
+        var handler = new TvdbSpy();
+        var show = _world.Work("TV", "parent", "Game of Thrones");
+        var season = _world.Work("TV", "parent", "Season 1", show, 1);
+        var episode = _world.Work("TV", "child", "The Kingsroad", season, 2);
+        _world.File(episode, "Game of Thrones S01E02.mkv");
+        _world.Canonical(show, BridgeIdKeys.TvdbId, "121361");
+
+        var match = await Service(handler, connected: true).ReadAsync(episode);
+
+        Assert.Equal(EditorCurrentMatchStates.NotMatched, match!.State);
+        Assert.Null(match.Record);
+        Assert.Empty(match.Why);
+        Assert.Empty(handler.Paths);
+    }
+
+    [Fact]
+    public async Task ASeason_KeepsShowingTheShowItBelongsTo_AsItAlwaysDid()
+    {
+        var show = _world.Work("TV", "parent", "Game of Thrones");
+        var season = _world.Work("TV", "parent", "Season 1", show, 1);
+        _world.Canonical(show, BridgeIdKeys.TvdbId, "121361");
+
+        var seasonRead = await Service(new TvdbSpy(), connected: true).ReadAsync(season);
+
+        Assert.Equal(EditorCurrentMatchStates.Matched, seasonRead!.State);
+        Assert.Equal("121361", seasonRead.Record!.ProviderItemId);
+        Assert.Equal(EditorCurrentMatchStates.Matched, (await Service(new TvdbSpy(), connected: true).ReadAsync(show))!.State);
+    }
+
+    [Fact]
+    public async Task AnEpisodeWhoseMatchWasRemoved_DoesNotBorrowTheShowsTmdbId_Either()
+    {
+        var show = _world.Work("TV", "parent", "Game of Thrones");
+        var season = _world.Work("TV", "parent", "Season 1", show, 1);
+        var episode = _world.Work("TV", "child", "The Kingsroad", season, 2);
+        _world.File(episode, "Game of Thrones S01E02.mkv");
+        _world.Canonical(show, BridgeIdKeys.TmdbId, "1399");
+
+        var match = await Service(new TvdbSpy(), connected: true).ReadAsync(episode);
+
+        Assert.Equal(EditorCurrentMatchStates.NotMatched, match!.State);
+        Assert.Null(match.Record);
+    }
+
+    [Fact]
     public async Task AnItemWithNoProviderId_IsNotMatched_AndHasNoRecord()
     {
         var film = _world.Work("Movies", "standalone", "Arrival");

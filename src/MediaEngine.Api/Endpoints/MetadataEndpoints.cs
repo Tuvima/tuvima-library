@@ -2234,6 +2234,8 @@ public static partial class MetadataEndpoints
 
         MapTvdbScopedMatchEndpoints(group);
         MapTvMatchBrowserEndpoints(group);
+        MapTvAbsoluteEpisodeEndpoint(group);
+        MapEditorMusicMatchEndpoints(group);
         MapMatchContextEndpoints(group);
         MapEditorHeaderEndpoints(group);
         MapFileSortingEndpoints(group);
