@@ -25,6 +25,7 @@ public sealed class BookmarkSetService
     private readonly IVaultLibraryRepository _vault;
     private readonly BookmarkClosenessProvider _closeness;
     private readonly TimeProvider _time;
+    private readonly BookmarkFrameService? _frames;
 
     public BookmarkSetService(
         PlayerCatalogueScope scope,
@@ -32,8 +33,10 @@ public sealed class BookmarkSetService
         BookmarkRecognitionRepository recognition,
         IVaultLibraryRepository vault,
         BookmarkClosenessProvider closeness,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        BookmarkFrameService? frames = null)
     {
+        _frames = frames;
         _scope = scope;
         _bookmarks = bookmarks;
         _recognition = recognition;
@@ -113,6 +116,21 @@ public sealed class BookmarkSetService
         var outcome = await _bookmarks.ApplySetAsync(
             prepared.Profile, workId, request.Set.AssetId, duration, adds, deletes,
             addAsGlobal: isAdmin, replaceGlobalSet: replaceWhole, _closeness.SameSpotSeconds, ct);
+        if (_frames is not null)
+        {
+            // Imported and applied bookmarks get their frames the same way a saved one does (Unified player v2 D21a), and the
+            // pictures of the bookmarks they replaced go.
+            foreach (var (id, position) in outcome.AddedIds)
+            {
+                await _frames.TryEnqueueAsync(new AudiobookBookmarkDto { Id = id, AssetId = request.Set.AssetId, PositionSeconds = position }, ct);
+            }
+
+            if (outcome.Replaced > 0)
+            {
+                await _frames.SweepOrphansAsync(ct);
+            }
+        }
+
         return new BookmarkSetApplyResultDto
         {
             Added = outcome.Added,
