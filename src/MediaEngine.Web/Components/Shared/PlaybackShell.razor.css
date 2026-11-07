@@ -157,7 +157,14 @@
     position: absolute;
 }
 
-/* A video player on a phone (D26): the tool row is the four tools centred under the five transport buttons. */
+/* A video player on a phone (D26): no identity zone (the header above holds the title), so the transport and the tool row stack in one column at every width.
+   The tool row is the four tools centered under the five transport buttons. */
+.playback-shell--phone .playback-shell__row {
+    gap: 4px;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+}
+
 .playback-shell--phone .playback-shell__tools {
     justify-content: center;
 }

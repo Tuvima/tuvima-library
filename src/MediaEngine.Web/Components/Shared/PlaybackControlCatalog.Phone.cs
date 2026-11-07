@@ -9,6 +9,21 @@ public static partial class PlaybackControlCatalog
     public const int PhoneToolRowLimit = 4;
 
     /// <summary>
+    /// The buttons of the phone's collapsed bar (unified player v2 D26): Play and Next for music, Play and forward 30 s for an audiobook, Play alone for video.
+    /// Everything else waits in the expanded player, which a tap on the bar opens.
+    /// </summary>
+    public static IReadOnlyList<PlaybackControlDefinition> BuildCollapsedTransport(PlaybackBarMedia media, PlaybackBarState state)
+    {
+        var keep = media switch
+        {
+            PlaybackBarMedia.Music => new[] { PlaybackControlKey.PlayPause, PlaybackControlKey.NextItem },
+            PlaybackBarMedia.Audiobook => new[] { PlaybackControlKey.PlayPause, PlaybackControlKey.SkipForward },
+            _ => new[] { PlaybackControlKey.PlayPause },
+        };
+        return BuildBarTransport(media, state).Where(control => keep.Contains(control.Key)).ToList();
+    }
+
+    /// <summary>
     /// The transport of the phone's expanded player (unified player v2 D26): the bar's transport in the same order, except that music's Shuffle and Repeat
     /// leave it for the tool row, so a song has Previous, Play/pause and Next with a large Play.
     /// </summary>
@@ -38,10 +53,10 @@ public static partial class PlaybackControlCatalog
                 tools.Add(BuildBarTransport(media, state).Single(control => control.Key == PlaybackControlKey.Repeat));
                 break;
             case PlaybackBarMedia.Audiobook:
-                if (state.HasChapters)
-                {
-                    tools.Add(BarTool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
-                }
+                // A book with no chapters has History in the slot Chapters would take, as the audiobook dock tool always did.
+                tools.Add(state.HasChapters
+                    ? BarTool(PlaybackControlKey.Chapters, "Chapters", "chapters", state)
+                    : BarTool(PlaybackControlKey.History, "History", "history", state));
                 tools.Add(BarTool(PlaybackControlKey.Speed, "Playback speed", "speed", state,
                     valueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate),
                     isActive: Math.Abs(state.PlaybackRate - 1d) > 0.001));

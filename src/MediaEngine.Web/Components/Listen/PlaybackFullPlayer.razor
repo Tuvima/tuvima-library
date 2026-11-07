@@ -27,7 +27,7 @@
                 </AppNativeButton>
             </AppTooltip>
             <span class="playback-full__from" data-playback-full-from data-overflow-tooltip="@PlayingFrom">@PlayingFrom</span>
-            <PlaybackItemMenu Media="@Media" Item="@item" Surface="dock" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
+            <PlaybackItemMenu @ref="_itemMenu" Media="@Media" Item="@item" Surface="dock" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
                               NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows" />
         </header>
         <div class="playback-full__art" data-playback-full-art>
@@ -161,10 +161,13 @@
         builder.CloseComponent();
     };
 
-    private async Task OpenMenuRowAsync(PlaybackControlDefinition control, ElementReference trigger)
+    private PlaybackItemMenu? _itemMenu;
+
+    // The row leaves the page as the menu closes, so the panel is anchored to the "..." button and focus returns there.
+    private async Task OpenMenuRowAsync(PlaybackControlDefinition control, ElementReference row)
     {
         Services.GetService<PlaybackTransientToolCoordinator>()?.Close();
-        await OnTool.InvokeAsync(new PlaybackControlActivation(control, trigger));
+        await OnTool.InvokeAsync(new PlaybackControlActivation(control, _itemMenu?.TriggerElement ?? row));
     }
 
     private RenderFragment RenderLink(string text, string? kind, Guid? id) => builder =>

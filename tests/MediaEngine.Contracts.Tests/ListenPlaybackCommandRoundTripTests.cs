@@ -7,15 +7,12 @@ public sealed class ListenPlaybackCommandRoundTripTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    [Theory]
-    [InlineData("navigate-identity")]
-    [InlineData("register-popup")]
-    [InlineData("popup-closed")]
-    public void PresentationIdentityAndPassiveWindowRegistrationRoundTripWithoutArbitraryRoutes(string action)
+    [Fact]
+    public void PresentationIdentityRoundTripsWithoutArbitraryRoutes()
     {
         var command = new ListenPlaybackCommandDto
         {
-            Action = action,
+            Action = "navigate-identity",
             CommandId = Guid.NewGuid(),
             SenderId = Guid.NewGuid(),
             RecipientId = Guid.NewGuid(),

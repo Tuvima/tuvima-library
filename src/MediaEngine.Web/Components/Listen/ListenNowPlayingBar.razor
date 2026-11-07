@@ -172,7 +172,7 @@
                 else
                 {
                     @* The Lyrics panel (unified player v2 D17, mockup screen 7); its Open Now playing button does what the artwork does. It stays open when the song changes: the lyrics reset by themselves. *@
-                    <PlaybackLyricsPanel OnOpenNowPlaying="OpenNowPlaying" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))" />
+                    <PlaybackLyricsPanel OnOpenNowPlaying="@LyricsOpenNowPlaying" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))" />
                 }
                 break;
             case PlaybackControlKey.Queue:
@@ -182,6 +182,7 @@
                 </ListenDockTool>
                 break;
             case PlaybackControlKey.Chapters:
+            case PlaybackControlKey.History:
                 <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? L["Common_Chapters"].Value : "History")" ListPanel="@HasUsableChapters"
                                 Glyph="@(HasUsableChapters ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.History)"
                                 ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
@@ -306,8 +307,8 @@
     private DotNetObjectReference<ListenNowPlayingBar>? _selfReference;
     private PlaybackFullPlayer? _phoneFullPlayer;
     private bool _nowPlayingFocused;
-    private bool _isPhonePresentation;
-    private bool IsPhonePresentation => _isPhonePresentation;
+    private bool _lastPhonePresentation;
+    private bool IsPhonePresentation => PlaybackFormFactor.IsPhone(DeviceContext);
     private IJSObjectReference? _audioPresentationModule;
     private readonly string _audioPresentationObserverId = Guid.NewGuid().ToString("D");
     private bool _restored;
@@ -407,7 +408,7 @@
         ActiveSheet: IsNowPlayingPage ? "now-playing" : _bookmarkDialogContext is not null ? "bookmarks" : null);
     private static readonly IReadOnlySet<PlaybackControlKey> HostedBarTools = new HashSet<PlaybackControlKey>
     {
-        PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer,
+        PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.History, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer,
     };
 
     // Starting playback from a click needs the browser's own gesture, so the Play button carries what the page script needs to start the stream.
@@ -618,20 +619,38 @@
         Playback.SleepTimerNativePositionRequested += ReadNativeSleepTimerPositionAsync;
         BookmarkActionOwner.Changed += OnBookmarkActionsChanged;
         Nav.LocationChanged += HandleLocationChanged;
+        _lastPhonePresentation = IsPhonePresentation;
         DeviceContext.OnChanged += HandleDeviceContextChanged;
     }
 
-    private void HandleDeviceContextChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandleDeviceContextChanged() => _ = InvokeAsync(() =>
+    {
+        if (_disposed) return;
+        SyncPhonePresentation();
+        StateHasChanged();
+    });
+
+    // The player is drawn for a phone by one rule (PlaybackFormFactor). When the device stops being a phone while the phone's expanded player is open, the
+    // expanded player closes with it, so the surface is never left at Now playing with nothing to draw it.
+    private void SyncPhonePresentation()
+    {
+        var isPhone = IsPhonePresentation;
+        if (_lastPhonePresentation == isPhone) return;
+        _lastPhonePresentation = isPhone;
+        CloseSettingsMenu(); Tools?.Close();
+        if (!isPhone && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && !IsNowPlayingPage)
+        {
+            Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        }
+    }
 
     [JSInvokable]
     public Task SetAudioPresentationViewport(double width)
     {
         if (_disposed || !double.IsFinite(width) || width <= 0) return Task.CompletedTask;
-        var isPhone = width <= 720;
-        if (_isPhonePresentation == isPhone) return Task.CompletedTask;
-        _isPhonePresentation = isPhone;
-        CloseSettingsMenu(); Tools?.Close();
-        return InvokeAsync(StateHasChanged);
+        // The device context tells every listener (the video overlay too) once the width crosses the phone width; the sync below then runs through it.
+        DeviceContext.SetViewportWidth(width);
+        return InvokeAsync(() => { SyncPhonePresentation(); StateHasChanged(); });
     }
 
     private void HandleLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>
@@ -1631,6 +1650,10 @@
         if (IsPhonePresentation && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying) await CloseNowPlaying();
         else await OpenNowPlaying();
     });
+
+    // The Lyrics panel's Open Now playing button is offered only where it has somewhere to go; with the phone's Now playing already open it would only close the sheet.
+    private EventCallback LyricsOpenNowPlaying =>
+        IsPhonePresentation && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying ? default : EventCallback.Factory.Create(this, OpenNowPlaying);
 
     private async Task OpenNowPlaying()
     {

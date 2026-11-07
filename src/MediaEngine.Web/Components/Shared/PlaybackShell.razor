@@ -13,9 +13,13 @@
         <div class="playback-shell__timeline" data-playback-zone="timeline">@TimelineContent</div>
     }
     <div class="playback-shell__row">
-        <PlaybackIdentity @ref="_identity" Media="@Media" Compact="@Compact" Identity="@Identity" LinkContent="@LinkContent"
-                          ArtworkSrc="@ArtworkSrc" ArtworkSrcSet="@ArtworkSrcSet" ArtworkAlt="@ArtworkAlt" ArtworkDisplay="@ArtworkDisplay" ArtworkIsPoster="@ArtworkIsPoster"
-                          ArtworkClick="@ArtworkClick" ArtworkLabel="@ArtworkLabel" Actions="@IdentityActions" ErrorText="@ErrorText" />
+        @* The video overlay on a phone has its title and "..." menu in the header above, so the bar repeats neither. *@
+        @if (!Phone)
+        {
+            <PlaybackIdentity @ref="_identity" Media="@Media" Compact="@Compact" Identity="@Identity" LinkContent="@LinkContent"
+                              ArtworkSrc="@ArtworkSrc" ArtworkSrcSet="@ArtworkSrcSet" ArtworkAlt="@ArtworkAlt" ArtworkDisplay="@ArtworkDisplay" ArtworkIsPoster="@ArtworkIsPoster"
+                              ArtworkClick="@ArtworkClick" ArtworkLabel="@ArtworkLabel" Actions="@IdentityActions" ErrorText="@ErrorText" />
+        }
 
         <div class="playback-shell__transport" role="group" aria-label="@TransportLabel" data-playback-zone="transport">
             @foreach (var control in TransportControls)
@@ -183,19 +187,7 @@
     {
         get
         {
-            var all = PlaybackControlCatalog.BuildBarTransport(Media, State);
-            if (!Compact)
-            {
-                return all;
-            }
-
-            var keep = Media switch
-            {
-                PlaybackBarMedia.Music => new[] { PlaybackControlKey.PlayPause, PlaybackControlKey.NextItem },
-                PlaybackBarMedia.Audiobook => new[] { PlaybackControlKey.PlayPause, PlaybackControlKey.SkipForward },
-                _ => new[] { PlaybackControlKey.PlayPause },
-            };
-            return all.Where(control => keep.Contains(control.Key)).ToList();
+            return Compact ? PlaybackControlCatalog.BuildCollapsedTransport(Media, State) : PlaybackControlCatalog.BuildBarTransport(Media, State);
         }
     }
 

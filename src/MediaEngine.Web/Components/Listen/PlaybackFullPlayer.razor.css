@@ -18,8 +18,11 @@
 .playback-full__text { flex:1; min-width:0; }
 .playback-full__title { font-size:18px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .playback-full__secondary { font-size:14px; line-height:1.3; color:var(--playback-text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* Transfer: Favorite, Like and Dislike are PlaybackIconButtons sized by --playback-control-target, which this wrapper sets to 40 px. */
-.playback-full__actions { flex:none; display:flex; align-items:center; --playback-control-target:40px; }
+/* Favorite, Like and Dislike keep the mockup's 40 px look inside a 44 px hit area (the touch rule): the buttons are 44 px and PlaybackIconButton draws its hover,
+   pressed and selected fills 2 px inside through the two fill variables, with the gap closed up by the same 4 px so the line looks as drawn.
+   Transfer: they are PlaybackIconButtons sized by --playback-control-target, which this wrapper sets; the gap reaches into PlaybackIdentityActions. */
+.playback-full__actions { flex:none; display:flex; align-items:center; --playback-control-target:44px; --playback-icon-button-fill-clip:content-box; --playback-icon-button-fill-inset:2px; }
+.playback-full__actions ::deep .playback-identity-actions { gap:2px; }
 .playback-full__timeline { flex:none; margin-top:12px; }
 /* Transfer: the transport buttons are sized by --playback-control-target (52 px here, as the mockup's ".phone .mid .btn"); the Play button is 64 px by its own phone size. */
 .playback-full__transport { flex:none; display:flex; align-items:center; justify-content:center; gap:20px; margin-top:8px; --playback-control-target:52px; }

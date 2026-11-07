@@ -210,6 +210,48 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         Assert.Contains("html[data-form-factor=\"phone\"] .playback-app-frame:has(.layout-shell__intent-dock) .playback-app-frame__audio-dock ::deep .playback-shell--compact", layout);
     }
 
+    // ---- One phone rule ----
+
+    [Theory]
+    [InlineData("phone", null, true)]
+    [InlineData("phone", 1280d, true)]
+    [InlineData("desktop", 390d, true)]
+    [InlineData("desktop", 720d, true)]
+    [InlineData("desktop", 721d, false)]
+    [InlineData("tablet", 800d, false)]
+    [InlineData("desktop", null, false)]
+    [InlineData("desktop", 0d, false)]
+    public async Task APlayerIsDrawnForAPhoneWhenTheDeviceIsOneOrTheWindowIs720PixelsOrNarrower(string formFactor, double? width, bool phone)
+    {
+        var device = new MediaEngine.Web.Services.Theming.DeviceContextService(MediaEngine.Web.Tests.Support.EngineApiClientStub.Create(_ => { }));
+        await device.SwitchDeviceAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
+
+        Assert.Equal(phone, PlaybackFormFactor.IsPhone(device, width));
+        Assert.False(PlaybackFormFactor.IsPhone(null, null));
+    }
+
+    [Fact]
+    public void TheDeviceContextTellsListenersOnlyWhenTheWidthCrossesThePhoneWidth()
+    {
+        var device = new MediaEngine.Web.Services.Theming.DeviceContextService(MediaEngine.Web.Tests.Support.EngineApiClientStub.Create(_ => { }));
+        var changes = 0;
+        device.OnChanged += () => changes++;
+
+        device.SetViewportWidth(1280);
+        device.SetViewportWidth(1100);
+        Assert.Equal(0, changes);
+        device.SetViewportWidth(700);
+        Assert.Equal(1, changes);
+        device.SetViewportWidth(500);
+        Assert.Equal(1, changes);
+        device.SetViewportWidth(900);
+        Assert.Equal(2, changes);
+        Assert.Equal(900d, device.ViewportWidth);
+        device.SetViewportWidth(double.NaN);
+        device.SetViewportWidth(-5);
+        Assert.Equal(900d, device.ViewportWidth);
+    }
+
     // ---- Tablet and touch targets (A12) ----
 
     [Fact]
@@ -221,7 +263,7 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EveryPlayerTouchTargetIsAtLeast44PixelsExceptTheFortyPixelReactionButtonsTheMockupDraws()
+    public void EveryPlayerTouchTargetIsAtLeast44PixelsAndTheReactionButtonsStillDrawTheirFillFortyPixelsWide()
     {
         var tokens = RepoFile("src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css");
         var row = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackToolRow.razor.css");
@@ -236,7 +278,15 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         Assert.Contains("height: var(--playback-control-target);", trigger);
         Assert.Contains("width: var(--playback-control-target);", trigger);
         Assert.Contains("--playback-control-target:52px;", full);
-        Assert.Contains("--playback-control-target:40px;", full);
+        var actions = full.Split(".playback-full__actions {", StringSplitOptions.None)[1].Split('}')[0];
+        Assert.Contains("--playback-control-target:44px;", actions);
+        Assert.DoesNotContain("--playback-control-target:40px;", full);
+        // The fill is drawn 2 px inside the 44 px button, so it still looks 40 px wide as the mockup shows.
+        Assert.Contains("--playback-icon-button-fill-clip:content-box;", actions);
+        Assert.Contains("--playback-icon-button-fill-inset:2px;", actions);
+        var button = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIconButton.razor.css");
+        Assert.Contains("background-clip: var(--playback-icon-button-fill-clip, border-box);", button);
+        Assert.Contains("padding: var(--playback-icon-button-fill-inset, 0);", button);
         Assert.Contains("width:44px; height:44px;", full); // The collapse chevron.
     }
 

@@ -181,6 +181,55 @@ videos when there are any. The tool and its panel are both named Lessons:
 | 6 | fullscreen | Fullscreen | can fullscreen |
 | 7 | close | Close | always |
 
+## Phone
+
+On a phone (a phone form factor, or a window 720 px wide or narrower) the bar
+becomes a small collapsed bar and the player grows into a full-screen Now
+playing view that a tap on the bar opens. The Dashboard decides "phone" once
+(`PlaybackFormFactor`), so the music, audiobook and video players always agree.
+Order, names and defaults are the ones above; only the layout changes.
+
+The collapsed bar is 56 px high: the art, the title and the second line, then
+these buttons. It has no tools and no Favorite.
+
+<!-- contract-table: phone-bar -->
+| Media | Buttons |
+| --- | --- |
+| Music | play-pause: Play, next: Next track |
+| Audiobook | play-pause: Play, skip-forward: Skip forward 30 s |
+| Video | play-pause: Play |
+
+The expanded player for music and audiobooks has a top line (collapse, "Playing
+from ...", the "..." menu), the artwork, the title line with Favorite (and Like
+and Dislike for music), the timeline, these transport buttons with a large Play,
+and then one row of at most four tools. There is no volume control: the phone's
+own buttons set the volume. Music Bookmarks, Playback settings and the item
+actions are in the "..." menu.
+
+<!-- contract-table: phone-transport -->
+| Media | Buttons |
+| --- | --- |
+| Music | previous: Previous track, play-pause: Play, next: Next track |
+| Audiobook | previous: Previous chapter, skip-back: Skip back 10 s, play-pause: Play, skip-forward: Skip forward 30 s, next: Next chapter |
+
+Video on a phone keeps its overlay with the five transport buttons of the TV
+episode and film tables above, and its own tool row. The tool row of every phone
+player, with every "Shown when" condition on:
+
+<!-- contract-table: phone-tools -->
+| Media | Tools |
+| --- | --- |
+| Music | shuffle: Shuffle, lyrics: Lyrics, queue: Queue, repeat: Repeat |
+| Audiobook | chapters: Chapters, speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
+| Audiobook without chapters | history: History, speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
+| TV episode | audio-subtitles: Audio & subtitles, episodes: Episodes, bookmarks: Bookmarks, fullscreen: Fullscreen |
+| Film | audio-subtitles: Audio & subtitles, bookmarks: Bookmarks, fullscreen: Fullscreen |
+| Folder video or lesson | audio-subtitles: Audio & subtitles, episodes: Lessons, bookmarks: Bookmarks, fullscreen: Fullscreen |
+
+Panels are bottom sheets on a phone and on a touch tablet up to 1024 px wide;
+nothing depends on hover, and the name of an icon-only button shows on a long
+press.
+
 ## Panels
 
 Each tool opens one panel. Only one panel is open at a time; opening another

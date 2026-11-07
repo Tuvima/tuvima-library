@@ -149,6 +149,32 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Music_BookmarksFromTheMoreMenuAreAnchoredToTheMoreButtonSoFocusReturnsThere()
+    {
+        var tools = new List<PlaybackControlActivation>();
+        var cut = RenderPlayer(Snapshot(), more: p => p.Add(x => x.OnTool, activation => tools.Add(activation)));
+
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+        await cut.WaitForElement("[data-playback-item-action='bookmarks']").ClickAsync();
+
+        var activation = Assert.Single(tools);
+        Assert.Equal("open-bookmarks", activation.Control.Command);
+        var moreButton = cut.FindComponent<PlaybackItemMenu>().Instance.TriggerElement;
+        Assert.NotNull(moreButton);
+        Assert.Equal(moreButton.Value.Id, activation.Trigger.Id);
+    }
+
+    [Fact]
+    public void Audiobook_WithoutChaptersTheSlotOfChaptersHoldsHistory()
+    {
+        var withChapters = RenderPlayer(BookSnapshot());
+        var without = RenderPlayer(BookSnapshot(), new PlaybackBarState(CanPrevious: true, CanNext: true, HasChapters: false, CanBookmark: true));
+
+        Assert.Equal(["Chapters", "Speed", "SleepTimer", "Bookmarks"], Tools(withChapters));
+        Assert.Equal(["History", "Speed", "SleepTimer", "Bookmarks"], Tools(without));
+    }
+
+    [Fact]
     public async Task Audiobook_BookmarksStayInTheToolRowAndNotInTheMoreMenu()
     {
         var cut = RenderPlayer(BookSnapshot());

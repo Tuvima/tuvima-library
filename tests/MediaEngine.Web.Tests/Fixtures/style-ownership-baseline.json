@@ -4303,7 +4303,7 @@
       "selectors": [
         ".playback-shell--phone .playback-shell__tools > ::deep :first-child"
       ],
-      "reason": "A video player on a phone (WP13) centres its four tools, so the bar's push-to-the-right rule for the first tool is switched off for it. The deleted phone transport controls gave up the same number."
+      "reason": "A video player on a phone (WP13) centers its four tools, so the bar's push-to-the-right rule for the first tool is switched off for it. The deleted phone transport controls gave up the same number."
     },
     {
       "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",

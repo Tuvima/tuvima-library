@@ -7,7 +7,9 @@
 .playback-icon-button-shell ::deep .playback-icon-button {
     align-content: center;
     align-items: center;
-    background: transparent;
+    background-color: transparent;
+    /* A host that wants a hit area larger than the fill sets --playback-icon-button-fill-clip: content-box and --playback-icon-button-fill-inset (the touch rule). */
+    background-clip: var(--playback-icon-button-fill-clip, border-box);
     border: 0;
     border-radius: var(--tl-control-radius);
     box-sizing: border-box;
@@ -19,7 +21,7 @@
     justify-items: center;
     min-height: var(--playback-control-target);
     min-width: var(--playback-control-target);
-    padding: 0;
+    padding: var(--playback-icon-button-fill-inset, 0);
     place-items: center;
     position: relative;
     text-align: center;
@@ -28,24 +30,24 @@
     width: var(--playback-control-target);
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover { background: var(--playback-state-hover); }
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):active { background: var(--playback-state-pressed); }
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover { background-color: var(--playback-state-hover); }
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):active { background-color: var(--playback-state-pressed); }
 
 /* Selected: a tool whose panel is open, Shuffle on, Repeat on, subtitles showing, speed not 1x, a sleep timer running. */
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-selected,
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active,
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled)[aria-pressed="true"],
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled)[aria-expanded="true"] {
-    background: var(--playback-state-selected);
+    background-color: var(--playback-state-selected);
     color: var(--tl-accent-primary-hover);
 }
 
 /* A muted speaker is shown by its crossed glyph, not by a purple background. */
 .playback-icon-button-shell ::deep .playback-icon-button--mute.is-active:not(:disabled) {
-    background: transparent;
+    background-color: transparent;
     color: var(--playback-text);
 }
-.playback-icon-button-shell ::deep .playback-icon-button--mute.is-active:not(:disabled):hover { background: var(--playback-state-hover); }
+.playback-icon-button-shell ::deep .playback-icon-button--mute.is-active:not(:disabled):hover { background-color: var(--playback-state-hover); }
 
 .playback-icon-button-shell ::deep .playback-icon-button:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);

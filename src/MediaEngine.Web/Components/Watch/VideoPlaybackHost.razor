@@ -385,11 +385,15 @@
                                                    CanPictureInPicture="@_canPictureInPicture" OnPictureInPicture="EnterPictureInPictureAsync"
                                                    Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />;
 
-    // A phone (the device's form factor, so turning it sideways does not change the layout) keeps the overlay with the same five transport buttons and one
-    // row of Audio & subtitles, Episodes (Lessons), Bookmarks and Fullscreen; the title, Playback settings and Close sit in a header.
-    private bool IsPhoneVideo => Services.GetService<MediaEngine.Web.Services.Theming.DeviceContextService>()?.IsPhone == true;
+    // A phone keeps the overlay with the same five transport buttons and one row of Audio & subtitles, Episodes (Lessons), Bookmarks and Fullscreen; the title,
+    // Playback settings and Close sit in a header. "A phone" is the one rule the audio bar uses too (PlaybackFormFactor), so the two never disagree.
+    private bool IsPhoneVideo => PlaybackFormFactor.IsPhone(_deviceContext);
+    private MediaEngine.Web.Services.Theming.DeviceContextService? _deviceContext;
+    private void HandleDeviceContextChanged() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
     private RenderFragment PhoneHeader => @<div class="video-playback-host__phone-header" data-video-phone-header>
         <span class="video-playback-host__phone-title" data-overflow-tooltip="@PhoneHeaderTitle">@PhoneHeaderTitle</span>
+        @* The "..." menu (Go to show, Mark as watched ...) that the phone's bar no longer shows beside the title. *@
+        <PlaybackIdentityActions Media="@BarMedia" Item="@Playback.CurrentItem" Surface="video" ShowWorkId="@BarShowWorkId" SeasonId="@BarSeasonId" ShowReactions="false" />
         @SettingsTool
         <PlaybackIconButton Control="@PhoneCloseControl" Surface="video" Appearance="bare"
                             OnActivated="@(trigger => HandleBarToolAsync(new PlaybackControlActivation(PhoneCloseControl, trigger)))" />
@@ -463,6 +467,8 @@
         Playback.TransportCommandRequested += HandleTransportCommandAsync;
         Nav.LocationChanged += HandleLocationChanged;
         Tools.Changed += HandleToolsChanged;
+        _deviceContext = Services.GetService<MediaEngine.Web.Services.Theming.DeviceContextService>();
+        if (_deviceContext is not null) _deviceContext.OnChanged += HandleDeviceContextChanged;
         ObservePresentationIdentity();
     }
 
@@ -1596,6 +1602,7 @@
         _lifetimeCancellation.Cancel();
         _metadataCancellation?.Cancel(); _metadataCancellation?.Dispose();
         Tools.Changed -= HandleToolsChanged;
+        if (_deviceContext is not null) _deviceContext.OnChanged -= HandleDeviceContextChanged;
         Playback.Changed -= HandlePlaybackChanged;
         Playback.PlaybackRequestChanged -= HandleRequestChanged;
         Playback.TransportCommandRequested -= HandleTransportCommandAsync;

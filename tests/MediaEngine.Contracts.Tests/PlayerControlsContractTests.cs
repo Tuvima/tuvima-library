@@ -34,6 +34,9 @@ public sealed class PlayerControlsContractTests
         ["tools-tv"] = ["Order", "Control", "Label", "Shown when"],
         ["tools-film"] = ["Order", "Control", "Label", "Shown when"],
         ["tools-lesson"] = ["Order", "Control", "Label", "Shown when"],
+        ["phone-bar"] = ["Media", "Buttons"],
+        ["phone-transport"] = ["Media", "Buttons"],
+        ["phone-tools"] = ["Media", "Tools"],
         ["skip-defaults"] = ["Setting", "Default", "Video choices", "Audio choices"],
         ["panels"] = ["Panel", "Media", "Opened from", "Contents", "Footer"],
         ["sleep-timer-presets"] = ["Choice", "Label"],
@@ -61,6 +64,7 @@ public sealed class PlayerControlsContractTests
         [PlaybackControlKey.NowPlaying] = "now-playing",
         [PlaybackControlKey.Close] = "close",
         [PlaybackControlKey.Chapters] = "chapters",
+        [PlaybackControlKey.History] = "history",
         [PlaybackControlKey.Speed] = "speed",
         [PlaybackControlKey.SleepTimer] = "sleep-timer",
         [PlaybackControlKey.Episodes] = "episodes",
@@ -225,6 +229,75 @@ public sealed class PlayerControlsContractTests
 
         AssertNone(problems);
     }
+
+    // ---- The phone's collapsed bar, expanded player and tool row ----
+
+    [Fact]
+    public void PhoneBarRowsMatchTheCollapsedBarOfEachMedia()
+    {
+        var rows = Tables.Value["phone-bar"].Rows.ToDictionary(row => row[0], row => row[1]);
+        var problems = new List<string>();
+        var media = new Dictionary<string, PlaybackBarMedia>
+        {
+            ["Music"] = PlaybackBarMedia.Music,
+            ["Audiobook"] = PlaybackBarMedia.Audiobook,
+            ["Video"] = PlaybackBarMedia.Movie,
+        };
+        Compare(problems, "phone-bar", "media", string.Join(", ", media.Keys), string.Join(", ", rows.Keys));
+        foreach (var (name, kind) in media)
+        {
+            Compare(problems, $"phone-bar row {name}", "buttons", Describe(PlaybackControlCatalog.BuildCollapsedTransport(kind, new PlaybackBarState())), rows.GetValueOrDefault(name) ?? "(missing)");
+        }
+
+        AssertNone(problems);
+    }
+
+    [Fact]
+    public void PhoneTransportRowsMatchTheExpandedPlayerOfMusicAndAudiobooks()
+    {
+        var rows = Tables.Value["phone-transport"].Rows.ToDictionary(row => row[0], row => row[1]);
+        var problems = new List<string>();
+        Compare(problems, "phone-transport row Music", "buttons", Describe(PlaybackControlCatalog.BuildPhoneTransport(PlaybackBarMedia.Music, new PlaybackBarState())), rows.GetValueOrDefault("Music") ?? "(missing)");
+        Compare(problems, "phone-transport row Audiobook", "buttons", Describe(PlaybackControlCatalog.BuildPhoneTransport(PlaybackBarMedia.Audiobook, new PlaybackBarState())), rows.GetValueOrDefault("Audiobook") ?? "(missing)");
+        AssertNone(problems);
+    }
+
+    [Fact]
+    public void PhoneToolRowsMatchTheToolRowOfEveryPhonePlayerAndNeverExceedFourTools()
+    {
+        var everything = new PlaybackBarState(HasChapters: true, HasEpisodes: true, CanBookmark: true, CanFullscreen: true, HasQueue: true);
+        var cases = new (string Name, PlaybackBarMedia Media, PlaybackBarState State)[]
+        {
+            ("Music", PlaybackBarMedia.Music, everything),
+            ("Audiobook", PlaybackBarMedia.Audiobook, everything),
+            ("Audiobook without chapters", PlaybackBarMedia.Audiobook, everything with { HasChapters = false }),
+            ("TV episode", PlaybackBarMedia.Tv, everything),
+            ("Film", PlaybackBarMedia.Movie, everything with { HasEpisodes = false }),
+            ("Folder video or lesson", PlaybackBarMedia.Movie, everything with { IsFolderVideo = true }),
+        };
+        var rows = Tables.Value["phone-tools"].Rows.ToDictionary(row => row[0], row => row[1]);
+        var problems = new List<string>();
+        Compare(problems, "phone-tools", "media", string.Join(", ", cases.Select(item => item.Name)), string.Join(", ", rows.Keys));
+        foreach (var (name, media, state) in cases)
+        {
+            var built = PlaybackControlCatalog.BuildPhoneTools(media, state);
+            Compare(problems, $"phone-tools row {name}", "tools", Describe(built), rows.GetValueOrDefault(name) ?? "(missing)");
+            if (built.Count > PlaybackControlCatalog.PhoneToolRowLimit)
+            {
+                problems.Add($"phone-tools row {name}: the row holds {built.Count} tools but a phone's row holds at most {PlaybackControlCatalog.PhoneToolRowLimit}.");
+            }
+
+            if (built.Any(tool => tool.Key == PlaybackControlKey.Volume))
+            {
+                problems.Add($"phone-tools row {name}: a phone has no Volume tool.");
+            }
+        }
+
+        AssertNone(problems);
+    }
+
+    private static string Describe(IReadOnlyList<PlaybackControlDefinition> controls) =>
+        string.Join(", ", controls.Select(control => $"{IdOf(control)}: {control.Label}"));
 
     // ---- Skip and restart defaults ----
 

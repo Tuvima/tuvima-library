@@ -689,6 +689,62 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         Assert.Empty(bar.FindAll(".playback-shell"));
     }
 
+    [Theory]
+    [InlineData("phone", 844, true)]
+    [InlineData("desktop", 600, true)]
+    [InlineData("desktop", 720, true)]
+    [InlineData("desktop", 721, false)]
+    [InlineData("tablet", 800, false)]
+    [InlineData("desktop", 1280, false)]
+    public async Task TheBarIsCollapsedForAPhoneFormFactorOrAWindowOf720PixelsOrLess(string formFactor, int width, bool collapsed)
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(width));
+
+        bar.WaitForAssertion(() => Assert.Equal(collapsed, bar.FindAll(".playback-shell--compact").Count == 1));
+    }
+
+    [Fact]
+    public async Task WhenTheDeviceStopsBeingAPhoneWhileTheExpandedPlayerIsOpenThePlayerClosesCleanly()
+    {
+        var playback = AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var device = Services.GetRequiredService<DeviceContextService>();
+        await device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        await bar.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        bar.WaitForAssertion(() => Assert.Single(bar.FindAll("[data-playback-full]")));
+
+        await bar.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "desktop", false)));
+
+        bar.WaitForAssertion(() => Assert.Empty(bar.FindAll("[data-playback-full]")));
+        Assert.NotEqual(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+    }
+
+    [Fact]
+    public async Task TheLyricsSheetOfThePhonesNowPlayingOffersNoOpenNowPlayingButtonButTheDesktopDockDoes()
+    {
+        var playback = AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(1280));
+        await bar.InvokeAsync(() => bar.FindComponent<PlaybackLyricsPanel>().Instance.OpenAsync());
+        bar.WaitForAssertion(() => Assert.Single(bar.FindAll("button[aria-label='Open Now playing']")));
+
+        await bar.InvokeAsync(() => bar.FindComponent<PlaybackLyricsPanel>().Instance.OpenAsync());
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(390));
+        await bar.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        bar.WaitForAssertion(() => Assert.Single(bar.FindAll("[data-playback-full]")));
+        await bar.InvokeAsync(() => bar.FindComponent<PlaybackLyricsPanel>().Instance.OpenAsync());
+
+        bar.WaitForAssertion(() => Assert.NotEmpty(bar.FindAll("[data-playback-lyrics-panel],.playback-panel")));
+        Assert.Empty(bar.FindAll("button[aria-label='Open Now playing']"));
+    }
+
     [Fact]
     public async Task OnATabletTheBarKeepsTheDesktopRowWithItsToolsAndNoCollapsedForm()
     {

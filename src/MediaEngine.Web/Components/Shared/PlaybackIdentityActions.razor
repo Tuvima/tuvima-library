@@ -9,11 +9,11 @@
    separate buttons: Like clears Dislike and the other way round, and pressing an active rating removes it (MediaReactionService.ToggleRating).
    Favorite also stays selected beside Like, as the song actions always did. *@
 <div class="playback-identity-actions" role="group" aria-label="@GroupLabel" data-playback-identity-actions>
-    @if (CanFavorite)
+    @if (ShowReactions && CanFavorite)
     {
         <PlaybackIconButton Control="@FavoriteControl" Surface="@Surface" Appearance="bare" OnClick="FavoriteAsync" />
     }
-    @if (Media == PlaybackBarMedia.Music)
+    @if (ShowReactions && Media == PlaybackBarMedia.Music)
     {
         <PlaybackIconButton Control="@LikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(true))" />
         <PlaybackIconButton Control="@DislikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(false))" />
@@ -34,6 +34,9 @@
 
     /// <summary>False leaves the "..." menu out; the phone's expanded player draws it in its top line instead (unified player v2 D26).</summary>
     [Parameter] public bool ShowMore { get; set; } = true;
+
+    /// <summary>False leaves Favorite, Like and Dislike out and keeps only the "..." menu; the phone video overlay draws just the menu in its header.</summary>
+    [Parameter] public bool ShowReactions { get; set; } = true;
 
     /// <summary>A TV episode's show and season once the presentation context has loaded. Favorite for TV is the show's, so it appears only then.</summary>
     [Parameter] public Guid? ShowWorkId { get; set; }

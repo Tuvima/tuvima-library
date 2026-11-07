@@ -137,7 +137,7 @@
 }
 
 /* The phone's collapsed bar sits in its own row above the bottom navigation, which already clears the home indicator, so the bar adds no second safe-area gap
-   (unified player v2 D26). Without that navigation the bar keeps its own safe-area padding. */
+   (unified player v2 D26). Without that navigation (a narrow desktop window, which the player also draws as a phone, PlaybackFormFactor) the bar keeps its own safe-area padding. */
 html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-dock) .playback-app-frame__audio-dock ::deep .playback-shell--compact {
     padding-bottom: 6px;
 }

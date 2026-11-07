@@ -221,7 +221,7 @@ public sealed class VideoOverlayTests : AsyncBunitContext
 
     // ---- The host: paused details hide while a panel is open, and the Picture-in-picture row ----
 
-    private (IRenderedComponent<VideoPlaybackHost> Cut, PlaybackTransientToolCoordinator Tools, RecordingJsRuntime Js) RenderHost(ListenQueueItem item, bool canPictureInPicture)
+    private (IRenderedComponent<VideoPlaybackHost> Cut, PlaybackTransientToolCoordinator Tools, RecordingJsRuntime Js) RenderHost(ListenQueueItem item, bool canPictureInPicture, MediaEngine.Web.Services.Theming.DeviceContextService? device = null)
     {
         var api = EngineApiClientStub.Create(_ => { });
         var playback = new PlaybackSessionController(null!, api, preferences: new FixturePreferences());
@@ -244,8 +244,63 @@ public sealed class VideoOverlayTests : AsyncBunitContext
         Services.AddSingleton<ShellActivityState>();
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new FixturePreferences());
         Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(js);
+        if (device is not null)
+        {
+            Services.AddSingleton(device);
+        }
         Render<AppPopoverHost>();
         return (Render<VideoPlaybackHost>(), tools, js);
+    }
+
+    private static MediaEngine.Web.Services.Theming.DeviceContextService NewDevice() => new(EngineApiClientStub.Create(_ => { }));
+
+    // ---- One phone rule with the audio bar (PlaybackFormFactor) ----
+
+    [Theory]
+    [InlineData("phone", 390, true)]
+    [InlineData("phone", 844, true)]
+    [InlineData("desktop", 600, true)]
+    [InlineData("desktop", 720, true)]
+    [InlineData("desktop", 721, false)]
+    [InlineData("tablet", 800, false)]
+    [InlineData("desktop", 1280, false)]
+    public async Task Host_DrawsThePhoneOverlayExactlyWhenTheAudioBarDrawsItsPhoneForm(string formFactor, int width, bool phone)
+    {
+        var device = NewDevice();
+        await device.SwitchDeviceAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
+        device.SetViewportWidth(width);
+
+        var (cut, _, _) = RenderHost(Episode(), canPictureInPicture: false, device);
+
+        Assert.Equal(phone, cut.FindAll("[data-video-phone-header]").Count == 1);
+        Assert.Equal(phone, cut.FindAll(".playback-shell--phone").Count == 1);
+    }
+
+    [Fact]
+    public async Task Host_SwitchesToThePhoneOverlayWhenTheFormFactorArrivesAfterItRenderedAndBackWhenItLeaves()
+    {
+        var device = NewDevice();
+        var (cut, _, _) = RenderHost(Episode(), canPictureInPicture: false, device);
+        Assert.Empty(cut.FindAll("[data-video-phone-header]"));
+
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("mobile", "phone", true)));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-video-phone-header]")));
+
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false)));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-video-phone-header]")));
+    }
+
+    [Fact]
+    public async Task Host_PhoneHeaderHoldsTheItemMenuAndTheBarDoesNotRepeatTheTitle()
+    {
+        var device = NewDevice();
+        await device.SwitchDeviceAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("mobile", "phone", true));
+        var (cut, _, _) = RenderHost(Episode(), canPictureInPicture: false, device);
+
+        Assert.Single(cut.FindAll("[data-video-phone-header] [data-playback-identity-actions]"));
+        Assert.Empty(cut.FindAll("[data-video-phone-header] [aria-label='Add to Favorites']"));
+        Assert.Empty(cut.FindAll(".playback-shell--phone .playback-identity"));
+        Assert.Contains("Shimmer and Shine", cut.Find(".video-playback-host__phone-title").TextContent);
     }
 
     [Fact]

@@ -287,7 +287,7 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     /// <summary>
     /// True for an episode of a TV show. A numbered video from a Videos or Other videos library is not one, even though it carries an episode number:
     /// it is a lesson or a video, and the player never says "Episode" or "Season" for it (issue 703). Use <see cref="HasOwnedSequence"/> where the
-    /// behaviour (the list of the other videos, Previous and Next) is wanted for both.
+    /// behavior (the list of the other videos, Previous and Next) is wanted for both.
     /// </summary>
     public static bool IsTvEpisode(ListenQueueItem? item) => item is not null
         && !VideoPlayerWording.IsFolderVideo(item)
