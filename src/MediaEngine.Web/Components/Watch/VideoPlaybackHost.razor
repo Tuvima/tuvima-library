@@ -65,7 +65,7 @@
         @* Unified player v2 D25 (mockup screen 14): the rating card at the top-left (the content rating, never the audience score), and the paused details at
            the bottom-left above the bar. The details hide while a panel is open or the end card is up, and come back when it closes. *@
         <VideoRatingCard ContentRating="@Playback.CurrentItem.ContentRating" Playing="@VideoIsPlaying" @key="@VideoInstanceKey" />
-        <VideoPausedDetails Content="@PausedDetails" Visible="@(!VideoIsPlaying && Tools.OpenToolId is null && !_endCard.Visible)" />
+        <VideoPausedDetails Content="@PausedDetails" Visible="@(!VideoIsPlaying && Playback.Phase != PlaybackPhase.Loading && string.IsNullOrWhiteSpace(Playback.CurrentError) && Tools.OpenToolId is null && !_endCard.Visible)" />
         <PlaybackVideoChrome>
             <BottomContent>
             @if (VisibleSkipSegment is { } segment)

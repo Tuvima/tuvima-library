@@ -136,6 +136,17 @@ public sealed class VideoOverlayTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-rating-card]"));
     }
 
+    [Theory]
+    [InlineData("15")]
+    [InlineData("12A")]
+    [InlineData("18")]
+    public void ContentRating_KeepsWholeNumberCertificates(string certificate)
+    {
+        var film = new LibraryItemDetailViewModel { CanonicalValues = [new() { Key = "content_rating", Value = certificate }] };
+
+        Assert.Equal(certificate, VideoContentRating.Of(film));
+    }
+
     [Fact]
     public void ContentRating_ForAFilmAnEpisodeAndAnUnratedVideoIsNeverTheAudienceScore()
     {

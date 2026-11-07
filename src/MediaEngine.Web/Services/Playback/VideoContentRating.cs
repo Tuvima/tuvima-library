@@ -22,7 +22,10 @@ public static class VideoContentRating
         return null;
     }
 
-    /// <summary>A number such as 6.21 is an audience score, never an age rating (issue 707), even when a provider files it under the rating key.</summary>
+    /// <summary>
+    /// A decimal such as 6.21 is an audience score, never an age rating (issue 707), even when a provider files it under the rating key.
+    /// Whole numbers stay: UK and German certificates are "12", "15" and "18".
+    /// </summary>
     private static bool LooksLikeAScore(string value) =>
-        double.TryParse(value.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
+        System.Text.RegularExpressions.Regex.IsMatch(value.Trim(), @"^\d+[.,]\d+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 }

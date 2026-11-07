@@ -209,7 +209,7 @@ test('advancing media clears a stalled hold, stationary stage hides, controls ho
 test('controls do not auto-hide while a panel is open or a control has focus, and fade three seconds after both end (D25)', () => {
     const r=runtime('playback-chrome.js'),host=new Surface(),video=media();
     let focused=false;
-    host.querySelector=selector=>selector==='[data-playback-chrome]:focus-within' && focused ? new Surface() : null;
+    host.querySelector=selector=>selector==='[data-playback-chrome] :focus-visible' && focused ? new Surface() : null;
     r.api.attach(host,video);
     r.api.setHold(host,'tool',true); assert.equal(r.timeouts.size,0); assert.equal(host.classList.contains('playback-chrome-hidden'),false);
     r.api.setHold(host,'tool',false); assert.equal(r.timeouts.size,1); assert.equal([...r.timeouts.values()][0].delay,3000);
@@ -280,7 +280,7 @@ test('late multiline phone cues reserve each native line and the measured viewer
     const header = new Surface(); header.getBoundingClientRect = () => ({ height: headerHeight });
     const rail = new Surface(); rail.getBoundingClientRect = () => ({ top: 654 });
     host.querySelector = selector => selector === '[data-playback-seek-rail]' ? rail
-        : selector === '[data-playback-chrome="header"]' ? header : null;
+        : selector === '[data-playback-chrome-header]' ? header : null;
     video.videoWidth = 1920; video.videoHeight = 1080;
     video.getBoundingClientRect = () => ({ top: 0, left: 0, width: 390, height: 844 });
     const track = new Surface(), cue = { line: 'auto', snapToLines: true, text: 'First line\nSecond line' };

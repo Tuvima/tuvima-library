@@ -10,7 +10,7 @@
 <aside class="video-end-card" aria-label="@L["VideoPlaybackHost_UpNext"]" data-end-card data-playback-chrome data-chrome-hold>
     <div class="video-end-card__head">
         <h3 class="video-end-card__title">@L["VideoPlaybackHost_UpNext"]</h3>
-        @if (AutoAdvance) { <span class="video-end-card__countdown" role="status">@L["VideoPlaybackHost_StartsInSeconds", (int)Math.Ceiling(RemainingSeconds)]</span> }
+        @if (AutoAdvance) { <span class="video-end-card__countdown" role="timer">@L["VideoPlaybackHost_StartsInSeconds", (int)Math.Ceiling(RemainingSeconds)]</span> }
     </div>
     <div class="video-end-card__item">
         @if (Next.StillUrl is { } still && MediaTileArtworkUrl.SupportsRenditions(still))
@@ -20,7 +20,7 @@
         }
         else
         {
-            <span class="video-end-card__still video-end-card__still--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span>
+            <span class="video-end-card__still video-end-card__still--empty" aria-hidden="true"></span>
         }
         <span class="video-end-card__words">
             <strong class="video-end-card__name" data-end-card-title>@Next.Title</strong>

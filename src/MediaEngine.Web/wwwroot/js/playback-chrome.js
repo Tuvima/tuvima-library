@@ -68,7 +68,7 @@ export function attach(host, video) {
         for (const element of controls()) element.inert = value || state.controls.get(element);
         positionCues();
     };
-    // After a touch tap the pressed button keeps :hover and :focus, so on touch only keyboard-visible focus holds the chrome open.
+    // A mouse click or touch tap leaves focus on the pressed button, so only keyboard-visible focus holds the chrome open (D25: still fades after 3 s).
     const facts = () => ({
         panelOpen: state.holds.has('tool'),
         holds: [...state.holds].filter(reason => reason !== 'tool').length,
@@ -78,7 +78,7 @@ export function attach(host, video) {
         loading: video.readyState < 2,
         error: !!video.error,
         controlsHovered: !state.touch && host.querySelector('[data-chrome-hold]:hover') !== null,
-        controlFocused: host.querySelector(state.touch ? '[data-playback-chrome] :focus-visible' : '[data-playback-chrome]:focus-within') !== null,
+        controlFocused: host.querySelector('[data-playback-chrome] :focus-visible') !== null,
     });
     const held = () => chromeHeld(facts());
     const schedule = () => {
@@ -130,7 +130,7 @@ export function attach(host, video) {
     });
     const measure = () => {
         const bottom = host.querySelector('[data-playback-chrome-bottom]');
-        const header = host.querySelector('[data-playback-chrome="header"]');
+        const header = host.querySelector('[data-playback-chrome-header]');
         if (state.observedHeader !== header) {
             if (state.observedHeader) state.resizeObserver?.unobserve(state.observedHeader);
             if (header) state.resizeObserver?.observe(header);
