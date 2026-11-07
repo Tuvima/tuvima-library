@@ -45,7 +45,7 @@
             <HeaderContent>
                 @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
                 {
-                    <span class="tl-editor-popover__editing" title="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
+                    <span class="tl-editor-popover__editing" data-overflow-tooltip="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
                 }
             </HeaderContent>
             <ChildContent Context="tool">

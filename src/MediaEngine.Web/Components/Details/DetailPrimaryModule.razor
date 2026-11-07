@@ -45,17 +45,19 @@
                                             <GeneratedIdentity Name="@item.Title" />
                                         }
                                         @* A small square kind label; on a person page it is the icon alone, without the word "Movie" (spec D10). *@
-                                        <span class="@MediaTypeBadgeClass(item)" title="@MediaTypeLabel(item.EntityType)">
-                                            <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
-                                            @if (IsPersonSurface)
-                                            {
-                                                <span class="sr-only">@MediaTypeLabel(item.EntityType)</span>
-                                            }
-                                            else
-                                            {
-                                                @MediaTypeLabel(item.EntityType)
-                                            }
-                                        </span>
+                                        <AppTooltip Text="@MediaTypeLabel(item.EntityType)" Suppressed="@(!IsPersonSurface)">
+                                            <span class="@MediaTypeBadgeClass(item)">
+                                                <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
+                                                @if (IsPersonSurface)
+                                                {
+                                                    <span class="sr-only">@MediaTypeLabel(item.EntityType)</span>
+                                                }
+                                                else
+                                                {
+                                                    @MediaTypeLabel(item.EntityType)
+                                                }
+                                            </span>
+                                        </AppTooltip>
                                     </span>
                                     <span class="tl-detail-primary-module__copy">
                                         <strong>@item.Title</strong>
@@ -243,8 +245,7 @@
                                          Class="@FilterClass(_selectedLane, lane.Key)"
                                          Disabled="@(lane.Count == 0)"
                                          OnClick="@(() => SelectLane(lane.Key))"
-                                         aria-pressed="@(_selectedLane == lane.Key)"
-                                         title="@($"{lane.Label} ({lane.Count})")">
+                                         aria-pressed="@(_selectedLane == lane.Key)">
                             @if (LaneIcon(lane.Key) is { } icon)
                             {
                                 <AppMaterialIcon Icon="@icon" Size="AppSize.Small" />

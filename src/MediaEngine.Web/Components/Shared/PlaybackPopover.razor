@@ -31,7 +31,7 @@
                 <section class="playback-popover-surface" role="dialog" aria-label="@Title">
                     @if (Kind == "lyrics")
                     {
-                        <AppNativeButton Type="button" Class="playback-panel-dismiss" AriaLabel="@($"Close {Title}")" title="@($"Close {Title}")" OnClick="CloseAsync">
+                        <AppNativeButton Type="button" Class="playback-panel-dismiss" AriaLabel="@($"Close {Title}")" Tooltip="@($"Close {Title}")" OnClick="CloseAsync">
                             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
                         </AppNativeButton>
                     }

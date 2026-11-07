@@ -35,7 +35,7 @@
                                AriaLabel="@L["AddFilesDialog_UpOneLevel"].Value"
                                Disabled="@(_browse?.ParentRelativePath is null || _loading || _copying)"
                                OnClick="UpAsync" />
-                <span class="add-files__path" title="@_browse?.DisplayPath">@_browse?.DisplayPath</span>
+                <span class="add-files__path" data-overflow-tooltip="@_browse?.DisplayPath">@_browse?.DisplayPath</span>
             </div>
             @if (!string.IsNullOrWhiteSpace(_error))
             {

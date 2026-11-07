@@ -39,7 +39,7 @@
                             <time datetime="@date.ToString("O")"><span>@date.ToString("ddd", CultureInfo.CurrentCulture)</span><strong>@date.Day</strong><small>@date.ToString("MMM", CultureInfo.CurrentCulture)</small></time>
                             <i aria-hidden="true"></i>
                             <AppNativeButton Type="button" Class="place-story__thumbnail" AriaLabel="@($"Open {Name(item)}")" OnClick="@(_ => OnOpen.InvokeAsync(item))"><img src="@ThumbnailUrl(item)" alt="" loading="lazy" decoding="async" /></AppNativeButton>
-                            <div class="place-story__copy"><strong>@Name(item)</strong><time datetime="@date.ToString("O")">@date.ToString("t", CultureInfo.CurrentCulture)</time>@if (!string.IsNullOrWhiteSpace(item.Description)) { <p>@item.Description</p> }<span title="@(IsVideo(item) ? "Video" : "Photo")"><AppMaterialIcon Icon="@(IsVideo(item) ? AppMaterialIcons.Outlined.Videocam : AppMaterialIcons.Outlined.Image)" /></span></div>
+                            <div class="place-story__copy"><strong>@Name(item)</strong><time datetime="@date.ToString("O")">@date.ToString("t", CultureInfo.CurrentCulture)</time>@if (!string.IsNullOrWhiteSpace(item.Description)) { <p>@item.Description</p> }<AppTooltip Text="@(IsVideo(item) ? "Video" : "Photo")"><span><AppMaterialIcon Icon="@(IsVideo(item) ? AppMaterialIcons.Outlined.Videocam : AppMaterialIcons.Outlined.Image)" /></span></AppTooltip></div>
                         </article>
                     }
                 </section>

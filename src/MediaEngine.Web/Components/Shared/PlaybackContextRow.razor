@@ -77,7 +77,7 @@ else
     }
     @if (OnClick.HasDelegate)
     {
-        <AppNativeButton Type="button" Class="playback-context-row__identity" OnClick="@HandleClickAsync" AriaLabel="@ResolvedAriaLabel" title="@ResolvedAriaLabel">
+        <AppNativeButton Type="button" Class="playback-context-row__identity" OnClick="@HandleClickAsync" AriaLabel="@ResolvedAriaLabel">
             <strong>@Title</strong>
             @if (!string.IsNullOrWhiteSpace(Subtitle)) { <span>@Subtitle</span> }
         </AppNativeButton>

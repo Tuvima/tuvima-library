@@ -12,7 +12,7 @@
 <li class="lact-entry @(Run.Status == ActivityRunStatusNames.Active ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
     <div class="lact-entry__row">
         <span class="lact-bubble">@Bubble</span>
-        <div class="lact-box" title="@Run.LibraryName">
+        <div class="lact-box">
             <AppNativeButton Type="button" Class="lact-box__toggle" OnClick="ToggleAsync"
                              aria-expanded="@(_open ? "true" : "false")" data-testid="lact-entry-toggle"
                              AriaLabel="@($"{LibraryActivityText.Headline(Run)}, {LibraryActivityText.StatusLabel(Run.Status)}")">

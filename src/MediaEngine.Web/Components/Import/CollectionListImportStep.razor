@@ -41,7 +41,7 @@
                 <ul class="list-step__covers" aria-label="@L["ListStep_OwnedCovers"].Value">
                     @foreach (var owned in current.Owned.Take(8))
                     {
-                        <li title="@owned.Title">@owned.Title</li>
+                        <li data-overflow-tooltip="@owned.Title">@owned.Title</li>
                     }
                 </ul>
             }

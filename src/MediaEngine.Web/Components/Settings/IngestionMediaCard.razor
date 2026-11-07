@@ -10,20 +10,20 @@
         <span class="ingestion-media-list-row__copy">
             <AppNativeButton Type="button"
                              Class="ingestion-media-list-row__open"
-                             Title="@DisplayTitle"
+                            
                              AriaLabel="@OpenAriaLabel"
                              OnClick="@(_ => OnOpen.InvokeAsync(Item))">
                 <strong class="ingestion-media-list-row__title">@DisplayTitle</strong>
             </AppNativeButton>
-            <small title="@DisplaySubtitle">@DisplaySubtitle</small>
+            <small data-overflow-tooltip="@DisplaySubtitle">@DisplaySubtitle</small>
         </span>
     </span>
     <span class="ingestion-media-list-row__format" role="cell">
         <strong><AppMaterialIcon Icon="@MediaIcon(Item.MediaType)" aria-hidden="true" />@FriendlyType(Item.MediaType)</strong>
-        <small title="@CountLabel">@CountLabel</small>
+        <small data-overflow-tooltip="@CountLabel">@CountLabel</small>
     </span>
-    <span class="ingestion-media-list-row__step" role="cell" title="@StepLabel">@StepLabel</span>
-    <span class="ingestion-media-list-row__status is-@Item.Availability" role="cell" title="@ActivityLabel">
+    <span class="ingestion-media-list-row__step" role="cell" data-overflow-tooltip="@StepLabel">@StepLabel</span>
+    <span class="ingestion-media-list-row__status is-@Item.Availability" role="cell" data-overflow-tooltip="@ActivityLabel">
         <AppMaterialIcon Icon="@ActivityIcon" aria-hidden="true" />
         <span>@ActivityLabel</span>
     </span>

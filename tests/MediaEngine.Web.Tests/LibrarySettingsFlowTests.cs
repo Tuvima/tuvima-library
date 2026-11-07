@@ -892,7 +892,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             var icon = row.QuerySelector(".folder-table__icon")!;
             Assert.Equal("img", icon.GetAttribute("role"));
             Assert.False(string.IsNullOrWhiteSpace(icon.GetAttribute("aria-label")));
-            Assert.Equal(icon.GetAttribute("aria-label"), icon.GetAttribute("title"));
+            Assert.Equal(icon.GetAttribute("aria-label"), icon.ParentElement!.GetAttribute("data-playback-tooltip"));
         });
 
         Assert.Contains("is-managed", rows[0].QuerySelector(".folder-table__icon")!.ClassList);

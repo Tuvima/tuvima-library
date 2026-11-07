@@ -46,11 +46,11 @@
                                                   Error="@(LabelProblem(source) is not null)"
                                                   ErrorText="@LabelProblem(source)" />
                                 }
-                                <span class="lib-edit__path" title="@source.Path">@source.Path</span>
+                                <span class="lib-edit__path" data-overflow-tooltip="@source.Path">@source.Path</span>
                             </span>
                             @if (!Import)
                             {
-                                <span class="lib-edit__tag" data-handling="@(IsManaged(source) ? "managed" : "read-only")" title="@FolderHandlingWords.ExplainerFor(IsManaged(source))">@HandlingText(source)</span>
+                                <span class="lib-edit__tag" data-handling="@(IsManaged(source) ? "managed" : "read-only")">@HandlingText(source)</span>
                             }
                             <span class="lib-edit__state" data-state="@(issue is null ? "online" : "offline")">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
                             <AppRowMenu AriaLabel="@L["LibraryEditDialog_ActionsFor", source.Path].Value" Items="@FolderMenu(source)" />
@@ -66,11 +66,11 @@
                                 {
                                     <strong class="lib-edit__label">@info.Label</strong>
                                 }
-                                <span class="lib-edit__path" title="@added.Path">@added.Path</span>
+                                <span class="lib-edit__path" data-overflow-tooltip="@added.Path">@added.Path</span>
                             </span>
                             @if (!Import)
                             {
-                                <span class="lib-edit__tag" data-handling="@(info.Managed ? "managed" : "read-only")" title="@FolderHandlingWords.ExplainerFor(info.Managed)">@FolderHandlingWords.LabelFor(info.Managed)</span>
+                                <span class="lib-edit__tag" data-handling="@(info.Managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(info.Managed)</span>
                             }
                             <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", added.Path].Value" OnClick="@(() => _added.Remove(added))" />
