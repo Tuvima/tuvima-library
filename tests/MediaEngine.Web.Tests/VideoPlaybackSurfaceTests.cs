@@ -11,9 +11,9 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.True(razor.IndexOf("<video", StringComparison.Ordinal) < razor.IndexOf("@if (Playback.IsVideoMode && Playback.IsVideoExpanded", StringComparison.Ordinal));
         Assert.Contains("<PlaybackVideoChrome", razor);
         Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
-        Assert.Contains("Close video", razor);
+        Assert.Contains("\"close\" => ClosePlayerAsync()", razor);
         Assert.DoesNotContain("Back to details", razor);
-        Assert.Contains("<PlaybackPopover Title=\"Settings\"", razor);
+        Assert.Contains("<PlaybackPopover Title=\"@tool.AriaLabel\" ToolId=\"video-captions\"", razor);
         Assert.Contains("<PlayerSettingsMenu", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
@@ -23,7 +23,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
         Assert.Contains("width:min(320px", css);
         Assert.Contains("<PlaybackSeekRail", razor);
-        Assert.Contains("<PlaybackVolumeControl", razor);
+        Assert.Contains("<PlaybackVolumeControl", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor")));
         Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
     }
     [Fact]

@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
+@using System.Linq
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Playback
 @inject IStringLocalizer<SharedStrings> L
@@ -9,8 +10,11 @@
    sleep timer is running. *@
 <span class="audiobook-settings @Class" data-audiobook-settings>
     <PlaybackPopover @ref="_popover" Title="@(Title ?? L["PlayerSettings_Title"].Value)" ToolId="@_id" Kind="settings" Surface="@Surface" ShowHeading="false"
-                     Open="@Open" OpenChanged="HandleOpenChangedAsync" TriggerClass="@(IsOn ? "is-on" : null)">
-        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" /></TriggerContent>
+                     Open="@Open" OpenChanged="HandleOpenChangedAsync" TriggerClass="@TriggerClassValue">
+        <TriggerContent>
+            @if (!string.IsNullOrWhiteSpace(TriggerText)) { <span>@TriggerText</span> }
+            else { <PlaybackUtilityGlyph Glyph="@TriggerGlyph" /> }
+        </TriggerContent>
         <ChildContent>
             <PlayerSettingsMenu Experience="PlaybackExperience.Audiobook" OnClose="CloseAsync"
                                 PlaybackRate="@PlaybackRate" PlaybackRateChanged="@PlaybackRateChanged"
@@ -32,6 +36,17 @@
     [Parameter] public string Surface { get; set; } = "dock";
 
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>The icon on the trigger (the gear by default; the persistent bar passes the sleep-timer glyph).</summary>
+    [Parameter] public PlaybackUtilityGlyphKind TriggerGlyph { get; set; } = PlaybackUtilityGlyphKind.Settings;
+
+    /// <summary>Text drawn instead of an icon, such as the speed value on the persistent bar's chip.</summary>
+    [Parameter] public string? TriggerText { get; set; }
+
+    /// <summary>Extra class on the trigger button (the bar's speed chip).</summary>
+    [Parameter] public string? TriggerClass { get; set; }
+
+    private string? TriggerClassValue => string.Join(" ", new[] { IsOn ? "is-on" : null, TriggerClass }.Where(value => !string.IsNullOrWhiteSpace(value))) is { Length: > 0 } value ? value : null;
 
     /// <summary>True draws the accent underline: the speed is not 1x or a sleep timer is running.</summary>
     [Parameter] public bool IsOn { get; set; }

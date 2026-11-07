@@ -766,9 +766,6 @@
     "playback-icon-button__label",
     "playback-icon-button__value"
   ],
-  "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": [
-    "listen-player-shell--popped-out"
-  ],
   "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": [
     "playback-sleep-timer__trigger-status"
   ],

@@ -191,11 +191,20 @@
     --player-track: var(--tl-bg-surface-hover);
     --player-text: #F7F7FA;
     --player-text-secondary: var(--tl-text-secondary);
-    /* One size set for every playback button (player-controls-v3 D1): 38 px glyph in a 56 px target, Play 44 px, bottom title 22 px. */
-    --playback-control-target: 56px;
-    --playback-control-glyph: 38px;
-    --playback-play-glyph: 44px;
-    --playback-title-size: 22px;
+    /* One size and state set for every playback button (unified player v2 D6): 24 px glyph in a 44 px target, Play 32 px in a 48 px target,
+       bar title 16 px. Hover is a translucent white (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
+    --playback-control-target: 44px;
+    --playback-control-glyph: 24px;
+    --playback-play-target: 48px;
+    --playback-play-glyph: 32px;
+    --playback-title-size: 16px;
+    --playback-badge-size: 9px;
+    --playback-state-hover: rgba(255, 255, 255, 0.08);
+    --playback-state-hover-video: rgba(255, 255, 255, 0.12);
+    --playback-state-pressed: rgba(255, 255, 255, 0.16);
+    --playback-state-disabled-opacity: 0.38;
+    --playback-focus-ring-width: 2px;
+    --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);
     --playback-surface: var(--player-surface);
     --playback-surface-elevated: var(--player-surface);

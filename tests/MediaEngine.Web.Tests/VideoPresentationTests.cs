@@ -542,7 +542,7 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
     {
         var cut = Render<VideoPlaybackHost>();
         var identity = VideoPlaybackIdentity.Capture(_playback)!;
-        Assert.Single(cut.FindAll("button[aria-label='Close video']"));
+        Assert.Single(cut.FindAll("button[aria-label='Close']"));
         Assert.Empty(cut.FindAll("button[aria-label='Back to details']"));
         await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, true));
         Assert.False(_playback.IsVideoExpanded);

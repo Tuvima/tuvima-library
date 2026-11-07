@@ -24,7 +24,7 @@ public sealed class VaultPlaybackPrivacyTests
     [Fact]
     public void TheMediaControls_ForAVaultVideo_SayVideoAndCarryNoArtistAlbumOrArtwork()
     {
-        var metadata = VideoMediaSessionMetadata.Create(Item(vault: true), "A Private Show", BaseUri);
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Movie, Item(vault: true), BaseUri, ShowTitle: "A Private Show", VaultLocked: false))!;
 
         Assert.Equal("Video", metadata.Title);
         Assert.Equal(string.Empty, metadata.Artist);
@@ -35,7 +35,7 @@ public sealed class VaultPlaybackPrivacyTests
     [Fact]
     public void TheMediaControls_ForAnOrdinaryVideo_StillShowTheRealTitleAndArtwork()
     {
-        var metadata = VideoMediaSessionMetadata.Create(Item(vault: false), null, BaseUri);
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Movie, Item(vault: false), BaseUri))!;
 
         Assert.Equal("A Very Private Title", metadata.Title);
         Assert.NotEmpty(metadata.Artwork);

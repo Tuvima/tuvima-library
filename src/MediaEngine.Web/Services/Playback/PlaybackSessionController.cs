@@ -14,6 +14,7 @@ public sealed partial class PlaybackSessionController
     private readonly ILogger<PlaybackSessionController>? _logger;
     private readonly IUserPlaybackPreferencesAccessor? _preferences;
     private readonly ListenPlaybackClientSettings _clientSettings;
+    private readonly MusicPreviousRule _musicPrevious;
     private double _lastAudibleVolume;
     private readonly PlaybackStateMachine _stateMachine = new();
     private readonly List<ListenQueueItem> _queue = [];
@@ -93,6 +94,7 @@ public sealed partial class PlaybackSessionController
         _logger = logger;
         _preferences = preferences;
         _clientSettings = (clientSettings ?? new ListenPlaybackClientSettings()).Normalize();
+        _musicPrevious = new MusicPreviousRule(_clientSettings.MusicPreviousRestartSeconds);
         Volume = _clientSettings.DefaultVolume;
         _lastAudibleVolume = PositiveVolumeOrFallback(Volume);
         ApplyListeningSettings(UserPlaybackSettingsDto.CreateDefaults(Guid.Empty).Listening);
@@ -1039,6 +1041,13 @@ public sealed partial class PlaybackSessionController
         await PlayIndexAsync(nextIndex.Value, ct);
         return true;
     }
+
+    /// <summary>
+    /// What Previous does on a music player right now (unified player v2 D3): restart the song after the configured seconds of play, go to the
+    /// previous song inside them or on a second press, restart at the start of the queue. Shared by the bar, the lock screen and headsets.
+    /// </summary>
+    public PlaybackPreviousAction PressMusicPrevious() =>
+        _musicPrevious.Press(CurrentItem?.AssetId, CurrentTimeSeconds, hasPreviousSong: CurrentIndex > 0);
 
     public async Task SkipPreviousAsync(CancellationToken ct = default)
     {
@@ -2551,8 +2560,8 @@ public sealed partial class PlaybackSessionController
             ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
             : snapshot.CurrentError;
         _stateMachine.SetTransportState(IsPlaying, NeedsUserGestureToStart, invalidSavedRate ? null : CurrentError);
-        SkipBackSeconds = snapshot.SkipBackSeconds > 0 ? snapshot.SkipBackSeconds : 15;
-        SkipForwardSeconds = snapshot.SkipForwardSeconds > 0 ? snapshot.SkipForwardSeconds : 15;
+        SkipBackSeconds = snapshot.SkipBackSeconds > 0 ? snapshot.SkipBackSeconds : _clientSettings.DefaultSkipBackSeconds;
+        SkipForwardSeconds = snapshot.SkipForwardSeconds > 0 ? snapshot.SkipForwardSeconds : _clientSettings.DefaultSkipForwardSeconds;
         SleepTimerOptionsMinutes = NormalizeSleepTimerOptions(snapshot.SleepTimerOptionsMinutes);
         PlaybackStartVersion = Math.Max(PlaybackStartVersion, snapshot.PlaybackStartVersion);
         RestoreSleepTimerState(snapshot.SleepTimerState);
