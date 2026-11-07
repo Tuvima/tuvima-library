@@ -39,6 +39,108 @@ public sealed class DetailExtraCardViewModel
 
     /// <summary>True when the file is no longer where Library found it; the card stays with a warning and "File not found".</summary>
     public bool IsMissing { get; init; }
+
+    /// <summary>What a person wrote about the file (supporting files, universal editor v5); null when nothing is written.</summary>
+    public string? Description { get; init; }
+
+    /// <summary>What the file is: a role id such as <c>worksheet</c>, <c>guide</c>, <c>trailer</c> or <c>pictures</c> (the lists are in <c>config/extras.json</c>).</summary>
+    public string Role { get; init; } = string.Empty;
+
+    /// <summary>The role as shown ("Behind the scenes").</summary>
+    public string RoleLabel { get; init; } = string.Empty;
+
+    /// <summary>The group the file is in ("Character guides"); null when it is not in one.</summary>
+    public string? Group { get; init; }
+
+    /// <summary>What the file belongs to, as a scope key: <c>root</c>, <c>season:2</c>, <c>episode:2:3</c>, <c>folder:Section 1</c>, <c>file:Section 1/02 Intro.mkv</c> or <c>track:4</c>.</summary>
+    public string ScopeKey { get; init; } = "root";
+
+    /// <summary>Where <see cref="ScopeKey"/> came from: <c>folder</c> ("From its folder location") or <c>you</c> ("Set by you").</summary>
+    public string ScopeSource { get; init; } = "folder";
+
+    /// <summary>The episode or lesson the file is shown alongside, as a scope key; null when there is none.</summary>
+    public string? AlongsideKey { get; init; }
+
+    /// <summary>The tags on the file.</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+}
+
+/// <summary>
+/// One supporting file as the editor and the browser read it (universal editor v5 D11, D13, D14): the file, what a person set, and what
+/// the Engine read from its folder and file names, side by side so "Use folder location" can revert. A picture folder is one item.
+/// </summary>
+public sealed class SupportingFileDto
+{
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>One of <see cref="DetailExtraCardKinds"/>.</summary>
+    public string Kind { get; init; } = DetailExtraCardKinds.Document;
+
+    /// <summary>The file name with its extension.</summary>
+    public string FileName { get; init; } = string.Empty;
+
+    /// <summary>The title shown: the one a person gave, else the cleaned file name.</summary>
+    public string Title { get; init; } = string.Empty;
+
+    /// <summary>The title a person gave; null while the cleaned file name is used.</summary>
+    public string? OwnTitle { get; init; }
+
+    public string? Description { get; init; }
+
+    /// <summary>The group's id; null when ungrouped.</summary>
+    public string? GroupId { get; init; }
+
+    /// <summary>The group's name; null when ungrouped.</summary>
+    public string? Group { get; init; }
+
+    /// <summary>Where the group came from: <c>folder</c>, <c>you</c>, or null when ungrouped.</summary>
+    public string? GroupSource { get; init; }
+
+    /// <summary>What the file is: a role id (see <see cref="DetailExtraCardViewModel.Role"/>).</summary>
+    public string Role { get; init; } = string.Empty;
+
+    public string RoleLabel { get; init; } = string.Empty;
+
+    /// <summary>True when a person chose the role; false when it is only guessed from the names.</summary>
+    public bool RoleIsSetByYou { get; init; }
+
+    /// <summary>What the file belongs to (see <see cref="DetailExtraCardViewModel.ScopeKey"/>).</summary>
+    public string ScopeKey { get; init; } = "root";
+
+    /// <summary>The scope read from the file's folder, which "Use folder location" returns to.</summary>
+    public string InferredScopeKey { get; init; } = "root";
+
+    /// <summary><c>folder</c> or <c>you</c>.</summary>
+    public string ScopeSource { get; init; } = "folder";
+
+    /// <summary>The episode or lesson the file is shown alongside; null when none.</summary>
+    public string? AlongsideKey { get; init; }
+
+    /// <summary>The alongside value read from the file's name, which clearing the choice returns to; null when none.</summary>
+    public string? InferredAlongsideKey { get; init; }
+
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public long SizeBytes { get; init; }
+
+    public int? PageCount { get; init; }
+
+    public double? DurationSeconds { get; init; }
+
+    /// <summary>How many files the item holds (more than one only for a picture folder).</summary>
+    public int ItemCount { get; init; } = 1;
+
+    /// <summary>True when the file is no longer on disk and the record is kept for a while as "File missing".</summary>
+    public bool IsMissing { get; init; }
+}
+
+/// <summary>A group of supporting files under one root title: a name a person gave, an order, and how many files are in it.</summary>
+public sealed class SupportingFileGroupDto
+{
+    public string Id { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public int SortOrder { get; init; }
+    public int FileCount { get; init; }
 }
 
 /// <summary>What the Extras viewer needs to open one card: the files behind it, in order.</summary>

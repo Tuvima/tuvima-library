@@ -78,7 +78,7 @@ public sealed class ItemExtrasScannerTests : IDisposable
     }
 
     [Fact]
-    public async Task AFileTheScanQueued_IsCheckedByTheQueuePass_AndAFileThatLeavesIsRemoved()
+    public async Task AFileTheScanQueued_IsCheckedByTheQueuePass_AndAFileThatLeavesIsKeptAsMissing()
     {
         Touch("Show/Season 1/Show S01E01.mkv");
         var guide = Touch("Show/Workbook.pdf");
@@ -90,7 +90,9 @@ public sealed class ItemExtrasScannerTests : IDisposable
         _scanner.NoteFile(guide);
         await _scanner.SyncQueuedAsync();
 
-        Assert.Empty(await _extras.ListByItemFoldersAsync([Path.Combine(_root, "Show")]));
+        // The record stays for a while as "File missing" so a renamed file can be found again (editor v5 D20).
+        var kept = Assert.Single(await _extras.ListByItemFoldersAsync([Path.Combine(_root, "Show")]));
+        Assert.True(kept.IsMissingFromDisk);
     }
 
     [Fact]
