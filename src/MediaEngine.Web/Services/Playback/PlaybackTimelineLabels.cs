@@ -22,6 +22,10 @@ public static class PlaybackTimelineLabels
     public static string BookLabel(IStringLocalizer<SharedStrings> L, double positionSeconds, double durationSeconds) =>
         $"{L["PlaybackTimeline_Book"].Value}{Separator}{BookPercent(positionSeconds, durationSeconds)}%";
 
+    /// <summary>"Book · 32% complete" (the Chapters panel's line under the book).</summary>
+    public static string BookComplete(IStringLocalizer<SharedStrings> L, double positionSeconds, double durationSeconds) =>
+        L["PlaybackTimeline_BookComplete", BookPercent(positionSeconds, durationSeconds)].Value;
+
     /// <summary>"Book · 32% · 6h 12m left" (whole-book mode).</summary>
     public static string BookSummary(IStringLocalizer<SharedStrings> L, double positionSeconds, double durationSeconds) =>
         string.Join(Separator, BookLabel(L, positionSeconds, durationSeconds), TimeLeft(L, durationSeconds - positionSeconds));

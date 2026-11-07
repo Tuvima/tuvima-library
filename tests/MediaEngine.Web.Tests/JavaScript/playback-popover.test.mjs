@@ -223,6 +223,21 @@ test('opening a nested view focuses its first control, or its back button when i
     popover.detach(s.root);
 });
 
+test('going back finds a redrawn control that has no accessible name by its data-return-key', () => {
+    const s = nestedViews();
+    const keyed = key => Object.assign(s.control(null), { getAttribute: name => name === 'data-return-key' ? key : null });
+    const custom = keyed('sleep-custom'), preset = keyed('sleep-preset'), set = s.control('Set timer');
+    s.show([preset, custom]); custom.focus();
+    s.show([set]); popover.navigated(s.root, s.panel, true);
+    assert.equal(document.activeElement, set);
+    // The timer view is redrawn: the Custom row is a new element with the same key.
+    const redrawnCustom = keyed('sleep-custom');
+    s.show([keyed('sleep-preset'), redrawnCustom]);
+    popover.navigated(s.root, s.panel, false);
+    assert.equal(document.activeElement, redrawnCustom);
+    popover.detach(s.root);
+});
+
 test('going back to a control that is still there focuses that very control, and with nothing remembered the first control of the view', () => {
     const s = nestedViews();
     const row = s.control('Row'), other = s.control('Other');

@@ -38,7 +38,7 @@
     padding: 0 8px;
 }
 
-.sav__tile {
+.sav ::deep .sav__tile {
     background: transparent;
     border: 1px solid var(--playback-hairline);
     border-radius: 8px;
@@ -52,11 +52,11 @@
     text-align: center;
 }
 
-.sav__tile:hover {
+.sav ::deep .sav__tile:hover {
     background: var(--playback-state-hover);
 }
 
-.sav__tile.is-on {
+.sav ::deep .sav__tile.is-on {
     border-color: var(--playback-accent);
 }
 
@@ -65,7 +65,7 @@
     background: black;
 }
 
-.sav__tile:focus-visible {
+.sav ::deep .sav__tile:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }
@@ -148,7 +148,7 @@
     margin: 6px 8px;
 }
 
-.sav__custom {
+.sav ::deep .sav__custom {
     align-items: center;
     background: transparent;
     border: 0;
@@ -167,11 +167,11 @@
     width: calc(100% - 16px);
 }
 
-.sav__custom:hover {
+.sav ::deep .sav__custom:hover {
     background: var(--playback-state-hover);
 }
 
-.sav__custom:focus-visible {
+.sav ::deep .sav__custom:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }

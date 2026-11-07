@@ -1,0 +1,134 @@
+/* Mockup screen 6, the Sleep timer body: padded 12 / 16 inside the panel body's own 8 px. The status block is centered: "Stopping in" 13 px secondary,
+   the countdown 40 / 700, "Playback will pause automatically." 13 px secondary with 14 px under it. Four presets in a row (flex 1, 10 px tall padding,
+   1 px hairline, radius 8, 15 / 600; the running one is filled with the accent), a hairline with 12 px above and below, then 44 px rows (16 / 500, 4 / 10
+   padding, radius 6) with a 20 px chevron at the right. */
+.stv {
+    padding: 4px 8px 0;
+}
+
+.stv__status {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.stv__caption {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+}
+
+.stv__caption--after {
+    margin-bottom: 14px;
+}
+
+.stv__countdown {
+    color: var(--playback-text);
+    font: 700 40px/1.1 var(--font-ui);
+    font-variant-numeric: tabular-nums;
+}
+
+.stv__stop {
+    color: var(--playback-text);
+    font: 700 20px/1.3 var(--font-ui);
+    margin: 4px 0 2px;
+}
+
+.stv__presets {
+    display: flex;
+    gap: 8px;
+}
+
+.stv ::deep .stv__preset {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 1;
+    font: 600 15px/1.45 var(--font-ui);
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 0;
+}
+
+.stv ::deep .stv__preset:hover {
+    background: var(--playback-state-hover);
+}
+
+.stv ::deep .stv__preset:active {
+    background: var(--playback-state-pressed);
+}
+
+.stv ::deep .stv__preset.is-selected,
+.stv ::deep .stv__preset.is-selected:hover {
+    background: var(--playback-accent);
+    border-color: var(--playback-accent);
+    color: var(--tl-text-on-accent);
+}
+
+.stv ::deep .stv__preset:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.stv__divider {
+    background: var(--playback-hairline);
+    height: 1px;
+    margin: 12px 0;
+}
+
+.stv ::deep .stv__row {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: flex;
+    font: 500 16px/1.45 var(--font-ui);
+    gap: 2px 12px;
+    min-height: var(--playback-panel-row-height);
+    padding: 4px 10px;
+    text-align: left;
+    width: 100%;
+}
+
+.stv ::deep .stv__row:hover:not(:disabled) {
+    background: var(--playback-state-hover);
+}
+
+.stv ::deep .stv__row:active:not(:disabled) {
+    background: var(--playback-state-pressed);
+}
+
+.stv ::deep .stv__row:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.stv ::deep .stv__row:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.stv__label {
+    min-width: 0;
+}
+
+.stv__value {
+    align-items: center;
+    color: var(--playback-text-secondary);
+    display: inline-flex;
+    margin-left: auto;
+}
+
+.stv__chevron {
+    --playback-glyph-size: 20px;
+    --playback-glyph-stroke: 1.8;
+    display: inline-flex;
+}

@@ -172,7 +172,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
         await Activate(cut, PlaybackControlKey.Queue);
         await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.Title == "Queue actions for Upcoming").Instance.OpenAsync(true));
-        await cut.Find("button[aria-label='Remove Upcoming from queue']").ClickAsync();
+        await cut.Find("button[data-playback-row-action='remove']").ClickAsync();
         var remove = Assert.Single(sink.Commands);
         Assert.Same(snapshot, remove.Snapshot);
         Assert.Equal(snapshot.Queue[1].QueueEntryId, remove.Command.QueueEntryId);
@@ -277,7 +277,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".playback-panel-card h2"));
         var tabs = cut.FindAll(".playback-panel-card [role='tab']");
         Assert.Equal(2, tabs.Count);
-        Assert.StartsWith("Up Next", tabs[0].TextContent.Trim());
+        Assert.StartsWith("Up next", tabs[0].TextContent.Trim());
         Assert.StartsWith("History", tabs[1].TextContent.Trim());
     }
 

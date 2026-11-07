@@ -7,7 +7,7 @@
     flex-direction: column;
 }
 
-.playback-lyrics-menu__row {
+.playback-lyrics-menu ::deep .playback-lyrics-menu__row {
     align-items: center;
     background: transparent;
     border: 0;
@@ -24,15 +24,15 @@
     width: 100%;
 }
 
-.playback-lyrics-menu__row:hover {
+.playback-lyrics-menu ::deep .playback-lyrics-menu__row:hover {
     background: var(--playback-state-hover);
 }
 
-.playback-lyrics-menu__row:active {
+.playback-lyrics-menu ::deep .playback-lyrics-menu__row:active {
     background: var(--playback-state-pressed);
 }
 
-.playback-lyrics-menu__row:focus-visible {
+.playback-lyrics-menu ::deep .playback-lyrics-menu__row:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }

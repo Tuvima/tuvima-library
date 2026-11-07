@@ -222,11 +222,20 @@ export function update(root, panel, open, restoreFocus = false) {
     }
 }
 
-// A control that is redrawn when the view changes (the Lyrics footer's "..." button) is found again by its accessible name.
-const describeFocus = element => element ? { element, label: element.getAttribute?.('aria-label') ?? null } : null;
+// A control that is redrawn when the view changes is found again by its data-return-key (a row with no accessible name of its own, such as the Sleep
+// timer's Custom duration row) or by its accessible name (the Lyrics footer's "..." button).
+const describeFocus = element => element ? {
+    element,
+    label: element.getAttribute?.('aria-label') ?? null,
+    key: element.getAttribute?.('data-return-key') ?? null,
+} : null;
 export function returnTarget(saved, panel) {
     if (!saved) return null;
     if (saved.element?.isConnected && panel.contains(saved.element)) return saved.element;
+    if (saved.key) {
+        const byKey = focusable(panel).find(element => element.getAttribute('data-return-key') === saved.key);
+        if (byKey) return byKey;
+    }
     if (!saved.label) return null;
     return focusable(panel).find(element => element.getAttribute('aria-label') === saved.label) ?? null;
 }

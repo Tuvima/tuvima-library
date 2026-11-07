@@ -5,7 +5,7 @@
     flex-direction: column;
 }
 
-.playback-item-menu__row {
+.playback-item-menu ::deep .playback-item-menu__row {
     align-items: center;
     background: transparent;
     border: 0;
@@ -22,15 +22,15 @@
     width: 100%;
 }
 
-.playback-item-menu__row:hover {
+.playback-item-menu ::deep .playback-item-menu__row:hover {
     background: var(--playback-state-hover);
 }
 
-.playback-item-menu__row:active {
+.playback-item-menu ::deep .playback-item-menu__row:active {
     background: var(--playback-state-pressed);
 }
 
-.playback-item-menu__row:focus-visible {
+.playback-item-menu ::deep .playback-item-menu__row:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
@@ -50,7 +50,7 @@
 }
 
 /* The glyph is drawn by PlaybackUtilityGlyph: the menu asks for the mockup's 24 px size and 1.8 stroke, as the bar's buttons do. */
-.playback-item-menu__row ::deep .playback-utility-glyph {
+.playback-item-menu ::deep .playback-item-menu__row .playback-utility-glyph {
     flex-basis: var(--playback-control-glyph);
     height: var(--playback-control-glyph);
     stroke-width: 1.8;

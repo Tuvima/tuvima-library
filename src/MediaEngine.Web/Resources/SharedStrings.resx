@@ -1478,9 +1478,6 @@
   <data name="ListenNowPlayingBar_NowPlayingMiniPlayer" xml:space="preserve">
     <value>Now playing mini player</value>
   </data>
-  <data name="ListenNowPlayingBar_QueueAndHistory" xml:space="preserve">
-    <value>Queue and history</value>
-  </data>
   <data name="Common_Volume" xml:space="preserve">
     <value>Volume</value>
   </data>
@@ -1526,71 +1523,20 @@
   <data name="ListenTransportControls_Repeat" xml:space="preserve">
     <value>Repeat</value>
   </data>
-  <data name="PlaybackContextPanel_History" xml:space="preserve">
-    <value>History · {0}</value>
-  </data>
-  <data name="PlaybackContextPanel_TheQueueIsEmptyAdd" xml:space="preserve">
-    <value>The queue is empty. Add songs from the Songs list or an album.</value>
-  </data>
-  <data name="PlaybackContextPanel_NOWPLAYING" xml:space="preserve">
-    <value>NOW PLAYING</value>
-  </data>
-  <data name="PlaybackContextPanel_UPNEXT" xml:space="preserve">
-    <value>UP NEXT · {0}</value>
-  </data>
-  <data name="PlaybackContextPanel_MoveEarlier" xml:space="preserve">
-    <value>Move earlier</value>
-  </data>
-  <data name="PlaybackContextPanel_MoveLater" xml:space="preserve">
-    <value>Move later</value>
-  </data>
   <data name="Common_Remove" xml:space="preserve">
     <value>Remove</value>
   </data>
   <data name="PlaybackContextPanel_NoTimedChaptersWereFound" xml:space="preserve">
     <value>No timed chapters were found for this audiobook.</value>
   </data>
-  <data name="PlaybackContextPanel_Chapters" xml:space="preserve">
-    <value>· {0} chapters</value>
-  </data>
-  <data name="PlaybackContextPanel_TotalRuntime" xml:space="preserve">
-    <value>· {0} total runtime</value>
-  </data>
   <data name="PlaybackContextPanel_RecentListeningPositionsWillAppear" xml:space="preserve">
     <value>Recent listening positions will appear here.</value>
-  </data>
-  <data name="PlaybackContextPanel_RecentlyPlayed" xml:space="preserve">
-    <value>Recently played · {0}</value>
-  </data>
-  <data name="PlaybackContextPanel_PlayedSongsAppearHereFor" xml:space="preserve">
-    <value>Played songs appear here for this session.</value>
-  </data>
-  <data name="PlaybackContextPanel_PlayAgain" xml:space="preserve">
-    <value>Play again</value>
   </data>
   <data name="PlaybackContextPanel_ChooseAPlaybackPanel" xml:space="preserve">
     <value>Choose a playback panel.</value>
   </data>
-  <data name="PlaybackContextPanel_ThisClearsThisPlayerS" xml:space="preserve">
-    <value>This clears this player's recently played music only. Play counts and saved progress remain.</value>
-  </data>
-  <data name="PlaybackContextPanel_ClearHistory" xml:space="preserve">
-    <value>Clear history</value>
-  </data>
   <data name="PlaybackContextPanel_PlaybackContextPanel" xml:space="preserve">
     <value>Playback context panel</value>
-  </data>
-  <data name="PlaybackContextPanel_PlaybackContext" xml:space="preserve">
-    <value>Playback context</value>
-  </data>
-  <data name="PlaybackContextPanel_ClearUpcomingQueue" xml:space="preserve">
-    <value>Clear upcoming queue</value>
-  </data>
-  <data name="PlaybackContextPanel_DragOrUseAltArrow" xml:space="preserve">
-    <value>Drag or use Alt+Arrow Up/Down</value>
-  </data>
-  <data name="PlaybackContextPanel_ClearPlayerHistory" xml:space="preserve">
-    <value>Clear player history?</value>
   </data>
   <data name="PlaybackDesktopScene_PlayingFrom" xml:space="preserve">
     <value>Playing from</value>
@@ -5168,12 +5114,6 @@
   <data name="Common_BackTo" xml:space="preserve">
     <value>Back to {0}</value>
   </data>
-  <data name="ListeningSettingsPage_DefaultLength" xml:space="preserve">
-    <value>Default length</value>
-  </data>
-  <data name="ListeningSettingsPage_TheLengthShownFirstWhen" xml:space="preserve">
-    <value>The length shown first when you open the sleep timer.</value>
-  </data>
   <data name="Common_Off" xml:space="preserve">
     <value>Off</value>
   </data>
@@ -6184,12 +6124,6 @@
   </data>
   <data name="PlaybackSettingsPage_PlaybackPreferencesAreUnavailable" xml:space="preserve">
     <value>Playback preferences are unavailable</value>
-  </data>
-  <data name="PlaybackSettingsPage_Autoplay" xml:space="preserve">
-    <value>Autoplay</value>
-  </data>
-  <data name="PlaybackSettingsPage_WhatHappensWhenAnEpisode" xml:space="preserve">
-    <value>What happens when an episode ends.</value>
   </data>
   <data name="PlaybackSettingsPage_WhereAMovieOrEpisode" xml:space="preserve">
     <value>Where a movie or episode starts when you come back.</value>
@@ -7691,17 +7625,8 @@
   <data name="VideoBookmarkQuickList_KeepBookmark" xml:space="preserve">
     <value>Keep bookmark</value>
   </data>
-  <data name="VideoContextPanel_Episodes" xml:space="preserve">
-    <value>Episodes · {0}</value>
-  </data>
   <data name="VideoContextPanel_NothingUpNext" xml:space="preserve">
     <value>Nothing up next</value>
-  </data>
-  <data name="VideoContextPanel_VideoContext" xml:space="preserve">
-    <value>Video context</value>
-  </data>
-  <data name="VideoContextPanel_Episodes2" xml:space="preserve">
-    <value>Episodes</value>
   </data>
   <data name="VideoPlaybackHost_SwitchingAudio" xml:space="preserve">
     <value>Switching audio…</value>
@@ -7731,19 +7656,28 @@
     <value>Now playing</value>
   </data>
   <data name="VideoPlaybackHost_Rated" xml:space="preserve">
-    <value>RATED {0}</value>
+    <value>Rated {0}</value>
   </data>
-  <data name="VideoPlaybackHost_SeasonN" xml:space="preserve">
-    <value>Season {0}</value>
+  <data name="VideoPausedDetails_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="VideoPausedDetails_HoursMinutes" xml:space="preserve">
+    <value>{0}h {1}m</value>
+  </data>
+  <data name="VideoEndCard_NextLesson" xml:space="preserve">
+    <value>Next lesson</value>
+  </data>
+  <data name="VideoEndCard_Homework" xml:space="preserve">
+    <value>Homework: {0}</value>
+  </data>
+  <data name="VideoEndCard_PlayNow" xml:space="preserve">
+    <value>Play now</value>
+  </data>
+  <data name="VideoEndCard_Cancel" xml:space="preserve">
+    <value>Cancel</value>
   </data>
   <data name="VideoPlaybackHost_DismissHint" xml:space="preserve">
     <value>Dismiss hint</value>
-  </data>
-  <data name="VideoPlaybackHost_PlayNextEpisodeNow" xml:space="preserve">
-    <value>Play next episode now</value>
-  </data>
-  <data name="VideoPlaybackHost_DismissNextEpisode" xml:space="preserve">
-    <value>Dismiss next episode</value>
   </data>
   <data name="VideoPlaybackHost_VideoPlayback" xml:space="preserve">
     <value>Video playback</value>
@@ -9398,15 +9332,6 @@
   <data name="RestorePlugins_NothingChanged" xml:space="preserve">
     <value>Nothing could be restored.</value>
   </data>
-  <data name="PlayerSettings_Title" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="PlayerSettings_SleepTimer" xml:space="preserve">
-    <value>Sleep timer</value>
-  </data>
-  <data name="PlayerSettings_ShowBookmarksOnBar" xml:space="preserve">
-    <value>Show bookmarks on the bar</value>
-  </data>
   <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
     <value>No subtitle source is switched on</value>
   </data>
@@ -9478,9 +9403,6 @@
   </data>
   <data name="PlayerSettings_Searching" xml:space="preserve">
     <value>Searching…</value>
-  </data>
-  <data name="PlayerContext_UpNext" xml:space="preserve">
-    <value>Up Next</value>
   </data>
   <data name="PlayerContext_Lessons" xml:space="preserve">
     <value>Lessons</value>
@@ -11317,6 +11239,228 @@
   </data>
   <data name="PlaybackSpeed_Unavailable" xml:space="preserve">
     <value>Playback speed unavailable</value>
+  </data>
+  <data name="Common_Queue" xml:space="preserve">
+    <value>Queue</value>
+  </data>
+  <data name="Common_Chapters" xml:space="preserve">
+    <value>Chapters</value>
+  </data>
+  <data name="QueuePanel_Sections" xml:space="preserve">
+    <value>Queue sections</value>
+  </data>
+  <data name="QueuePanel_UpNextTab" xml:space="preserve">
+    <value>Up next · {0}</value>
+  </data>
+  <data name="QueuePanel_UpNextHeading" xml:space="preserve">
+    <value>Up next · {0}</value>
+  </data>
+  <data name="QueuePanel_HistoryTab" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="QueuePanel_HistoryHeading" xml:space="preserve">
+    <value>Played this session · {0}</value>
+  </data>
+  <data name="QueuePanel_ClearLabel" xml:space="preserve">
+    <value>Clear upcoming queue</value>
+  </data>
+  <data name="QueuePanel_ClearHistory" xml:space="preserve">
+    <value>Clear history</value>
+  </data>
+  <data name="QueuePanel_ClearHistoryTitle" xml:space="preserve">
+    <value>Clear player history?</value>
+  </data>
+  <data name="QueuePanel_ClearHistoryBody" xml:space="preserve">
+    <value>This clears this player's recently played music only. Play counts and saved progress remain.</value>
+  </data>
+  <data name="QueuePanel_Empty" xml:space="preserve">
+    <value>The queue is empty. Add songs from the Songs list or an album.</value>
+  </data>
+  <data name="QueuePanel_NothingNext" xml:space="preserve">
+    <value>Nothing up next.</value>
+  </data>
+  <data name="QueuePanel_HistoryEmpty" xml:space="preserve">
+    <value>Played songs appear here for this session.</value>
+  </data>
+  <data name="QueuePanel_PlayLabel" xml:space="preserve">
+    <value>Play {0}</value>
+  </data>
+  <data name="QueuePanel_ReorderLabel" xml:space="preserve">
+    <value>Reorder {0}</value>
+  </data>
+  <data name="QueuePanel_DragHint" xml:space="preserve">
+    <value>Drag or use Alt+Arrow Up/Down</value>
+  </data>
+  <data name="QueuePanel_RowMenu" xml:space="preserve">
+    <value>Queue actions for {0}</value>
+  </data>
+  <data name="QueuePanel_HistoryRowMenu" xml:space="preserve">
+    <value>History actions for {0}</value>
+  </data>
+  <data name="QueuePanel_PlayNext" xml:space="preserve">
+    <value>Play next</value>
+  </data>
+  <data name="QueuePanel_MoveUp" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="QueuePanel_MoveDown" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="QueuePanel_GoToAlbum" xml:space="preserve">
+    <value>Go to album</value>
+  </data>
+  <data name="QueuePanel_GoToArtist" xml:space="preserve">
+    <value>Go to artist</value>
+  </data>
+  <data name="QueuePanel_PlayingFrom" xml:space="preserve">
+    <value>Playing from</value>
+  </data>
+  <data name="QueuePanel_Moved" xml:space="preserve">
+    <value>Moved to position {0}</value>
+  </data>
+  <data name="QueuePanel_MoveFailed" xml:space="preserve">
+    <value>The move did not go through. Try again.</value>
+  </data>
+  <data name="QueuePanel_NotConfirmed" xml:space="preserve">
+    <value>The main player did not confirm this action.</value>
+  </data>
+  <data name="QueuePanel_Interrupted" xml:space="preserve">
+    <value>The main player connection was interrupted. Try again when it reconnects.</value>
+  </data>
+  <data name="QueuePanel_PlayedNow" xml:space="preserve">
+    <value>Just now</value>
+  </data>
+  <data name="QueuePanel_PlayedMinutes" xml:space="preserve">
+    <value>{0} min ago</value>
+  </data>
+  <data name="QueuePanel_PlayedHours" xml:space="preserve">
+    <value>{0} hr ago</value>
+  </data>
+  <data name="QueuePanel_PlayedEarlier" xml:space="preserve">
+    <value>Earlier</value>
+  </data>
+  <data name="ChaptersPanel_Position" xml:space="preserve">
+    <value>Chapter {0} of {1}</value>
+  </data>
+  <data name="ChaptersPanel_ElapsedRemaining" xml:space="preserve">
+    <value>{0} elapsed · {1} remaining</value>
+  </data>
+  <data name="ChaptersPanel_PlayLabel" xml:space="preserve">
+    <value>Play {0}</value>
+  </data>
+  <data name="ChaptersPanel_Finished" xml:space="preserve">
+    <value>Finished</value>
+  </data>
+  <data name="ChaptersPanel_TimelineShows" xml:space="preserve">
+    <value>Timeline shows</value>
+  </data>
+  <data name="ChaptersPanel_ScopeChapter" xml:space="preserve">
+    <value>Chapter</value>
+  </data>
+  <data name="ChaptersPanel_ScopeBook" xml:space="preserve">
+    <value>Whole book</value>
+  </data>
+  <data name="ChaptersPanel_Hint" xml:space="preserve">
+    <value>Select a chapter to start listening.</value>
+  </data>
+  <data name="PlaybackTimeline_BookComplete" xml:space="preserve">
+    <value>Book · {0}% complete</value>
+  </data>
+  <data name="EpisodesPanel_EpisodeCount" xml:space="preserve">
+    <value>{0} episodes</value>
+  </data>
+  <data name="EpisodesPanel_LessonCount" xml:space="preserve">
+    <value>{0} lessons</value>
+  </data>
+  <data name="EpisodesPanel_EpisodeCountOne" xml:space="preserve">
+    <value>1 episode</value>
+  </data>
+  <data name="EpisodesPanel_LessonCountOne" xml:space="preserve">
+    <value>1 lesson</value>
+  </data>
+  <data name="EpisodesPanel_PlayLabel" xml:space="preserve">
+    <value>Play {0}</value>
+  </data>
+  <data name="EpisodesPanel_UpNext" xml:space="preserve">
+    <value>Up next</value>
+  </data>
+  <data name="EpisodesPanel_Playing" xml:space="preserve">
+    <value>Playing</value>
+  </data>
+  <data name="EpisodesPanel_Paused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="EpisodesPanel_PositionOf" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="EpisodesPanel_Autoplay" xml:space="preserve">
+    <value>Autoplay next episode</value>
+  </data>
+  <data name="EpisodesPanel_AutoplayVideo" xml:space="preserve">
+    <value>Autoplay next video</value>
+  </data>
+  <data name="EpisodesPanel_AutoplayLesson" xml:space="preserve">
+    <value>Autoplay next lesson</value>
+  </data>
+  <data name="SleepTimer_Title" xml:space="preserve">
+    <value>Sleep timer</value>
+  </data>
+  <data name="SleepTimer_TriggerOn" xml:space="preserve">
+    <value>Sleep timer, on</value>
+  </data>
+  <data name="SleepTimer_StoppingIn" xml:space="preserve">
+    <value>Stopping in</value>
+  </data>
+  <data name="SleepTimer_PausesAutomatically" xml:space="preserve">
+    <value>Playback will pause automatically.</value>
+  </data>
+  <data name="SleepTimer_ChooseWhen" xml:space="preserve">
+    <value>Choose when playback should stop.</value>
+  </data>
+  <data name="SleepTimer_StoppingAtChapter" xml:space="preserve">
+    <value>Stopping at the end of chapter {0}</value>
+  </data>
+  <data name="SleepTimer_StoppingAtChapterUnnumbered" xml:space="preserve">
+    <value>Stopping at the end of the chapter</value>
+  </data>
+  <data name="SleepTimer_Presets" xml:space="preserve">
+    <value>Timer length</value>
+  </data>
+  <data name="SleepTimer_PresetMinutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="SleepTimer_EndOfChapter" xml:space="preserve">
+    <value>End of chapter</value>
+  </data>
+  <data name="SleepTimer_EndOfChapterUnavailable" xml:space="preserve">
+    <value>End of chapter, unavailable: {0}</value>
+  </data>
+  <data name="SleepTimer_NoChapterBoundary" xml:space="preserve">
+    <value>No verified chapter boundary</value>
+  </data>
+  <data name="SleepTimer_Custom" xml:space="preserve">
+    <value>Custom duration…</value>
+  </data>
+  <data name="SleepTimer_CustomTitle" xml:space="preserve">
+    <value>Custom duration</value>
+  </data>
+  <data name="SleepTimer_CustomMinutes" xml:space="preserve">
+    <value>Minutes</value>
+  </data>
+  <data name="SleepTimer_CustomHelper" xml:space="preserve">
+    <value>Enter a whole number of minutes from {0} to {1}.</value>
+  </data>
+  <data name="SleepTimer_CustomError" xml:space="preserve">
+    <value>That isn't a whole number from {0} to {1}.</value>
+  </data>
+  <data name="SleepTimer_CustomSet" xml:space="preserve">
+    <value>Set timer</value>
+  </data>
+  <data name="SleepTimer_AddFive" xml:space="preserve">
+    <value>+5 minutes</value>
+  </data>
+  <data name="SleepTimer_Cancel" xml:space="preserve">
+    <value>Cancel timer</value>
   </data>
   <data name="EditorMatchPanel_MediaProviders" xml:space="preserve">
     <value>Media providers</value>

@@ -34,3 +34,20 @@ export function detach(container) {
     container.removeEventListener('keydown', state.onKeyDown);
     states.delete(container);
 }
+
+// A menu of role="menuitem" rows (the Queue and Item actions "..." menus): a hidden anchor element placed inside the menu finds it, so the menu
+// needs no element reference of its own. Up and Down, Home and End move between the rows that can take focus.
+const menus = new WeakMap();
+
+export function attachMenu(anchor) {
+    const menu = anchor?.closest?.('[role=menu]');
+    if (!menu) return;
+    menus.set(anchor, menu);
+    attach(menu, '[role=menuitem]:not(:disabled)', { vertical: true });
+}
+
+export function detachMenu(anchor) {
+    const menu = menus.get(anchor);
+    if (menu) detach(menu);
+    menus.delete(anchor);
+}

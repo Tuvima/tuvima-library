@@ -56,6 +56,8 @@ public enum PlaybackUtilityGlyphKind
     SkipForward,
     Info,
     OpenExternal,
+    Drag,
+    ChevronUp,
 }
 
 public static class PlaybackUtilityGlyphMap

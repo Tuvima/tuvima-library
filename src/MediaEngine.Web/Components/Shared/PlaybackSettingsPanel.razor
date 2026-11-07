@@ -104,10 +104,12 @@
 
     // The footer (mockup screen 5): "Reset playback preferences" with the reset glyph, 14 px, under a hairline.
     private RenderFragment MainFooter =>
-        @<AppNativeButton Type="button" Class="psp__reset" data-psp-reset OnClick="ResetAsync">
-            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Reset" />
-            <span>@L["PlaybackSettings_Reset"]</span>
-        </AppNativeButton>;
+        @<div class="psp__footer">
+            <AppNativeButton Type="button" Class="psp__reset" data-psp-reset OnClick="ResetAsync">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Reset" />
+                <span>@L["PlaybackSettings_Reset"]</span>
+            </AppNativeButton>
+        </div>;
 
     private RenderFragment SpeedBody => @<PlaybackSpeedView Rate="@Rate" RateChanged="RateChanged" />;
 

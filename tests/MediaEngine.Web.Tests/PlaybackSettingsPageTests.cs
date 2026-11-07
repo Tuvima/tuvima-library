@@ -89,15 +89,16 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Autoplay next episode", cut.Markup);
             Assert.Contains("Resume where you left off", cut.Markup);
+            // Unified player v2 D19: Autoplay next episode is in the Episodes panel; the "Chapter marks" row stays here.
+            Assert.DoesNotContain("Autoplay next episode", cut.Markup);
             // Unified player v2 D14: skip lengths, speed and the subtitle look live in the player, not here.
             Assert.DoesNotContain("Skip back", cut.Markup);
             Assert.DoesNotContain("Skip forward", cut.Markup);
             Assert.DoesNotContain("Subtitle appearance", cut.Markup);
             Assert.DoesNotContain("Text size", cut.Markup);
             Assert.DoesNotContain("Show bookmarks on the bar", cut.Markup);
-            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
+            Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
@@ -158,22 +159,22 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
         Assert.Empty(cut.FindAll("[data-spoiler-level]"));
-        Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
+        Assert.Equal(3, cut.FindAll(".app-settings-group").Count);
     }
 
     [Fact]
     public void OwnProfile_ReadsAndSavesThroughTheAccessorPath()
     {
         var cut = Render<PlaybackSettingsPage>();
-        cut.WaitForAssertion(() => Assert.Contains("Autoplay next episode", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Resume where you left off", cut.Markup));
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() =>
         {
             Assert.Equal(1, _accessor.GetCalls);
             Assert.Equal(1, _accessor.UpdateCalls);
-            Assert.False(_accessor.Last!.Watching.AutoplayNextEpisode);
+            Assert.False(_accessor.Last!.General.ResumePlayback);
             Assert.Contains((ActiveId, "put"), _apiCalls);
         });
     }
@@ -188,7 +189,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.Contains("/settings/profiles/" + OtherId, cut.Markup);
         });
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() =>
         {
@@ -310,7 +311,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".app-error-state"));
-            Assert.Contains("Autoplay next episode", cut.Markup);
+            Assert.Contains("Resume where you left off", cut.Markup);
         });
     }
 
@@ -318,18 +319,18 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     public void Save_MergesOnlyTheChangedFieldIntoTheCurrentSettings()
     {
         var cut = Render<PlaybackSettingsPage>();
-        cut.WaitForAssertion(() => Assert.Contains("Autoplay next episode", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Resume where you left off", cut.Markup));
         // Another tab changed these fields after this page opened.
         _remote!.General.ResumePlayback = false;
         _remote.Subtitles.AudioLanguage = "Japanese";
         _remote.Listening.SkipBackSeconds = 30;
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() =>
         {
             var saved = _saved.Last();
-            Assert.False(saved.Watching.AutoplayNextEpisode);
+            Assert.False(saved.General.ResumePlayback);
             Assert.False(saved.General.ResumePlayback);
             Assert.Equal("Japanese", saved.Subtitles.AudioLanguage);
             Assert.Equal(30, saved.Listening.SkipBackSeconds);
@@ -343,12 +344,12 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
         _otherSettings!.General.ResumePlayback = false;
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() =>
         {
             Assert.Contains((OtherId, "put"), _apiCalls);
-            Assert.False(_saved.Last().Watching.AutoplayNextEpisode);
+            Assert.False(_saved.Last().General.ResumePlayback);
             Assert.False(_saved.Last().General.ResumePlayback);
         });
     }
@@ -360,7 +361,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input")));
         _remote = null;
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() => Assert.Contains("Playback settings could not be saved.", cut.Markup));
         Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
@@ -407,10 +408,10 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     public void Save_WhenTheEngineCallThrows_LogsTheFailureAndShowsTheError()
     {
         var cut = Render<PlaybackSettingsPage>();
-        cut.WaitForAssertion(() => Assert.Contains("Autoplay next episode", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Resume where you left off", cut.Markup));
         _putThrows = true;
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() => Assert.Contains("Playback settings could not be saved.", cut.Markup));
         Assert.Contains(_logs.Entries, entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException);
@@ -424,7 +425,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         var readsBefore = _apiCalls.Count(call => call.Call == "get");
         _otherSettings = UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid());
 
-        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
 
         cut.WaitForAssertion(() =>
         {

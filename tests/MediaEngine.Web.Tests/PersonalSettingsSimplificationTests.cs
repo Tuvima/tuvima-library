@@ -25,7 +25,8 @@ public sealed class PersonalSettingsSimplificationTests
     {
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor");
 
-        Assert.Contains("Autoplay next episode", source, StringComparison.Ordinal);
+        // Unified player v2 D19: Autoplay next episode lives in the Episodes panel now; the preference itself stays.
+        Assert.DoesNotContain("Autoplay next episode", source, StringComparison.Ordinal);
         Assert.Contains("Resume where you left off", source, StringComparison.Ordinal);
         // Unified player v2 D14: the skip lengths and the subtitle look live in the player's Playback settings, not here.
         Assert.DoesNotContain("Skip back", source, StringComparison.Ordinal);
@@ -41,12 +42,14 @@ public sealed class PersonalSettingsSimplificationTests
     }
 
     [Fact]
-    public void ListeningPage_OnlySurfacesSkipAndSleepTimerDefaults()
+    public void ListeningPage_OnlySurfacesResumeRewindAndTheEndOfChapterChoice()
     {
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ListeningSettingsPage.razor");
 
         Assert.Contains("Resume rewind", source, StringComparison.Ordinal);
-        Assert.Contains("DefaultSleepTimer", source, StringComparison.Ordinal);
+        // Unified player v2 D16: the sleep timer presets are fixed (15, 30, 45, 60), so the default length and the option list are not offered here.
+        Assert.DoesNotContain("DefaultSleepTimer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SleepTimerOptionsMinutes", source, StringComparison.Ordinal);
         Assert.Contains("AllowEndOfChapterSleepTimer", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AudiobookDefaultSpeed", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SkipSilence", source, StringComparison.Ordinal);

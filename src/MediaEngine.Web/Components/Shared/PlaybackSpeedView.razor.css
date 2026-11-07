@@ -27,7 +27,7 @@
     gap: 8px;
 }
 
-.psv__preset {
+.psv ::deep .psv__preset {
     align-items: center;
     background: transparent;
     border: 1px solid var(--playback-hairline);
@@ -44,22 +44,22 @@
     padding: 10px 0;
 }
 
-.psv__preset:hover {
+.psv ::deep .psv__preset:hover {
     background: var(--playback-state-hover);
 }
 
-.psv__preset:active {
+.psv ::deep .psv__preset:active {
     background: var(--playback-state-pressed);
 }
 
-.psv__preset.is-selected,
-.psv__preset.is-selected:hover {
+.psv ::deep .psv__preset.is-selected,
+.psv ::deep .psv__preset.is-selected:hover {
     background: var(--playback-accent);
     border-color: var(--playback-accent);
     color: var(--tl-text-on-accent);
 }
 
-.psv__preset:focus-visible {
+.psv ::deep .psv__preset:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }

@@ -10,28 +10,9 @@
 .video-playback-host ::deep .video-playback-host__icon .tl-icon-root { width:var(--tl-icon-size-md); height:var(--tl-icon-size-md); font-size:var(--tl-icon-size-md); }
 .video-playback-host ::deep .video-playback-host__icon:focus-visible { outline:2px solid var(--playback-accent); outline-offset:2px; }
 .video-playback-host ::deep .video-playback-host__icon:hover { background:var(--playback-accent-soft); }
-.video-playback-host__paused-title { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:8px; padding:0 12% 0 8%; text-align:left; background:rgba(0,0,0,.55); color:#fff; opacity:0; pointer-events:none; transition:opacity .25s ease; }
-.video-playback-host__paused-title[data-paused="true"] { opacity:1; transition-delay:1.2s; }
-.video-playback-host__paused-title h2 { margin:0; font-family:var(--font-ui); font-size:clamp(1.6rem,3.4vw,2.8rem); font-weight:600; }
-.video-playback-host__paused-title strong { font-family:var(--font-ui); font-size:var(--tl-font-size-lg); font-weight:600; }
-.video-playback-host__paused-title span,.video-playback-host__paused-title p { margin:0; max-width:46rem; color:var(--playback-text-secondary); font-size:var(--tl-font-size-md); }
-.video-playback-host__rating-card { position:absolute; z-index:1; pointer-events:none; opacity:0; top:max(28px,var(--tl-safe-area-top)); left:8%; display:flex; align-items:center; gap:10px; }
-.video-playback-host__rating-card i { width:4px; height:28px; border-radius:2px; background:var(--tl-accent-primary); }
-.video-playback-host__rating-card strong { font-size:var(--tl-font-size-md); letter-spacing:.06em; }
-.video-playback-host__rating-card[data-paused="true"] { opacity:1; transition:opacity .25s ease 1.2s; }
-.video-playback-host__rating-card[data-paused="false"] { animation:video-rating-intro 6s ease both; }
-@keyframes video-rating-intro { 0%,70% { opacity:1; } 100% { opacity:0; } }
 .video-playback-host__status { position:absolute; top:20%; left:50%; transform:translateX(-50%); padding:12px 20px; background:rgba(0,0,0,.6); border-radius:8px; }
 .video-playback-host__skip-segment { position:absolute; right:0; bottom:100%; display:flex; align-items:center; gap:8px; padding:4px 6px 4px 14px; background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; }
-.video-playback-host__end-card { position:absolute; right:max(16px,var(--tl-safe-area-right)); bottom:calc(var(--playback-chrome-height,180px) + max(16px,var(--tl-safe-area-bottom)) + 16px); width:min(320px,calc(100% - 32px)); padding:14px; display:grid; gap:10px; background:rgba(13,18,28,.94); border:1px solid var(--playback-border); border-radius:10px; z-index:3; }
-.video-playback-host__end-card-content { display:flex; gap:10px; align-items:center; }
-.video-playback-host__end-card-content img { width:112px; height:63px; object-fit:cover; border-radius:5px; }
-.video-playback-host__end-card-content > span { display:grid; gap:4px; min-width:0; }
-.video-playback-host__end-card-content strong { font-size:var(--tl-font-size-sm); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
-.video-playback-host__end-card-content span span { color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
-.video-playback-host__end-card-actions { display:flex; justify-content:flex-end; gap:8px; }
-.video-playback-host__end-card-actions ::deep button:first-child { border:1px solid var(--playback-accent); }
-@media(max-height:450px) { .video-playback-host__controls { gap:0; } .video-playback-host__end-card { width:280px; padding:8px; } }
+@media(max-height:450px) { .video-playback-host__controls { gap:0; } }
 .video-playback-restore {
     position: fixed;
     z-index: 1320;
@@ -71,6 +52,5 @@
 }
 
 
-.video-playback-host__end-card-placeholder { display:grid; place-items:center; width:112px; height:63px; flex:0 0 112px; background:rgba(255,255,255,.05); color:var(--playback-text-muted); border-radius:5px; }
 
 .video-playback-host__media { font-size:clamp(var(--tl-font-size-xs),1.15vw,var(--tl-font-size-lg)); }

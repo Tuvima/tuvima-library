@@ -1,0 +1,69 @@
+/* Mockup screen 14: .grad is 60% x 55% of the picture in the bottom-left corner (radial, 75% black fading out), and .paused sits 28 px from the left,
+   above the bar, at most 46% wide. Title 28 px (600: the type guard keeps 700 for page titles), line 15 px secondary, description 14 px secondary. */
+.video-paused-details {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .25s ease;
+}
+
+.video-paused-details[data-visible="true"] {
+    opacity: 1;
+    transition-delay: 1.2s;
+}
+
+.video-paused-details__shade {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 60%;
+    height: 55%;
+    background: radial-gradient(ellipse at 0% 100%, rgba(0, 0, 0, .75), transparent 70%);
+}
+
+.video-paused-details__text {
+    position: absolute;
+    left: max(28px, var(--tl-safe-area-left));
+    bottom: calc(var(--playback-chrome-height, 96px) + max(16px, var(--tl-safe-area-bottom)) + 16px);
+    max-width: 46%;
+}
+
+.video-paused-details__title {
+    margin: 0;
+    color: var(--playback-text);
+    font-family: var(--font-ui);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.video-paused-details__line {
+    margin: 4px 0 8px;
+    color: var(--playback-text-secondary);
+    font-size: 15px;
+}
+
+.video-paused-details__description {
+    margin: 0;
+    color: var(--playback-text-secondary);
+    font-size: 14px;
+}
+
+@media (max-width: 600px) {
+    .video-paused-details__text {
+        left: 16px;
+        max-width: calc(100% - 32px);
+    }
+
+    .video-paused-details__title {
+        font-size: 22px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .video-paused-details {
+        transition: none;
+    }
+}

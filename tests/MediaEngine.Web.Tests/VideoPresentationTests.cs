@@ -17,26 +17,6 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class VideoPresentationTests
 {
-    [Fact]
-    public void EpisodeRowsKeepTheNumberSeparateAndReserveTheActivityMarker()
-    {
-        using var ctx = new LocalizedBunitContext();
-        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        var episode = new VideoOwnedEpisode(Guid.NewGuid(), "A Message Across the Water", null, null,
-            "3:00", "2", "Season 2", 2, 5);
-        var cut = ctx.Render<VideoContextPanel>(parameters => parameters
-            .Add(p => p.Episodes, [episode]).Add(p => p.CurrentWorkId, episode.WorkId));
-        Assert.Equal(episode.Title, cut.Find(".playback-sheet-row__copy strong").TextContent);
-        Assert.Equal("E5", cut.Find(".playback-sheet-row__copy > span").TextContent);
-        Assert.Single(cut.FindAll(".video-context-current"));
-        Assert.Equal("Paused", cut.Find(".video-context-current [role='img']").GetAttribute("aria-label"));
-        cut.Render(parameters => parameters.Add(p => p.IsPlaying, true));
-        Assert.Equal("Playing", cut.Find(".video-context-current [role='img']").GetAttribute("aria-label"));
-        cut.Render(parameters => parameters.Add(p => p.NextEpisode, episode));
-        cut.Find("button[aria-label='Up Next']").Click();
-        Assert.Equal("S2 E5 · A Message Across the Water", cut.Find(".video-context-panel__featured strong").TextContent);
-    }
-
     [Theory]
     [InlineData(true, true, 2, 2, "episodes")]
     [InlineData(true, true, 0, 2, null)]
@@ -68,9 +48,9 @@ public sealed class VideoPresentationTests
         Assert.Equal(owned, episode.WorkId); Assert.Null(episode.StillUrl);
         Assert.True(VideoPresentationResolver.IsTvEpisode(Video() with { EpisodeNumber = null }));
         var real = episode with { StillUrl = "/stream/artwork/actual", StillWidthPx = 1920, StillHeightPx = 1080 };
-        Assert.Contains("320w", VideoContextPanel.EpisodeArtworkSrcSet(real));
-        Assert.Contains("960w", VideoContextPanel.EpisodeArtworkSrcSet(real));
-        Assert.Null(VideoContextPanel.EpisodeArtworkSrcSet(real with { StillWidthPx = null }));
+        Assert.Contains("320w", EpisodesPanel.EpisodeArtworkSrcSet(real));
+        Assert.Contains("960w", EpisodesPanel.EpisodeArtworkSrcSet(real));
+        Assert.Null(EpisodesPanel.EpisodeArtworkSrcSet(real with { StillWidthPx = null }));
     }
 
     [Theory]

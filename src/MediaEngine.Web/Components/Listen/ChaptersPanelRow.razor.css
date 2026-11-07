@@ -1,0 +1,8 @@
+.chp__number {
+    font-variant-numeric: tabular-nums;
+}
+
+.chp__done {
+    color: var(--playback-accent-hover);
+    display: inline-flex;
+}

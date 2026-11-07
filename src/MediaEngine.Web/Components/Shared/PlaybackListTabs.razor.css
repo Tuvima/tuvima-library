@@ -1,0 +1,31 @@
+.plt {
+    border-bottom: 1px solid var(--tl-border-default);
+    display: flex;
+    gap: 20px;
+    padding: 0 16px;
+}
+
+.plt ::deep .plt__tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    font: 600 15px/1.45 var(--font-ui);
+    margin: 0 0 -1px;
+    padding: 10px 0;
+}
+
+.plt ::deep .plt__tab:hover {
+    color: var(--playback-text);
+}
+
+.plt ::deep .plt__tab.is-on {
+    border-bottom-color: var(--playback-accent);
+    color: var(--playback-text);
+}
+
+.plt ::deep .plt__tab:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
