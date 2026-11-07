@@ -1,0 +1,90 @@
+.tl-fbtable {
+    min-width: 0;
+    overflow-x: auto;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+.tl-fbtable__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-fbtable__table th,
+.tl-fbtable__table td {
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border-bottom: 1px solid var(--tl-border-default);
+    text-align: start;
+    vertical-align: middle;
+}
+
+.tl-fbtable__table th {
+    background: var(--tl-bg-surface-elevated);
+    color: var(--tl-text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tl-fbtable__table tbody td {
+    height: 3.5rem;
+}
+
+.tl-fbtable__table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.tl-fbtable__row.is-ticked {
+    background: var(--tl-accent-primary-soft);
+}
+
+.tl-fbtable__tick {
+    width: 2.5rem;
+}
+
+.tl-fbtable__menu {
+    width: 2.5rem;
+    text-align: end;
+}
+
+.tl-fbtable ::deep .tl-fbtable__sort {
+    margin-inline: calc(var(--tl-space-2) * -1);
+}
+
+.tl-fbtable__name {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-fbtable__badge {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-elevated);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+}
+
+.tl-fbtable__text {
+    display: grid;
+    min-width: 0;
+}
+
+.tl-fbtable__text b,
+.tl-fbtable__text small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-fbtable__text small,
+.is-quiet {
+    color: var(--tl-text-secondary);
+}

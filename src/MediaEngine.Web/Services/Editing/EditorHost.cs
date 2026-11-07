@@ -168,6 +168,15 @@ public sealed class EditorHost : IDisposable
         Batch = new BulkEditSelection { RefreshAsync = () => _binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask };
         Family = new EditorFamilyState(api, logger);
         Universe = new EditorUniverseState(api, logger);
+        FileBrowser = new EditorFileBrowserState(api, () => Session.Pending)
+        {
+            ItemsDeleted = async removed =>
+            {
+                await ItemsDeletedAsync(removed);
+                await NotifyCommittedAsync();
+            },
+        };
+        FileBatch = new EditorFileBatch();
         Picker.EpisodeSource = async () => Session.ActiveItem is { } active
             ? (await Family.LeavesUnderAsync(active.EntityId)).Select(row => row.EntityId).ToList()
             : [];
@@ -181,6 +190,8 @@ public sealed class EditorHost : IDisposable
         Batch.Changed += OnBatchChanged;
         Family.Changed += RaiseChanged;
         Universe.Changed += RaiseChanged;
+        FileBrowser.Changed += RaiseChanged;
+        FileBatch.Changed += RaiseChanged;
         Mode.Fields.Changed += SyncFamily;
     }
 
@@ -262,6 +273,12 @@ public sealed class EditorHost : IDisposable
 
     /// <summary>The rail of the Universe editor: the Universe, its kinds with counts, and the things of each kind (universal editor v4, WP11).</summary>
     public EditorUniverseState Universe { get; }
+
+    /// <summary>The supporting-files browser's filters, page and ticks (universal editor v5 WP8). They stay while the browser is closed to edit the ticked files.</summary>
+    public EditorFileBrowserState FileBrowser { get; }
+
+    /// <summary>"Editing N files": the ticked supporting files edited together in the editor window (screen F).</summary>
+    public EditorFileBatch FileBatch { get; }
 
     /// <summary>Where the header's supporting-file rows and the folder button lead; the viewer and the folder browser register here when they are built.</summary>
     public EditorHeaderHooks HeaderHooks { get; } = new();
@@ -357,6 +374,7 @@ public sealed class EditorHost : IDisposable
         Session.Pending.RemoveForSupportingFiles([.. removed]);
 
         Batch.Replace(Batch.Rows.Where(row => !removed.Contains(row.Id)));
+        FileBatch.Remove([.. removed]);
         Family.Remove(removed);
         if (!Mode.IsOn || !Session.IsActive)
         {
@@ -785,6 +803,8 @@ public sealed class EditorHost : IDisposable
             var closed = new EditorClosedEventArgs(_changedWhileOpen, [.. _touched]);
             _touched.Clear();
             Batch.Clear();
+            FileBatch.Close();
+            FileBrowser.Reset();
             _bulkWasOpen = false;
             _lastTool = null;
             _fileOwner = Guid.Empty;

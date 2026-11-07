@@ -12,6 +12,9 @@ public sealed record VideoOrderGroup(Guid ParentWorkId, string Title, IReadOnlyL
 /// <summary>Where a video landed after a hand reorder (1 is first).</summary>
 public sealed record VideoOrderPlacement(Guid WorkId, Guid AssetId, int Position);
 
+/// <summary>Where a section landed after a hand reorder of a series' sections (1 is first).</summary>
+public sealed record VideoSectionPlacement(Guid SectionWorkId, int Position);
+
 /// <summary>
 /// Reads and saves the hand order of the videos in a series. The order is kept in Tuvima's own data, never in the files'
 /// names, so a re-scan leaves it alone.
@@ -29,4 +32,10 @@ public interface IVideoOrderRepository
     /// videos that are there now, so a stale screen can never drop or invent one.
     /// </summary>
     Task<IReadOnlyList<VideoOrderPlacement>?> ReorderAsync(Guid parentWorkId, IReadOnlyList<Guid> orderedWorkIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Puts the sections of <paramref name="seriesWorkId"/> that hold videos in the order given (a section with no video follows them).
+    /// Refused (null) unless the list names exactly the sections that hold videos now.
+    /// </summary>
+    Task<IReadOnlyList<VideoSectionPlacement>?> ReorderSectionsAsync(Guid seriesWorkId, IReadOnlyList<Guid> orderedSectionIds, CancellationToken ct = default);
 }

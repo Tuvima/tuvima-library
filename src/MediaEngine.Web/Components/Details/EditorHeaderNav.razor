@@ -65,8 +65,25 @@
                 {
                     <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Second))" Class="tl-hnav__surface tl-hnav__surface--second">
                         <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
+                            @if (_reorderingSections && EditorNavText.CanReorder(header))
+                            {
+                                <div class="tl-hnav__heading">@L["EditorReorder_SectionsHeading"]</div>
+                                <div class="tl-hnav__scroll tl-hnav__reorder" data-testid="reorder-sections">
+                                    <EditorVideoOrderList EntityId="header.Root.Id"
+                                                          SeriesTitle="@header.Root.Title"
+                                                          Session="Flow?.Session"
+                                                          CanEdit="@(Flow?.Session.IsActive == true)"
+                                                          SectionsMode="true"
+                                                          Compact="true"
+                                                          ShowSort="false"
+                                                          OnDone="DoneReorderingSectionsAsync"
+                                                          OnOrderChanged="FollowSectionOrder" />
+                                </div>
+                            }
+                            else
+                            {
                             <ul class="tl-hnav__options" role="listbox" aria-label="@second.Label">
-                                @foreach (var entry in second.Entries)
+                                @foreach (var entry in OrderedSections(second))
                                 {
                                     var selected = entry.Id == second.CurrentId;
                                     var waiting = pending.GetValueOrDefault(entry.Id);
@@ -93,6 +110,25 @@
                                     </li>
                                 }
                             </ul>
+                            @if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
+                            {
+                                <ul class="tl-hnav__options tl-hnav__options--tail">
+                                    <li>
+                                        <AppRowButton id="tl-hnav-reorder-sections"
+                                                      @onfocusin="@(() => _cursor = "tl-hnav-reorder-sections")"
+                                                      Class="tl-hnav__option tl-hnav__option--plain"
+                                                      OnClick="StartReorderingSections">
+                                            <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" Size="AppIconSize.Control20" /></span>
+                                            <span class="tl-hnav__text">
+                                                <b>@L["EditorReorder_SectionsRow"]</b>
+                                                <small>@L["EditorReorder_RowHint"]</small>
+                                            </span>
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                                        </AppRowButton>
+                                    </li>
+                                </ul>
+                            }
+                            }
                         </div>
                     </AppPopover>
                 }
@@ -173,6 +209,9 @@
     private string? _focusId;
     private string? _cursor;
     private bool _disposed;
+    private bool _reordering;
+    private bool _reorderingSections;
+    private IReadOnlyList<Guid> _sectionOrder = [];
     private IJSObjectReference? _module;
     private DotNetObjectReference<MoreCallback>? _observed;
     private CancellationTokenSource? _reads;
@@ -252,7 +291,24 @@
         var word = EditorNavText.ChooseWord(header);
         <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Item))" Class="tl-hnav__surface tl-hnav__surface--item">
             <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
-                @if (_total > 1 || !string.IsNullOrWhiteSpace(_query))
+              @if (_reordering && EditorNavText.CanReorder(header))
+              {
+                <div class="tl-hnav__heading">@L["EditorReorder_Heading"] @(string.IsNullOrWhiteSpace(header.Level.LevelTitle) ? string.Empty : "· " + header.Level.LevelTitle)</div>
+                <div class="tl-hnav__scroll tl-hnav__reorder" data-testid="reorder-videos">
+                    <EditorVideoOrderList EntityId="header.Root.Id"
+                                          SeriesTitle="@header.Root.Title"
+                                          Session="Flow?.Session"
+                                          CanEdit="@(Flow?.Session.IsActive == true)"
+                                          OnlyList="header.Level.LevelId"
+                                          Compact="true"
+                                          ShowSort="false"
+                                          OnDone="DoneReorderingAsync"
+                                          OnOrderChanged="FollowOrder" />
+                </div>
+              }
+              else
+              {
+                if (_total > 1 || !string.IsNullOrWhiteSpace(_query))
                 {
                     <div class="tl-hnav__search" @onfocusin="@(() => _cursor = null)">
                         <AppSearchField Value="@_query"
@@ -322,6 +378,26 @@
                                        Disabled="@_loading"
                                        OnClick="LoadMoreAsync">@string.Format(L["EditorNav_ShowingOf"].Value, _items.Count, _total)</AppButton>
                         </div>
+                    }
+
+                    @if (EditorNavText.CanReorder(header) && _items.Count >= 2 && string.IsNullOrWhiteSpace(_query))
+                    {
+                        <ul class="tl-hnav__options tl-hnav__options--tail">
+                            <li>
+                                <AppRowButton
+                                           id="tl-hnav-reorder"
+                                           @onfocusin="@(() => _cursor = "tl-hnav-reorder")"
+                                           Class="tl-hnav__option tl-hnav__option--plain"
+                                           OnClick="StartReordering">
+                                    <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" Size="AppIconSize.Control20" /></span>
+                                    <span class="tl-hnav__text">
+                                        <b>@L["EditorReorder_Row"]</b>
+                                        <small>@L["EditorReorder_RowHint"]</small>
+                                    </span>
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                                </AppRowButton>
+                            </li>
+                        </ul>
                     }
 
                     @if (inline.Count > 0)
@@ -396,6 +472,7 @@
                         </ul>
                     }
                 </div>
+              }
             </div>
         </AppPopover>
     };
@@ -426,6 +503,9 @@
             // A new header means a different item or level: the first page comes with it, and an open list is closed.
             _shown = Header;
             _open = Open.None;
+            _reordering = false;
+            _reorderingSections = false;
+            _sectionOrder = Header is { } shownHeader && Flow?.Session.Pending.FindVideoOrder(shownHeader.Root.Id) is { } stagedSections ? stagedSections.OrderedIds : [];
             _query = null;
             _reads?.Cancel();
             ResetItems();
@@ -544,13 +624,30 @@
             return ids;
         }
 
-        if (_open == Open.Second)
+        if (_open == Open.Second && _reorderingSections)
         {
-            ids.AddRange(header.SecondLevel?.Entries.Select(entry => OptionId(entry.Id)) ?? []);
+            return ids;
+        }
+        else if (_open == Open.Second)
+        {
+            ids.AddRange(OrderedSections(header.SecondLevel).Select(entry => OptionId(entry.Id)));
+            if (EditorNavText.CanReorder(header) && (header.SecondLevel?.Entries.Count ?? 0) >= 2)
+            {
+                ids.Add("tl-hnav-reorder-sections");
+            }
+        }
+        else if (_open == Open.Item && _reordering)
+        {
+            return ids;
         }
         else if (_open == Open.Item)
         {
             ids.AddRange(_items.Select(item => OptionId(item.Id)));
+            if (EditorNavText.CanReorder(header) && _items.Count >= 2 && string.IsNullOrWhiteSpace(_query))
+            {
+                ids.Add("tl-hnav-reorder");
+            }
+
             ids.AddRange(header.Level.SupportingFiles.Files.Select(file => OptionId(file.Id)));
             if (header.Level.SupportingFiles.ShowAll)
             {
@@ -643,6 +740,86 @@
         {
             await Flow.SelectToolAsync(EditTool.Match);
         }
+    }
+
+    // Reorder videos (v5 D19): the list turns into an ordered list with handles and Move up / Move down; Done returns to the normal list.
+    private void StartReordering()
+    {
+        _reordering = true;
+        _cursor = null;
+    }
+
+    private Task DoneReorderingAsync()
+    {
+        _reordering = false;
+        ApplyStagedOrder();
+        return Task.CompletedTask;
+    }
+
+    // Reorder sections (v5 D19): the Section dropdown orders the series' sections the same way.
+    private void StartReorderingSections()
+    {
+        _reorderingSections = true;
+        _cursor = null;
+    }
+
+    private Task DoneReorderingSectionsAsync()
+    {
+        _reorderingSections = false;
+        if (Header is { } header && Flow?.Session.Pending.FindVideoOrder(header.Root.Id) is { } staged)
+        {
+            _sectionOrder = staged.OrderedIds;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task FollowSectionOrder(IReadOnlyList<Guid> order)
+    {
+        _sectionOrder = order;
+        return Task.CompletedTask;
+    }
+
+    // The sections in the order the person arranged them (the numbers are the Engine's and renumber on Save).
+    private IReadOnlyList<EditorHeaderLevelEntryDto> OrderedSections(EditorHeaderSecondLevelDto? second)
+    {
+        var entries = second?.Entries ?? [];
+        if (_sectionOrder.Count == 0)
+        {
+            return entries;
+        }
+
+        var position = _sectionOrder.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
+        return [.. entries.OrderBy(entry => position.GetValueOrDefault(entry.Id, int.MaxValue))];
+    }
+
+    // The order the person arranged is shown in the dropdown's list straight away (the codes are the Engine's and renumber on Save).
+    private Task FollowOrder(IReadOnlyList<Guid> order)
+    {
+        ApplyOrder(order);
+        return Task.CompletedTask;
+    }
+
+    private void ApplyStagedOrder()
+    {
+        var parent = Header?.Level.LevelId ?? Header?.Root.Id;
+        if (parent is { } id && Flow?.Session.Pending.FindVideoOrder(id) is { } staged)
+        {
+            ApplyOrder(staged.OrderedIds);
+        }
+    }
+
+    private void ApplyOrder(IReadOnlyList<Guid> order)
+    {
+        if (order.Count == 0)
+        {
+            return;
+        }
+
+        var position = order.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
+        var sorted = _items.OrderBy(item => position.GetValueOrDefault(item.Id, int.MaxValue)).ToList();
+        _items.Clear();
+        _items.AddRange(sorted);
     }
 
     private async Task OpenFileAsync(EditorHeaderSupportingFileDto file)

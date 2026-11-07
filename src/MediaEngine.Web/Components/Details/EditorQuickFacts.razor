@@ -40,13 +40,22 @@
     private FileWriteSetting _writeBack = FileWriteSetting.Unknown;
 
     /// <summary>The editor's loaded item: its fields, kind and the Engine's totals.</summary>
-    [Parameter, EditorRequired] public ItemFieldEditSession? Fields { get; set; }
+    [Parameter] public ItemFieldEditSession? Fields { get; set; }
 
     /// <summary>A supporting file's Preview button: opens its Preview tab. Without it the button is not drawn.</summary>
     [Parameter] public EventCallback OnPreview { get; set; }
 
+    /// <summary>Facts the caller already worked out (several files edited together sum their selection); with it the card reads nothing itself.</summary>
+    [Parameter] public QuickFactsModel? Model { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
+        if (Model is not null)
+        {
+            _model = Model;
+            return;
+        }
+
         if (Fields is not { Loaded: true } fields)
         {
             _model = QuickFactsModel.Empty;

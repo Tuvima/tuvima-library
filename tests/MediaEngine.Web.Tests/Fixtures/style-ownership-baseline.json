@@ -1159,7 +1159,7 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css": {
       "important": 0,
-      "deep": 30
+      "deep": 24
     },
     "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor.css": {
       "important": 0,
@@ -1870,6 +1870,22 @@
       "deep": 2
     },
     "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css": {
       "important": 0,
       "deep": 1
     }
@@ -4435,6 +4451,48 @@
         "::deep .tl-matchcard__art"
       ],
       "reason": "The current match card's picture is an AppImage, so its size rule goes through the Match panel root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".tl-fbrowser ::deep .tl-fbrowser__search",
+        ".tl-fbrowser ::deep .tl-fbrowser__select"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".tl-fbside ::deep .tl-fbside__item",
+        ".tl-fbside ::deep .tl-fbside__item.is-selected"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".tl-fbtable ::deep .tl-fbtable__sort"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".tl-fbfolders ::deep .tl-fbfolders__row"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
     }
   ],
   "finalBundleBytes": 1283347,

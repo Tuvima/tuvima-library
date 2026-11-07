@@ -102,6 +102,25 @@
     font-size: var(--tl-font-size-sm);
 }
 
+.tl-editor-header__filefacts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2) var(--tl-space-4);
+}
+
+.tl-editor-header__filefact {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.tl-editor-header__groupnav {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    margin-top: var(--tl-space-3);
+}
+
 .tl-editor-header__chips {
     display: flex;
     gap: var(--tl-space-2);
