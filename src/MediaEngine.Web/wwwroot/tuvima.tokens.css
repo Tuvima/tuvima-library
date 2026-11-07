@@ -245,6 +245,8 @@
     --playback-panel-width: 400px;
     --playback-panel-wide-width: 560px;
     --playback-panel-speed-width: 420px;
+    --playback-panel-lyrics-width: 460px;
+    --playback-panel-lyrics-height: calc(100dvh - 140px);
     --playback-panel-radius: 8px;
     --playback-panel-row-height: 44px;
     --playback-panel-edge: 12px;

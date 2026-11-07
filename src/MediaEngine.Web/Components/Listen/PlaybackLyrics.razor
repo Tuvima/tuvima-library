@@ -3,147 +3,152 @@
 @using MediaEngine.Web.Components.Shared
 @using Microsoft.AspNetCore.Components
 @using Microsoft.JSInterop
-@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IServiceProvider Services
-@inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
 @inject PlaybackSessionController Playback
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="playback-lyrics" @ref="_root" aria-label="@L["Common_Lyrics"].Value">
-    @if (ShowMenu)
+@* The lyrics themselves (unified player v2 D17; mockup screen 7), without any panel around them, so the lyrics panel and the Now playing page place
+   the same part. Five states: Synced (the current line bold with a purple edge, the list follows the song, a hand scroll shows "Resume following"
+   with "Select a line to jump to that moment" and selecting a timed line jumps there), Unsynced (plain scrolling text), Loading, Unavailable (one line
+   with "Find lyrics" and "Add a lyrics file") and Error (the message with "Try again"). The identity row (small art, song, artist) is for hosts that do
+   not already show the song; the footer (source and the "..." menu) is PlaybackLyricsFooter, drawn here unless the panel supplies its own. *@
+<div class="playback-lyrics" @ref="_root" role="region" data-playback-lyrics data-lyrics-view="@View" aria-label="@L["Common_Lyrics"].Value">
+    @if (ShowIdentity && CurrentItem is { } item)
     {
-        <div class="playback-lyrics__toolbar">
-            <AppOverflowMenu AriaLabel="@L["PlaybackLyrics_LyricsOptions"].Value" Class="playback-lyrics__menu">
-                @if (Presenter.Offers("find_lyrics"))
-                {
-                    <AppMenuItem Label="@L["PlaybackLyrics_LookForLyricsAgain"].Value" Icon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(Presenter.Refreshing)" OnClick="Presenter.RefreshAsync" />
-                    <AppMenuItem Label="@L["PlaybackLyrics_NotRightFindAnother"].Value" Icon="@AppMaterialIcons.Outlined.Search" OnClick="Presenter.OpenAlternativesAsync" />
-                }
-                @if (CanManageLyrics)
-                {
-                    <AppMenuItem Label="@L["PlaybackLyrics_EditLyrics"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageLyricsAsync" />
-                }
-                @if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
-                {
-                    <AppMenuItem Label="@L["PlaybackLyrics_ThisOneIsWrong"].Value" Icon="@AppMaterialIcons.Outlined.Close" OnClick="Presenter.MarkWrongAsync" />
-                }
-            </AppOverflowMenu>
-        </div>
-    }
-    @if (!string.IsNullOrWhiteSpace(Presenter.Status)) { <p class="playback-lyrics__status" role="status">@Presenter.Status</p> }
-    <div class="playback-lyrics__lines" tabindex="0" aria-label="@L["PlaybackLyrics_LyricLines"].Value">
-        @if (Presenter.AlternativesOpen)
-        {
-            <div class="playback-lyrics__alternatives" data-lyrics-state="alternatives">
-                @if (Presenter.AlternativesLoading) { <p class="playback-lyrics__empty">@L["PlaybackLyrics_LookingForOtherLyrics"]</p> }
-                else if (Presenter.Alternatives is { items.Count: > 0 } found)
-                {
-                    <ul>
-                        @foreach (var alternative in found.items)
-                        {
-                            <li>
-                                <AppNativeButton Type="button" Class="playback-lyrics__manage" Disabled="@(alternative.is_current || Presenter.Choosing)"
-                                                 OnClick="@(() => Presenter.ChooseAsync(alternative))">
-                                    <span class="playback-lyrics__alternative"><strong>@alternative.provider_name</strong>
-                                    <span>@(alternative.is_timed ? "Timed to the song" : "Words only")@(alternative.is_current ? " · In use" : null)</span>
-                                    @if (!string.IsNullOrWhiteSpace(alternative.preview)) { <small>@alternative.preview</small> }</span>
-                                </AppNativeButton>
-                            </li>
-                        }
-                    </ul>
-                }
-                else { <p class="playback-lyrics__empty">@(Presenter.Alternatives?.message is { Length: > 0 } message ? message : "No other lyrics were found.")</p> }
-                <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.CloseAlternatives">@L["Common_GoBack"]</AppNativeButton>
-            </div>
-        }
-        else if (Presenter.Loading || Presenter.Refreshing) { <p class="playback-lyrics__empty" data-lyrics-state="looking">@L["PlaybackLyrics_LookingForLyrics"]</p> }
-        else if (Presenter.Lines.Count == 0) {
-            if (Presenter.NoSourceOn)
+        <div class="playback-lyrics__identity" data-lyrics-identity>
+            @if (PlaybackArtworkUrl.ForDrawnSize(item, 44) is not null)
             {
-                <div class="playback-lyrics__notice" role="status" data-lyrics-state="no-source">
-                    <span class="playback-lyrics__notice-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
-                    <div>
-                        <strong>@L["PlaybackLyrics_NoLyricsSourceIsSwitched"]</strong>
-                        <p>Lyrics are fetched from an online lyrics source that is part of Library's plugins. @(IsAdministrator ? "Switch one on and lyrics will appear here." : "Ask an administrator to switch one on.")</p>
-                        <p>@OriginText</p>
-                        @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">@L["PlaybackLyrics_OpenPlugins"]</a> }
-                        @AddLyricsFile
-                    </div>
-                </div>
+                <img class="playback-lyrics__art" src="@PlaybackArtworkUrl.ForDrawnSize(item, 44)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(item, 44)" data-image-display="audio-panel-identity" alt="" />
             }
             else
             {
-                <p class="playback-lyrics__empty" data-lyrics-state="none-found">@L["PlaybackLyrics_NoLyricsFoundForThis"]</p>
-                <p class="playback-lyrics__empty">@OriginText</p>
-                @if (Presenter.Offers("find_lyrics")) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.RefreshAsync">@L["PlaybackLyrics_LookUpLyricsNow"]</AppNativeButton> }
-                @AddLyricsFile
+                <span class="playback-lyrics__art" aria-hidden="true"></span>
             }
-        }
-        else
-        {
-            @for (var index = 0; index < Timeline.Count; index++)
+            <div class="playback-lyrics__identity-text">
+                <div class="playback-lyrics__track">@item.Title</div>
+                @if (!string.IsNullOrWhiteSpace(item.Subtitle)) { <div class="playback-lyrics__artist">@item.Subtitle</div> }
+            </div>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Presenter.Status) && View is not "error")
+    {
+        <p class="playback-lyrics__status" role="status">@Presenter.Status</p>
+    }
+    <div class="playback-lyrics__stage">
+        <div class="playback-lyrics__lines" role="@(HasLines ? "group" : null)" tabindex="@(HasLines ? 0 : null)" aria-label="@(HasLines ? L["PlaybackLyrics_LyricLines"].Value : null)">
+            @switch (View)
             {
-                var line = Timeline[index];
-                var renderedSnapshot = Snapshot;
-                @if (line.IsInstrumental)
-                {
-                    <div class="playback-lyrics__line playback-lyrics__gap" data-lyric-index="@index" aria-label="@L["PlaybackLyrics_Instrumental"].Value">
-                        <span class="playback-lyrics__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                case "alternatives":
+                    <PlaybackLyricsAlternatives />
+                    break;
+                case "about":
+                    <div class="playback-lyrics__state" data-lyrics-state="about">
+                        <PlaybackLyricsAbout />
+                        <AppNativeButton Type="button" Class="playback-lyrics__link" OnClick="CloseAbout">@L["Common_GoBack"]</AppNativeButton>
                     </div>
-                }
-                else if (line.StartSeconds is double time)
-                {
-                    <AppNativeButton Type="button" Class="playback-lyrics__line"
-                                     data-lyric-index="@index"
-                                     AriaLabel="@($"Seek to {line.Text}")" OnClick="@(() => SeekAsync(renderedSnapshot, time))">
-                        @if (line.Words is { Count: > 0 } words)
+                    break;
+                case "loading":
+                    <p class="playback-lyrics__message" role="status" data-lyrics-state="loading">@L["PlaybackLyrics_LookingForLyrics"]</p>
+                    break;
+                case "error":
+                    <div class="playback-lyrics__state" data-lyrics-state="error">
+                        <p class="playback-lyrics__message" role="alert">@Presenter.Status</p>
+                        <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="Presenter.RetryAsync" />
+                    </div>
+                    break;
+                case "unavailable":
+                    <div class="playback-lyrics__state" data-lyrics-state="@(Presenter.NoSourceOn ? "no-source" : "unavailable")">
+                        @if (Presenter.NoSourceOn)
                         {
-                            @for (var wordIndex = 0; wordIndex < words.Count; wordIndex++)
-                            { <span class="playback-lyrics__word" data-word-index="@wordIndex">@words[wordIndex].Text</span> }
+                            <p class="playback-lyrics__message">@L["PlaybackLyrics_NoLyricsSourceIsSwitched"]</p>
+                            <p class="playback-lyrics__hint">@(IsAdministrator ? L["PlaybackLyrics_SwitchOneOn"] : L["PlaybackLyrics_AskAnAdministrator"])</p>
+                            @if (IsAdministrator) { <a class="playback-lyrics__link" href="/settings/plugins">@L["PlaybackLyrics_OpenPlugins"]</a> }
                         }
-                        else { @line.Text }
-                    </AppNativeButton>
-                }
-                else { <p class="playback-lyrics__line playback-lyrics__line--static">@line.Text</p> }
+                        else
+                        {
+                            <p class="playback-lyrics__message">@L["PlaybackLyrics_NoLyricsFoundForThis"]</p>
+                        }
+                        <div class="playback-lyrics__actions">
+                            @if (Presenter.Offers("find_lyrics") && !Presenter.NoSourceOn)
+                            {
+                                <AppButton Label="@L["PlaybackLyrics_FindLyrics"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Presenter.Refreshing" OnClick="Presenter.RefreshAsync" />
+                            }
+                            <AppButton Label="@L["PlaybackLyrics_AddFile"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Presenter.Refreshing" OnClick="OpenFilePickerAsync" />
+                        </div>
+                    </div>
+                    break;
+                default:
+                    @for (var index = 0; index < Timeline.Count; index++)
+                    {
+                        var line = Timeline[index];
+                        var renderedSnapshot = Snapshot;
+                        @if (line.IsInstrumental)
+                        {
+                            <div class="playback-lyrics__line playback-lyrics__gap" data-lyric-index="@index" aria-label="@L["PlaybackLyrics_Instrumental"].Value">
+                                <span class="playback-lyrics__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                            </div>
+                        }
+                        else if (line.StartSeconds is double time)
+                        {
+                            <AppNativeButton Type="button" Class="playback-lyrics__line"
+                                             data-lyric-index="@index"
+                                             AriaLabel="@L["PlaybackLyrics_SeekToLine", line.Text].Value" OnClick="@(() => SelectLineAsync(renderedSnapshot, time))">
+                                @if (line.Words is { Count: > 0 } words)
+                                {
+                                    @for (var wordIndex = 0; wordIndex < words.Count; wordIndex++)
+                                    { <span class="playback-lyrics__word" data-word-index="@wordIndex">@words[wordIndex].Text</span> }
+                                }
+                                else { @line.Text }
+                            </AppNativeButton>
+                        }
+                        else { <p class="playback-lyrics__line playback-lyrics__line--static">@line.Text</p> }
+                    }
+                    break;
             }
+        </div>
+        @if (_needsReturn && View is "synced")
+        {
+            <div class="playback-lyrics__resume" data-lyrics-resume>
+                <AppNativeButton Type="button" Class="playback-lyrics__resume-chip" OnClick="FollowAsync">
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Play" />
+                    <span>@L["PlaybackLyrics_ResumeFollowing"]</span>
+                </AppNativeButton>
+                <p class="playback-lyrics__resume-hint">@L["PlaybackLyrics_SelectALine"]</p>
+            </div>
         }
     </div>
-    @if (Presenter.SourceLine is { } sourceLine)
-    { <small class="playback-lyrics__attribution" data-lyrics-source>@sourceLine</small> }
-    @if (_needsReturn && ActiveIndex >= 0)
-    { <AppNativeButton Type="button" Class="playback-lyrics__return" OnClick="FollowAsync" AriaLabel="@L["PlaybackLyrics_BackToCurrentLine"].Value">@L["PlaybackLyrics_BackToCurrentLine"]</AppNativeButton> }
+    <PlaybackLyricsFilePicker @ref="_picker" />
+    @if (ShowFooter)
+    {
+        <div class="playback-lyrics__footer">
+            <PlaybackLyricsFooter Snapshot="@Snapshot" AboutRequested="OpenAbout" />
+        </div>
+    }
 </div>
 
 @code {
-    private const string OriginText = "Lyrics come from a .lrc file next to the song, or from LRCLIB, a free lyrics service. Library looks them up when it adds a song.";
-    private const long MaxLyricsFileBytes = 5 * 1024 * 1024;
-    private RenderFragment AddLyricsFile => @<AppFileUpload T="Microsoft.AspNetCore.Components.Forms.IBrowserFile" Accept=".lrc,.txt,text/plain" Disabled="@Presenter.Refreshing" FilesChanged="LyricsFileChosenAsync" Class="playback-lyrics__add-file">
-        <CustomContent Context="upload"><AppButton Label="Add a lyrics file" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Presenter.Refreshing" OnClick="upload.OpenFilePickerAsync" /></CustomContent>
-    </AppFileUpload>;
-    private async Task LyricsFileChosenAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
-    {
-        if (file is null) return;
-        if (file.Size > MaxLyricsFileBytes) { Presenter.ShowStatus("That lyrics file is too big. Lyrics files must be 5 MB or smaller."); return; }
-        try
-        {
-            await using var stream = file.OpenReadStream(MaxLyricsFileBytes);
-            await Presenter.ImportFileAsync(file.Name, file.ContentType, stream);
-        }
-        catch (IOException) { Presenter.ShowStatus("That lyrics file could not be read."); }
-    }
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+
+    /// <summary>True draws the song's small art, title and artist above the lines (the lyrics panel); the Now playing page already shows the song.</summary>
+    [Parameter] public bool ShowIdentity { get; set; }
+
+    /// <summary>True draws the source line and "..." menu under the lines. The lyrics panel passes false and puts <see cref="PlaybackLyricsFooter"/> in its own fixed footer.</summary>
+    [Parameter] public bool ShowFooter { get; set; } = true;
+
     private ListenPlaybackSnapshot? _clockSnapshot;
     private IReadOnlyList<PlaybackLyricLine>? _clockLines;
     private string? _clockKey;
     private ElementReference _root;
     private IJSObjectReference? _module;
     private DotNetObjectReference<PlaybackLyrics>? _self;
-    private bool _needsReturn, _disposed;
+    private PlaybackLyricsFilePicker? _picker;
+    private bool _needsReturn, _aboutOpen, _disposed;
+    private string? _focusKey;
     private PlaybackLyricsIdentity? _identity;
     private IReadOnlyList<PlaybackLyricLine>? _sourceLines;
     private IReadOnlyList<PlaybackLyricLine> _timeline = [];
@@ -161,36 +166,39 @@
         }
     }
     private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
-    private bool ShowMenu => CanManageLyrics || Presenter.Offers("find_lyrics") || (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null);
-    private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
-    // The lyrics button opens the pop-over editor over the player (universal editor v3 D6, D18) with this song ticked and the Edit panel open;
-    // nothing navigates away and the music keeps playing. The Engine's own answer says whether the song may be edited.
-    private async Task ManageLyricsAsync()
-    {
-        if (!CanManageLyrics || _identity is not { } identity || Snapshot.CurrentIndex < 0 || Snapshot.CurrentIndex >= Snapshot.Queue.Count)
-            return;
-        var item = Snapshot.Queue[Snapshot.CurrentIndex];
-        var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
-        var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
-        if (Services.GetService<ListEditLauncher>() is { } launcher)
-            await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics");
-    }
-    private int ActiveIndex => Timeline.Select((line, index) => (line, index))
-        .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds
-            && (!row.line.IsInstrumental || Snapshot.CurrentTimeSeconds < row.line.EndSeconds))
-        .OrderByDescending(row => row.line.StartSeconds).Select(row => row.index).DefaultIfEmpty(-1).First();
+    private ListenQueueItem? CurrentItem => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    private bool HasLines => View is "synced" or "unsynced";
+
+    // Which of the five states (or the two lists that replace the lines for a moment) the panel is in.
+    private string View => Presenter.AlternativesOpen ? "alternatives"
+        : _aboutOpen ? "about"
+        : Presenter.Loading || Presenter.Refreshing ? "loading"
+        : Presenter.Lines.Count > 0 ? (Presenter.IsSynced ? "synced" : "unsynced")
+        : Presenter.LoadFailed ? "error"
+        : "unavailable";
+
     protected override void OnInitialized() => Presenter.Changed += Changed;
     protected override async Task OnParametersSetAsync()
     {
         var identity = PlaybackLyricsIdentity.From(Snapshot);
-        if (identity != _identity) { _identity = identity; _needsReturn = false; _clockSnapshot = null; _clockKey = null; }
+        if (identity != _identity) { _identity = identity; _needsReturn = false; _aboutOpen = false; _clockSnapshot = null; _clockKey = null; }
         await Presenter.EnsureAsync(Snapshot, Commands);
         await Presenter.EnsureActionsAsync();
         await Presenter.ProbeSourcesAsync();
     }
     private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
-    private Task SeekAsync(ListenPlaybackSnapshot snapshot, double seconds) => Commands.SendAsync(snapshot,
-        new MediaEngine.Contracts.Playback.ListenPlaybackCommandDto { Action = MediaEngine.Contracts.Playback.ListenPlaybackCommandActions.Seek, Value = seconds });
+    private Task OpenFilePickerAsync() => _picker?.OpenAsync() ?? Task.CompletedTask;
+    private void OpenAbout() { _aboutOpen = true; StateHasChanged(); }
+    private void CloseAbout() { _aboutOpen = false; StateHasChanged(); }
+
+    // Selecting a timed line jumps there, and the list follows the song again from that moment.
+    private async Task SelectLineAsync(ListenPlaybackSnapshot snapshot, double seconds)
+    {
+        await Commands.SendAsync(snapshot,
+            new MediaEngine.Contracts.Playback.ListenPlaybackCommandDto { Action = MediaEngine.Contracts.Playback.ListenPlaybackCommandActions.Seek, Value = seconds });
+        await FollowAsync();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_disposed) return;
@@ -200,6 +208,7 @@
             _self = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("attach", _root, _self);
         }
+        await MoveFocusAsync();
         var key = $"{_identity}:{Presenter.SelectedTrackId}";
         if (_clockKey != key || !ReferenceEquals(_clockLines, Timeline))
         {
@@ -214,6 +223,23 @@
                 lead = Playback.ClientSettings.LyricsLeadMilliseconds });
         }
     }
+
+    // Find another and About lyrics sources replace the lines for a moment; focus goes into them and comes back to the "..." button, never to the page.
+    private async Task MoveFocusAsync()
+    {
+        var view = View;
+        var focusKey = view == "alternatives" ? $"alternatives:{Presenter.AlternativesLoading}" : view;
+        if (focusKey == _focusKey || _module is null) return;
+        var previous = _focusKey;
+        _focusKey = focusKey;
+        if (previous is null) return;
+        if (view is "alternatives" or "about")
+            await _module.InvokeVoidAsync("focusView", _root, view, previous is not null && previous.StartsWith("alternatives:", StringComparison.Ordinal) && view == "alternatives");
+        else if (previous is not null && (previous.StartsWith("alternatives:", StringComparison.Ordinal) || previous == "about"))
+            await _module.InvokeVoidAsync("focusMore", _root);
+    }
+
+    /// <summary>Called by the browser module when the list stops following the song (a hand scroll) or follows it again.</summary>
     [JSInvokable] public Task FollowChanged(bool needsReturn) { _needsReturn = needsReturn; return InvokeAsync(StateHasChanged); }
     private Task FollowAsync() => _module?.InvokeVoidAsync("follow", _root).AsTask() ?? Task.CompletedTask;
     public async ValueTask DisposeAsync()
@@ -222,6 +248,7 @@
         if (_module is not null)
         {
             try { await _module.InvokeVoidAsync("detach", _root); await _module.DisposeAsync(); }
+            // The circuit has already gone, so the browser dropped the page with its listeners; there is nothing left to detach and nobody to tell.
             catch (JSDisconnectedException) { }
         }
         _self?.Dispose();

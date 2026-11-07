@@ -1147,7 +1147,7 @@
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
       "important": 0,
-      "deep": 8
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css": {
       "important": 0,

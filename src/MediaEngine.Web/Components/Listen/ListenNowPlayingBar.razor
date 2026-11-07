@@ -129,10 +129,17 @@
                 @switch (tool.Key)
                 {
                     case PlaybackControlKey.Lyrics:
-                        <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
-                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))">
-                            <ListenContextSidebar ActivePanelKey="lyrics" />
-                        </ListenDockTool>
+                        @if (IsDesktopNowPlaying)
+                        {
+                            @* On the Now playing page the lyrics are a tab of the page, so this tool only selects it. *@
+                            <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
+                                            Inline="true" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" />
+                        }
+                        else
+                        {
+                            @* The Lyrics panel (unified player v2 D17, mockup screen 7); its Open Now playing button does what the artwork does. It stays open when the song changes: the lyrics reset by themselves. *@
+                            <PlaybackLyricsPanel OnOpenNowPlaying="OpenNowPlaying" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))" />
+                        }
                         break;
                     case PlaybackControlKey.Queue:
                         <ListenDockTool PanelKey="queue" Title="@L["ListenNowPlayingBar_QueueAndHistory"].Value" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"

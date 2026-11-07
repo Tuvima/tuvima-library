@@ -188,3 +188,51 @@ test('a phone sheet fills the visual viewport and restores before conditional re
     globalThis.innerWidth = 1280; globalThis.innerHeight = 800;
     popover.detach(state.root);
 });
+
+// Unified player v2: a nested view opening or closing never drops keyboard focus to the page.
+function nestedViews() {
+    const state = openPanel('lyrics-panel');
+    const control = (label, inside) => Object.assign(new Element(), {
+        getClientRects: () => [{}], closest: () => null, getAttribute: name => name === 'aria-label' ? label : null,
+        focus() { document.activeElement = this; state.panel.emit('focusin', { target: this }); }, parentOfPanel: inside,
+    });
+    let controls = [], bodyControls = [];
+    state.panel.querySelectorAll = () => controls;
+    state.panel.querySelector = () => ({ querySelectorAll: () => bodyControls });
+    state.panel.contains = target => controls.includes(target) || target === state.panel;
+    state.panel.focus = () => { document.activeElement = state.panel; };
+    return { ...state, control, show(all, body = all) { controls = all; bodyControls = body; } };
+}
+
+test('opening a nested view focuses its first control, or its back button when it has none, and going back returns to what opened it', () => {
+    const s = nestedViews();
+    const more = s.control('Lyrics options'), back = s.control('Back'), offer = s.control('Offer');
+    s.show([more]); more.focus();
+    // Push into a view that has a control.
+    s.show([back, offer], [offer]);
+    popover.navigated(s.root, s.panel, true);
+    assert.equal(document.activeElement, offer);
+    // Go back: the view is redrawn and the "..." button is a new element with the same name.
+    const redrawnMore = s.control('Lyrics options');
+    s.show([redrawnMore]);
+    popover.navigated(s.root, s.panel, false);
+    assert.equal(document.activeElement, redrawnMore, 'found again by its accessible name');
+    // A view with no control in the body falls back to the first control in the panel (the back button).
+    s.show([back], []); popover.navigated(s.root, s.panel, true);
+    assert.equal(document.activeElement, back);
+    popover.detach(s.root);
+});
+
+test('going back to a control that is still there focuses that very control, and with nothing remembered the first control of the view', () => {
+    const s = nestedViews();
+    const row = s.control('Row'), other = s.control('Other');
+    s.show([row, other]); row.focus();
+    popover.navigated(s.root, s.panel, true);
+    s.show([row, other]);
+    row.isConnected = true; popover.navigated(s.root, s.panel, false);
+    assert.equal(document.activeElement, row);
+    popover.navigated(s.root, s.panel, false); // nothing left to return to
+    assert.equal(document.activeElement, row, 'the first control of the view it lands on');
+    assert.equal(popover.returnTarget(null, s.panel), null);
+    popover.detach(s.root);
+});

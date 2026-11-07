@@ -406,7 +406,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.NotEmpty(cut.FindAll(".listen-context-sidebar__tabs"));
             Assert.Empty(cut.FindAll(".listen-player-panel-backdrop"));
         });
-        var lyrics = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "lyrics");
+        var lyrics = cut.FindComponent<PlaybackLyricsPanel>();
         await cut.InvokeAsync(() => lyrics.Instance.OpenAsync());
         cut.WaitForAssertion(() => Assert.Equal("lyrics", workspace.For(playback).ActivePanelKey));
     }
