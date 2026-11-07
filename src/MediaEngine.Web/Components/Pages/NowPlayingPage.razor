@@ -1,0 +1,306 @@
+@page "/listen/now-playing"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Playback
+@implements IDisposable
+@inject PlaybackSessionController Playback
+@inject ListenContextSidebarState AudioSidebar
+@inject IPlaybackCommandSink Commands
+@inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
+
+<PageTitle>@L["NowPlayingPage_Title"]</PageTitle>
+
+@* The Now playing page for music and audiobooks (unified player v2 D24; mockup screen 13). "Back to library" and Close at the top both return to the page the person
+   came from and never stop playback; the bar's own Close is the only thing that stops and dismisses the player. The large cover and the facts are on the left; the tabs
+   are on the right (music: Lyrics, Queue and History; audiobooks: Chapters and About). The page draws no transport of its own: the persistent bar stays at the bottom
+   and the page shares its one audio element, so nothing about playback changes when the page opens or closes. *@
+<section class="np" aria-label="@L["NowPlayingPage_Title"].Value" data-now-playing-page data-now-playing-media="@(IsBook ? "audiobook" : "music")">
+    <div class="np__top">
+        <AppNativeButton Type="button" Class="np__back" OnClick="LeaveAsync" data-now-playing-back>
+            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Back" />@L["NowPlayingPage_BackToLibrary"]
+        </AppNativeButton>
+        <AppNativeButton Type="button" Class="np__close" AriaLabel="@L["Common_Close"].Value" Tooltip="@L["Common_Close"].Value" OnClick="LeaveAsync" data-now-playing-close>
+            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
+        </AppNativeButton>
+    </div>
+    @if (Current is not { } item)
+    {
+        <p class="np__empty" role="status" data-now-playing-empty>@L["Listen_NothingPlaying"]</p>
+    }
+    else
+    {
+        var snapshot = Playback.CreateSnapshot();
+        <div class="np__body">
+            <div class="np__facts">
+                <div class="np__cover" data-now-playing-cover>
+                    @* The picture is never an empty hole: the tile's own gradient stands in until the image has loaded, and a failed load is tried once more a moment later. *@
+                    @if (PlaybackArtworkUrl.ForItem(item) is { } artworkUrl)
+                    {
+                        <img @key="@($"{item.WorkId}:{_artAttempt}")" src="@PlaybackArtworkUrl.ForItemRetry(item, _artAttempt)" @onerror="HandleArtErrorAsync"
+                             data-image-display="now-playing-artwork" alt="" decoding="async" />
+                    }
+                </div>
+                <div class="np__meta">
+                    <h1 class="np__title">@item.Title</h1>
+                    @if (IsBook)
+                    {
+                        <p class="np__line" data-now-playing-authors>@L["NowPlayingPage_By"] @Contributors(snapshot, item.Authors, item.AuthorName ?? item.Subtitle)</p>
+                        @if (item.Narrators.Count > 0 || !string.IsNullOrWhiteSpace(item.NarratorName))
+                        {
+                            <p class="np__line" data-now-playing-narrators>@L["NowPlayingPage_NarratedBy"] @Contributors(snapshot, item.Narrators, item.NarratorName)</p>
+                        }
+                        @if (ChapterLine is { } chapterLine)
+                        {
+                            <p class="np__sub" data-now-playing-chapter>@chapterLine</p>
+                        }
+                    }
+                    else
+                    {
+                        <p class="np__line np__artist" data-now-playing-artist>
+                            @if (ListenPlaybackIdentityRoutes.Artist(item) is not null)
+                            {
+                                <PlaybackIdentityLink Snapshot="snapshot" Commands="Commands" Kind="artist" Id="item.ArtistPersonId" Text="@item.Subtitle" />
+                            }
+                            else
+                            {
+                                @item.Subtitle
+                            }
+                        </p>
+                        @if (AlbumYear(item) is { } albumYear)
+                        {
+                            <p class="np__sub" data-now-playing-album>@albumYear</p>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="np__tabs-column">
+                <div class="np__tabs-row">
+                    <PlaybackListTabs Tabs="@Tabs" Active="@ActiveTab" ActiveChanged="SelectTabAsync" AriaLabel="@L["NowPlayingPage_Sections"].Value" IdPrefix="np" />
+                    @if (ActiveTab == LyricsTab)
+                    {
+                        <PlaybackLyricsChip />
+                    }
+                </div>
+                <div class="np__panel" id="@PlaybackListTabs.PanelId("np")" role="tabpanel" aria-labelledby="@PlaybackListTabs.TabId("np", ActiveTab)" data-now-playing-panel="@ActiveTab">
+                    @switch (ActiveTab)
+                    {
+                        case LyricsTab:
+                            <PlaybackLyrics Snapshot="@snapshot" Commands="@Commands" />
+                            break;
+                        case QueueTab:
+                            <QueuePanel Snapshot="@snapshot" Commands="@Commands" ShowTabs="false" ActiveTab="upnext" />
+                            break;
+                        case HistoryTab:
+                            <QueuePanel Snapshot="@snapshot" Commands="@Commands" ShowTabs="false" ActiveTab="history" />
+                            break;
+                        case ChaptersTab:
+                            <ChaptersPanel Snapshot="@snapshot" Commands="@Commands" ShowIdentity="false" />
+                            break;
+                        default:
+                            <div class="np__about" data-now-playing-about>
+                                @if (!string.IsNullOrWhiteSpace(item.Synopsis))
+                                {
+                                    <p class="np__synopsis">@item.Synopsis</p>
+                                }
+                                else
+                                {
+                                    <p class="np__synopsis np__synopsis--empty">@L["NowPlayingPage_NoDescription"]</p>
+                                }
+                                @if (Facts(item) is { Count: > 0 } facts)
+                                {
+                                    <dl class="np__facts-list">
+                                        @foreach (var fact in facts)
+                                        {
+                                            <div class="np__fact"><dt>@fact.Label</dt><dd>@fact.Value</dd></div>
+                                        }
+                                    </dl>
+                                }
+                            </div>
+                            break;
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private const string LyricsTab = "lyrics";
+    private const string QueueTab = "queue";
+    private const string HistoryTab = "history";
+    private const string ChaptersTab = "chapters";
+    private const string AboutTab = "about";
+
+    private string? _chosenTab;
+    private long _lastInteraction;
+    private bool _hadItem;
+    private bool _disposed;
+    private Guid _artItemKey;
+    private int _artAttempt;
+    private int _lastChapterNumber = -1;
+
+    private ListenQueueItem? Current => Playback.HasQueue && !Playback.IsVideoMode ? Playback.CurrentItem : null;
+    private bool IsBook => Playback.IsAudiobookMode;
+    private string SidebarContext => IsBook ? "desktop:audiobook" : "desktop:music";
+    private bool HasChapters => Current?.Chapters.Count > 1;
+
+    private IReadOnlyList<PlaybackListTabs.Tab> Tabs => IsBook
+        ? HasChapters
+            ? [new(ChaptersTab, L["Common_Chapters"].Value), new(AboutTab, L["NowPlayingPage_About"].Value)]
+            : [new(AboutTab, L["NowPlayingPage_About"].Value)]
+        : [new(LyricsTab, L["Common_Lyrics"].Value), new(QueueTab, L["Common_Queue"].Value), new(HistoryTab, L["NowPlayingPage_History"].Value)];
+
+    /// <summary>The tab being shown: the one chosen here or by the bar's Lyrics, Queue and Chapters tools, or else the first tab (mockup screen 13 opens on Lyrics).</summary>
+    private string ActiveTab
+    {
+        get
+        {
+            var tabs = Tabs;
+            return tabs.Any(tab => tab.Key == _chosenTab) ? _chosenTab! : tabs[0].Key;
+        }
+    }
+
+    private AudiobookChapterWindow? ChapterNow => IsBook && Current is { } now
+        ? AudiobookChapterWindow.Find(now.Chapters, Playback.CurrentTimeSeconds, Playback.DurationSeconds)
+        : null;
+
+    /// <summary>"Chapter 8 of 24 · Beyond the ridge" (just "Chapter 8 of 24" when the chapter has no title).</summary>
+    private string? ChapterLine => ChapterNow is { } chapter
+        ? string.IsNullOrWhiteSpace(chapter.Title)
+            ? L["NowPlayingPage_ChapterOf", chapter.Number, chapter.Count].Value
+            : L["NowPlayingPage_ChapterOfTitled", chapter.Number, chapter.Count, chapter.Title].Value
+        : null;
+
+    protected override void OnInitialized()
+    {
+        _hadItem = Current is not null;
+        _lastInteraction = AudioSidebar.InteractionGeneration;
+        _lastChapterNumber = ChapterNow?.Number ?? -1;
+        Playback.Changed += OnPlaybackChanged;
+        AudioSidebar.Changed += OnSidebarChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        var key = Current?.WorkId ?? Guid.Empty;
+        if (key == _artItemKey) return;
+        _artItemKey = key;
+        _artAttempt = 0;
+    }
+
+    private void OnPlaybackChanged(PlaybackChangeKind kind)
+    {
+        if (_disposed) return;
+        if (kind is PlaybackChangeKind.TransportTick)
+        {
+            // The position moves every moment; the page only redraws when the audiobook reaches another chapter.
+            var number = ChapterNow?.Number ?? -1;
+            if (number == _lastChapterNumber) return;
+            _lastChapterNumber = number;
+        }
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            // The bar's Close (or a video taking over) ends what this page shows: go back to where the person came from.
+            if (Current is null && _hadItem) { Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav)); return; }
+            _hadItem = Current is not null;
+            StateHasChanged();
+        });
+    }
+
+    private void OnSidebarChanged()
+    {
+        if (_disposed) return;
+        // A tab chosen on the bar (its Lyrics, Queue or Chapters tool) is a person's choice, so it wins over the one chosen earlier on the page.
+        if (AudioSidebar.InteractionGeneration != _lastInteraction)
+        {
+            _lastInteraction = AudioSidebar.InteractionGeneration;
+            if (AudioSidebar.For(Playback).ActivePanelKey is { } key) _chosenTab = key;
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SelectTabAsync(string key)
+    {
+        _chosenTab = key;
+        // The tab is remembered with the bar's own tools; About is only a part of this page.
+        if (key != AboutTab) await AudioSidebar.OpenPanelAsync(SidebarContext, key);
+    }
+
+    private Task LeaveAsync()
+    {
+        Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav));
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleArtErrorAsync()
+    {
+        if (_artAttempt >= 2) return;
+        var key = _artItemKey;
+        await Task.Delay(TimeSpan.FromMilliseconds(1200));
+        if (_disposed || key != _artItemKey) return;
+        _artAttempt++;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string? AlbumYear(ListenQueueItem item) =>
+        string.Join(" · ", new[] { item.Album, item.Year }.Where(part => !string.IsNullOrWhiteSpace(part))) is { Length: > 0 } text ? text : null;
+
+    private RenderFragment Contributors(ListenPlaybackSnapshot snapshot, IReadOnlyList<PlaybackContributorIdentity> people, string? fallback) => builder =>
+    {
+        if (people.Count == 0)
+        {
+            builder.AddContent(0, fallback);
+            return;
+        }
+        var sequence = 1;
+        for (var index = 0; index < people.Count; index++)
+        {
+            var person = people[index];
+            if (index > 0) builder.AddContent(sequence++, "; ");
+            if (ListenPlaybackIdentityRoutes.Contributor(person) is not null)
+            {
+                builder.OpenComponent<PlaybackIdentityLink>(sequence++);
+                builder.AddAttribute(sequence++, nameof(PlaybackIdentityLink.Snapshot), snapshot);
+                builder.AddAttribute(sequence++, nameof(PlaybackIdentityLink.Commands), Commands);
+                builder.AddAttribute(sequence++, nameof(PlaybackIdentityLink.Kind), "person");
+                builder.AddAttribute(sequence++, nameof(PlaybackIdentityLink.Id), person.PersonId);
+                builder.AddAttribute(sequence++, nameof(PlaybackIdentityLink.Text), person.Name);
+                builder.CloseComponent();
+            }
+            else
+            {
+                builder.AddContent(sequence++, person.Name);
+            }
+        }
+    };
+
+    private sealed record Fact(string Label, string Value);
+
+    /// <summary>The book facts the player already holds (nothing new is fetched for this page).</summary>
+    private List<Fact> Facts(ListenQueueItem item)
+    {
+        var facts = new List<Fact>();
+        void Add(string label, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value)) facts.Add(new(label, value));
+        }
+        Add(L["NowPlayingPage_Author"].Value, item.Authors.Count > 0 ? string.Join("; ", item.Authors.Select(author => author.Name)) : item.AuthorName ?? item.Subtitle);
+        Add(L["NowPlayingPage_Narrator"].Value, item.Narrators.Count > 0 ? string.Join("; ", item.Narrators.Select(narrator => narrator.Name)) : item.NarratorName);
+        Add(L["NowPlayingPage_Year"].Value, item.Year);
+        Add(L["NowPlayingPage_Length"].Value, item.Duration);
+        Add(L["NowPlayingPage_Quality"].Value, item.Quality);
+        return facts;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Playback.Changed -= OnPlaybackChanged;
+        AudioSidebar.Changed -= OnSidebarChanged;
+    }
+}

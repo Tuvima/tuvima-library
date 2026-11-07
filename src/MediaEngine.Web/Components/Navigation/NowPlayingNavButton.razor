@@ -2,11 +2,13 @@
 @implements IDisposable
 @inject PlaybackSessionController Playback
 @inject NavigationManager Nav
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 
 @* Unified player D7a: while something is playing, a small animated sound-bars mark sits in the top bar. For audio it opens or
-   closes the Now Playing page over the current page; for video it returns to the player page. Playback never stops either way. *@
+   closes the Now playing page (route /listen/now-playing); for video it returns to the player page. Playback never stops either way. *@
 @if (Playback.HasQueue && Playback.CurrentItem is not null && !Playback.IsDismissed)
 {
     <span class="now-playing-nav-button" data-now-playing-nav>
@@ -19,6 +21,9 @@
 }
 
 @code {
+    // The page under the details overlay counts as the current page while it is open.
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private readonly Dictionary<string, object> _labelAttributes = new() { ["aria-label"] = "Now playing" };
 
     protected override void OnInitialized() => Playback.Changed += OnPlaybackChanged;
@@ -37,9 +42,20 @@
                 Nav.NavigateTo($"/watch/player/{workId:D}");
             return;
         }
-        Playback.SetPresentationSurface(Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying
-            ? PlaybackPresentationSurface.Docked
-            : PlaybackPresentationSurface.NowPlaying);
+        if (DeviceContext.IsPhone)
+        {
+            Playback.SetPresentationSurface(Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying
+                ? PlaybackPresentationSurface.Docked
+                : PlaybackPresentationSurface.NowPlaying);
+            return;
+        }
+        // A desktop opens the Now playing page, remembering where the person was, or goes back from it (unified player v2 D24).
+        if (NowPlayingRoute.IsNowPlaying(Nav.Uri))
+        {
+            Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav));
+            return;
+        }
+        Nav.NavigateTo(NowPlayingRoute.Build(DetailsOverlayState.ToAppPath(Nav, RoutedPageAddress.AbsoluteFor(Nav, Overlay))));
     }
 
     private Task OpenAsync() { Open(); return Task.CompletedTask; }

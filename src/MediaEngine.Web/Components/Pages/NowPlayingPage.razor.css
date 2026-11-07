@@ -1,0 +1,201 @@
+/* The Now playing page (unified player v2 D24; mockup screen 13). It fills the space between the top bar and the persistent bar, so the bar below it stays exactly as it is while
+   browsing. Colors, text sizes and states come from the player's own tokens; the cover and column sizes are the mockup's. */
+.np {
+    background: radial-gradient(90% 70% at 25% 35%, color-mix(in srgb, var(--playback-accent) 26%, var(--playback-bg)), var(--playback-bg) 70%);
+    box-sizing: border-box;
+    color: var(--playback-text);
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px) - var(--tl-audio-dock-height, 0px));
+    min-height: 0;
+    overflow: hidden;
+}
+
+.np__top {
+    --playback-glyph-size: 24px;
+    align-items: center;
+    display: flex;
+    flex: none;
+    font-size: 15px;
+    justify-content: space-between;
+    padding: 16px 24px;
+}
+
+.np__top ::deep button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    gap: 8px;
+    justify-content: center;
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: 0;
+}
+
+.np__top ::deep button:hover {
+    background: var(--playback-state-hover);
+}
+
+.np__top ::deep button:active {
+    background: var(--playback-state-pressed);
+}
+
+.np__top ::deep button:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.np__top ::deep .np__back {
+    --playback-glyph-size: 20px;
+    padding: 0 12px 0 8px;
+}
+
+.np__body {
+    display: grid;
+    flex: 1;
+    gap: 40px;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    min-height: 0;
+    padding: 8px 48px 24px;
+}
+
+.np__facts {
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.np__cover {
+    aspect-ratio: 1;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--playback-accent) 70%, var(--playback-bg)), color-mix(in srgb, var(--playback-blue) 50%, var(--playback-bg)));
+    border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    width: min(280px, 100%);
+}
+
+.np__cover img {
+    display: block;
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.np__meta {
+    margin-top: 14px;
+    min-width: 0;
+}
+
+.np__title {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 2px;
+    overflow-wrap: anywhere;
+}
+
+.np__line {
+    font-size: 15px;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.np__artist {
+    color: var(--playback-accent-hover);
+}
+
+.np__sub {
+    color: var(--playback-text-secondary);
+    font-size: 13px;
+    margin: 2px 0 0;
+}
+
+.np__tabs-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+}
+
+.np__tabs-row {
+    align-items: center;
+    display: flex;
+    flex: none;
+    gap: 8px;
+}
+
+.np__tabs-row > :first-child {
+    flex: 1;
+}
+
+.np__panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.np__about {
+    padding: 20px 0;
+}
+
+.np__synopsis {
+    color: var(--playback-text);
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+    max-width: 68ch;
+    white-space: pre-line;
+}
+
+.np__synopsis--empty {
+    color: var(--playback-text-secondary);
+}
+
+.np__facts-list {
+    display: grid;
+    gap: 12px 24px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    margin: 0;
+}
+
+.np__fact dt {
+    color: var(--playback-text-secondary);
+    font-size: 13px;
+}
+
+.np__fact dd {
+    font-size: 15px;
+    margin: 2px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.np__empty {
+    color: var(--playback-text-secondary);
+    margin: 0;
+    padding: 24px 48px;
+}
+
+@media (max-width: 840px) {
+    .np {
+        height: auto;
+        min-height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px) - var(--tl-audio-dock-height, 0px));
+        overflow: visible;
+    }
+
+    .np__top {
+        padding: 8px 12px;
+    }
+
+    .np__body {
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+        padding: 8px 16px 24px;
+    }
+}

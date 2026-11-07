@@ -281,19 +281,6 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Assert.StartsWith("History", tabs[1].TextContent.Trim());
     }
 
-    [Fact]
-    public void DesktopUsesTheSameSongActionsAndAnIconOnlyLyricsTab()
-    {
-        var cut = Render<PlaybackDesktopScene>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, new Sink())
-            .Add(x => x.FavoriteChanged, () => { }).Add(x => x.PanelKey, "queue"));
-        Assert.Equal(new[] { "Favorite", "Like", "More" }, cut.FindAll("button.playback-song-action svg").Select(x => x.GetAttribute("data-playback-glyph")));
-        Assert.Equal("expanded", cut.Find(".playback-song-actions .playback-popover-owner").GetAttribute("data-playback-popover-surface"));
-        Assert.Empty(cut.FindAll(".playback-song-actions .tl-icon,.playback-panel-card h2"));
-        Assert.Equal(string.Empty, cut.Find("[role='tab'][aria-label='Lyrics']").TextContent.Trim());
-        Assert.Contains("Up Next", cut.Find(".playback-desktop__tabs").TextContent);
-        Assert.Contains("History", cut.Find(".playback-desktop__tabs").TextContent);
-    }
-
     private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>
         cut.Find($".playback-full__modes button[aria-label='{key}']").ClickAsync();
     private static ListenPlaybackSnapshot Snapshot() => new()

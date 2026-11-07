@@ -7,6 +7,7 @@ using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -169,8 +170,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Single(cut.FindAll("button[aria-label='Add song to Favorites']"));
         Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
         await cut.Find("button[aria-label='Open Now Playing']").ClickAsync();
+        // A desktop-width bar opens the Now playing page (unified player v2 D24); the phone's expanded player is covered by the 720 px boundary test.
         Assert.Equal(request, playback.PlaybackRequestVersion);
-        Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+        Assert.Equal(NowPlayingRoute.Path, new Uri(Services.GetRequiredService<NavigationManager>().Uri).AbsolutePath);
+        Assert.Equal(PlaybackPresentationSurface.Docked, playback.PresentationSurface);
         Assert.Single(cut.FindAll("button[aria-label='Close']"));
     }
 
@@ -180,7 +183,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     [InlineData(721, false)]
     [InlineData(720, true)]
     [InlineData(390, true)]
-    public async Task AudioSceneUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
+    public async Task AudioPlayerUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
     {
         var api = EngineApiClientStub.CreateDefault();
         var bookAsset = Guid.NewGuid();
@@ -192,11 +195,19 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var cut = Render<ListenNowPlayingBar>();
         var requestVersion = playback.PlaybackRequestVersion;
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(width));
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        // A phone opens the expanded player over the page; a desktop opens the Now playing page (unified player v2 D24).
+        if (phone)
+        {
+            await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        }
+        else
+        {
+            await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo(NowPlayingRoute.Path));
+        }
+
         Assert.True(device.IsMobile);
-        Assert.Equal(phone ? 0 : 1, cut.FindAll(".playback-desktop--book").Count);
         Assert.Equal(phone ? 1 : 0, cut.FindAll(".playback-full--phone").Count);
-        // The phone's collapsed bar keeps one tool (Now playing); the desktop bar hosts Chapters, and it follows the open scene inline.
+        // The phone's collapsed bar keeps one tool (Now playing); the desktop bar hosts Chapters, and it follows the open page inline.
         var chapterTools = cut.FindComponents<ListenDockTool>().Where(tool => tool.Instance.PanelKey == "chapters").ToList();
         if (phone)
         {
@@ -493,8 +504,14 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-chapters-identity]")));
         Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
 
+        // On a desktop Now playing is the page: the bar's Chapters tool then selects the page's tab and the Now playing tool shows as selected.
+        await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo(NowPlayingRoute.Path));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters").Instance.Inline);
+            Assert.Contains("is-selected", cut.Find("[data-playback-zone='tools'] button[aria-label='Now playing']").ClassName);
+        });
         playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop--book")));
 
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.SwitchDeviceAsync("mobile");
@@ -542,7 +559,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain("listen-transport--phone-audiobook", cut.Markup);
-            Assert.NotEmpty(cut.FindAll(".playback-desktop--book"));
+            Assert.Empty(cut.FindAll(".playback-full--phone"));
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
         Assert.False(playback.IsPanelOpen);
@@ -602,10 +619,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
 
         var firstStableOffCalls = jsRuntime.OffCalls;
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop")));
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.Docked));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".playback-desktop")));
+        await OpenNowPlayingPageAsync(cut);
+        await LeaveNowPlayingPageAsync(cut);
         Assert.Equal(firstStableOffCalls, jsRuntime.OffCalls);
 
         var stableOffCalls = jsRuntime.OffCalls;
@@ -619,8 +634,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(AudiobookSleepTimerModes.Off, playback.SleepTimerState.Mode);
         Assert.Equal(1, jsRuntime.CandidateCalls);
 
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop")));
+        await OpenNowPlayingPageAsync(cut);
         Assert.Equal(stableOffCalls, jsRuntime.OffCalls);
         Assert.Equal(1, jsRuntime.CandidateCalls);
 
@@ -642,8 +656,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         // deadline, and the bar's Sleep timer panel keeps showing the session's own state.
         var deadline = playback.SleepTimerState.DeadlineUtc;
         Assert.NotNull(deadline);
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.Docked));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".playback-desktop")));
+        await LeaveNowPlayingPageAsync(cut);
         Assert.Equal(deadline, playback.SleepTimerState.DeadlineUtc);
         Assert.Equal(deadline, cut.FindComponent<SleepTimerPanel>().Instance.State.DeadlineUtc);
         Assert.Equal(15, cut.FindComponent<SleepTimerPanel>().Instance.State.ChosenMinutes);
@@ -1052,6 +1065,19 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Subtitle = artist,
         Duration = "3:24",
     };
+
+    // Now playing on a desktop is the routed page (unified player v2 D24): the bar knows it is open from the address and shows its Now playing tool as selected.
+    private async Task OpenNowPlayingPageAsync(IRenderedComponent<ListenNowPlayingBar> bar)
+    {
+        await bar.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo(NowPlayingRoute.Path));
+        bar.WaitForAssertion(() => Assert.Contains("is-selected", bar.Find("[data-playback-zone='tools'] button[aria-label='Now playing']").ClassName));
+    }
+
+    private async Task LeaveNowPlayingPageAsync(IRenderedComponent<ListenNowPlayingBar> bar)
+    {
+        await bar.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo("/listen"));
+        bar.WaitForAssertion(() => Assert.DoesNotContain("is-selected", bar.Find("[data-playback-zone='tools'] button[aria-label='Now playing']").ClassName));
+    }
 
     private sealed class BarToggle : ComponentBase
     {
