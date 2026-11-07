@@ -30,8 +30,16 @@ public sealed class TooltipGuardrailTests : AsyncBunitContext
                 var tag = Regex.Matches(text[..match.Index], "<([A-Za-z][\\w.:-]*)").Cast<Match>().LastOrDefault()?.Groups[1].Value ?? string.Empty;
                 var isHtmlElement = tag.Length > 0 && char.IsLower(tag[0]);
                 var isLowerAttribute = text[match.Index] == 't';
-                if (!isLowerAttribute && !tag.Equals("AppNativeButton", StringComparison.Ordinal)) continue;
-                if (isLowerAttribute && isHtmlElement && TitleAllowlist.Contains(tag)) continue;
+                if (!isLowerAttribute && !tag.Equals("AppNativeButton", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (isLowerAttribute && isHtmlElement && TitleAllowlist.Contains(tag))
+                {
+                    continue;
+                }
+
                 var line = text[..match.Index].Count(c => c == '\n') + 1;
                 offenders.Add($"{Path.GetRelativePath(RepoRoot(), path)}:{line} <{tag}>");
             }
@@ -51,10 +59,18 @@ public sealed class TooltipGuardrailTests : AsyncBunitContext
             foreach (Match open in Regex.Matches(text, "<(App\\w+|Playback\\w+|Media\\w+)\\b"))
             {
                 var end = EndOfStartTag(text, open.Index + open.Length);
-                if (end < 0) continue;
+                if (end < 0)
+                {
+                    continue;
+                }
+
                 var tag = text[open.Index..(end + 1)];
                 var tooltip = AttributeValue(tag, "Tooltip");
-                if (tooltip is null) continue;
+                if (tooltip is null)
+                {
+                    continue;
+                }
+
                 var visible = new List<string?> { AttributeValue(tag, "Text"), AttributeValue(tag, "Label") };
                 if (!tag.TrimEnd('>').EndsWith('/'))
                 {
@@ -69,7 +85,9 @@ public sealed class TooltipGuardrailTests : AsyncBunitContext
 
                 var line = text[..open.Index].Count(c => c == '\n') + 1;
                 if (visible.Any(v => v is not null && Normalise(v).Length > 0 && Normalise(v) == Normalise(tooltip)))
+                {
                     offenders.Add($"{Path.GetRelativePath(RepoRoot(), path)}:{line} <{open.Groups[1].Value}> Tooltip={tooltip}");
+                }
             }
         }
 
@@ -135,8 +153,14 @@ public sealed class TooltipGuardrailTests : AsyncBunitContext
         var quoted = false;
         for (var i = from; i < text.Length; i++)
         {
-            if (text[i] == '"') quoted = !quoted;
-            else if (!quoted && text[i] == '>') return i;
+            if (text[i] == '"')
+            {
+                quoted = !quoted;
+            }
+            else if (!quoted && text[i] == '>')
+            {
+                return i;
+            }
         }
 
         return -1;
