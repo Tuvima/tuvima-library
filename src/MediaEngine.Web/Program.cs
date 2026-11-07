@@ -433,6 +433,7 @@ builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
 builder.Services.AddScoped<PlayerPreferenceService>();
+builder.Services.AddScoped<PlaybackSettingsActions>();
 builder.Services.AddScoped<ContextSidebarPreferences>();
 builder.Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
 builder.Services.AddScoped<ListenContextSidebarState>();

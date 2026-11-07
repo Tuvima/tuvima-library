@@ -91,7 +91,15 @@
                 @* Music: Favorite, Like, Dislike and More. Audiobooks: Favorite and More (unified player v2 D5, D23). *@
                 <PlaybackIdentityActions Media="@BarMedia" Item="@Playback.CurrentItem" Surface="dock"
                                          IsFavorite="@BarIsFavorite" FavoriteChanged="@BarFavoriteChanged"
-                                         Snapshot="@dockSnapshot" Commands="@PanelCommands" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" />
+                                         Snapshot="@dockSnapshot" Commands="@PanelCommands" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))">
+                    <SettingsPanel Context="anchor">
+                        @* Playback settings from the "..." menu (unified player v2 D14): speed and skip lengths for audiobooks, only Playback information for music. *@
+                        <PlaybackSettingsPanel Media="@BarMedia" Surface="dock" ShowTrigger="false" Trigger="@anchor.Trigger" Open="@anchor.Open" OpenChanged="@anchor.OpenChanged"
+                                               ItemKey="@DockItemKey" Rate="@Playback.PlaybackRate" RateChanged="SetAudiobookSpeedAsync"
+                                               SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
+                                               Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />
+                    </SettingsPanel>
+                </PlaybackIdentityActions>
             </IdentityActions>
             <TimelineContent>
                 @* The timeline above the row (unified player v2 D9): elapsed, the rail, the time left. An audiobook with chapters adds its label between the
@@ -140,17 +148,15 @@
                         </ListenDockTool>
                         break;
                     case PlaybackControlKey.Speed:
-                        <AudiobookSettingsPopover Surface="dock" Title="@tool.AriaLabel" IsOn="@tool.IsActive" TriggerText="@tool.ValueText" TriggerClass="playback-shell__chip"
-                                                  Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "speed")" OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("speed", state))"
-                                                  PlaybackRate="@Playback.PlaybackRate" PlaybackRateChanged="SetAudiobookSpeedAsync"
-                                                  SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
-                                                  SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
-                                                  ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="ChangeShowBookmarksOnBarAsync" />
+                        @* The speed value on the bar opens the Speed panel directly (unified player v2 D15, mockup screen 5). *@
+                        <PlaybackSpeedPanel Surface="dock" Rate="@Playback.PlaybackRate" RateChanged="SetAudiobookSpeedAsync" ItemKey="@DockItemKey"
+                                            IsOn="@tool.IsActive" TriggerText="@tool.ValueText" TriggerClass="playback-shell__chip"
+                                            Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "speed")"
+                                            OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("speed", state))" />
                         break;
                     case PlaybackControlKey.SleepTimer:
                         <AudiobookSettingsPopover Surface="dock" Title="@tool.AriaLabel" IsOn="@tool.IsActive" TriggerGlyph="PlaybackUtilityGlyphKind.Sleep"
                                                   Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "sleep")" OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("sleep", state))"
-                                                  PlaybackRate="@Playback.PlaybackRate" PlaybackRateChanged="SetAudiobookSpeedAsync"
                                                   SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
                                                   SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
                                                   ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="ChangeShowBookmarksOnBarAsync" />
@@ -1764,7 +1770,22 @@
         await Playback.SetPlaybackRateAsync(rate);
     }
 
-    private async Task HandleSettingsMenuOpenChangedAsync(PlaybackSpeedMenuState state)
+    // Playback settings (unified player v2 D14): a new skip length is saved on the profile and the bar's skip buttons take it at once.
+    private async Task ChangeSkipLengthAsync(PlaybackSkipChange change)
+    {
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.SetSkipLengthAsync(change)) return;
+        Snackbar.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
+
+    // "Reset playback preferences": the skip lengths go back to the defaults and audiobooks play at normal speed.
+    private async Task ResetPlaybackPreferencesAsync()
+    {
+        if (Playback.IsAudiobookMode) await Playback.SetPlaybackRateAsync(PlaybackSpeedChoices.Normal);
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.ResetSkipLengthsAsync()) return;
+        Snackbar.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
+
+    private async Task HandleSettingsMenuOpenChangedAsync(PlaybackToolOpenState state)
     {
         if (!state.IsOpen)
         {
@@ -1790,8 +1811,8 @@
         _settingsMenuTool = null;
     }
 
-    // The bar's Speed and Sleep timer tools both open today's audiobook settings menu until the tool panels are rebuilt; this keeps only the pressed one open.
-    private async Task HandleBarSettingsOpenChangedAsync(string tool, PlaybackSpeedMenuState state)
+    // The bar's Speed panel and Sleep timer menu (which stays until the Sleep timer panel replaces it) share this state, so only the pressed one is open.
+    private async Task HandleBarSettingsOpenChangedAsync(string tool, PlaybackToolOpenState state)
     {
         if (!state.IsOpen && _settingsMenuTool != tool) return;
         await HandleSettingsMenuOpenChangedAsync(state);

@@ -16,8 +16,8 @@
 <span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-chrome-hold>
     @if (TriggerContent is not null)
     {
-        <AppTooltip Text="@Title" Suppressed="@IsOpen">
-            <AppNativeButton @ref="_triggerButton" Class="@($"playback-popover-trigger {TriggerClass}")" AriaLabel="@Title" Disabled="@Disabled"
+        <AppTooltip Text="@(TriggerLabel ?? Title)" Suppressed="@IsOpen">
+            <AppNativeButton @ref="_triggerButton" Class="@($"playback-popover-trigger {TriggerClass}")" AriaLabel="@(TriggerLabel ?? Title)" Disabled="@Disabled"
                              aria-haspopup="dialog" aria-expanded="@(IsOpen ? "true" : "false")" aria-controls="@PanelId">
                 @TriggerContent
             </AppNativeButton>
@@ -88,6 +88,9 @@
     /// <summary>"panel", "dock", "phone", "expanded", "popup" or "video". Over video the surface is the same color at 96% opacity.</summary>
     [Parameter] public string Surface { get; set; } = "panel";
     [Parameter] public string? TriggerClass { get; set; }
+
+    /// <summary>The trigger's accessible name and tooltip when they differ from the panel's title (the Speed chip is named "Playback speed 1.25×" so its visible text is in its name).</summary>
+    [Parameter] public string? TriggerLabel { get; set; }
 
     /// <summary>True draws the fixed header (back, title, close). False leaves the heading to the content (menus, and panels not rebuilt yet).</summary>
     [Parameter] public bool ShowHeading { get; set; } = true;

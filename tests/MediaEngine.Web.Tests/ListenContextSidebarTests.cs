@@ -30,47 +30,6 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PlaybackSpeedControlShowsExactFractionalSelectionAndBlocksMalformedRate()
-    {
-        Render<AppPopoverHost>();
-        var initial = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, 1.2345d)
-            .Add(component => component.Surface, "dock"));
-
-        Assert.Contains("1.2345x", initial.Markup);
-        var choices = PlaybackRateOptions.BuildChoices(1.2345d);
-        Assert.Contains(choices, option => option.Label == "0.75x");
-        Assert.Contains(choices, option => option.Label == "1.25x");
-        Assert.Contains(choices, option => option.Label == "1.75x");
-        Assert.Contains(choices, option => option.Label == "1.2345x" && option.Rate == 1.2345d);
-
-        var malformed = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, double.NaN));
-        Assert.Contains("Playback speed unavailable", malformed.Markup);
-        Assert.DoesNotContain("1.0x", malformed.Markup);
-    }
-
-    [Fact]
-    public async Task PlaybackSpeedControlReportsOpenRequestsAndFollowsControlledState()
-    {
-        Render<AppPopoverHost>();
-        bool? requestedOpen = null;
-        var closed = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, 1.25d)
-            .Add(component => component.Open, false)
-            .Add(component => component.MenuOpenChanged, EventCallback.Factory.Create<bool>(this, value => requestedOpen = value)));
-
-        await closed.InvokeAsync(() => closed.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
-
-        Assert.True(requestedOpen);
-        Assert.Equal("true", closed.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded"));
-        var opened = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, 1.25d)
-            .Add(component => component.Open, true));
-        Assert.Equal("true", opened.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded"));
-    }
-
-    [Fact]
     public void QueueShowsTheCurrentItemBeforeUpcomingItemsInTheSharedRowLayout()
     {
         var current = CreateItem("Current song", "Artist");
@@ -539,12 +498,18 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
         cut.WaitForAssertion(() =>
         {
-            Assert.NotEmpty(phoneFull.FindAll("[data-settings-row='speed']"));
+            // Unified player v2 D15: speed has its own panel, opened from the speed value; the gear keeps the sleep timer and the bookmark switch.
+            Assert.Empty(phoneFull.FindAll("[data-settings-row='speed']"));
             Assert.NotEmpty(phoneFull.FindAll("[data-settings-row='sleep']"));
             Assert.NotEmpty(phoneFull.FindAll(".player-settings-menu__switch"));
         });
         await cut.InvokeAsync(() => gear.Instance.CloseAsync());
         cut.WaitForAssertion(() => Assert.Equal("false", gear.Find("button").GetAttribute("aria-expanded")));
+        var speed = phoneFull.FindComponent<PlaybackSpeedPanel>().FindComponent<PlaybackPanel>();
+        Assert.Equal("Playback speed 1×", speed.Find("button").GetAttribute("aria-label"));
+        await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotEmpty(phoneFull.FindAll("[data-playback-speed-view]")));
+        await cut.InvokeAsync(() => speed.Instance.CloseAsync());
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
         await cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync();

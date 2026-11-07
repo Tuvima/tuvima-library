@@ -5,16 +5,7 @@
 <div class="@RootClass" role="toolbar" aria-label="@AriaLabel">
     @foreach (var control in Controls)
     {
-        @if (control.Key == PlaybackControlKey.Speed && SpeedChanged.HasDelegate)
-        {
-            <PlaybackSpeedControl Value="@SpeedValue"
-                                  ValueChanged="@SpeedChanged"
-                                  Open="@SpeedMenuOpen"
-                                  MenuOpenChanged="HandleSpeedMenuOpenChanged"
-                                  Surface="@Surface"
-                                  Class="playback-control-strip__speed" />
-        }
-        else if (control.Key == PlaybackControlKey.SleepTimer && SleepTimerChanged.HasDelegate && SleepTimerState is not null && SleepTimerAvailability is not null)
+        @if (control.Key == PlaybackControlKey.SleepTimer && SleepTimerChanged.HasDelegate && SleepTimerState is not null && SleepTimerAvailability is not null)
         {
             <PlaybackSleepTimerControl State="@SleepTimerState"
                                        OptionsMinutes="@SleepTimerOptionsMinutes"
@@ -72,18 +63,6 @@
     [Parameter]
     public RenderFragment<PlaybackControlDefinition>? SettingsContent { get; set; }
 
-    [Parameter]
-    public double SpeedValue { get; set; } = 1d;
-
-    [Parameter]
-    public EventCallback<double> SpeedChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<PlaybackSpeedMenuState> SpeedMenuOpenChanged { get; set; }
-
-    [Parameter]
-    public bool SpeedMenuOpen { get; set; }
-
     [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
     [Parameter] public AudiobookSleepTimerAvailabilityDto? SleepTimerAvailability { get; set; }
     [Parameter] public IReadOnlyList<int> SleepTimerOptionsMinutes { get; set; } = [];
@@ -91,7 +70,7 @@
     [Parameter] public bool SleepTimerOffersEndOfChapter { get; set; } = true;
     [Parameter] public EventCallback<AudiobookSleepTimerSelectionDto> SleepTimerChanged { get; set; }
     [Parameter] public bool SleepMenuOpen { get; set; }
-    [Parameter] public EventCallback<PlaybackSpeedMenuState> SleepMenuOpenChanged { get; set; }
+    [Parameter] public EventCallback<PlaybackToolOpenState> SleepMenuOpenChanged { get; set; }
 
     private string NormalizedSize => Size switch
     {
@@ -117,11 +96,8 @@
 
     private string NormalizedAppearance => Appearance == "bare" ? "bare" : "standard";
 
-    private Task HandleSpeedMenuOpenChanged(bool isOpen) =>
-        SpeedMenuOpenChanged.InvokeAsync(new PlaybackSpeedMenuState(Surface, isOpen));
-
     private Task HandleSleepMenuOpenChanged(bool isOpen) =>
-        SleepMenuOpenChanged.InvokeAsync(new PlaybackSpeedMenuState(Surface, isOpen));
+        SleepMenuOpenChanged.InvokeAsync(new PlaybackToolOpenState(Surface, isOpen));
 
     private Task HandleControlActivatedAsync(PlaybackControlDefinition control, ElementReference trigger) =>
         OnControlActivation.HasDelegate

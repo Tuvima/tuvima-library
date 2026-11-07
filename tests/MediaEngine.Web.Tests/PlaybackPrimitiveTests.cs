@@ -189,14 +189,17 @@ public sealed class PlaybackPrimitiveTests
         var popup = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor"));
         var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor"));
         var strip = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
-        var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor"));
+        var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor"));
+        var speedView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor"));
         var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor"));
         var sleepChoices = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
         var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor"));
 
         Assert.Contains("<PlaybackShell", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackFullPlayer", popup, StringComparison.Ordinal);
-        Assert.Contains("PlaybackRateChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
+        Assert.Contains("RateChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackSpeedPanel", bar, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackSpeedPanel", full, StringComparison.Ordinal);
         Assert.Contains("<AudiobookSettingsPopover", bar, StringComparison.Ordinal);
         Assert.Contains("<AudiobookSettingsPopover", full, StringComparison.Ordinal);
         Assert.Contains("ListenPlaybackCommandActions.SetSpeed", full, StringComparison.Ordinal);
@@ -210,12 +213,12 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("SleepTimerChanged=", full, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", bar, StringComparison.Ordinal);
         Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full, StringComparison.Ordinal);
-        Assert.Contains("control.Key == PlaybackControlKey.Speed", strip, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackSpeedControl", strip, StringComparison.Ordinal);
+        // Unified player v2 D15: the speed value on the bar opens the Speed panel; the strip no longer draws a speed control of its own.
+        Assert.DoesNotContain("PlaybackSpeedControl", strip, StringComparison.Ordinal);
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPanel", speed, StringComparison.Ordinal);
-        Assert.Contains("<AppRangeSlider", speed, StringComparison.Ordinal);
+        Assert.Contains("<AppRangeSlider", speedView, StringComparison.Ordinal);
         Assert.Contains("availability.CanEndCurrent", sleepChoices, StringComparison.Ordinal);
         Assert.Contains("availability.CanEndNext", sleepChoices, StringComparison.Ordinal);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
@@ -323,8 +326,8 @@ public sealed class PlaybackPrimitiveTests
 
         var shellStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css"));
         Assert.Contains("<svg", utilityGlyph, StringComparison.Ordinal);
-        Assert.Contains("width: 22px;", utilityGlyphStyles, StringComparison.Ordinal);
-        Assert.Contains("height: 22px;", utilityGlyphStyles, StringComparison.Ordinal);
+        Assert.Contains("width: var(--playback-glyph-size, 22px);", utilityGlyphStyles, StringComparison.Ordinal);
+        Assert.Contains("height: var(--playback-glyph-size, 22px);", utilityGlyphStyles, StringComparison.Ordinal);
         Assert.Contains("Open Now Playing", listenBar, StringComparison.Ordinal);
         Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
         Assert.Contains("place-items: center;", shellStyles, StringComparison.Ordinal);
@@ -403,8 +406,9 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<PlaybackShell", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackRelativeSkipButton", shell, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPrimaryButton", shell, StringComparison.Ordinal);
-        // Unified player D10: video speed lives inside Settings, not as its own bar button.
-        Assert.DoesNotContain("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
+        // Unified player D10/D14: video speed lives inside Playback settings, not as its own bar button.
+        Assert.DoesNotContain("<PlaybackSpeedPanel", videoHost, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackSettingsPanel", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPanel", videoHost, StringComparison.Ordinal);
 
         foreach (var css in playbackStyles)

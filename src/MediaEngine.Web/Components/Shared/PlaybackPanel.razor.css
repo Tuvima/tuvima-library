@@ -29,6 +29,11 @@
     width: var(--playback-panel-wide-width);
 }
 
+/* Mockup screen 5: the stand-alone Speed panel is 420 px (Playback settings is 400). */
+.playback-panel--speed {
+    width: var(--playback-panel-speed-width);
+}
+
 .playback-panel__frame {
     display: flex;
     flex-direction: column;

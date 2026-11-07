@@ -1641,6 +1641,22 @@ public sealed partial class PlaybackSessionController
         await SeekRelativeAsync(seconds, ct);
     }
 
+    /// <summary>
+    /// Takes new skip lengths the profile just saved in Playback settings, so the bar's skip buttons, the lock screen and the keyboard use them
+    /// at once instead of at the next start. Only the pair that belongs to what is playing (video or audio) is applied.
+    /// </summary>
+    public void ApplySkipLengths(int skipBackSeconds, int skipForwardSeconds)
+    {
+        if (skipBackSeconds <= 0 || skipForwardSeconds <= 0 || SkipBackSeconds == skipBackSeconds && SkipForwardSeconds == skipForwardSeconds)
+        {
+            return;
+        }
+
+        SkipBackSeconds = skipBackSeconds;
+        SkipForwardSeconds = skipForwardSeconds;
+        NotifyChanged();
+    }
+
     public async Task SeekRelativeAsync(double deltaSeconds, CancellationToken ct = default)
     {
         var max = DurationSeconds > 0 ? DurationSeconds : double.MaxValue;

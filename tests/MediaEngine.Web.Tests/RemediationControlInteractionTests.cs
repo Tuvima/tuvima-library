@@ -43,28 +43,6 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task SpeedSliderRetainsStoredPrecisionButInputsUsePointZeroFiveAndReset()
-    {
-        var changes = new List<double>();
-        var cut = Render<PlaybackSpeedControl>(p => p.Add(c => c.Value, 1.2345).Add(c => c.ValueChanged, rate => changes.Add(rate)));
-        var popover = cut.FindComponent<PlaybackPanel>();
-        await cut.InvokeAsync(() => popover.Instance.OpenAsync(true));
-        Assert.Equal("1.2345x", cut.Find("output").TextContent);
-        var slider = cut.Find("input[type=range]");
-        Assert.Equal("0.5", slider.GetAttribute("min")); Assert.Equal("3", slider.GetAttribute("max"));
-        Assert.Equal("0.05", slider.GetAttribute("step"));
-        await slider.InputAsync(new ChangeEventArgs { Value = "1.27" });
-        Assert.Equal(1.25, changes[^1]);
-        await cut.Find("button[aria-label='Reset playback speed to 1×']").ClickAsync();
-        Assert.Equal(1, changes[^1]);
-        foreach (var bad in new[] { "NaN", "Infinity", "broken" })
-        {
-            await cut.Find("input").InputAsync(new ChangeEventArgs { Value = bad });
-        }
-        Assert.Equal(2, changes.Count);
-    }
-
-    [Fact]
     public async Task TouchRateOpensOnTapAndSelectionClosesWithoutFavoriting()
     {
         bool? choice = null;

@@ -1,0 +1,86 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+
+@* The body of the Speed panel (unified player v2 D15; mockup screen 5, left panel): the current speed large with "Current speed" under it, five presets
+   (a preset is ticked only when the speed equals it), and a slider from 0.5× to 3× in 0.05 steps with its range under it. Presets and slider read the
+   same value, so they always agree, and a choice applies at once. The "Reset to 1×" footer is PlaybackSpeedFooter. *@
+<div class="psv" data-playback-speed-view>
+    <div class="psv__current">
+        <output class="psv__value" aria-live="polite" data-speed-value>@PlaybackSpeedChoices.Format(Rate)</output>
+        <span class="psv__caption">@L["PlaybackSpeed_Current"]</span>
+    </div>
+    <div class="psv__presets" role="radiogroup" aria-label="@L["PlaybackSpeed_Presets"].Value" @ref="_presets">
+        @foreach (var preset in PlaybackSpeedChoices.Presets)
+        {
+            var value = preset;
+            var chosen = PlaybackSpeedChoices.Matches(Rate, value);
+            <AppNativeButton Type="button" Class="@(chosen ? "psv__preset is-selected" : "psv__preset")" role="radio" aria-checked="@(chosen ? "true" : "false")"
+                             tabindex="@(value == TabStop ? 0 : -1)" data-speed-preset="@PlaybackSpeedChoices.Format(value)" OnClick="@(() => RateChanged.InvokeAsync(value))">
+                <span>@PlaybackSpeedChoices.Format(value)</span>
+                @if (chosen) { <span class="psv__tick" aria-hidden="true"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
+            </AppNativeButton>
+        }
+    </div>
+    <div class="psv__slider">
+        <AppRangeSlider Value="@Rate" Min="@PlaybackSpeedChoices.Minimum" Max="@PlaybackSpeedChoices.Maximum" Step="@PlaybackSpeedChoices.Step" SnapValueToStep="false"
+                        InputStep="@PlaybackSpeedChoices.Step" ShowTicks="false" Surface="player" AriaLabel="@L["PlaybackSpeed_Slider"].Value"
+                        ValueFormatter="PlaybackSpeedChoices.Format" ValueChanged="RateChanged" />
+    </div>
+    <div class="psv__range" aria-hidden="true">
+        <span>@PlaybackSpeedChoices.Format(PlaybackSpeedChoices.Minimum)</span>
+        <span>@PlaybackSpeedChoices.Format(PlaybackSpeedChoices.Maximum)</span>
+    </div>
+    <p class="psv__note">@L["PlaybackSpeed_Step"]</p>
+</div>
+
+@code {
+    /// <summary>The speed now playing.</summary>
+    [Parameter] public double Rate { get; set; } = PlaybackSpeedChoices.Normal;
+
+    /// <summary>Asks the host to play at this speed. Called for a preset and for every slider move.</summary>
+    [Parameter] public EventCallback<double> RateChanged { get; set; }
+
+    private ElementReference _presets;
+    private IJSObjectReference? _roving;
+    private bool _disposed;
+
+    // One Tab stop for the presets: the ticked one, or the first when the speed is a custom value; the arrow keys move between them (roving-focus.js).
+    private double TabStop => PlaybackSpeedChoices.Presets.FirstOrDefault(preset => PlaybackSpeedChoices.Matches(Rate, preset), PlaybackSpeedChoices.Presets[0]);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || !firstRender) return;
+        try
+        {
+            _roving = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            await _roving.InvokeVoidAsync("attach", _presets, "[role=radio]");
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering has no browser yet; the presets are ordinary buttons until the arrow keys attach.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the panel was drawing; there is nothing left to attach to.
+        }
+        catch (JSException)
+        {
+            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every preset.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_roving is null) return;
+        try { await _roving.DisposeAsync(); }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
+}

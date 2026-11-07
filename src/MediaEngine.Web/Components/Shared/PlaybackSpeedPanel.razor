@@ -1,0 +1,68 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Linq
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Speed panel (unified player v2 D15; mockup screen 5). Audiobooks open it straight from the speed value on the bar; video and the other media reach
+   it from Playback settings, which shows the same body as a nested view. A 420 px panel with the fixed header "Playback speed", the large current speed,
+   five presets, the slider, and "Reset to 1×" in the fixed footer. Every choice applies at once. *@
+<span class="@($"playback-speed-panel {Class}".Trim())" data-playback-speed-panel>
+    <PlaybackPanel Title="@L["PlaybackSpeed_Title"].Value" TriggerLabel="@TriggerLabel" ToolId="@EffectiveToolId" Kind="speed" Surface="@Surface" ItemKey="@ItemKey"
+                   TriggerClass="@TriggerClassValue" Disabled="@(!PlaybackRateOptions.IsValid(Rate))" Open="@Open" OpenChanged="HandleOpenChangedAsync">
+        <TriggerContent>
+            @if (!string.IsNullOrWhiteSpace(TriggerText)) { <span>@TriggerText</span> }
+            else { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" /> }
+        </TriggerContent>
+        <ChildContent>
+            <PlaybackSpeedView Rate="@Rate" RateChanged="RateChanged" />
+        </ChildContent>
+        <Footer>
+            <PlaybackSpeedFooter RateChanged="RateChanged" />
+        </Footer>
+    </PlaybackPanel>
+</span>
+
+@code {
+    private readonly string _generatedId = $"speed-{Guid.NewGuid():N}";
+
+    /// <summary>The speed now playing.</summary>
+    [Parameter] public double Rate { get; set; } = PlaybackSpeedChoices.Normal;
+
+    /// <summary>Asks the host to play at this speed. Every preset, slider move and "Reset to 1×" calls it, and the panel stays open.</summary>
+    [Parameter] public EventCallback<double> RateChanged { get; set; }
+
+    /// <summary>The surface the trigger sits on ("dock", "video", "phone", "panel"), reported back with open and close.</summary>
+    [Parameter] public string Surface { get; set; } = "panel";
+
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? ToolId { get; set; }
+
+    /// <summary>The bar's speed chip text (for example "1.25×"); without it the trigger is the speed glyph.</summary>
+    [Parameter] public string? TriggerText { get; set; }
+
+    /// <summary>The trigger's accessible name; defaults to "Playback speed" and the value, so the visible chip text is part of its name.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Extra class on the trigger button (the bar's chip).</summary>
+    [Parameter] public string? TriggerClass { get; set; }
+
+    /// <summary>True draws the on-state: the speed is not normal.</summary>
+    [Parameter] public bool IsOn { get; set; }
+
+    /// <summary>Lets the host open or close the panel (for example when the book changes).</summary>
+    [Parameter] public bool? Open { get; set; }
+    [Parameter] public EventCallback<PlaybackToolOpenState> OpenChanged { get; set; }
+
+    /// <summary>Closes the panel when this key changes (the item that is playing).</summary>
+    [Parameter] public string? ItemKey { get; set; }
+
+    private string EffectiveToolId => ToolId ?? _generatedId;
+
+    private string TriggerLabel => Title ?? (PlaybackRateOptions.IsValid(Rate)
+        ? L["PlaybackSpeed_TriggerLabel", PlaybackSpeedChoices.Format(Rate)].Value
+        : L["PlaybackSpeed_Title"].Value);
+
+    private string? TriggerClassValue => string.Join(" ", new[] { IsOn ? "is-on" : null, TriggerClass }.Where(value => !string.IsNullOrWhiteSpace(value))) is { Length: > 0 } value ? value : null;
+
+    private Task HandleOpenChangedAsync(bool open) => OpenChanged.InvokeAsync(new PlaybackToolOpenState(Surface, open));
+}

@@ -43,8 +43,8 @@ public sealed class AudiobookSettingsGearTests : AsyncBunitContext
     [Fact]
     public void Gear_UnderlinesOnlyWhileTheSpeedIsNotNormalOrASleepTimerIsRunning()
     {
-        var normal = RenderGear(rate: 1d, sleep: new AudiobookSleepTimerStateDto(), isOn: false);
-        var faster = RenderGear(rate: 1.25d, sleep: new AudiobookSleepTimerStateDto(), isOn: true);
+        var normal = RenderGear(sleep: new AudiobookSleepTimerStateDto(), isOn: false);
+        var faster = RenderGear(sleep: new AudiobookSleepTimerStateDto(), isOn: true);
 
         Assert.Empty(normal.FindAll(".playback-popover-trigger.is-on"));
         Assert.Single(faster.FindAll(".playback-popover-trigger.is-on"));
@@ -60,7 +60,6 @@ public sealed class AudiobookSettingsGearTests : AsyncBunitContext
             .Add(component => component.SleepTimerState, new AudiobookSleepTimerStateDto())
             .Add(component => component.SleepTimerOptionsMinutes, [15])
             .Add(component => component.SleepTimerChanged, EventCallback.Factory.Create<AudiobookSleepTimerSelectionDto>(this, value => picked.Add(value)))
-            .Add(component => component.PlaybackRateChanged, EventCallback.Factory.Create<double>(this, _ => { }))
             .Add(component => component.ShowBookmarksOnBarChanged, EventCallback.Factory.Create<bool>(this, _ => { })));
 
         var popover = cut.FindComponent<PlaybackPanel>();
@@ -107,9 +106,8 @@ public sealed class AudiobookSettingsGearTests : AsyncBunitContext
         Assert.Equal(AudiobookSleepTimerModes.Off, PlaybackSleepTimerChoices.SelectionFor(AudiobookSleepTimerModes.Off, new AudiobookSleepTimerAvailabilityDto())!.Mode);
     }
 
-    private IRenderedComponent<AudiobookSettingsPopover> RenderGear(double rate, AudiobookSleepTimerStateDto sleep, bool isOn) =>
+    private IRenderedComponent<AudiobookSettingsPopover> RenderGear(AudiobookSleepTimerStateDto sleep, bool isOn) =>
         Render<AudiobookSettingsPopover>(parameters => parameters
-            .Add(component => component.PlaybackRate, rate)
             .Add(component => component.SleepTimerState, sleep)
             .Add(component => component.IsOn, isOn));
 

@@ -212,29 +212,11 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SpeedAndSleepTriggersAreIconsWhileTheirAccessibleNamesRetainCurrentState()
+    public void SleepTriggerIsAnIconWhileItsAccessibleNameRetainsCurrentState()
     {
-        var speed = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Value, 1.75));
-        var select = speed.FindComponent<PlaybackPanel>().Instance;
-        Assert.NotNull(select.TriggerContent);
-        Assert.Contains("1.75x", select.Title);
         var sleep = Render<PlaybackSleepTimerControl>(parameters => parameters.Add(component => component.State,
             new AudiobookSleepTimerStateDto { Mode = AudiobookSleepTimerModes.EndNext, TargetChapterTitle = "Part two" }));
         Assert.Contains("End of next chapter: Part two", sleep.FindComponent<AppSelect>().Instance.AriaLabel);
         Assert.DoesNotContain("playback-sleep-timer__trigger-status", sleep.Markup);
-    }
-
-    [Fact]
-    public async Task ControlledSpeedMenuCanReopenAfterAnotherToolForcesItClosed()
-    {
-        var cut = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Open, true));
-        var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
-        Assert.True(cut.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded") == "true");
-        await cut.InvokeAsync(() => tools.Open("queue", true));
-        cut.WaitForAssertion(() => Assert.False(cut.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded") == "true"));
-        cut.Render(parameters => parameters.Add(component => component.Open, false));
-        cut.Render(parameters => parameters.Add(component => component.Open, true));
-        cut.WaitForAssertion(() => Assert.True(cut.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded") == "true"));
-        Assert.NotEqual("queue", tools.OpenToolId);
     }
 }

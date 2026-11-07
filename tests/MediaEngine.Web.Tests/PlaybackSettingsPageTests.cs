@@ -83,7 +83,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WatchingMode_ShowsAutoplayResumeSkipAndSubtitlesOnly()
+    public void WatchingMode_NoLongerShowsTheRowsThePlayerOwns()
     {
         var cut = Render<PlaybackSettingsPage>();
 
@@ -91,9 +91,13 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         {
             Assert.Contains("Autoplay next episode", cut.Markup);
             Assert.Contains("Resume where you left off", cut.Markup);
-            Assert.Contains("Skip back", cut.Markup);
-            Assert.Contains("Skip forward", cut.Markup);
-            Assert.Equal(7, cut.FindAll(".app-settings-group").Count);
+            // Unified player v2 D14: skip lengths, speed and the subtitle look live in the player, not here.
+            Assert.DoesNotContain("Skip back", cut.Markup);
+            Assert.DoesNotContain("Skip forward", cut.Markup);
+            Assert.DoesNotContain("Subtitle appearance", cut.Markup);
+            Assert.DoesNotContain("Text size", cut.Markup);
+            Assert.DoesNotContain("Show bookmarks on the bar", cut.Markup);
+            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
@@ -154,7 +158,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
         Assert.Empty(cut.FindAll("[data-spoiler-level]"));
-        Assert.Equal(6, cut.FindAll(".app-settings-group").Count);
+        Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
     }
 
     [Fact]
@@ -211,7 +215,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SubtitlesGroup_IsTheSubtitlesAnchorWithFiveSelectsAndNoPositionOrStyle()
+    public void SubtitlesGroup_IsTheSubtitlesAnchorWithFiveSelectsAndNoAppearanceRows()
     {
         var cut = Render<PlaybackSettingsPage>();
 
@@ -219,38 +223,11 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         {
             var group = cut.Find("#subtitles");
             Assert.Contains("Subtitles &amp; audio", group.InnerHtml);
-            Assert.Contains("Subtitle appearance", group.InnerHtml);
             Assert.Equal(new[] { "Audio language", "Subtitle language", "Second subtitle language", "Lyrics language", "Show subtitles" },
                 cut.FindComponents<AppSelect>().Select(select => (string)select.Instance.AdditionalAttributes!["aria-label"]).ToArray());
             Assert.Contains("Auto (only when audio is not my language)", group.InnerHtml);
-            Assert.Contains("Text size", group.InnerHtml);
-            Assert.Contains("Background", group.InnerHtml);
             Assert.DoesNotContain("Position", group.InnerHtml);
             Assert.DoesNotContain("Style", group.InnerHtml);
-        });
-    }
-
-    [Fact]
-    public void SubtitlePreview_FollowsTextSizeAndBackgroundAndSavesThroughTheAccessorPath()
-    {
-        var cut = Render<PlaybackSettingsPage>();
-        cut.WaitForAssertion(() => Assert.Equal("Medium", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-size")));
-        Assert.Equal("true", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-background"));
-
-        cut.FindAll(".app-segmented-control button").Single(button => button.TextContent.Trim() == "Large").Click();
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("Large", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-size"));
-            Assert.Equal(PlaybackPreferenceValues.Large, _accessor.Last!.Subtitles.SubtitleSize);
-        });
-
-        cut.Find("input[aria-label='Background']").Change(false);
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("false", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-background"));
-            Assert.False(_accessor.Last!.Subtitles.SubtitleBackground);
-            // The size chosen a moment ago is written back unchanged.
-            Assert.Equal(PlaybackPreferenceValues.Large, _accessor.Last.Subtitles.SubtitleSize);
         });
     }
 
@@ -279,14 +256,12 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         var cut = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.ProfileId, OtherId));
         cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
 
-        cut.FindAll(".app-segmented-control button").Single(button => button.TextContent.Trim() == "Small").Click();
         await cut.InvokeAsync(() => SelectNamed(cut, "Show subtitles").Instance.ValueChanged.InvokeAsync(PlaybackPreferenceValues.Always));
 
         cut.WaitForAssertion(() =>
         {
             Assert.Contains((OtherId, "put"), _apiCalls);
             Assert.DoesNotContain(_apiCalls, call => call.Profile == ActiveId);
-            Assert.Equal(PlaybackPreferenceValues.Small, _saved.Last().Subtitles.SubtitleSize);
             Assert.Equal(PlaybackPreferenceValues.Always, _saved.Last().Subtitles.ForcedSubtitlesMode);
             Assert.Equal(0, _accessor.GetCalls);
             Assert.Equal(0, _accessor.UpdateCalls);

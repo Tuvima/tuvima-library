@@ -103,11 +103,14 @@
             @if (IsBook)
             {
                 <div class="playback-full__book-tools">
+                    <PlaybackSpeedPanel Surface="phone" Rate="@Snapshot.PlaybackRate" ItemKey="@Subject" TriggerText="@PlaybackSpeedChoices.Format(Snapshot.PlaybackRate)" TriggerClass="playback-shell__chip"
+                                        IsOn="@(!PlaybackSpeedChoices.IsNormal(Snapshot.PlaybackRate))"
+                                        RateChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
+                                        OpenChanged="@(state => ToolVisibilityChanged.InvokeAsync(state.IsOpen))" />
                     <PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="@L["Common_AudiobookControls"].Value">
                         <SettingsContent Context="settings">
                             <AudiobookSettingsPopover Surface="phone" Title="@settings.AriaLabel" IsOn="@settings.IsActive"
                                                       Open="@_settingsOpen" OpenChanged="SettingsMenuChangedAsync"
-                                                      PlaybackRate="@Snapshot.PlaybackRate" PlaybackRateChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
                                                       SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability"
                                                       SleepTimerOptionsMinutes="@Snapshot.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Snapshot.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Snapshot.AllowEndOfChapterSleepTimer"
                                                       SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
@@ -253,7 +256,7 @@
         catch (Exception) { if (SameSubject(displayed, Snapshot)) _commandError = L["Common_TheMainPlayerConnectionWas"].Value; }
     }
     private async Task PanelSelectedAsync(string key) { _tool = key; await PanelChanged.InvokeAsync(key); }
-    private async Task SettingsMenuChangedAsync(PlaybackSpeedMenuState state) { _settingsOpen = state.IsOpen; await ToolVisibilityChanged.InvokeAsync(_settingsOpen); }
+    private async Task SettingsMenuChangedAsync(PlaybackToolOpenState state) { _settingsOpen = state.IsOpen; await ToolVisibilityChanged.InvokeAsync(_settingsOpen); }
 
     // Unified player D10: "Show bookmarks on the bar" is the profile's own setting (the one the video player and Settings > Playback use), off by default.
     private ILogger<PlaybackFullPlayer>? Logger => Services.GetService<ILogger<PlaybackFullPlayer>>();
