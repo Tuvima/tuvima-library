@@ -23,12 +23,17 @@ public static class EditorFieldLocks
     public static bool IsOwnField(string? key) => !string.IsNullOrWhiteSpace(key) && OwnKeys.Contains(key.Trim());
 
     /// <summary>
-    /// True when a field of a person, Series, curated collection or Universe is the person's own. A curated collection and a Universe's
-    /// character, place or organisation are kept only locally, and a person's tags and sort name are the library's own; the rest are
-    /// provider values the person overrides (a person's name and biography, a Series' title and description, a Universe's name).
+    /// True when a field of a person, Series, curated collection or Universe is the person's own. A curated collection is kept only
+    /// locally, and a person's tags and sort name are the library's own. A Universe thing's "belongs to" and "visibility" are choices only
+    /// the person makes; its name, description and aliases are overrides of what Wikidata holds, so they lock like any provider field,
+    /// along with a person's name and biography, a Series' title and description and a Universe's name.
     /// </summary>
     public static bool IsOwnSubjectField(string subjectKind, string? key) =>
         string.Equals(subjectKind, EditorSubjectKinds.Collection, StringComparison.Ordinal)
-        || string.Equals(subjectKind, EditorSubjectKinds.FictionalEntity, StringComparison.Ordinal)
+        || (string.Equals(subjectKind, EditorSubjectKinds.FictionalEntity, StringComparison.Ordinal) && IsUniverseThingChoice(key))
         || IsOwnField(key);
+
+    private static bool IsUniverseThingChoice(string? key) =>
+        string.Equals(key?.Trim(), "belongs_to", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(key?.Trim(), "visibility", StringComparison.OrdinalIgnoreCase);
 }

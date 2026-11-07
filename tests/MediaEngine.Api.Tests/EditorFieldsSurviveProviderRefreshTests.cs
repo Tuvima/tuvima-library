@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
@@ -153,6 +154,32 @@ public sealed class EditorFieldsSurviveProviderRefreshTests : IDisposable
         Assert.Equal("Dune (my cut)", overrides["title"]);
     }
 
+    [Fact]
+    public async Task ASavedSortTitle_ReadsBackForSorting_AndSurvivesAProviderRefresh_WhileAnItemWithoutOneSortsByItsTitle()
+    {
+        ReadyWorks.TreatEveryWorkAsReady(_db);
+        var sorted = SeedMovieWithFile("The Dune Chronicles");
+        var plain = SeedMovieWithFile("Arrival");
+        await RefreshFromProviderAsync(sorted, [("title", "The Dune Chronicles")], genres: []);
+
+        var change = Change(sorted, ("sort_title", "Dune Chronicles, The"));
+        Assert.Null(await _handler.CheckAsync(change));
+        Assert.NotNull(await _handler.ApplyAsync(change));
+        await RefreshFromProviderAsync(sorted, [("title", "The Dune Chronicles (2021)")], genres: []);
+
+        var reader = new DisplayWorkProjectionReader(_db);
+        var rows = (await reader.LoadAsync(CancellationToken.None)).ToDictionary(row => row.WorkId);
+        // The sort title is the person's own: the refresh did not touch it, and the libraries order by it before the title.
+        Assert.Equal("Dune Chronicles, The", rows[sorted].SortTitle);
+        Assert.Null(rows[plain].SortTitle);
+        Assert.Equal("Dune Chronicles, The", (await _items.LoadDisplayOverridesAsync(sorted)).Values["sort_title"]);
+
+        // Revert sends an empty value, which takes the sort title away again.
+        Assert.NotNull(await _handler.ApplyAsync(Change(sorted, ("sort_title", string.Empty))));
+        var after = (await reader.LoadAsync(CancellationToken.None)).Single(row => row.WorkId == sorted);
+        Assert.Null(after.SortTitle);
+    }
+
     // -- Helpers --------------------------------------------------------------------------------
 
     // What Save changes sends for the fields the person unlocked and changed (and the tags and genres they set).
@@ -194,6 +221,33 @@ public sealed class EditorFieldsSurviveProviderRefreshTests : IDisposable
         connection.Execute(
             "INSERT INTO works (id, media_type, work_kind) VALUES (@workId, 'Movies', 'standalone');",
             new { workId = GuidSql.ToBlob(workId) });
+        return workId;
+    }
+
+    // A film with a file the library can show, so the display projection lists it.
+    private Guid SeedMovieWithFile(string title)
+    {
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using var connection = _db.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO works (id, media_type, work_kind) VALUES (@workId, 'Movies', 'standalone');
+            INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'MKV');
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@assetId, @editionId, @hash, @path);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@assetId, 'title', @title, @now);
+            """,
+            new
+            {
+                workId = GuidSql.ToBlob(workId),
+                editionId = GuidSql.ToBlob(editionId),
+                assetId = GuidSql.ToBlob(assetId),
+                hash = $"hash-{assetId:N}",
+                path = $"C:/library/{assetId:N}.mkv",
+                title,
+                now = DateTimeOffset.UtcNow.ToString("O"),
+            });
         return workId;
     }
 

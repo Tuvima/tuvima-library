@@ -89,7 +89,8 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         var isReset = staged && string.IsNullOrWhiteSpace(stagedValue);
         var state = StateOf(fields, session, field);
         // A locked field shows the value it has now and cannot be typed in; unlocking only lets the form take typing.
-        var shown = staged && !isReset ? stagedValue ?? string.Empty : Baseline(field);
+        // Sent back to the provider (Revert): the field shows the provider's value again, not the saved one it is about to lose.
+        var shown = staged && !isReset ? stagedValue ?? string.Empty : isReset ? field.ProviderValue ?? string.Empty : Baseline(field);
         var isTags = IsTags(field);
         <div class="@FieldClass(field, state)" data-field-key="@field.Key" data-locked="@(state.Locked ? "true" : "false")" data-changed="@(state.Changed ? "true" : "false")">
             <div class="tl-editor-field__label">
@@ -113,7 +114,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             </div>
             @if (state.Locked && field.IsChips)
             {
-                <div class="tl-editor-field__chips" aria-label="@field.Label">
+                <div class="tl-editor-field__chips" role="group" aria-label="@field.Label">
                     @foreach (var chip in Chips(shown))
                     {
                         <AppChip Text="@chip" />
@@ -138,13 +139,13 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             else if (string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
             {
                 <AppTextarea Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
-                             Lines="@LinesFor(shown)" Disabled="@state.Locked" aria-label="@field.Label" />
+                             Lines="@LinesFor(shown)" ReadOnly="@state.Locked" aria-label="@field.Label" />
                 <small class="tl-editor-field__count">@Count(shown)</small>
             }
             else
             {
                 <AppTextField Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
-                              InputType="@InputTypeOf(field)" Disabled="@state.Locked" aria-label="@field.Label" />
+                              InputType="@InputTypeOf(field)" ReadOnly="@state.Locked" aria-label="@field.Label" />
             }
             @if (isReset)
             {
@@ -169,7 +170,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         }
         else
         {
-            var text = state.Locked ? L["EditorDetailsPanel_UnlockToEdit"].Value : L["EditorDetailsPanel_Lock"].Value;
+            var text = state.Locked ? L["EditorDetailsPanel_UnlockToEdit", field.Label].Value : L["EditorDetailsPanel_Lock", field.Label].Value;
             <span class="tl-editor-field__lockstate" data-lock-state="@(state.Locked ? "locked" : "unlocked")">
                 <AppIconButton Icon="@(state.Locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
                                Size="AppControlSize.Compact"
@@ -178,7 +179,6 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                                Class="tl-editor-field__lock-toggle"
                                Tooltip="@text"
                                AriaLabel="@text"
-                               aria-pressed="@(state.Locked ? "true" : "false")"
                                OnClick="@(() => ToggleLock(fields, session, field, state))" />
                 <span>@(state.Locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
             </span>

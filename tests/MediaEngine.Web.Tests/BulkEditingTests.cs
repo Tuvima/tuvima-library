@@ -725,7 +725,9 @@ public sealed class BulkEditingTests : AsyncBunitContext
         var year = panel.WaitForElement("[data-field-key='year']");
 
         Assert.Equal("true", year.GetAttribute("data-locked"));
-        Assert.True(year.QuerySelector("input")!.HasAttribute("disabled"));
+        Assert.True(year.QuerySelector("input")!.HasAttribute("readonly"));
+        Assert.False(year.QuerySelector("input")!.HasAttribute("disabled"));
+        Assert.Equal("Unlock Year to edit", year.QuerySelector("button.tl-editor-field__lock-toggle")!.GetAttribute("aria-label"));
         Assert.Contains(BulkEditRules.MixedLeaveUnchanged, panel.Find("[data-field-key='genre']").TextContent, StringComparison.Ordinal);
 
         year.QuerySelector("button.tl-editor-field__lock-toggle")!.Click();
@@ -733,7 +735,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
         panel.WaitForAssertion(() =>
         {
             Assert.Equal("false", panel.Find("[data-field-key='year']").GetAttribute("data-locked"));
-            Assert.False(panel.Find("[data-field-key='year'] input").HasAttribute("disabled"));
+            Assert.False(panel.Find("[data-field-key='year'] input").HasAttribute("readonly"));
         });
         Assert.True(pending.IsEmpty);
 
@@ -750,9 +752,13 @@ public sealed class BulkEditingTests : AsyncBunitContext
         TypeScalar(panel, "year", "2021");
         panel.WaitForAssertion(() => Assert.False(pending.IsEmpty));
 
-        panel.Find("[data-field-key='year'] .tl-editor-field__reset").Click();
+        // Revert sits in the label row beside the field's name, as it does for one item.
+        var revert = panel.Find("[data-field-key='year'] .tl-editor-field__label .tl-editor-field__reset");
+        Assert.Equal("Revert", revert.TextContent.Trim());
+        revert.Click();
 
         panel.WaitForAssertion(() => Assert.True(pending.IsEmpty));
+        Assert.Empty(panel.FindAll("[data-field-key='year'] .tl-editor-field__reset"));
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Editing;
@@ -84,6 +85,109 @@ public sealed class MediaEditorDetailsLocksTests
     [InlineData("genre", false)]
     public void OnlyTheFieldsAPersonFillsThemselves_AreOwnFields(string key, bool own) =>
         Assert.Equal(own, EditorFieldLocks.IsOwnField(key));
+
+    [Fact]
+    public void AnOverriddenField_CarriesTheProvidersCurrentValue_ForRevertToShow_AndAnUntouchedOneDoesNot()
+    {
+        var scope = Scope("movie", new Dictionary<string, string> { ["title"] = "Dune (my cut)" },
+            new Dictionary<string, string> { ["title"] = "Dune: Part One", ["tagline"] = "Beyond fear." });
+
+        var presentation = MediaEditorDetailsPresenter.Build(scope, new Dictionary<string, MediaEditorScopeDto> { ["movie"] = scope }, "Movies");
+
+        var title = All(presentation).Single(field => field.Key == "title");
+        Assert.Equal("Dune (my cut)", title.RawValue);
+        Assert.Equal("Dune: Part One", title.ProviderValue);
+        Assert.Null(All(presentation).Single(field => field.Key == "tagline").ProviderValue);
+    }
+
+    [Fact]
+    public void AnOverriddenList_CarriesTheProvidersCurrentList()
+    {
+        var scope = Scope("movie", new Dictionary<string, string> { ["genre"] = "Folk; Nordic" }, new Dictionary<string, string> { ["title"] = "Dune" });
+        scope.FieldSnapshot.CanonicalArrays =
+        [
+            new MediaEditorScopedFieldArrayDto
+            {
+                Key = "genre",
+                OwnerEntityId = Guid.NewGuid(),
+                OwnerEntityKind = "Work",
+                Entries = [new MediaEditorScopedArrayEntryDto { Ordinal = 0, Value = "Drama" }, new MediaEditorScopedArrayEntryDto { Ordinal = 1, Value = "War" }],
+            },
+        ];
+
+        var presentation = MediaEditorDetailsPresenter.Build(scope, new Dictionary<string, MediaEditorScopeDto> { ["movie"] = scope }, "Movies");
+
+        var genres = All(presentation).Single(field => field.Key == "genre");
+        Assert.Equal("Folk; Nordic", genres.RawValue);
+        Assert.Equal("Drama, War", genres.ProviderValue);
+    }
+
+    [Theory]
+    [InlineData("Movies", "movie")]
+    [InlineData("Books", "book")]
+    [InlineData("TV", "series")]
+    [InlineData("Music", "album")]
+    public void TheSortTitle_IsOffered_EvenWhenBlank_AsTheirOwnField(string mediaType, string scopeId)
+    {
+        var scope = Scope(scopeId, new Dictionary<string, string>(), new Dictionary<string, string> { ["title"] = "The Dune Chronicles", ["album"] = "The Dune Chronicles", ["show_name"] = "The Dune Chronicles" });
+
+        var presentation = MediaEditorDetailsPresenter.Build(scope, new Dictionary<string, MediaEditorScopeDto> { [scopeId] = scope }, mediaType);
+
+        var sortTitle = All(presentation).Single(field => field.Key == "sort_title");
+        Assert.Equal("Sort title", sortTitle.Label);
+        Assert.Equal(string.Empty, sortTitle.RawValue);
+        Assert.True(sortTitle.CanOverride);
+        Assert.False(sortTitle.CanRevert);
+        Assert.True(sortTitle.IsOwnField);
+    }
+
+    [Fact]
+    public void ASavedSortTitle_ReadsBackAsTheirValue_WithRevert()
+    {
+        var scope = Scope("movie", new Dictionary<string, string> { ["sort_title"] = "Dune Chronicles, The" },
+            new Dictionary<string, string> { ["title"] = "The Dune Chronicles" });
+
+        var presentation = MediaEditorDetailsPresenter.Build(scope, new Dictionary<string, MediaEditorScopeDto> { ["movie"] = scope }, "Movies");
+
+        var sortTitle = All(presentation).Single(field => field.Key == "sort_title");
+        Assert.Equal("Dune Chronicles, The", sortTitle.RawValue);
+        Assert.True(sortTitle.CanRevert);
+        Assert.True(sortTitle.IsOwnField);
+    }
+
+    [Fact]
+    public void TheSortTitle_IsNotOffered_WhereTheItemCannotBeEdited_OrTheEngineDoesNotAllowIt()
+    {
+        var readOnly = Scope("movie", new Dictionary<string, string>(), new Dictionary<string, string> { ["title"] = "Dune" });
+        readOnly.CanEditFields = false;
+        var notAllowed = Scope("movie", new Dictionary<string, string>(), new Dictionary<string, string> { ["title"] = "Dune" });
+        notAllowed.FieldSnapshot.AllowedOverrideKeys.Remove("sort_title");
+
+        foreach (var scope in new[] { readOnly, notAllowed })
+        {
+            var presentation = MediaEditorDetailsPresenter.Build(scope, new Dictionary<string, MediaEditorScopeDto> { ["movie"] = scope }, "Movies");
+            Assert.DoesNotContain(All(presentation), field => field.Key == "sort_title");
+        }
+    }
+
+    [Fact]
+    public void TheSortTitleTheDetailsTabOffers_IsOneTheEngineAcceptsAsADisplayOverride() =>
+        Assert.True(DetailDisplayOverrideCatalog.TryValidateValue("sort_title", "Dune Chronicles, The", out _, out _));
+
+    [Theory]
+    [InlineData(EditorSubjectKinds.FictionalEntity, "name", false)]
+    [InlineData(EditorSubjectKinds.FictionalEntity, "description", false)]
+    [InlineData(EditorSubjectKinds.FictionalEntity, "aliases", false)]
+    [InlineData(EditorSubjectKinds.FictionalEntity, "belongs_to", true)]
+    [InlineData(EditorSubjectKinds.FictionalEntity, "visibility", true)]
+    [InlineData(EditorSubjectKinds.Collection, "title", true)]
+    [InlineData(EditorSubjectKinds.Series, "title", false)]
+    [InlineData(EditorSubjectKinds.Universe, "title", false)]
+    [InlineData(EditorSubjectKinds.Person, "name", false)]
+    [InlineData(EditorSubjectKinds.Person, "sort_name", true)]
+    [InlineData(EditorSubjectKinds.Person, "custom_tags", true)]
+    public void ASubjectsField_IsItsOwn_OnlyWhereNoProviderFillsIt(string kind, string key, bool own) =>
+        Assert.Equal(own, EditorFieldLocks.IsOwnSubjectField(kind, key));
 
     private static MediaEditorDetailsFieldPresentation Present(string key, string canonical, string? overrideValue)
     {

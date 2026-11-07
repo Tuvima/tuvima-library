@@ -700,11 +700,24 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
             Assert.Equal("true", field.GetAttribute("data-locked"));
             Assert.Contains("tl-editor-field--form-locked", field.ClassName, StringComparison.Ordinal);
             var toggle = field.QuerySelector("button.tl-editor-field__lock-toggle")!;
-            Assert.Equal("Unlock to edit", toggle.GetAttribute("aria-label"));
+            // The name says which field it unlocks, and it is a plain button (it has no pressed state).
+            var label = field.QuerySelector(".tl-editor-field__label > span")!.TextContent.Trim();
+            Assert.Equal($"Unlock {label} to edit", toggle.GetAttribute("aria-label"));
+            Assert.Null(toggle.GetAttribute("aria-pressed"));
             Assert.Equal("locked", field.QuerySelector("[data-lock-state]")!.GetAttribute("data-lock-state"));
         });
-        Assert.All(cut.FindAll(".tl-editor-field[data-field-key='title'] input, .tl-editor-field[data-field-key='description'] textarea"),
-            input => Assert.True(input.HasAttribute("disabled")));
+        // A locked text box can be focused and copied from but not typed in: read-only, not disabled.
+        var locked = cut.FindAll(".tl-editor-field[data-field-key='title'] input, .tl-editor-field[data-field-key='description'] textarea");
+        Assert.Equal(2, locked.Count);
+        Assert.All(locked, input =>
+        {
+            Assert.True(input.HasAttribute("readonly"));
+            Assert.False(input.HasAttribute("disabled"));
+        });
+        // Locked chips are a named group of read-only chips.
+        var chips = cut.Find(".tl-editor-field[data-field-key='genre'] .tl-editor-field__chips");
+        Assert.Equal("group", chips.GetAttribute("role"));
+        Assert.Equal("Genres", chips.GetAttribute("aria-label"));
         Assert.True(editor.Session.Pending.IsEmpty);
     }
 
@@ -724,8 +737,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
             Assert.Equal("false", open.GetAttribute("data-locked"));
             Assert.Equal("false", open.GetAttribute("data-changed"));
             Assert.Equal("unlocked", cut.LockStateOf("title"));
-            Assert.Equal("Lock", open.QuerySelector("button.tl-editor-field__lock-toggle")!.GetAttribute("aria-label"));
-            Assert.False(cut.Find("input[aria-label='Title']").HasAttribute("disabled"));
+            Assert.Equal("Lock Title", open.QuerySelector("button.tl-editor-field__lock-toggle")!.GetAttribute("aria-label"));
+            Assert.False(cut.Find("input[aria-label='Title']").HasAttribute("readonly"));
         });
         Assert.True(editor.Session.Pending.IsEmpty);
 
@@ -734,7 +747,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Equal("true", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked"));
-            Assert.True(cut.Find("input[aria-label='Title']").HasAttribute("disabled"));
+            Assert.True(cut.Find("input[aria-label='Title']").HasAttribute("readonly"));
         });
         Assert.True(editor.Session.Pending.IsEmpty);
     }
@@ -852,6 +865,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
             var relocked = cut.Find(".tl-editor-field[data-field-key='title']");
             Assert.Equal("true", relocked.GetAttribute("data-locked"));
             Assert.Equal("locked", cut.LockStateOf("title"));
+            // It shows the provider's value again, not the saved one it is about to lose.
+            Assert.Equal("Dune: Part One", cut.Find("input[aria-label='Title']").GetAttribute("value"));
         });
     }
 
@@ -874,6 +889,30 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         Assert.NotNull(description.QuerySelector("[data-now-yours]"));
         Assert.Contains("now yours", description.QuerySelector(".review-changes__what")!.TextContent, StringComparison.Ordinal);
         Assert.Null(tags.QuerySelector("[data-now-yours]"));
+    }
+
+    [Fact]
+    public async Task TheSortTitle_IsAlwaysThere_OpenToType_AndStagesLikeAnyOwnField()
+    {
+        var context = EditingModeTestData.MovieContext();
+        context.Scopes[0].FieldSnapshot.AllowedOverrideKeys.Add("sort_title");
+        var editor = await StartEditorAsync(context);
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        var sortTitle = cut.WaitForElement(".tl-editor-field[data-field-key='sort_title']");
+
+        Assert.Equal("false", sortTitle.GetAttribute("data-locked"));
+        Assert.Empty(sortTitle.QuerySelectorAll("[data-lock-state]"));
+        Assert.False(sortTitle.QuerySelector("input")!.HasAttribute("readonly"));
+
+        sortTitle.QuerySelector("input")!.Input("Dune, Part One");
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(MovieId, "sort_title", out var staged));
+            Assert.Equal("Dune, Part One", staged);
+        });
     }
 
     [Fact]
