@@ -197,7 +197,8 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
 
-        cut.WaitForElement(".tl-editor-field[data-field-key='name'] input").Input("Timothy Chalamet");
+        cut.UnlockField("name");
+        cut.Find(".tl-editor-field[data-field-key='name'] input").Input("Timothy Chalamet");
 
         cut.WaitForAssertion(() =>
         {
@@ -208,6 +209,40 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task APersonsProviderFields_OpenLocked_ButTheirSortNameAndTagsDoNot()
+    {
+        var subject = Person();
+        subject.Fields.Add(new EditorSubjectFieldDto { Key = "sort_name", Label = "Sort name", Value = "Chalamet, Timothee" });
+        subject.Fields.Add(new EditorSubjectFieldDto { Key = "custom_tags", Label = "Library tags", InputKind = EditorSubjectInputKinds.Chips, Value = "actor" });
+        var editor = await StartAsync(subject);
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+
+        Assert.Equal("locked", cut.LockStateOf("name"));
+        Assert.Equal("locked", cut.LockStateOf("biography"));
+        foreach (var own in new[] { "sort_name", "custom_tags" })
+        {
+            var field = cut.Find($".tl-editor-field[data-field-key='{own}']");
+            Assert.Equal("false", field.GetAttribute("data-locked"));
+            Assert.Empty(field.QuerySelectorAll("[data-lock-state]"));
+        }
+    }
+
+    [Fact]
+    public async Task ACuratedCollectionsFields_AreItsOwn_AndNeverLocked()
+    {
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Collection));
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+
+        Assert.Empty(cut.FindAll("[data-lock-state]"));
+        Assert.Empty(cut.FindAll(".tl-editor-field[data-locked='true']"));
+        Assert.False(cut.Find(".tl-editor-field[data-field-key='title'] input").HasAttribute("disabled"));
+    }
+
+    [Fact]
     public async Task ASeriesOverride_OffersTheProvidersValueBack()
     {
         var editor = await StartAsync(Grouping(EditorSubjectKinds.Series, overridden: true));
@@ -215,7 +250,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
+        Assert.Equal("yours", cut.LockStateOf("title"));
         title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to provider value").Click();
 
         cut.WaitForAssertion(() =>

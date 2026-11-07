@@ -23,7 +23,8 @@ public sealed record MediaEditorDetailsFieldPresentation(
     string? SourceScopeId = null,
     IReadOnlyList<MediaEditorDetailsLinkedValue>? LinkedValues = null,
     string? CanonicalName = null,
-    IReadOnlyList<MediaEditorChoiceOption>? Options = null);
+    IReadOnlyList<MediaEditorChoiceOption>? Options = null,
+    bool IsOwnField = false);
 
 /// <summary>One pickable value of a choice field (a Universe thing's "belongs to").</summary>
 public sealed record MediaEditorChoiceOption(string Value, string Label);
@@ -171,7 +172,8 @@ public static class MediaEditorDetailsPresenter
                 fieldKey, overrideKey, spec.Label, displayValue, spec.Icon, spec.InputKind, resolved.Provenance,
                 resolved.SourceLabel, resolved.ProviderName, editable, editable && resolved.Revertable,
                 spec.Chips || MultiValueKeys.Contains(fieldKey) || resolved.LinkedValues is { Count: > 1 },
-                spec.Tier, resolved.Value, displayValue, resolved.Locked, resolved.SourceScopeId, resolved.LinkedValues);
+                spec.Tier, resolved.Value, displayValue, resolved.Locked, resolved.SourceScopeId, resolved.LinkedValues,
+                IsOwnField: EditorFieldLocks.IsOwnField(overrideKey) || EditorFieldLocks.IsOwnField(fieldKey));
 
             if (spec.Key is "description" or "episode_description" or "issue_description")
             {

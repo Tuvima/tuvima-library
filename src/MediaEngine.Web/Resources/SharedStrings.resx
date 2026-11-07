@@ -11141,4 +11141,25 @@
   <data name="EditorMatchResults_ApplyMatch" xml:space="preserve">
     <value>Apply match</value>
   </data>
+  <data name="EditorDetailsPanel_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="EditorDetailsPanel_YoursKept" xml:space="preserve">
+    <value>Unlocked · your value is kept on refresh</value>
+  </data>
+  <data name="EditorDetailsPanel_UnlockToEdit" xml:space="preserve">
+    <value>Unlock to edit</value>
+  </data>
+  <data name="EditorDetailsPanel_Lock" xml:space="preserve">
+    <value>Lock</value>
+  </data>
+  <data name="EditorDetailsPanel_Locked" xml:space="preserve">
+    <value>Locked</value>
+  </data>
+  <data name="EditorDetailsPanel_Unlocked" xml:space="preserve">
+    <value>Unlocked</value>
+  </data>
+  <data name="ReviewChangesView_NowYours" xml:space="preserve">
+    <value>now yours</value>
+  </data>
 </root>

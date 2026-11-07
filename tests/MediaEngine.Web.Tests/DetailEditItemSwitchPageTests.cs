@@ -286,6 +286,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         _editor.WaitForElement("[data-field-key='title'] input[aria-label='Season']");
         Assert.Equal("season", flow.Mode().Fields.ScopeId);
+        _editor.UnlockField("title");
         _editor.Find("[data-field-key='title'] input").Input("Premiere");
 
         _editor.WaitForAssertion(() => Assert.True(flow.Session.Pending.TryGetField(SeasonOne, "title", out _)));

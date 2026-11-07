@@ -153,6 +153,22 @@ public sealed class ItemFieldEditSession
     /// <summary>Whether the active scope lets this person change its fields at all (a read-only library or file says no).</summary>
     public bool CanEditFields => _scope?.CanEditFields == true;
 
+    // The form lock (EditorFieldLocks): which provider fields the person has unlocked to type in, per item. This is only what the form
+    // shows. It is never sent to the Engine and unlocking or locking a field stages nothing; a field becomes the person's own only when
+    // they change it and save.
+    private readonly HashSet<string> _unlocked = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>True when the person unlocked this provider field of the active item to edit it.</summary>
+    public bool IsUnlocked(string fieldKey) => _unlocked.Contains(UnlockKey(fieldKey));
+
+    /// <summary>Unlocks one provider field of the active item so it can be typed in. Stages nothing.</summary>
+    public void Unlock(string fieldKey) => _unlocked.Add(UnlockKey(fieldKey));
+
+    /// <summary>Locks the field again (a field nobody changed). Stages nothing.</summary>
+    public void Relock(string fieldKey) => _unlocked.Remove(UnlockKey(fieldKey));
+
+    private string UnlockKey(string fieldKey) => EntityId.ToString("N") + "|" + fieldKey.Trim();
+
     public MediaEditorDetailsPresentation Presentation => _presentation;
 
     /// <summary>Existing library genres, offered while typing a genre.</summary>
@@ -173,6 +189,7 @@ public sealed class ItemFieldEditSession
         _preferences = null;
         _profileOverrides = null;
         _presentation = new MediaEditorDetailsPresentation();
+        _unlocked.Clear();
         ExplicitMark = null;
         QuickFacts = null;
         KindConfig = null;
@@ -353,7 +370,7 @@ public sealed class ItemFieldEditSession
         };
 
         var canonicalName = subject.Kind == EditorSubjectKinds.Universe ? "canonical" : null;
-        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName)).ToList();
+        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName, EditorFieldLocks.IsOwnSubjectField(subject.Kind, field.Key))).ToList();
         var facts = subject.Facts.Select(fact => new MediaEditorDetailsFieldPresentation(
             fact.Label.ToLowerInvariant().Replace(' ', '_'), string.Empty, fact.Label, fact.Value, string.Empty, "text", "Provider",
             fact.SourceLabel, null, false, false, false, 3, fact.Value, fact.Value, false)).ToList();
@@ -370,7 +387,7 @@ public sealed class ItemFieldEditSession
         LoadError = null;
     }
 
-    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName) => new(
+    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName, bool isOwnField) => new(
         field.Key,
         field.Key,
         field.Label,
@@ -395,7 +412,8 @@ public sealed class ItemFieldEditSession
         CanonicalName: canonicalName,
         Options: field.InputKind == EditorSubjectInputKinds.Choice
             ? field.Options.Select(option => new MediaEditorChoiceOption(option.Value, option.Label)).ToList()
-            : null);
+            : null,
+        IsOwnField: isOwnField);
 
     // A person, Series or Universe has no header of its own, so its tabs and facts come from the kind's rules in config/editor.json. A kind the
     // file does not know (a curated collection) or a failed read leaves the editor on its standard tabs.
@@ -526,7 +544,7 @@ public sealed class ItemFieldEditSession
     public MediaEditorDetailsFieldPresentation? EmptyTagsField => _presentation.CanAddTags
         ? new MediaEditorDetailsFieldPresentation(
             "custom_tags", "custom_tags", "Tags", string.Empty, "Label", "text", "Override", "Library override", null,
-            true, false, true, 2, string.Empty, string.Empty, false)
+            true, false, true, 2, string.Empty, string.Empty, false, IsOwnField: true)
         : null;
 
     private IEnumerable<MediaEditorDetailsFieldPresentation> EnumerateFields()

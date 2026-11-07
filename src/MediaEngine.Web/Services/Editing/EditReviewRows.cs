@@ -17,6 +17,7 @@ public enum EditReviewGroup
 /// One line in Review changes: the item, what changes, and the before and after the person can compare. A details change with several
 /// fields becomes one row per field, so the count on Save matches the rows. <see cref="Before"/> is null when the Dashboard does not
 /// know the old value; staging records it when it can, and a row without one reads <see cref="AsItIsNow"/> so every row has a Before.
+/// <see cref="NowYours"/> marks a provider field the person changed: saving makes the value theirs, kept on every later refresh (editor v5 D5).
 /// </summary>
 public sealed record EditReviewRow(
     string ChangeId,
@@ -28,7 +29,8 @@ public sealed record EditReviewRow(
     string What,
     string? Before,
     string After,
-    string? Warning)
+    string? Warning,
+    bool NowYours = false)
 {
     public string RowId => FieldKey is null ? ChangeId : $"{ChangeId}:{FieldKey}";
 
@@ -129,8 +131,11 @@ public static class EditReviewRows
                                      ?? (fields is { ExplicitMark: { } mark } && fields.EntityId == change.EntityId ? ExplicitText(mark.IsExplicit) : AsItIsNow);
                         }
 
+                        // A provider field with a value of its own becomes the person's; a blank value goes back to the provider, and a field
+                        // only the person fills (tags, sort title) was never the provider's.
+                        var nowYours = !isExplicit && !string.IsNullOrWhiteSpace(field.Value) && !IsOwnField(fields, change.EntityId, field.Key);
                         rows.Add(new EditReviewRow(change.Id, field.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
-                            isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null));
+                            isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null, nowYours));
                     }
 
                     break;
@@ -194,6 +199,11 @@ public static class EditReviewRows
         // Stable: groups in the spec's order, each keeping the order the changes were staged in.
         return rows.OrderBy(row => row.Group).ToList();
     }
+
+    private static bool IsOwnField(ItemFieldEditSession? fields, Guid entityId, string key) =>
+        fields is { SubjectKind: { } kind } && fields.EntityId == entityId
+            ? EditorFieldLocks.IsOwnSubjectField(kind, key)
+            : EditorFieldLocks.IsOwnField(key);
 
     private static string FileSortNote(ExtraFileChoice choice) => choice.Action switch
     {

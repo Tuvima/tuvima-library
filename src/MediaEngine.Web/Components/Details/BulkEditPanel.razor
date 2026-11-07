@@ -144,6 +144,7 @@
     private Guid? _artworkTarget;
     private readonly Dictionary<string, ListDraft> _drafts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, string> _movedLabels = [];
+    private readonly HashSet<string> _unlocked = new(StringComparer.OrdinalIgnoreCase);
     private BulkEditFields _fields = default!;
     private List<Guid> _loadedIds = [];
     private int _loadedVersion = -1;
@@ -313,18 +314,49 @@
     private RenderFragment EditableRow(BulkFieldView field, BulkFieldView shown) => __builder =>
     {
         var staged = field.HasStaged(Pending);
-        <div class="tl-editor-field" data-field-key="@field.Key">
+        // The same form lock as one item (EditorFieldLocks): a provider field starts locked and is unlocked to edit the shared value. A
+        // field with a change staged is the person's own value and stays open; tags and the Explicit mark are never locked.
+        var own = EditorFieldLocks.IsOwnField(field.Key);
+        var locked = !own && !staged && !_unlocked.Contains(field.Key);
+        <div class="@(locked ? "tl-editor-field tl-editor-field--form-locked" : "tl-editor-field")" data-field-key="@field.Key" data-locked="@(locked ? "true" : "false")">
             <div class="tl-editor-field__label">
                 <span>@field.Label</span>
-                @if (staged)
+                @if (!own)
                 {
-                    <AppTooltip Text="Will change when you save"><span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} will change")"></span></AppTooltip>
+                    <span class="tl-editor-field__tools">
+                        <span class="tl-editor-field__lockstate" data-lock-state="@(staged ? "yours" : locked ? "locked" : "unlocked")">
+                            @if (staged)
+                            {
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
+                                <span>@L["EditorDetailsPanel_YoursKept"]</span>
+                            }
+                            else
+                            {
+                                var lockText = locked ? L["EditorDetailsPanel_UnlockToEdit"].Value : L["EditorDetailsPanel_Lock"].Value;
+                                <AppIconButton Icon="@(locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
+                                               Size="AppControlSize.Compact"
+                                               Tone="AppUiTone.Primary"
+                                               ButtonStyle="AppButtonStyle.Text"
+                                               Class="tl-editor-field__lock-toggle"
+                                               Disabled="@(!CanChange)"
+                                               Tooltip="@lockText"
+                                               AriaLabel="@lockText"
+                                               aria-pressed="@(locked ? "true" : "false")"
+                                               OnClick="@(() => ToggleLock(field, locked))" />
+                                <span>@(locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
+                            }
+                        </span>
+                    </span>
                 }
             </div>
             <span class="@(shown.IsMixed ? "tl-editor-field__note tl-bulk__mixed" : "tl-editor-field__note")">@CurrentText(shown)</span>
             @if (field.IsList)
             {
-                @ListControl(field)
+                @* A locked list shows only what the items hold; unlocking brings in the controls that change it. *@
+                @if (!locked)
+                {
+                    @ListControl(field)
+                }
             }
             else if (string.Equals(field.Key, BulkEditRules.ExplicitKey, StringComparison.OrdinalIgnoreCase))
             {
@@ -340,7 +372,7 @@
                               ValueChanged="@(value => StageScalar(field, value))"
                               Placeholder="@(shown.IsMixed ? BulkEditRules.MixedLeaveUnchanged : null)"
                               InputType="@InputTypeOf(field)"
-                              Disabled="@(!CanChange)"
+                              Disabled="@(!CanChange || locked)"
                               aria-label="@field.Label" />
             }
 
@@ -631,8 +663,27 @@
         Restage(field, draft);
     }
 
+    // Unlocking only lets the shared value be typed in; locking again stages nothing.
+    private void ToggleLock(BulkFieldView field, bool locked)
+    {
+        if (!CanChange)
+        {
+            return;
+        }
+
+        if (locked)
+        {
+            _unlocked.Add(field.Key);
+        }
+        else
+        {
+            _unlocked.Remove(field.Key);
+        }
+    }
+
     private void UndoField(BulkFieldView field)
     {
+        _unlocked.Remove(field.Key);
         BulkEditStager.ClearField(Pending, field);
         if (_drafts.TryGetValue(field.Key, out var draft))
         {
