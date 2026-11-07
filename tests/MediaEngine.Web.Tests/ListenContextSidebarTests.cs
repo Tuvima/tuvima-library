@@ -223,8 +223,14 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(phone ? 1 : 0, cut.FindAll(".playback-full--phone").Count);
         // The phone's collapsed bar keeps one tool (Now playing); the desktop bar hosts Chapters, and it follows the open scene inline.
         var chapterTools = cut.FindComponents<ListenDockTool>().Where(tool => tool.Instance.PanelKey == "chapters").ToList();
-        if (phone) Assert.Empty(chapterTools);
-        else Assert.True(Assert.Single(chapterTools).Instance.Inline);
+        if (phone)
+        {
+            Assert.Empty(chapterTools);
+        }
+        else
+        {
+            Assert.True(Assert.Single(chapterTools).Instance.Inline);
+        }
         Assert.Equal(requestVersion, playback.PlaybackRequestVersion);
     }
 
