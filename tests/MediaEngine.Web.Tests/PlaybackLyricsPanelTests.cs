@@ -4,6 +4,8 @@ using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Contracts.Authentication;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,23 +22,25 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     private readonly Guid _track = Guid.NewGuid();
     private readonly SeekSpy _commands = new();
     private BunitJSModuleInterop _lyricsModule = null!;
+    private BunitJSModuleInterop _popoverModule = null!;
 
     public PlaybackLyricsPanelTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         _lyricsModule = JSInterop.SetupModule("./js/playback-lyrics.js");
+        _popoverModule = JSInterop.SetupModule("./js/playback-popover.js");
         Services.AddLogging();
         Services.AddLocalization();
         Services.AddNativeUiServices();
     }
 
-    private static ListenPlaybackSnapshot Snapshot() => new()
+    private static ListenPlaybackSnapshot Snapshot(string title = "Stay a Little Longer") => new()
     {
         ProfileId = Guid.NewGuid(),
         CurrentIndex = 0,
         PlaybackRequestVersion = 9,
         DurationSeconds = 60,
-        Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Stay a Little Longer", Subtitle = "The Midnight Coast", StreamUrl = "stream://song" }],
+        Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = title, Subtitle = "The Midnight Coast", StreamUrl = "stream://song" }],
     };
 
     private static TextTrackDto Track(Guid id, string provider, bool userOwned = false) =>
@@ -416,6 +420,295 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
 
         Assert.False(presenter.LoadFailed);
         Assert.Empty(presenter.Lines);
+    }
+
+    // ---- Who may edit the lyrics (CLAUDE.md Never 1: editing is desktop-only and the Engine still decides) ----
+
+    private static async Task<DeviceContextService> DeviceAsync(DeviceContextSnapshot snapshot)
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(snapshot);
+        return device;
+    }
+
+    private static DashboardSessionAccessor Session(bool administrator)
+    {
+        var profile = Guid.NewGuid();
+        var session = new DashboardSessionAccessor();
+        session.Set("token", Guid.NewGuid(), profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(profile, profile, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
+        return session;
+    }
+
+    [Theory]
+    [InlineData("web", "desktop", true, true, true, true)]
+    [InlineData("web", "desktop", true, true, true, false)]
+    [InlineData("mobile", "phone", false, false, true, true)]
+    [InlineData("web", "tablet", false, false, true, true)]
+    [InlineData("web", "desktop", false, false, false, true)]
+    [InlineData("web", "desktop", false, true, false, true)]
+    public async Task EditLyricsIsOfferedOnlyToAnAdministratorOnADesktopWithAFineHoverPointer(
+        string deviceClass, string formFactor, bool touch, bool finePointer, bool hover, bool administrator)
+    {
+        var device = await DeviceAsync(new DeviceContextSnapshot(deviceClass, formFactor, touch, FinePointer: finePointer, Hover: hover));
+        Services.AddSingleton(device);
+        Services.AddSingleton(Session(administrator));
+        var cut = await OpenAsync(Api([Track(_track, "local", userOwned: true)]));
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+
+        await OpenFooterMenuAsync(cut);
+
+        var expected = deviceClass == "web" && formFactor == "desktop" && finePointer && hover && administrator;
+        Assert.Equal(expected, FooterMenuLabels(cut).Contains("Edit lyrics"));
+        Assert.Contains("This one is wrong", FooterMenuLabels(cut));
+    }
+
+    // ---- Focus never falls to the page ----
+
+    private IReadOnlyList<JSRuntimeInvocation> Calls(BunitJSModuleInterop module, string identifier) =>
+        module.Invocations.Where(call => call.Identifier == identifier).ToArray();
+
+    [Fact]
+    public async Task ChoosingAboutClosesTheMenuBackOntoTheMoreButton_ThenFocusGoesIntoTheNestedView_AndBackReturnsToWhatOpenedIt()
+    {
+        var cut = await OpenAsync(Api([Track(_track, "lrclib")], content: "[00:01.00]Words"));
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        await OpenFooterMenuAsync(cut);
+
+        await cut.ClickAsync("[data-lyrics-action='about']");
+
+        cut.WaitForAssertion(() => Assert.Equal("About lyrics sources", cut.Find(".playback-panel__title").TextContent));
+        // The menu panel released with focus restored to its trigger (the "..." button): update(root, null, false, true).
+        Assert.Contains(Calls(_popoverModule, "update"), call => call.Arguments is [_, null, false, true]);
+        // The nested view took focus in (push), without leaving it on the page.
+        cut.WaitForAssertion(() => Assert.Contains(Calls(_popoverModule, "navigated"), call => call.Arguments is [_, _, true]));
+
+        await cut.ClickAsync("button[aria-label='Back']");
+
+        cut.WaitForAssertion(() => Assert.Equal("Lyrics", cut.Find(".playback-panel__title").TextContent));
+        cut.WaitForAssertion(() => Assert.Equal(false, Calls(_popoverModule, "navigated").Last().Arguments[2]));
+    }
+
+    [Fact]
+    public async Task FindAnotherMovesFocusIntoTheOffers_AndGoBackReturnsItToTheMoreButton()
+    {
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([Track(_track, "lrclib")]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), _ => Task.FromResult<string?>("[00:01.00]Words"));
+            stub.SetHandler(nameof(IEngineApiClient.GetPlayerPluginActionsAsync), _ =>
+                Task.FromResult<IReadOnlyList<PlayerPluginActionDto>>([new() { kind = "find_lyrics", slot = "player_core" }]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ => Task.FromResult<TextTrackAlternativesResponse?>(new()
+            {
+                status = "Found",
+                items = [new() { provider = "lrclib", provider_name = "LRCLIB", source_id = "2" }],
+            }));
+        });
+        var cut = await OpenAsync(api);
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        await OpenFooterMenuAsync(cut);
+
+        await cut.ClickAsync("[data-lyrics-action='find-another']");
+
+        cut.WaitForAssertion(() => Assert.Equal("alternatives", View(cut)));
+        cut.WaitForAssertion(() => Assert.Contains(Calls(_lyricsModule, "focusView"), call => call.Arguments is [_, "alternatives", _]));
+        Assert.Contains(Calls(_popoverModule, "update"), call => call.Arguments is [_, null, false, true]);
+        Assert.Empty(Calls(_lyricsModule, "focusMore"));
+
+        await cut.ClickAsync(".playback-lyrics-alternatives__back");
+
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        cut.WaitForAssertion(() => Assert.NotEmpty(Calls(_lyricsModule, "focusMore")));
+    }
+
+    // ---- A song change while the panel is open ----
+
+    [Fact]
+    public async Task ThePanelStaysOpenWhenTheSongChanges_AndTheLyricsStartOverForTheNewSong()
+    {
+        var tracksReads = 0;
+        var cut = await OpenAsync(Api([Track(_track, "local", userOwned: true)], tracksRead: _ => { Interlocked.Increment(ref tracksReads); return Task.CompletedTask; }));
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+
+        cut.Render(parameters => parameters.Add(p => p.Snapshot, Snapshot("A New Song")));
+
+        cut.WaitForAssertion(() => Assert.Equal("A New Song", cut.Find(".playback-lyrics__track").TextContent));
+        cut.WaitForAssertion(() => Assert.Equal(2, Volatile.Read(ref tracksReads)));
+        Assert.NotEmpty(cut.FindAll("[data-playback-popover-panel]"));
+        Assert.Equal("synced", View(cut));
+    }
+
+    [Fact]
+    public void TheBarDoesNotKeyTheLyricsPanelBySong_SoTheSongChangingNeverClosesIt()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var bar = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor"));
+        var tag = bar[bar.IndexOf("<PlaybackLyricsPanel", StringComparison.Ordinal)..];
+        tag = tag[..tag.IndexOf("/>", StringComparison.Ordinal)];
+
+        Assert.DoesNotContain("ItemKey", tag);
+    }
+
+    // ---- A stale reply and a reload while old lines are showing ----
+
+    private static ListenPlaybackSnapshot SnapshotFor(Guid asset, string title)
+    {
+        var snapshot = Snapshot(title);
+        snapshot.Queue[0] = new() { WorkId = Guid.NewGuid(), AssetId = asset, MediaType = "Music", Title = title, Subtitle = "The Midnight Coast", StreamUrl = "stream://" + asset };
+        return snapshot;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ALyricsReplyThatArrivesAfterTheSongChangedIsNeitherShownNorCountedAsAFailure(bool theStaleReplyFails)
+    {
+        var firstAsset = Guid.NewGuid();
+        var secondAsset = Guid.NewGuid();
+        var firstTrack = Guid.NewGuid();
+        var secondTrack = Guid.NewGuid();
+        var staleReply = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var staleAsked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), args =>
+                Task.FromResult<IReadOnlyList<TextTrackDto>>([Track((Guid)args![0]! == firstAsset ? firstTrack : secondTrack, "lrclib")]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), args =>
+            {
+                if ((Guid)args![0]! != firstAsset) return Task.FromResult<string?>("[00:01.00]The new song");
+                staleAsked.TrySetResult();
+                return staleReply.Task;
+            });
+        });
+        using var presenter = new PlaybackLyricsPresenter(api);
+
+        var first = presenter.EnsureAsync(SnapshotFor(firstAsset, "First"), _commands);
+        await staleAsked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await presenter.EnsureAsync(SnapshotFor(secondAsset, "Second"), _commands);
+        if (theStaleReplyFails) staleReply.SetException(new InvalidOperationException("late failure"));
+        else staleReply.SetResult("[00:01.00]The old song");
+        await first;
+
+        Assert.Equal("The new song", Assert.Single(presenter.Lines).Text);
+        Assert.Equal(secondTrack, presenter.SelectedTrackId);
+        Assert.False(presenter.LoadFailed);
+        Assert.Null(presenter.Status);
+        Assert.False(presenter.Loading);
+    }
+
+    [Fact]
+    public async Task TheChipStepsAsideWhileTheLyricsAreLookedUpAgainAndComesBackWithThem()
+    {
+        var search = new TaskCompletionSource<RefreshTextTracksResponse?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([Track(_track, "local", userOwned: true)]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), _ => Task.FromResult<string?>("[00:01.00]Words"));
+            stub.SetHandler(nameof(IEngineApiClient.RefreshTextTracksAsync), _ => search.Task);
+        });
+        var cut = await OpenAsync(api);
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        Assert.NotEmpty(cut.FindAll("[data-lyrics-chip]"));
+        var presenter = Services.GetRequiredService<PlaybackLyricsPresenter>();
+
+        var refresh = cut.InvokeAsync(presenter.RefreshAsync);
+
+        cut.WaitForAssertion(() => Assert.Equal("loading", View(cut)));
+        Assert.NotEmpty(presenter.Lines);
+        Assert.Empty(cut.FindAll("[data-lyrics-chip]"));
+
+        search.SetResult(new RefreshTextTracksResponse());
+        await refresh;
+
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        Assert.NotEmpty(cut.FindAll("[data-lyrics-chip]"));
+    }
+
+    // ---- Adding a lyrics file ----
+
+    private sealed class PickedFile(string name, long size, bool unreadable = false) : Microsoft.AspNetCore.Components.Forms.IBrowserFile
+    {
+        public string Name => name;
+        public DateTimeOffset LastModified => DateTimeOffset.UnixEpoch;
+        public long Size => size;
+        public string ContentType => "text/plain";
+        public Stream OpenReadStream(long maxAllowedSize = 512000, CancellationToken cancellationToken = default) =>
+            unreadable ? throw new IOException("gone") : new MemoryStream("[00:01.00]Words"u8.ToArray());
+    }
+
+    private async Task<(PlaybackLyricsPresenter Presenter, List<string> Uploaded)> PresenterWithUploadSpyAsync()
+    {
+        var uploaded = new List<string>();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.ImportTextTrackAsync), args =>
+            {
+                uploaded.Add((string)args![3]!);
+                return Task.FromResult<RefreshTextTracksResponse?>(new RefreshTextTracksResponse());
+            });
+        });
+        var presenter = new PlaybackLyricsPresenter(api);
+        await presenter.EnsureAsync(Snapshot(), _commands);
+        return (presenter, uploaded);
+    }
+
+    [Theory]
+    [InlineData("words.lrc")]
+    [InlineData("WORDS.LRC")]
+    [InlineData("Words.Txt")]
+    public async Task ALrcOrTxtFileOfAnyCapitalsWithinFiveMegabytesIsUploaded(string name)
+    {
+        var (presenter, uploaded) = await PresenterWithUploadSpyAsync();
+        using var _ = presenter;
+
+        var problem = await presenter.ImportBrowserFileAsync(new PickedFile(name, 1024));
+
+        Assert.Equal(PlaybackLyricsFileProblem.None, problem);
+        Assert.Equal([name], uploaded);
+    }
+
+    [Theory]
+    [InlineData("cover.png", 1024, PlaybackLyricsFileProblem.WrongType)]
+    [InlineData("lyrics.lrc.exe", 1024, PlaybackLyricsFileProblem.WrongType)]
+    [InlineData("lyrics", 1024, PlaybackLyricsFileProblem.WrongType)]
+    [InlineData("big.lrc", 5 * 1024 * 1024 + 1, PlaybackLyricsFileProblem.TooBig)]
+    public async Task AFileThatIsTheWrongTypeOrTooBigIsNeverUploaded_AndTheResultSaysWhy(string name, long size, PlaybackLyricsFileProblem expected)
+    {
+        var (presenter, uploaded) = await PresenterWithUploadSpyAsync();
+        using var _ = presenter;
+
+        var problem = await presenter.ImportBrowserFileAsync(new PickedFile(name, size));
+
+        Assert.Equal(expected, problem);
+        Assert.Empty(uploaded);
+    }
+
+    [Fact]
+    public async Task AFileTheBrowserCannotReadIsReportedAsUnreadable()
+    {
+        var (presenter, uploaded) = await PresenterWithUploadSpyAsync();
+        using var _ = presenter;
+
+        var problem = await presenter.ImportBrowserFileAsync(new PickedFile("words.lrc", 1024, unreadable: true));
+
+        Assert.Equal(PlaybackLyricsFileProblem.Unreadable, problem);
+        Assert.Empty(uploaded);
+    }
+
+    [Theory]
+    [InlineData("cover.png", 1024, false, "That is not a lyrics file. Choose a .lrc or .txt file.")]
+    [InlineData("big.lrc", 6 * 1024 * 1024, false, "That lyrics file is too big. Lyrics files must be 5 MB or smaller.")]
+    [InlineData("words.lrc", 1024, true, "That lyrics file could not be read.")]
+    public async Task ThePanelSaysInPlainWordsWhyAPickedFileWasNotAdded(string name, long size, bool unreadable, string message)
+    {
+        var cut = await OpenAsync(Api([]));
+        cut.WaitForAssertion(() => Assert.Equal("unavailable", View(cut)));
+        var upload = cut.FindComponent<AppFileUpload<Microsoft.AspNetCore.Components.Forms.IBrowserFile>>();
+
+        await cut.InvokeAsync(() => upload.Instance.FilesChanged.InvokeAsync(new PickedFile(name, size, unreadable)));
+
+        cut.WaitForAssertion(() => Assert.Equal(message, cut.Find(".playback-lyrics__status").TextContent.Trim()));
     }
 
     private sealed class SeekSpy : IPlaybackCommandSink

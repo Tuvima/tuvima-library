@@ -1728,6 +1728,15 @@
   <data name="PlaybackLyrics_AddFile" xml:space="preserve">
     <value>Add a lyrics file</value>
   </data>
+  <data name="PlaybackLyrics_FileWrongType" xml:space="preserve">
+    <value>That is not a lyrics file. Choose a .lrc or .txt file.</value>
+  </data>
+  <data name="PlaybackLyrics_FileTooBig" xml:space="preserve">
+    <value>That lyrics file is too big. Lyrics files must be 5 MB or smaller.</value>
+  </data>
+  <data name="PlaybackLyrics_FileUnreadable" xml:space="preserve">
+    <value>That lyrics file could not be read.</value>
+  </data>
   <data name="PlaybackLyrics_FindAnother" xml:space="preserve">
     <value>Find another</value>
   </data>

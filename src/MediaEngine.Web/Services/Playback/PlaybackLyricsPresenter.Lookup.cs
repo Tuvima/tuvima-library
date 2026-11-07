@@ -135,26 +135,34 @@ public sealed partial class PlaybackLyricsPresenter
 
     private const long MaxLyricsFileBytes = 5 * 1024 * 1024;
 
-    /// <summary>Adds the lyrics file the person picked in the browser (at most 5 MB), or says in plain words why it could not be used.</summary>
-    public async Task ImportBrowserFileAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
+    /// <summary>
+    /// Adds the lyrics file the person picked in the browser: a .lrc or .txt file (any capitals) of at most 5 MB. A file that cannot be used is not uploaded,
+    /// and the result says why so the panel can word it; the presenter itself holds no wording.
+    /// </summary>
+    public async Task<PlaybackLyricsFileProblem> ImportBrowserFileAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
     {
         if (file is null)
         {
-            return;
+            return PlaybackLyricsFileProblem.None;
+        }
+        var extension = Path.GetExtension(file.Name);
+        if (!string.Equals(extension, ".lrc", StringComparison.OrdinalIgnoreCase) && !string.Equals(extension, ".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            return PlaybackLyricsFileProblem.WrongType;
         }
         if (file.Size > MaxLyricsFileBytes)
         {
-            ShowStatus("That lyrics file is too big. Lyrics files must be 5 MB or smaller.");
-            return;
+            return PlaybackLyricsFileProblem.TooBig;
         }
         try
         {
             await using var stream = file.OpenReadStream(MaxLyricsFileBytes);
             await ImportFileAsync(file.Name, file.ContentType, stream);
+            return PlaybackLyricsFileProblem.None;
         }
         catch (IOException)
         {
-            ShowStatus("That lyrics file could not be read.");
+            return PlaybackLyricsFileProblem.Unreadable;
         }
     }
 

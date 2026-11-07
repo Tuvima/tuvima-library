@@ -22,7 +22,7 @@
             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" />
         </AppNativeButton>
     </AppTooltip>
-    <PlaybackPanel Kind="menu" Title="@L["PlaybackLyrics_LyricsOptions"].Value" ToolId="@_menuId" ShowHeading="false" Surface="dock"
+    <PlaybackPanel @ref="_menu" Kind="menu" Title="@L["PlaybackLyrics_LyricsOptions"].Value" ToolId="@_menuId" ShowHeading="false" Surface="dock"
                    Trigger="@_more?.Element" OpenChanged="@(open => { _menuOpen = open; return Task.CompletedTask; })">
         <ChildContent>
             <PlaybackLyricsMenu Items="@Items" OnSelected="ActivateAsync" />
@@ -33,6 +33,7 @@
 @code {
     private readonly string _menuId = $"lyrics-options-{Guid.NewGuid():N}";
     private PlaybackLyricsFilePicker? _picker;
+    private PlaybackPanel? _menu;
     private AppNativeButton? _more;
     private bool _menuOpen, _disposed;
 
@@ -44,7 +45,7 @@
 
     [CascadingParameter] public PlaybackPanelNavigator? Navigator { get; set; }
 
-    private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private bool CanManageLyrics => EditorDeviceRule.CanEdit(DeviceContext) && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
 
     private IReadOnlyList<PlaybackLyricsMenuItem> Items
     {
@@ -106,7 +107,9 @@
 
     private async Task ActivateAsync(string key)
     {
-        Services.GetService<PlaybackTransientToolCoordinator>()?.Close(_menuId);
+        // Choosing a row closes the menu and puts focus back on the "..." button, so the keyboard never lands on the page.
+        if (_menu is not null) await _menu.CloseAsync();
+        else Services.GetService<PlaybackTransientToolCoordinator>()?.Close(_menuId);
         switch (key)
         {
             case PlaybackLyricsMenuActions.FindAnother:

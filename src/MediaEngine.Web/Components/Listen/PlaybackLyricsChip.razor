@@ -4,8 +4,8 @@
 @inject PlaybackLyricsPresenter Presenter
 @inject IStringLocalizer<SharedStrings> L
 
-@* The "Synced" or "Unsynced" chip beside the Lyrics title (unified player v2 D17; mockup screen 7). Nothing is drawn until there are lyrics to describe. *@
-@if (Presenter.Lines.Count > 0)
+@* The "Synced" or "Unsynced" chip beside the Lyrics title (unified player v2 D17; mockup screen 7). Nothing is drawn until there are lyrics to describe, nor while they are being looked up again. *@
+@if (Presenter.Lines.Count > 0 && !Presenter.Loading && !Presenter.Refreshing)
 {
     <span class="@(Presenter.IsSynced ? "playback-lyrics-chip playback-lyrics-chip--synced" : "playback-lyrics-chip")" data-lyrics-chip="@(Presenter.IsSynced ? "synced" : "unsynced")">@(Presenter.IsSynced ? L["PlaybackLyrics_Synced"] : L["PlaybackLyrics_Unsynced"])</span>
 }

@@ -137,8 +137,8 @@
                         }
                         else
                         {
-                            @* The Lyrics panel (unified player v2 D17, mockup screen 7); its Open Now playing button does what the artwork does. *@
-                            <PlaybackLyricsPanel ItemKey="@DockItemKey" OnOpenNowPlaying="OpenNowPlaying" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))" />
+                            @* The Lyrics panel (unified player v2 D17, mockup screen 7); its Open Now playing button does what the artwork does. It stays open when the song changes: the lyrics reset by themselves. *@
+                            <PlaybackLyricsPanel OnOpenNowPlaying="OpenNowPlaying" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))" />
                         }
                         break;
                     case PlaybackControlKey.Queue:

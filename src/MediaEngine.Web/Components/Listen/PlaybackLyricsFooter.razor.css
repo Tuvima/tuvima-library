@@ -19,7 +19,7 @@
 }
 
 .playback-lyrics-footer__more {
-    --playback-glyph-size: 22px;
+    --playback-glyph-size: 20px;
     align-items: center;
     background: transparent;
     border: 0;

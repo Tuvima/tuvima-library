@@ -89,7 +89,6 @@
     display: block;
     font: 400 22px/1.5 var(--font-ui);
     margin: 0;
-    min-height: 44px;
     overflow-wrap: anywhere;
     padding: 4px 0 4px 14px;
     text-align: left;
@@ -99,6 +98,7 @@
 
 button.playback-lyrics__line {
     cursor: pointer;
+    min-height: 44px;
 }
 
 button.playback-lyrics__line:hover {
@@ -202,6 +202,7 @@ button.playback-lyrics__line:focus-visible {
     gap: 8px;
     height: 36px;
     padding: 0 12px;
+    --playback-glyph-size: 20px;
 }
 
 .playback-lyrics__resume-chip:hover {

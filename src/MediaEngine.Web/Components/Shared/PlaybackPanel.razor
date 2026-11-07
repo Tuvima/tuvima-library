@@ -163,6 +163,7 @@
     private DotNetObjectReference<PlaybackPanel>? _reference;
     private string? _lastItemKey;
     private bool _mobile, _reportedOpen, _renderOpen, _disposed;
+    private int _pendingNavigation, _lastDepth;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
 
     protected override void OnInitialized()
@@ -188,7 +189,14 @@
         _tools?.Close(EffectiveToolId);
     }
 
-    private void NavigatorChanged() => _ = InvokeAsync(StateHasChanged);
+    // Opening or leaving a nested view removes the control that had focus; after the next draw focus goes into the new view, or back to the control that opened it.
+    private void NavigatorChanged()
+    {
+        var depth = Navigator.Depth;
+        if (IsOpen) _pendingNavigation = depth > _lastDepth ? 1 : -1;
+        _lastDepth = depth;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     private void ToolChanged()
     {
@@ -223,6 +231,12 @@
             _reference ??= DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("attach", _root, Trigger, _reference);
             await _module.InvokeVoidAsync("update", _root, IsOpen ? _panel : null, IsOpen);
+            if (_pendingNavigation != 0)
+            {
+                var push = _pendingNavigation > 0;
+                _pendingNavigation = 0;
+                if (IsOpen) await _module.InvokeVoidAsync("navigated", _root, _panel, push);
+            }
         }
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }
