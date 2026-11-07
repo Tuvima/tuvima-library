@@ -68,6 +68,13 @@ public sealed record PlaybackBarIdentity(
                 return new(item.Title, "audiobook", bookId, parts);
 
             case PlaybackBarMedia.Tv:
+                // A video from a Videos or Other videos library says its number and title ("3 · Ball handling"), never a season or S1 E3 (issue 703).
+                if (VideoPlayerWording.IsFolderVideo(item))
+                {
+                    AddIfText(parts, VideoPlayerWording.TitleLine(item), null, null);
+                    return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), null, null, parts);
+                }
+
                 AddIfText(parts, EpisodeLabel(item), null, null);
                 var hasShow = showWorkId is { } known && known != Guid.Empty;
                 if (!hideEpisodeTitle)
@@ -87,6 +94,11 @@ public sealed record PlaybackBarIdentity(
     /// <summary>"S1 E1" for a TV episode, from whichever of the season and episode numbers are known.</summary>
     public static string? EpisodeLabel(ListenQueueItem item)
     {
+        if (VideoPlayerWording.IsFolderVideo(item))
+        {
+            return null;
+        }
+
         var season = string.IsNullOrWhiteSpace(item.SeasonNumber) ? null : $"S{item.SeasonNumber.Trim()}";
         var episode = string.IsNullOrWhiteSpace(item.EpisodeNumber) ? null : $"E{item.EpisodeNumber.Trim()}";
         var label = string.Join(' ', new[] { season, episode }.Where(part => part is not null));

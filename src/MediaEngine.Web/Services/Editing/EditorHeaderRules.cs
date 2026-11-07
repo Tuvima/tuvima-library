@@ -21,6 +21,8 @@ public static class EditorHeaderRules
         {
             "series" when tv => "TV show",
             "series" when VideoFolderWording.IsVideoFolderMediaType(mediaType) => VideoFolderWording.KindLabel,
+            "section" when VideoFolderWording.IsVideoFolderMediaType(mediaType) => VideoFolderWording.SectionLabel,
+            "video" when VideoFolderWording.IsVideoFolderMediaType(mediaType) => VideoFolderWording.ItemLabel,
             "season" => "TV season",
             "episode" => "TV episode",
             "album" => "Album",

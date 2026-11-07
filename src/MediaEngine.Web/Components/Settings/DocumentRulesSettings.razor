@@ -5,7 +5,7 @@
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="@L["Common_AutoFilingRules"].Value" Description="@RulesDescription">
+<AppSettingsGroup Heading="@L["Common_AutoFilingRules"].Value" Helper="@RulesDescription">
     @if (ReadOnly)
     {
         <p class="view-rules__note" role="note">@L["DocumentRulesSettings_EditOnAComputerYour"]</p>
@@ -71,7 +71,7 @@
     {
         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     [Parameter] public bool ReadOnly { get; set; }

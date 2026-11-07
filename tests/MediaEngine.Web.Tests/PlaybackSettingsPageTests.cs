@@ -93,7 +93,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.Contains("Resume where you left off", cut.Markup);
             Assert.Contains("Skip back", cut.Markup);
             Assert.Contains("Skip forward", cut.Markup);
-            Assert.Equal(7, cut.FindAll(".playback-settings-card").Count);
+            Assert.Equal(7, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
@@ -154,7 +154,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
         Assert.Empty(cut.FindAll("[data-spoiler-level]"));
-        Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
+        Assert.Equal(6, cut.FindAll(".app-settings-group").Count);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.Contains("Playback settings could not be loaded.", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-error-state__retry"));
             Assert.Empty(cut.FindAll("input"));
-            Assert.Empty(cut.FindAll(".playback-settings-card"));
+            Assert.Empty(cut.FindAll(".app-settings-group"));
         });
         Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
 

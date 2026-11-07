@@ -18,7 +18,7 @@
     gap: 0;
     padding: 0 0 calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1rem);
     min-width:0;
-    background: var(--tl-bg-page);
+    background: var(--tl-bg-root);
 }
 
 .home-discovery-page--with-hero {
@@ -45,9 +45,9 @@
     background:
         linear-gradient(
             to bottom,
-            color-mix(in srgb, var(--tl-bg-page) 0%, transparent) 0,
-            color-mix(in srgb, var(--tl-bg-page) 88%, transparent) clamp(5rem, 9svh, 7.5rem),
-            var(--tl-bg-page) clamp(11rem, 17svh, 14rem));
+            color-mix(in srgb, var(--tl-bg-root) 0%, transparent) 0,
+            color-mix(in srgb, var(--tl-bg-root) 88%, transparent) clamp(5rem, 9svh, 7.5rem),
+            var(--tl-bg-root) clamp(11rem, 17svh, 14rem));
     overflow: visible;
 }
 

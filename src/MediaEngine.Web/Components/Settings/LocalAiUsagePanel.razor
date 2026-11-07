@@ -18,7 +18,7 @@
     {
       @if (View == LocalAiUsageView.Plugins)
       {
-        <AppCard Title="@L["LocalAiUsagePanel_PluginsUsingLocalAI"].Value" Description="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value" Density="AppSurfaceDensity.Compact">
+        <AppSettingsGroup Heading="@L["LocalAiUsagePanel_PluginsUsingLocalAI"].Value" Helper="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value">
             @if (_usage.Plugins.Count == 0)
             {
                 <AppEmptyState Title="@L["LocalAiUsagePanel_NoPluginUsesLocalAI"].Value" Message="@L["LocalAiUsagePanel_PluginsThatAskForLocal"].Value" />
@@ -40,11 +40,11 @@
                     }
                 </ul>
             }
-        </AppCard>
+        </AppSettingsGroup>
       }
       else
       {
-        <AppCard Title="@($"Use in the last {_usage.Days} days")" Density="AppSurfaceDensity.Compact">
+        <AppSettingsGroup Heading="@($"Use in the last {_usage.Days} days")">
             @if (_usage.Rows.Count == 0)
             {
                 <AppEmptyState Title="@L["Common_NothingYet"].Value" Message="@L["LocalAiUsagePanel_NothingHasAskedLocalAI"].Value" />
@@ -75,7 +75,7 @@
                     </tbody>
                 </AppTable>
             }
-        </AppCard>
+        </AppSettingsGroup>
       }
     }
 </div>

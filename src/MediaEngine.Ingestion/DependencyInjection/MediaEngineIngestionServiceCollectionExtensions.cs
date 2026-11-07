@@ -56,6 +56,10 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<IAssetHasher, AssetHasher>();
         services.TryAddSingleton<IExcludedSourceFileFilter, ExcludedSourceFileFilter>();
         services.TryAddSingleton<IIdentificationSourceGate, IdentificationSourceGate>();
+        services.TryAddSingleton(sp => new MediaEngine.Ingestion.Extras.ExtrasConfigurationProvider(
+            sp.GetRequiredService<IConfigurationLoader>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?.CreateLogger<MediaEngine.Ingestion.Extras.ExtrasConfigurationProvider>()));
+        services.TryAddSingleton<IExtrasConfigurationSource>(sp => sp.GetRequiredService<MediaEngine.Ingestion.Extras.ExtrasConfigurationProvider>());
         services.TryAddSingleton<IItemExtrasScanner, MediaEngine.Ingestion.Extras.ItemExtrasScanner>();
         services.TryAddSingleton<IFileWatcher, FileWatcher>();
         services.TryAddSingleton<DebounceQueue>();

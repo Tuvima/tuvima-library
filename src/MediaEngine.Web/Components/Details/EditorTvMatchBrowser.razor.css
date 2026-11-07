@@ -49,7 +49,7 @@
 }
 
 .tl-tvm__row.is-active {
-    background: var(--tl-bg-subtle, transparent);
+    background: var(--tl-bg-surface, transparent);
     box-shadow: inset 3px 0 0 var(--tl-accent-primary, #8852FC);
 }
 

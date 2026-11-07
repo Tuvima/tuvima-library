@@ -13,7 +13,8 @@ namespace MediaEngine.Api.Services.Details;
 public sealed class DetailExtrasService(
     IMediaAssetRepository assets,
     IItemExtraRepository extras,
-    ILibraryFolderResolver libraries)
+    ILibraryFolderResolver libraries,
+    IExtrasConfigurationSource? rules = null)
 {
     private const int MaxAssetsToLocate = 24;
 
@@ -78,7 +79,7 @@ public sealed class DetailExtrasService(
         var found = await extras.ListByItemFoldersAsync([.. folders], ct).ConfigureAwait(false);
         if (found.Count > 0)
         {
-            detail.Extras = ExtraCardBuilder.Build(found, File.Exists);
+            detail.Extras = ExtraCardBuilder.Build(found, File.Exists, rules?.Current);
         }
     }
 

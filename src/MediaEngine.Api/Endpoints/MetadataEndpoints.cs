@@ -784,7 +784,7 @@ public static partial class MetadataEndpoints
                         CanEditFields = scope.CanEditFields,
                         CanEditArtwork = scope.CanEditArtwork,
                         ArtworkSlots = ArtworkScopeService.GetScopedArtworkSlots(scope.MediaType, scope.ScopeId).ToList(),
-                        ArtworkPresentation = scope.ScopeId == "series" && scope.MediaType != "TV" ? "automatic_group" : "single",
+                        ArtworkPresentation = ArtworkScopeService.IsAutomaticGroupScope(scope.ScopeId, scope.MediaType) ? "automatic_group" : "single",
                         AvailableTabs = capabilities.AvailableTabs.ToList(),
                         ContentTabLabel = capabilities.ContentTabLabel,
                         RetailIdentityMode = capabilities.RetailIdentityMode,
@@ -3048,6 +3048,57 @@ public static partial class MetadataEndpoints
                 }
                 break;
 
+            case "Videos":
+                // A folder of Other videos (a course, a saved channel): a series, its sections (sub-folders) and its videos. Every
+                // scope's field id is the work it edits, so the id a page or the item dropdown passes is the id the scope answers to.
+                // The words are the folder's own (VideoFolderWording): never Season, Episode or S01E02.
+                var isVideoSectionLaunch = isParentLaunch && hasParentScope;
+                var videoSectionWorkId = isVideoSectionLaunch
+                    ? launch.WorkId
+                    : !isParentLaunch && hasParentScope && launch.ParentWorkId!.Value != rootWorkId
+                        ? launch.ParentWorkId!.Value
+                        : Guid.Empty;
+                var hasVideoSeries = hasDistinctRoot || isParentLaunch;
+                var videoSeriesTitle = StringHelpers.FirstNonBlankOr(string.Empty, rootTitle, seriesName, itemTitle);
+
+                if (hasVideoSeries)
+                {
+                    scopes.Add(new EditorScopeResolution(
+                        "series", "Series", 0, rootWorkId, "Work", rootWorkId, "Work",
+                        videoSeriesTitle, VideoFolderWording.KindLabel, videoSeriesTitle, "item",
+                        "Series details and its picture live here.", null,
+                        CanEditFields: true, CanEditArtwork: true, MediaType: mediaType,
+                        ArtworkFolderPath: seriesFolder ?? containerFolder,
+                        RepresentativeMediaFilePath: launch.RepresentativeMediaFilePath));
+                }
+
+                if (videoSectionWorkId != Guid.Empty)
+                {
+                    var sectionTitle = isVideoSectionLaunch ? itemTitle : VideoFolderWording.SectionLabel;
+                    scopes.Add(new EditorScopeResolution(
+                        "section", VideoFolderWording.SectionLabel, 1, videoSectionWorkId, "Work", videoSectionWorkId, "Work",
+                        sectionTitle, videoSeriesTitle, sectionTitle, "item",
+                        "Section details and its picture live here.",
+                        "The Series picture is managed on the Series scope.",
+                        CanEditFields: true, CanEditArtwork: true, MediaType: mediaType,
+                        ArtworkFolderPath: containerFolder,
+                        RepresentativeMediaFilePath: launch.RepresentativeMediaFilePath));
+                }
+
+                if (!isParentLaunch)
+                {
+                    scopes.Add(new EditorScopeResolution(
+                        "video", VideoFolderWording.ItemLabel, hasVideoSeries ? (videoSectionWorkId != Guid.Empty ? 2 : 1) : 0,
+                        launch.WorkId, "Work", launch.WorkId, "Work",
+                        itemTitle, hasVideoSeries ? videoSeriesTitle : itemYear, itemTitle, "item",
+                        "Video details and its picture live here.",
+                        hasVideoSeries ? $"The Series picture is managed on {videoSeriesTitle}." : null,
+                        CanEditFields: true, CanEditArtwork: true, MediaType: mediaType,
+                        ArtworkFolderPath: containerFolder,
+                        RepresentativeMediaFilePath: launch.RepresentativeMediaFilePath));
+                }
+                break;
+
             default:
                 scopes.Add(new EditorScopeResolution(
                     "item",
@@ -3091,6 +3142,8 @@ public static partial class MetadataEndpoints
             "Audiobooks" when string.Equals(launchWorkKind, "parent", StringComparison.OrdinalIgnoreCase) => "series",
             "Audiobooks" => "audiobook",
             "Movies" => "item",
+            "Videos" when string.Equals(launchWorkKind, "parent", StringComparison.OrdinalIgnoreCase) => launch.ParentWorkId.HasValue ? "section" : "series",
+            "Videos" => "video",
             _ => scopes[0].ScopeId,
         };
 

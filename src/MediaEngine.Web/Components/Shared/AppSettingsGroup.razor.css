@@ -13,6 +13,21 @@
     line-height: 1.3;
 }
 
+.app-settings-group__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+}
+
+.app-settings-group__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+}
+
 .app-settings-group__helper {
     margin: 4px 0 0;
     color: var(--tl-text-muted);
@@ -22,6 +37,15 @@
 
 .app-settings-group__rows {
     margin-top: 8px;
+}
+
+.app-settings-group__rows:first-child {
+    margin-top: 0;
+}
+
+/* Hairline between any two rows of a group, whichever row part they are. */
+.app-settings-group__rows > :where(.app-setting-row, .app-switch-row:not(.app-switch-row--control-only)) + :where(.app-setting-row, .app-switch-row:not(.app-switch-row--control-only)) {
+    border-top: 1px solid var(--tl-border-subtle);
 }
 
 .app-settings-group--danger {

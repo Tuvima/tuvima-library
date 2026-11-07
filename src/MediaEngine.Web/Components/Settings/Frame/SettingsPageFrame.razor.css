@@ -100,14 +100,6 @@
     .settings-frame__header ::deep .sidebar-page-header { flex-direction: column; align-items: stretch; }
 }
 
-.settings-frame__header ::deep .sidebar-page-header .app-page-header__eyebrow {
-    margin-bottom: 4px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
-    letter-spacing: .11em;
-}
-
 .settings-frame__header ::deep .sidebar-page-header h1 {
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-title);
@@ -125,7 +117,7 @@
 }
 
 .settings-frame__header ::deep .sidebar-page-header .app-page-header__actions {
-    /* A page's header action (Libraries' Add library) sits at the top right, level with the eyebrow and title. */
+    /* A page's header action (Libraries' Add library) sits at the top right, level with the title. */
     align-self: flex-start;
     align-items: center;
     padding-bottom: 2px;

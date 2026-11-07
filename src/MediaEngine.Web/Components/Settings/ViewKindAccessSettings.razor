@@ -5,7 +5,7 @@
 @inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="@($"Who can see {KindNoun}")" Description="@($"Only the people turned on here can see {KindNoun} and the files behind them.")">
+<AppSettingsGroup Heading="@($"Who can see {KindNoun}")" Helper="@($"Only the people turned on here can see {KindNoun} and the files behind them.")">
     @if (_loading)
     {
         <p role="status">@L["ViewKindAccessSettings_LoadingWhoCanSee", KindNoun]</p>
@@ -33,7 +33,7 @@
     {
         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     /// <summary>The View kind this list switches: photos, personal_videos or documents.</summary>

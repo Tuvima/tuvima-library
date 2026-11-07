@@ -2431,6 +2431,14 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailExtraCardViewM
   ItemCount: System.Int32 | nullability=not-null | accessors=get,init
   PreviewIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  Group: System.String | nullability=nullable | accessors=get,init
+  ScopeKey: System.String | nullability=not-null | accessors=get,init
+  ScopeSource: System.String | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
   AiResults: MediaEngine.Contracts.Details.DetailAiResultsViewModel | nullability=nullable | accessors=get,init
@@ -2845,6 +2853,37 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
   ContainerId: System.String | nullability=not-null | accessors=get,init
   ContainerTitle: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  OwnTitle: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  GroupId: System.String | nullability=nullable | accessors=get,init
+  Group: System.String | nullability=nullable | accessors=get,init
+  GroupSource: System.String | nullability=nullable | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  RoleIsSetByYou: System.Boolean | nullability=not-null | accessors=get,init
+  ScopeKey: System.String | nullability=not-null | accessors=get,init
+  InferredScopeKey: System.String | nullability=not-null | accessors=get,init
+  ScopeSource: System.String | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  InferredAlongsideKey: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileGroupDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  SortOrder: System.Int32 | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.TvEpisodeDetailRoute
 

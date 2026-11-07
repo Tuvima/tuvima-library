@@ -5,7 +5,7 @@
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="@L["DocumentOrganisationSettings_OrganisingDocuments"].Value" Description="@L["DocumentOrganisationSettings_TagsCorrespondentsDocumentTypesAnd"].Value">
+<AppSettingsGroup Heading="@L["DocumentOrganisationSettings_OrganisingDocuments"].Value" Helper="@L["DocumentOrganisationSettings_TagsCorrespondentsDocumentTypesAnd"].Value">
     @if (_loading)
     {
         <p role="status">@L["DocumentOrganisationSettings_LoadingYourLists"]</p>
@@ -27,7 +27,7 @@
     {
         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     [Parameter] public bool ReadOnly { get; set; }

@@ -12,8 +12,8 @@
    Tuvima's list on GitHub. Every word about trust, permissions and the not-verified warning comes from the Engine. The
    Install button exists only when the Engine says installing is supported; Install opens the same approval step as
    switching a plugin on. *@
-<AppCard Title="@L["AvailablePluginsPanel_AvailablePlugins"].Value"
-         Description="@L["AvailablePluginsPanel_PluginsOtherPeopleHaveShared"].Value"
+<AppSettingsGroup Heading="@L["AvailablePluginsPanel_AvailablePlugins"].Value"
+         Helper="@L["AvailablePluginsPanel_PluginsOtherPeopleHaveShared"].Value"
          Class="available-plugins">
     <Actions>
         <AppButton Label="@L["AvailablePluginsPanel_CheckNow"].Value"
@@ -74,7 +74,7 @@
             }
         </div>
     </ChildContent>
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     private readonly CancellationTokenSource _disposed = new();

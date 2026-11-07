@@ -83,7 +83,7 @@ public sealed class ListeningSettingsPageTests : AsyncBunitContext
             Assert.Contains("Rewind slightly when resuming so spoken context is not lost.", cut.Markup);
             Assert.Contains("Default length", cut.Markup);
             Assert.Contains("Offer end of chapter", cut.Markup);
-            Assert.Equal(2, cut.FindAll(".listening-settings-card").Count);
+            Assert.Equal(2, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("speed", cut.Markup, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("silence", cut.Markup, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("crossfade", cut.Markup, StringComparison.OrdinalIgnoreCase);
@@ -155,7 +155,7 @@ public sealed class ListeningSettingsPageTests : AsyncBunitContext
             Assert.Contains("Listening settings could not be loaded.", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-error-state__retry"));
             Assert.Empty(cut.FindAll("input"));
-            Assert.Empty(cut.FindAll(".listening-settings-card"));
+            Assert.Empty(cut.FindAll(".app-settings-group"));
         });
         Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
 
