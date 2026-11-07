@@ -1,10 +1,10 @@
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
-using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
@@ -575,7 +575,10 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
                 Task.FromResult<IReadOnlyList<TextTrackDto>>([Track((Guid)args![0]! == firstAsset ? firstTrack : secondTrack, "lrclib")]));
             stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), args =>
             {
-                if ((Guid)args![0]! != firstAsset) return Task.FromResult<string?>("[00:01.00]The new song");
+                if ((Guid)args![0]! != firstAsset)
+                {
+                    return Task.FromResult<string?>("[00:01.00]The new song");
+                }
                 staleAsked.TrySetResult();
                 return staleReply.Task;
             });
@@ -585,8 +588,14 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         var first = presenter.EnsureAsync(SnapshotFor(firstAsset, "First"), _commands);
         await staleAsked.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await presenter.EnsureAsync(SnapshotFor(secondAsset, "Second"), _commands);
-        if (theStaleReplyFails) staleReply.SetException(new InvalidOperationException("late failure"));
-        else staleReply.SetResult("[00:01.00]The old song");
+        if (theStaleReplyFails)
+        {
+            staleReply.SetException(new InvalidOperationException("late failure"));
+        }
+        else
+        {
+            staleReply.SetResult("[00:01.00]The old song");
+        }
         await first;
 
         Assert.Equal("The new song", Assert.Single(presenter.Lines).Text);
