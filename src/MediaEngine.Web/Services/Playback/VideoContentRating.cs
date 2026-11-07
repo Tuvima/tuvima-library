@@ -14,11 +14,15 @@ public static class VideoContentRating
         ArgumentNullException.ThrowIfNull(detail);
         foreach (var value in detail.CanonicalValues)
         {
-            if (value.Key is "content_rating" or "certification" && !string.IsNullOrWhiteSpace(value.Value))
+            if (value.Key is "content_rating" or "certification" && !string.IsNullOrWhiteSpace(value.Value) && !LooksLikeAScore(value.Value))
             {
                 return value.Value.Trim();
             }
         }
         return null;
     }
+
+    /// <summary>A number such as 6.21 is an audience score, never an age rating (issue 707), even when a provider files it under the rating key.</summary>
+    private static bool LooksLikeAScore(string value) =>
+        double.TryParse(value.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
 }

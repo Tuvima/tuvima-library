@@ -1,5 +1,16 @@
 // Presentation only: this module never loads, seeks, pauses or owns a media source.
 const states = new WeakMap();
+// Unified player v2 D25: while playing the controls fade after three seconds of inactivity. They never fade while a panel is open, a control has
+// focus, the pointer is over the controls, a finger is held on one, or the video is paused, still loading, ended or broken. The decision is a pure
+// function of those facts so it can be tested without a browser.
+export const AUTO_HIDE_MS = 3000;
+export function chromeHeld(facts) {
+    return !!(facts.panelOpen || facts.holds > 0 || facts.pressing || facts.paused || facts.ended || facts.loading || facts.error
+        || facts.controlsHovered || facts.controlFocused);
+}
+// How long to wait before hiding, or null when the controls must stay.
+export function autoHideDelay(facts) { return chromeHeld(facts) ? null : AUTO_HIDE_MS; }
+
 export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (railTop - videoRect.top - 12) / Math.max(1, videoRect.height) * 100)); }
 
 export function attach(host, video) {
@@ -58,13 +69,22 @@ export function attach(host, video) {
         positionCues();
     };
     // After a touch tap the pressed button keeps :hover and :focus, so on touch only keyboard-visible focus holds the chrome open.
-    const held = () => state.holds.size > 0 || state.pressing || video.paused || video.ended || video.readyState < 2
-        || !!video.error || (!state.touch && host.querySelector('[data-chrome-hold]:hover') !== null)
-        || host.querySelector(state.touch ? '[data-playback-chrome] :focus-visible' : '[data-playback-chrome]:focus-within') !== null;
+    const facts = () => ({
+        panelOpen: state.holds.has('tool'),
+        holds: [...state.holds].filter(reason => reason !== 'tool').length,
+        pressing: state.pressing,
+        paused: video.paused,
+        ended: video.ended,
+        loading: video.readyState < 2,
+        error: !!video.error,
+        controlsHovered: !state.touch && host.querySelector('[data-chrome-hold]:hover') !== null,
+        controlFocused: host.querySelector(state.touch ? '[data-playback-chrome] :focus-visible' : '[data-playback-chrome]:focus-within') !== null,
+    });
+    const held = () => chromeHeld(facts());
     const schedule = () => {
         clearTimeout(state.timer);
         if (held()) { hidden(false); return; }
-        state.timer = setTimeout(() => { if (!held()) hidden(true); }, 3000);
+        state.timer = setTimeout(() => { if (!held()) hidden(true); }, AUTO_HIDE_MS);
     };
     const reveal = () => { hidden(false); schedule(); };
     const onKey = event => {

@@ -1,0 +1,43 @@
+.video-rating-card {
+    position: absolute;
+    z-index: 1;
+    top: max(28px, var(--tl-safe-area-top));
+    left: 8%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.video-rating-card i {
+    width: 4px;
+    height: 28px;
+    border-radius: 2px;
+    background: var(--tl-accent-primary);
+}
+
+.video-rating-card strong {
+    color: var(--playback-text);
+    font-size: var(--tl-font-size-md);
+}
+
+.video-rating-card[data-paused="true"] {
+    opacity: 1;
+    transition: opacity .25s ease 1.2s;
+}
+
+.video-rating-card[data-paused="false"] {
+    animation: video-rating-intro 6s ease both;
+}
+
+@keyframes video-rating-intro {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .video-rating-card[data-paused="false"] {
+        animation: none;
+    }
+}

@@ -38,7 +38,7 @@ function runtime(file) {
         ResizeObserver: class { observe() {} disconnect() {} }, MutationObserver: class { constructor(callback) { observers.push(callback); } observe() {} disconnect() {} },
         setInterval: callback => { intervals.set(++id, callback); return id; }, clearInterval: key => intervals.delete(key),
         setTimeout: (callback, delay) => { timeouts.set(++id, { callback, delay }); return id; }, clearTimeout: key => timeouts.delete(key) };
-    const source = readFileSync(new URL(`../../../src/MediaEngine.Web/wwwroot/js/${file}`, import.meta.url), 'utf8').replaceAll('export function ', 'function ');
+    const source = readFileSync(new URL(`../../../src/MediaEngine.Web/wwwroot/js/${file}`, import.meta.url), 'utf8').replaceAll('export function ', 'function ').replaceAll('export const ', 'const ');
     vm.runInNewContext(`${source}\nglobalThis.exports = { attach, update, detach, ${file === 'video-presentation.js' ? 'bindSource' : file === 'playback-chrome.js' ? 'setHold, reveal' : ''} };`, sandbox);
     return { api: sandbox.exports, document, window, intervals, timeouts, observers,
         setViewport: bounds => { window.visualViewport = sandbox.visualViewport = Object.assign(new Surface(), bounds); },
@@ -186,7 +186,7 @@ test('video chrome waits three seconds and holds for pause, tool and loading, wi
     r.api.detach(host); assert.equal(r.timeouts.size, 0); assert.equal(video.countListeners(), 0); assert.equal(host.countListeners(), 0); assert.equal(r.document.countListeners(), 0);
 });
 
-test('advancing media clears a stalled hold, stationary stage hides, controls hover holds, and touch toggles', () => {
+test('advancing media clears a stalled hold, stationary stage hides, controls hover holds, and a touch tap reveals but never hides', () => {
     const r=runtime('playback-chrome.js'),host=new Surface(),video=media();
     let controlsHovered=false;
     host.querySelector=selector=>selector==='[data-chrome-hold]:hover' && controlsHovered ? new Surface() : null;
@@ -197,10 +197,25 @@ test('advancing media clears a stalled hold, stationary stage hides, controls ho
     host.emit('pointermove'); assert.equal(host.classList.contains('playback-chrome-hidden'),false);
     controlsHovered=true; host.emit('pointermove'); assert.equal(r.timeouts.size,0);
     controlsHovered=false; host.emit('pointermove');
-    const target={closest:()=>null}; host.emit('pointerdown',{pointerType:'touch',target});
-    assert.equal(host.classList.contains('playback-chrome-hidden'),true);
+    // Unified player v2 D25: a touch tap shows the controls and restarts the three second timer; a tap never hides them.
+    const target={closest:()=>null}; r.idle(); assert.equal(host.classList.contains('playback-chrome-hidden'),true);
+    host.emit('pointerdown',{pointerType:'touch',target});
+    assert.equal(host.classList.contains('playback-chrome-hidden'),false); assert.equal(r.timeouts.size,1);
     host.emit('pointerdown',{pointerType:'touch',target});
     assert.equal(host.classList.contains('playback-chrome-hidden'),false);
+    r.api.detach(host);
+});
+
+test('controls do not auto-hide while a panel is open or a control has focus, and fade three seconds after both end (D25)', () => {
+    const r=runtime('playback-chrome.js'),host=new Surface(),video=media();
+    let focused=false;
+    host.querySelector=selector=>selector==='[data-playback-chrome]:focus-within' && focused ? new Surface() : null;
+    r.api.attach(host,video);
+    r.api.setHold(host,'tool',true); assert.equal(r.timeouts.size,0); assert.equal(host.classList.contains('playback-chrome-hidden'),false);
+    r.api.setHold(host,'tool',false); assert.equal(r.timeouts.size,1); assert.equal([...r.timeouts.values()][0].delay,3000);
+    focused=true; host.emit('pointermove'); assert.equal(r.timeouts.size,0);
+    focused=false; host.emit('pointermove'); assert.equal(r.timeouts.size,1);
+    r.idle(); assert.equal(host.classList.contains('playback-chrome-hidden'),true);
     r.api.detach(host);
 });
 

@@ -24,16 +24,4 @@ public static class VideoPlayerWording
         ArgumentNullException.ThrowIfNull(item);
         return VideoFolderWording.NumberedTitle(item.EpisodeNumber, item.EpisodeTitle ?? item.Title);
     }
-
-    /// <summary>"Previous video" or "Previous episode".</summary>
-    public static string Previous(bool folderVideo, string episodeLabel) => folderVideo ? "Previous video" : episodeLabel;
-
-    /// <summary>"Next video" or "Next episode".</summary>
-    public static string Next(bool folderVideo, string episodeLabel) => folderVideo ? "Next video" : episodeLabel;
-
-    /// <summary>"Play next video now" or the episode wording.</summary>
-    public static string PlayNextNow(bool folderVideo, string episodeLabel) => folderVideo ? "Play next video now" : episodeLabel;
-
-    /// <summary>"Dismiss next video" or the episode wording.</summary>
-    public static string DismissNext(bool folderVideo, string episodeLabel) => folderVideo ? "Dismiss next video" : episodeLabel;
 }
