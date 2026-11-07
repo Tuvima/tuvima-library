@@ -79,7 +79,7 @@
     overflow-wrap: anywhere;
     color: #fff;
     font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-md));
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.25;
     text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
     pointer-events: none;

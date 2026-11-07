@@ -70,7 +70,7 @@
     background: rgba(6, 10, 16, 0.92);
     color: rgba(231, 238, 250, 0.84);
     font-size: clamp(0.82rem, 1.1vw, 1rem);
-    font-weight: 700;
+    font-weight: 600;
     box-shadow: 0 0 0 0.15rem rgba(255,255,255,0.04);
 }
 
@@ -188,7 +188,7 @@
     align-content: center;
     color: rgba(210, 220, 238, 0.36);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.16em;
     text-align: center;
     background:
@@ -204,7 +204,7 @@
     margin-top: 0.56rem;
     color: #fff;
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.22;
     text-align: center;
     min-height: 3.75rem;
@@ -322,7 +322,7 @@
     background: #0b1019;
     color: #fff;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .tl-detail-page .tl-series-detail .tl-series-item__connector {

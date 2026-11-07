@@ -619,7 +619,7 @@ const THEMES = {
 // Book frames cannot load web fonts, so the choices are system stacks; "book" leaves the book's own typeface alone.
 const FONT_STACKS = {
     serif: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
-    sans: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    sans: "system-ui, -apple-system, sans-serif",
 };
 const PAGE_WIDTHS = { narrow: 560, standard: 720, wide: 960 };
 

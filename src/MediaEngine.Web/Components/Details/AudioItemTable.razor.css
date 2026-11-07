@@ -155,7 +155,7 @@
     border-radius: 0.15rem;
     background: rgba(255, 255, 255, 0.18);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .tl-embedded-audio__duration {
@@ -326,7 +326,7 @@
     background: rgba(246, 240, 232, 0.20);
     color: #fff;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-track-row__duration,
@@ -452,7 +452,7 @@
     color: rgba(246, 240, 232, 0.48);
     font: inherit;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
     cursor: pointer;
 }
@@ -553,7 +553,7 @@
     background: rgba(11, 17, 28, 0.64);
     color: rgba(246, 240, 232, 0.52);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.08);
 }
 
@@ -861,7 +861,7 @@
     border-radius: 0.15rem;
     background: rgba(255, 255, 255, 0.18);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__duration {

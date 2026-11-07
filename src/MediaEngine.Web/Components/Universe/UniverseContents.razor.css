@@ -24,7 +24,7 @@
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: clamp(1.25rem, 1.8vw, 1.7rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.15;
 }
 
@@ -66,7 +66,7 @@
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .universe-contents__picture {
@@ -96,7 +96,7 @@
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
     font-size: 2rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .universe-contents__name {

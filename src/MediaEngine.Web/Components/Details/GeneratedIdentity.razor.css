@@ -12,5 +12,5 @@
         linear-gradient(145deg, color-mix(in srgb, var(--tl-detail-primary, #c9922e) 48%, #15171f), color-mix(in srgb, var(--tl-detail-secondary, #271a3a) 62%, #111318));
     color: white;
     font-size: clamp(2rem, 6vw, 4rem);
-    font-weight: 700;
+    font-weight: 600;
 }

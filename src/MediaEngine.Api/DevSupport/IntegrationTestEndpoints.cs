@@ -4011,7 +4011,7 @@ public static class IntegrationTestEndpoints
         sb.AppendLine("<style>");
         sb.AppendLine("""
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            body { font-family: system-ui, -apple-system, sans-serif;
                    background: #0f0f1a; color: #e0e0e0; padding: 24px; line-height: 1.5; }
             h1 { color: #C9922E; font-size: 24px; margin-bottom: 4px; }
             h2 { color: #C9922E; font-size: 18px; margin: 32px 0 12px; border-bottom: 1px solid rgba(201,146,46,0.3); padding-bottom: 8px; }

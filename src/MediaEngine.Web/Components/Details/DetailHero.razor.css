@@ -84,7 +84,7 @@
     width: fit-content;
     color: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 72%, #fff);
     font-size: clamp(0.78rem, 0.9vw, 0.95rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.35;
     letter-spacing: 0.12em;
     min-height: 1.35rem;
@@ -110,7 +110,7 @@
 :where(.tl-detail-page) .tl-detail-hero-credit-stack__label {
     color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 78%, #fff);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.18em;
 }
 
@@ -169,7 +169,7 @@
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
     text-decoration: none;
     font-size: var(--tl-font-size-sm);
-    font-weight: 700;
+    font-weight: 600;
     transition: background 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
@@ -194,9 +194,7 @@
     border-bottom: 1px solid color-mix(in srgb, var(--tl-detail-primary, #c9922e) 72%, transparent);
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__eyebrow {
@@ -237,7 +235,7 @@
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.48);
     color: rgba(var(--hero-text-rgb, 246, 240, 232), 0.88);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     backdrop-filter: blur(10px);
 }
 

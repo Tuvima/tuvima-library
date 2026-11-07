@@ -79,8 +79,6 @@
     color: var(--tl-accent-primary, #8852FC);
     font-size: var(--tl-font-size-xs, 0.75rem);
     font-weight: var(--tl-font-weight-semibold);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .tl-editor-header__title {

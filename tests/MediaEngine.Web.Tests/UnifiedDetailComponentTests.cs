@@ -98,7 +98,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("#000 32%", styles);
         Assert.Contains("<SurfaceNavigationBar", ReadSource("src/MediaEngine.Web/Components/Details/DetailTabs.razor"));
         Assert.Contains("background: #090c12", styles);
-        Assert.Contains("font-family: Georgia, \"Times New Roman\", serif", styles);
+        Assert.Contains("font-family: var(--font-reader)", styles);
         Assert.Contains("font-weight: 500", styles);
         Assert.Contains("max-width: 22ch", styles);
         Assert.DoesNotContain("min-height: calc(100dvh - 5.75rem)", styles);

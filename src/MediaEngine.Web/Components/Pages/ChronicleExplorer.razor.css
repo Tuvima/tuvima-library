@@ -132,7 +132,7 @@
 .chronicle-source-table th {
     color: rgba(248, 248, 248, 0.62);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .chronicle-source-table td {

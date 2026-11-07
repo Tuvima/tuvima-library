@@ -62,7 +62,7 @@
     margin: 0;
     color: rgba(203, 213, 225, 0.48);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.13em;
 }
 
@@ -315,7 +315,7 @@
     border: 0;
     color: white;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .media-section-shell__swipe-actions ::deep .is-rename { background: #475569; }
@@ -334,7 +334,7 @@
     border-radius: inherit;
     background: rgba(127, 29, 29, 0.28);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .media-section-shell__delete-confirm ::deep button {
@@ -586,7 +586,7 @@
         min-width: 0;
         align-items: center;
         gap: 0.65rem;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .media-section-shell__mobile-nav details[open] > summary > .tl-icon-root {
@@ -611,7 +611,7 @@
         padding: 0.45rem 0.7rem 0.25rem;
         color: rgba(203, 213, 225, 0.52);
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.12em;
     }
 

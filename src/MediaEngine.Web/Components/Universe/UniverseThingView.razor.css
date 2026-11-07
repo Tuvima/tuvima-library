@@ -68,7 +68,7 @@
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.04em;
 }
 
@@ -86,7 +86,7 @@
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: clamp(1.6rem, 3vw, 2.4rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.1;
     overflow-wrap: anywhere;
 }
@@ -133,7 +133,7 @@
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: clamp(1.15rem, 1.6vw, 1.5rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.15;
 }
 
@@ -184,7 +184,7 @@
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
     font-size: 2rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .universe-thing__name {

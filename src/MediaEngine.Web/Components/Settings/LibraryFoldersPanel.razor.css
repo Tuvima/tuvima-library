@@ -195,7 +195,7 @@
     min-height: 40px;
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .library-folders__table-row {

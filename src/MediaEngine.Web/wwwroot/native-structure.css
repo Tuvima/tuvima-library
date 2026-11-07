@@ -4,7 +4,7 @@
 ::-webkit-scrollbar-thumb { background:#c4c4c4;border-radius:1px; }
 ::-webkit-scrollbar-thumb:hover { background:#a6a6a6; }
 html, body * { scrollbar-color:#c4c4c4 transparent;scrollbar-width:thin; }
-strong,b { font-weight:700; }
+strong,b { font-weight:600; }
 .tl-icon { width:1em;height:1em;font-size:1.5rem;display:inline-block;fill:currentColor;flex-shrink:0;vertical-align:middle; }
 .tl-icon-size-small { font-size:1.25rem; }
 .tl-icon-size-large { font-size:2.25rem; }
@@ -26,7 +26,7 @@ strong,b { font-weight:700; }
 .tl-typography-subtitle2 { font-size:var(--tl-font-size-secondary);font-weight:600;line-height:1.45; }
 .tl-typography-body2 { font-size:var(--tl-font-size-secondary); }
 .tl-typography-caption { font-size:var(--tl-font-size-xs);line-height:1.4; }
-.tl-typography-overline { font-size:var(--tl-font-size-xs);font-weight:600;letter-spacing:.02em;text-transform:uppercase; }
+.tl-typography-overline { font-size:var(--tl-font-size-xs);font-weight:600; }
 .tl-typography-button { font-size:var(--tl-font-size-sm);font-weight:600; }
 .tl-typography-inherit { font:inherit; }
 .tl-typography-gutterbottom { margin-bottom:.35em; }

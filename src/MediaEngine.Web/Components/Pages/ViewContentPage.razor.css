@@ -34,9 +34,7 @@
 .view-content-page__eyebrow {
     color: var(--tl-accent-primary);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
+    font-weight: 600;
 }
 
 .view-content-page__identity h1 {

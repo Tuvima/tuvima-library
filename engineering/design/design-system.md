@@ -41,12 +41,12 @@ The Dashboard is **dark only** (`color-scheme: dark`). The reader adds light, se
 
 | Use | Font | Notes |
 |---|---|---|
-| Interface | Segoe UI Variable (system UI fallbacks) | Not shipped; uses the device's font |
-| Brand and deliberate media identity | Tuvima Sans (a Montserrat derivative; navigation and brand text only), Montserrat as fallback | Self-hosted |
-| Reading (EPUB) | Merriweather | Reader only |
-| Paths, IDs, code | JetBrains Mono | |
+| Interface | Inter (variable, SIL OFL 1.1; `--font-ui`, system UI as fallback) | Self-hosted woff2, so the Dashboard looks the same on every device |
+| Wordmark and top navigation | Tuvima Sans (a Montserrat derivative; `--font-brand`) | Self-hosted; the only uppercase text (the wordmark); Montserrat itself is not shipped |
+| Reading (EPUB) | Merriweather (`--font-reader`) | Reader only; woff2 |
+| Paths, IDs, code | JetBrains Mono | woff2 |
 
-Sizes: 12 · 13 (secondary) · 14 · 16 · 18 · 20 (dialog title) · 24 · 32 (hero) px, as tokens (`--tl-font-size-xs`, `-secondary`, `-sm`, `-md`, `-lg`, `-dialog-title`, `-xl`, `-hero`); a page picks a step and never writes its own size. Weights: 400 body, 500 labels, 600 card titles and controls, 700 headings. Line heights 1.25 / 1.5 / 1.625. Small-caps labels use 0.08em letter spacing. Nothing smaller than 12px — make hierarchy with weight and spacing, not tiny text.
+Sizes (the ladder, Look pass v3 D7): 12 caption · 13 secondary · 14 body · 16 controls, menus and rows · 20 section and shelf titles · 24 page title (28 at 1180 px and wider) · 32 hero, as tokens (`--tl-font-size-xs`, `-secondary`, `-sm`, `-md`, `-dialog-title`, `-xl`, `-hero`); a page picks a step and never writes its own size. Weights: 400 body · 500 labels, menu rows, chips and buttons · 600 group headings, card and row titles · 700 page and hero titles only (a test caps the count; 800 and 900 are never used). Line heights 1.2 / 1.3 / 1.5. Labels are sentence case; the wordmark is the only uppercase text. If a page needs an overline it is 12/600 with 0.06em spacing.
 
 ## Spacing, shape, depth and motion
 
