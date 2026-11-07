@@ -20,6 +20,8 @@
                         <img class="phone-hero__backdrop" src="@Art.ImageUrl" alt="" decoding="async" fetchpriority="high" />
                         break;
                     case PhoneHeroArt.Cover:
+                        @* A blurred copy of the cover fills the card behind the large cover, so there is no empty dark area. *@
+                        <img class="phone-hero__cover-blur" src="@Art.ImageUrl" alt="" decoding="async" />
                         <img class="phone-hero__cover" src="@Art.ImageUrl" alt="" decoding="async" fetchpriority="high" />
                         break;
                     default:

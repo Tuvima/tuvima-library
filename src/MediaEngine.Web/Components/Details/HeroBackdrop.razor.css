@@ -929,3 +929,40 @@
 .cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__foreground,
 .cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover,
 .cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__cover { width: 100%; height: 100%; object-fit: contain; }
+
+/* Home hero for a book, comic or audiobook shown from its cover (issue 709): one large cover beside the text, sized to the room the hero
+   really has (its height below the top bar, and the width the text leaves), over a blurred copy of the cover. Narrow stages put the cover
+   above the text instead (the carousel pads the text down by the same height, --lc-narrow-h). */
+.cinematic-hero--landing.cinematic-hero--cover-led .tl-detail-media-stage .tl-detail-media-stage__cover-wrap {
+    --lc-ratio: 1.5;
+    --lc-avail: calc(44vw - 6.5rem);
+    --lc-h: min(40rem, max(16rem, calc(var(--tl-hero-height, 70svh) - var(--lc-topbar, 65px) - 4.5rem)), calc(var(--lc-avail) * var(--lc-ratio)));
+    --hc: var(--lc-h);
+    --hero-book-cover-height: var(--lc-h);
+    top: 50%;
+    right: max(4vw, 2rem);
+    width: calc(var(--lc-h) / var(--lc-ratio));
+    height: var(--lc-h);
+    margin-top: calc(var(--lc-topbar, 65px) / 2 - 1rem);
+    aspect-ratio: auto;
+    opacity: 1;
+}
+
+.cinematic-hero--landing.cinematic-hero--cover-led-square .tl-detail-media-stage .tl-detail-media-stage__cover-wrap { --lc-ratio: 1; }
+
+.cinematic-hero--landing.cinematic-hero--cover-led .tl-detail-media-stage__cover-atmosphere {
+    inset: -8%;
+    opacity: 0.78;
+    transform: scale(1.08);
+}
+
+@media (width < 840px) {
+    .cinematic-hero--landing.cinematic-hero--cover-led .tl-detail-media-stage .tl-detail-media-stage__cover-wrap {
+        --lc-h: var(--lc-narrow-h, min(24rem, 44svh));
+        top: calc(var(--lc-topbar, 65px) + var(--tl-safe-area-top, 0px) + 1rem);
+        right: auto;
+        left: 50%;
+        margin-top: 0;
+        transform: translateX(-50%);
+    }
+}
