@@ -31,6 +31,15 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         _session.Begin([new EditTrailItem(EpisodeId, "Pilot", "Item")]);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
+            // The Match tab opens on its read of the item; the TV flows sit inside Change match, so these items open there (not matched yet).
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorMatchSetupAsync), args =>
+                Task.FromResult<EditorMatchSetupDto?>(new EditorMatchSetupDto
+                {
+                    EntityId = EpisodeId,
+                    Kind = (string)args![1]!,
+                    Providers = [new EditorMatchProviderDto { Name = "tvdb", DisplayName = "TheTVDB", State = EditorMatchProviderStates.Ready, IsDefault = true }],
+                    Fields = [new EditorMatchFieldDto { Key = "title", Label = "Title" }],
+                }));
             stub.SetHandler(nameof(IEngineApiClient.PreviewShowChildRematchAsync), args =>
                 Task.FromResult<ShowChildRematchPreviewDto?>(new ShowChildRematchPreviewDto { EntityId = EpisodeId, SeriesId = (string)args![1]!, ShowName = "Other Show", EpisodeCount = 4, MatchableCount = 3, NotFoundCount = 1 }));
             stub.SetHandler(nameof(IEngineApiClient.SearchTvMatchBrowserShowsAsync), args =>
@@ -78,7 +87,14 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         Render<EditorMatchPanel>(parameters => parameters
             .Add(panel => panel.Subject, subject)
             .Add(panel => panel.Session, _session)
-            .Add(panel => panel.CanEdit, true));
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, true));
+
+    private static void Apply(IRenderedComponent<EditorMatchPanel> cut)
+    {
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").HasAttribute("disabled")));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
+    }
 
     [Fact]
     public void AnEpisodePage_OpensItsOwnShowAndSeason_AndListsRealEpisodes()
@@ -103,8 +119,7 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         cut.Find("button[aria-label='Open Season 1']").Click();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
         cut.Find("button[aria-label='Select Second']").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review")));
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+        Apply(cut);
 
         var change = _session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.Identity);
         Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
@@ -126,8 +141,7 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[aria-label='Season']"));
         Assert.Empty(cut.FindAll("[aria-label='Episode']"));
         cut.Find("button[aria-label='Select Other Show']").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review")));
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+        Apply(cut);
 
         var change = _session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.Identity);
         Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
@@ -137,31 +151,12 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ChoosingAnotherShow_OffersToRematchItsSeasonsAndEpisodes_AndStagesItWhenOn()
-    {
-        var cut = RenderPanel(Show());
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Show'] .tl-tvm__row").Count));
-        cut.Find("button[aria-label='Select Other Show']").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[role=switch][aria-label='Re-match seasons and episodes']")));
-
-        var rematch = cut.Find("input[role=switch][aria-label='Re-match seasons and episodes']");
-        Assert.True(rematch.HasAttribute("checked"));
-        Assert.Contains("1 it does not have go to Needs Review", cut.Markup);
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
-
-        var change = _session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.ChildRematch);
-        Assert.True(EditSessionChildRematchTarget.TryParse(change.TargetId, out var target));
-        Assert.Equal("200", target!.SeriesId);
-        Assert.Equal("Matched as they are now", _session.Pending.Before(change.Id));
-    }
-
-    [Fact]
     public void AnEpisodeMatch_NeverOffersTheSeasonsAndEpisodesRematch()
     {
         var cut = RenderPanel(Episode());
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
         cut.Find("button[aria-label='Select Second']").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-results]")));
 
         Assert.Empty(cut.FindAll("input[role=switch][aria-label='Re-match seasons and episodes']"));
     }
@@ -177,22 +172,16 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnEpisode_IsMatchedInTwoClicksAndTheThirdIsSave_WithABeforeAndAfter()
+    public void AnEpisode_IsStagedWithApplyMatch_AndNothingIsWrittenUntilSave()
     {
         var cut = RenderPanel(Episode());
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
 
-        // Click 1: pick the episode. The before-and-after appears at once.
+        // Pick the episode, then Apply match: one Identity entry waits in the pending list; Save changes (the window's footer) writes it.
         cut.Find("button[aria-label='Select Second']").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review [data-testid=match-before-after]")));
-        var line = cut.Find("#tl-match-review [data-testid=match-before-after]");
-        Assert.Contains("S01E02", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Second", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
-        Assert.Contains("2015-03-08", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
-
-        // Click 2: use it. Click 3 is Save changes in the window's footer, which writes what is now staged.
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+        Apply(cut);
         Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+        Assert.Contains("Nothing is saved until you press Save changes", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

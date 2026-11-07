@@ -64,6 +64,8 @@ internal sealed class EditorHeaderTestWorld : IDisposable
 
     public ItemExtraRepository Extras { get; }
 
+    public ItemQuickFactsService QuickFacts => new(new ItemQuickFactsRepository(Database), Folders);
+
     public EditorHeaderReadService Header(IEditorConfigurationSource? config = null, ILogger<EditorHeaderReadService>? logger = null) => new(
         Database,
         new MediaEditorNavigationReadService(Database, null!, new HierarchyAlignmentService(Database, null!)),

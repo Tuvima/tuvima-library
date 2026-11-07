@@ -1,0 +1,70 @@
+/* The results: the "Looking up" line and the messages take the full width; the list and the preview sit side by side. */
+.tl-matchres {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+.tl-matchres__wide {
+    width: 100%;
+}
+
+.tl-matchres__body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--tl-space-4);
+}
+
+.tl-matchres__list {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.tl-matchres__preview {
+    display: flex;
+    flex: 1 1 18rem;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md, 8px);
+}
+
+.tl-matchres__previewart {
+    flex: 0 0 auto;
+}
+
+.tl-matchres__previewtext {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-matchres__description {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-matchres__verdict {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-4);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-matchres__reason[data-state="differs"] {
+    color: var(--tl-status-warning, #b26a00);
+}
+
+.tl-matchres__evidence {
+    margin-inline-start: auto;
+}
+
+.tl-matchres__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--tl-space-3);
+}

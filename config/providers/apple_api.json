@@ -524,6 +524,7 @@
     }
   ],
   "requires_api_key": false,
+  "editor_match": { "default_for": ["audiobook"] },
   "custom_icon_name": null,
   "language_strategy": "localized",
   "settings_schema": {

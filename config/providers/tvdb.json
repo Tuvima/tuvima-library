@@ -17,6 +17,7 @@
   "provider_id": "bf00000f-0000-4000-8000-000000000017",
   "display_name": "TheTVDB",
   "requires_api_key": true,
+  "editor_match": { "default_for": ["tv_show", "tv_season", "tv_episode"] },
   "language_strategy": "localized",
   "http_client": { "timeout_seconds": 20 },
   "can_handle": { "media_types": ["TV"], "entity_types": ["Work", "MediaAsset"] },

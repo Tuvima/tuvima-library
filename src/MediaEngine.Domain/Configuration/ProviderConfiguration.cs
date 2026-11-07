@@ -184,6 +184,10 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("search_strategies")]
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
+    /// <summary>Where the editor's Match tab offers this source, and for which kinds it is the default. Absent means it is never the default.</summary>
+    [JsonPropertyName("editor_match")]
+    public ProviderEditorMatchConfiguration? EditorMatch { get; set; }
+
     /// <summary>How the provider signs in. See <see cref="ProviderAuthConfiguration"/>.</summary>
     [JsonPropertyName("auth")]
     public ProviderAuthConfiguration? Auth { get; set; }

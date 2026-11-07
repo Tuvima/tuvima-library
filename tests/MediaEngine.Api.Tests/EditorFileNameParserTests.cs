@@ -92,4 +92,15 @@ public sealed class EditorFileNameParserTests
 
         Assert.Equal(new ParsedFileName(null, null, null, null, null), parsed);
     }
+
+    [Theory]
+    [InlineData("Batman 012", "Batman", 12)]
+    [InlineData("Saga #7", "Saga", 7)]
+    [InlineData("Amazing Spider-Man Issue 300", "Amazing Spider-Man", 300)]
+    public void AComicName_IsReadAsItsSeriesAndIssue(string name, string series, int issue) =>
+        Assert.Equal((series, (int?)issue), EditorFileNameParser.ReadIssue(name));
+
+    [Fact]
+    public void AComicNameWithNoNumber_IsAllSeries() =>
+        Assert.Equal(("Maus", (int?)null), EditorFileNameParser.ReadIssue("Maus"));
 }

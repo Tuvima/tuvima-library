@@ -70,6 +70,7 @@ public sealed partial class RetailMatchWorker
     private readonly ImageDownloadCoordinator _imageDownloadCoordinator;
     private readonly ILogger<RetailMatchWorker> _logger;
     private readonly IExternalLookupGuard? _lookupGuard;
+    private readonly IPinnedMatchGuard? _pinnedGuard;
 
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
 
@@ -118,9 +119,11 @@ public sealed partial class RetailMatchWorker
         TmdbTvSuggestionService? tvSuggestions = null,
         IMediaAssetCoverageRepository? coverageRepo = null,
         ITvEpisodeRangeCatalogue? rangeCatalogue = null,
-        IExternalLookupGuard? lookupGuard = null)
+        IExternalLookupGuard? lookupGuard = null,
+        IPinnedMatchGuard? pinnedGuard = null)
     {
         _lookupGuard = lookupGuard;
+        _pinnedGuard = pinnedGuard;
         _jobRepo = jobRepo;
         _candidateRepo = candidateRepo;
         _outcomeFactory = outcomeFactory;
@@ -238,7 +241,10 @@ public sealed partial class RetailMatchWorker
             ct: ct);
 
         // A file in a library that never looks anything up is closed here, before any provider is asked (Library setup D38).
-        var jobs = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
+        var unblocked = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
+
+        // An item whose match a person applied is not re-identified by a scan or a folder hint that now disagrees (universal editor v5, D8).
+        var jobs = await _pinnedGuard.SettlePinnedJobsAsync(_jobRepo, unblocked, _logger, ct).ConfigureAwait(false);
 
         // Separate Music and TV jobs for group processing; everything else is per-item.
         var musicJobs = new List<IdentityJob>();

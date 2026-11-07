@@ -39,15 +39,9 @@
     else if (Selection.Panel == BulkPanelKind.Match)
     {
         <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
-            <EditorLineUpPanel ParentId="@(Selection.Rows[0].ParentId ?? Guid.Empty)"
-                               MediaType="@(IsEpisodes ? "TV" : "Music")"
-                               ParentScope="@(IsEpisodes ? "season" : "album")"
-                               ParentName="@MatchParentName"
-                               Rows="@Selection.Rows"
-                               Pending="Pending"
-                               CanEdit="@CanChange"
-                               OnStaged="@(_ => BackToEdit())"
-                               OnCancel="BackToEdit" />
+            @* Matching many items at once is rebuilt with the TV and music flows (universal editor v5, WP9a); one item at a time is matched in its own Match tab. *@
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["BulkEditPanel_MatchOneAtATime"]</AppAlert>
+            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit" />
         </section>
     }
     else
@@ -179,9 +173,6 @@
     /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
-    /// <summary>What the show or album the ticked rows sit in is called; the Match step starts its search from it. Null when the list does not know.</summary>
-    [Parameter] public string? MatchParentName { get; set; }
-
     private bool CanChange => CanEdit && EditorDeviceRule.CanEdit(Device) && !_fields.Forbidden;
 
     private string PanelName => Selection.Panel switch
@@ -195,8 +186,6 @@
     private BulkItemKind Kind => BulkEditRules.KindOf(Selection.Rows, Selection.MediaType);
 
     private string Noun => BulkEditRules.Noun(Selection.Rows, Selection.MediaType);
-
-    private bool IsEpisodes => Selection.Rows.Count > 0 && Selection.Rows.All(row => row.Kind == DetailEntityType.TvEpisode);
 
     private bool ShowsSongTools => BulkEditRules.CanChangeAlbum(Selection.Rows, Selection.MediaType);
 

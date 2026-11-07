@@ -25,6 +25,8 @@ public sealed class EditorCurrentMatchService(
     IMetadataClaimRepository claims,
     ProviderApiClient tvdb,
     IMemoryCache previews,
+    EditorMatchVerdictCalculator calculator,
+    ItemQuickFactsService quickFacts,
     ILogger<EditorCurrentMatchService> logger)
 {
     private const string TvdbProvider = "tvdb";
@@ -125,9 +127,16 @@ public sealed class EditorCurrentMatchService(
         // The year row compares like with like: a season or episode file carries the show's year, so it is set beside the show's year.
         var yearSide = showLevel ? Value(root, MetadataFieldConstants.Year) : facts.Year;
 
+        // A film, an episode, a song or an audiobook is also checked against its measured length (when the Engine has measured the file).
+        var hasOwnLength = source.Kind is "Film" or "Episode" or "Song" || string.Equals(launch.MediaType, "Audiobooks", StringComparison.OrdinalIgnoreCase);
+        var measured = hasOwnLength ? (await quickFacts.GetAsync(entityId, ct).ConfigureAwait(false))?.RuntimeSeconds : null;
+        var recordMinutes = hasOwnLength && double.TryParse(Value(own, MetadataFieldConstants.Runtime), NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes) ? minutes : (double?)null;
+
         // A TheTVDB picture is shown through the Engine's preview, never as TheTVDB's own address.
         var imageUrl = MetadataEndpoints.CreateTvdbPreviewUrl(previews, entityId, launch.WorkId, facts.ImageUrl)
             ?? (IsTvdbAddress(facts.ImageUrl) ? null : facts.ImageUrl);
+        var why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores, measured, recordMinutes);
+        var checks = why.Select(Check).ToList();
         return new EditorCurrentMatchDto
         {
             EntityId = entityId,
@@ -148,7 +157,9 @@ public sealed class EditorCurrentMatchService(
             },
             WikidataQid = qid,
             WikidataUrl = OutsideLinks.Wikidata(qid),
-            Why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores),
+            Why = why,
+            Verdict = calculator.Verdict(checks),
+            Pinned = IsPinned(own) || IsPinned(root),
             FileName = fileName,
             Note = note,
         };
@@ -290,8 +301,9 @@ public sealed class EditorCurrentMatchService(
 
     // Each fact the file's name says, set beside what the matched record says. A fact the file does not say is "not checked" and never
     // counts against the match.
-    private static IReadOnlyList<EditorMatchEvidenceRowDto> BuildWhy(
-        bool isTv, ParsedFileName parsed, string? titleSide, string? yearSide, RecordFacts record, IReadOnlyDictionary<string, double> scores)
+    private IReadOnlyList<EditorMatchEvidenceRowDto> BuildWhy(
+        bool isTv, ParsedFileName parsed, string? titleSide, string? yearSide, RecordFacts record, IReadOnlyDictionary<string, double> scores,
+        double? measuredSeconds, double? recordMinutes)
     {
         var rows = new List<EditorMatchEvidenceRowDto>();
         var fileTitle = isTv ? parsed.Show : parsed.Title;
@@ -307,8 +319,37 @@ public sealed class EditorCurrentMatchService(
             rows.Add(Row("episode_number", parsed.Episode?.ToString(CultureInfo.InvariantCulture), record.Episode, null, same: SameNumber));
         }
 
-        return rows;
+        if (measuredSeconds is > 0 && recordMinutes is > 0)
+        {
+            var runtime = calculator.Runtime(measuredSeconds, recordMinutes);
+            rows.Add(new EditorMatchEvidenceRowDto { Field = "runtime", YourFile = runtime.Yours, MatchedRecord = runtime.Theirs, State = runtime.State, Note = runtime.Note });
+        }
+
+        return [.. rows.Select(row => new EditorMatchEvidenceRowDto
+        {
+            Field = row.Field,
+            YourFile = row.YourFile,
+            MatchedRecord = row.MatchedRecord,
+            Score = row.Score,
+            State = row.State,
+            Verdict = calculator.RowVerdict(row.State, row.Score),
+            Note = row.Note,
+        })];
     }
+
+    // A row of the Why table as a compared fact, so the overall verdict is judged the same way a search result is.
+    private static MatchFactCheck Check(EditorMatchEvidenceRowDto row) => new(
+        row.Field switch
+        {
+            "title" => MatchFactNames.Title,
+            "year" => MatchFactNames.Year,
+            "runtime" => MatchFactNames.Runtime,
+            _ => MatchFactNames.Number,
+        },
+        row.State, row.YourFile, row.MatchedRecord, row.Field);
+
+    private static bool IsPinned(IReadOnlyDictionary<string, string> map) =>
+        string.Equals(Value(map, MetadataFieldConstants.MatchPinned), "true", StringComparison.OrdinalIgnoreCase);
 
     private static EditorMatchEvidenceRowDto Row(
         string field, string? file, string? matched, double? score, Func<string, string, bool> same) => new()

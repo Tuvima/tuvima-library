@@ -131,4 +131,37 @@ public static class EditorFileNameParser
     }
 
     private static string? Clean(FilenameCleaningRules rules, string? text) => rules.Tidy(text);
+
+    /// <summary>A name taken from a tag or a folder with release noise, brackets and a year taken out; null when nothing is left.</summary>
+    public static string? CleanTitle(string? text, FilenameCleaningRules rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        return string.IsNullOrWhiteSpace(text) ? null : Clean(rules, rules.StripYear(rules.StripTags(text)));
+    }
+
+    /// <summary>
+    /// A comic's cleaned name read as its series and issue number ("Batman 012" is Batman, issue 12). A name that is only a number, or
+    /// carries none, is all series.
+    /// </summary>
+    public static (string? Series, int? Issue) ReadIssue(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return (null, null);
+        }
+
+        var match = IssueNumber.Match(name.Trim());
+        if (!match.Success || string.IsNullOrWhiteSpace(match.Groups["series"].Value)
+            || !int.TryParse(match.Groups["n"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var issue))
+        {
+            return (name.Trim(), null);
+        }
+
+        return (match.Groups["series"].Value.Trim(), issue);
+    }
+
+    private static readonly Regex IssueNumber = new(
+        @"^(?<series>.*?)[\s._-]*(?:#|no\.?\s*|issue\s*)?0*(?<n>\d{1,4})$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(250));
 }

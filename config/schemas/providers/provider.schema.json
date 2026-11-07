@@ -734,6 +734,17 @@
       "additionalProperties": false
     },
     "text_track": { "$ref": "#/$defs/textTrack" },
+    "editor_match": {
+      "type": "object",
+      "description": "Where the editor's Match tab offers this source: the editor kinds it is the default provider for (universal editor v5, D8).",
+      "properties": {
+        "default_for": {
+          "type": "array",
+          "items": { "enum": ["movie", "tv_show", "tv_season", "tv_episode", "album", "song", "book", "audiobook", "comic", "video"] }
+        }
+      },
+      "additionalProperties": false
+    },
     "candidate_ranking": {
       "type": "array",
       "items": { "$ref": "#/$defs/candidateRanking" }
