@@ -116,7 +116,7 @@
                                                 @if (editable)
                                                 {
                                                     <AppChip Title="@ChipTitle(item)" OnClose="@(() => RemoveAsync(group.Key, captured.Value))" Disabled="@_busy">
-                                                        <span class="taste-chip__text">@item.Value</span>
+                                                        <span class="taste-chip__text" data-overflow-tooltip="@item.Value">@item.Value</span>
                                                         @if (item.Source == TasteValues.SourceAdded)
                                                         {
                                                             <span class="taste-chip__note">@L["OverviewTastePage_AddedByYou"]</span>
@@ -126,7 +126,7 @@
                                                 else
                                                 {
                                                     <AppChip Title="@ChipTitle(item)">
-                                                        <span class="taste-chip__text">@item.Value</span>
+                                                        <span class="taste-chip__text" data-overflow-tooltip="@item.Value">@item.Value</span>
                                                         @if (item.Source == TasteValues.SourceAdded)
                                                         {
                                                             <span class="taste-chip__note">@(person.IsYou ? "Added by you" : "Added by them")</span>

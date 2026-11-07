@@ -427,7 +427,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.Equal("PG", body.RootElement.GetProperty("read_level").GetString());
         Assert.Equal("G", body.RootElement.GetProperty("listen_level").GetString());
         Assert.False(body.RootElement.GetProperty("show_unrated").GetBoolean());
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-kid-settings-saved]")));
+        cut.WaitForAssertion(() => Assert.False(string.IsNullOrWhiteSpace(cut.Find("[data-kid-settings-saved]").TextContent)));
         Assert.Empty(cut.FindAll(".app-save-bar"));
     }
 

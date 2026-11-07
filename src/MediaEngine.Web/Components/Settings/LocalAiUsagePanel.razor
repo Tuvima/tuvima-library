@@ -56,8 +56,8 @@
                         <tr>
                             <th>@L["Common_UsedBy"]</th>
                             <th>@L["LocalAiUsagePanel_Ability"]</th>
-                            <th>@L["LocalAiUsagePanel_Requests"]</th>
-                            <th>@L["LocalAiUsagePanel_BusyTime"]</th>
+                            <th class="app-table__num">@L["LocalAiUsagePanel_Requests"]</th>
+                            <th class="app-table__num">@L["LocalAiUsagePanel_BusyTime"]</th>
                             <th>@L["LocalAiUsagePanel_LastUsed"]</th>
                         </tr>
                     </thead>
@@ -67,8 +67,8 @@
                             <tr @key="@($"{row.CallerKind}/{row.CallerId}/{row.Ability}")">
                                 <td>@CallerLabel(row)</td>
                                 <td>@row.Ability</td>
-                                <td>@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
-                                <td>@row.BusySeconds.ToString("0.#") s</td>
+                                <td class="app-table__num">@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
+                                <td class="app-table__num">@row.BusySeconds.ToString("0.#") s</td>
                                 <td>@row.LastUsedAt.ToLocalTime().ToString("g")</td>
                             </tr>
                         }

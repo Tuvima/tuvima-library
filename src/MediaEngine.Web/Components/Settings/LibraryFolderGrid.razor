@@ -13,7 +13,7 @@
     <thead>
         <tr>
             <th data-card-role="title">@L["Common_Folder"]</th>
-            <th data-card-role="value">@L["Common_Titles"]</th>
+            <th class="app-table__num" data-card-role="value">@L["Common_Titles"]</th>
             <th data-label="Access">@L["Common_Access"]</th>
             <th data-label="Scan">@L["LibraryFolderGrid_Scan"]</th>
             <th data-label="Import destination">
@@ -101,7 +101,7 @@
                         </div>
                     }
                 </td>
-                <td data-card-role="value" data-label="Titles">@TitlesText(source)</td>
+                <td class="app-table__num" data-card-role="value" data-label="Titles">@TitlesText(source)</td>
                 <td data-label="Access"><span class="folder-grid__access" data-access="@AccessKey(source)">@AccessText(source)</span></td>
                 <td data-label="Scan">
                     @if (ReadOnly)

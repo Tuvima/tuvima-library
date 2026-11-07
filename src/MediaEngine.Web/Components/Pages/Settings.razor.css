@@ -216,15 +216,6 @@
     flex-wrap: wrap;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
-    margin-top: 18px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
-    border-color: rgba(239, 68, 68, 0.4) !important;
-    background: rgba(69, 10, 10, 0.16) !important;
-}
-
 :where(.settings-admin-panel) ::deep .settings-plugin-danger-header {
     display: flex;
     align-items: center;
@@ -235,15 +226,6 @@
 
 :where(.settings-admin-panel) ::deep .settings-plugin-danger-header {
     margin-bottom: 0;
-}
-
-:where(.settings-admin-panel) ::deep .settings-reading-preview {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 10px !important;
-    padding: 18px !important;
-    background: rgba(5, 8, 14, 0.42) !important;
 }
 
 @media (max-width: 1100px) {

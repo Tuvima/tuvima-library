@@ -21,7 +21,7 @@
         {
             <li class="taste-donut__item" data-taste-slice="@slice.Label">
                 <span class="@("taste-donut__swatch taste-donut__swatch--" + slice.Index)" aria-hidden="true"></span>
-                <span class="taste-donut__label">@slice.Label</span>
+                <span class="taste-donut__label" data-overflow-tooltip="@slice.Label">@slice.Label</span>
                 <span class="taste-donut__percent">@Percent(slice)</span>
             </li>
         }

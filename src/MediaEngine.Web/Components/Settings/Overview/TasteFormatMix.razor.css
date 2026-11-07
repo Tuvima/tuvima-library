@@ -60,6 +60,8 @@ rect.taste-formats__segment--comics { fill: var(--tl-media-comics); }
 }
 
 .taste-formats__percent {
+    flex: 0 0 auto;
+    text-align: right;
     color: var(--tl-text-secondary);
     font-variant-numeric: tabular-nums;
 }

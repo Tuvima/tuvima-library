@@ -14,12 +14,12 @@
         <AppInfoTip Label="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
                     Text="@L["HouseholdLibraryCeiling_UntickALibraryToHide"].Value" />
     </span>
+    <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
-        <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
-        </span>
     }
+    </span>
     @if (_open)
     {
         <div id="@_bodyId" class="household-ceiling__body">

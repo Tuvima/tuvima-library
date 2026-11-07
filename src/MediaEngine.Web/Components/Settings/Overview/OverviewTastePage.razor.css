@@ -10,13 +10,22 @@
 }
 
 .taste-page__scope {
-    display: grid;
-    gap: var(--tl-space-1, 4px);
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
 }
 
+/* The name sits beside the filter on the row's centre line, never in small type above it (D15.1). */
 .taste-page__scope-label {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    flex: 0 0 auto;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    white-space: nowrap;
+}
+
+.taste-page__scope > :not(.taste-page__scope-label) {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .taste-page__loading {
@@ -124,11 +133,17 @@
     max-width: 100%;
 }
 
+/* A chip never grows past its card: a long genre is cut with an ellipsis (the full text shows in the tooltip). */
 .taste-chip__text {
-    overflow-wrap: anywhere;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+
 .taste-chip__note {
+    flex: 0 0 auto;
     margin-inline-start: var(--tl-space-2, 8px);
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-secondary);
