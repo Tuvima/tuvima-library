@@ -19,8 +19,15 @@ public sealed record VideoOwnedEpisode(Guid WorkId, string Title, string? StillU
     string? Runtime, string SeasonKey, string SeasonTitle, int? SeasonNumber, int? EpisodeNumber,
     int? StillWidthPx = null, int? StillHeightPx = null, double? ProgressPercent = null);
 public sealed record VideoPresentationContext(VideoPlaybackIdentity Identity, string? ShowTitle,
-    IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode, Guid? ShowWorkId = null)
+    IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode, Guid? ShowWorkId = null,
+    IReadOnlyList<DetailExtraCardViewModel>? Homework = null)
 {
+    /// <summary>
+    /// The supporting files shown alongside the lesson that is playing (universal editor v5 D31), for the course end card's "Homework for this
+    /// lesson" block. Always empty for a TV episode: a show's end card is untouched.
+    /// </summary>
+    public IReadOnlyList<DetailExtraCardViewModel> HomeworkFiles => Homework ?? [];
+
     public static VideoPresentationContext Empty(VideoPlaybackIdentity identity) => new(identity, null, [], null);
 }
 
@@ -224,8 +231,12 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             Check();
             break;
         }
+        // The files shown alongside this lesson ride on the same page (its own Extras row); a show keeps its end card as it was.
+        IReadOnlyList<DetailExtraCardViewModel> homework = IsTvEpisode(playback.CurrentItem)
+            ? []
+            : [.. (page?.Extras ?? []).Where(card => !card.IsMissing && card.AlongsideKey is not null)];
         return new(identity, sequence?.CurrentItem.EpisodeContext?.ShowTitle, episodes, next,
-            sequence?.CurrentItem.EpisodeContext?.ShowWorkId);
+            sequence?.CurrentItem.EpisodeContext?.ShowWorkId, homework);
     }
 
     public async Task<bool> PlayEpisodeAsync(VideoPlaybackIdentity identity, Guid workId, CancellationToken ct,
@@ -329,12 +340,16 @@ public sealed class VideoEndCardState
     private VideoPlaybackIdentity? _identity;
     private Guid? _next;
     private bool _dismissed;
+    private bool _hasHomework;
     public bool Visible { get; private set; }
+
+    /// <summary>True once the viewer dismissed Up next: no countdown, no Play now. A lesson's card stays for its homework (universal editor v5 D31).</summary>
+    public bool UpNextDismissed => _dismissed;
     public double RemainingSeconds { get; private set; } = 10;
     /// <summary>False when the viewer turned autoplay off: the card stays up with no countdown and never asks to advance.</summary>
     public bool AutoAdvance { get; set; } = true;
     public void Observe(VideoPlaybackIdentity? identity, Guid? next, double position, double duration,
-        IReadOnlyList<PlaybackSegmentDto> segments)
+        IReadOnlyList<PlaybackSegmentDto> segments, bool hasHomework = false)
     {
         if (_identity != identity) { _identity = identity; _dismissed = false; _next = null; }
         var credits = segments.Where(segment => string.Equals(segment.Kind, "credits", StringComparison.OrdinalIgnoreCase)
@@ -342,18 +357,20 @@ public sealed class VideoEndCardState
             && (segment.EndSeconds is null || IsVerifiedRange(segment, duration))
             && string.Equals(segment.ReviewStatus, "verified", StringComparison.OrdinalIgnoreCase))
             .Select(segment => (double?)segment.StartSeconds).Min();
-        var eligible = identity is not null && next is not null && duration > 0 && double.IsFinite(duration)
+        _hasHomework = hasHomework;
+        var eligible = identity is not null && (next is not null || hasHomework) && duration > 0 && double.IsFinite(duration)
             && position >= (credits ?? Math.Max(0, duration - 20)) && position <= duration + 1;
         if (!eligible || _next != next)
         {
             RemainingSeconds = 10;
         }
         _next = next;
-        Visible = eligible && !_dismissed;
+        // Dismiss closes Up next; a lesson with homework keeps its card so the homework stays reachable until the video is closed.
+        Visible = eligible && (!_dismissed || hasHomework);
     }
     public bool Tick(double elapsedSeconds, bool active)
     {
-        if (!AutoAdvance || !Visible || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
+        if (!AutoAdvance || !Visible || _dismissed || _next is null || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
         {
             return false;
         }
@@ -362,7 +379,7 @@ public sealed class VideoEndCardState
     }
     public bool Tick(VideoPlaybackIdentity identity, double elapsedSeconds, bool active) =>
         identity == _identity && Tick(elapsedSeconds, active);
-    public void Dismiss() { _dismissed = true; Visible = false; }
+    public void Dismiss() { _dismissed = true; Visible = _hasHomework; }
     public static bool IsVerifiedRange(PlaybackSegmentDto segment, double duration) =>
         double.IsFinite(segment.StartSeconds) && segment.StartSeconds >= 0 && segment.StartSeconds < duration
         && segment.EndSeconds is double end && double.IsFinite(end) && end > segment.StartSeconds && end <= duration

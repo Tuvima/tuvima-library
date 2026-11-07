@@ -70,6 +70,12 @@ public sealed class DetailPageViewModel
     public IReadOnlyList<DetailExtraCardViewModel> Extras { get; set; } = [];
 
     /// <summary>
+    /// How many Extras cards one group shows before "See all" (<c>cards_per_group</c> in <c>config/editor.json</c>, universal editor v5 D34), so the
+    /// Dashboard holds no number. 0 when the page has no Extras.
+    /// </summary>
+    public int ExtrasCardsPerGroup { get; set; }
+
+    /// <summary>
     /// What a curated collection's page adds to the standard one (Collections and lists spec 4g): how it fills up, the set it is, and
     /// for an imported list the "You own X of Y" counts and the titles it holds that the library does not. Null on every other page.
     /// </summary>

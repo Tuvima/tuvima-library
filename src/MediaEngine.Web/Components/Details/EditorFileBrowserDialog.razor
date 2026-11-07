@@ -34,7 +34,7 @@
             }
 
             <div class="tl-fbrowser__body">
-                <EditorFileBrowserSidebar State="State" />
+                <EditorFileBrowserSidebar State="State" ReadOnly="ReadOnly" />
                 <div class="tl-fbrowser__main">
                     @if (State.View == EditorBrowserView.Folders)
                     {
@@ -78,10 +78,10 @@
                         }
 
                         <div class="tl-fbrowser__count" data-testid="file-browser-count" aria-busy="@(State.Loading ? "true" : null)">@EditorFileBrowserRules.ShowingLine(L, State.List)</div>
-                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
+                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" ReadOnly="ReadOnly" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
                     }
 
-                    @if (State.View == EditorBrowserView.Files)
+                    @if (State.View == EditorBrowserView.Files && !ReadOnly)
                     {
                         <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" OnDelete="DeleteTickedAsync" />
                     }
@@ -104,7 +104,7 @@
 
         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-browser-close="true"
                    OnClick="@(() => Finish(EditorFileBrowserOutcome.Closed))">@L["EditorBrowser_Close"]</AppButton>
-        @if (State.View == EditorBrowserView.Files)
+        @if (State.View == EditorBrowserView.Files && !ReadOnly)
         {
             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(State.Ticked.Count == 0 || !CanEdit)" data-browser-edit="true"
                        OnClick="@(() => Finish(new EditorFileBrowserOutcome(EditorFileBrowserAction.EditSelected)))">@L["EditorBrowser_EditSelected"]</AppButton>
@@ -131,6 +131,12 @@
 
     /// <summary>False outside a desktop editing session (EditorDeviceRule.CanEdit): the browser only shows, opens and previews.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>
+    /// The details page's "See all" (universal editor v5 item 16): the same list with no ticks, no bulk bar, no Folders and files view and no edit
+    /// or delete actions. Each row only opens its file.
+    /// </summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     private IReadOnlyList<AppSelectOption> WhereChoices =>
     [

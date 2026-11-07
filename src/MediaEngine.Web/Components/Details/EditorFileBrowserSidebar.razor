@@ -58,12 +58,15 @@
                 </AppRowButton>
             </li>
         </ul>
-        <hr class="tl-fbside__rule" />
-        <AppRowButton Class="tl-fbside__item tl-fbside__item--link" data-view-switch="folders" OnClick="State.ShowFoldersAsync">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" />
-            <span class="tl-fbside__label">@L["EditorBrowser_FoldersAndFiles"]</span>
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
-        </AppRowButton>
+        @if (!ReadOnly)
+        {
+            <hr class="tl-fbside__rule" />
+            <AppRowButton Class="tl-fbside__item tl-fbside__item--link" data-view-switch="folders" OnClick="State.ShowFoldersAsync">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" />
+                <span class="tl-fbside__label">@L["EditorBrowser_FoldersAndFiles"]</span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+            </AppRowButton>
+        }
     }
     else
     {
@@ -82,6 +85,9 @@
 
 @code {
     [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>The details page's read-only "See all": no switch to the Folders and files view.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     // The title's own level and the seasons, sections and albums with files; single episodes and lessons are in the toolbar's dropdown only.
     private IEnumerable<SupportingFileWhereOptionDto> PlaceOptions =>

@@ -12,10 +12,13 @@
     <table class="tl-fbtable__table">
         <thead>
             <tr>
-                <th class="tl-fbtable__tick">
-                    <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
-                                 Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
-                </th>
+                @if (!ReadOnly)
+                {
+                    <th class="tl-fbtable__tick">
+                        <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
+                                     Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
+                    </th>
+                }
                 <th aria-sort="@SortState(SupportingFileListDefaults.SortTitle)">@SortHeading(SupportingFileListDefaults.SortTitle, L["EditorBrowser_Name"].Value)</th>
                 <th aria-sort="@SortState(SupportingFileListDefaults.SortWhere)">@SortHeading(SupportingFileListDefaults.SortWhere, L["EditorBrowser_WhereColumn"].Value)</th>
                 <th aria-sort="@SortState(SupportingFileListDefaults.SortType)">@SortHeading(SupportingFileListDefaults.SortType, L["EditorBrowser_Type"].Value)</th>
@@ -29,10 +32,13 @@
             {
                 var ticked = State.IsTicked(row.Id);
                 <tr @key="row.Id" class="@(ticked ? "tl-fbtable__row is-ticked" : "tl-fbtable__row")" data-file-id="@row.Id">
-                    <td class="tl-fbtable__tick">
-                        <AppCheckbox Value="ticked" ValueChanged="@(_ => State.Toggle(row))" HideLabel="true"
-                                     Label="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)" />
-                    </td>
+                    @if (!ReadOnly)
+                    {
+                        <td class="tl-fbtable__tick">
+                            <AppCheckbox Value="ticked" ValueChanged="@(_ => State.Toggle(row))" HideLabel="true"
+                                         Label="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)" />
+                        </td>
+                    }
                     <td>
                         <div class="tl-fbtable__name">
                             <span class="tl-fbtable__badge" data-type="@row.Type" aria-hidden="true">
@@ -60,12 +66,20 @@
                     <td class="@(string.IsNullOrEmpty(row.Group) ? "is-quiet" : null)">@(string.IsNullOrEmpty(row.Group) ? L["EditorBrowser_Ungrouped"].Value : row.Group)</td>
                     <td>@row.RoleLabel</td>
                     <td class="tl-fbtable__menu">
+                        @if (ReadOnly)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-open-file="@row.Id" Disabled="@row.IsMissing"
+                                       OnClick="@(() => Choose(row, preview: true))">@L["EditorBrowser_Open"]</AppButton>
+                        }
+                        else
+                        {
                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
                             <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
                             <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
                             <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
                                          Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
                         </AppOverflowMenu>
+                        }
                     </td>
                 </tr>
             }
@@ -84,6 +98,9 @@
 
     /// <summary>False outside a desktop editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>The details page's read-only "See all": no ticks, no row menu; each row has an Open button.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     private Task Choose(SupportingFileRowDto row, bool preview) =>
         Guid.TryParse(row.Id, out var id)

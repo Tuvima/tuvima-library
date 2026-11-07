@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Display
 @inject IStringLocalizer<SharedStrings> L
+@inject NavigationManager Nav
 
 
         @if (!IsSeasonContainer)
@@ -95,6 +96,25 @@
         {
             <div class="tl-series-item__date">@itemDate</div>
         }
+        @if (Chips.Count > 0)
+        {
+            @* A supporting file shown alongside this episode or lesson (universal editor v5 D31): a chip that opens the file. The row is a link, so the chip
+               stops the click reaching it; the files beyond the first are counted, and all of them are on the episode's or lesson's own page. *@
+            var first = Chips[0];
+            <div class="tl-series-item__files" data-testid="alongside-chips">
+                <span class="tl-series-item__file" role="link" tabindex="0" data-testid="alongside-chip"
+                      aria-label="@string.Format(L["SequenceEntryContent_OpenFile"].Value, first.Title)"
+                      @onclick="@(() => OpenFile(first))" @onclick:stopPropagation="true" @onclick:preventDefault="true"
+                      @onkeydown="@(args => OpenFileOnKey(first, args))">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Inline16" />
+                    <span>@ExtrasRowRules.ChipText(first)</span>
+                </span>
+                @if (Chips.Count > 1)
+                {
+                    <span class="tl-series-item__file tl-series-item__file--more" data-testid="alongside-more">+@(Chips.Count - 1)</span>
+                }
+            </div>
+        }
 
 @code {
     [Parameter, EditorRequired] public SequenceItemViewModel Item { get; set; } = default!;
@@ -107,4 +127,17 @@
     [Parameter] public string? AirDate { get; set; }
     [Parameter] public string? ItemDate { get; set; }
     [Parameter] public string MissingIcon { get; set; } = string.Empty;
+
+    /// <summary>The supporting files shown alongside this episode or lesson (their chips sit under the row).</summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel> Chips { get; set; } = [];
+
+    private void OpenFile(DetailExtraCardViewModel card) => Nav.NavigateTo(ExtrasRowRules.ViewerHref(card.Id));
+
+    private void OpenFileOnKey(DetailExtraCardViewModel card, KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or " ")
+        {
+            OpenFile(card);
+        }
+    }
 }

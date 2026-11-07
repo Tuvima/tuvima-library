@@ -7562,9 +7562,6 @@
   <data name="VideoEndCard_NextLesson" xml:space="preserve">
     <value>Next lesson</value>
   </data>
-  <data name="VideoEndCard_Homework" xml:space="preserve">
-    <value>Homework: {0}</value>
-  </data>
   <data name="VideoEndCard_PlayNow" xml:space="preserve">
     <value>Play now</value>
   </data>
@@ -12346,5 +12343,29 @@
   </data>
   <data name="EditorBrowser_Search" xml:space="preserve">
     <value>Search places</value>
+  </data>
+  <data name="ExtrasSection_SeeAll" xml:space="preserve">
+    <value>See all {0}</value>
+  </data>
+  <data name="ExtrasSection_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="SequenceEntryContent_OpenFile" xml:space="preserve">
+    <value>Open {0}</value>
+  </data>
+  <data name="VideoEndCard_HomeworkHeading" xml:space="preserve">
+    <value>Homework for this lesson</value>
+  </data>
+  <data name="VideoEndCard_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="VideoEndCard_OnePage" xml:space="preserve">
+    <value>1 page</value>
+  </data>
+  <data name="VideoEndCard_Pages" xml:space="preserve">
+    <value>{0} pages</value>
+  </data>
+  <data name="UniversalSearchResults_InTitle" xml:space="preserve">
+    <value>in {0}</value>
   </data>
 </root>

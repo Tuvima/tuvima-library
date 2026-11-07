@@ -133,7 +133,7 @@
                                               PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
+                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
                     </a>
                 }
                 else
@@ -154,7 +154,7 @@
                                               PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
+                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
                     </article>
                 }
             }
@@ -498,7 +498,7 @@ else
                                               PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
+                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
                     </a>
                 }
                 else
@@ -511,7 +511,7 @@ else
                                               PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
+                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
                     </article>
                 }
             }
@@ -570,6 +570,11 @@ else
     [Parameter] public EventCallback<Guid> OnSeasonSelected { get; set; }
     [Parameter] public bool Compact { get; set; }
     [Parameter] public bool DetailSurface { get; set; }
+
+    /// <summary>The title's supporting files; one shown alongside an episode or lesson of this list gets a chip under that row (universal editor v5 D31).</summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
+
+    private IReadOnlyList<DetailExtraCardViewModel> ChipsFor(SequenceItemViewModel item) => ExtrasRowRules.ShownAlongside(Extras, item);
 
     /// <summary>False when a shared row heading above already names the Series and its count (the details page row).</summary>
     [Parameter] public bool ShowIdentity { get; set; } = true;
@@ -1572,7 +1577,7 @@ else
                                       PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
                                       DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                       AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                      MissingIcon="@MissingIcon" />
+                                      MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
             </a>
         }
         else
@@ -1584,7 +1589,7 @@ else
                                       PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
                                       DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                       AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                      MissingIcon="@MissingIcon" />
+                                      MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
             </article>
         }
     </text>;

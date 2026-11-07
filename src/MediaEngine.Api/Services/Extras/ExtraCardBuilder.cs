@@ -2,6 +2,7 @@ using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Models;
+using MediaEngine.Ingestion.Extras;
 
 namespace MediaEngine.Api.Services.Extras;
 
@@ -10,12 +11,28 @@ public static class ExtraCardBuilder
 {
     private const int MosaicSize = 4;
 
-    public static IReadOnlyList<DetailExtraCardViewModel> Build(IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists, ExtrasConfiguration? rules = null)
+    /// <param name="alongsideAsset">
+    /// Finds the media asset of the lesson a file is shown alongside (a folder of videos has no season or episode numbers to find it by);
+    /// null when the caller cannot, or the file is shown alongside nothing.
+    /// </param>
+    /// <param name="groupByFamilyAbove">
+    /// When the title has more than this many cards and not one file is in a group, every card falls into the group of its kind of file
+    /// ("Documents", "Videos", "Pictures", from the role families in <c>config/extras.json</c>) until a person names groups (item 17); 0 turns it off.
+    /// </param>
+    public static IReadOnlyList<DetailExtraCardViewModel> Build(
+        IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists, ExtrasConfiguration? rules = null, Func<ItemExtra, Guid?>? alongsideAsset = null,
+        int groupByFamilyAbove = 0)
     {
         ArgumentNullException.ThrowIfNull(extras);
         ArgumentNullException.ThrowIfNull(fileExists);
 
         var cards = new List<DetailExtraCardViewModel>();
+        var cardCount = extras.Count(extra => extra.Kind != ItemExtraKinds.Picture)
+            + extras.Where(extra => extra.Kind == ItemExtraKinds.Picture).Select(extra => (extra.ItemFolder.ToLowerInvariant(), (extra.GroupKey ?? string.Empty).ToLowerInvariant())).Distinct().Count();
+        var byFamily = groupByFamilyAbove > 0 && cardCount > groupByFamilyAbove && extras.All(extra => extra.GroupName is null);
+        var config = rules ?? ExtrasConfigurationProvider.Active;
+        string? GroupOf(ItemExtra extra) =>
+            extra.GroupName ?? (byFamily ? config.FamilyFor(extra.Kind).Label : null);
 
         foreach (var document in extras.Where(extra => extra.Kind == ItemExtraKinds.Document))
         {
@@ -32,10 +49,15 @@ public static class ExtraCardBuilder
                 Description = document.Description,
                 Role = document.EffectiveRole,
                 RoleLabel = RoleLabelOf(document, rules),
-                Group = document.GroupName,
+                Group = GroupOf(document),
                 ScopeKey = document.EffectiveScope.Key,
                 ScopeSource = document.ScopeSource,
                 AlongsideKey = document.EffectiveAlongside?.Key,
+                FileBadge = SupportingFileListService.TypeWords(document, isFolder: false, config).Badge,
+                SizeBytes = document.SizeBytes,
+                PageCount = document.PageCount,
+                AlongsideLabel = AlongsideLabelOf(document),
+                AlongsideAssetId = alongsideAsset?.Invoke(document)?.ToString("D"),
                 Tags = document.TagList,
             });
         }
@@ -62,10 +84,14 @@ public static class ExtraCardBuilder
                 Description = pictures[0].Description,
                 Role = pictures[0].EffectiveRole,
                 RoleLabel = RoleLabelOf(pictures[0], rules),
-                Group = pictures[0].GroupName,
+                Group = GroupOf(pictures[0]),
                 ScopeKey = pictures[0].EffectiveScope.Key,
                 ScopeSource = pictures[0].ScopeSource,
                 AlongsideKey = pictures[0].EffectiveAlongside?.Key,
+                FileBadge = SupportingFileListService.TypeWords(pictures[0], isFolder: pictures.Count > 1, config).Badge,
+                SizeBytes = pictures.Sum(picture => picture.SizeBytes),
+                AlongsideLabel = AlongsideLabelOf(pictures[0]),
+                AlongsideAssetId = alongsideAsset?.Invoke(pictures[0])?.ToString("D"),
                 Tags = pictures[0].TagList,
             });
         }
@@ -85,16 +111,23 @@ public static class ExtraCardBuilder
                 Description = clip.Description,
                 Role = clip.EffectiveRole,
                 RoleLabel = RoleLabelOf(clip, rules),
-                Group = clip.GroupName,
+                Group = GroupOf(clip),
                 ScopeKey = clip.EffectiveScope.Key,
                 ScopeSource = clip.ScopeSource,
                 AlongsideKey = clip.EffectiveAlongside?.Key,
+                FileBadge = SupportingFileListService.TypeWords(clip, isFolder: false, config).Badge,
+                SizeBytes = clip.SizeBytes,
+                AlongsideLabel = AlongsideLabelOf(clip),
+                AlongsideAssetId = alongsideAsset?.Invoke(clip)?.ToString("D"),
                 Tags = clip.TagList,
             });
         }
 
         return cards;
     }
+
+    private static string? AlongsideLabelOf(ItemExtra extra) =>
+        extra.EffectiveAlongside is { Level: not ExtraScopeLevel.None } alongside ? SupportingFileScopes.LabelOf(alongside) : null;
 
     /// <summary>One supporting file as the editor and the browser read it: what a person set and what the folder says, side by side.</summary>
     public static SupportingFileDto ToSupportingFile(

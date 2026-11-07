@@ -74,17 +74,53 @@
     font-weight: 600;
 }
 
-.video-end-card__kind,
-.video-end-card__homework {
+.video-end-card__kind {
     color: var(--playback-text-secondary);
     font-size: var(--tl-font-size-secondary);
 }
 
+/* The course card's "Homework for this lesson" block (universal editor v5 D31): a heading, then one row per file. */
 .video-end-card__homework {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    display: grid;
+    gap: 10px;
+}
+
+.video-end-card__rule {
+    width: 100%;
+    height: 1px;
+    margin: 0 0 2px;
+    border: 0;
+    background: var(--playback-hairline);
+}
+
+.video-end-card__file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.video-end-card__file .video-end-card__words {
+    flex: 1 1 auto;
+}
+
+.video-end-card__file-type {
+    flex: 0 0 44px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: var(--playback-state-hover);
+    color: var(--playback-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.video-end-card__name--file {
+    -webkit-line-clamp: 1;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .video-end-card__actions {
