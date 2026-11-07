@@ -65,8 +65,25 @@
                 {
                     <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Second))" Class="tl-hnav__surface tl-hnav__surface--second">
                         <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
+                            @if (_reorderingSections && EditorNavText.CanReorder(header))
+                            {
+                                <div class="tl-hnav__heading">@L["EditorReorder_SectionsHeading"]</div>
+                                <div class="tl-hnav__scroll tl-hnav__reorder" data-testid="reorder-sections">
+                                    <EditorVideoOrderList EntityId="header.Root.Id"
+                                                          SeriesTitle="@header.Root.Title"
+                                                          Session="Flow?.Session"
+                                                          CanEdit="@(Flow?.Session.IsActive == true)"
+                                                          SectionsMode="true"
+                                                          Compact="true"
+                                                          ShowSort="false"
+                                                          OnDone="DoneReorderingSectionsAsync"
+                                                          OnOrderChanged="FollowSectionOrder" />
+                                </div>
+                            }
+                            else
+                            {
                             <ul class="tl-hnav__options" role="listbox" aria-label="@second.Label">
-                                @foreach (var entry in second.Entries)
+                                @foreach (var entry in OrderedSections(second))
                                 {
                                     var selected = entry.Id == second.CurrentId;
                                     var waiting = pending.GetValueOrDefault(entry.Id);
@@ -93,6 +110,25 @@
                                     </li>
                                 }
                             </ul>
+                            @if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
+                            {
+                                <ul class="tl-hnav__options tl-hnav__options--tail">
+                                    <li>
+                                        <AppRowButton id="tl-hnav-reorder-sections"
+                                                      @onfocusin="@(() => _cursor = "tl-hnav-reorder-sections")"
+                                                      Class="tl-hnav__option tl-hnav__option--plain"
+                                                      OnClick="StartReorderingSections">
+                                            <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" Size="AppIconSize.Control20" /></span>
+                                            <span class="tl-hnav__text">
+                                                <b>@L["EditorReorder_SectionsRow"]</b>
+                                                <small>@L["EditorReorder_RowHint"]</small>
+                                            </span>
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                                        </AppRowButton>
+                                    </li>
+                                </ul>
+                            }
+                            }
                         </div>
                     </AppPopover>
                 }
@@ -174,6 +210,8 @@
     private string? _cursor;
     private bool _disposed;
     private bool _reordering;
+    private bool _reorderingSections;
+    private IReadOnlyList<Guid> _sectionOrder = [];
     private IJSObjectReference? _module;
     private DotNetObjectReference<MoreCallback>? _observed;
     private CancellationTokenSource? _reads;
@@ -466,6 +504,8 @@
             _shown = Header;
             _open = Open.None;
             _reordering = false;
+            _reorderingSections = false;
+            _sectionOrder = Header is { } shownHeader && Flow?.Session.Pending.FindVideoOrder(shownHeader.Root.Id) is { } stagedSections ? stagedSections.OrderedIds : [];
             _query = null;
             _reads?.Cancel();
             ResetItems();
@@ -584,9 +624,17 @@
             return ids;
         }
 
-        if (_open == Open.Second)
+        if (_open == Open.Second && _reorderingSections)
         {
-            ids.AddRange(header.SecondLevel?.Entries.Select(entry => OptionId(entry.Id)) ?? []);
+            return ids;
+        }
+        else if (_open == Open.Second)
+        {
+            ids.AddRange(OrderedSections(header.SecondLevel).Select(entry => OptionId(entry.Id)));
+            if (EditorNavText.CanReorder(header) && (header.SecondLevel?.Entries.Count ?? 0) >= 2)
+            {
+                ids.Add("tl-hnav-reorder-sections");
+            }
         }
         else if (_open == Open.Item && _reordering)
         {
@@ -706,6 +754,43 @@
         _reordering = false;
         ApplyStagedOrder();
         return Task.CompletedTask;
+    }
+
+    // Reorder sections (v5 D19): the Section dropdown orders the series' sections the same way.
+    private void StartReorderingSections()
+    {
+        _reorderingSections = true;
+        _cursor = null;
+    }
+
+    private Task DoneReorderingSectionsAsync()
+    {
+        _reorderingSections = false;
+        if (Header is { } header && Flow?.Session.Pending.FindVideoOrder(header.Root.Id) is { } staged)
+        {
+            _sectionOrder = staged.OrderedIds;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task FollowSectionOrder(IReadOnlyList<Guid> order)
+    {
+        _sectionOrder = order;
+        return Task.CompletedTask;
+    }
+
+    // The sections in the order the person arranged them (the numbers are the Engine's and renumber on Save).
+    private IReadOnlyList<EditorHeaderLevelEntryDto> OrderedSections(EditorHeaderSecondLevelDto? second)
+    {
+        var entries = second?.Entries ?? [];
+        if (_sectionOrder.Count == 0)
+        {
+            return entries;
+        }
+
+        var position = _sectionOrder.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
+        return [.. entries.OrderBy(entry => position.GetValueOrDefault(entry.Id, int.MaxValue))];
     }
 
     // The order the person arranged is shown in the dropdown's list straight away (the codes are the Engine's and renumber on Save).

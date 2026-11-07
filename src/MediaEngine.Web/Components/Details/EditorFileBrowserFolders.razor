@@ -14,14 +14,14 @@
     @if (Subject is not null)
     {
         @* A video chooses its series here (it used to sit under Match): the panel shows itself only for a video. *@
-        <EditorVideoSeriesPanel Subject="Subject" Session="Session" Family="Family" CanEdit="@(Session is { IsActive: true })" ShowOrder="false" />
+        <EditorVideoSeriesPanel Subject="Subject" Session="Session" Family="Family" CanEdit="@Editable" ShowOrder="false" />
     }
 
     @if (IsVideoSeries)
     {
         <section class="tl-fbfolders__order" aria-label="@L["EditorBrowser_VideoOrder"].Value">
             <h4 class="tl-fbfolders__heading">@L["EditorBrowser_VideoOrder"]</h4>
-            <EditorVideoOrderList EntityId="State.TitleId" SeriesTitle="@State.TitleName" Session="Session" CanEdit="@(Session is { IsActive: true })" Compact="true" />
+            <EditorVideoOrderList EntityId="State.TitleId" SeriesTitle="@State.TitleName" Session="Session" Family="Family" CanEdit="@Editable" Compact="true" />
         </section>
     }
 
@@ -82,7 +82,7 @@
                         @if (_sorting == entry.Path && entry.ItemId is { } itemId)
                         {
                             <div class="tl-fbfolders__sort">
-                                <EditorFileSortPanel Subject="@SubjectFor(itemId, entry.Name)" Session="Session" CanEdit="@(Session is { IsActive: true })" />
+                                <EditorFileSortPanel Subject="@SubjectFor(itemId, entry.Name)" Session="Session" CanEdit="@Editable" />
                             </div>
                         }
                     }
@@ -114,6 +114,11 @@
 
     /// <summary>True for a Videos series, where the order of the videos is edited above the tree.</summary>
     [Parameter] public bool IsVideoSeries { get; set; }
+
+    /// <summary>False outside a desktop editing session: the answers and the order are shown but not changeable.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    private bool Editable => CanEdit && Session is { IsActive: true };
 
     /// <summary>A file or media file in the tree was opened.</summary>
     [Parameter] public EventCallback<EditorFileBrowserOutcome> OnChoose { get; set; }

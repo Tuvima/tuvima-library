@@ -52,6 +52,9 @@ public sealed class EditorFileBrowserState
 
     public string TitleName { get; private set; } = string.Empty;
 
+    /// <summary>The title's media type ("TV", "Videos", "Music"...), for the window's subtitle wording.</summary>
+    public string? MediaType { get; private set; }
+
     /// <summary>True once the browser has been opened for a title.</summary>
     public bool IsOpenFor(Guid titleId) => TitleId == titleId && TitleId != Guid.Empty;
 
@@ -111,6 +114,15 @@ public sealed class EditorFileBrowserState
         {
             _ticked.Add(row);
         }
+        else
+        {
+            TickCapReached = true;
+        }
+
+        if (at >= 0)
+        {
+            TickCapReached = false;
+        }
 
         Changed?.Invoke();
     }
@@ -126,9 +138,14 @@ public sealed class EditorFileBrowserState
             {
                 _ticked.Add(row);
             }
+            else if (on && at < 0)
+            {
+                TickCapReached = true;
+            }
             else if (!on && at >= 0)
             {
                 _ticked.RemoveAt(at);
+                TickCapReached = false;
             }
         }
 
@@ -143,11 +160,15 @@ public sealed class EditorFileBrowserState
         }
 
         _ticked.Clear();
+        TickCapReached = false;
         Changed?.Invoke();
     }
 
-    /// <summary>The Engine takes at most this many files in one request (the same limit as ticked items elsewhere).</summary>
-    public static int MaxTicked => MediaEngine.Contracts.Library.LibraryBatchEditRequest.MaxEntityIds;
+    /// <summary>The Engine takes at most this many files in one request (the supporting-files limit).</summary>
+    public static int MaxTicked => SupportingFileListDefaults.MaxFilesPerCall;
+
+    /// <summary>True when a tick was refused because the limit was reached; the dialog then says "You can edit up to N files at once".</summary>
+    public bool TickCapReached { get; private set; }
 
     // -- Opening and reading --------------------------------------------------------------------------------------------------------
 
@@ -155,13 +176,19 @@ public sealed class EditorFileBrowserState
     /// Opens the browser for a title. Opening it for the title it already holds keeps the ticks and filters; opening it for another starts
     /// clean. <paramref name="where"/> narrows the list to a level (the level the item dropdown named).
     /// </summary>
-    public async Task OpenAsync(Guid titleId, string titleName, EditorBrowserView view, string? where = null, CancellationToken ct = default)
+    public async Task OpenAsync(Guid titleId, string titleName, EditorBrowserView view, string? where = null, string? folder = null, string? mediaType = null, CancellationToken ct = default)
     {
         var sameTitle = TitleId == titleId;
         if (!sameTitle)
         {
             Reset();
             TitleId = titleId;
+        }
+
+        MediaType = mediaType;
+        if (folder is not null && view == EditorBrowserView.Folders)
+        {
+            Folder = folder;
         }
 
         TitleName = titleName;
@@ -241,7 +268,7 @@ public sealed class EditorFileBrowserState
         Loading = false;
         if (answer is null)
         {
-            Error = "The supporting files could not be loaded.";
+            Error = "EditorBrowser_LoadFailed";
         }
         else
         {
@@ -392,7 +419,7 @@ public sealed class EditorFileBrowserState
         TreeLoading = false;
         if (answer is null)
         {
-            TreeError = "That folder could not be opened.";
+            TreeError = "EditorBrowser_FolderFailed";
         }
         else
         {
@@ -467,6 +494,20 @@ public sealed class EditorFileBrowserState
         Changed?.Invoke();
     }
 
+    /// <summary>Takes back the group change staged for every ticked file (the field showed Mixed and was cleared).</summary>
+    public void UnstageGroup()
+    {
+        foreach (var row in _ticked)
+        {
+            if (Pending.FindSupportingFile(Guid.Parse(row.Id)) is { } staged)
+            {
+                Pending.SetSupportingFile(staged.Without(SupportingFileFields.Group));
+            }
+        }
+
+        Changed?.Invoke();
+    }
+
     /// <summary>Role for every ticked file; only offered when they are all of one kind, whose roles <see cref="FacetsForTicked"/> lists.</summary>
     public void StageRole(string roleId)
     {
@@ -518,6 +559,9 @@ public sealed class EditorFileBrowserState
     /// <summary>The staged change of a file, if any.</summary>
     public SupportingFileStage? StagedOf(SupportingFileRowDto row) => Pending.FindSupportingFile(Guid.Parse(row.Id));
 
+    /// <summary>True when the last Belongs to check of which files would move could not be made; the window then says so instead of staying silent.</summary>
+    public bool PreviewFailed { get; private set; }
+
     /// <summary>
     /// Belongs to for every ticked file: a place key, or <see cref="SupportingFileBulkStaging.FolderScopeValue"/> for "Use folder location". The
     /// change is staged at once; then the Engine is asked (a read, nothing written) which of the files would move in a Managed folder, so the
@@ -556,8 +600,12 @@ public sealed class EditorFileBrowserState
             ct);
         if (!outcome.IsOk)
         {
+            PreviewFailed = true;
+            Changed?.Invoke();
             return;
         }
+
+        PreviewFailed = false;
 
         foreach (var id in ids)
         {

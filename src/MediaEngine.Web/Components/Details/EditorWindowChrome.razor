@@ -78,7 +78,7 @@
                 @Where
             }
 
-            <span class="tl-editor-window__changes" role="status">@(ChangeCount == 0 ? L["EditorFooter_NoChanges"].Value : ChangeCount == 1 ? L["EditorFooter_OneUnsaved"].Value : string.Format(L["EditorFooter_ManyUnsaved"].Value, ChangeCount))</span>
+            <span class="tl-editor-window__changes" role="status">@(ChangeCount == 0 ? L["EditorFooter_NoChanges"].Value : ChangeCount == 1 ? L["EditorFooter_OneUnsaved"].Value : string.Format(L["EditorFooter_ManyUnsaved"].Value, ChangeCount))@(string.IsNullOrEmpty(ChangeSuffix) ? null : " " + ChangeSuffix)</span>
             <div class="tl-editor-window__actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Neutral"
@@ -141,6 +141,9 @@
     [Parameter] public RenderFragment? FooterStart { get; set; }
 
     [Parameter] public int ChangeCount { get; set; }
+
+    /// <summary>Text after the unsaved count ("· 2 files").</summary>
+    [Parameter] public string? ChangeSuffix { get; set; }
 
     [Parameter] public bool Saving { get; set; }
 

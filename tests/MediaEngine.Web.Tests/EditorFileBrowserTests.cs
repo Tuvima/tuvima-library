@@ -371,6 +371,37 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
         Assert.Empty(_pending.SupportingFileStages);
     }
 
+    [Fact]
+    public async Task TheFolderButton_OpensTheFoldersViewAtTheHeadersFolder()
+    {
+        var state = NewState();
+
+        await state.OpenAsync(TitleId, SupportingFileEditorTestData.TitleName, EditorBrowserView.Folders, folder: "Season 2", mediaType: "TV");
+
+        Assert.Equal("Season 2", state.Folder);
+        Assert.Equal("TV", state.MediaType);
+    }
+
+    [Fact]
+    public async Task TickingPastTheLimit_RefusesTheTick_AndSaysSo()
+    {
+        _list = _ => new SupportingFileListDto
+        {
+            Items = [.. Enumerable.Range(0, EditorFileBrowserState.MaxTicked + 1).Select(i => Row(Guid.NewGuid(), "File " + i))],
+            Total = EditorFileBrowserState.MaxTicked + 1,
+            TotalAll = EditorFileBrowserState.MaxTicked + 1,
+            Page = 1,
+            PageSize = EditorFileBrowserState.MaxTicked + 1,
+            PageCount = 1,
+        };
+        var (state, cut) = await OpenAsync();
+
+        await cut.InvokeAsync(() => state.TickPage());
+
+        Assert.Equal(EditorFileBrowserState.MaxTicked, state.Ticked.Count);
+        Assert.True(state.TickCapReached);
+    }
+
     private sealed class RecordingDialogContext : IAppDialogContext
     {
         public Guid Id { get; } = Guid.NewGuid();

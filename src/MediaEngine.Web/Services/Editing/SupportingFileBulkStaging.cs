@@ -78,10 +78,24 @@ public static class SupportingFileBulkStaging
     }
 
     /// <summary>"Use folder location": every file goes back to the place its folder says.</summary>
-    public static SupportingFileStage UseFolderLocation(Guid titleId, SupportingFileRowDto row, SupportingFileStage? staged) =>
-        SupportingFileStaging.Replace(
-            StageOf(titleId, row, staged) with { ScopeKey = null, UseFolderLocation = true, MoveFrom = null, MoveTo = null },
-            SupportingFileFields.Scope, "Belongs to", row.WhereLabel, FolderLocationWords);
+    public static SupportingFileStage UseFolderLocation(Guid titleId, SupportingFileRowDto row, SupportingFileStage? staged)
+    {
+        var stage = StageOf(titleId, row, staged);
+        // A file that already follows its folder has nothing to go back to.
+        if (row.ScopeSource == FolderSource && stage.Row(SupportingFileFields.Scope) is null)
+        {
+            return stage;
+        }
+
+        return row.ScopeSource == FolderSource
+            ? stage.Without(SupportingFileFields.Scope)
+            : SupportingFileStaging.Replace(
+                stage with { ScopeKey = null, UseFolderLocation = true, MoveFrom = null, MoveTo = null },
+                SupportingFileFields.Scope, "Belongs to", row.WhereLabel, FolderLocationWords);
+    }
+
+    /// <summary>The list's word for a scope that comes from the file's folder.</summary>
+    public const string FolderSource = "folder";
 
     /// <summary>Add tags: tags the file lacks are added; the ones it has are left as they are.</summary>
     public static SupportingFileStage AddTags(Guid titleId, SupportingFileRowDto row, SupportingFileStage? staged, IEnumerable<string> tags)
@@ -112,17 +126,26 @@ public static class SupportingFileBulkStaging
 
     /// <summary>
     /// Shown alongside: an episode, lesson or track of the title (a place key), or none. Shown alongside never moves a file and never changes
-    /// where it belongs. The list does not say what a file is shown alongside now, so Review says "Not set" for the earlier value.
+    /// where it belongs. Review's earlier value is the saved one the list carries, else "Not set".
     /// </summary>
     public static SupportingFileStage SetAlongside(Guid titleId, SupportingFileRowDto row, SupportingFileStage? staged, string? key, string label)
     {
         var stage = StageOf(titleId, row, staged) with { ClearedByScope = false };
         var typed = Clean(key);
-        return typed.Length == 0
+        if (typed.Length == 0)
+        {
+            return string.IsNullOrEmpty(row.AlongsideKey)
+                ? stage.Without(SupportingFileFields.Alongside)
+                : SupportingFileStaging.Replace(
+                    stage with { AlongsideKey = null, NoAlongside = true, UseGuessedAlongside = false },
+                    SupportingFileFields.Alongside, "Shown alongside", row.AlongsideLabel ?? EditReviewRows.NotSet, SupportingFileStaging.NoAlongside);
+        }
+
+        return string.Equals(typed, row.AlongsideKey, StringComparison.Ordinal)
             ? stage.Without(SupportingFileFields.Alongside)
             : SupportingFileStaging.Replace(
                 stage with { AlongsideKey = typed, NoAlongside = false, UseGuessedAlongside = false },
-                SupportingFileFields.Alongside, "Shown alongside", EditReviewRows.NotSet, label);
+                SupportingFileFields.Alongside, "Shown alongside", row.AlongsideLabel ?? EditReviewRows.NotSet, label);
     }
 
     /// <summary>
@@ -156,8 +179,9 @@ public static class SupportingFileBulkStaging
 
     public static string RoleOf(SupportingFileRowDto row, SupportingFileStage? stage) => stage?.Role ?? row.Role;
 
-    /// <summary>The key of the episode, lesson or track the file is shown alongside, as staged; empty when nothing is staged (the list does not know the saved value).</summary>
-    public static string AlongsideOf(SupportingFileStage? stage) => stage?.AlongsideKey ?? string.Empty;
+    /// <summary>The key of the episode, lesson or track the file is shown alongside: the staged one, else the saved one the list carries; empty when none.</summary>
+    public static string AlongsideOf(SupportingFileRowDto row, SupportingFileStage? stage) =>
+        stage is { NoAlongside: true } ? string.Empty : stage?.AlongsideKey ?? row.AlongsideKey ?? string.Empty;
 
     /// <summary>The value the Belongs to dropdown carries for "Use folder location".</summary>
     public const string FolderScopeValue = "use-folder-location";

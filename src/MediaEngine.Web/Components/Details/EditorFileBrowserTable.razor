@@ -16,9 +16,9 @@
                     <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
                                  Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
                 </th>
-                <th>@SortHeading(SupportingFileListDefaults.SortTitle, L["EditorBrowser_Name"].Value)</th>
-                <th>@SortHeading(SupportingFileListDefaults.SortWhere, L["EditorBrowser_WhereColumn"].Value)</th>
-                <th>@SortHeading(SupportingFileListDefaults.SortType, L["EditorBrowser_Type"].Value)</th>
+                <th aria-sort="@SortState(SupportingFileListDefaults.SortTitle)">@SortHeading(SupportingFileListDefaults.SortTitle, L["EditorBrowser_Name"].Value)</th>
+                <th aria-sort="@SortState(SupportingFileListDefaults.SortWhere)">@SortHeading(SupportingFileListDefaults.SortWhere, L["EditorBrowser_WhereColumn"].Value)</th>
+                <th aria-sort="@SortState(SupportingFileListDefaults.SortType)">@SortHeading(SupportingFileListDefaults.SortType, L["EditorBrowser_Type"].Value)</th>
                 <th>@L["EditorBrowser_Group"]</th>
                 <th>@L["EditorBrowser_Role"]</th>
                 <th class="tl-fbtable__menu"><span class="sr-only">@L["EditorBrowser_RowActions"]</span></th>
@@ -47,7 +47,7 @@
                             </span>
                             <span class="tl-fbtable__text">
                                 <b data-overflow-tooltip="@row.Title">@row.Title</b>
-                                <small class="@(row.HasOwnTitle ? null : "is-quiet")">@EditorFileBrowserRules.RowLine(row)</small>
+                                <small class="@(row.HasOwnTitle ? null : "is-quiet")">@EditorFileBrowserRules.RowLine(L, row)</small>
                             </span>
                             @if (row.IsMissing)
                             {
@@ -62,9 +62,9 @@
                     <td class="tl-fbtable__menu">
                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
                             <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
-                            <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => Choose(row, preview: false))" />
+                            <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
                             <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
-                                         OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
+                                         Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
                         </AppOverflowMenu>
                     </td>
                 </tr>
@@ -82,18 +82,24 @@
     /// <summary>The person chose Delete on one row; the dialog asks once and deletes.</summary>
     [Parameter] public EventCallback<SupportingFileRowDto> OnDeleteRow { get; set; }
 
+    /// <summary>False outside a desktop editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
     private Task Choose(SupportingFileRowDto row, bool preview) =>
         Guid.TryParse(row.Id, out var id)
             ? OnChoose.InvokeAsync(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenFile, id, preview))
             : Task.CompletedTask;
 
     // A heading that sorts: the arrow shows the direction of the sort in use.
+    // aria-sort belongs on the column header, not on the button inside it.
+    private string? SortState(string sort) => State.Sort == sort ? (State.Descending ? "descending" : "ascending") : null;
+
     private RenderFragment SortHeading(string sort, string label) => __builder =>
     {
         var active = State.Sort == sort;
         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Class="tl-fbtable__sort"
                    EndIcon="@(active ? (State.Descending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward) : null)"
-                   data-sort="@sort" aria-sort="@(active ? (State.Descending ? "descending" : "ascending") : null)"
+                   data-sort="@sort"
                    OnClick="@(() => State.SortByAsync(sort))">@label</AppButton>
     };
 

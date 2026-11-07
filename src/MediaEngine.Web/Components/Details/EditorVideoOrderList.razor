@@ -17,6 +17,8 @@
 @if (_editor.HasSomethingToOrder)
 {
     <section class="tl-vorder" data-testid="video-order-section" @ref="_root">
+        @* Move up and Move down are said aloud ("Moved Lesson 3 to position 2") so the order can be followed without seeing the list. *@
+        <div class="sr-only" role="status" aria-live="polite" data-testid="video-order-announce">@_announcement</div>
         @if (!Compact)
         {
             <h3 class="tl-vorder__heading">@L["EditorVideoSeries_OrderHeading"]</h3>
@@ -136,6 +138,25 @@ else if (_loaded && OnDone.HasDelegate)
     /// <summary>Shows only this list (the section the dropdown is on), when the series has it; null shows every list.</summary>
     [Parameter] public Guid? OnlyList { get; set; }
 
+    /// <summary>Orders the sections of the series instead of the videos in them (the Section dropdown's Reorder mode).</summary>
+    [Parameter] public bool SectionsMode { get; set; }
+
+    // The sections become the rows of one list whose parent is the series, so the staged change is one order change on the series.
+    private VideoOrderResponse SectionsOf(VideoOrderResponse? order, Guid seriesId) => new()
+    {
+        Groups = (order?.Groups.Count ?? 0) < 2
+            ? []
+            :
+            [
+                new VideoOrderGroupDto
+                {
+                    ParentId = seriesId,
+                    Title = SeriesTitle ?? string.Empty,
+                    Entries = [.. order!.Groups.Select(group => new VideoOrderEntryDto { Id = group.ParentId, Title = group.Title })],
+                },
+            ],
+    };
+
     /// <summary>The dropdown's slim form: no heading, no section titles.</summary>
     [Parameter] public bool Compact { get; set; }
 
@@ -176,7 +197,8 @@ else if (_loaded && OnDone.HasDelegate)
                 return;
             }
 
-            _editor.Load(order, SeriesTitle);
+            _editor.OrdersSections = SectionsMode;
+            _editor.Load(SectionsMode ? SectionsOf(order, id) : order, SeriesTitle);
             // What was staged earlier (switching items keeps every item's changes) is shown again, not lost.
             if (Pending is { } pending)
             {
@@ -215,7 +237,19 @@ else if (_loaded && OnDone.HasDelegate)
         }
     }
 
-    private Task NudgeAsync(int list, int index, int step) => ChangedAsync(_editor.Nudge(list, index, step));
+    private string _announcement = string.Empty;
+
+    private Task NudgeAsync(int list, int index, int step)
+    {
+        var title = _editor.Lists[list].Current[index].Title;
+        var changed = _editor.Nudge(list, index, step);
+        if (changed)
+        {
+            _announcement = string.Format(L["EditorReorder_Moved"].Value, title, index + step + 1);
+        }
+
+        return ChangedAsync(changed);
+    }
 
     private Task SortAsync(int list, VideoSortBy by)
     {
@@ -254,7 +288,11 @@ else if (_loaded && OnDone.HasDelegate)
         }
 
         _editor.Stage(pending);
-        Family?.ApplyArrangement(_editor.Lists.Select(list => (list.ParentId, (IReadOnlyList<Guid>)[.. list.Current.Select(row => row.Id)])));
+        if (!SectionsMode)
+        {
+            Family?.ApplyArrangement(_editor.Lists.Select(list => (list.ParentId, (IReadOnlyList<Guid>)[.. list.Current.Select(row => row.Id)])));
+        }
+
         StateHasChanged();
         if (OnOrderChanged.HasDelegate)
         {

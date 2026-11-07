@@ -42,6 +42,9 @@ public static class SupportingFileListDefaults
     public const string TypeClip = "clip";
 
     public const string TypeAudio = "audio";
+
+    /// <summary>The most files one bulk call (change or delete) takes; the browser stops ticking at this number.</summary>
+    public const int MaxFilesPerCall = 2000;
 }
 
 /// <summary>One row of the supporting-files list: what the browser's table shows and what a bulk action needs to name.</summary>
@@ -78,6 +81,15 @@ public sealed class SupportingFileRowDto
 
     /// <summary>The scope as shown: "Season 2", "Section 1", "Season 2, episode 3"; "Title level" for the title itself.</summary>
     public string WhereLabel { get; init; } = string.Empty;
+
+    /// <summary>Where the scope comes from: <c>folder</c> (the file's folder says it) or <c>you</c> (a person chose it).</summary>
+    public string ScopeSource { get; init; } = "folder";
+
+    /// <summary>The episode, lesson or track the file is shown alongside, as a scope key; null when none.</summary>
+    public string? AlongsideKey { get; init; }
+
+    /// <summary>The words for <see cref="AlongsideKey"/> ("Season 2, episode 3"); null when none.</summary>
+    public string? AlongsideLabel { get; init; }
 
     /// <summary>The group's id; null when ungrouped.</summary>
     public string? GroupId { get; init; }

@@ -189,6 +189,54 @@ public sealed class VideoSeriesAndOrderEditSessionTests : IDisposable
         Assert.Equal([c.Work, a.Work, b.Work], entries);
     }
 
+    private async Task<Guid> SeriesOfAsync(Guid section)
+    {
+        using var conn = _db.CreateConnection();
+        return await Task.FromResult(Dapper.SqlMapper.QuerySingle<Guid>(conn, "SELECT parent_work_id FROM works WHERE id = @section;", new { section }));
+    }
+
+    [Fact]
+    public async Task Apply_OfANewSectionOrder_SavesIt_KeepsItWithLockedClaims_AndUndoPutsTheOldOrderBack()
+    {
+        var one = await AddVideoAsync("A1", "course", 1, "Part one", 1);
+        var two = await AddVideoAsync("B1", "course", 1, "Part two", 2);
+        var three = await AddVideoAsync("C1", "course", 1, "Part three", 3);
+        var series = await SeriesOfAsync(one.Parent);
+        var change = Order("s1", series, three.Parent, one.Parent, two.Parent);
+
+        var result = await _service.RunAsync(Request(false, change), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal([three.Parent, one.Parent, two.Parent], (await _order.LoadAsync(series)).Select(group => group.ParentWorkId));
+        using (var conn = _db.CreateConnection())
+        {
+            // A re-scan keeps the order: the positions are also locked claims of the user.
+            var locked = Dapper.SqlMapper.Query<string>(conn,
+                "SELECT claim_value FROM metadata_claims WHERE entity_id = @id AND claim_key = 'video_section_index' AND is_user_locked = 1;",
+                new { id = three.Parent }).ToList();
+            Assert.Equal(["1"], locked);
+        }
+
+        var handler = new VideoOrderEditSessionChangeHandler(_order, new VideoOrderWriter(_order, new MetadataClaimRepository(_db), new CanonicalValueRepository(_db), new SystemActivityRepository(_db)));
+        var undo = await handler.ApplyAsync(Order("s2", series, one.Parent, two.Parent, three.Parent));
+        Assert.NotNull(undo);
+        await undo!(CancellationToken.None);
+        Assert.Equal([three.Parent, one.Parent, two.Parent], (await _order.LoadAsync(series)).Select(group => group.ParentWorkId));
+    }
+
+    [Fact]
+    public async Task Apply_OfASectionOrderThatMissesASection_IsRefusedWhole()
+    {
+        var one = await AddVideoAsync("A1", "course", 1, "Part one", 1);
+        var two = await AddVideoAsync("B1", "course", 1, "Part two", 2);
+        var series = await SeriesOfAsync(one.Parent);
+
+        var result = await _service.RunAsync(Request(false, Order("s1", series, two.Parent, Guid.NewGuid())), NoRefusals);
+
+        Assert.False(result.DataSaved);
+        Assert.Equal([one.Parent, two.Parent], (await _order.LoadAsync(series)).Select(group => group.ParentWorkId));
+    }
+
     [Fact]
     public async Task Preview_OfANewOrder_SavesNothing()
     {

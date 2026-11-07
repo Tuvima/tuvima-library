@@ -61,6 +61,9 @@ public sealed class VideoOrderEditor
 
     public string SeriesTitle { get; private set; } = string.Empty;
 
+    /// <summary>True when the rows are the sections of the series (the Section dropdown's Reorder mode), not videos.</summary>
+    public bool OrdersSections { get; set; }
+
     /// <summary>Starts from what the Engine says, or from nothing for a video that stands alone.</summary>
     public void Load(VideoOrderResponse? response, string? seriesTitle = null)
     {
@@ -260,7 +263,7 @@ public sealed class VideoOrderEditor
             var movedOnly = list.Current.Where(row => movedIds.Contains(row.Id)).Select(row => row.Id);
             if (!wanted.SequenceEqual(list.Original.Where(row => wanted.Contains(row.Id)).Select(row => row.Id).Concat(movedOnly)))
             {
-                pending.SetVideoOrder(list.ParentId, wanted, list.Title, "As it is now");
+                pending.SetVideoOrder(list.ParentId, wanted, list.Title, OrdersSections ? EditReviewRows.SectionsAsTheyAre : "As it is now");
             }
         }
     }
@@ -280,7 +283,7 @@ public sealed class VideoOrderEditor
             var before = list.Original.Where(row => kept.Contains(row.Id)).Select(row => row.Id).ToList();
             if (!kept.SequenceEqual(before))
             {
-                parts.Add(HasSections ? $"{list.Title} is put in a new order." : "The videos are put in a new order.");
+                parts.Add(OrdersSections ? "The sections are put in a new order." : HasSections ? $"{list.Title} is put in a new order." : "The videos are put in a new order.");
             }
         }
 

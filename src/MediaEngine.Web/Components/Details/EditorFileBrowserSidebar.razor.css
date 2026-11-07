@@ -31,13 +31,14 @@
     align-items: center;
     gap: var(--tl-space-2);
     width: 100%;
+    min-height: 2.5rem;
     padding: var(--tl-space-1) var(--tl-space-2);
     border-radius: var(--tl-radius-sm);
 }
 
 .tl-fbside ::deep .tl-fbside__item.is-selected {
     background: var(--tl-accent-primary-soft);
-    color: var(--tl-accent-primary);
+    color: var(--tl-accent-primary-hover);
 }
 
 .tl-fbside__label {

@@ -1,4 +1,6 @@
 using MediaEngine.Contracts.Details;
+using MediaEngine.Web.Resources;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -73,16 +75,16 @@ public sealed class EditorFileBatch
     }
 }
 
-/// <summary>The words the browser and "Editing N files" use. Pure, so the dialog, the window and the tests say the same thing.</summary>
+/// <summary>The words the browser and "Editing N files" use. Pure, so the dialog, the window and the tests say the same thing; the words come from the resource file.</summary>
 public static class EditorFileBrowserRules
 {
     public const string AllTypes = "all";
 
     /// <summary>"Editing 2 files".</summary>
-    public static string EditingTitle(int count) => $"Editing {count} files";
+    public static string EditingTitle(IStringLocalizer<SharedStrings> l, int count) => string.Format(l["EditorFilesBatch_Title"].Value, count);
 
     /// <summary>The count over the table: "Showing 1-25 of 238".</summary>
-    public static string ShowingLine(SupportingFileListDto? list)
+    public static string ShowingLine(IStringLocalizer<SharedStrings> l, SupportingFileListDto? list)
     {
         if (list is null || list.Total == 0)
         {
@@ -91,15 +93,27 @@ public static class EditorFileBrowserRules
 
         var first = ((Math.Max(1, list.Page) - 1) * Math.Max(1, list.PageSize)) + 1;
         var last = Math.Min(list.Total, first + list.Items.Count - 1);
-        return $"Showing {first}–{last} of {list.Total}";
+        return string.Format(l["EditorBrowser_Showing"].Value, first, last, list.Total);
     }
 
     /// <summary>The page control: "1 of 10".</summary>
-    public static string PageLine(SupportingFileListDto? list) => list is null ? string.Empty : $"{Math.Max(1, list.Page)} of {Math.Max(1, list.PageCount)}";
+    public static string PageLine(IStringLocalizer<SharedStrings> l, SupportingFileListDto? list) =>
+        list is null ? string.Empty : string.Format(l["EditorBrowser_PageOf"].Value, Math.Max(1, list.Page), Math.Max(1, list.PageCount));
+
+    /// <summary>What the title is called in the window's subtitle, by the kind of title: show, course, album or title.</summary>
+    public static string KindWord(IStringLocalizer<SharedStrings> l, string? mediaType) => mediaType switch
+    {
+        "TV" => l["EditorBrowser_KindShow"].Value,
+        "Videos" => l["EditorBrowser_KindCourse"].Value,
+        "Music" => l["EditorBrowser_KindAlbum"].Value,
+        _ => l["EditorBrowser_KindTitle"].Value,
+    };
 
     /// <summary>The window title's line under "Supporting files": "The Last Signal · 238 files across the show".</summary>
-    public static string Subtitle(string titleName, int total) =>
-        total == 1 ? $"{titleName} · 1 file" : $"{titleName} · {total} files";
+    public static string Subtitle(IStringLocalizer<SharedStrings> l, string titleName, int total, string? mediaType) =>
+        total == 1
+            ? string.Format(l["EditorBrowser_SubtitleOne"].Value, titleName)
+            : string.Format(l["EditorBrowser_SubtitleMany"].Value, titleName, total, KindWord(l, mediaType));
 
     /// <summary>The facts line of "Editing N files": the type of each file when they are few, else a count by type.</summary>
     public static string FactsLine(IReadOnlyList<SupportingFileRowDto> rows)
@@ -109,14 +123,14 @@ public static class EditorFileBrowserRules
     }
 
     /// <summary>The Quick facts size line: "26 pages · 3.1 MB".</summary>
-    public static string SizeLine(IReadOnlyList<SupportingFileRowDto> rows)
+    public static string SizeLine(IStringLocalizer<SharedStrings> l, IReadOnlyList<SupportingFileRowDto> rows)
     {
         var pages = rows.Where(row => row.PageCount is > 0).Sum(row => row.PageCount!.Value);
         var bytes = rows.Sum(row => row.SizeBytes);
         var parts = new List<string>();
         if (pages > 0)
         {
-            parts.Add(pages == 1 ? "1 page" : $"{pages} pages");
+            parts.Add(pages == 1 ? l["EditorBrowser_OnePage"].Value : string.Format(l["EditorBrowser_PagesCount"].Value, pages));
         }
 
         parts.Add(SizeText(bytes));
@@ -138,7 +152,7 @@ public static class EditorFileBrowserRules
     }
 
     /// <summary>The length of a clip, as a small row line: "12 min", "1 h 5 min".</summary>
-    public static string Length(double? seconds)
+    public static string Length(IStringLocalizer<SharedStrings> l, double? seconds)
     {
         if (seconds is not > 0)
         {
@@ -148,22 +162,22 @@ public static class EditorFileBrowserRules
         var minutes = (int)Math.Round(seconds.Value / 60d);
         return minutes switch
         {
-            < 1 => "under 1 min",
-            < 60 => $"{minutes} min",
-            _ => $"{minutes / 60} h {minutes % 60} min",
+            < 1 => l["EditorBrowser_UnderOneMin"].Value,
+            < 60 => string.Format(l["EditorBrowser_Minutes"].Value, minutes),
+            _ => string.Format(l["EditorBrowser_HoursMinutes"].Value, minutes / 60, minutes % 60),
         };
     }
 
     /// <summary>The line under a row's title: the file name, and the length of a clip or the pages of a document.</summary>
-    public static string RowLine(SupportingFileRowDto row)
+    public static string RowLine(IStringLocalizer<SharedStrings> l, SupportingFileRowDto row)
     {
         if (!row.HasOwnTitle)
         {
-            return "no title yet";
+            return l["EditorBrowser_NoTitleYet"].Value;
         }
 
-        var extra = row.Type == SupportingFileListDefaults.TypeClip ? Length(row.DurationSeconds)
-            : row.ItemCount > 1 ? $"{row.ItemCount} pictures"
+        var extra = row.Type == SupportingFileListDefaults.TypeClip ? Length(l, row.DurationSeconds)
+            : row.ItemCount > 1 ? string.Format(l["EditorBrowser_PicturesCount"].Value, row.ItemCount)
             : string.Empty;
         return extra.Length == 0 ? row.FileName : $"{row.FileName} · {extra}";
     }

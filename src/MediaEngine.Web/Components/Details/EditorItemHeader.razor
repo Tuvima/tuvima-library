@@ -12,7 +12,57 @@
    here from the kind. The background is a gradient from the cover's two main colours, darkened into the window surface by the palette config.
    A Universe keeps its own tile and kind dropdowns, and an item the Engine builds no header for (a person, a collection) shows the plain
    header. Read-only: nothing here is edited or saved. *@
-@if (Flow?.Session.ActiveItem is { } active)
+@if (GroupRows is { Count: > 0 } groupRows)
+{
+    @* "Editing N files" (WP8, screen F, D36): the same framed header, in group mode. The label is the title's name, the title says how many
+       files, the facts are each file's type and title, and the nav row has the home button and "Back to the list". *@
+    var groupHeader = Fields.Loaded ? Fields.Header : null;
+    var groupWash = EditorHeaderGradient.Resolve(groupHeader?.Colors);
+    var groupPalette = PaletteProvider.Current.EditorHeader;
+    var shown = groupRows.Take(MaxFactChips).ToList();
+    <header class="tl-editor-header" data-kind="files" data-testid="files-batch-header"
+            data-gradient="@(groupWash is null ? "none" : "cover")">
+        @if (groupWash is not null)
+        {
+            <AppWash Class="tl-editor-header__wash" PrimaryHex="@groupWash.Primary" SecondaryHex="@groupWash.Secondary"
+                     PrimaryPercent="@groupPalette.PrimaryPercent" SecondaryPercent="@groupPalette.SecondaryPercent" />
+        }
+
+        <div class="tl-editor-header__cover" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(groupHeader?.Root.CoverUrl))
+            {
+                <AppImage Src="@groupHeader!.Root.CoverUrl" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+            }
+            else
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Tile32" />
+            }
+        </div>
+        <div class="tl-editor-header__body">
+            <div class="tl-editor-header__label">@GroupLabel</div>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" data-overflow-tooltip="@GroupTitle">@GroupTitle</h2>
+            <div class="tl-editor-header__line">
+                <div class="tl-editor-header__facts tl-editor-header__filefacts" data-testid="files-batch-facts">
+                    @foreach (var row in shown)
+                    {
+                        <span class="tl-editor-header__filefact"><AppStatusBadge Tone="AppUiTone.Neutral" Text="@row.TypeLabel" /> @row.Title</span>
+                    }
+                    @if (groupRows.Count > shown.Count)
+                    {
+                        <span class="tl-editor-header__filefact">@string.Format(L["EditorFilesBatch_MoreFiles"].Value, groupRows.Count - shown.Count)</span>
+                    }
+                </div>
+            </div>
+            <div class="tl-editor-header__groupnav" role="group" aria-label="@L["EditorNav_Label"].Value">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Home" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Normal"
+                               Tooltip="@GroupLabel" AriaLabel="@GroupLabel" data-files-batch-home="true" OnClick="OnGroupHome" />
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
+                           data-files-batch-back="true" OnClick="OnGroupBack">@L["EditorFilesBatch_Back"]</AppButton>
+            </div>
+        </div>
+    </header>
+}
+else if (Flow?.Session.ActiveItem is { } active)
 {
     var fields = Fields;
     var header = fields.Loaded && !EditorUniverseRules.IsUniverseSubject(fields.SubjectKind) ? fields.Header : null;
@@ -172,6 +222,24 @@
 
     /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
     [Parameter] public bool Unmatched { get; set; }
+
+    /// <summary>"Editing N files": the files being edited together. When set, the header shows the group form instead of one item.</summary>
+    [Parameter] public IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileRowDto>? GroupRows { get; set; }
+
+    /// <summary>The title's name, above "Editing N files".</summary>
+    [Parameter] public string? GroupLabel { get; set; }
+
+    /// <summary>"Editing N files".</summary>
+    [Parameter] public string? GroupTitle { get; set; }
+
+    /// <summary>"Back to the list".</summary>
+    [Parameter] public EventCallback OnGroupBack { get; set; }
+
+    /// <summary>The home button: back to the title itself.</summary>
+    [Parameter] public EventCallback OnGroupHome { get; set; }
+
+    // The facts line shows this many files by name, then "+N more": it is one line of the header, so a long list would push the nav row down.
+    private const int MaxFactChips = 3;
 
     /// <summary>Where the supporting-file rows and the folder button of the nav row lead.</summary>
     [Parameter] public EditorHeaderHooks? Hooks { get; set; }

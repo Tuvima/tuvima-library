@@ -14,7 +14,7 @@
    D32 can take over the dialog, toolbar, list and footer. It answers with what the editor should do next; the ticks and filters stay in the
    editor's EditorFileBrowserState, so "Back to the list" finds them again. *@
 <AppDialogShell Title="@L["EditorBrowser_Title"].Value"
-                Subtitle="@EditorFileBrowserRules.Subtitle(State.TitleName, State.List?.TotalAll ?? 0)"
+                Subtitle="@EditorFileBrowserRules.Subtitle(L, State.TitleName, State.List?.TotalAll ?? 0, State.MediaType)"
                 Icon="@AppMaterialIcons.Outlined.Collections"
                 Size="Large"
                 HostClass="tl-fbrowser-host"
@@ -38,11 +38,11 @@
                 <div class="tl-fbrowser__main">
                     @if (State.View == EditorBrowserView.Folders)
                     {
-                        <EditorFileBrowserFolders State="State" Session="Session" Subject="Subject" Family="Family" IsVideoSeries="IsVideoSeries" OnChoose="Finish" />
+                        <EditorFileBrowserFolders State="State" Session="Session" Subject="Subject" Family="Family" IsVideoSeries="IsVideoSeries" CanEdit="CanEdit" OnChoose="Finish" />
                     }
                     else if (State.Error is { } error && State.List is null)
                     {
-                        <AppErrorState Message="@error" Compact="true" Retry="@(() => State.ReloadAsync())" />
+                        <AppErrorState Message="@L[error].Value" Compact="true" Retry="@(() => State.ReloadAsync())" />
                     }
                     else if (State.List is null)
                     {
@@ -67,13 +67,23 @@
                     }
                     else
                     {
-                        <div class="tl-fbrowser__count" data-testid="file-browser-count" aria-busy="@(State.Loading ? "true" : null)">@EditorFileBrowserRules.ShowingLine(State.List)</div>
-                        <EditorFileBrowserTable State="State" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
+                        @if (State.Error is { } reloadError)
+                        {
+                            @* A list is showing but the last read failed: say so, and offer to read again. *@
+                            <div class="tl-fbrowser__reload" role="alert" data-testid="file-browser-reload-error">
+                                <span>@L[reloadError]</span>
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-reload="true"
+                                           OnClick="@(() => State.ReloadAsync())">@L["EditorBrowser_TryAgain"]</AppButton>
+                            </div>
+                        }
+
+                        <div class="tl-fbrowser__count" data-testid="file-browser-count" aria-busy="@(State.Loading ? "true" : null)">@EditorFileBrowserRules.ShowingLine(L, State.List)</div>
+                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
                     }
 
                     @if (State.View == EditorBrowserView.Files)
                     {
-                        <EditorFileBrowserBulkBar State="State" OnDelete="DeleteTickedAsync" />
+                        <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" OnDelete="DeleteTickedAsync" />
                     }
                 </div>
             </div>
@@ -86,7 +96,7 @@
             <div class="tl-fbrowser__pager" role="navigation" aria-label="@L["EditorBrowser_Pages"].Value" data-testid="file-browser-pager">
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronLeft" AriaLabel="@L["EditorBrowser_PreviousPage"].Value" Tooltip="@L["EditorBrowser_PreviousPage"].Value"
                                Disabled="@(list.Page <= 1 || State.Loading)" OnClick="@(() => State.GoToPageAsync(list.Page - 1))" data-page="previous" />
-                <span class="tl-fbrowser__page">@EditorFileBrowserRules.PageLine(list)</span>
+                <span class="tl-fbrowser__page">@EditorFileBrowserRules.PageLine(L, list)</span>
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight" AriaLabel="@L["EditorBrowser_NextPage"].Value" Tooltip="@L["EditorBrowser_NextPage"].Value"
                                Disabled="@(list.Page >= list.PageCount || State.Loading)" OnClick="@(() => State.GoToPageAsync(list.Page + 1))" data-page="next" />
             </div>
@@ -96,7 +106,7 @@
                    OnClick="@(() => Finish(EditorFileBrowserOutcome.Closed))">@L["EditorBrowser_Close"]</AppButton>
         @if (State.View == EditorBrowserView.Files)
         {
-            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(State.Ticked.Count == 0)" data-browser-edit="true"
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(State.Ticked.Count == 0 || !CanEdit)" data-browser-edit="true"
                        OnClick="@(() => Finish(new EditorFileBrowserOutcome(EditorFileBrowserAction.EditSelected)))">@L["EditorBrowser_EditSelected"]</AppButton>
         }
     </FooterContent>
@@ -118,6 +128,9 @@
 
     /// <summary>The title is a Videos series: the Folders and files view shows its video order.</summary>
     [Parameter] public bool IsVideoSeries { get; set; }
+
+    /// <summary>False outside a desktop editing session (EditorDeviceRule.CanEdit): the browser only shows, opens and previews.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
 
     private IReadOnlyList<AppSelectOption> WhereChoices =>
     [
@@ -149,22 +162,7 @@
             return;
         }
 
-        var question = rows.Count == 1 ? string.Format(L["EditorBrowser_DeleteOne"].Value, rows[0].Title) : string.Format(L["EditorBrowser_DeleteMany"].Value, rows.Count);
-        if (await AppConfirmDialog.ShowAsync(Dialogs, question, L["EditorBrowser_DeleteBody"].Value, L["EditorBrowser_Delete"].Value, L["EditorBrowser_Keep"].Value, primaryDestructive: true) != AppConfirmResult.Primary)
-        {
-            return;
-        }
-
-        var result = await State.DeleteAsync(rows);
-        if (result.Removed > 0)
-        {
-            Toasts.Add(result.Removed == 1 ? L["EditorBrowser_DeletedOne"].Value : string.Format(L["EditorBrowser_DeletedMany"].Value, result.Removed), AppSeverity.Success);
-        }
-
-        if (result.Failed > 0)
-        {
-            Toasts.Add(string.IsNullOrWhiteSpace(result.Message) ? string.Format(L["EditorBrowser_DeleteFailed"].Value, result.Failed) : result.Message, AppSeverity.Error);
-        }
+        await EditorFileBrowserDeleteFlow.DeleteAsync(State, rows, Dialogs, Toasts, L);
     }
 
     protected override void OnInitialized() => State.Changed += OnChanged;
