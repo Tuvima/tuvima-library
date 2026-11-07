@@ -5,7 +5,7 @@
     position: relative;
     min-height: var(--cinematic-hero-min-height);
     isolation: isolate;
-    background: #05070c;
+    background: var(--tl-bg-page);
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -434,7 +434,7 @@
     }
 }
 
-.cinematic-hero-carousel ::deep .tl-detail-media-stage__overlay { background:linear-gradient(90deg,#05070ce6,transparent 70%),linear-gradient(0deg,#05070c,transparent 70%); }
+.cinematic-hero-carousel ::deep .tl-detail-media-stage__overlay { background:linear-gradient(90deg,color-mix(in srgb,var(--tl-bg-page) 90%,transparent),transparent 70%),linear-gradient(0deg,var(--tl-bg-page),transparent 70%); }
 
 /* Touch: vertical panning stays with the browser so the page still scrolls; horizontal swipes go to the carousel. */
 @media (hover: none), (pointer: coarse) {
