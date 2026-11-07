@@ -54,7 +54,8 @@
                                     </PlaybackSheetList></ChildContent>
                                 </PlaybackPanel>
                             }
-                            <PlaybackSpeedPanel Rate="@_videoSpeed" RateChanged="SetVideoSpeedAsync" Surface="video" ItemKey="@Item.PreviewUrl" />
+                            <PlaybackSpeedPanel Rate="@_videoSpeed" RateChanged="SetVideoSpeedAsync" Surface="video" ItemKey="@Item.PreviewUrl"
+                                                TriggerText="@PlaybackSpeedChoices.Format(_videoSpeed)" IsOn="@(!PlaybackSpeedChoices.IsNormal(_videoSpeed))" />
                             @if (_videoAudioTracks.Count > 1)
                             {
                                 <AppNativeSelect Value="@(_videoAudioTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "0")" OnChange="SelectVideoAudioTrackAsync" aria-label="@L["MediaViewerShell_AudioTrack"].Value">

@@ -10,7 +10,7 @@
     <PlaybackPanel Title="@L["PlaybackSpeed_Title"].Value" TriggerLabel="@TriggerLabel" ToolId="@EffectiveToolId" Kind="speed" Surface="@Surface" ItemKey="@ItemKey"
                    TriggerClass="@TriggerClassValue" Disabled="@(!PlaybackRateOptions.IsValid(Rate))" Open="@Open" OpenChanged="HandleOpenChangedAsync">
         <TriggerContent>
-            @if (!string.IsNullOrWhiteSpace(TriggerText)) { <span>@TriggerText</span> }
+            @if (!string.IsNullOrWhiteSpace(TriggerText) && PlaybackRateOptions.IsValid(Rate)) { <span>@TriggerText</span> }
             else { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" /> }
         </TriggerContent>
         <ChildContent>
@@ -60,7 +60,7 @@
 
     private string TriggerLabel => Title ?? (PlaybackRateOptions.IsValid(Rate)
         ? L["PlaybackSpeed_TriggerLabel", PlaybackSpeedChoices.Format(Rate)].Value
-        : L["PlaybackSpeed_Title"].Value);
+        : L["PlaybackSpeed_Unavailable"].Value);
 
     private string? TriggerClassValue => string.Join(" ", new[] { IsOn ? "is-on" : null, TriggerClass }.Where(value => !string.IsNullOrWhiteSpace(value))) is { Length: > 0 } value ? value : null;
 

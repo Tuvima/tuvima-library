@@ -7,11 +7,11 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackPrimitiveTests
 {
     [Theory]
-    [InlineData(1d, "1.0x")]
-    [InlineData(1.25d, "1.25x")]
-    [InlineData(1.75d, "1.75x")]
-    [InlineData(1.2345d, "1.2345x")]
-    public void SpeedToolValuePreservesQuarterStepPrecision(double rate, string expected)
+    [InlineData(1d, "1×")]
+    [InlineData(1.25d, "1.25×")]
+    [InlineData(1.75d, "1.75×")]
+    [InlineData(1.2345d, "1.23×")]
+    public void SpeedToolValueIsWrittenWithTheTimesSignAndAtMostTwoDecimals(double rate, string expected)
     {
         Assert.Equal(expected, DisplayFormat.FormatSpeedControl(rate));
     }

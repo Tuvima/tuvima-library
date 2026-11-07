@@ -11,7 +11,7 @@
    facts). The footer is "Reset playback preferences". Audio and subtitles are not here; they have their own panel (D12). Skip lengths are the same
    per-profile preferences Settings, Playback used to hold. A row shows only when the media and the app support it. *@
 <PlaybackPanel @ref="_panel" Title="@L["PlaybackSettings_Title"].Value" ToolId="@EffectiveToolId" Kind="settings" Surface="@Surface" ItemKey="@ItemKey"
-               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="OpenChanged" Footer="@MainFooter"
+               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="OpenChanged" Footer="@(ShowsReset ? MainFooter : null)"
                TriggerContent="@(ShowTrigger ? GearGlyph : null)">
     <ChildContent>
         <div class="psp" data-playback-settings>
@@ -94,6 +94,8 @@
     private bool IsVideo => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;
     private bool ShowsSpeed => Media != PlaybackBarMedia.Music && RateChanged.HasDelegate && PlaybackRateOptions.IsValid(Rate);
     private bool ShowsSkips => Media != PlaybackBarMedia.Music && SkipChanged.HasDelegate;
+    // "Reset playback preferences" resets speed and the skip lengths; with neither row on offer (music) there is nothing to reset.
+    private bool ShowsReset => ShowsSpeed || ShowsSkips;
     private bool ShowsPictureInPicture => IsVideo && CanPictureInPicture && OnPictureInPicture.HasDelegate;
 
     private string SpeedValue => PlaybackSpeedChoices.IsNormal(Rate) ? L["PlaybackSettings_SpeedNormal"].Value : PlaybackSpeedChoices.Format(Rate);

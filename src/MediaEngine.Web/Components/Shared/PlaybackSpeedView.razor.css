@@ -56,7 +56,7 @@
 .psv__preset.is-selected:hover {
     background: var(--playback-accent);
     border-color: var(--playback-accent);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 .psv__preset:focus-visible {

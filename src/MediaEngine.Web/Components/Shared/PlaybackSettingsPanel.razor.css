@@ -36,7 +36,7 @@
 }
 
 .psp__row:focus-visible,
-.psp__row--select:focus-within {
+.psp__row--select:has(.psp__select:focus-visible) {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }

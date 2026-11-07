@@ -300,14 +300,14 @@ public static partial class PlaybackControlCatalog
                 break;
             case PlaybackExperience.Audiobook:
                 // Speed and the sleep timer live inside the one Settings menu (unified player D10), not as buttons of their own.
-                // The gear shows its on-state while the speed is not 1x or a sleep timer is running.
+                // The gear shows its on-state while a sleep timer is running (speed has its own chip on the bar).
                 if (state.HasChapters)
                 {
                     controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
                 }
                 var settings = Tool(PlaybackControlKey.Settings, "Settings", "settings", state,
                     BadgeText: state.IsSleepTimerActive ? state.SleepTimerValueText : null,
-                    IsActive: state.IsSleepTimerActive || Math.Abs(state.PlaybackRate - 1d) > 0.001);
+                    IsActive: state.IsSleepTimerActive);
                 if (state.IsSleepTimerActive)
                 {
                     var status = state.SleepTimerValueText switch

@@ -357,6 +357,71 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
         cut.WaitForElement("[data-extra-row]");
     }
 
+    [Fact]
+    public async Task PlaybackSettings_WhileSpeedIsPushedInsideThePanelAnUpdatedRateMovesTheTickAndTheSlider()
+    {
+        var cut = await OpenSettingsAsync(PlaybackBarMedia.Movie, rate: 1d);
+        await cut.Find("[data-psp-row='speed']").ClickAsync();
+        cut.WaitForElement("[data-playback-speed-view]");
+        Assert.Equal(["1×"], cut.FindAll("[data-speed-preset][aria-checked='true']").Select(preset => preset.GetAttribute("data-speed-preset")));
+
+        cut.Render(parameters => parameters.Add(component => component.Rate, 1.5d));
+
+        Assert.Equal(["1.5×"], cut.FindAll("[data-speed-preset][aria-checked='true']").Select(preset => preset.GetAttribute("data-speed-preset")));
+        Assert.Equal("1.5", cut.Find("input[type=range]").GetAttribute("value"));
+        Assert.Equal("1.5×", cut.Find("[data-speed-value]").TextContent);
+
+        cut.Render(parameters => parameters.Add(component => component.Rate, 1.8d));
+        Assert.Empty(cut.FindAll("[data-speed-preset][aria-checked='true']"));
+        Assert.Equal("1.8", cut.Find("input[type=range]").GetAttribute("value"));
+    }
+
+    [Fact]
+    public async Task SpeedPanel_ASpeedTheAppCannotPlayShowsNoNaNAndSaysUnavailable()
+    {
+        PrepareStandalone();
+        var cut = Render<PlaybackSpeedPanel>(parameters => parameters
+            .Add(component => component.Rate, double.NaN)
+            .Add(component => component.TriggerText, "NaN×"));
+
+        var trigger = cut.Find("button.playback-popover-trigger");
+        Assert.Equal("Playback speed unavailable", trigger.GetAttribute("aria-label"));
+        Assert.DoesNotContain("NaN", cut.Markup);
+        Assert.True(trigger.HasAttribute("disabled"));
+        await Task.CompletedTask;
+    }
+
+    [Fact]
+    public void AudiobookGear_ShowsItsOnStateOnlyWhileASleepTimerRunsNotForASpeedThatIsNotNormal()
+    {
+        var fast = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1.5d));
+        var sleeping = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1d, IsSleepTimerActive: true, SleepTimerValueText: "15:00"));
+
+        Assert.False(fast.Single(control => control.Key == PlaybackControlKey.Settings).IsActive);
+        Assert.True(sleeping.Single(control => control.Key == PlaybackControlKey.Settings).IsActive);
+    }
+
+    [Fact]
+    public void PlaybackSettings_ResetFooterShowsOnlyWhenSpeedOrSkipRowsDo()
+    {
+        PrepareStandalone();
+        var music = Render<PlaybackSettingsPanel>(parameters => parameters.Add(component => component.Media, PlaybackBarMedia.Music));
+        var movie = RenderSettings(PlaybackBarMedia.Movie);
+
+        Assert.Null(music.FindComponent<PlaybackPanel>().Instance.Footer);
+        Assert.NotNull(movie.FindComponent<PlaybackPanel>().Instance.Footer);
+    }
+
+    [Theory]
+    [InlineData(1d, "1×")]
+    [InlineData(1.25d, "1.25×")]
+    [InlineData(2d, "2×")]
+    public void SpeedValuesPrintedOnTheBarUseTheTimesSign(double rate, string expected)
+    {
+        Assert.Equal(expected, MediaEngine.Web.Services.Formatting.DisplayFormat.FormatSpeedControl(rate));
+        Assert.Equal(expected, PlaybackRateOptions.FormatLabel(rate));
+    }
+
     // ---- Saved on the profile, through the real video host and session controller ----
 
     private PlaybackSessionController ArrangeVideo(UserPlaybackSettingsDto settings, List<UserPlaybackSettingsDto> saved)

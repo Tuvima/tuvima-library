@@ -11313,4 +11313,7 @@
   <data name="PlaybackInformation_ConnectionRemote" xml:space="preserve">
     <value>Away from home</value>
   </data>
+  <data name="PlaybackSpeed_Unavailable" xml:space="preserve">
+    <value>Playback speed unavailable</value>
+  </data>
 </root>

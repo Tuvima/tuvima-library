@@ -33,8 +33,8 @@ public sealed class PlaybackSettingsActions
             : Task.FromResult(false);
     }
 
-    /// <summary>Puts the skip lengths back to the app's defaults. False when they could not be saved.</summary>
-    public Task<bool> ResetSkipLengthsAsync(CancellationToken ct = default) => SaveAsync(PlaybackSkipChoices.ResetLengths, ct);
+    /// <summary>Puts the skip lengths of what is playing (video or audio) back to the app's defaults. False when they could not be saved.</summary>
+    public Task<bool> ResetSkipLengthsAsync(CancellationToken ct = default) => SaveAsync(PlaybackSkipChoices.ResetLengths(_playback.IsVideoMode), ct);
 
     private async Task<bool> SaveAsync(Action<UserPlaybackSettingsDto> change, CancellationToken ct)
     {
