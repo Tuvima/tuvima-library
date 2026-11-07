@@ -1505,6 +1505,12 @@
         var workId = Playback.CurrentItem?.WorkId;
         bool IsCurrentClose() => Playback.IsVideoMode && Playback.CurrentItem?.AssetId == capturedAsset
             && Playback.CurrentItem?.WorkId == workId && Playback.PlaybackRequestVersion == capturedRequest && Playback.ActiveProfileId == capturedProfile;
+        // A receiver that is playing this title is let go first, so the element being released is the browser's own again (unified player v2 D28).
+        if (Services.GetService(typeof(PlaybackRemoteController)) is PlaybackRemoteController remote)
+        {
+            await remote.EndAsync();
+            if (!IsCurrentClose()) return;
+        }
         // Close may be pressed before the owned episode metadata has arrived.
         // Wait for that identity's existing read so its show-scoped destination is retained.
         if (VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem) && _presentationResolution is { } resolution)

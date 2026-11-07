@@ -21,6 +21,7 @@ public enum PlaybackUtilityGlyphKind
     Fullscreen,
     PictureInPicture,
     Cast,
+    PlayOnDevice,
     Favorite,
     Popup,
     Expand,

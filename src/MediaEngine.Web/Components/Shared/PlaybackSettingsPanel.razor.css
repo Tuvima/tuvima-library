@@ -41,6 +41,20 @@
     outline-offset: -2px;
 }
 
+/* Play on another device... when it cannot be used: the glyph and label dim, the reason under them (.psp__sub) does not. */
+.psp__row:disabled {
+    cursor: default;
+}
+
+.psp__row:disabled:hover {
+    background: transparent;
+}
+
+.psp__row:disabled .playback-utility-glyph,
+.psp__row:disabled .psp__label {
+    opacity: var(--playback-state-disabled-opacity);
+}
+
 .psp__label {
     min-width: 0;
 }

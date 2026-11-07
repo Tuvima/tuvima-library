@@ -1954,6 +1954,9 @@
         _closeInProgress = true;
         try
         {
+            // A receiver that is playing this item is let go first, so the element being released is the browser's own again (unified player v2 D28).
+            if (Services.GetService<PlaybackRemoteController>() is { } remote) await remote.EndAsync();
+            if (!Current()) return;
             // Pause only the captured native session before waiting on persistence.
             var position = await JS.InvokeAsync<AudioClosePosition?>("listenPlayback.pauseAudioForClose",
                 item.AssetId, request, source, predecessorSource, pendingSource);
