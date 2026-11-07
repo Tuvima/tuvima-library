@@ -39,7 +39,7 @@
     padding: 0 7px;
     border: 0;
     background: transparent;
-    color: #bda7ff;
+    color: var(--tl-accent-primary-hover);
     font: inherit;
     font-size: var(--tl-font-size-secondary);
     font-weight: 600;

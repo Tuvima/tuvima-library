@@ -1,9 +1,9 @@
 /* The Continue tile (One tile design D8): a 16:9 picture with a play mark bottom-left and a progress bar along its bottom edge; the title
    and the rating/year sit under it. It is the one tile that keeps text underneath. */
-.continue-tile { position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--tl-tile-landscape-w); display: flex; flex-direction: column; gap: 8px; color: #f8fafc; scroll-snap-align: start; }
-.continue-tile__frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--tl-radius-md, 8px); background: #1A1B21; isolation: isolate; }
+.continue-tile { position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--tl-tile-landscape-w); display: flex; flex-direction: column; gap: 8px; color: var(--tl-text-primary); scroll-snap-align: start; }
+.continue-tile__frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--tl-radius-md, 8px); background: var(--tl-bg-surface); isolation: isolate; }
 /* Hover and keyboard focus (D5): the same thin outline as every tile. */
-.continue-tile:is(:hover, :focus-within) .continue-tile__frame { outline: 2px solid var(--tl-accent-primary, #8852FC); outline-offset: 0; }
+.continue-tile:is(:hover, :focus-within) .continue-tile__frame { outline: 2px solid var(--tl-accent-primary); outline-offset: 0; }
 .continue-tile__link { position: absolute; inset: 0; z-index: 3; border-radius: inherit; outline: none; }
 .continue-tile__picture { position: absolute; inset: 0; z-index: 0; }
 .continue-tile__backdrop, .continue-tile__soft { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -13,9 +13,9 @@
 .continue-tile--collage .continue-tile__picture { display: grid; }
 .continue-tile__collage { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 100%; }
 .continue-tile__collage img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.continue-tile__play { position: absolute; left: 8px; bottom: 10px; z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(16, 17, 21, .78); color: #fff; pointer-events: none; }
+.continue-tile__play { position: absolute; left: 8px; bottom: 10px; z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(16, 17, 21, .78); color: var(--tl-text-on-accent); pointer-events: none; }
 .continue-tile__play .tl-icon-root { font-size: var(--tl-icon-size-md); }
 .continue-tile__progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none; }
 .continue-tile__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.continue-tile__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-md)); font-weight: 600; line-height: 1.25; color: #f8fafc; }
+.continue-tile__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-md)); font-weight: 600; line-height: 1.25; color: var(--tl-text-primary); }
 .continue-tile__line { overflow: hidden; color: rgba(226, 232, 240, .72); font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-xs)); text-overflow: ellipsis; white-space: nowrap; }

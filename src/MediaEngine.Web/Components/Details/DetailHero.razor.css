@@ -82,7 +82,7 @@
     align-items: center;
     gap: 0.55rem;
     width: fit-content;
-    color: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-text-on-accent));
     font-size: clamp(0.78rem, 0.9vw, 0.95rem);
     font-weight: 600;
     line-height: 1.35;
@@ -108,14 +108,14 @@
 }
 
 :where(.tl-detail-page) .tl-detail-hero-credit-stack__label {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 78%, var(--tl-text-on-accent));
     font-size: var(--tl-font-size-xs);
     font-weight: 600;
     letter-spacing: 0.18em;
 }
 
 :where(.tl-detail-page) .tl-detail-hero-credit-stack__value {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 62%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 62%, var(--tl-text-on-accent));
     font-size: clamp(0.98rem, 1.35vw, 1.28rem);
     font-weight: 600;
     letter-spacing: 0.03em;
@@ -153,7 +153,7 @@
 }
 
 :where(.tl-detail-page) .tl-detail-person-fact ::deep .tl-icon-root {
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 78%, var(--tl-text-on-accent));
 }
 
 :where(.tl-detail-page) .tl-detail-person-link,
@@ -166,7 +166,7 @@
     border: 1px solid rgba(255,255,255,0.16);
     border-radius: 0.42rem;
     background: rgba(255,255,255,0.065);
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 86%, var(--tl-text-on-accent));
     text-decoration: none;
     font-size: var(--tl-font-size-sm);
     font-weight: 600;
@@ -176,7 +176,7 @@
 :where(.tl-detail-page) .tl-detail-person-link:hover,
 :where(.tl-detail-page) :where(.tl-detail-person-links) ::deep .tl-detail-person-link:hover {
     background: rgba(255,255,255,0.12);
-    color: #fff8eb;
+    color: var(--tl-text-primary);
     transform: translateY(-1px);
 }
 
@@ -191,8 +191,8 @@
 :where(.tl-detail-page) .tl-detail-hero__eyebrow {
     width: fit-content;
     padding-bottom: 0.42rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--tl-detail-primary, #c9922e) 72%, transparent);
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
+    border-bottom: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 72%, transparent);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 86%, var(--tl-text-on-accent));
     font-size: var(--tl-font-size-xs);
     font-weight: 600;
 }
@@ -200,7 +200,7 @@
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__eyebrow {
     padding-bottom: 0;
     border-bottom: 0;
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 92%, #ffe7a7);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 92%, var(--tl-accent-collection-hover));
     font-size: clamp(0.86rem, 1vw, 1.02rem);
     letter-spacing: 0.02em;
 }
@@ -230,7 +230,7 @@
     display: inline-flex;
     align-items: center;
     padding: 0.32rem 0.72rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #c9922e) 46%, rgba(255,255,255,0.26));
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 46%, rgba(255,255,255,0.26));
     border-radius: 0.5rem;
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.48);
     color: rgba(var(--hero-text-rgb, 246, 240, 232), 0.88);
@@ -267,7 +267,7 @@
 :where(.tl-detail-page) .tl-detail-hero__overview-link {
     display: inline-block;
     margin-top: 0.45rem;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 82%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 82%, var(--tl-text-on-accent));
     font-size: var(--tl-font-size-sm);
     font-weight: 600;
     text-decoration: none;
@@ -275,7 +275,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero__overview-link:hover,
 :where(.tl-detail-page) .tl-detail-hero__overview-link:focus-visible {
-    color: #fff;
+    color: var(--tl-text-on-accent);
     text-decoration: underline;
     text-underline-offset: 0.2em;
 }
@@ -407,6 +407,6 @@
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-person-links > a.tl-detail-person-link:focus-visible {
     border-color: var(--tl-secondary-action-border-hover) !important;
     background: var(--tl-secondary-action-bg-hover) !important;
-    color: #fff !important;
+    color: var(--tl-text-on-accent) !important;
     box-shadow: var(--tl-shadow-focus) !important;
 }

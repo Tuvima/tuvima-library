@@ -13,7 +13,7 @@
 .recent-feed ::deep .recent-view-card:hover .recent-view-art { outline:2px solid var(--tl-accent-primary); box-shadow:0 0 18px rgba(136, 82, 252,.4); }
 .recent-view-title { width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; }
 @media(max-width:840px) { .recent-feed-heading { gap:8px; } .recent-feed-heading ::deep .recent-filters { order:3; flex-basis:100%; } }
-@media(max-width:720px) { .recent-feed { --home-shelf-height:135px; } }
+@media(max-width:640px) { .recent-feed { --home-shelf-height:135px; } }
 
 :root[data-form-factor="phone"] .recent-feed {
     --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .75);

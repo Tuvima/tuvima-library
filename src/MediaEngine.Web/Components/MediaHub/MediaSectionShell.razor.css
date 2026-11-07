@@ -195,7 +195,7 @@
 }
 
 .media-section-shell__rail-item :deep(.tl-icon-root) {
-    font-size: 1.15rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .media-section-shell__rail-item:hover,

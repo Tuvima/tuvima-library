@@ -56,7 +56,7 @@
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:hover,
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:focus-visible {
     border-color: rgba(246, 240, 232, 0.28);
-    color: #fff8eb;
+    color: var(--tl-text-primary);
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group {

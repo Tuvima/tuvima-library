@@ -150,8 +150,8 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
     [Fact]
     public void NoStyleSheetOutsideTheSharedPartsDefinesAnIconButtonOrHeroButtonRule()
     {
-        // The shared parts own these rules. The Listen, audio-table and phone-hero lists are older page-local buttons
-        // that move onto the shared button in the page-by-page walk; this list only goes down.
+        // The shared parts own these rules. The player files are the only older page-local buttons left; they move onto the
+        // shared button with the Player v2 build, and this list only goes down.
         string[] shared =
         [
             "Components/Shared/PlaybackIconButton.razor.css",
@@ -159,9 +159,6 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
         ];
         string[] pending =
         [
-            "Components/Pages/ListenPage.razor.css",
-            "Components/Listen/ListenSongTable.razor.css",
-            "Components/Details/AudioItemTable.razor.css",
             "Components/Watch/VideoPlaybackHost.razor.css",
             "Components/Shared/PlaybackControlStrip.razor.css",
             "Components/Listen/ListenNowPlayingBar.razor.css",

@@ -13,7 +13,7 @@
 
 .compact-continue__heading :deep(.tl-icon-root) {
     color: rgba(226, 232, 240, 0.9);
-    font-size: 1.3rem;
+    font-size: var(--tl-font-size-dialog-title);
 }
 
 .compact-continue__heading strong {
@@ -72,7 +72,7 @@
 }
 
 .compact-continue__item:focus-visible {
-    outline: 2px solid var(--tl-accent-primary, #8852FC);
+    outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
 }
 
