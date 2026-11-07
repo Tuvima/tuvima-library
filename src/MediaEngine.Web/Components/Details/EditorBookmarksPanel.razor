@@ -27,6 +27,12 @@
 
     private EditTrailItem? Item => Flow.Session.ActiveItem;
 
+    /// <summary>
+    /// True when the editor's family is a show or an album, the only families whose Export and Import live on their own page. A Series
+    /// (audiobooks or books in a series, videos in a video folder) and a title with no family keep Export and Import on each title.
+    /// </summary>
+    public static bool FamilyHoldsTheFiles(EditorFamilyKind kind) => kind is EditorFamilyKind.Show or EditorFamilyKind.Album;
+
     /// <summary>A show, season or album is read as its members; an episode, song, film, book or audiobook as itself.</summary>
     public static bool UsesOverview(EditTrailItem item) =>
         item.Kind is EditTrailKinds.Show or EditTrailKinds.Season or EditTrailKinds.Album;

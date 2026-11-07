@@ -109,6 +109,58 @@ public sealed class BookmarkFrameService(
     public async Task<bool> IsVideoAssetAsync(Guid assetId, CancellationToken ct) =>
         await assets.FindByIdAsync(assetId, ct).ConfigureAwait(false) is { } asset && IsVideo(asset.FilePathRoot);
 
+    /// <summary>
+    /// The finished picture of a bookmark as the bytes a bookmark file carries (D37 Export), or null when it has none yet, is too large,
+    /// or is not a valid JPEG. Reading it never fails an export: that bookmark simply goes without a picture.
+    /// </summary>
+    public byte[]? ReadFrameBytes(Guid assetId, Guid bookmarkId)
+    {
+        var path = cache.Resolve(assetId, bookmarkId);
+        if (path is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (new FileInfo(path).Length > BookmarkPackLimits.MaximumFrameBytes)
+            {
+                return null;
+            }
+
+            var bytes = File.ReadAllBytes(path);
+            return BookmarkFrameImage.IsValid(bytes) ? bytes : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "The frame of bookmark {BookmarkId} could not be read for a bookmark file.", bookmarkId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Keeps the picture a bookmark file carried for a bookmark it just added (D37 Import), when the file is a video and the picture is a
+    /// valid small JPEG. Returns false when it was not used, so the caller queues the picture instead.
+    /// </summary>
+    public async Task<bool> TryUseSuppliedAsync(Guid assetId, Guid bookmarkId, byte[]? jpeg, CancellationToken ct)
+    {
+        if (!BookmarkFrameImage.IsValid(jpeg) || !await IsVideoAssetAsync(assetId, ct).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        try
+        {
+            cache.Write(assetId, bookmarkId, jpeg!);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "The picture from a bookmark file for bookmark {BookmarkId} could not be kept; one is made instead.", bookmarkId);
+            return false;
+        }
+    }
+
     /// <summary>Fills in <see cref="AudiobookBookmarkDto.FrameUrl"/> for the bookmarks whose picture exists.</summary>
     public IReadOnlyList<AudiobookBookmarkDto> Decorate(IReadOnlyList<AudiobookBookmarkDto> list) =>
         list.Count == 0 ? list : list.Select(Decorate).ToList();

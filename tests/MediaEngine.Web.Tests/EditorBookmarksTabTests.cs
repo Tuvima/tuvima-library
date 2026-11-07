@@ -78,6 +78,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         State = state,
         AssetId = Asset,
         HasTimes = true,
+        CanExchange = true,
         HasFrames = video,
         RunningTimeSeconds = 9000,
         Everyone = [Row(Opening, "Opening", 724, true, video: video)],
@@ -339,23 +340,29 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task StartOverFromProfiles_IsOfferedOnlyOnADefinitiveSet_AndStagesTheOperation()
+    public async Task StartOverFromProfiles_IsInTheEveryonesMenu_OnlyOnADefinitiveSet_AndStagesTheOperationWithAHint()
     {
         var editor = await StartEditorAsync(Movie);
         var pooled = RenderPanel(editor);
         pooled.WaitForState(() => pooled.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.Empty(pooled.FindAll(".tl-bookmarks__actions .app-row-menu__trigger"));
         Assert.DoesNotContain("Start over from profiles", pooled.Markup);
 
         _loaded = Titled(video: true, state: EditorBookmarkStates.Definitive);
         var definitive = RenderPanel(editor);
         definitive.WaitForState(() => definitive.FindAll("ul.tl-bookmarks__list").Count == 2);
-        definitive.FindAll("button").First(button => button.TextContent.Trim() == "Start over from profiles").Click();
+        // Not a button among the everyday actions: it sits behind the header's "..." menu.
+        Assert.DoesNotContain(definitive.FindAll(".tl-bookmarks__actions > button"), button => button.TextContent.Contains("Start over", StringComparison.Ordinal));
+        Assert.DoesNotContain("Bookmarks at the same spot are merged when you save.", definitive.Markup);
+        definitive.Find(".tl-bookmarks__actions .app-row-menu__trigger").Click();
+        FindMenuItem("Start over from profiles").Click();
 
-        Assert.Equal(EditorBookmarkOpKinds.StartOver, Assert.Single(editor.Session.Pending.BookmarkOps(MovieId)).Kind);
         definitive.WaitForAssertion(() =>
         {
-            Assert.DoesNotContain(definitive.FindAll("button"), button => button.TextContent.Trim() == "Start over from profiles");
+            Assert.Equal(EditorBookmarkOpKinds.StartOver, Assert.Single(editor.Session.Pending.BookmarkOps(MovieId)).Kind);
+            Assert.Empty(definitive.FindAll(".tl-bookmarks__actions .app-row-menu__trigger"));
             Assert.Contains("Pooled from every profile's bookmarks", definitive.Markup);
+            Assert.Contains("Bookmarks at the same spot are merged when you save.", definitive.Markup);
         });
     }
 
@@ -376,19 +383,58 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ABookTitle_HasNoExportImportOrTimeChange_AndShowsItsPlaceInTheText()
+    public async Task ABookTitle_HasExportAndImport_ButNoTimeChange_AndShowsItsPlaceInTheText()
     {
         var chapter = Row(Opening, "Chapter one", 0, true, video: false) with { PositionKind = "text", ChapterTitle = "The Beginning" };
-        _loaded = Titled(video: false, state: EditorBookmarkStates.Pooled) with { HasTimes = false, Everyone = [chapter], FromProfiles = [chapter] };
+        _loaded = Titled(video: false, state: EditorBookmarkStates.Pooled) with { HasTimes = false, CanExchange = true, Everyone = [chapter], FromProfiles = [chapter] };
         var editor = await StartEditorAsync(new EditTrailItem(MovieId, "A book", "Book"));
 
         var cut = RenderPanel(editor);
 
         cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
-        Assert.DoesNotContain(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() is "Export" or "Import");
+        Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Export");
+        Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Import");
         Assert.Contains("The Beginning", cut.Markup);
         cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelector(".app-row-menu__trigger")!.Click();
+        Assert.Contains(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Rename");
+        Assert.Contains(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Remove from Everyone's");
         Assert.DoesNotContain(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Change time");
+    }
+
+    [Fact]
+    public async Task AComicTitle_HasNoExportOrImport()
+    {
+        var page = Row(Opening, "Page twelve", 12, true, video: false) with { PositionKind = "page" };
+        _loaded = Titled(video: false, state: EditorBookmarkStates.Pooled) with { HasTimes = false, CanExchange = false, Everyone = [page], FromProfiles = [page] };
+        var editor = await StartEditorAsync(new EditTrailItem(MovieId, "A comic", "Comic"));
+
+        var cut = RenderPanel(editor);
+
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.DoesNotContain(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() is "Export" or "Import");
+    }
+
+    [Theory]
+    [InlineData(EditorFamilyKind.Show, true)]
+    [InlineData(EditorFamilyKind.Album, true)]
+    [InlineData(EditorFamilyKind.Series, false)]
+    [InlineData(EditorFamilyKind.None, false)]
+    public void OnlyAShowOrAnAlbumHoldsTheFilesForItsMembers(EditorFamilyKind kind, bool holds) =>
+        Assert.Equal(holds, EditorBookmarksPanel.FamilyHoldsTheFiles(kind));
+
+    [Theory]
+    [InlineData("Audiobook")]
+    [InlineData("Video")]
+    [InlineData("Book")]
+    public async Task ATitleInASeriesOrAVideoFolder_KeepsExportAndImportOnItsOwnTab(string kind)
+    {
+        // A Series family (audiobooks or books in a series, videos in a video folder) is not a show or an album, so the title has the files itself.
+        var editor = await StartEditorAsync(new EditTrailItem(MovieId, "Part two", kind));
+        var cut = RenderPanel(editor, hasFamily: EditorBookmarksPanel.FamilyHoldsTheFiles(EditorFamilyKind.Series));
+
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Export");
+        Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Import");
     }
 
     // ---------------------------------------------------------------- the compare view of an imported file
@@ -444,6 +490,89 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ABooksRows_ShowTheirChapter_AndAreTakenWithTheirReaderLocationAndChapter()
+    {
+        const string cfi = "epubcfi(/6/8!/4/2/1:4)";
+        var book = Compared() with
+        {
+            Rows =
+            [
+                new BookmarkSetCompareRowDto
+                {
+                    Index = 0,
+                    Incoming = new BookmarkSetItemDto { PositionSeconds = 3, Locator = cfi, ChapterTitle = "The Siege", Note = "The wall falls" },
+                    Yours = new BookmarkSetExistingDto { Id = Opening, PositionSeconds = 3, Name = "Chapter bookmark", Locator = "epubcfi(/6/8!/4/6/1:0)" },
+                    Closeness = BookmarkClosenessLabels.Close,
+                    DefaultChoice = BookmarkRowChoices.Yours,
+                },
+                new BookmarkSetCompareRowDto
+                {
+                    Index = 1,
+                    Incoming = new BookmarkSetItemDto { PositionSeconds = 9, Locator = "epubcfi(/6/20!/4/2/1:0)", Note = "Ending" },
+                    Closeness = BookmarkClosenessLabels.New,
+                    DefaultChoice = BookmarkRowChoices.Incoming,
+                },
+            ],
+        };
+        IReadOnlyList<EditorBookmarkImportItem>? taken = null;
+        var cut = Render<EditorBookmarkCompare>(parameters => parameters
+            .Add(compare => compare.Compare, book)
+            .Add(compare => compare.OnTake, EventCallback.Factory.Create<IReadOnlyList<EditorBookmarkImportItem>>(this, items => taken = items)));
+
+        // The place is a chapter, never a clock time.
+        Assert.Contains("The Siege", cut.Markup);
+        Assert.Contains("In the text", cut.Markup);
+        Assert.DoesNotContain("0:03", cut.Markup);
+        cut.FindAll("li.tl-bookmarks__row")[0].QuerySelector("input[type=checkbox]")!.Change(true);
+        cut.FindAll(".tl-bookmarks__actions button").First(button => button.TextContent.Trim().StartsWith("Add 2", StringComparison.Ordinal)).Click();
+
+        Assert.NotNull(taken);
+        var replacing = Assert.Single(taken!, item => item.ReplacesBookmarkId == Opening);
+        Assert.Equal(cfi, replacing.Locator);
+        Assert.Equal(3, replacing.ChapterIndex);
+        Assert.Null(replacing.EndSeconds);
+        var added = Assert.Single(taken!, item => item.ReplacesBookmarkId is null);
+        Assert.Equal(9, added.ChapterIndex);
+        Assert.Equal("epubcfi(/6/20!/4/2/1:0)", added.Locator);
+    }
+
+    [Fact]
+    public void AVideoRowsPictureFromTheFile_TravelsWithTheImportedBookmark()
+    {
+        var withPicture = new BookmarkSetCompareRowDto
+        {
+            Index = 0,
+            Incoming = new BookmarkSetItemDto { PositionSeconds = 60, Note = "Titles", FrameBase64 = "/9j/4AAQ" },
+            Closeness = BookmarkClosenessLabels.New,
+        };
+
+        var item = EditorBookmarkWording.ImportItem(withPicture, replaceNearest: false);
+
+        Assert.Equal("/9j/4AAQ", item.FrameBase64);
+        Assert.Null(item.Locator);
+        Assert.Null(item.ChapterIndex);
+    }
+
+    [Fact]
+    public void AnImportedBooksBookmark_ShowsInTheListAsAPlaceInTheText_WhileItIsStaged()
+    {
+        var loaded = Titled(video: false, state: EditorBookmarkStates.Pooled) with { HasTimes = false, Everyone = [], FromProfiles = [] };
+        var op = new EditorBookmarkOp
+        {
+            Id = "i1",
+            Kind = EditorBookmarkOpKinds.Import,
+            Items = [new EditorBookmarkImportItem { PositionSeconds = 3, ChapterIndex = 3, Locator = "epubcfi(/6/8!/4/2/1:4)", ChapterTitle = "The Siege", Name = "The wall falls" }],
+        };
+
+        var view = EditorBookmarkProjection.Apply(loaded, [op]);
+
+        var row = Assert.Single(view.Everyone).Row;
+        Assert.Equal("text", row.PositionKind);
+        Assert.Equal(3, row.ChapterIndex);
+        Assert.Equal("The Siege", EditorBookmarkWording.Place(row));
+    }
+
+    [Fact]
     public void ATickedRowBesideABookmarkInEveryones_ReplacesIt()
     {
         IReadOnlyList<EditorBookmarkImportItem>? taken = null;
@@ -482,10 +611,43 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles h3").Count == 2);
         Assert.Equal(["Season 1 5", "Season 2 2"], cut.FindAll(".tl-bookmarks__profiles h3").Select(heading => string.Join(' ', heading.TextContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).ToArray());
         Assert.Contains("S1 E1", cut.Markup);
-        Assert.Contains("5 in Everyone's", cut.Markup);
         Assert.Contains("+1 staged", cut.Markup);
         Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Export the show");
         Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Import for the show");
+    }
+
+    [Fact]
+    public async Task AnOverviewRow_ShowsEveryonesCount_TheSetState_AndTheProfilesCount_ForBothStates()
+    {
+        var editor = await StartEditorAsync(new EditTrailItem(ShowId, "Le Continental", EditTrailKinds.Show));
+
+        var cut = RenderPanel(editor, hasFamily: true);
+
+        cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles li.tl-bookmarks__row").Count == 2);
+        var headings = cut.FindAll(".tl-bookmarks__cols")[0].Children.Select(cell => cell.TextContent.Trim()).Where(text => text.Length > 0).ToArray();
+        Assert.Equal(["Episode", "Title", "Everyone's", "Set", "From profiles"], headings);
+        var definitive = cut.FindAll("li.tl-bookmarks__row")[0];
+        Assert.Equal("5", definitive.QuerySelector("[data-col=everyone]")!.TextContent.Trim());
+        Assert.Equal("Definitive set", definitive.QuerySelector("[data-col=set]")!.TextContent.Trim());
+        Assert.Equal("6", definitive.QuerySelector("[data-col=profiles]")!.TextContent.Trim());
+        var pooled = cut.FindAll("li.tl-bookmarks__row")[1];
+        Assert.Equal("2", pooled.QuerySelector("[data-col=everyone]")!.TextContent.Trim());
+        Assert.Equal("Pooled from profiles", pooled.QuerySelector("[data-col=set]")!.TextContent.Trim());
+        Assert.Equal("2", pooled.QuerySelector("[data-col=profiles]")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task AStagedChange_ChangesTheSetStateOfThatEpisodesRow_UntilSave()
+    {
+        var editor = await StartEditorAsync(new EditTrailItem(ShowId, "Le Continental", EditTrailKinds.Show));
+        editor.Session.Pending.StageBookmarkOp(FinaleId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Add, BookmarkId = Twist }, "Added to Everyone's: 51:40 The twist");
+        editor.Session.Pending.StageBookmarkOp(PilotId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.StartOver }, EditorBookmarkWording.StartOverLine);
+
+        var cut = RenderPanel(editor, hasFamily: true);
+
+        cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles li.tl-bookmarks__row").Count == 2);
+        Assert.Equal("Pooled from profiles (staged)", cut.FindAll("li.tl-bookmarks__row")[0].QuerySelector("[data-col=set]")!.TextContent.Trim());
+        Assert.Equal("Definitive (staged)", cut.FindAll("li.tl-bookmarks__row")[1].QuerySelector("[data-col=set]")!.TextContent.Trim());
     }
 
     [Fact]

@@ -106,7 +106,7 @@
                 }
                 else if (tool == EditTool.Bookmarks)
                 {
-                    <EditorBookmarksPanel Flow="flow" HasFamily="@(Editor.Family.Kind != EditorFamilyKind.None)" />
+                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" />
                 }
                 else if (tool == EditTool.History)
                 {

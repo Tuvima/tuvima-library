@@ -97,6 +97,14 @@
                 {
                     <h3>@group.Title <span class="tl-bookmarks__count">@group.BookmarkCount</span></h3>
                 }
+                <div class="tl-bookmarks__cols" aria-hidden="true">
+                    <span class="tl-bookmarks__place">@L["EditorBookmarks_ColEpisode"]</span>
+                    <span class="tl-bookmarks__copy">@L["EditorBookmarks_ColTitle"]</span>
+                    <span class="tl-bookmarks__num">@L["EditorBookmarks_ColEveryone"]</span>
+                    <span class="tl-bookmarks__set">@L["EditorBookmarks_ColSet"]</span>
+                    <span class="tl-bookmarks__num">@L["EditorBookmarks_FromProfiles"]</span>
+                    <span class="tl-bookmarks__row-action"></span>
+                </div>
                 <ul class="tl-bookmarks__list">
                     @foreach (var row in group.Rows)
                     {
@@ -105,14 +113,10 @@
                             <span class="tl-bookmarks__place">@row.Code</span>
                             <span class="tl-bookmarks__copy">
                                 <span class="tl-bookmarks__name">@row.Title</span>
-                                <span class="tl-bookmarks__from">
-                                    @L["EditorBookmarks_InEveryoneCount", row.EveryoneCount]
-                                    @if (row.State == EditorBookmarkStates.Definitive)
-                                    {
-                                        <span> · @L["EditorBookmarks_StateDefinitive"]</span>
-                                    }
-                                </span>
                             </span>
+                            <span class="tl-bookmarks__num" data-col="everyone">@row.EveryoneCount</span>
+                            <span class="tl-bookmarks__set" data-col="set">@SetLabel(row)</span>
+                            <span class="tl-bookmarks__num" data-col="profiles">@row.ProfileCount</span>
                             @if (staged > 0)
                             {
                                 <AppChip Text="@L["EditorBookmarks_StagedCount", staged].Value" Tone="AppUiTone.Warning" />
@@ -177,6 +181,19 @@
 
         _overview = overview;
         _loading = false;
+    }
+
+    // What the player will show for the member: a definitive set an administrator made, or every profile's bookmarks pooled. A staged
+    // change makes the set definitive on Save, except a staged Start over, which pools it again.
+    private string SetLabel(EditorBookmarkOverviewRowDto row)
+    {
+        var ops = Pending.BookmarkOps(row.WorkId);
+        if (ops.Count > 0)
+        {
+            return ops[^1].Kind == EditorBookmarkOpKinds.StartOver ? L["EditorBookmarks_SetPooledStaged"].Value : L["EditorBookmarks_SetDefinitiveStaged"].Value;
+        }
+
+        return row.State == EditorBookmarkStates.Definitive ? L["EditorBookmarks_StateDefinitive"].Value : L["EditorBookmarks_SetPooled"].Value;
     }
 
     // The chevron: pick that episode through the editor's own switch, on this same tab.
@@ -272,14 +289,7 @@
         {
             var items = episode.Compare!.Rows
                 .Where(row => row.Closeness == BookmarkClosenessLabels.New)
-                .Select(row => new EditorBookmarkImportItem
-                {
-                    PositionSeconds = row.Incoming.PositionSeconds,
-                    EndSeconds = row.Incoming.EndSeconds,
-                    ChapterTitle = row.Incoming.ChapterTitle,
-                    Name = row.Incoming.Note,
-                    Description = row.Incoming.Description,
-                })
+                .Select(row => EditorBookmarkWording.ImportItem(row, replaceNearest: false))
                 .ToList();
             if (items.Count > 0)
             {

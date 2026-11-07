@@ -68,6 +68,45 @@ public static class EditorBookmarkWording
         };
     }
 
+    /// <summary>Where a bookmark in a bookmark file is: a time, or for a book the chapter it sits in.</summary>
+    public static string IncomingPlace(BookmarkSetItemDto item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return string.IsNullOrWhiteSpace(item.Locator)
+            ? Time(item.PositionSeconds)
+            : string.IsNullOrWhiteSpace(item.ChapterTitle) ? "In the text" : item.ChapterTitle!;
+    }
+
+    /// <summary>Where the nearest bookmark of Everyone's is, for the compare view: a time, or "In the text" for a book.</summary>
+    public static string NearestPlace(BookmarkSetExistingDto near)
+    {
+        ArgumentNullException.ThrowIfNull(near);
+        return string.IsNullOrWhiteSpace(near.Locator) ? Time(near.PositionSeconds) : "In the text";
+    }
+
+    /// <summary>
+    /// One bookmark of the compare view as an import item. A book bookmark keeps its reader location and chapter (the chapter travels as the
+    /// row's position); a video bookmark keeps the picture the file carried.
+    /// </summary>
+    public static EditorBookmarkImportItem ImportItem(BookmarkSetCompareRowDto row, bool replaceNearest)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        var incoming = row.Incoming;
+        var isText = !string.IsNullOrWhiteSpace(incoming.Locator);
+        return new EditorBookmarkImportItem
+        {
+            PositionSeconds = incoming.PositionSeconds,
+            EndSeconds = isText ? null : incoming.EndSeconds,
+            ChapterTitle = incoming.ChapterTitle,
+            Locator = isText ? incoming.Locator : null,
+            ChapterIndex = isText ? (int)incoming.PositionSeconds : null,
+            FrameBase64 = isText ? null : incoming.FrameBase64,
+            Name = incoming.Note,
+            Description = incoming.Description,
+            ReplacesBookmarkId = replaceNearest ? row.Yours?.Id : null,
+        };
+    }
+
     /// <summary>"12:04 Opening": the place and the name, for a Review line.</summary>
     public static string Short(EditorBookmarkRowDto row) =>
         string.IsNullOrWhiteSpace(row.Name) ? Place(row) : $"{Place(row)} {row.Name.Trim()}";

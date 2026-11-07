@@ -8,11 +8,10 @@ using MediaEngine.Storage.Playback;
 namespace MediaEngine.Api.Services.Playback;
 
 /// <summary>
-/// Find bookmarks (Global bookmarks spec D6 to D10): reads a bookmark set (today a bookmark file), compares each incoming bookmark with
-/// the nearest one the person already has, applies the person's choices in one write, and exports a title's Global bookmarks. This is
-/// the one place that decides how close two bookmarks are, using <c>config/bookmarks.json</c>. A set becomes ordinary bookmarks:
-/// Global when an administrator applies it, the person's own otherwise. A Vault title never exports or imports, and a file the
-/// caller cannot see is not found.
+/// The editor's bookmark files (universal editor v5 D37): reads a bookmark file, compares each incoming bookmark with the nearest one in the
+/// title's Everyone's list, and builds a file of that list. This is the one place that decides how close two bookmarks are, using
+/// <c>config/bookmarks.json</c>. Nothing is written here: the editor stages what the administrator takes and the Engine writes it on Save
+/// changes. A Vault title never exports or imports, and a file the caller cannot see is not found.
 /// </summary>
 public sealed class BookmarkSetService
 {
@@ -23,7 +22,6 @@ public sealed class BookmarkSetService
     public const string ExportedFileName = "everyone-bookmarks.zip";
 
     private readonly PlayerCatalogueScope _scope;
-    private readonly AudiobookBookmarkRepository _bookmarks;
     private readonly BookmarkRecognitionRepository _recognition;
     private readonly IVaultLibraryRepository _vault;
     private readonly BookmarkClosenessProvider _closeness;
@@ -32,7 +30,6 @@ public sealed class BookmarkSetService
 
     public BookmarkSetService(
         PlayerCatalogueScope scope,
-        AudiobookBookmarkRepository bookmarks,
         BookmarkRecognitionRepository recognition,
         IVaultLibraryRepository vault,
         BookmarkClosenessProvider closeness,
@@ -41,28 +38,19 @@ public sealed class BookmarkSetService
     {
         _frames = frames;
         _scope = scope;
-        _bookmarks = bookmarks;
         _recognition = recognition;
         _vault = vault;
         _closeness = closeness;
         _time = time ?? TimeProvider.System;
     }
 
-    /// <summary>Compares a bookmark set with the bookmarks the person already has on the file, without changing anything.</summary>
-    public async Task<BookmarkSetCompareDto> CompareAsync(
-        Guid? profileId, Guid workId, BookmarkSetRequestDto request, CancellationToken ct = default)
-    {
-        var prepared = await PrepareAsync(profileId, workId, request, ct);
-        return prepared.Compare;
-    }
-
     /// <summary>
     /// The editor's Import (universal editor v5 D37): a bookmark file compared with the title's Everyone's list instead of the person's own
     /// bookmarks. Changes nothing; the editor stages the rows the administrator takes and writes them on Save changes.
     /// </summary>
-    public async Task<BookmarkSetCompareDto> CompareWithEveryoneAsync(
+    public Task<BookmarkSetCompareDto> CompareWithEveryoneAsync(
         Guid? profileId, Guid workId, BookmarkSetRequestDto request, IReadOnlyList<AudiobookBookmarkDto> everyone, CancellationToken ct = default) =>
-        (await PrepareAsync(profileId, workId, request, ct, everyone)).Compare;
+        PrepareAsync(profileId, workId, request, everyone, ct);
 
     /// <summary>
     /// One episode of a show file set beside the episode's Everyone's list (matched by season and episode number, so there is no title to
@@ -91,120 +79,6 @@ public sealed class BookmarkSetService
             Rows = BuildRows(placed, everyone),
             GlobalCount = everyone.Count,
         };
-    }
-
-    /// <summary>Applies the person's choices for every row. Nothing changes until this is called.</summary>
-    public async Task<BookmarkSetApplyResultDto> ApplyAsync(
-        Guid? profileId, Guid workId, BookmarkSetApplyRequestDto request, CancellationToken ct = default)
-    {
-        var prepared = await PrepareAsync(profileId, workId, request.Set, ct);
-        if (prepared.Match.Kind == BookmarkPackMatchKind.WrongTitle)
-        {
-            throw new BookmarkPackInvalidException(prepared.Match.Reason);
-        }
-
-        if (!prepared.Compare.RowsReady)
-        {
-            throw new BookmarkPackInvalidException("This set is for a different cut. Align it by chapter, or skip it.");
-        }
-
-        var isAdmin = prepared.Compare.AppliesToGlobal;
-        var replaceWhole = request.ReplaceGlobalSet && isAdmin;
-        var choices = request.Choices.GroupBy(choice => choice.Index).ToDictionary(group => group.Key, group => group.Last().Choice);
-        var adds = new List<AudiobookBookmarkRepository.SetBookmark>();
-        var deletes = new HashSet<Guid>();
-        var kept = 0;
-        var skipped = 0;
-        foreach (var row in prepared.Compare.Rows)
-        {
-            var choice = choices.TryGetValue(row.Index, out var chosen) && IsKnownChoice(chosen) ? chosen : row.DefaultChoice;
-            if (replaceWhole && choice != BookmarkRowChoices.Skip)
-            {
-                // Replacing the whole Global set means every incoming bookmark goes in, whatever the row said.
-                choice = BookmarkRowChoices.Incoming;
-            }
-
-            if (choice == BookmarkRowChoices.Skip)
-            {
-                skipped++;
-                continue;
-            }
-
-            if (choice == BookmarkRowChoices.Yours && row.Yours is not null)
-            {
-                kept++;
-                continue;
-            }
-
-            if (choice == BookmarkRowChoices.Yours)
-            {
-                // A New row has no bookmark of yours to keep: leaving it out is the same as skipping it.
-                skipped++;
-                continue;
-            }
-
-            adds.Add(ToSetBookmark(row.Incoming));
-            // The nearest bookmark is replaced by the incoming one, when the person is allowed to replace it: their own always, and a
-            // Global one only for an administrator. Anyone else keeps the Global one and gets the incoming bookmark as their own.
-            if (row.Yours is { } yours && (!yours.IsGlobal || isAdmin))
-            {
-                deletes.Add(yours.Id);
-            }
-        }
-
-        var duration = request.Set.RunningTimeSeconds is double total && double.IsFinite(total) && total > 0 ? total : (double?)null;
-        var outcome = await _bookmarks.ApplySetAsync(
-            prepared.Profile, workId, request.Set.AssetId, duration, adds, deletes,
-            addAsGlobal: isAdmin, replaceGlobalSet: replaceWhole, _closeness.SameSpotSeconds, ct);
-        if (_frames is not null)
-        {
-            // Imported and applied bookmarks get their frames the same way a saved one does (Unified player v2 D21a), and the
-            // pictures of the bookmarks they replaced go.
-            _frames.RemoveFrames(request.Set.AssetId, outcome.DeletedIds);
-            foreach (var (id, position) in outcome.AddedIds)
-            {
-                await _frames.TryEnqueueAsync(new AudiobookBookmarkDto { Id = id, AssetId = request.Set.AssetId, PositionSeconds = position }, ct);
-            }
-        }
-
-        return new BookmarkSetApplyResultDto
-        {
-            Added = outcome.Added,
-            Replaced = outcome.Replaced,
-            Kept = kept,
-            Skipped = skipped,
-            AddedToGlobal = isAdmin,
-        };
-    }
-
-    /// <summary>Builds a file of this title's Global bookmarks only, never anyone's personal ones. Administrators only; never a Vault title.</summary>
-    public async Task<BookmarkPackFileDto> ExportGlobalAsync(
-        Guid? profileId, Guid workId, ExportGlobalBookmarksRequestDto request, CancellationToken ct = default)
-    {
-        var profile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
-        await _scope.RequireAssetAsync(request.AssetId, ct, workId);
-        if (await _vault.IsInVaultAsync(request.AssetId, ct))
-        {
-            throw new PlayerResourceDeniedException();
-        }
-
-        if (!await _scope.IsServerAdministratorAsync(ct))
-        {
-            throw new PlayerBookmarkAdminDeniedException();
-        }
-
-        var saved = await _bookmarks.GetByWorkAsync(profile, workId, ct, await _scope.AssetIdsAsync(ct));
-        var chosen = saved
-            .Where(bookmark => bookmark.IsGlobal && bookmark.AssetId == request.AssetId)
-            .OrderBy(bookmark => bookmark.PositionSeconds)
-            .Take(BookmarkPackLimits.MaximumBookmarks)
-            .ToList();
-        if (chosen.Count == 0)
-        {
-            throw new BookmarkPackInvalidException("This title has no Everyone's bookmarks to export yet.");
-        }
-
-        return await BuildFileAsync(request.AssetId, chosen, request.RunningTimeSeconds, request.Chapters, ct);
     }
 
     /// <summary>
@@ -243,13 +117,28 @@ public sealed class BookmarkSetService
             ? reported
             : chosen.Select(bookmark => bookmark.DurationSeconds).Where(value => value is > 0).DefaultIfEmpty(null).Max();
         var chapters = ToChapters(chapterDtos);
-        var items = chosen.Select(bookmark => new BookmarkPackBookmark(
-            bookmark.PositionSeconds,
-            bookmark.EndSeconds,
-            string.IsNullOrWhiteSpace(bookmark.ChapterTitle) ? null : bookmark.ChapterTitle.Trim(),
-            ChapterStartFor(bookmark, chapters),
-            string.IsNullOrWhiteSpace(bookmark.Label) ? bookmark.Note : bookmark.Label,
-            bookmark.Description)).ToList();
+        // A video bookmark carries the small picture of its moment (D37) while the file's picture budget lasts.
+        var framesBytes = 0L;
+        var items = new List<BookmarkPackBookmark>(chosen.Count);
+        foreach (var bookmark in chosen)
+        {
+            byte[]? frame = null;
+            if (_frames is not null && framesBytes < BookmarkPackLimits.MaximumFramesBytes
+                && _frames.ReadFrameBytes(bookmark.AssetId, bookmark.Id) is { } bytes && framesBytes + bytes.Length <= BookmarkPackLimits.MaximumFramesBytes)
+            {
+                frame = bytes;
+                framesBytes += bytes.Length;
+            }
+
+            items.Add(new BookmarkPackBookmark(
+                bookmark.PositionSeconds,
+                bookmark.EndSeconds,
+                string.IsNullOrWhiteSpace(bookmark.ChapterTitle) ? null : bookmark.ChapterTitle.Trim(),
+                ChapterStartFor(bookmark, chapters),
+                string.IsNullOrWhiteSpace(bookmark.Label) ? bookmark.Note : bookmark.Label,
+                bookmark.Description,
+                Frame: frame));
+        }
 
         var content = new BookmarkPackContent(
             ExportedSetName,
@@ -273,14 +162,10 @@ public sealed class BookmarkSetService
         };
     }
 
-    private sealed record Prepared(Guid Profile, BookmarkPackMatch Match, BookmarkSetCompareDto Compare);
-
-    private async Task<Prepared> PrepareAsync(
-        Guid? profileId, Guid workId, BookmarkSetRequestDto request, CancellationToken ct,
-        IReadOnlyList<AudiobookBookmarkDto>? compareWith = null)
+    private async Task<BookmarkSetCompareDto> PrepareAsync(
+        Guid? profileId, Guid workId, BookmarkSetRequestDto request, IReadOnlyList<AudiobookBookmarkDto> everyone, CancellationToken ct)
     {
-        var profile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
-        var assets = await _scope.AssetIdsAsync(ct);
+        await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
         await _scope.RequireAssetAsync(request.AssetId, ct, workId);
         // A Vault title never takes bookmarks from a file, and never gives them to one.
         if (await _vault.IsInVaultAsync(request.AssetId, ct))
@@ -293,9 +178,8 @@ public sealed class BookmarkSetService
         var runningTime = request.RunningTimeSeconds is double reported && double.IsFinite(reported) && reported > 0 ? reported : (double?)null;
         var match = BookmarkPackMatcher.Compare(content.Title, new BookmarkPackTitle(local.Ids, runningTime, local.EditionLabel));
         var isAdmin = await _scope.IsServerAdministratorAsync(ct);
-        // The player compares with the person's own bookmarks and the Global ones; the editor compares with the title's Everyone's list.
-        var existing = (compareWith ?? await _bookmarks.GetByWorkAsync(profile, workId, ct, assets))
-            .Where(bookmark => bookmark.AssetId == request.AssetId).ToList();
+        // The editor compares the file with the title's Everyone's list.
+        var existing = everyone.Where(bookmark => bookmark.AssetId == request.AssetId).ToList();
         var globalCount = existing.Count(bookmark => bookmark.IsGlobal);
         var canAlign = match.Kind == BookmarkPackMatchKind.DifferentCut
             && request.Chapters.Count > 0
@@ -326,7 +210,7 @@ public sealed class BookmarkSetService
 
         var rows = BuildRows(placed, existing);
 
-        var compare = new BookmarkSetCompareDto
+        return new BookmarkSetCompareDto
         {
             Name = content.Name,
             Author = content.Author,
@@ -340,7 +224,6 @@ public sealed class BookmarkSetService
             Rows = rows,
             GlobalCount = globalCount,
         };
-        return new Prepared(profile, match, compare);
     }
 
     /// <summary>Each incoming bookmark beside the nearest bookmark already there, with how close the two are (the Engine decides, never the Dashboard).</summary>
@@ -364,6 +247,7 @@ public sealed class BookmarkSetService
                     ChapterTitle = incoming.Chapter,
                     Note = incoming.Note,
                     Description = incoming.Description,
+                    FrameBase64 = BookmarkFrameImage.ToBase64(incoming.Frame),
                 },
                 Yours = closeness == BookmarkCloseness.New || nearest is null ? null : new BookmarkSetExistingDto
                 {
@@ -381,20 +265,6 @@ public sealed class BookmarkSetService
 
         return rows;
     }
-
-    private static AudiobookBookmarkRepository.SetBookmark ToSetBookmark(BookmarkSetItemDto item)
-    {
-        var note = item.Note is { Length: > AudiobookBookmarkNotePolicy.MaximumLength } longNote
-            ? longNote[..AudiobookBookmarkNotePolicy.MaximumLength]
-            : item.Note;
-        var description = item.Description is { Length: > AudiobookBookmarkNotePolicy.MaximumDescriptionLength } longText
-            ? longText[..AudiobookBookmarkNotePolicy.MaximumDescriptionLength]
-            : item.Description;
-        return new AudiobookBookmarkRepository.SetBookmark(item.PositionSeconds, item.EndSeconds, item.ChapterTitle, note, description);
-    }
-
-    private static bool IsKnownChoice(string? choice) =>
-        choice is BookmarkRowChoices.Incoming or BookmarkRowChoices.Yours or BookmarkRowChoices.Skip;
 
     private static string ToLabel(BookmarkCloseness closeness) => closeness switch
     {

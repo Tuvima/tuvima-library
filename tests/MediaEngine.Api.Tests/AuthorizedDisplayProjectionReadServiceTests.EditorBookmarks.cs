@@ -35,11 +35,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var closeness = new BookmarkClosenessProvider(() => null);
         var bookmarks = new AudiobookBookmarkRepository(_database);
         var vault = new VaultLibraryRepository(_database);
-        var sets = new BookmarkSetService(scope, bookmarks, new BookmarkRecognitionRepository(_database), vault, closeness);
+        var sets = new BookmarkSetService(scope, new BookmarkRecognitionRepository(_database), vault, closeness, frames: FrameService());
+        var readerSets = new ReaderBookmarkSetService(scope, new BookmarkRecognitionRepository(_database), vault, closeness);
         var activity = new SystemActivityRepository(_database);
         var service = new EditorBookmarksService(
-            scope, new EditorBookmarkRepository(_database), closeness, sets, FrameService(), vault, activity, NullLogger<EditorBookmarksService>.Instance);
-        var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, bookmarks, null!, scope, null!, null!, closeness: null, frames: FrameService());
+            scope, new EditorBookmarkRepository(_database), closeness, sets, readerSets, FrameService(), vault, activity, NullLogger<EditorBookmarksService>.Instance);
+        var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, bookmarks, null!, scope, null!, null!, frames: FrameService());
         return new EditorBookmarkKit(service, scope, activity, sets, player);
     }
 
@@ -301,7 +302,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             new EditorFamilyGroup(Guid.NewGuid(), "Season 2", 2, [new EditorFamilyMember(episodes[2].WorkId, "Return", 1)]),
         ]);
         var overview = new EditorBookmarkOverviewService(
-            kit.Scope, kit.Service, new FamilySpy(family), kit.Sets, new VaultLibraryRepository(_database));
+            kit.Scope, kit.Service, new FamilySpy(family), kit.Sets, new VaultLibraryRepository(_database), frames: FrameService());
         return (overview, episodes);
     }
 
@@ -391,5 +392,231 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => overview.ExportAsync(Guid.NewGuid()));
         await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() =>
             overview.CompareAsync(Guid.NewGuid(), new EditorBookmarkCompareRequestDto()));
+    }
+
+    // ── What a file carries and what it refuses ──────────────────────────────────────────────────
+
+    private static byte[] Jpeg(int length, byte marker = 0x11)
+    {
+        var bytes = new byte[length];
+        Array.Fill(bytes, marker);
+        bytes[0] = 0xFF; bytes[1] = 0xD8; bytes[2] = 0xFF; bytes[^2] = 0xFF; bytes[^1] = 0xD9;
+        return bytes;
+    }
+
+    /// <summary>A bookmark with a name, a private note and a private description, as a profile would have made it.</summary>
+    private Task<AudiobookBookmarkDto> PrivateBookmarkOf(Guid profile, Guid workId, Guid assetId, double at) =>
+        new AudiobookBookmarkRepository(_database).CreateAsync(
+            profile, workId, new CreateAudiobookBookmarkRequestDto
+            {
+                AssetId = assetId,
+                PositionSeconds = at,
+                DurationSeconds = 5400,
+                Label = "The reveal",
+                Note = "my private thought",
+                Description = "my private details",
+            });
+
+    [Fact]
+    public async Task EditorBookmarks_APooledExport_CarriesTheTimeAndNameOnly_AndADefinitiveSetCarriesItsNamesAndNotes()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
+        var someone = await PrivateBookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 761);
+
+        // Nobody has curated the list yet: it is every profile's bookmarks pooled, so no note or description of anyone's leaves the library.
+        var pooled = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(shape.Normal.WorkId)).ContentBase64));
+
+        var pooledItem = Assert.Single(pooled.Bookmarks);
+        Assert.Equal(761, pooledItem.Time);
+        Assert.Equal("The reveal", pooledItem.Note);
+        Assert.Null(pooledItem.Description);
+
+        // The administrator's own curated list keeps what they wrote.
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, someone.Id)));
+        var definitive = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(shape.Normal.WorkId)).ContentBase64));
+
+        var definitiveItem = Assert.Single(definitive.Bookmarks);
+        Assert.Equal("The reveal", definitiveItem.Note);
+        Assert.Equal("my private details", definitiveItem.Description);
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_APooledShowExport_CarriesTheTimeAndNameOnly_AndADefinitiveEpisodeKeepsItsNotes()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var (overview, episodes) = await ShowAsync(shape, kit);
+        var pilot = await PrivateBookmarkOf(AddOtherProfile(), episodes[0].WorkId, episodes[0].AssetId, 100);
+        var returned = await PrivateBookmarkOf(AddOtherProfile(), episodes[2].WorkId, episodes[2].AssetId, 50);
+        await kit.Service.ApplyAsync(episodes[2].WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, returned.Id)));
+
+        var file = BookmarkShowPackArchive.Read(Convert.FromBase64String((await overview.ExportAsync(Guid.NewGuid())).ContentBase64));
+
+        // The first episode is still pooled; the third was curated.
+        var pooledItem = Assert.Single(file.Episodes.Single(episode => episode.SeasonNumber == 1 && episode.EpisodeNumber == 1).Bookmarks);
+        Assert.Equal("The reveal", pooledItem.Note);
+        Assert.Null(pooledItem.Description);
+        var curatedItem = Assert.Single(file.Episodes.Single(episode => episode.SeasonNumber == 2 && episode.EpisodeNumber == 1).Bookmarks);
+        Assert.Equal("The reveal", curatedItem.Note);
+        Assert.Equal("my private details", curatedItem.Description);
+        Assert.NotEqual(pilot.Id, returned.Id);
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_AVideoBookmarkTravelsWithItsPicture_AndOnlyARealSmallJpegGoesIntoTheFile()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Normal.AssetId);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
+        var framed = await PrivateBookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 761);
+        var broken = await PrivateBookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 3000);
+        var picture = Jpeg(2000);
+        FrameCache().Write(shape.Normal.AssetId, framed.Id, picture);
+        FrameCache().Write(shape.Normal.AssetId, broken.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+        var file = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(shape.Normal.WorkId)).ContentBase64));
+
+        Assert.Equal(picture, file.Bookmarks.Single(item => item.Time == 761).Frame);
+        Assert.Null(file.Bookmarks.Single(item => item.Time == 3000).Frame);
+
+        // And the compare hands the file's picture to the row, so the person sees it before choosing.
+        var compare = await kit.Service.CompareAsync(
+            shape.Normal.WorkId,
+            new EditorBookmarkCompareRequestDto
+            {
+                ContentBase64 = FileOf(ImdbOfTheFilm, 7200, new BookmarkPackBookmark(5000, null, null, null, "with a picture", null, Frame: picture)).ContentBase64,
+                RunningTimeSeconds = 7200,
+            });
+        Assert.Equal(Convert.ToBase64String(picture), Assert.Single(compare.Rows).Incoming.FrameBase64);
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_AShowFileCarriesEachEpisodesPictures()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var (overview, episodes) = await ShowAsync(shape, kit);
+        MakeVideo(episodes[0].AssetId);
+        var bookmark = await PrivateBookmarkOf(VaultProfile, episodes[0].WorkId, episodes[0].AssetId, 100);
+        var picture = Jpeg(1500, 0x22);
+        FrameCache().Write(episodes[0].AssetId, bookmark.Id, picture);
+
+        var file = BookmarkShowPackArchive.Read(Convert.FromBase64String((await overview.ExportAsync(Guid.NewGuid())).ContentBase64));
+
+        Assert.Equal(picture, Assert.Single(Assert.Single(file.Episodes).Bookmarks).Frame);
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_AnImportKeepsAValidPictureTheFileCarried_AndMakesItsOwnForAnyOtherPicture()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Normal.AssetId);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var picture = Jpeg(2000, 0x33);
+        var oversized = Jpeg(BookmarkPackLimits.MaximumFrameBytes + 1);
+        var items = new[]
+        {
+            new EditorBookmarkImportItem { PositionSeconds = 100, Name = "Valid", FrameBase64 = Convert.ToBase64String(picture) },
+            new EditorBookmarkImportItem { PositionSeconds = 200, Name = "Not base64", FrameBase64 = "this is !! not base64" },
+            new EditorBookmarkImportItem { PositionSeconds = 300, Name = "Not a picture", FrameBase64 = Convert.ToBase64String("hello there"u8.ToArray()) },
+            new EditorBookmarkImportItem { PositionSeconds = 400, Name = "Too large", FrameBase64 = Convert.ToBase64String(oversized) },
+            new EditorBookmarkImportItem { PositionSeconds = 500, Name = "No picture" },
+        };
+
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Import, items: items)));
+
+        var everyone = (await kit.Service.ReadAsync(shape.Normal.WorkId)).Everyone;
+        var frames = FrameService();
+        var queue = new MediaOperationRepository(_database);
+        var valid = everyone.Single(row => row.Name == "Valid");
+        Assert.Equal(picture, frames.ReadFrameBytes(valid.AssetId, valid.Id));
+        // A picture the file supplied needs no job to make one.
+        Assert.Null(await queue.GetByIdempotencyKeyAsync(BookmarkFrameService.KeyFor(valid.Id, 100)));
+        foreach (var name in new[] { "Not base64", "Not a picture", "Too large", "No picture" })
+        {
+            var row = everyone.Single(item => item.Name == name);
+            Assert.Null(frames.ReadFrameBytes(row.AssetId, row.Id));
+            Assert.NotNull(await queue.GetByIdempotencyKeyAsync(BookmarkFrameService.KeyFor(row.Id, row.PositionSeconds)));
+        }
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_AFileOverTheEncodedSizeLimit_IsRefusedBeforeItIsDecoded()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var (overview, _) = await ShowAsync(shape, kit);
+        // Valid base64 all the way: if anything decoded it first, it would fail on the content, not the size.
+        var titleTooLarge = new string('A', (int)(BookmarkPackLimits.MaximumFileBytes * 4L / 3) + 100);
+        var showTooLarge = new string('A', (int)(EditorBookmarkLimits.MaximumShowFileBytes * 4L / 3) + 100);
+
+        var title = await Assert.ThrowsAsync<BookmarkPackInvalidException>(() =>
+            kit.Service.CompareAsync(shape.Normal.WorkId, new EditorBookmarkCompareRequestDto { ContentBase64 = titleTooLarge }));
+        var show = await Assert.ThrowsAsync<BookmarkPackInvalidException>(() =>
+            overview.CompareAsync(Guid.NewGuid(), new EditorBookmarkCompareRequestDto { ContentBase64 = showTooLarge }));
+
+        Assert.Equal("This is not a bookmark file, or it is too large.", title.Message);
+        Assert.Equal("This is not a bookmark file, or it is too large.", show.Message);
+        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() =>
+            kit.Service.CompareAsync(shape.Normal.WorkId, new EditorBookmarkCompareRequestDto { ContentBase64 = string.Empty }));
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_AKidsProfile_IsRefusedEverywhere_EvenOnAnAdministratorAccount()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var bookmark = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 724);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET role='RestrictedProfile' WHERE id=@profile;", new { profile = VaultProfile });
+        }
+
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var (overview, _) = await ShowAsync(shape, kit);
+        var change = ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, bookmark.Id));
+
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => kit.Service.ReadAsync(shape.Normal.WorkId));
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => kit.Service.ApplyAsync(shape.Normal.WorkId, change));
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => kit.Service.ExportAsync(shape.Normal.WorkId));
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => kit.Service.CompareAsync(shape.Normal.WorkId, new EditorBookmarkCompareRequestDto()));
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => overview.OverviewAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => overview.ExportAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<PlayerBookmarkAdminDeniedException>(() => overview.CompareAsync(Guid.NewGuid(), new EditorBookmarkCompareRequestDto()));
+        Assert.Equal(EditorBookmarksService.NotAllowed, await kit.Service.CheckAsync(shape.Normal.WorkId, change));
+        Assert.DoesNotContain(await new EditorBookmarkRepository(_database).GetByWorksAsync([shape.Normal.WorkId], null), row => row.IsGlobal);
+    }
+
+    [Fact]
+    public async Task EditorBookmarks_ABook_ImportsPlacesInTheText_ExportsThemAndComparesAFileBesideThem()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var book = await InsertOwnedWorkWithIdAsync(shape.NormalLibrary, "A book", "Books");
+        GiveIds(book.WorkId, ImdbOfTheFilm);
+
+        var before = await kit.Service.ReadAsync(book.WorkId);
+        Assert.True(before.CanExchange);
+        Assert.False(before.HasTimes);
+
+        await kit.Service.ApplyAsync(book.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Import, items:
+        [
+            new EditorBookmarkImportItem { PositionSeconds = 3, Locator = Spot(3, 5), ChapterIndex = 3, Name = "The turn" },
+        ])));
+
+        var after = await kit.Service.ReadAsync(book.WorkId);
+        var placed = Assert.Single(after.Everyone);
+        Assert.Equal("text", placed.PositionKind);
+        Assert.Equal(3, placed.ChapterIndex);
+        var exported = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(book.WorkId)).ContentBase64));
+        Assert.Equal(Spot(3, 5), Assert.Single(exported.Bookmarks).Locator);
+
+        var compare = await kit.Service.CompareAsync(
+            book.WorkId, new EditorBookmarkCompareRequestDto { ContentBase64 = BookFileOf(ImdbOfTheFilm, null, Place(Spot(3, 5, 40), 3), Place(Spot(20, 1), 20)).ContentBase64 });
+        Assert.Equal([BookmarkClosenessLabels.SameSpot, BookmarkClosenessLabels.New], compare.Rows.Select(row => row.Closeness));
+        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => kit.Service.CompareAsync(
+            book.WorkId, new EditorBookmarkCompareRequestDto { ContentBase64 = FileOf(ImdbOfTheFilm, 7200, Item(100)).ContentBase64 }));
     }
 }

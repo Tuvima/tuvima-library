@@ -26,6 +26,7 @@ public sealed class EditorBookmarksService(
     EditorBookmarkRepository repository,
     BookmarkClosenessProvider closeness,
     BookmarkSetService sets,
+    ReaderBookmarkSetService readerSets,
     BookmarkFrameService frames,
     IVaultLibraryRepository vault,
     ISystemActivityRepository activity,
@@ -107,6 +108,7 @@ public sealed class EditorBookmarksService(
             ],
             AssetId = primary.AssetId,
             HasTimes = hasTimes,
+            CanExchange = hasTimes || IsBook(title),
             HasFrames = hasFrames,
             RunningTimeSeconds = double.TryParse(primary.FileDurationSeconds, NumberStyles.Float, CultureInfo.InvariantCulture, out var length) && length > 0 ? length : null,
         };
@@ -160,8 +162,15 @@ public sealed class EditorBookmarksService(
             frames.RemoveFrame(assetId, id);
         }
 
+        // A picture the bookmark file carried is kept when it is a valid small JPEG; otherwise the Engine makes the picture itself.
+        var supplied = outcome.ImportedFrames.ToDictionary(item => item.Id, item => BookmarkFrameImage.FromBase64(item.FrameBase64));
         foreach (var (id, assetId, position) in outcome.AddedIds)
         {
+            if (supplied.TryGetValue(id, out var jpeg) && await frames.TryUseSuppliedAsync(assetId, id, jpeg, ct))
+            {
+                continue;
+            }
+
             await frames.TryEnqueueAsync(new AudiobookBookmarkDto { Id = id, AssetId = assetId, PositionSeconds = position }, ct);
         }
 
@@ -204,7 +213,18 @@ public sealed class EditorBookmarksService(
     public async Task<BookmarkSetCompareDto> CompareAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default)
     {
         var title = await RequireTitleAsync(workId, ct);
+        RequireFileWithinLimit(request.ContentBase64, BookmarkPackLimits.MaximumFileBytes);
         var assetId = title.Assets.OrderBy(asset => asset.AssetId).First().AssetId;
+        if (IsBook(title))
+        {
+            var bookRows = await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct);
+            return await readerSets.CompareWithEveryoneAsync(
+                assetId,
+                new BookmarkSetRequestDto { AssetId = assetId, ContentBase64 = request.ContentBase64, Mode = request.Mode },
+                [.. bookRows.Select(ToReaderBookmark)],
+                ct);
+        }
+
         var everyone = await EveryoneAsPlayerAsync(workId, title, ct);
         return await sets.CompareWithEveryoneAsync(
             title.ProfileId,
@@ -226,10 +246,51 @@ public sealed class EditorBookmarksService(
     {
         var title = await RequireTitleAsync(workId, ct);
         var primary = title.Assets.OrderBy(asset => asset.AssetId).First();
-        var everyone = await EveryoneAsPlayerAsync(workId, title, ct);
+        if (IsBook(title))
+        {
+            var bookRows = await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct);
+            return await readerSets.ExportEveryoneAsync(primary.AssetId, [.. bookRows.Select(ToReaderBookmark)], ct);
+        }
+
+        var definitive = (await repository.GetDefinitiveAsync([workId], ct)).Contains(workId);
+        var everyone = (await EveryoneAsPlayerAsync(workId, title, ct)).Select(bookmark => ForExport(bookmark, definitive)).ToList();
         var length = double.TryParse(primary.FileDurationSeconds, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0 ? seconds : (double?)null;
         return await sets.ExportEveryoneAsync(primary.AssetId, everyone, length, ct);
     }
+
+    /// <summary>
+    /// What a bookmark file may carry of a bookmark. A definitive set is the administrator's own curated list, so its names and notes go out.
+    /// A pooled list is every profile's private bookmarks merged, so only the time and the name go out: never a note or a description
+    /// somebody wrote for themselves.
+    /// </summary>
+    internal static AudiobookBookmarkDto ForExport(AudiobookBookmarkDto bookmark, bool definitive) =>
+        definitive ? bookmark : bookmark with { Note = null, Description = null };
+
+    /// <summary>True when the title's file is a book, whose bookmarks are places in the text rather than times.</summary>
+    internal static bool IsBook(Title title) => title.Assets.Any(asset => asset.MediaType == "Books");
+
+    /// <summary>Refuses a bookmark file that is too large, from its encoded length and before anything is decoded.</summary>
+    internal static void RequireFileWithinLimit(string? contentBase64, long maximumBytes)
+    {
+        if (string.IsNullOrWhiteSpace(contentBase64) || contentBase64.Length > maximumBytes * 4L / 3 + 8)
+        {
+            throw new BookmarkPackInvalidException("This is not a bookmark file, or it is too large.");
+        }
+    }
+
+    /// <summary>A book bookmark in the shape the reader's compare code reads.</summary>
+    internal static ReaderBookmark ToReaderBookmark(EditorBookmarkRow row) => new()
+    {
+        Id = row.Id,
+        UserId = row.ProfileId.ToString("D"),
+        AssetId = row.AssetId,
+        ChapterIndex = row.ChapterIndex ?? 0,
+        CfiPosition = row.Locator,
+        Label = string.IsNullOrWhiteSpace(row.Name) ? null : row.Name,
+        IsGlobal = true,
+        OwnerName = row.OwnerName,
+        CreatedAt = row.CreatedAt.UtcDateTime,
+    };
 
     /// <summary>A title's Everyone's list in the shape the compare and export code reads, for the administrator already checked by the caller.</summary>
     internal async Task<IReadOnlyList<AudiobookBookmarkDto>> EveryoneAsPlayerAsync(Guid workId, Title title, CancellationToken ct)
@@ -383,8 +444,10 @@ internal static class EditorBookmarkOpRules
 
                 foreach (var item in op.Items)
                 {
+                    var isText = !string.IsNullOrWhiteSpace(item.Locator);
                     if (!double.IsFinite(item.PositionSeconds) || item.PositionSeconds < 0
-                        || item.EndSeconds is { } end && (!double.IsFinite(end) || end <= item.PositionSeconds)
+                        || isText && (item.Locator!.Trim().Length > 4096 || ReaderLocation.TryParse(item.Locator.Trim()) is null)
+                        || !isText && item.EndSeconds is { } end && (!double.IsFinite(end) || end <= item.PositionSeconds)
                         || !AudiobookBookmarkNotePolicy.TryNormalize(item.Name, out _)
                         || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(item.Description, out _))
                     {

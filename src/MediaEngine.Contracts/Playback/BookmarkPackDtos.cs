@@ -6,7 +6,13 @@ public static class BookmarkPackLimits
     public const int MaximumBookmarks = 500;
     public const int MaximumNameLength = 100;
     public const int MaximumAuthorLength = 100;
-    public const int MaximumFileBytes = 1024 * 1024;
+    public const int MaximumFileBytes = 2 * 1024 * 1024;
+
+    /// <summary>The largest picture one bookmark may carry in a file, in bytes (a 320 px wide JPEG is far smaller).</summary>
+    public const int MaximumFrameBytes = 96 * 1024;
+
+    /// <summary>The most picture bytes one exported file holds; pictures that would not fit are left out and the importing Engine makes them again.</summary>
+    public const int MaximumFramesBytes = 1536 * 1024;
 }
 
 /// <summary>How a pack relates to the title it is being imported on.</summary>

@@ -5,7 +5,8 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// Everyone's bookmarks are made, changed, imported and exported by an administrator in the editor's Bookmarks tab (universal editor v5 D37),
-/// never in a player. The players keep the Everyone/Mine filter, the markers, jumping, and adding, renaming and deleting your own.
+/// never in a player or in the book reader. The players and the reader keep the Everyone/Mine filter, the markers, jumping, and adding,
+/// renaming and deleting your own.
 /// </summary>
 public sealed class PlayerBookmarkGuardrailTests
 {
@@ -14,6 +15,7 @@ public sealed class PlayerBookmarkGuardrailTests
         "src/MediaEngine.Web/Components/Watch/VideoBookmarkPane.razor",
         "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor",
         "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor",
+        "src/MediaEngine.Web/Components/Pages/BookReader.razor",
     ];
 
     private static readonly string[] RetiredNames =
@@ -26,6 +28,11 @@ public sealed class PlayerBookmarkGuardrailTests
         "ExportBookmark",
         "FindBookmarks",
         "AllowEveryones",
+        "GetEveryonesReaderBookmarks",
+        "PromoteReaderBookmark",
+        "ExportGlobal",
+        "BookmarkFind",
+        "_showEveryones",
     ];
 
     [Fact]
@@ -51,13 +58,48 @@ public sealed class PlayerBookmarkGuardrailTests
     }
 
     [Fact]
-    public void ThePlayerClient_NoLongerCarriesTheAdministratorBookmarkCalls()
+    public void TheReader_ListsOnlyMineAndEveryones_AndAdministratorsCannotChangeAnEveryonesBookmarkThere()
     {
-        var client = Read("src/MediaEngine.Web/Services/Integration/IEngineApiClient.Playback.cs");
+        var reader = Read("src/MediaEngine.Web/Components/Pages/BookReader.razor");
 
-        Assert.DoesNotContain("PromoteAudiobookBookmark", client, StringComparison.Ordinal);
-        Assert.DoesNotContain("GetEveryonesBookmarks", client, StringComparison.Ordinal);
-        Assert.DoesNotContain("UpdateGlobalAudiobookBookmark", client, StringComparison.Ordinal);
+        // Mine and Everyone's are one list; only a personal bookmark has a delete button.
+        Assert.Contains("CanChange(mark)", reader, StringComparison.Ordinal);
+        Assert.Contains("private static bool CanChange(ReaderBookmarkDto mark) => !mark.IsGlobal;", reader, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsAdministrator", reader, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("src/MediaEngine.Web/Services/Integration/IEngineApiClient.Playback.cs")]
+    [InlineData("src/MediaEngine.Web/Services/Integration/EngineApiClient.Playback.cs")]
+    public void TheDashboardClient_NoLongerCarriesTheAdministratorBookmarkCalls(string file)
+    {
+        var client = Read(file);
+
+        foreach (var name in new[]
+        {
+            "PromoteAudiobookBookmark", "GetEveryonesBookmarks", "UpdateGlobalAudiobookBookmark", "CompareBookmarkSet", "ApplyBookmarkSet",
+            "ExportGlobalBookmarks", "CompareReaderBookmarkSet", "ApplyReaderBookmarkSet", "ExportGlobalReaderBookmarks",
+            "GetEveryonesReaderBookmarks", "PromoteReaderBookmark",
+        })
+        {
+            Assert.False(client.Contains(name, StringComparison.Ordinal), $"{file} still carries {name}.");
+        }
+    }
+
+    [Theory]
+    [InlineData("src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs")]
+    [InlineData("src/MediaEngine.Api/Endpoints/ReaderEndpoints.cs")]
+    public void TheEngine_NoLongerServesThePlayerOrReaderAdministratorBookmarkRoutes(string file)
+    {
+        var endpoints = Read(file);
+
+        foreach (var route in new[] { "/promote", "bookmarks/everyones", "bookmark-sets", "bookmarks/global" })
+        {
+            Assert.False(endpoints.Contains(route, StringComparison.Ordinal), $"{file} still serves a route containing {route}.");
+        }
+
+        // The players change only your own bookmarks: no route updates a shared one.
+        Assert.DoesNotContain("UpdateGlobal", endpoints, StringComparison.Ordinal);
     }
 
     [Fact]

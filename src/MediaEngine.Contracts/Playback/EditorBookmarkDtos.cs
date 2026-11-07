@@ -51,6 +51,9 @@ public static class EditorBookmarkLimits
     /// <summary>The largest show file the Engine reads, in bytes.</summary>
     public const int MaximumShowFileBytes = 4 * 1024 * 1024;
 
+    /// <summary>The most picture bytes one show file holds; pictures that would not fit are left out and the importing Engine makes them again.</summary>
+    public const int MaximumShowFramesBytes = 3 * 1024 * 1024;
+
     /// <summary>The most episodes one show file may hold.</summary>
     public const int MaximumShowEpisodes = 2000;
 
@@ -64,6 +67,13 @@ public sealed record EditorBookmarkImportItem
     public double PositionSeconds { get; init; }
     public double? EndSeconds { get; init; }
     public string? ChapterTitle { get; init; }
+
+    /// <summary>For a book bookmark: the reader location in the text (the chapter is <see cref="ChapterIndex"/>). Null for a time.</summary>
+    public string? Locator { get; init; }
+    public int? ChapterIndex { get; init; }
+
+    /// <summary>The picture of that moment the file carried (a small JPEG, base64); used when valid, else the Engine makes one.</summary>
+    public string? FrameBase64 { get; init; }
 
     /// <summary>The bookmark's name (the file's note).</summary>
     public string? Name { get; init; }
@@ -150,6 +160,9 @@ public sealed record EditorBookmarksDto
 
     /// <summary>True when the bookmarks are times (a film, episode or audiobook): only those can be moved, exported and imported.</summary>
     public bool HasTimes { get; init; }
+
+    /// <summary>True when a bookmark file can be exported and imported for the title: a film, episode, audiobook or book (not a comic).</summary>
+    public bool CanExchange { get; init; }
 
     /// <summary>True when the title is a video, so its rows carry a picture of the moment.</summary>
     public bool HasFrames { get; init; }
