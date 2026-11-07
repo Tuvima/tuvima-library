@@ -413,7 +413,8 @@ public sealed class ItemFieldEditSession
         Options: field.InputKind == EditorSubjectInputKinds.Choice
             ? field.Options.Select(option => new MediaEditorChoiceOption(option.Value, option.Label)).ToList()
             : null,
-        IsOwnField: isOwnField);
+        IsOwnField: isOwnField,
+        ProviderValue: field.IsOverridden && !string.IsNullOrWhiteSpace(field.CanonicalValue) ? field.CanonicalValue : null);
 
     // A person, Series or Universe has no header of its own, so its tabs and facts come from the kind's rules in config/editor.json. A kind the
     // file does not know (a curated collection) or a failed read leaves the editor on its standard tabs.

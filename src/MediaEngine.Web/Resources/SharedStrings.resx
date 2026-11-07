@@ -11148,10 +11148,10 @@
     <value>Unlocked · your value is kept on refresh</value>
   </data>
   <data name="EditorDetailsPanel_UnlockToEdit" xml:space="preserve">
-    <value>Unlock to edit</value>
+    <value>Unlock {0} to edit</value>
   </data>
   <data name="EditorDetailsPanel_Lock" xml:space="preserve">
-    <value>Lock</value>
+    <value>Lock {0}</value>
   </data>
   <data name="EditorDetailsPanel_Locked" xml:space="preserve">
     <value>Locked</value>

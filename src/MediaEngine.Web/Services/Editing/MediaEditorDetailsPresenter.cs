@@ -24,7 +24,8 @@ public sealed record MediaEditorDetailsFieldPresentation(
     IReadOnlyList<MediaEditorDetailsLinkedValue>? LinkedValues = null,
     string? CanonicalName = null,
     IReadOnlyList<MediaEditorChoiceOption>? Options = null,
-    bool IsOwnField = false);
+    bool IsOwnField = false,
+    string? ProviderValue = null);
 
 /// <summary>One pickable value of a choice field (a Universe thing's "belongs to").</summary>
 public sealed record MediaEditorChoiceOption(string Value, string Label);
@@ -64,20 +65,20 @@ public static class MediaEditorDetailsPresenter
 
     private static IReadOnlyDictionary<string, FieldSpec[]> ScopeFields => new Dictionary<string, FieldSpec[]>(StringComparer.OrdinalIgnoreCase)
     {
-        ["Movies|movie"] = [Title, OriginalTitle, Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Runtime, Rating, ContentRating, Language,
+        ["Movies|movie"] = [Title, OriginalTitle, SortTitle, Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Runtime, Rating, ContentRating, Language,
             Description, Tagline, Genres, Tags, Spec("director", "Director", "Movie", chips: true), Spec("screenwriter", "Writers", "EditNote", chips: true), Spec("cast_member", "Cast", "People", chips: true),
             Spec("composer", "Composer", "MusicNote", chips: true), Country, ProductionCompany, Spec("series", "Series", "CollectionsBookmark", tier: 3), Spec("franchise", "Franchise", "Hub", tier: 3)],
         ["Movies|item"] = [Title, OriginalTitle, Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Runtime, Rating, ContentRating, Language, Description, Tagline, Genres, Tags,
             Spec("director", "Director", "Movie", chips: true), Spec("screenwriter", "Writers", "EditNote", chips: true), Spec("cast_member", "Cast", "People", chips: true), Spec("composer", "Composer", "MusicNote", chips: true), Country, ProductionCompany],
-        ["TV|series"] = [Spec("show_name", "Title", "Title", tier: 1), OriginalTitle, Spec("first_air_date", "Premiere", "CalendarToday", "date", 1), Spec("last_air_date", "Finale", "Event", "date", 1), Spec("status", "Status", "LiveTv", "text", 1),
+        ["TV|series"] = [Spec("show_name", "Title", "Title", tier: 1), OriginalTitle, SortTitle, Spec("first_air_date", "Premiere", "CalendarToday", "date", 1), Spec("last_air_date", "Finale", "Event", "date", 1), Spec("status", "Status", "LiveTv", "text", 1),
             Runtime, Rating, ContentRating, Language, Description, Tagline, Genres, Tags,
             Spec("network", "Network", "Tv", chips: true), Country, ProductionCompany, Spec("creator", "Creators", "People", chips: true), Spec("cast_member", "Main cast", "People", chips: true)],
         ["TV|season"] = [Spec("season_title", "Season", "ViewAgenda", tier: 1), Spec("season_number", "Season number", "Tag", "number", 1), Spec("first_air_date", "Premiere", "CalendarToday", "date", 1), Spec("last_air_date", "Finale", "Event", "date", 1), Rating, Description, Genres, ContentRating, Language, Spec("network", "Network", "Tv", chips: true), Spec("cast_member", "Cast", "People", chips: true)],
         ["TV|episode"] = [Spec("episode_title", "Title", "Title", tier: 1), OriginalTitle, Spec("season_number", "Season", "ViewAgenda", "number", 1), Spec("episode_number", "Episode", "LiveTv", "number", 1), Spec("absolute_episode_number", "Absolute episode", "Tag", "number", 1), Spec("air_date", "Air date", "CalendarToday", "date", 1), Runtime, Rating, ContentRating, Language,
             Spec("episode_description", "Synopsis", "Description", "textarea", 2), Genres, Tags, Spec("network", "Network", "Tv", chips: true), Spec("director", "Director", "Movie", chips: true), Spec("screenwriter", "Writers", "EditNote", chips: true), Spec("cast_member", "Cast", "People", chips: true), Spec("guest_star", "Guest cast", "People", chips: true)],
-        ["Music|album"] = [Spec("album", "Title", "Album", tier: 1), Spec("album_artist", "Album artist", "Person", chips: true, tier: 1), Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Spec("track_count", "Tracks", "QueueMusic", "number", 1), Spec("disc_count", "Discs", "Album", "number", 1), Duration, Rating, Language, Genres, Tags, Spec("record_label", "Label", "Label", tier: 2), Description, Spec("artist", "Credits", "People", chips: true)],
+        ["Music|album"] = [Spec("album", "Title", "Album", tier: 1), SortTitle, Spec("album_artist", "Album artist", "Person", chips: true, tier: 1), Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Spec("track_count", "Tracks", "QueueMusic", "number", 1), Spec("disc_count", "Discs", "Album", "number", 1), Duration, Rating, Language, Genres, Tags, Spec("record_label", "Label", "Label", tier: 2), Description, Spec("artist", "Credits", "People", chips: true)],
         ["Music|track"] = [Title, Spec("artist", "Artist", "Person", chips: true, tier: 1), Spec("track_number", "Track", "Tag", "number", 1), Spec("disc_number", "Disc", "Album", "number", 1), Duration, Rating, Language, Spec("album", "Album", "Album", tier: 1), Spec("album_artist", "Album artist", "Person", chips: true), Genres, Spec("record_label", "Label", "Label"), Spec("release_date", "Release date", "CalendarToday", "date"), Spec("composer", "Composer", "MusicNote", chips: true)],
-        ["Books|book"] = [Title, OriginalTitle, Spec("original_publication_date", "Original publication", "CalendarToday", "date", 1), Spec("original_publication_year", "Publication year", "CalendarToday", "number", 1), Rating, Language, Description, Genres, Tags, Spec("series", "Series", "CollectionsBookmark", tier: 1), Spec("series_position", "Position", "Tag", "text", 1), Spec("author", "Author", "Person", chips: true), Publisher, Spec("publication_date", "Edition publication date", "CalendarToday", "date", 3), Spec("isbn", "ISBN", "Numbers", tier: 3), Spec("asin", "ASIN", "Numbers", tier: 3), Spec("page_count", "Edition pages", "MenuBook", "number", 3), Spec("edition_format", "Edition format", "Book", tier: 3)],
+        ["Books|book"] = [Title, OriginalTitle, SortTitle, Spec("original_publication_date", "Original publication", "CalendarToday", "date", 1), Spec("original_publication_year", "Publication year", "CalendarToday", "number", 1), Rating, Language, Description, Genres, Tags, Spec("series", "Series", "CollectionsBookmark", tier: 1), Spec("series_position", "Position", "Tag", "text", 1), Spec("author", "Author", "Person", chips: true), Publisher, Spec("publication_date", "Edition publication date", "CalendarToday", "date", 3), Spec("isbn", "ISBN", "Numbers", tier: 3), Spec("asin", "ASIN", "Numbers", tier: 3), Spec("page_count", "Edition pages", "MenuBook", "number", 3), Spec("edition_format", "Edition format", "Book", tier: 3)],
         ["Books|series"] = [Spec("series", "Title", "Title", tier: 1), Spec("series_start_year", "Start year", "CalendarToday", "number", 1), Spec("series_end_year", "End year", "Event", "number", 1), Spec("work_count", "Owned books", "MenuBook", "number", 1), Language, Description, Genres, Tags, Spec("author", "Authors", "Person", chips: true)],
         ["Audiobooks|audiobook"] = [Title, Spec("author", "Author", "Person", chips: true, tier: 1), Spec("narrator", "Narrator", "RecordVoiceOver", chips: true, tier: 1), Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Duration, Rating, Language, Description, Genres, Tags, Spec("series", "Series", "CollectionsBookmark", tier: 1), Spec("series_position", "Position", "Tag", "text", 1), Publisher, Spec("isbn", "ISBN", "Numbers", tier: 3), Spec("asin", "ASIN", "Numbers", tier: 3)],
         ["Audiobooks|series"] = [Spec("series", "Title", "Title", tier: 1), Spec("series_start_year", "Start year", "CalendarToday", "number", 1), Spec("series_end_year", "End year", "Event", "number", 1), Spec("work_count", "Owned audiobooks", "Headphones", "number", 1), Description, Genres, Spec("author", "Authors", "Person", chips: true)],
@@ -92,7 +93,7 @@ public static class MediaEditorDetailsPresenter
 
     private static readonly HashSet<string> SafeOverrideFields = new(StringComparer.OrdinalIgnoreCase)
     {
-        "title", "show_name", "episode_title", "season_title", "issue_title", "album", "series", "original_title", "release_date", "year", "original_release_date", "original_release_year", "original_publication_date", "original_publication_year",
+        "title", "show_name", "episode_title", "season_title", "issue_title", "album", "series", "original_title", "sort_title", "release_date", "year", "original_release_date", "original_release_year", "original_publication_date", "original_publication_year",
         "publication_date", "publication_year", "air_date", "last_air_date", "first_air_date", "runtime", "duration", "rating", "content_rating", "language",
         "description", "episode_description", "issue_description", "tagline", "genre", "custom_tags", "series_position", "issue_number", "track_number", "disc_number", "season_number", "episode_number", "page_count"
     };
@@ -156,7 +157,16 @@ public static class MediaEditorDetailsPresenter
                     }
                 }
             }
-            if (resolved is null || string.IsNullOrWhiteSpace(resolved.Value))
+            // The sort title is the person's own, so it is offered even when nothing is set yet (it sorts by the title until then),
+            // but only where it can be edited.
+            var offerBlank = string.Equals(spec.Key, "sort_title", StringComparison.OrdinalIgnoreCase)
+                             && activeScope.CanEditFields && allowed.Contains("sort_title");
+            if (resolved is null && offerBlank)
+            {
+                resolved = new FieldValue(string.Empty, "Canonical", null, null, false, false);
+            }
+
+            if (resolved is null || (string.IsNullOrWhiteSpace(resolved.Value) && !offerBlank))
             {
                 continue;
             }
@@ -173,7 +183,8 @@ public static class MediaEditorDetailsPresenter
                 resolved.SourceLabel, resolved.ProviderName, editable, editable && resolved.Revertable,
                 spec.Chips || MultiValueKeys.Contains(fieldKey) || resolved.LinkedValues is { Count: > 1 },
                 spec.Tier, resolved.Value, displayValue, resolved.Locked, resolved.SourceScopeId, resolved.LinkedValues,
-                IsOwnField: EditorFieldLocks.IsOwnField(overrideKey) || EditorFieldLocks.IsOwnField(fieldKey));
+                IsOwnField: EditorFieldLocks.IsOwnField(overrideKey) || EditorFieldLocks.IsOwnField(fieldKey),
+                ProviderValue: resolved.Revertable && resolved.Provenance == "Override" ? ProviderValueOf(fieldKey, snapshot, preferredFieldOwnerEntityId) : null);
 
             if (spec.Key is "description" or "episode_description" or "issue_description")
             {
@@ -218,6 +229,19 @@ public static class MediaEditorDetailsPresenter
                 _ => "sme-details-image--portrait",
             },
         };
+    }
+
+    // What a provider refresh holds for the field now, under the person's own value: what Revert shows again.
+    private static string? ProviderValueOf(string key, MediaEditorScopeFieldSnapshotDto snapshot, Guid? preferredFieldOwnerEntityId)
+    {
+        var array = SelectCanonicalArray(snapshot.CanonicalArrays, key, preferredFieldOwnerEntityId);
+        if (array is not null)
+        {
+            return FormatCanonicalArray(key, array);
+        }
+
+        var field = SelectCanonicalField(snapshot.CanonicalFields, key, preferredFieldOwnerEntityId);
+        return string.IsNullOrWhiteSpace(field?.Value) ? null : field.Value.Trim();
     }
 
     private static HashSet<string> ResolveCompactFactKeys(string mediaType, string scopeId)
@@ -668,6 +692,7 @@ public static class MediaEditorDetailsPresenter
     private static FieldSpec Spec(string key, string label, string icon, string input = "text", int tier = 2, bool chips = false) => new(key, label, icon, input, tier, chips);
     private static readonly FieldSpec Title = Spec("title", "Title", "Title", tier: 1);
     private static readonly FieldSpec OriginalTitle = Spec("original_title", "Original title", "Title", tier: 3);
+    private static readonly FieldSpec SortTitle = Spec("sort_title", "Sort title", "SortByAlpha");
     private static readonly FieldSpec Year = Spec("year", "Year", "CalendarToday", "number", 1);
     private static readonly FieldSpec Runtime = Spec("runtime", "Runtime", "Schedule", tier: 1);
     private static readonly FieldSpec Duration = Spec("duration", "Duration", "Schedule", tier: 1);

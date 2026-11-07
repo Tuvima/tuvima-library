@@ -321,9 +321,21 @@
         <div class="@(locked ? "tl-editor-field tl-editor-field--form-locked" : "tl-editor-field")" data-field-key="@field.Key" data-locked="@(locked ? "true" : "false")">
             <div class="tl-editor-field__label">
                 <span>@field.Label</span>
-                @if (!own)
+                @if (!own || staged)
                 {
                     <span class="tl-editor-field__tools">
+                        @if (staged)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       Tone="AppUiTone.Primary"
+                                       Size="AppControlSize.Compact"
+                                       StartIcon="@AppMaterialIcons.Outlined.Replay"
+                                       Class="tl-editor-field__reset"
+                                       aria-label="@($"Undo changes to {field.Label}")"
+                                       OnClick="@(() => UndoField(field))">@L["EditorDetailsPanel_Revert"]</AppButton>
+                        }
+                        @if (!own)
+                        {
                         <span class="tl-editor-field__lockstate" data-lock-state="@(staged ? "yours" : locked ? "locked" : "unlocked")">
                             @if (staged)
                             {
@@ -332,7 +344,7 @@
                             }
                             else
                             {
-                                var lockText = locked ? L["EditorDetailsPanel_UnlockToEdit"].Value : L["EditorDetailsPanel_Lock"].Value;
+                                var lockText = locked ? L["EditorDetailsPanel_UnlockToEdit", field.Label].Value : L["EditorDetailsPanel_Lock", field.Label].Value;
                                 <AppIconButton Icon="@(locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
                                                Size="AppControlSize.Compact"
                                                Tone="AppUiTone.Primary"
@@ -341,11 +353,11 @@
                                                Disabled="@(!CanChange)"
                                                Tooltip="@lockText"
                                                AriaLabel="@lockText"
-                                               aria-pressed="@(locked ? "true" : "false")"
                                                OnClick="@(() => ToggleLock(field, locked))" />
                                 <span>@(locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
                             }
                         </span>
+                        }
                     </span>
                 }
             </div>
@@ -372,7 +384,8 @@
                               ValueChanged="@(value => StageScalar(field, value))"
                               Placeholder="@(shown.IsMixed ? BulkEditRules.MixedLeaveUnchanged : null)"
                               InputType="@InputTypeOf(field)"
-                              Disabled="@(!CanChange || locked)"
+                              Disabled="@(!CanChange)"
+                              ReadOnly="@locked"
                               aria-label="@field.Label" />
             }
 
@@ -381,11 +394,6 @@
                 <span class="tl-editor-field__note">@LockedText(field)</span>
             }
 
-            @if (staged)
-            {
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Class="tl-editor-field__reset" OnClick="@(() => UndoField(field))">Undo changes to @field.Label</AppButton>
-            }
         </div>
     };
 
