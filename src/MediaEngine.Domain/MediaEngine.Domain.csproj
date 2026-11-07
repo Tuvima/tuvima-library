@@ -11,4 +11,9 @@
     details" and "MUST NOT contain logic specific to any metadata provider."
   -->
 
+  <ItemGroup>
+    <!-- The file-name cleaning rules (universal editor v5 D33). The config folder's copy wins; this one is used when that folder predates it. -->
+    <EmbeddedResource Include="..\..\config\filename_cleaning.json" LogicalName="MediaEngine.Domain.filename_cleaning.json" />
+  </ItemGroup>
+
 </Project>

@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.Matching;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Tests;
 
@@ -50,6 +51,38 @@ public sealed class EditorFileNameParserTests
         Assert.Equal("1982", parsed.Year);
         Assert.Null(parsed.Show);
         Assert.Null(parsed.Episode);
+    }
+
+    [Fact]
+    public void AnEditionMarkerAfterTheYear_IsReadAsTheEdition_AndLeavesTheTitle()
+    {
+        var parsed = EditorFileNameParser.Parse("/movies/Movie.Name.2019.Remastered.1080p.BluRay.mkv", isTv: false);
+
+        Assert.Equal("Movie Name", parsed.Title);
+        Assert.Equal("2019", parsed.Year);
+        Assert.Equal("Remastered", parsed.Edition);
+    }
+
+    [Fact]
+    public void AMusicFileName_GivesTheTrackNumberAndTitle()
+    {
+        var parsed = EditorFileNameParser.ParseMusic("/music/Radiohead/OK Computer/1-05 Karma Police.flac");
+
+        Assert.Equal("Karma Police", parsed.Title);
+        Assert.Equal(5, parsed.Track);
+        Assert.Equal(1, parsed.Disc);
+    }
+
+    [Fact]
+    public void AWordTheOwnerAddedToTheCleaningFile_IsTakenOutOfTheTitle()
+    {
+        var rules = FilenameCleaningConfigurationProvider.TryRead(
+            "{ \"version\": \"1\", \"custom_noise_words\": [\"FanSub\"] }", FilenameCleaningConfigurationProvider.BuiltIn, out _);
+
+        var parsed = EditorFileNameParser.Parse("/movies/Some.Film.FanSub.2012.mkv", isTv: false, rules!);
+
+        Assert.Equal("Some Film", parsed.Title);
+        Assert.Equal("2012", parsed.Year);
     }
 
     [Fact]
