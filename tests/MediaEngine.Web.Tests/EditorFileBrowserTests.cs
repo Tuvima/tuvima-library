@@ -352,6 +352,65 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
         Assert.DoesNotContain("Nothing in this folder", cut.Markup, StringComparison.Ordinal);
     }
 
+    // -- The shared browser frame (D32, WP8a, A13) ---------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheSupportingFilesList_IsTheSharedBrowserFrame_WithItemRowsAndTheToolbarAcrossTheWindow()
+    {
+        var (_, cut) = await OpenAsync();
+
+        var frame = cut.Find("[data-testid=browser-frame]");
+        Assert.Equal("files", frame.GetAttribute("data-frame"));
+        Assert.Single(cut.FindAll("[data-frame-sidebar]"));
+        Assert.Equal(3, cut.FindAll("table[role=grid] .app-browser-item").Count);
+        Assert.Empty(cut.FindAll(".app-browser-folder"));
+        // Screen E: the search and the two filters are one toolbar across the whole window, above the left list.
+        Assert.Equal("app-browser__toolbar", frame.Children[0].ClassList.First());
+        Assert.Equal(2, cut.FindAll("[data-frame-toolbar] .tl-fbrowser__select").Count);
+    }
+
+    [Fact]
+    public async Task TheFoldersAndFilesView_IsTheSameFrame_WithFolderRowsAndFilesBesideThem()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Steph Curry Teaches Shooting",
+            Total = 2,
+            Entries =
+            [
+                new EditorFolderEntryDto { Name = "Season 02", Path = "Season 02", IsFolder = true },
+                new EditorFolderEntryDto { Name = "Workbook.pdf", Path = "Workbook.pdf", State = EditorFolderEntryStates.Supporting, SupportingFileId = FileIds[0] },
+            ],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.Equal("folders", cut.Find("[data-testid=browser-frame]").GetAttribute("data-frame"));
+        Assert.Single(cut.FindAll(".app-browser-folder--folder"));
+        Assert.Single(cut.FindAll(".app-browser-folder--file"));
+        Assert.Single(cut.FindAll("[data-frame-sidebar]"));
+    }
+
+    [Fact]
+    public async Task TheArrowKeysMoveTheHighlight_SpaceTicksTheRow_AndEnterOpensItsPreview()
+    {
+        var (state, cut) = await OpenAsync();
+        var grid = cut.Find("table[role=grid]");
+        Assert.Equal("efb-row-0-name", grid.GetAttribute("aria-activedescendant"));
+
+        grid.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown" });
+        cut.WaitForAssertion(() => Assert.Equal("efb-row-1-name", cut.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
+
+        cut.Find("table[role=grid]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = " " });
+        cut.WaitForAssertion(() => Assert.Single(state.Ticked));
+        Assert.Equal(FileIds[1].ToString("D"), state.Ticked[0].Id);
+
+        cut.Find("table[role=grid]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+        var outcome = Assert.IsType<EditorFileBrowserOutcome>(_dialog.Result?.Data);
+        Assert.Equal(EditorFileBrowserAction.OpenFile, outcome.Action);
+        Assert.Equal(FileIds[1], outcome.Id);
+        Assert.True(outcome.Preview);
+    }
+
     // -- Editing several files together (screen F) ----------------------------------------------------------------------------------
 
     [Fact]
@@ -438,5 +497,33 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
             {
             }
         }
+    }
+
+    [Fact]
+    public async Task TheFoldersAndFilesView_KeepsItsDetailsColumnAtEveryWidth_SoHeadingsAndCellsStayAligned()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Show",
+            Total = 2,
+            Entries =
+            [
+                new EditorFolderEntryDto { Name = "Season 02", Path = "Season 02", IsFolder = true },
+                new EditorFolderEntryDto { Name = "Workbook.pdf", Path = "Workbook.pdf", State = EditorFolderEntryStates.Supporting, SupportingFileId = FileIds[0] },
+            ],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.Empty(cut.FindAll(".is-wide-only"));
+    }
+
+    [Fact]
+    public async Task EachSupportingFileRow_IsNamedByItsNameCell_ForTheScreenReaderCursor()
+    {
+        var (_, cut) = await OpenAsync();
+
+        var cell = cut.Find("#efb-row-0-name");
+        Assert.Equal("gridcell", cell.GetAttribute("role"));
+        Assert.Equal("Workbook", cell.GetAttribute("aria-label"));
     }
 }

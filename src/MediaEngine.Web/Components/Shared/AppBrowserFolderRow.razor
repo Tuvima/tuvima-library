@@ -1,0 +1,83 @@
+@namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
+
+@* A folder row of the shared browser frame (Editor v5 D32): the folder icon, its name and when it changed; a click anywhere on the row opens it
+   (folders only; files never appear in the folder picker). The supporting-files browser's "Folders and files" view uses the same row for a
+   folder and, with IsFile, for the files beside it (a size and a mark in the middle, its actions at the end). 44 px tall. This is the only
+   place a folder row is drawn: BrowserFrameGuardrailTests refuses a second folder list anywhere else. *@
+<tr id="@Id"
+    role="row"
+    class="@RootClass"
+    @onclick="OpenAsync"
+    @attributes="AdditionalAttributes">
+    <td role="gridcell" id="@NameCellId" aria-label="@(IsFile ? Name : OpenLabelText)" class="app-browser-folder__namecell">
+        <div class="app-browser-folder__name">
+            <span class="app-browser-folder__icon" aria-hidden="true"><AppMaterialIcon Icon="@(IsFile ? AppMaterialIcons.Outlined.Description : AppMaterialIcons.Filled.Folder)" Size="AppIconSize.Control20" /></span>
+            <span class="app-browser-folder__text" data-overflow-tooltip="@Name">@Name</span>
+        </div>
+    </td>
+    <td role="gridcell" class="@(WideOnlyMiddle ? "app-browser-folder__middle is-wide-only" : "app-browser-folder__middle")">
+        @if (Middle is not null)
+        {
+            @Middle
+        }
+        else
+        {
+            @(string.IsNullOrWhiteSpace(Modified) ? "—" : Modified)
+        }
+    </td>
+    <td role="gridcell" class="app-browser-folder__end" @onkeydown:stopPropagation="true" @onclick:stopPropagation="true">
+        @if (End is not null)
+        {
+            @End
+        }
+        else if (!IsFile)
+        {
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppControlSize.Compact" Tooltip="@OpenLabelText" AriaLabel="@OpenLabelText"
+                           tabindex="-1" OnClick="OpenAsync" />
+        }
+    </td>
+</tr>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+
+    [Parameter] public string Name { get; set; } = string.Empty;
+
+    /// <summary>When the folder last changed, already formatted; a dash when the Engine did not say.</summary>
+    [Parameter] public string? Modified { get; set; }
+
+    /// <summary>A file shown among the folders (the editor's "Folders and files" view): the row does not open on a click.</summary>
+    [Parameter] public bool IsFile { get; set; }
+
+    /// <summary>The row the arrow keys are on.</summary>
+    [Parameter] public bool Highlighted { get; set; }
+
+    /// <summary>A file Library never shows is drawn quieter.</summary>
+    [Parameter] public bool Dim { get; set; }
+
+    [Parameter] public EventCallback OnOpen { get; set; }
+
+    /// <summary>Hides the middle cell under 840 px; true only where its column heading is wide-only too (the folder picker's modified date).</summary>
+    [Parameter] public bool WideOnlyMiddle { get; set; }
+
+    /// <summary>The name the open button speaks; "Open folder {Name}" when empty.</summary>
+    [Parameter] public string? OpenLabel { get; set; }
+
+    /// <summary>Replaces the modified date in the middle cell (a file's size and mark).</summary>
+    [Parameter] public RenderFragment? Middle { get; set; }
+
+    /// <summary>Replaces the open button in the last cell (a file's actions).</summary>
+    [Parameter] public RenderFragment? End { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? NameCellId => string.IsNullOrEmpty(Id) ? null : $"{Id}-name";
+
+    private string OpenLabelText => OpenLabel ?? string.Format(L["AppBrowser_OpenFolder"].Value, Name);
+
+    private string RootClass =>
+        $"app-browser-folder{(IsFile ? " app-browser-folder--file" : " app-browser-folder--folder")}{(Highlighted ? " is-highlighted" : string.Empty)}{(Dim ? " is-dim" : string.Empty)}";
+
+    private Task OpenAsync() => IsFile ? Task.CompletedTask : OnOpen.InvokeAsync();
+}

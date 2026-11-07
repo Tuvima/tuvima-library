@@ -1,0 +1,68 @@
+.app-browser-item > td {
+    height: 3.5rem;
+    padding: 0 var(--tl-space-3);
+    border-bottom: 1px solid var(--tl-border-default);
+    vertical-align: middle;
+}
+
+.app-browser-item:last-child > td {
+    border-bottom: 0;
+}
+
+.app-browser-item.is-ticked {
+    background: var(--tl-accent-primary-soft);
+}
+
+.app-browser-item.is-highlighted {
+    box-shadow: inset 3px 0 0 var(--tl-accent-primary);
+}
+
+.app-browser-item > .app-browser-item__tick {
+    width: 2.5rem;
+}
+
+.app-browser-item > .app-browser-item__menu {
+    width: 2.5rem;
+    text-align: end;
+}
+
+.app-browser-item > .app-browser-item__namecell {
+    max-width: 0;
+}
+
+.app-browser-item__name {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.app-browser-item__badge {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-elevated);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+}
+
+.app-browser-item__text {
+    display: grid;
+    min-width: 0;
+}
+
+.app-browser-item__text b,
+.app-browser-item__text small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-browser-item__text small,
+.is-quiet {
+    color: var(--tl-text-secondary);
+}

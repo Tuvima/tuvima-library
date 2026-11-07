@@ -6,79 +6,44 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The left list of the supporting-files browser (universal editor v5 screen E, note 3): the places files belong to, with counts, then the groups
-   the title has, then the switch to the Folders and files view. It mirrors the toolbar's filters; picking a row sets the same filter. One part of
-   the browser frame (D32): the dialog, the sidebar, the toolbar, the list and the footer are separate so the shared frame can take them over. *@
-<nav class="tl-fbside" aria-label="@L["EditorBrowser_Filters"].Value" data-testid="file-browser-sidebar">
-    @if (State.View == EditorBrowserView.Files)
-    {
-        <h5 class="tl-fbside__heading">@L["EditorBrowser_Where"]</h5>
-        <ul class="tl-fbside__list">
-            @foreach (var option in PlaceOptions)
-            {
-                var on = State.Where == option.Key;
-                <li>
-                    <AppRowButton Class="@(on ? "tl-fbside__item is-selected" : "tl-fbside__item")" aria-current="@(on ? "true" : null)"
-                                  data-where="@option.Key" OnClick="@(() => State.SetWhereAsync(option.Key))">
-                        @if (on)
-                        {
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" />
-                        }
-                        <span class="tl-fbside__label">@option.Label</span>
-                        <span class="tl-fbside__count">@option.FileCount</span>
-                    </AppRowButton>
-                </li>
-            }
-        </ul>
+   the title has, then the switch to the Folders and files view. It mirrors the toolbar's filters; picking a row sets the same filter. It fills the
+   shared browser frame's sidebar slot (D32) with the frame's own rows. *@
+@if (State.View == EditorBrowserView.Files)
+{
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Where"].Value">
+        @foreach (var option in PlaceOptions)
+        {
+            <AppBrowserSideItem Label="@option.Label" Detail="@option.FileCount.ToString()" Selected="@(State.Where == option.Key)" CheckWhenSelected="true"
+                                data-where="@option.Key" OnClick="@(() => State.SetWhereAsync(option.Key))" />
+        }
+    </AppBrowserSideSection>
 
-        <hr class="tl-fbside__rule" />
-        <h5 class="tl-fbside__heading">@L["EditorBrowser_Groups"]</h5>
-        <ul class="tl-fbside__list">
-            <li>
-                <AppRowButton Class="@(State.Group == SupportingFileListDefaults.GroupAll ? "tl-fbside__item is-selected" : "tl-fbside__item")"
-                              data-group="all" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupAll))">
-                    <span class="tl-fbside__label">@L["EditorBrowser_AllGroups"]</span>
-                </AppRowButton>
-            </li>
-            @foreach (var group in State.List?.Groups ?? [])
-            {
-                var on = State.Group == group.Id;
-                <li>
-                    <AppRowButton Class="@(on ? "tl-fbside__item is-selected" : "tl-fbside__item")" data-group="@group.Id"
-                                  OnClick="@(() => State.SetGroupAsync(group.Id))">
-                        <span class="tl-fbside__label">@group.Name</span>
-                        <span class="tl-fbside__count">@group.FileCount</span>
-                    </AppRowButton>
-                </li>
-            }
-            <li>
-                <AppRowButton Class="@(State.Group == SupportingFileListDefaults.GroupUngrouped ? "tl-fbside__item is-selected" : "tl-fbside__item")"
-                              data-group="ungrouped" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupUngrouped))">
-                    <span class="tl-fbside__label">@L["EditorBrowser_Ungrouped"]</span>
-                    <span class="tl-fbside__count">@(State.List?.UngroupedCount ?? 0)</span>
-                </AppRowButton>
-            </li>
-        </ul>
-        <hr class="tl-fbside__rule" />
-        <AppRowButton Class="tl-fbside__item tl-fbside__item--link" data-view-switch="folders" OnClick="State.ShowFoldersAsync">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" />
-            <span class="tl-fbside__label">@L["EditorBrowser_FoldersAndFiles"]</span>
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
-        </AppRowButton>
-    }
-    else
-    {
-        <h5 class="tl-fbside__heading">@L["EditorBrowser_Browse"]</h5>
-        <AppRowButton Class="tl-fbside__item" data-view-switch="files" OnClick="State.ShowFilesAsync">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Size="AppIconSize.Control20" />
-            <span class="tl-fbside__label">@L["EditorBrowser_SupportingFiles"]</span>
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
-        </AppRowButton>
-        <AppRowButton Class="tl-fbside__item is-selected" aria-current="true">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" />
-            <span class="tl-fbside__label">@L["EditorBrowser_FoldersAndFiles"]</span>
-        </AppRowButton>
-    }
-</nav>
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Groups"].Value" RuleAbove="true">
+        <AppBrowserSideItem Label="@L["EditorBrowser_AllGroups"].Value" Selected="@(State.Group == SupportingFileListDefaults.GroupAll)"
+                            data-group="all" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupAll))" />
+        @foreach (var group in State.List?.Groups ?? [])
+        {
+            <AppBrowserSideItem Label="@group.Name" Detail="@group.FileCount.ToString()" Selected="@(State.Group == group.Id)"
+                                data-group="@group.Id" OnClick="@(() => State.SetGroupAsync(group.Id))" />
+        }
+        <AppBrowserSideItem Label="@L["EditorBrowser_Ungrouped"].Value" Detail="@((State.List?.UngroupedCount ?? 0).ToString())"
+                            Selected="@(State.Group == SupportingFileListDefaults.GroupUngrouped)"
+                            data-group="ungrouped" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupUngrouped))" />
+    </AppBrowserSideSection>
+
+    <AppBrowserSideSection RuleAbove="true">
+        <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                            Link="true" data-view-switch="folders" OnClick="State.ShowFoldersAsync" />
+    </AppBrowserSideSection>
+}
+else
+{
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Browse"].Value">
+        <AppBrowserSideItem Label="@L["EditorBrowser_SupportingFiles"].Value" Icon="@AppMaterialIcons.Outlined.Collections" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                            data-view-switch="files" OnClick="State.ShowFilesAsync" />
+        <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" Selected="true" />
+    </AppBrowserSideSection>
+}
 
 @code {
     [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
