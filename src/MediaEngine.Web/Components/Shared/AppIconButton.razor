@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @{
-    RenderFragment control = @<AppTooltip Text="@Tooltip" Suppressed="@string.IsNullOrWhiteSpace(Tooltip)">
+    RenderFragment control = @<AppTooltip Text="@Tooltip" Suppressed="@(string.IsNullOrWhiteSpace(Tooltip) || RepeatsVisibleLabel)">
         @if (!string.IsNullOrWhiteSpace(Href))
         {
             <a @ref="_focusTarget" href="@(Disabled ? null : Href)" target="@Target" class="@RootClass" aria-label="@(AriaLabel ?? Tooltip ?? Label)" aria-disabled="@Disabled.ToString().ToLowerInvariant()" tabindex="@(Disabled ? -1 : 0)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes">@Glyph</a>
@@ -50,6 +50,9 @@ else
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    /// <summary>A tooltip that only repeats the visible label under the button says nothing new (Look v3 D8), so it is not drawn.</summary>
+    private bool RepeatsVisibleLabel => !string.IsNullOrWhiteSpace(Label)
+        && string.Equals(Label.Trim(), Tooltip?.Trim(), StringComparison.OrdinalIgnoreCase);
     private ElementReference _focusTarget;
     public ValueTask FocusAsync() => _focusTarget.FocusAsync(preventScroll: true);
     private AppControlSize ResolvedSize => AppUiMaps.ToAppControlSize(Size);

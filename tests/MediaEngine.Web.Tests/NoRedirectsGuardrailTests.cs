@@ -22,7 +22,7 @@ public sealed class NoRedirectsGuardrailTests
         ["Shared/MainLayout.razor"] = "Profile switch: full reload to the profile picker when the signed-in profile must be chosen again.",
         ["Components/Settings/ProfileDetailPage.razor"] = "Leaving a deleted or unavailable profile: back to the profile list.",
         ["Components/Settings/ProfilesTab.razor"] = "Role-dependent landing, not an old address: a member without household management opens Manage Profiles on their own profile page.",
-        ["Components/Pages/Settings.razor"] = "Access gate and not-found: a Kids profile or a page switched off for this device goes Home; an address that is not a Settings page (or one this person may not see) shows /not-found.",
+        ["Components/Pages/Settings.razor"] = "Access gate: a Kids profile or a page switched off for this device goes Home. An address that is not a Settings page shows the not-found page in place (no redirect).",
         ["Components/Pages/BookReader.razor"] = "Item removed: the open book left the library while it was open, so the reader leaves to Home (an action's result).",
         ["Components/Pages/SetupPage.razor"] = "Setup ended: full reload to Home or the sign-in page when first-run setup completes.",
         ["Components/Browse/MediaBrowseShell.razor"] = "Own filter: the browse page rewriting its own filter, sort and display choices in its own address.",

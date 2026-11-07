@@ -550,7 +550,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
-            builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
             builder.CloseComponent();
         });
 

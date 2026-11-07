@@ -14,7 +14,7 @@
 .phone-downloads-action:hover,
 .phone-downloads-action:focus-visible {
     color: var(--tl-text-primary);
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
+    background: var(--tl-bg-surface-hover);
 }
 
 .phone-downloads-action:focus-visible {
