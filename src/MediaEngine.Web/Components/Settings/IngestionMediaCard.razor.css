@@ -21,7 +21,7 @@
 
 .ingestion-media-list-row:hover,
 .ingestion-media-list-row:focus-within {
-    background: var(--app-hover-overlay);
+    background: var(--tl-bg-surface-hover);
     box-shadow: inset 3px 0 0 var(--tl-accent-primary);
 }
 

@@ -441,7 +441,7 @@
 .layout-shell__my-list-slot ::deep .layout-shell__my-list:hover,
 .layout-shell__my-list-slot ::deep .layout-shell__my-list:focus-visible {
     color: #fff;
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
+    background: var(--tl-bg-surface-hover);
 }
 
 .layout-shell__search-action-slot ::deep .layout-shell__search-action:focus-visible,

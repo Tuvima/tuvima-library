@@ -12,7 +12,7 @@
     padding: var(--tl-space-3);
     border: 1px solid var(--tl-border-default);
     border-radius: 10px;
-    background: var(--tl-bg-surface-raised);
+    background: var(--tl-bg-surface);
     color: var(--tl-text-primary);
     font: inherit;
     text-align: center;
