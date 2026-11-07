@@ -72,3 +72,20 @@ this target and list it under the scheme's `test.targets`, then run
     dependencies:
       - target: TuvimaCore
 ```
+
+## Player
+
+Apple TV and CarPlay follow the shared contract in
+[`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
+Gaps for **Apple TV**: it is unchanged from the first pilot, so it must be
+brought to the contract: the five transport buttons in order with Previous and
+Next dimmed in place, skips of 10 seconds back and 30 forward by default, the
+tool row (Episodes, Audio & subtitles, Bookmarks, Playback settings) with side
+panels on the right, Everyone | Mine bookmarks, paused details, the end card and
+the Autoplay switch. Gaps for **CarPlay**: it lists Listen and opens the system
+Now playing template; it should list Continue, the Listen shelves, Audiobooks,
+Playlists and Recently played, and the card should carry the contract's
+lock-screen fields and actions (music: Previous, Play, Next, Shuffle and Repeat;
+audiobooks: back 10, forward 30, Previous and Next chapter, Speed presets). The
+television side panels and the car list are a first definition, to be settled in
+their own threads (Unified player v2, D29 and section 9).

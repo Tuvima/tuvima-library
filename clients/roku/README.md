@@ -42,3 +42,17 @@ The Profiles button lists the people this paired app may switch to
 `409` and `429` show a plain message. The app requests the
 `view.personal.read` scope at pairing; the person must still tick the photos
 and videos option.
+
+## Player
+
+The player follows the shared contract in
+[`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md)
+(transport order and names, skip defaults of 10 seconds back and 30 forward, tool
+order, panel names, paused details, end card and the television key map). Roku
+plays through its native video node with captions from the manifest, and today
+has none of the rest: it has no skip buttons or Previous/Next row, no Episodes
+panel, no Audio & subtitles panel, no Bookmarks (Everyone | Mine), no Playback
+settings, no chapters, no paused details and no end card. The gaps are one
+follow-up thread for Roku: skips, Episodes, Audio & subtitles, Bookmarks and the
+end card, laid out as the contract's first definition of the television side
+panels (Unified player v2, D29 and section 9).
