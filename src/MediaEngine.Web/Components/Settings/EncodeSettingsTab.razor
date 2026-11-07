@@ -24,8 +24,7 @@
         }
 
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_PlaybackChecks"].Value"
-                              Description="@L["EncodeSettingsTab_TechnicalChecksReportedDirectlyBy"].Value"
-                              Icon="@AppMaterialIcons.Outlined.MonitorHeart">
+                              Description="@L["EncodeSettingsTab_TechnicalChecksReportedDirectlyBy"].Value">
             @if (_diagnostics is null)
             {
                 <AppErrorState Title="@L["EncodeSettingsTab_DiagnosticsAreUnavailable"].Value"
@@ -72,8 +71,7 @@
     else if (IsSection("hardware"))
     {
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_HardwareAcceleration"].Value"
-                              Description="@L["EncodeSettingsTab_ChooseWhatTheServerUses"].Value"
-                              Icon="@AppMaterialIcons.Outlined.Memory">
+                              Description="@L["EncodeSettingsTab_ChooseWhatTheServerUses"].Value">
             <div class="encode-settings__form">
                 <AppSelect T="string" @bind-Value="_hardwarePreference" Label="@L["EncodeSettingsTab_HardwareAcceleration"].Value" Options="@HardwareOptions" />
                 <div class="encode-settings__current">
@@ -87,8 +85,7 @@
     else
     {
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_OptimizedCopies"].Value"
-                              Description="@L["EncodeSettingsTab_SetHowTheServerPrepares"].Value"
-                              Icon="@AppMaterialIcons.Outlined.VideoSettings">
+                              Description="@L["EncodeSettingsTab_SetHowTheServerPrepares"].Value">
             <div class="encode-settings__form">
                 <AppSelect T="string" @bind-Value="_defaultProfile" Label="@L["EncodeSettingsTab_PreparedDownloadQuality"].Value" Options="@ProfileOptions" />
                 <AppNumericField @bind-Value="_maxConcurrentJobs" Label="@L["EncodeSettingsTab_MaximumActiveEncodes"].Value" Min="1" Max="4" />
@@ -96,8 +93,7 @@
         </SettingsSectionPanel>
 
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_Scheduling"].Value"
-                              Description="@L["EncodeSettingsTab_LimitOptimizedCopyWorkTo"].Value"
-                              Icon="@AppMaterialIcons.Outlined.Schedule">
+                              Description="@L["EncodeSettingsTab_LimitOptimizedCopyWorkTo"].Value">
             <div class="encode-settings__form">
                 <AppSwitchRow @bind-Value="_scheduledEncodesEnabled"
                               Label="@L["EncodeSettingsTab_SchedulePreparedEncodes"].Value"
@@ -113,8 +109,7 @@
         </SettingsSectionPanel>
 
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_OptimizedCopyStorage"].Value"
-                              Description="@L["EncodeSettingsTab_ControlWherePreparedPlaybackFiles"].Value"
-                              Icon="@AppMaterialIcons.Outlined.Storage">
+                              Description="@L["EncodeSettingsTab_ControlWherePreparedPlaybackFiles"].Value">
             <div class="encode-settings__form">
                 <AppTextField @bind-Value="_variantRoot"
                               Label="@L["EncodeSettingsTab_CacheLocation"].Value" />

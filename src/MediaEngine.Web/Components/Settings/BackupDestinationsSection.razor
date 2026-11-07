@@ -8,7 +8,7 @@
 @if (_settings is not null)
 {
     <div class="backup-destinations" data-testid="backup-destinations">
-        <AppCard Title="@L["BackupDestinationsSection_WhereBackupsGo"].Value">
+        <AppSettingsGroup Heading="@L["BackupDestinationsSection_WhereBackupsGo"].Value">
             @foreach (var destination in _settings.Destinations)
             {
                 <div class="backup-destinations__destination" data-testid="@($"destination-{destination.Id}")">
@@ -79,7 +79,7 @@
                     }
                 </ul>
             }
-        </AppCard>
+        </AppSettingsGroup>
     </div>
 }
 

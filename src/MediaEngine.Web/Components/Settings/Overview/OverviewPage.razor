@@ -65,14 +65,14 @@ else
             }
         }
 
-        <SettingsSectionPanel Title="@L["Common_ContinueEnjoying"].Value" Icon="@AppMaterialIcons.Outlined.PlayCircleOutline" Class="tl-card settings-section-card settings-section-card--dense overview-page__continue">
+        <SettingsSectionPanel Title="@L["Common_ContinueEnjoying"].Value" Class="overview-page__continue">
             <ChildContent>
                 <OverviewContinueEnjoying Items="@(_overview?.ContinueItems ?? [])" />
             </ChildContent>
         </SettingsSectionPanel>
 
         <div class="overview-page__columns">
-            <SettingsSectionPanel Title="@L["Common_RecentActivity"].Value" Icon="@AppMaterialIcons.Outlined.History" Class="tl-card settings-section-card settings-section-card--dense overview-page__activity">
+            <SettingsSectionPanel Title="@L["Common_RecentActivity"].Value" Class="overview-page__activity">
                 <Actions>
                     <a class="overview-page__link" href="@ActivityHref" data-overview-see-all>@L["Common_SeeAll"]</a>
                 </Actions>
@@ -82,7 +82,7 @@ else
             </SettingsSectionPanel>
 
             <div class="overview-page__side">
-                <SettingsSectionPanel Title="@L["OverviewPage_YourTaste"].Value" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
+                <SettingsSectionPanel Title="@L["OverviewPage_YourTaste"].Value" Class="overview-page__taste">
                     <Actions>
                         <a class="overview-page__link" href="@TasteHref" data-overview-taste-link>@L["OverviewPage_SeeYourTaste"]</a>
                     </Actions>
@@ -102,7 +102,7 @@ else
 
                 @if (_calendar is not null)
                 {
-                    <SettingsSectionPanel Title="@L["OverviewPage_Last30Days"].Value" Icon="@AppMaterialIcons.Outlined.CalendarMonth" Class="tl-card settings-section-card settings-section-card--dense overview-page__month">
+                    <SettingsSectionPanel Title="@L["OverviewPage_Last30Days"].Value" Class="overview-page__month">
                         <ChildContent>
                             <p class="overview-page__month-line" data-overview-month-line>@MonthLine</p>
                             <OverviewHeatmap Days="@_calendar" />

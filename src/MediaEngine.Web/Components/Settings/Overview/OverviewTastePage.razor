@@ -64,8 +64,7 @@
             var sentence = ProfileOverviewPresentation.Sentence(person, learned);
             var basedOn = ProfileOverviewPresentation.BasedOn(person.FinishedTitleCount);
             <SettingsSectionPanel Title="@PanelTitle(person)"
-                                  Icon="@AppMaterialIcons.Outlined.Category"
-                                  Class="tl-card settings-section-card settings-section-card--dense taste-page__person">
+                                  Class="taste-page__person">
                 <div data-taste-person="@person.ProfileId" data-taste-editable="@(editable ? "true" : "false")">
                     @if (sentence is not null)
                     {

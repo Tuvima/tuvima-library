@@ -80,7 +80,6 @@ else
         <MediaEngine.Web.Components.Vault.VaultHiddenReminder />
 
         <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
-                           Eyebrow="@GetHeroEyebrow()"
                            Title="@GetHeroTitle()"
                            Description="@GetSectionDescription(_activeSection)"
                            Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
@@ -955,7 +954,6 @@ else
     private static string FormatRouteLabel(string value) =>
         System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.Replace('-', ' '));
 
-    private string GetHeroEyebrow() => CurrentGroup.Label;
 
     private string GetHeroTitle()
     {

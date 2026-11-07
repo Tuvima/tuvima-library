@@ -25,17 +25,13 @@ else
     <div class="settings-listening-page" data-home-section="hero">
         <div class="listening-settings-grid">
             <SettingsSectionPanel Title="@L["HomeSettingsPage_TopBanner"].Value"
-                                  Description="@L["HomeSettingsPage_TheLargePictureAtThe"].Value"
-                                  Class="tl-card settings-section-card listening-settings-card">
+                                  Description="@L["HomeSettingsPage_TheLargePictureAtThe"].Value">
                 @SwitchRow("Show the top banner", "Turn this off and Home starts at its first row.", _settings.Enabled,
                     value => SaveAsync(_settings with { Enabled = value }))
                 @if (_settings.Enabled)
                 {
-                    <div class="listening-preference-row">
-                        <div class="listening-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">@L["HomeSettingsPage_Slides"]</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["HomeSettingsPage_TheMostSlidesTheBanner"]</AppText>
-                        </div>
+                    <AppSettingRow Label="@L["HomeSettingsPage_Slides"].Value" Helper="@L["HomeSettingsPage_TheMostSlidesTheBanner"].Value">
+                        <Control>
                         <AppIntSelect Value="@_settings.SlideCount"
                                       ValueChanged="@(value => SaveAsync(_settings with { SlideCount = value }))"
                                       Variant="AppVariant.Outlined"
@@ -49,7 +45,8 @@ else
                                 <AppSelectItem T="int" Value="@count">@(count == 1 ? "1 slide" : $"{count} slides")</AppSelectItem>
                             }
                         </AppIntSelect>
-                    </div>
+                        </Control>
+                    </AppSettingRow>
                     @SwitchRow("Include new items", "Off shows only things you have started.", !_settings.ContinuedOnly,
                         value => SaveAsync(_settings with { ContinuedOnly = !value }))
                 }
@@ -58,8 +55,7 @@ else
             @if (_settings.Enabled)
             {
                 <SettingsSectionPanel Title="@L["HomeSettingsPage_WhatCanAppear"].Value"
-                                      Description="@L["HomeSettingsPage_LeaveATypeOffAnd"].Value"
-                                      Class="tl-card settings-section-card listening-settings-card">
+                                      Description="@L["HomeSettingsPage_LeaveATypeOffAnd"].Value">
                     @SwitchRow("Movies and shows", "Things to watch.", _settings.AllowWatch, value => SaveAsync(_settings with { AllowWatch = value }))
                     @SwitchRow("Books and comics", "Things to read.", _settings.AllowRead, value => SaveAsync(_settings with { AllowRead = value }))
                     @SwitchRow("Music and audiobooks", "Things to listen to.", _settings.AllowListen, value => SaveAsync(_settings with { AllowListen = value }))
@@ -69,8 +65,7 @@ else
             @if (_settings.Enabled && _settings.Plugins.Count > 0)
             {
                 <SettingsSectionPanel Title="@L["HomeSettingsPage_SuggestionsFromPlugins"].Value"
-                                      Description="@L["HomeSettingsPage_PluginsCanSuggestItemsFor"].Value"
-                                      Class="tl-card settings-section-card listening-settings-card">
+                                      Description="@L["HomeSettingsPage_PluginsCanSuggestItemsFor"].Value">
                     @foreach (var plugin in _settings.Plugins)
                     {
                         var current = plugin;
@@ -95,17 +90,15 @@ else
         _loading = false;
     }
 
-    private RenderFragment SwitchRow(string title, string description, bool value, Func<bool, Task> changed) => @<div class="listening-preference-row">
-        <div class="listening-preference-row__copy">
-            <AppText Typo="AppTypo.body1">@title</AppText>
-            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
-        </div>
+    private RenderFragment SwitchRow(string title, string description, bool value, Func<bool, Task> changed) => @<AppSettingRow Label="@title" Helper="@description">
+        <Control>
         <AppSwitchRow T="bool"
                       Value="@value"
                       ValueChanged="@changed"
                       Color="AppColor.Primary"
                       AriaLabel="@title" />
-    </div>;
+        </Control>
+    </AppSettingRow>;
 
     private async Task SavePluginAsync(DisplayHeroPluginDto plugin, bool enabled)
     {

@@ -1,19 +1,32 @@
 @namespace MediaEngine.Web.Components.Shared
-<section class="@RootClass" aria-labelledby="@HeadingId" @attributes="AdditionalAttributes">
-    <h2 class="app-settings-group__heading" id="@HeadingId">@Heading</h2>
+<section class="@RootClass" aria-labelledby="@(HasHeading ? HeadingId : null)" @attributes="AdditionalAttributes">
+    @if (HasHeading && Actions is null)
+    {
+        <h2 class="app-settings-group__heading" id="@HeadingId">@Heading</h2>
+    }
+    else if (HasHeading)
+    {
+        <div class="app-settings-group__head">
+            <h2 class="app-settings-group__heading" id="@HeadingId">@Heading</h2>
+            <div class="app-settings-group__actions">@Actions</div>
+        </div>
+    }
     @if (!string.IsNullOrWhiteSpace(Helper)) { <p class="app-settings-group__helper">@Helper</p> }
     <div class="app-settings-group__rows">@ChildContent</div>
 </section>
 @code {
     private readonly string _id = "app-settings-group-" + Guid.NewGuid().ToString("N")[..8];
 
-    [Parameter, EditorRequired] public string Heading { get; set; } = string.Empty;
+    [Parameter] public string Heading { get; set; } = string.Empty;
     [Parameter] public string? Helper { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Buttons at the right end of the heading row.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
     [Parameter] public AppSettingsGroupTone Tone { get; set; } = AppSettingsGroupTone.Default;
     [Parameter] public string? Class { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string HeadingId => _id;
+    private bool HasHeading => !string.IsNullOrWhiteSpace(Heading);
     private string RootClass => string.Join(" ", new[] { "app-settings-group", Tone == AppSettingsGroupTone.Danger ? "app-settings-group--danger" : null, Class }.Where(v => !string.IsNullOrWhiteSpace(v)));
 }
