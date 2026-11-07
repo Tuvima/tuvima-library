@@ -3,4 +3,4 @@
 .library-handling__choices { display: grid; gap: var(--tl-space-2); }
 .library-handling__note { margin: 0; color: var(--tl-text-muted); }
 .library-handling__example { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); color: var(--tl-text-muted); }
-.library-handling__example code { min-width: 0; overflow-wrap: anywhere; color: var(--tl-text); }
+.library-handling__example code { min-width: 0; overflow-wrap: anywhere; color: var(--tl-text-primary); }

@@ -267,7 +267,7 @@
 }
 
 .app-bg--cinematic {
-    background: var(--tl-bg-page);
+    background: var(--tl-bg-root);
 }
 
 ::deep .layout-shell__appbar .tl-toolbar {

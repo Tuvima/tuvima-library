@@ -13,7 +13,7 @@
     border-radius: var(--tl-radius-lg, 12px);
     color: var(--tl-text-primary);
     background: color-mix(in srgb, var(--tl-bg-surface-raised) 96%, transparent);
-    box-shadow: var(--tl-shadow-xl);
+    box-shadow: var(--tl-shadow-lg);
     backdrop-filter: blur(18px);
 }
 

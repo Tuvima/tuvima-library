@@ -35,7 +35,7 @@
     aspect-ratio: 1 / 1;
     overflow: hidden;
     border-radius: var(--tl-radius-md, 0.5rem);
-    background: var(--tl-surface-variant, rgba(127, 127, 127, 0.16));
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
 }
 
 .universe-thing__picture img,
@@ -75,7 +75,7 @@
 .universe-thing__chip {
     padding: 0.1rem 0.5rem;
     border-radius: var(--tl-radius-sm, 0.25rem);
-    background: var(--tl-surface-variant, rgba(127, 127, 127, 0.16));
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
     font-size: 0.75rem;
     text-transform: none;
     letter-spacing: 0;
@@ -177,7 +177,7 @@
     aspect-ratio: 1 / 1;
     overflow: hidden;
     border-radius: var(--tl-radius-md, 0.5rem);
-    background: var(--tl-surface-variant, rgba(127, 127, 127, 0.16));
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
 }
 
 .universe-thing__initial {

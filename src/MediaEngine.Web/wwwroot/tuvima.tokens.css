@@ -229,32 +229,6 @@
     --playback-utility-icon-size: 22px;
 
 
-    /* Look pass WP1: tokens that older styles referenced without a definition. One place now; do not add more aliases. */
-    --tl-danger: var(--tl-status-danger);
-    --tl-error: var(--tl-status-danger);
-    --tl-success: var(--tl-status-success);
-    --tl-warning: var(--tl-status-warning);
-    --tl-info: var(--tl-status-info);
-    --tl-primary: var(--tl-accent-primary);
-    --tl-accent: var(--tl-accent-primary);
-    --tl-accent-soft: var(--tl-accent-primary-soft);
-    --tl-on-accent: var(--tl-text-on-accent);
-    --tl-bg: var(--tl-bg-root);
-    --tl-bg-base: var(--tl-bg-root);
-    --tl-bg-page: var(--tl-bg-root);
-    --tl-bg-subtle: var(--tl-bg-surface);
-    --tl-bg-raised: var(--tl-bg-surface-raised);
-    --tl-bg-elevated: var(--tl-bg-surface-elevated);
-    --tl-surface-elevated: var(--tl-bg-surface-elevated);
-    --tl-surface-hover: var(--tl-bg-surface-hover);
-    --tl-surface-variant: var(--tl-bg-surface-raised);
-    --tl-text: var(--tl-text-primary);
-    --tl-text-default: var(--tl-text-primary);
-    --tl-font-sans: var(--font-ui);
-    --tl-font-size-h4: var(--tl-font-size-lg);
-    --tl-motion-fast: var(--tl-motion-duration-fast);
-    --tl-shadow-xl: var(--tl-shadow-lg);
-
     /* One color per area (Look pass D3). Used for the area's icon tile, label and filter chip everywhere. */
     --tl-area-watch: #FB7185;
     --tl-area-listen: #FBBF24;

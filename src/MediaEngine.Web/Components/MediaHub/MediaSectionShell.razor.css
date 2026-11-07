@@ -12,7 +12,7 @@
     /* Clipped, not just hidden: a hidden box can still be scrolled by focus or a scroll-into-view call, which pushed the rail and the page
        up under the top bar. A clipped shell never scrolls; the rail and the content scroll themselves. */
     overflow: clip;
-    background: var(--tl-bg-page);
+    background: var(--tl-bg-root);
 }
 
 .media-section-shell__mobile-nav {

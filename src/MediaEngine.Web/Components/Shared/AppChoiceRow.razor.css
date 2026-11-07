@@ -13,7 +13,7 @@
     cursor: pointer;
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-base);
+    background: var(--tl-bg-root);
 }
 
 .app-choice-row:hover:not(:disabled) {
@@ -27,7 +27,7 @@
 
 .app-choice-row.is-selected {
     border-color: var(--tl-accent-primary);
-    background: color-mix(in srgb, var(--tl-accent-primary) 11%, var(--tl-bg-base));
+    background: color-mix(in srgb, var(--tl-accent-primary) 11%, var(--tl-bg-root));
 }
 
 .app-choice-row:disabled {

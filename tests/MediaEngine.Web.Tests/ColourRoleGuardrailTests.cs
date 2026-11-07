@@ -98,7 +98,7 @@ public sealed class ColourRoleGuardrailTests
         Assert.DoesNotContain("gradient", css);
 
         var shell = Regex.Match(css, @"^\.media-section-shell \{[^}]*\}", RegexOptions.Multiline).Value;
-        Assert.Contains("background: var(--tl-bg-page);", shell);
+        Assert.Contains("background: var(--tl-bg-root);", shell);
         var rail = Regex.Match(css, @"^\.media-section-shell__rail \{[^}]*\}", RegexOptions.Multiline).Value;
         Assert.Contains("background: var(--tl-bg-shell);", rail);
         Assert.Contains("border-right: 1px solid var(--tl-border-subtle);", rail);

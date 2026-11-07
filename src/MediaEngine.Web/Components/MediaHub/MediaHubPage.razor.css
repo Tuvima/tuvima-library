@@ -2,7 +2,7 @@
     min-height: calc(100dvh - var(--app-topbar-height, 65px));
     padding: 0 0 clamp(48px, 5vw, 76px);
     color: rgba(248, 250, 252, 0.96);
-    background: var(--tl-bg-page);
+    background: var(--tl-bg-root);
 }
 
 .media-hub__shelves {
