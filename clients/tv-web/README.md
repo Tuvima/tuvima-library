@@ -149,3 +149,20 @@ behaviour checks for the API layer, the Universe page logic and remote input.
   packaged app should also add a content security policy that suits its runtime.
 - Photos (View) are not part of this client.
 - Search uses the TV's own on-screen keyboard through a text box.
+
+## Player
+
+The player follows the shared contract in
+[`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
+Already close: Left and Right seek while the timeline has focus, the Rewind and
+Fast-forward keys seek, an Up next prompt follows an episode, and captions come
+from the manifest. Gaps: Left and Right both seek a fixed 10 seconds and Rewind
+and Fast-forward a fixed 30 both ways, where the contract says all four use the
+profile's skip seconds (10 back and 30 forward by default); there is no
+Previous/Next transport row dimmed in place, no tool row (Episodes, Audio &
+subtitles, Bookmarks, Playback settings), no side panels, no bookmarks, no paused
+details and no Autoplay switch; the Up next prompt does not yet match the
+contract's end card. The gaps are one follow-up thread for the TV web app, laid
+out as the contract's first definition of the television side panels (Unified
+player v2, D29 and section 9). Samsung Tizen and LG webOS wrap this client, so
+they inherit its result.
