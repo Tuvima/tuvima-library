@@ -3225,7 +3225,7 @@ window.tuvimaArtwork = {
 };
 
 window.tuvimaMenu = { hasFocus: function (element) { return Promise.resolve().then(() => element.contains(document.activeElement)); }, move: function (element, key) {
-    const root = element.closest('[role="menu"],.media-rate-control,.playback-popover-content') || element;
+    const root = element.closest('[role="menu"],.media-rate-control,.playback-panel__body') || element;
     const items = Array.from(root.querySelectorAll('[role="menuitem"],[role="menuitemcheckbox"]')).filter(item => !item.disabled);
     if (!items.length) return;
     const current = items.indexOf(document.activeElement);

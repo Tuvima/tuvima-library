@@ -368,7 +368,6 @@ public sealed record ListenPlaybackSnapshot
 
     [JsonPropertyName("profile_id")]
     public Guid? ProfileId { get; init; }
-    private static readonly ListeningSettingsDto DefaultListening = new();
 
     [JsonPropertyName("queue")]
     public List<ListenQueueItem> Queue { get; init; } = [];
@@ -446,10 +445,10 @@ public sealed record ListenPlaybackSnapshot
     public string? CurrentError { get; init; }
 
     [JsonPropertyName("skip_back_seconds")]
-    public int SkipBackSeconds { get; init; } = DefaultListening.SkipBackSeconds;
+    public int SkipBackSeconds { get; init; } = ListenPlaybackClientSettings.FallbackSkipBackSeconds;
 
     [JsonPropertyName("skip_forward_seconds")]
-    public int SkipForwardSeconds { get; init; } = DefaultListening.SkipForwardSeconds;
+    public int SkipForwardSeconds { get; init; } = ListenPlaybackClientSettings.FallbackSkipForwardSeconds;
 
     [JsonPropertyName("sleep_timer_options_minutes")]
     public List<int> SleepTimerOptionsMinutes { get; init; } = [5, 10, 15, 30, 45, 60];
@@ -505,6 +504,18 @@ public sealed record ListenPlaybackClientSettings
     public int PendingTransportCommandLimit { get; init; } = 32;
     [JsonPropertyName("default_volume")]
     public double DefaultVolume { get; init; } = 0.8d;
+    /// <summary>The skip back length used before a profile's own choice is known (unified player v2 D3: 10 s for every media).</summary>
+    [JsonPropertyName("default_skip_back_seconds")]
+    public int DefaultSkipBackSeconds { get; init; } = FallbackSkipBackSeconds;
+    /// <summary>The skip forward length used before a profile's own choice is known (unified player v2 D3: 30 s for every media).</summary>
+    [JsonPropertyName("default_skip_forward_seconds")]
+    public int DefaultSkipForwardSeconds { get; init; } = FallbackSkipForwardSeconds;
+    /// <summary>Music Previous restarts the song after this many seconds of play; inside them it goes to the previous song (unified player v2 D3).</summary>
+    [JsonPropertyName("music_previous_restart_seconds")]
+    public double MusicPreviousRestartSeconds { get; init; } = 3d;
+
+    public const int FallbackSkipBackSeconds = 10;
+    public const int FallbackSkipForwardSeconds = 30;
 
     public ListenPlaybackClientSettings Normalize() => this with
     {
@@ -524,6 +535,9 @@ public sealed record ListenPlaybackClientSettings
         HeartbeatIntervalSeconds = Math.Clamp(HeartbeatIntervalSeconds, 1, 120),
         PendingTransportCommandLimit = Math.Clamp(PendingTransportCommandLimit, 1, 256),
         DefaultVolume = Math.Clamp(DefaultVolume, 0d, 1d),
+        DefaultSkipBackSeconds = Math.Clamp(DefaultSkipBackSeconds, 1, 999),
+        DefaultSkipForwardSeconds = Math.Clamp(DefaultSkipForwardSeconds, 1, 999),
+        MusicPreviousRestartSeconds = double.IsFinite(MusicPreviousRestartSeconds) ? Math.Clamp(MusicPreviousRestartSeconds, 0.5d, 30d) : 3d,
     };
 }
 

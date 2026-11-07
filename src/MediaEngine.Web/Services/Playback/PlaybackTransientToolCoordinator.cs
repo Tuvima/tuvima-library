@@ -7,6 +7,8 @@ public sealed class PlaybackTransientToolCoordinator : IDisposable
     private (Guid? Asset, long Version, Guid? Profile) _identity;
     public string? OpenToolId { get; private set; }
     public bool IsPinned { get; private set; }
+    /// <summary>True while any player panel or menu is open. The video chrome reads this so it never auto-hides under an open panel.</summary>
+    public bool IsPanelOpen => OpenToolId is not null;
     public event Action? Changed;
     private readonly Dictionary<string, string> _panels = [];
     private readonly Dictionary<string, string> _parents = [];

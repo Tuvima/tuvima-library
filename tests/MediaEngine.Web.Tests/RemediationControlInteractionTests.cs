@@ -49,7 +49,7 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
     {
         var changes = new List<double>();
         var cut = Render<PlaybackSpeedControl>(p => p.Add(c => c.Value, 1.2345).Add(c => c.ValueChanged, rate => changes.Add(rate)));
-        var popover = cut.FindComponent<PlaybackPopover>();
+        var popover = cut.FindComponent<PlaybackPanel>();
         await cut.InvokeAsync(() => popover.Instance.OpenAsync(true));
         Assert.Equal("1.2345x", cut.Find("output").TextContent);
         var slider = cut.Find("input[type=range]");

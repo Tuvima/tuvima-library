@@ -1,6 +1,8 @@
 # Spec: Videos in Watch (downloads, courses and saved channels) and the Vault
 
-> **Status:** Built (Waves 1 to 3 merged 2026-10-22; awaiting Local checks; follow-ups open, see the README line) · **Version:** 30 · **Last updated:** 2026-10-21 · **Related docs:** [Details overlay and edit mode spec](details-overlay-and-edit-mode.md) · [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Ingestion and readiness spec](ingestion-and-readiness.md) · [Developer tools spec](developer-tools.md) · [Universe spec](universe.md) · [Delete from library spec](delete-from-library.md) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
+> **Status:** Built (Waves 1 to 3 merged 2026-10-22; awaiting Local checks; follow-ups open, see the README line) · **Version:** 31 · **Last updated:** 2026-11-07 · **Related docs:** [Details overlay and edit mode spec](details-overlay-and-edit-mode.md) · [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Ingestion and readiness spec](ingestion-and-readiness.md) · [Developer tools spec](developer-tools.md) · [Universe spec](universe.md) · [Delete from library spec](delete-from-library.md) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
+
+> **Wording note (Shy, 2026-11-05, issue #703):** Videos and Other videos use video wording on every surface (Videos, named sections, Play/Resume, numbered titles); TV keeps Seasons and Episodes.
 
 ## 1. Goal
 

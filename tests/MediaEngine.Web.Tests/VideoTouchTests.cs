@@ -8,7 +8,7 @@ public sealed class VideoTouchTests
     private static readonly Uri BaseUri = new("http://localhost:5016/");
 
     [Fact]
-    public void EpisodeMetadataNamesTheShowAndSeasonAndUsesSizedCovers()
+    public void EpisodeMetadataNamesTheEpisodeThenTheShowAndNumberAndUsesSizedCovers()
     {
         var workId = Guid.NewGuid();
         var item = new ListenQueueItem
@@ -22,17 +22,12 @@ public sealed class VideoTouchTests
             Album = "Library Show",
         };
 
-        var metadata = VideoMediaSessionMetadata.Create(item, "The Show", BaseUri);
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Tv, item, BaseUri, ShowTitle: "The Show"))!;
 
         Assert.Equal("Pilot", metadata.Title);
-        Assert.Equal("The Show", metadata.Artist);
-        Assert.Equal("Season 2", metadata.Album);
-        Assert.Equal(
-            [
-                $"http://localhost:5016/engine-image/stream/entity/work/{workId:D}/cover?size=l",
-                $"http://localhost:5016/engine-image/stream/entity/work/{workId:D}/cover?size=m",
-            ],
-            metadata.Artwork.Select(artwork => artwork.Src));
+        Assert.Equal("The Show · S2 E1", metadata.Artist);
+        Assert.Equal(["512x512", "1024x1024"], metadata.Artwork.Select(artwork => artwork.Sizes));
+        Assert.All(metadata.Artwork, artwork => Assert.StartsWith($"http://localhost:5016/engine-image/stream/entity/work/{workId:D}/cover?size=", artwork.Src));
     }
 
     [Fact]
@@ -40,22 +35,20 @@ public sealed class VideoTouchTests
     {
         var item = new ListenQueueItem { WorkId = Guid.NewGuid(), MediaType = "TV", Title = "Pilot", EpisodeNumber = "1", Album = "Library Show" };
 
-        var metadata = VideoMediaSessionMetadata.Create(item, null, BaseUri);
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Tv, item, BaseUri))!;
 
-        Assert.Equal("Library Show", metadata.Artist);
-        Assert.Equal("Library Show", metadata.Album);
+        Assert.Equal("Library Show · E1", metadata.Artist);
     }
 
     [Fact]
-    public void FilmMetadataUsesTheYearAndSeries()
+    public void FilmMetadataUsesTheYearAndTheWordMovie()
     {
         var item = new ListenQueueItem { WorkId = Guid.NewGuid(), MediaType = "Movie", Title = "Dune", Year = "2021", Album = "Dune Films" };
 
-        var metadata = VideoMediaSessionMetadata.Create(item, "ignored", BaseUri);
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Movie, item, BaseUri, ShowTitle: "ignored"))!;
 
         Assert.Equal("Dune", metadata.Title);
-        Assert.Equal("2021", metadata.Artist);
-        Assert.Equal("Dune Films", metadata.Album);
+        Assert.Equal("2021 · Movie", metadata.Artist);
     }
 
     [Fact]
@@ -63,9 +56,10 @@ public sealed class VideoTouchTests
     {
         var item = new ListenQueueItem { WorkId = Guid.NewGuid(), MediaType = "Movie", Title = "Dune", Year = "2021" };
 
-        using var json = JsonDocument.Parse(JsonSerializer.Serialize(VideoMediaSessionMetadata.Create(item, null, BaseUri)));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Movie, item, BaseUri))));
 
-        Assert.Equal(["album", "artist", "artwork", "title"], json.RootElement.EnumerateObject().Select(property => property.Name).Order());
+        Assert.Equal(["actions", "album", "artist", "artwork", "skipBackSeconds", "skipForwardSeconds", "title"],
+            json.RootElement.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.True(json.RootElement.GetProperty("artwork")[0].TryGetProperty("src", out _));
     }
 
@@ -96,7 +90,6 @@ public sealed class VideoTouchTests
         Assert.Contains("requestVersion != Playback.PlaybackRequestVersion", razor, StringComparison.Ordinal);
         Assert.Contains("@media (prefers-reduced-motion: reduce)", css, StringComparison.Ordinal);
         Assert.Contains("@media (max-height: 450px)", css, StringComparison.Ordinal);
-        Assert.Contains("playback-video-controls__identity { display: none; }", css, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

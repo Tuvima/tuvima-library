@@ -1,0 +1,146 @@
+/* Unified player v2 D7, D11: the panel frame. The root is a browser top-layer popover that playback-popover.js moves into the fullscreen element
+   (or the page) and places; the header and footer are fixed and only the body scrolls. Menu 272, Panel 400 (360 to 420), Wide 560 (all capped to the viewport). */
+.playback-panel {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--playback-text);
+    overflow: visible;
+    display: flex;
+    z-index: 1500;
+    width: var(--playback-panel-width);
+    max-width: calc(100vw - 2 * var(--playback-panel-edge));
+    max-height: min(80dvh, 640px);
+    visibility: hidden;
+}
+
+.playback-panel[data-playback-panel-placed] {
+    visibility: visible;
+}
+
+.playback-panel--menu {
+    width: var(--playback-panel-menu-width);
+}
+
+.playback-panel--wide {
+    width: var(--playback-panel-wide-width);
+}
+
+.playback-panel__frame {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--playback-hairline);
+    border-radius: var(--playback-panel-radius);
+    background: var(--playback-popover-surface);
+    box-shadow: var(--playback-panel-shadow);
+    color: var(--playback-text);
+    overflow: hidden;
+    position: relative;
+}
+
+.playback-panel[data-playback-popover-surface="video"] .playback-panel__frame {
+    background: var(--playback-panel-surface-video);
+}
+
+.playback-panel__header {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: 10px;
+    padding: 12px 12px 10px 16px;
+    border-bottom: 1px solid var(--tl-border-default);
+}
+
+.playback-panel__title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--playback-panel-title-size);
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-panel__header-line {
+    flex: none;
+    padding: 10px 16px 4px;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-menu-helper-font-size);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-panel__body {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding: 8px;
+}
+
+.playback-panel__body--menu {
+    padding: 4px 8px 8px;
+}
+
+.playback-panel__body:has(.playback-sheet-list) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.playback-panel__footer {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--tl-border-default);
+    font-size: var(--tl-font-size-sm);
+}
+
+.playback-panel--sheet {
+    display: block;
+    max-height: none;
+    max-width: none;
+    background: transparent;
+}
+
+.playback-panel__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.53);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .playback-panel:not(.playback-panel--sheet) .playback-panel__frame {
+        animation: playback-panel-in 140ms ease-out;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .playback-panel__body--nested {
+        animation: playback-panel-slide 160ms ease-out;
+    }
+}
+
+@keyframes playback-panel-slide {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes playback-panel-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}

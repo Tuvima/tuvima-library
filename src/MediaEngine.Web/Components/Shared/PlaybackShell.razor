@@ -1,0 +1,273 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Linq
+@using MediaEngine.Web.Services.Playback
+
+@* The one persistent bar for music, audiobooks, TV and movies (unified player v2 D1 to D6). Three zones in a grid whose outer columns are equal
+   (1fr auto 1fr), so Play sits at the exact centre whatever the title or the tools take: identity on the left, transport in the middle, the
+   tools of D4 on the right. The shell draws the bar from PlaybackControlCatalog and the playing item; the two hosts (ListenNowPlayingBar and
+   VideoPlaybackHost) keep the playback wiring, the media elements and the panels, and slot their own pieces in (the timeline, the identity
+   links and actions, and any tool whose panel they own through HostedTools and ToolContent). *@
+<section class="@RootClass" aria-label="@AriaLabel" data-playback-shell data-playback-media="@MediaName" data-playback-surface="@NormalizedSurface" @attributes="AdditionalAttributes">
+    @if (TimelineContent is not null)
+    {
+        <div class="playback-shell__timeline" data-playback-zone="timeline">@TimelineContent</div>
+    }
+    <div class="playback-shell__row">
+        <div class="playback-shell__identity" data-playback-zone="identity">
+            @if (ShowArtwork)
+            {
+                @if (ArtworkClick.HasDelegate)
+                {
+                    <AppNativeButton @ref="_artworkButton" Type="button" Class="@ArtworkClass" OnClick="ArtworkClick" AriaLabel="@ArtworkLabel">@ArtworkImage</AppNativeButton>
+                }
+                else
+                {
+                    <div class="@ArtworkClass">@ArtworkImage</div>
+                }
+            }
+            <div class="playback-shell__text">
+                <div class="playback-shell__title">@RenderLink(Identity.Title, Identity.TitleLinkKind, Identity.TitleLinkId)</div>
+                @if (Identity.Secondary.Count > 0)
+                {
+                    <div class="playback-shell__secondary">
+                        @for (var index = 0; index < Identity.Secondary.Count; index++)
+                        {
+                            var part = Identity.Secondary[index];
+                            @if (index > 0) { <span class="playback-shell__separator">@part.Separator</span> }
+                            @RenderLink(part.Text, part.LinkKind, part.LinkId)
+                        }
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(ErrorText))
+                {
+                    <div class="playback-shell__error" role="status">@ErrorText</div>
+                }
+            </div>
+            @if (IdentityActions is not null && !Compact)
+            {
+                <div class="playback-shell__actions">@IdentityActions</div>
+            }
+        </div>
+
+        <div class="playback-shell__transport" role="group" aria-label="@TransportLabel" data-playback-zone="transport">
+            @foreach (var control in TransportControls)
+            {
+                @switch (control.Key)
+                {
+                    case PlaybackControlKey.PlayPause:
+                        <PlaybackPrimaryButton Size="bar" IsPlaying="@State.IsPlaying" NeedsUserGestureToStart="@State.NeedsUserGestureToStart"
+                                               Disabled="@control.IsDisabled" AriaLabel="@control.AriaLabel"
+                                               OnClick="@(() => OnTransport.InvokeAsync(control))" @attributes="PlayButtonAttributes" />
+                        break;
+                    case PlaybackControlKey.SkipBack:
+                    case PlaybackControlKey.SkipForward:
+                        <PlaybackRelativeSkipButton Size="bar" Direction="@(control.Key == PlaybackControlKey.SkipBack ? "back" : "forward")"
+                                                    Seconds="@(control.Key == PlaybackControlKey.SkipBack ? State.SkipBackSeconds : State.SkipForwardSeconds)"
+                                                    Disabled="@control.IsDisabled" OnClick="@(() => OnTransport.InvokeAsync(control))" />
+                        break;
+                    default:
+                        <PlaybackIconButton Control="@control" Surface="@IconSurface" Appearance="bare"
+                                            OnClick="@(() => OnTransport.InvokeAsync(control))" />
+                        break;
+                }
+            }
+        </div>
+
+        <div class="playback-shell__tools" role="toolbar" aria-label="@ToolsLabel" data-playback-zone="tools" data-playback-tools-zone>
+            @foreach (var tool in ToolControls)
+            {
+                @if (OmittedTools.Contains(tool.Key))
+                {
+                }
+                else if (HostedTools.Contains(tool.Key) && ToolContent is not null)
+                {
+                    @ToolContent(tool)
+                }
+                else if (tool.Key == PlaybackControlKey.Volume)
+                {
+                    <PlaybackVolumeControl Surface="@IconSurface" Size="standard" Appearance="bare" CommitOnChange="@CommitVolumeOnChange" Step="@VolumeStep"
+                                           Volume="@Volume" IsMuted="@IsMuted" Supported="@VolumeSupported"
+                                           OnToggleMute="OnToggleMute" OnVolumeChanged="OnVolumeChanged" />
+                }
+                else if (tool.Key == PlaybackControlKey.Speed)
+                {
+                    <AppTooltip Text="@tool.AriaLabel">
+                        <AppNativeButton Type="button" Class="@($"playback-popover-trigger playback-shell__chip{(tool.IsActive ? " is-on" : null)}")" AriaLabel="@tool.AriaLabel"
+                                         OnClick="@(() => OnTool.InvokeAsync(new PlaybackControlActivation(tool, default)))">@tool.ValueText</AppNativeButton>
+                    </AppTooltip>
+                }
+                else
+                {
+                    <PlaybackIconButton Control="@tool" Surface="@IconSurface" Appearance="bare"
+                                        OnActivated="@(trigger => OnTool.InvokeAsync(new PlaybackControlActivation(tool, trigger)))" />
+                }
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    /// <summary>Which of the four media the bar is drawn for.</summary>
+    [Parameter] public PlaybackBarMedia Media { get; set; }
+
+    /// <summary>"dock" (the bar over the library, on the shell color) or "video" (over the picture: hover is 12% white instead of 8%).</summary>
+    [Parameter] public string Surface { get; set; } = "dock";
+
+    /// <summary>The phone's collapsed bar (unified player v2 D26): Play and Next (Skip forward for audiobooks) and the one tool that opens Now playing.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+
+    [Parameter] public string AriaLabel { get; set; } = "Player";
+
+    /// <summary>What the transport and tools are drawn from.</summary>
+    [Parameter] public PlaybackBarState State { get; set; } = new();
+
+    /// <summary>The title and second line (see <see cref="PlaybackBarIdentity.Build"/>).</summary>
+    [Parameter] public PlaybackBarIdentity Identity { get; set; } = new(string.Empty, null, null, []);
+
+    /// <summary>Draws a title or name that links to its page; without it every name is plain text.</summary>
+    [Parameter] public RenderFragment<PlaybackIdentityLinkRequest>? LinkContent { get; set; }
+
+    [Parameter] public string? ArtworkSrc { get; set; }
+    [Parameter] public string? ArtworkSrcSet { get; set; }
+    [Parameter] public string? ArtworkAlt { get; set; }
+    [Parameter] public string? ArtworkDisplay { get; set; }
+
+    /// <summary>The artwork becomes a button (it opens Now playing) when the host listens.</summary>
+    [Parameter] public EventCallback ArtworkClick { get; set; }
+    [Parameter] public string ArtworkLabel { get; set; } = "Open Now playing";
+
+    /// <summary>Favorite, Like, Dislike and More for music, drawn beside the text.</summary>
+    [Parameter] public RenderFragment? IdentityActions { get; set; }
+
+    /// <summary>Shown under the second line in the error color when playback failed.</summary>
+    [Parameter] public string? ErrorText { get; set; }
+
+    /// <summary>The thin timeline above the row (the host passes its PlaybackSeekRail; the shell does not restyle it).</summary>
+    [Parameter] public RenderFragment? TimelineContent { get; set; }
+
+    [Parameter] public EventCallback<PlaybackControlDefinition> OnTransport { get; set; }
+    /// <summary>A tool that has no panel of the host's own was pressed; carries the button so the host can anchor a panel to it.</summary>
+    [Parameter] public EventCallback<PlaybackControlActivation> OnTool { get; set; }
+
+    /// <summary>Tools whose panel the host owns; the shell asks <see cref="ToolContent"/> to draw them in their place in the order.</summary>
+    [Parameter] public IReadOnlySet<PlaybackControlKey> HostedTools { get; set; } = new HashSet<PlaybackControlKey>();
+    [Parameter] public RenderFragment<PlaybackControlDefinition>? ToolContent { get; set; }
+
+    /// <summary>Tools the host has no panel for yet; the shell leaves them out rather than draw a button that does nothing.</summary>
+    [Parameter] public IReadOnlySet<PlaybackControlKey> OmittedTools { get; set; } = new HashSet<PlaybackControlKey>();
+
+    /// <summary>Extra attributes for the Play button (the audio bar's start-on-gesture data).</summary>
+    [Parameter] public IReadOnlyDictionary<string, object>? PlayButtonAttributes { get; set; }
+
+    [Parameter] public double Volume { get; set; }
+    [Parameter] public bool IsMuted { get; set; }
+    [Parameter] public bool VolumeSupported { get; set; } = true;
+    [Parameter] public double VolumeStep { get; set; } = 0.05;
+    /// <summary>True sends the volume once the slider is released (the audio bar); false follows the drag (the video).</summary>
+    [Parameter] public bool CommitVolumeOnChange { get; set; } = true;
+    [Parameter] public EventCallback OnToggleMute { get; set; }
+    [Parameter] public EventCallback<double> OnVolumeChanged { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AppNativeButton? _artworkButton;
+
+    /// <summary>The artwork button, so a host can anchor a panel to it or return focus to it.</summary>
+    public ElementReference? ArtworkElement => _artworkButton?.Element;
+
+    private bool IsVideoMedia => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;
+    private string NormalizedSurface => Surface == "video" ? "video" : "dock";
+    private string IconSurface => NormalizedSurface == "video" ? "video" : "dock";
+    private string MediaName => Media.ToString().ToLowerInvariant();
+    private bool ShowArtwork => !Compact || !IsVideoMedia;
+    private string TransportLabel => Media switch
+    {
+        PlaybackBarMedia.Music => "Music playback controls",
+        PlaybackBarMedia.Audiobook => "Audiobook playback controls",
+        _ => "Video playback controls",
+    };
+    private string ToolsLabel => "Playback tools";
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "playback-shell",
+        $"playback-shell--{MediaName}",
+        $"playback-shell--surface-{NormalizedSurface}",
+        Compact ? "playback-shell--compact" : null,
+        Class,
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string ArtworkClass => $"playback-shell__art {(IsVideoMedia ? "playback-shell__art--wide" : "playback-shell__art--square")}"
+        + (ArtworkClick.HasDelegate ? " playback-shell__art--button" : null);
+
+    /// <summary>The transport, trimmed for the phone's collapsed bar: Play and Next (Skip forward for audiobooks), nothing else.</summary>
+    private IReadOnlyList<PlaybackControlDefinition> TransportControls
+    {
+        get
+        {
+            var all = PlaybackControlCatalog.BuildBarTransport(Media, State);
+            if (!Compact)
+            {
+                return all;
+            }
+
+            var keep = Media switch
+            {
+                PlaybackBarMedia.Music => new[] { PlaybackControlKey.PlayPause, PlaybackControlKey.NextItem },
+                PlaybackBarMedia.Audiobook => new[] { PlaybackControlKey.PlayPause, PlaybackControlKey.SkipForward },
+                _ => new[] { PlaybackControlKey.PlayPause },
+            };
+            return all.Where(control => keep.Contains(control.Key)).ToList();
+        }
+    }
+
+    /// <summary>The tools of D4; the phone's collapsed bar keeps only the one that opens Now playing.</summary>
+    private IReadOnlyList<PlaybackControlDefinition> ToolControls
+    {
+        get
+        {
+            var all = PlaybackControlCatalog.BuildBarTools(Media, State);
+            return Compact ? all.Where(control => control.Key == PlaybackControlKey.NowPlaying).ToList() : all;
+        }
+    }
+
+    private RenderFragment ArtworkImage => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(ArtworkSrc))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "playback-shell__art-placeholder");
+            builder.AddAttribute(2, "aria-hidden", "true");
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(10, "img");
+        builder.AddAttribute(11, "src", ArtworkSrc);
+        if (!string.IsNullOrWhiteSpace(ArtworkSrcSet))
+        {
+            builder.AddAttribute(12, "srcset", ArtworkSrcSet);
+        }
+        if (!string.IsNullOrWhiteSpace(ArtworkDisplay))
+        {
+            builder.AddAttribute(13, "data-image-display", ArtworkDisplay);
+        }
+        builder.AddAttribute(14, "alt", ArtworkAlt ?? string.Empty);
+        builder.AddAttribute(15, "decoding", "async");
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderLink(string text, string? kind, Guid? id) => builder =>
+    {
+        if (LinkContent is not null && !string.IsNullOrEmpty(kind) && id is not null)
+        {
+            builder.AddContent(0, LinkContent(new PlaybackIdentityLinkRequest(text, kind, id.Value)));
+        }
+        else
+        {
+            builder.AddContent(1, text);
+        }
+    };
+}

@@ -2,7 +2,7 @@
 @using MediaEngine.Web.Services.Playback
 @inject IStringLocalizer<SharedStrings> L
 <span class="playback-speed-control @Class">
-<PlaybackPopover Title="@(PlaybackRateOptions.IsValid(Value) ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")" ToolId="@_id" Kind="speed" ShowHeading="false" Surface="@Surface" Disabled="@(!PlaybackRateOptions.IsValid(Value))" OpenChanged="MenuOpenChanged" Open="Open">
+<PlaybackPanel Title="@(PlaybackRateOptions.IsValid(Value) ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")" ToolId="@_id" Kind="speed" ShowHeading="false" Surface="@Surface" Disabled="@(!PlaybackRateOptions.IsValid(Value))" OpenChanged="MenuOpenChanged" Open="Open">
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" /></TriggerContent>
     <ChildContent>
         <div class="playback-speed-control__slider">
@@ -11,7 +11,7 @@
             <AppNativeButton Type="button" OnClick="@(() => ValueChanged.InvokeAsync(1d))" AriaLabel="@L["PlaybackSpeedControl_ResetPlaybackSpeedTo1"].Value">@L["PlaybackSpeedControl_ResetTo1"]</AppNativeButton>
         </div>
     </ChildContent>
-</PlaybackPopover>
+</PlaybackPanel>
 </span>
 @code {
     private readonly string _id = $"speed-{Guid.NewGuid():N}";

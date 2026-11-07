@@ -84,13 +84,34 @@ public sealed class ItemExtraRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task APersonsDecision_GoesWhenItsFileIsGone()
+    public async Task APersonsDecision_IsKeptAsMissingWhenItsFileIsGone_AndGoesOnceItHasBeenMissingLongEnough()
     {
         await _extras.SetDecisionAsync(Extra("Lesson 03.mp4", ItemExtraKinds.Clip) with { Origin = ItemExtraOrigins.UserExtra });
 
-        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Lesson 03.mp4"]);
+        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Lesson 03.mp4"], DateTimeOffset.UtcNow.AddDays(-30));
+
+        var kept = Assert.Single(await _extras.ListByItemFoldersAsync([Show]));
+        Assert.True(kept.IsMissingFromDisk);
+
+        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Lesson 03.mp4"], DateTimeOffset.UtcNow.AddDays(1));
 
         Assert.Empty(await _extras.ListByItemFoldersAsync([Show]));
+    }
+
+    [Fact]
+    public async Task ARuleFoundFileThatLeavesTheDisk_KeepsItsRecordAsMissing_AndComesBackWhenTheFileDoes()
+    {
+        await _extras.SyncItemFolderAsync(Show, [Extra("Workbook.pdf", ItemExtraKinds.Document)], []);
+        var id = (await _extras.GetByPathAsync($"{Show}/Workbook.pdf"))!.Id;
+
+        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Workbook.pdf"], DateTimeOffset.UtcNow.AddDays(-30));
+        Assert.True((await _extras.GetByPathAsync($"{Show}/Workbook.pdf"))!.IsMissingFromDisk);
+
+        await _extras.SyncItemFolderAsync(Show, [Extra("Workbook.pdf", ItemExtraKinds.Document)], [], DateTimeOffset.UtcNow.AddDays(-30));
+
+        var back = (await _extras.GetByPathAsync($"{Show}/Workbook.pdf"))!;
+        Assert.Equal(id, back.Id);
+        Assert.False(back.IsMissingFromDisk);
     }
 
     [Fact]

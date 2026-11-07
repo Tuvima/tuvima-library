@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @* The Pop-out surface (Look v3 D14): a small panel drawn over a control, no scrim. The anchoring and dismissal come from AppPopover
-   (app-popover.js) or the player's PlaybackPopover; this part is the surface itself, so every pop-out and the player's tool sheet carry one
+   (app-popover.js) or the player's PlaybackPanel; this part is the surface itself, so every pop-out and the player's tool sheet carry one
    role, one label and one size vocabulary. On phones the same surface is a Sheet. *@
 <section @ref="_root" id="@Id" class="@RootClass" role="@Role" aria-label="@AriaLabel" aria-modal="@(Modal ? "true" : null)" tabindex="@(Modal ? "-1" : null)" data-popout-size="@SizeName" style="@Css" @attributes="AdditionalAttributes">
     @ChildContent

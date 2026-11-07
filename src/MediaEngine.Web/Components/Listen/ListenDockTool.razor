@@ -13,12 +13,11 @@
 }
 else
 {
-<PlaybackPopover @ref="_popover" Title="@Title" ToolId="@($"audio-{PanelKey}")" ItemKey="@ItemKey"
-                 Kind="@(PanelKey == "lyrics" ? "lyrics" : "ordinary")" ShowHeading="false"
-                 HoverPreview="@(PanelKey is "lyrics" or "queue" or "chapters")" OpenChanged="OnOpenChanged">
+<PlaybackPanel @ref="_popover" Title="@Title" ToolId="@($"audio-{PanelKey}")" ItemKey="@ItemKey"
+               Kind="@(PanelKey == "lyrics" ? "lyrics" : "ordinary")" ShowHeading="false" OpenChanged="OnOpenChanged">
     <TriggerContent><PlaybackUtilityGlyph Glyph="@Glyph" /></TriggerContent>
     <ChildContent>@ChildContent</ChildContent>
-</PlaybackPopover>
+</PlaybackPanel>
 
 }
 
@@ -33,7 +32,7 @@ else
     private AppNativeButton? _inlineButton;
     [Parameter] public EventCallback<bool> OnOpenChanged { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
-    private PlaybackPopover? _popover;
+    private PlaybackPanel? _popover;
     public ElementReference? TriggerElement => Inline ? _inlineButton?.Element : _popover?.TriggerElement;
     public Task OpenAsync() => Inline ? OnInlineSelected.InvokeAsync() : _popover?.OpenAsync(true) ?? Task.CompletedTask;
 }

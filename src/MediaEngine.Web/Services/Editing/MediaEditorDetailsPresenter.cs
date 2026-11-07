@@ -80,6 +80,10 @@ public static class MediaEditorDetailsPresenter
         ["Books|series"] = [Spec("series", "Title", "Title", tier: 1), Spec("series_start_year", "Start year", "CalendarToday", "number", 1), Spec("series_end_year", "End year", "Event", "number", 1), Spec("work_count", "Owned books", "MenuBook", "number", 1), Language, Description, Genres, Tags, Spec("author", "Authors", "Person", chips: true)],
         ["Audiobooks|audiobook"] = [Title, Spec("author", "Author", "Person", chips: true, tier: 1), Spec("narrator", "Narrator", "RecordVoiceOver", chips: true, tier: 1), Spec("release_date", "Release date", "CalendarToday", "date", 1), Year, Duration, Rating, Language, Description, Genres, Tags, Spec("series", "Series", "CollectionsBookmark", tier: 1), Spec("series_position", "Position", "Tag", "text", 1), Publisher, Spec("isbn", "ISBN", "Numbers", tier: 3), Spec("asin", "ASIN", "Numbers", tier: 3)],
         ["Audiobooks|series"] = [Spec("series", "Title", "Title", tier: 1), Spec("series_start_year", "Start year", "CalendarToday", "number", 1), Spec("series_end_year", "End year", "Event", "number", 1), Spec("work_count", "Owned audiobooks", "Headphones", "number", 1), Description, Genres, Spec("author", "Authors", "Person", chips: true)],
+        // A folder of videos, its sections and its single videos: local names and notes, no provider facts (VideoFolderWording).
+        ["Videos|series"] = [Title, Rating, Language, Description, Genres, Tags],
+        ["Videos|section"] = [Title, Description],
+        ["Videos|video"] = [Title, OriginalTitle, Year, Duration, Rating, Language, Description, Genres, Tags],
         ["Comics|issue"] = [Spec("issue_title", "Title", "Title", tier: 1), Spec("issue_number", "Issue", "Tag", "text", 1), Spec("publication_date", "Publication date", "CalendarToday", "date", 1), Spec("year", "Year", "CalendarToday", "number", 1), Spec("page_count", "Pages", "MenuBook", "number", 1), Rating, Language,
             Spec("issue_description", "Synopsis", "Description", "textarea"), Spec("series", "Series / run", "CollectionsBookmark", tier: 1), Publisher, Genres, Tags, Spec("author", "Writer", "Person", chips: true), Spec("illustrator", "Illustrator", "Brush", chips: true)],
         ["Comics|series"] = [Spec("series", "Title", "Title", tier: 1), Publisher, Spec("series_start_year", "Start year", "CalendarToday", "number", 1), Spec("series_end_year", "End year", "Event", "number", 1), Spec("issue_count", "Owned issues", "MenuBook", "number", 1), Language, Description, Genres, Tags, Spec("author", "Writers", "Person", chips: true), Spec("illustrator", "Artists", "Brush", chips: true), Spec("franchise", "Universe", "Hub", tier: 3)],
@@ -608,6 +612,7 @@ public static class MediaEditorDetailsPresenter
         "book" or "books" => "Books",
         "audiobook" or "audiobooks" => "Audiobooks",
         "comic" or "comics" => "Comics",
+        "video" or "videos" => "Videos",
         _ => "Books",
     };
 
@@ -635,6 +640,7 @@ public static class MediaEditorDetailsPresenter
             "Books" => "book",
             "Audiobooks" => "audiobook",
             "Comics" => "issue",
+            "Videos" => "video",
             _ => "book",
         };
         return ScopeFields.TryGetValue($"{type}|{scope}", out var exact)

@@ -38,6 +38,12 @@ public enum PlaybackControlKey
     Resume,
     SkipIntro,
     SkipCredits,
+    /// <summary>Unified player v2 D4: the video tool that opens Audio and Subtitles together.</summary>
+    AudioSubtitles,
+    /// <summary>Unified player v2 D4: the TV episode list tool.</summary>
+    Episodes,
+    /// <summary>Unified player v2 D4: the icon-only Now playing tool of music and audiobooks.</summary>
+    NowPlaying,
 }
 
 public enum PlaybackControlSurface
@@ -85,12 +91,13 @@ public sealed record PlaybackControlState(
     bool IsRepeatEnabled = false,
     bool IsSleepTimerActive = false,
     string? SleepTimerValueText = null,
-    int SkipBackSeconds = 15,
-    int SkipForwardSeconds = 15,
+    int SkipBackSeconds = 10,
+    int SkipForwardSeconds = 30,
     int HistoryCount = 0,
     string? RepeatMode = null,
     bool CanBookmark = false,
-    bool IsMovie = false);
+    bool IsMovie = false,
+    bool IsFolderVideo = false);
 
 public sealed record PlaybackControlDefinition(
     PlaybackControlKey Key,
@@ -106,7 +113,7 @@ public sealed record PlaybackControlDefinition(
     bool IsDisabled = false,
     bool IsSelected = false);
 
-public static class PlaybackControlCatalog
+public static partial class PlaybackControlCatalog
 {
     public static IReadOnlyList<PlaybackControlDefinition> Build(
         PlaybackExperience experience,
@@ -318,7 +325,7 @@ public static class PlaybackControlCatalog
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
                 if (state.IsTvEpisode && state.HasQueue)
                 {
-                    controls.Add(Tool(PlaybackControlKey.Queue, "Episodes", "queue", state));
+                    controls.Add(Tool(PlaybackControlKey.Queue, state.IsFolderVideo ? "Videos" : "Episodes", "queue", state));
                 }
                 else if (!state.IsTvEpisode && !state.IsMovie && state.HasQueue)
                 {

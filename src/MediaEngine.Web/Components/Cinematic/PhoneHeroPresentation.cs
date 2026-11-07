@@ -118,7 +118,7 @@ public static partial class PhoneHeroPresentation
     }
 
     /// <summary>
-    /// The picture ladder: a landscape backdrop (with the title logo over it when there is one), else the cover at its
+    /// The picture ladder: a landscape backdrop (with the title logo over it when there is one; a video's extracted frame counts as one), else the cover at its
     /// natural shape, else a placeholder. The Engine's stand-in cover is a 100 x 150 picture and carries no flag of its own,
     /// so the measured cover width is the signal: a cover of unknown or tiny width is not real artwork and gets the tile.
     /// Phones ask for the "m" rendition, which stays under about 210 KB.
@@ -138,6 +138,12 @@ public static partial class PhoneHeroPresentation
         var coverUsable = !string.IsNullOrWhiteSpace(hero.PreviewImageUrl)
             && hero.CoverWidthPx is { } coverWidth
             && coverWidth >= MinUsableCoverWidthPx;
+        if (coverUsable && IsVideoKind(hero.MediaKind))
+        {
+            // An Other video has no portrait cover: its picture is a frame taken from the video, so it fills the card like a film's backdrop.
+            return new PhoneHeroArtwork(PhoneHeroArt.Backdrop, MediaTileArtworkUrl.Sized(hero.PreviewImageUrl, "m") ?? hero.PreviewImageUrl, null);
+        }
+
         if (coverUsable)
         {
             return new PhoneHeroArtwork(PhoneHeroArt.Cover, MediaTileArtworkUrl.Sized(hero.PreviewImageUrl, "m") ?? hero.PreviewImageUrl, null);

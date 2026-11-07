@@ -63,7 +63,7 @@ public sealed class AudiobookSettingsGearTests : AsyncBunitContext
             .Add(component => component.PlaybackRateChanged, EventCallback.Factory.Create<double>(this, _ => { }))
             .Add(component => component.ShowBookmarksOnBarChanged, EventCallback.Factory.Create<bool>(this, _ => { })));
 
-        var popover = cut.FindComponent<PlaybackPopover>();
+        var popover = cut.FindComponent<PlaybackPanel>();
         await cut.InvokeAsync(() => popover.Instance.OpenAsync(true));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-row='sleep']")));
 

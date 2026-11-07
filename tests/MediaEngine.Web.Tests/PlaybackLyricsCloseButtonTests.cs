@@ -10,8 +10,8 @@ public sealed class PlaybackLyricsCloseButtonTests : AsyncBunitContext
 {
     public PlaybackLyricsCloseButtonTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddLocalization(); Services.AddNativeUiServices(); }
 
-    private IRenderedComponent<PlaybackPopover> RenderPopover(string kind) =>
-        Render<PlaybackPopover>(parameters => parameters
+    private IRenderedComponent<PlaybackPanel> RenderPopover(string kind) =>
+        Render<PlaybackPanel>(parameters => parameters
             .Add(p => p.Title, "Lyrics")
             .Add(p => p.Kind, kind)
             .Add(p => p.TriggerContent, (RenderFragment)(builder => builder.AddContent(0, "L")))

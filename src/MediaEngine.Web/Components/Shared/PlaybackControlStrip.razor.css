@@ -1,5 +1,5 @@
 .playback-control-strip {
-    --playback-control-min: 56px;
+    --playback-control-min: var(--playback-control-target);
     align-items: stretch;
     display: grid;
     gap: 6px;
@@ -8,26 +8,26 @@
 }
 
 .playback-control-strip--compact {
-    --playback-control-min: 48px;
+    --playback-control-min: var(--playback-control-target);
 }
 
 .playback-control-strip--large {
-    --playback-control-min: 64px;
+    --playback-control-min: var(--playback-control-target);
     gap: 8px;
 }
 
-.playback-control-strip--surface-dock { --playback-control-min:44px; gap:4px; }
-.playback-control-strip--surface-expanded { --playback-control-min:68px; gap:12px; }
-.playback-control-strip--surface-phone { --playback-control-min:60px; gap:8px; }
-.playback-control-strip--surface-popup { --playback-control-min:44px; gap:4px; }
-.playback-control-strip--surface-video { --playback-control-min:48px; gap:6px; }
+.playback-control-strip--surface-dock { --playback-control-min:var(--playback-control-target); gap:4px; }
+.playback-control-strip--surface-expanded { --playback-control-min:var(--playback-control-target); gap:12px; }
+.playback-control-strip--surface-phone { --playback-control-min:var(--playback-control-target); gap:8px; }
+.playback-control-strip--surface-popup { --playback-control-min:var(--playback-control-target); gap:4px; }
+.playback-control-strip--surface-video { --playback-control-min:var(--playback-control-target); gap:6px; }
 .playback-control-strip--surface-video { display:flex; flex-flow:row nowrap; width:max-content; }
-.playback-control-strip--surface-video ::deep .playback-icon-button-shell { flex:0 0 44px; width:44px; }
+.playback-control-strip--surface-video ::deep .playback-icon-button-shell { flex:0 0 var(--playback-control-target); width:var(--playback-control-target); }
 .playback-control-strip--surface-phone,
 .playback-control-strip--surface-expanded { align-items:start; justify-items:center; }
 .playback-control-strip--appearance-bare.playback-control-strip--surface-dock { display:flex; flex-flow:row nowrap; gap:4px; width:max-content; }
-.playback-control-strip--appearance-bare.playback-control-strip--surface-dock ::deep .playback-speed-control { flex:0 0 44px; width:44px; }
-.playback-control-strip ::deep .playback-sleep-timer { flex:0 0 44px; width:44px; }
+.playback-control-strip--appearance-bare.playback-control-strip--surface-dock ::deep .playback-speed-control { flex:0 0 var(--playback-control-target); width:var(--playback-control-target); }
+.playback-control-strip ::deep .playback-sleep-timer { flex:0 0 var(--playback-control-target); width:var(--playback-control-target); }
 
 /* Dock tools retain a horizontal intrinsic width beside volume/window controls. */
 

@@ -77,7 +77,7 @@
 
     // The title, or "S3 E8 · Episode title" for an episode.
     private string HeadingText => Item.EpisodeContext is { } episode
-        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}"
+        ? MediaTileLabels.EpisodeHeading(Item, episode)
         : Title;
 
     // Then the rating and year (D8); a title with neither (a book, an audiobook) shows its author or artist instead of an empty line.

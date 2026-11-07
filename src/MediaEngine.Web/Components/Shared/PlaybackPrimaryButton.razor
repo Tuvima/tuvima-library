@@ -5,12 +5,20 @@
 <span class="@RootClass">
     <AppTooltip Text="@ResolvedAriaLabel">
     <AppNativeButton Type="button"
-                     Class="playback-primary-button"
+                     Class="@ButtonClass"
                      Css="@Css"
+                     Disabled="@Disabled"
                      OnClick="@HandleClickAsync"
                      AriaLabel="@ResolvedAriaLabel"
                      @attributes="AdditionalAttributes">
-        <AppMaterialIcon Icon="@Icon" Class="playback-primary-button__icon" />
+        @if (IsBar)
+        {
+            <PlaybackUtilityGlyph Glyph="@(ShowsPause ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play)" />
+        }
+        else
+        {
+            <AppMaterialIcon Icon="@Icon" Class="playback-primary-button__icon" />
+        }
     </AppNativeButton>
     </AppTooltip>
 </span>
@@ -32,6 +40,9 @@
     public string? Class { get; set; }
 
     [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
     public string? Css { get; set; }
 
     [Parameter]
@@ -47,8 +58,15 @@
     {
         "compact" => "compact",
         "large" => "large",
+        "bar" => "bar",
         _ => "standard"
     };
+
+    /// <summary>The persistent bar's Play button (unified player v2 D6): a 32 px stroke glyph in a 48 px target, no ring, the shared state set.</summary>
+    private bool IsBar => NormalizedSize == "bar";
+    private bool ShowsPause => IsPlaying && !NeedsUserGestureToStart;
+    // The bar does not wear the ring button's class, so none of the ring button's state rules can reach it.
+    private string ButtonClass => IsBar ? "playback-bar-play" : "playback-primary-button";
 
     private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
 
@@ -67,7 +85,8 @@
             "playback-primary-button-shell",
             $"playback-primary-button-shell--{NormalizedSize}",
             $"playback-primary-button-shell--appearance-{NormalizedAppearance}",
-            IsPlaying && !NeedsUserGestureToStart ? "is-playing" : null,
+            ShowsPause ? "is-playing" : null,
+            Disabled ? "is-disabled" : null,
             Class
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
