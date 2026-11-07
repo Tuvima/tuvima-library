@@ -11456,6 +11456,7 @@
   </data>
   <data name="EpisodesPanel_Autoplay" xml:space="preserve">
     <value>Autoplay next episode</value>
+  </data>
   <data name="SleepTimer_Title" xml:space="preserve">
     <value>Sleep timer</value>
   </data>
