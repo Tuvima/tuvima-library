@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1531; api=0; web-client=55
+# scopes: contracts=1531; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3582,6 +3582,9 @@
   Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   WhereKey: System.String | json=whereKey | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   WhereLabel: System.String | json=whereLabel | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ScopeSource: System.String | json=scopeSource | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlongsideKey: System.String | json=alongsideKey | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlongsideLabel: System.String | json=alongsideLabel | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GroupId: System.String | json=groupId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Group: System.String | json=group | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Role: System.String | json=role | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -3592,7 +3595,7 @@
   DurationSeconds: System.Double? | json=durationSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ItemCount: System.Int32 | json=itemCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsMissing: System.Boolean | json=isMissing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","kind":"sample","type":"sample","badge":"sample","typeLabel":"sample","title":"sample","hasOwnTitle":true,"fileName":"sample","description":"sample","whereKey":"sample","whereLabel":"sample","groupId":"sample","group":"sample","role":"sample","roleLabel":"sample","tags":[],"sizeBytes":7,"pageCount":7,"durationSeconds":7,"itemCount":7,"isMissing":true}
+  sample={"id":"sample","kind":"sample","type":"sample","badge":"sample","typeLabel":"sample","title":"sample","hasOwnTitle":true,"fileName":"sample","description":"sample","whereKey":"sample","whereLabel":"sample","scopeSource":"sample","alongsideKey":"sample","alongsideLabel":"sample","groupId":"sample","group":"sample","role":"sample","roleLabel":"sample","tags":[],"sizeBytes":7,"pageCount":7,"durationSeconds":7,"itemCount":7,"isMissing":true}
 
 [contracts] MediaEngine.Contracts.Details.SupportingFileSearchHitDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4380,7 +4383,8 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   FolderName: System.String | json=folder_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PathLabel: System.String | json=path_label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"folder_name":"sample","path_label":"sample"}
+  RelativeFolder: System.String | json=relative_folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"folder_name":"sample","path_label":"sample","relative_folder":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorHeaderLevelDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -15533,6 +15537,16 @@
   ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProviderItemId: System.String | json=provider_item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"selected_qid":"sample","field_overrides":[],"provider_name":"sample","provider_item_id":"sample"}
+
+[web-client] MediaEngine.Web.Models.ViewDTOs.SupportingFileListRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Query: System.String | json=query | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Where: System.String | json=where | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Type: System.String | json=type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Group: System.String | json=group | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Sort: System.String | json=sort | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Descending: System.Boolean | json=descending | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Page: System.Int32 | json=page | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.SystemActivityOperationViewModel
   kind=class | converter=default | number-handling=default | unmapped=default

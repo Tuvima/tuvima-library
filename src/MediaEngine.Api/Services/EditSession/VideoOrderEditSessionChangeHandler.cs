@@ -25,11 +25,28 @@ public sealed class VideoOrderEditSessionChangeHandler(IVideoOrderRepository ord
         }
 
         var groups = await order.LoadAsync(change.EntityId, ct).ConfigureAwait(false);
-        return groups.Any(group => group.ParentWorkId == change.EntityId) ? null : EditSessionReasons.SeriesGone;
+        // The series itself named with section ids is a section reorder; a section or a series without sections named with video ids orders videos.
+        return groups.Any(group => group.ParentWorkId == change.EntityId) || IsSectionOrder(groups, change) ? null : EditSessionReasons.SeriesGone;
     }
+
+    private static bool IsSectionOrder(IReadOnlyList<VideoOrderGroup> groups, EditSessionChange change) =>
+        groups.Count > 0 && groups.All(group => group.ParentWorkId != change.EntityId)
+        && change.OrderedIds.All(id => groups.Any(group => group.ParentWorkId == id));
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        var sections = await order.LoadAsync(change.EntityId, ct).ConfigureAwait(false);
+        if (IsSectionOrder(sections, change))
+        {
+            var previousSections = sections.Select(group => group.ParentWorkId).ToList();
+            if (await writer.SaveSectionsAsync(change.EntityId, change.OrderedIds, ct).ConfigureAwait(false) is null)
+            {
+                throw new InvalidOperationException(EditSessionReasons.OrderChanged);
+            }
+
+            return undoCt => writer.SaveSectionsAsync(change.EntityId, previousSections, undoCt);
+        }
+
         var before = (await order.LoadAsync(change.EntityId, ct).ConfigureAwait(false))
             .FirstOrDefault(group => group.ParentWorkId == change.EntityId)
             ?? throw new InvalidOperationException(EditSessionReasons.SeriesGone);

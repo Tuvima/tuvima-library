@@ -38,4 +38,17 @@ public partial interface IEngineApiClient
     /// </summary>
     Task<LibraryBatchEditOutcome<SupportingFileBulkDeleteResultDto>> DeleteSupportingFilesAsync(
         Guid titleId, SupportingFileBulkDeleteRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /api/v1/supporting-files/titles/{titleId} - one page of a title's supporting files with the counts the browser's left list needs
+    /// (search, Where, type, group, sort, paging). The page size is left to the Engine, which reads it from <c>config/editor.json</c>. Null when
+    /// the read fails.
+    /// </summary>
+    Task<SupportingFileListDto?> ListSupportingFilesAsync(Guid titleId, SupportingFileListRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /metadata/{entityId}/folder-tree - one page of one folder of the title's folder tree, folders first, each file marked main, supporting,
+    /// hidden or unsorted. Null when the folder was not found or the read fails.
+    /// </summary>
+    Task<EditorFolderTreeDto?> GetEditorFolderTreeAsync(Guid entityId, string? folder, int offset, CancellationToken ct = default);
 }

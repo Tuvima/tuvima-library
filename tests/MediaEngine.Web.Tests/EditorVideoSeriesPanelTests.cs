@@ -120,7 +120,7 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
         Assert.Equal(EditSessionChangeKinds.VideoOrder, staged.Kind);
         Assert.Equal(CourseId, staged.EntityId);
         Assert.Equal([B, A, C], staged.OrderedIds);
-        var titles = cut.FindAll(".tl-vseries__title").Select(node => node.TextContent).ToList();
+        var titles = cut.FindAll(".tl-vorder__title").Select(node => node.TextContent).ToList();
         Assert.Equal(["Kitchen tour", "The first dinner", "Bread day"], titles);
         Assert.Contains("new order", cut.Markup);
     }
@@ -131,7 +131,7 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
         _order = Order(canRename: false);
         var cut = RenderPanel();
 
-        await cut.InvokeAsync(() => cut.Instance.OnDropAsync(0, 2, 0, 0));
+        await cut.InvokeAsync(() => cut.FindComponent<EditorVideoOrderList>().Instance.OnDropAsync(0, 2, 0, 0));
 
         Assert.Equal([C, A, B], Assert.Single(_session.Pending.Changes).OrderedIds);
     }
@@ -173,7 +173,7 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
         _order = Order(canRename: false);
         var cut = RenderPanel();
 
-        Assert.All(cut.FindAll(".tl-vseries__grip"), grip => Assert.NotEmpty(grip.QuerySelectorAll("svg")));
+        Assert.All(cut.FindAll(".tl-vorder__grip"), grip => Assert.NotEmpty(grip.QuerySelectorAll("svg")));
     }
 
     [Fact]
