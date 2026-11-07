@@ -92,8 +92,8 @@ public sealed class BookmarkPackImportKindHandler : IImportKindHandler
                 "A bookmark file holds how to recognise the title and each bookmark's time, chapter name, note and description. It holds no file paths, profile names or what anyone watched.",
             ],
             Message = workTitle is null
-                ? "Library cannot tell which title this file is for. Open the title you want it on and use Find bookmarks in its player."
-                : "Bookmark files are added from the title's player: open it, open the bookmarks pane, then choose Find bookmarks.",
+                ? "Library cannot tell which title this file is for. Open the title you want it on, open its editor and use Import on the Bookmarks tab."
+                : "Bookmark files are added by an administrator: open the title's editor, choose the Bookmarks tab, then choose Import.",
             CanApply = false,
             BookmarkPack = new ImportBookmarkPackSummaryDto
             {
@@ -107,5 +107,5 @@ public sealed class BookmarkPackImportKindHandler : IImportKindHandler
     }
 
     public Task<ImportApplyResultDto> ApplyAsync(ImportSource source, ImportContext context, CancellationToken ct) =>
-        Task.FromResult(new ImportApplyResultDto(false, "Bookmark files are added from the title's player (Find bookmarks)."));
+        Task.FromResult(new ImportApplyResultDto(false, "Bookmark files are added from the Bookmarks tab of the title's editor (Import)."));
 }

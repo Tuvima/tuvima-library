@@ -237,20 +237,6 @@ public sealed record AudiobookBookmarkDto
     public string? FrameUrl { get; init; }
 }
 
-/// <summary>Turns one profile's personal bookmark into a Global one (administrators only). The optional name replaces the bookmark's name.</summary>
-public sealed record PromoteAudiobookBookmarkRequestDto
-{
-    public string? Name { get; init; }
-}
-
-/// <summary>New name, note and description for a Global bookmark (administrators only). A null or blank value clears the field.</summary>
-public sealed record UpdateAudiobookBookmarkRequestDto
-{
-    public string? Label { get; init; }
-    public string? Note { get; init; }
-    public string? Description { get; init; }
-}
-
 /// <summary>Native owner proof returned when capturing a live audiobook position.</summary>
 public sealed record AudiobookBookmarkNativeCaptureDto
 {

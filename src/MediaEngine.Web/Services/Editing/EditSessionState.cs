@@ -6,7 +6,11 @@ public enum EditTool
     Details,
     Artwork,
     Match,
+    Bookmarks,
     History,
+
+    /// <summary>A supporting file's Preview tab (universal editor v5 WP7): the document, picture or clip itself, read where it is.</summary>
+    Preview,
 }
 
 /// <summary>One step of the item trail ("Le Continental > Season 1 > Episode 1").</summary>

@@ -46,7 +46,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         context.RequestServices = services;
         var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
         var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
-            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, closeness: null, frames: FrameService());
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, frames: FrameService());
         return (player, scope);
     }
 
@@ -100,7 +100,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task BookmarkFrames_AnAdministratorSeesEveryonesFrames_AsInTheEveryonesList()
+    public async Task BookmarkFrames_AnAdministratorCanFetchAnyProfilesFrame()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         MakeVideo(shape.Normal.AssetId);
@@ -109,8 +109,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (player, _) = FramePlayer(shape.Account, NewVaultSession(shape.Account));
 
         Assert.NotNull(await player.GetBookmarkFramePathAsync(null, theirs.Id));
-        var everyones = Assert.Single(await player.GetEveryonesBookmarksAsync(null, shape.Normal.WorkId));
-        Assert.NotNull(everyones.FrameUrl);
     }
 
     [Fact]
@@ -193,49 +191,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Null(await player.GetBookmarkFramePathAsync(null, removed.Id));
     }
 
-    [Fact]
-    public async Task BookmarkFrames_AnImportedSetQueuesAFrameForEachNewBookmark_AndTheReplacedOnesLoseTheirs()
-    {
-        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
-        MakeVideo(shape.Normal.AssetId);
-        GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
-        var (_, scope) = FramePlayer(shape.Account, NewVaultSession(shape.Account));
-        var bookmarks = new AudiobookBookmarkRepository(_database);
-        var sets = new BookmarkSetService(scope, bookmarks, new BookmarkRecognitionRepository(_database),
-            new VaultLibraryRepository(_database), new BookmarkClosenessProvider(() => null), frames: FrameService());
-        var replaced = await OwnBookmarkAsync(bookmarks, shape.Normal.WorkId, shape.Normal.AssetId, 761);
-        FrameCache().Write(shape.Normal.AssetId, replaced.Id, [1]);
-        var file = FileOf(ImdbOfTheFilm, 7200, Item(763), Item(6330));
-
-        await sets.ApplyAsync(null, shape.Normal.WorkId, new BookmarkSetApplyRequestDto { Set = SetOf(file, shape.Normal.AssetId) });
-
-        var after = await bookmarks.GetByWorkAsync(VaultProfile, shape.Normal.WorkId);
-        var operations = new MediaOperationRepository(_database);
-        Assert.Equal(2, after.Count);
-        Assert.All(after, item => Assert.Single(operations.GetByEntityAsync(item.Id).Result));
-        Assert.False(FrameCache().Exists(shape.Normal.AssetId, replaced.Id));
-    }
-
-    [Fact]
-    public async Task BookmarkFrames_PromotingOverADuplicate_RemovesTheDuplicatesFrame_AndKeepsThePromotedOnes()
-    {
-        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
-        MakeVideo(shape.Normal.AssetId);
-        var (player, _) = FramePlayer(shape.Account, NewVaultSession(shape.Account));
-        var promoted = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 500);
-        var duplicate = await BookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 501);
-        var cache = FrameCache();
-        cache.Write(shape.Normal.AssetId, promoted.Id, [1]);
-        cache.Write(shape.Normal.AssetId, duplicate.Id, [1]);
-
-        var result = await player.PromoteAudiobookBookmarkAsync(null, promoted.Id, null);
-
-        Assert.True(result!.IsGlobal);
-        Assert.NotNull(result.FrameUrl);
-        Assert.True(cache.Exists(shape.Normal.AssetId, promoted.Id));
-        Assert.False(cache.Exists(shape.Normal.AssetId, duplicate.Id));
-    }
-
     // ----- The frame route, run for real: route table, filters, a real data store and cache -----
 
     private sealed record FrameResponse(int Status, string? ContentType, string? CacheControl, string? NoSniff, byte[] Body);
@@ -264,7 +219,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             .BuildServiceProvider();
         var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
         player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
-            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, closeness: null, frames: FrameService());
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, frames: FrameService());
         context.Request.Method = HttpMethods.Get;
         context.Request.RouteValues["bookmarkId"] = bookmarkId.ToString("D");
         // The address the list hands out carries a version; the route must not care about it.

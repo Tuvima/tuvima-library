@@ -771,6 +771,8 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_move_items", "work_id"),
             ("vault_move_items", "asset_id"),
             ("vault_move_items", "new_asset_id"),
+            ("bookmark_definitive_sets", "work_id"),
+            ("bookmark_definitive_sets", "made_by"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

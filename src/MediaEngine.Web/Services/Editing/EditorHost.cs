@@ -97,6 +97,10 @@ public sealed class EditorBinding
     public Func<BulkEditRow, Task<bool>>? EditRowAsync { get; set; }
 }
 
+/// <summary>What became of a deleted supporting file. <see cref="Deleted"/> false means the record is still in the Library and <see cref="Message"/> says why.</summary>
+/// <param name="Disk">One of <see cref="SupportingFileDiskOutcomes"/> for the file on disk; null when nothing was removed.</param>
+public sealed record SupportingFileDeleteResult(bool Deleted, string? Disk, string? Reason, string? Message);
+
 /// <summary>A Universe an item belongs to: its Wikidata id, its name and, when known, its picture.</summary>
 public sealed record EditorUniverseLink(string Qid, string Name, string? ImageUrl = null);
 
@@ -168,6 +172,8 @@ public sealed class EditorHost : IDisposable
             ? (await Family.LeavesUnderAsync(active.EntityId)).Select(row => row.EntityId).ToList()
             : [];
 
+        HeaderHooks.OpenSupportingFile = async fileId => await OpenSupportingFileAsync(fileId);
+        Flow.OpenSupportingFile = OpenSupportingFileAsync;
         Mode.Changed += OnModeChanged;
         Session.Changed += OnSessionChanged;
         Picker.Changed += RaiseChanged;
@@ -176,6 +182,64 @@ public sealed class EditorHost : IDisposable
         Family.Changed += RaiseChanged;
         Universe.Changed += RaiseChanged;
         Mode.Fields.Changed += SyncFamily;
+    }
+
+    // The title a supporting file being opened belongs to. The switch hands the item loader only the file, so the owner is kept here while it runs
+    // and after it (a failed switch puts the file that was open back).
+    private Guid _fileOwner;
+
+    /// <summary>
+    /// A supporting file was chosen in the header (universal editor v5 WP7): the editor moves to it, keeping every staged change, with the
+    /// owner's trail and the file as its last step. Does nothing while no title is being edited.
+    /// </summary>
+    private async Task<bool> OpenSupportingFileAsync(Guid fileId)
+    {
+        if (!Session.IsActive || fileId == Guid.Empty)
+        {
+            return false;
+        }
+
+        // A file staged under another title (Review's Edit on its row) opens under that title, not the one the editor happens to be on.
+        var owner = StagedOwnerOf(fileId) ?? OwnerOfActive();
+        if (owner is null)
+        {
+            return false;
+        }
+
+        var name = Mode.Fields.Header?.Level.SupportingFiles.Files.FirstOrDefault(file => file.Id == fileId)?.Title
+                   ?? Session.ItemName(fileId)
+                   ?? "Supporting file";
+        _fileOwner = owner.Value.Id;
+        return await Flow.SwitchToAsync([.. owner.Value.Trail, new EditTrailItem(fileId, name, EditTrailKinds.SupportingFile)]);
+    }
+
+    // The title a file with staged changes belongs to and the trail that leads to it, when that is not the title the editor is on.
+    private (Guid Id, IReadOnlyList<EditTrailItem> Trail)? StagedOwnerOf(Guid fileId)
+    {
+        if (Session.Pending.FindSupportingFile(fileId)?.TitleId is not { } titleId || titleId == Guid.Empty || OwnerOfActive()?.Id == titleId)
+        {
+            return null;
+        }
+
+        return (titleId, Session.TrailTo(titleId) ?? [new EditTrailItem(titleId, Session.ItemName(titleId) ?? "Item", "Item")]);
+    }
+
+    // The title the editor is on, or the title of the supporting file it is on, with the trail that leads to it.
+    private (Guid Id, IReadOnlyList<EditTrailItem> Trail)? OwnerOfActive()
+    {
+        var trail = Session.Trail;
+        if (trail.Count == 0)
+        {
+            return null;
+        }
+
+        if (trail[^1].Kind == EditTrailKinds.SupportingFile)
+        {
+            var above = trail.Take(trail.Count - 1).ToList();
+            return above.Count == 0 ? null : (above[^1].EntityId, above);
+        }
+
+        return (trail[^1].EntityId, trail);
     }
 
     /// <summary>The permission, device and unsaved-input rules of the editor; the window is open exactly while <see cref="IsOpen"/>.</summary>
@@ -289,6 +353,9 @@ public sealed class EditorHost : IDisposable
             Session.Pending.RemoveForItem(id);
         }
 
+        // What was staged on a deleted supporting file goes with it (the changes name the file, not the title).
+        Session.Pending.RemoveForSupportingFiles([.. removed]);
+
         Batch.Replace(Batch.Rows.Where(row => !removed.Contains(row.Id)));
         Family.Remove(removed);
         if (!Mode.IsOn || !Session.IsActive)
@@ -341,6 +408,37 @@ public sealed class EditorHost : IDisposable
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Deletes the supporting file the editor is on, at once (universal editor v5 WP7): the Engine removes the record and handles the file on disk
+    /// by the library's file rules, the staged changes for it go, and the editor moves back to the title it belongs to. Null when the Engine
+    /// refused or could not be reached (nothing changed); otherwise what became of the file on disk.
+    /// </summary>
+    public async Task<SupportingFileDeleteResult?> DeleteSupportingFileAsync(Guid titleId, Guid fileId, CancellationToken ct = default)
+    {
+        if (titleId == Guid.Empty || fileId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var outcome = await _api.DeleteSupportingFilesAsync(
+            titleId, new SupportingFileBulkDeleteRequest { Ids = [fileId.ToString("D")] }, ct);
+        if (outcome.Value is not { } answer)
+        {
+            return new SupportingFileDeleteResult(false, null, null, outcome.Message);
+        }
+
+        var item = answer.Results.FirstOrDefault();
+        var removed = item is { Status: SupportingFileBulkStatuses.Removed } || item is { Status: SupportingFileBulkStatuses.NotFound };
+        if (!removed)
+        {
+            return new SupportingFileDeleteResult(false, null, item?.Reason, item?.Reason);
+        }
+
+        await ItemsDeletedAsync([fileId]);
+        await NotifyCommittedAsync();
+        return new SupportingFileDeleteResult(true, item?.Disk, item?.Reason, null);
     }
 
     /// <summary>Makes <paramref name="binding"/> the page the editor serves. A page binds right before it opens the editor.</summary>
@@ -639,12 +737,31 @@ public sealed class EditorHost : IDisposable
 
     private Task<bool> OpenItemAsync(EditTrailItem item)
     {
+        if (item.Kind == EditTrailKinds.SupportingFile)
+        {
+            return OpenSupportingFileItemAsync(item);
+        }
+
         if (_binding?.UniverseQid is { } qid)
         {
             return OpenUniverseItemAsync(qid, item);
         }
 
         return _binding?.OpenItem?.Invoke(item) ?? Task.FromResult(false);
+    }
+
+    private async Task<bool> OpenSupportingFileItemAsync(EditTrailItem item)
+    {
+        var owner = _fileOwner != Guid.Empty
+            ? _fileOwner
+            : Mode.Fields.SupportingFile?.TitleId ?? OwnerOfActive()?.Id ?? Guid.Empty;
+        if (owner == Guid.Empty)
+        {
+            return false;
+        }
+
+        await Mode.Fields.LoadSupportingFileAsync(owner, item.EntityId);
+        return Mode.Fields.Loaded && Mode.Fields.SupportingFile is not null;
     }
 
     private async Task<bool> OpenUniverseItemAsync(string qid, EditTrailItem item)
@@ -670,6 +787,7 @@ public sealed class EditorHost : IDisposable
             Batch.Clear();
             _bulkWasOpen = false;
             _lastTool = null;
+            _fileOwner = Guid.Empty;
             FocusField = null;
             Family.Reset();
             Universe.Reset();
@@ -781,7 +899,10 @@ public sealed class EditorHost : IDisposable
             Universe.Reset();
         }
 
-        var active = Session.ActiveItem?.EntityId ?? Guid.Empty;
+        // A supporting file has no family of its own: the tree that is read is its owner's.
+        var onFile = Session.ActiveItem?.Kind == EditTrailKinds.SupportingFile;
+        var trail = onFile ? Session.Trail.Take(Math.Max(0, Session.Trail.Count - 1)).ToList() : Session.Trail;
+        var active = trail.Count == 0 ? Guid.Empty : trail[^1].EntityId;
         var mediaTypes = _binding?.MediaTypes?.Invoke() ?? [];
         var noFamily = !Mode.IsOn || !Session.IsActive || Batch.Panel != BulkPanelKind.None ||
                         mediaTypes.Count > 0 && mediaTypes.All(type => type is "Movies" or "Photos");
@@ -795,7 +916,7 @@ public sealed class EditorHost : IDisposable
             return;
         }
 
-        var parents = Session.Trail.Take(Math.Max(0, Session.Trail.Count - 1)).Select(item => item.EntityId)
+        var parents = trail.Take(Math.Max(0, trail.Count - 1)).Select(item => item.EntityId)
             .Concat(Mode.Fields.ScopeChain.Select(item => item.EntityId));
         _ = FamilyAsync(Family.EnsureAsync(active, parents));
     }

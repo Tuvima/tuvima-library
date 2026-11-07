@@ -773,7 +773,13 @@ public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigura
             Set("alongside", update.Alongside.IsSet ? update.Alongside.Value.Key : null);
         }
 
-        if (update.GroupName.IsChanged)
+        if (update.NoGroup && !update.GroupName.IsSet)
+        {
+            // A person's "No group": nothing groups the file, and because the source is "you" a rescan leaves it so.
+            Set("group_id", null);
+            Set("group_source", ExtraGroupSources.You);
+        }
+        else if (update.GroupName.IsChanged)
         {
             if (update.GroupName.IsSet && Blank(update.GroupName.Value) is { } name)
             {

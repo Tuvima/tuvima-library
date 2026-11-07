@@ -2857,12 +2857,20 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRe
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkChangesDto
   GroupName: System.String | nullability=nullable | accessors=get,init
   ClearGroup: System.Boolean | nullability=not-null | accessors=get,init
+  NoGroup: System.Boolean | nullability=not-null | accessors=get,init
   Role: System.String | nullability=nullable | accessors=get,init
   ClearRole: System.Boolean | nullability=not-null | accessors=get,init
   ScopeKey: System.String | nullability=nullable | accessors=get,init
   UseFolderLocation: System.Boolean | nullability=not-null | accessors=get,init
   AddTags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   RemoveTags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  ClearTitle: System.Boolean | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  ClearDescription: System.Boolean | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  NoAlongside: System.Boolean | nullability=not-null | accessors=get,init
+  UseGuessedAlongside: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkDeleteRequest
   Ids: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
@@ -3478,6 +3486,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
   Token: System.String | nullability=nullable | accessors=get,init
   OrderedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
   SupportingFiles: MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest | nullability=nullable | accessors=get,init
+  Bookmarks: MediaEngine.Contracts.Playback.EditorBookmarkChangeDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeKinds
 
@@ -3897,6 +3906,35 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSuggestDetails
   FirstLines: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSuggestDetailsSources
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFileDto
+  TitleId: System.Guid | nullability=not-null | accessors=get,init
+  File: MediaEngine.Contracts.Details.SupportingFileDto | nullability=not-null | accessors=get,init
+  Type: System.String | nullability=not-null | accessors=get,init
+  TypeLabel: System.String | nullability=not-null | accessors=get,init
+  Badge: System.String | nullability=not-null | accessors=get,init
+  MimeType: System.String | nullability=not-null | accessors=get,init
+  Folder: System.String | nullability=nullable | accessors=get,init
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Roles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorSupportingFileRoleDto> | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Places: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorSupportingFilePlaceDto> | nullability=not-null | accessors=get,init
+  ScopeLabel: System.String | nullability=not-null | accessors=get,init
+  FolderScopeLabel: System.String | nullability=not-null | accessors=get,init
+  AlongsideLabel: System.String | nullability=nullable | accessors=get,init
+  DescriptionMaxCharacters: System.Int32 | nullability=not-null | accessors=get,init
+  Header: MediaEngine.Contracts.Editing.EditorHeaderDto | nullability=nullable | accessors=get,init
+  Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFilePlaceDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Level: System.String | nullability=not-null | accessors=get,init
+  ParentKey: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFileRoleDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorUniverseKindDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -7465,18 +7503,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackMatchR
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkRowChoices
 
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetApplyRequestDto
-  Set: MediaEngine.Contracts.Playback.BookmarkSetRequestDto | nullability=not-null | accessors=get,init
-  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkSetRowChoiceDto> | nullability=not-null | accessors=get,init
-  ReplaceGlobalSet: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetApplyResultDto
-  Added: System.Int32 | nullability=not-null | accessors=get,init
-  Replaced: System.Int32 | nullability=not-null | accessors=get,init
-  Kept: System.Int32 | nullability=not-null | accessors=get,init
-  Skipped: System.Int32 | nullability=not-null | accessors=get,init
-  AddedToGlobal: System.Boolean | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetCompareDto
   Name: System.String | nullability=not-null | accessors=get,init
   Author: System.String | nullability=nullable | accessors=get,init
@@ -7514,6 +7540,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetItemDto
   Note: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
   Locator: System.String | nullability=nullable | accessors=get,init
+  FrameBase64: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetRequestDto
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
@@ -7522,10 +7549,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetRequest
   RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
   Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
   Mode: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetRowChoiceDto
-  Index: System.Int32 | nullability=not-null | accessors=get,init
-  Choice: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastReceivers
 
@@ -7700,6 +7723,105 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadKind
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadListDto
   Downloads: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.DeviceDownloadDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkChangeDto
+  Ops: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkOp> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkCompareRequestDto
+  ContentBase64: System.String | nullability=not-null | accessors=get,init
+  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
+  Mode: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkImportItem
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  EndSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ChapterTitle: System.String | nullability=nullable | accessors=get,init
+  Locator: System.String | nullability=nullable | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  FrameBase64: System.String | nullability=nullable | accessors=get,init
+  Name: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  ReplacesBookmarkId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkLimits
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOp
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  BookmarkId: System.Guid? | nullability=nullable | accessors=get,init
+  Name: System.String | nullability=nullable | accessors=get,init
+  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkImportItem> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOpKinds
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOverviewDto
+  RootId: System.Guid | nullability=not-null | accessors=get,init
+  RootTitle: System.String | nullability=not-null | accessors=get,init
+  EveryoneTotal: System.Int32 | nullability=not-null | accessors=get,init
+  MemberCount: System.Int32 | nullability=not-null | accessors=get,init
+  DefinitiveCount: System.Int32 | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkOverviewGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOverviewGroupDto
+  GroupId: System.Guid? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  BookmarkCount: System.Int32 | nullability=not-null | accessors=get,init
+  Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkOverviewRowDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOverviewRowDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Code: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  EveryoneCount: System.Int32 | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  ProfileCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkRowDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  PositionKind: System.String | nullability=not-null | accessors=get,init
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  EndSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  ChapterTitle: System.String | nullability=nullable | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  FrameUrl: System.String | nullability=nullable | accessors=get,init
+  InEveryone: System.Boolean | nullability=not-null | accessors=get,init
+  CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkShowCompareDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  BookmarkCount: System.Int32 | nullability=not-null | accessors=get,init
+  UnmatchedEpisodes: System.Int32 | nullability=not-null | accessors=get,init
+  Episodes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkShowCompareEpisodeDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkShowCompareEpisodeDto
+  SeasonNumber: System.Int32 | nullability=not-null | accessors=get,init
+  EpisodeNumber: System.Int32 | nullability=not-null | accessors=get,init
+  WorkId: System.Guid? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Compare: MediaEngine.Contracts.Playback.BookmarkSetCompareDto | nullability=nullable | accessors=get,init
+  NewCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkStates
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarksDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Everyone: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkRowDto> | nullability=not-null | accessors=get,init
+  FromProfiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkRowDto> | nullability=not-null | accessors=get,init
+  AssetId: System.Guid? | nullability=nullable | accessors=get,init
+  HasTimes: System.Boolean | nullability=not-null | accessors=get,init
+  CanExchange: System.Boolean | nullability=not-null | accessors=get,init
+  HasFrames: System.Boolean | nullability=not-null | accessors=get,init
+  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   AssetId: System.Guid | nullability=not-null | accessors=get,init
@@ -7717,12 +7839,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobDto
   ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobStatuses
-
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ExportGlobalBookmarksRequestDto
-  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
-  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackCommandActions
 
@@ -8224,9 +8340,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PreferredTextTrack
   track_id: System.Guid | nullability=not-null | accessors=get,init
   preferred: System.Boolean | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PromoteAudiobookBookmarkRequestDto
-  Name: System.String | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.QueueEncodeRequestDto
   ProfileKey: System.String | nullability=not-null | accessors=get,init
   ScheduledFor: System.DateTimeOffset? | nullability=nullable | accessors=get,init
@@ -8343,11 +8456,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   IsUserOwned: System.Boolean | nullability=not-null | accessors=get,set
   IsLocallyExported: System.Boolean | nullability=not-null | accessors=get,set
   Url: System.String | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
-  Label: System.String | nullability=nullable | accessors=get,init
-  Note: System.String | nullability=nullable | accessors=get,init
-  Description: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegmentRequest
   Kind: System.String | nullability=nullable | accessors=get,init
@@ -9348,9 +9456,6 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubTocEntryDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   FragmentId: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.List<MediaEngine.Contracts.Reading.EpubTocEntryDto> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.PromoteReaderBookmarkRequestDto
-  Name: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   Id: System.Guid | nullability=not-null | accessors=get,init

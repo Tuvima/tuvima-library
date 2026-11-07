@@ -39,7 +39,7 @@
                          TitleOverride="@BulkPanelTitle"
                          ShowHistory="@(binding?.ShowHistory == true)"
                          ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
-                         FooterStart="@(Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing) ? DeleteButtonFragment(flow, mode) : null)">
+                         FooterStart="@(Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
                 @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
                 {
@@ -57,6 +57,21 @@
                     <div class="tl-editor-details">
                         <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorPopover_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
                         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => Editor.RetryLoadAsync())">@L["Common_TryAgain"]</AppButton>
+                    </div>
+                }
+                else if (tool == EditTool.Details && mode.Fields.SupportingFile is not null)
+                {
+                    <EditorSupportingFilePanel Mode="mode" Flow="flow" />
+                }
+                else if (tool == EditTool.Preview && mode.Fields.SupportingFile is not null)
+                {
+                    <EditorPreviewTab Fields="mode.Fields" />
+                }
+                else if (tool == EditTool.History && mode.Fields.SupportingFile is not null)
+                {
+                    <div data-supporting-file-history="true">
+                        <EditorHistoryTool EntityId="@(Guid.TryParse(mode.Fields.SupportingFile.File.Id, out var fileId) ? fileId : Guid.Empty)"
+                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" />
                     </div>
                 }
                 else if (tool == EditTool.Details)
@@ -88,6 +103,10 @@
                                          Extras="binding?.Extras"
                                          Session="flow.Session"
                                          CanEdit="@mode.CanEdit" />
+                }
+                else if (tool == EditTool.Bookmarks)
+                {
+                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" />
                 }
                 else if (tool == EditTool.History)
                 {
@@ -128,12 +147,33 @@
     {
         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
                    StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching)"
-                   OnClick="@(CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)">
+                   OnClick="@(CanDeleteFile ? DeleteFileAsync : CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)">
             @EditorDeleteRules.FooterLabel
         </AppButton>
     };
 
     private bool _deleting;
+
+    private bool CanDeleteFile => EditorSupportingFileFlow.CanDelete(Editor, Device, Services.GetService<DashboardSessionAccessor>());
+
+    // Delete from a supporting file's footer: asks once, naming the file and what happens to it on disk, then happens at once.
+    private async Task DeleteFileAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
 
     private bool CanDeleteThing => EditorDeleteFlow.CanDeleteThing(Editor, Device, Services.GetService<DashboardSessionAccessor>());
 

@@ -1,31 +1,14 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
-    public async Task<LibraryBatchEditOutcome<EditSessionResult>> RunEditSessionAsync(
-        EditSessionRequest request, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        const string endpoint = "POST /library/edit-session";
-        try
-        {
-            using var response = await _http.PostAsJsonAsync("/library/edit-session", request, ct);
-            return await ReadBatchEditOutcomeAsync<EditSessionResult>(response, endpoint, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            return LibraryBatchEditOutcome<EditSessionResult>.Failed(LibraryBatchEditOutcomeStatus.Unavailable);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
-        {
-            return BatchEditFailure<EditSessionResult>(endpoint, ex);
-        }
-    }
+    public Task<LibraryBatchEditOutcome<EditSessionResult>> RunEditSessionAsync(
+        EditSessionRequest request, CancellationToken ct = default) =>
+        PostBatchEditAsync<EditSessionRequest, EditSessionResult>("/library/edit-session", request, "POST /library/edit-session", ct);
 
     public Task<EditorSubjectDto?> GetEditorSubjectAsync(Guid id, CancellationToken ct = default) =>
         GetAsync<EditorSubjectDto>("GET /library/editor-subjects/{id}", $"/library/editor-subjects/{id:D}", ct: ct);
@@ -39,7 +22,8 @@ public sealed partial class EngineApiClient
     public Task<ItemQuickFactsDto?> GetEditorQuickFactsAsync(Guid id, CancellationToken ct = default) =>
         GetAsync<ItemQuickFactsDto>("GET /library/editor-quick-facts/{id}", $"/library/editor-quick-facts/{id:D}", ct: ct);
 
-    public Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(Guid entityId, Guid? levelId, string? query, int offset, CancellationToken ct = default)
+    public Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(
+        Guid entityId, Guid? levelId, string? query, int offset, Guid? supportingFileId = null, CancellationToken ct = default)
     {
         var parts = new List<string> { $"offset={Math.Max(0, offset)}" };
         if (levelId is { } level)
@@ -50,6 +34,11 @@ public sealed partial class EngineApiClient
         if (!string.IsNullOrWhiteSpace(query))
         {
             parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+        }
+
+        if (supportingFileId is { } file)
+        {
+            parts.Add($"supporting_file_id={file:D}");
         }
 
         return GetAsync<EditorHeaderLevelDto>(
@@ -101,4 +90,26 @@ public sealed partial class EngineApiClient
                 ActorLabel = item.ActorLabel,
             }).ToList(), null);
     }
+
+    public Task<EditorBookmarksDto?> GetEditorBookmarksAsync(Guid workId, CancellationToken ct = default) =>
+        GetAsync<EditorBookmarksDto>("GET /api/v1/editor-bookmarks/titles/{id}", $"/api/v1/editor-bookmarks/titles/{workId:D}", logAsWarning: false, ct: ct);
+
+    public Task<BookmarkSetCompareDto?> CompareEditorBookmarkFileAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default) =>
+        PostAsync<EditorBookmarkCompareRequestDto, BookmarkSetCompareDto>(
+            "POST /api/v1/editor-bookmarks/titles/{id}/compare", $"/api/v1/editor-bookmarks/titles/{workId:D}/compare", request, logAsWarning: false, ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportEditorBookmarksAsync(Guid workId, CancellationToken ct = default) =>
+        PostAsync<object, BookmarkPackFileDto>(
+            "POST /api/v1/editor-bookmarks/titles/{id}/export", $"/api/v1/editor-bookmarks/titles/{workId:D}/export", new object(), logAsWarning: false, ct: ct);
+
+    public Task<EditorBookmarkOverviewDto?> GetEditorBookmarkOverviewAsync(Guid workId, CancellationToken ct = default) =>
+        GetAsync<EditorBookmarkOverviewDto>("GET /api/v1/editor-bookmarks/families/{id}", $"/api/v1/editor-bookmarks/families/{workId:D}", logAsWarning: false, ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportEditorShowBookmarksAsync(Guid workId, CancellationToken ct = default) =>
+        PostAsync<object, BookmarkPackFileDto>(
+            "POST /api/v1/editor-bookmarks/families/{id}/export", $"/api/v1/editor-bookmarks/families/{workId:D}/export", new object(), logAsWarning: false, ct: ct);
+
+    public Task<EditorBookmarkShowCompareDto?> CompareEditorShowBookmarkFileAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default) =>
+        PostAsync<EditorBookmarkCompareRequestDto, EditorBookmarkShowCompareDto>(
+            "POST /api/v1/editor-bookmarks/families/{id}/compare", $"/api/v1/editor-bookmarks/families/{workId:D}/compare", request, logAsWarning: false, ct: ct);
 }

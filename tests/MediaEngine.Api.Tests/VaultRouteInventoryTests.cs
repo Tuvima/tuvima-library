@@ -28,6 +28,7 @@ public sealed class VaultRouteInventoryTests
         ("/api/v1/display/artwork/assets/", "Shared artwork only; Vault artwork is kept apart in vault_artwork"),
         ("/api/v1/display/artwork/media-assets/", "The handler authorizes the file through the catalogue"),
         ("/api/v1/display/artwork/universes/", "Universe artwork listing; entities are limited by the authorized projection"),
+        ("/api/v1/editor-bookmarks/", "Administrators only, and EditorBookmarksService answers a Vault title with a refusal (it asks the Vault library repository first), a family lists only its owned members and leaves out any in the Vault"),
         ("/api/v1/vault/", "The whole group is behind the Vault gate and answers not found when Vault mode is off"),
         ("/assets/", "Capabilities answer empty exactly as for an unknown id"),
         ("/api/v1/extras/", "An Extra opens only when the caller may open a file of its title (CatalogueResourceAuthorizationService), and a Vault library has no Extras"),

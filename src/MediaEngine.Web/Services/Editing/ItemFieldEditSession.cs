@@ -61,7 +61,7 @@ public sealed class ItemFieldEditSession
     {
         get
         {
-            if (_context is null || _subject is not null)
+            if (_context is null || _subject is not null || SupportingFile is not null)
             {
                 return [];
             }
@@ -98,13 +98,19 @@ public sealed class ItemFieldEditSession
     /// facts and the rules of the item's kind. Null for a person, Series, collection or Universe (they have no family to walk) and when the
     /// Engine could not build it; the header then draws the plain title and the tabs fall back to the kind's rules below.
     /// </summary>
-    public EditorHeaderDto? Header => _subject is null ? _context?.Header : null;
+    public EditorHeaderDto? Header => SupportingFile is { } file ? file.Header : _subject is null ? _context?.Header : null;
+
+    /// <summary>
+    /// The supporting file the editor is open on (universal editor v5 WP7), or null while it is on a title, person, Series or Universe. Its
+    /// <see cref="Header"/> is the owner's header with the file marked current; its values and the lists the form chooses from come with it.
+    /// </summary>
+    public EditorSupportingFileDto? SupportingFile { get; private set; }
 
     /// <summary>The rules of a person, Series or Universe (tabs, facts) read from <c>config/editor.json</c>; null for a library title or when the read failed.</summary>
     public EditorHeaderConfigDto? KindConfig { get; private set; }
 
     /// <summary>The rules of the item being edited, from its header or, for a person, Series or Universe, from the kind's own read.</summary>
-    public EditorHeaderConfigDto? Config => Header?.Config ?? KindConfig;
+    public EditorHeaderConfigDto? Config => SupportingFile?.Config ?? Header?.Config ?? KindConfig;
 
     /// <summary>What the Engine reports about the active item's match (provider, provider id, Wikidata id); null when it reports nothing.</summary>
     public MediaEditorIdentitySummaryDto? Identity => _subject is null ? _scope?.IdentitySummary ?? _context?.IdentitySummary : null;
@@ -122,7 +128,7 @@ public sealed class ItemFieldEditSession
     public string MediaType => _context?.MediaType ?? _mediaType ?? string.Empty;
 
     /// <summary>Whether Match and Identity applies to the active scope (the editor's own rule), so the banner only offers it where it works.</summary>
-    public bool CanMatch => _subject is null && MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
+    public bool CanMatch => _subject is null && SupportingFile is null && MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
 
     /// <summary>
     /// The kind of thing being edited when it is a person, Series, curated collection or Universe rather than a library title (the
@@ -186,6 +192,7 @@ public sealed class ItemFieldEditSession
         _context = null;
         _scope = null;
         _subject = null;
+        SupportingFile = null;
         _preferences = null;
         _profileOverrides = null;
         _presentation = new MediaEditorDetailsPresentation();
@@ -211,6 +218,7 @@ public sealed class ItemFieldEditSession
         Loading = true;
         LoadError = null;
         _subject = null;
+        SupportingFile = null;
         QuickFacts = null;
         KindConfig = null;
         Changed?.Invoke();
@@ -299,6 +307,7 @@ public sealed class ItemFieldEditSession
     {
         Loading = true;
         LoadError = null;
+        SupportingFile = null;
         Changed?.Invoke();
         try
         {
@@ -336,6 +345,93 @@ public sealed class ItemFieldEditSession
             Changed?.Invoke();
         }
     }
+
+    /// <summary>
+    /// Loads a supporting file of a title (universal editor v5 WP7) in place of the title: the Engine's one read gives its values, the
+    /// roles, groups and places the form offers and the owner's header with this file marked current. Switching to the file keeps everything
+    /// staged. On failure the file is not loaded and <see cref="LoadError"/> says so.
+    /// </summary>
+    public async Task LoadSupportingFileAsync(Guid titleId, Guid fileId, CancellationToken ct = default)
+    {
+        Loading = true;
+        LoadError = null;
+        Changed?.Invoke();
+        try
+        {
+            var read = await _api.GetSupportingFileEditorAsync(titleId, fileId, ct);
+            if (read is null)
+            {
+                SupportingFile = null;
+                Loaded = false;
+                LoadError = "This file cannot be opened for editing right now.";
+                return;
+            }
+
+            ApplySupportingFile(read, fileId);
+            if (!_suggestionsLoaded)
+            {
+                await LoadSuggestionsAsync(ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The person moved on while the file was loading; there is nothing to show or report.
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The editor could not load the supporting file {FileId}", fileId);
+            SupportingFile = null;
+            Loaded = false;
+            LoadError = "This file cannot be opened for editing right now.";
+        }
+        finally
+        {
+            Loading = false;
+            Changed?.Invoke();
+        }
+    }
+
+    // A supporting file has no editor scopes of its own either: a synthetic one carries what the staged editor reads from a scope (the id
+    // its changes are staged under, the media type that says which library's write-back setting applies, whether it can be changed).
+    private void ApplySupportingFile(EditorSupportingFileDto read, Guid fileId)
+    {
+        SupportingFile = read;
+        _subject = null;
+        QuickFacts = null;
+        ExplicitMark = null;
+        KindConfig = null;
+        _preferences = null;
+        _profileOverrides = null;
+        var mediaType = read.Header?.Root.MediaType ?? string.Empty;
+        _mediaType = mediaType;
+        EditorEntityId = fileId;
+        _context = new MediaEditorContextDto
+        {
+            LaunchEntityId = fileId,
+            LaunchEntityKind = "SupportingFile",
+            MediaType = mediaType,
+            InitialScope = SupportingFileScopeId,
+        };
+        _scope = new MediaEditorScopeDto
+        {
+            ScopeId = SupportingFileScopeId,
+            Label = "Supporting file",
+            FieldEntityId = fileId,
+            FieldEntityKind = "SupportingFile",
+            ArtworkOwnerEntityId = fileId,
+            ArtworkOwnerEntityKind = "SupportingFile",
+            DisplayTitle = read.File.Title,
+            CanEditFields = true,
+            CanEditArtwork = false,
+            ArtworkSlots = [],
+        };
+        _presentation = new MediaEditorDetailsPresentation();
+        Loaded = true;
+        LoadError = null;
+    }
+
+    /// <summary>The scope id a supporting file's synthetic scope carries.</summary>
+    public const string SupportingFileScopeId = "supporting_file";
 
     // A subject has no editor scopes of its own: a synthetic one carries what the staged editor reads from a scope (the id, the
     // picture owner and slots, whether fields and pictures can be changed), and the Engine's field list becomes the presentation.
@@ -566,6 +662,12 @@ public sealed class ItemFieldEditSession
 
     private void Rebuild()
     {
+        if (SupportingFile is not null)
+        {
+            // A supporting file has its own form; there are no provider fields to present.
+            return;
+        }
+
         if (_subject is not null)
         {
             // A subject's presentation comes whole from the Engine's answer; there is no scope snapshot to rebuild it from.

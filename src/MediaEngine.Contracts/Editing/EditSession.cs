@@ -71,7 +71,8 @@ public static class EditSessionChangeKinds
     public const string ThingAdd = "thing_add";
 
     /// <summary>
-    /// Group, role, Belongs to or tags set on several supporting files of one title at once (universal editor v5 D16, D30).
+    /// Group, role, Belongs to or tags set on several supporting files of one title at once (universal editor v5 D16, D30), and, for one file
+    /// at a time, its title, description and the episode it is shown alongside (WP7).
     /// <see cref="EditSessionChange.EntityId"/> is the title; <see cref="EditSessionChange.SupportingFiles"/> names the files and what changes.
     /// Library's own data, saved with the rest of the session and undone with it; in a Managed folder a changed Belongs to also moves the file
     /// (put back if a later change fails). Deleting files is not a staged change: it asks once and happens at once.
@@ -85,7 +86,15 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string MatchRemoval = "match_removal";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles, MatchRemoval];
+    /// <summary>
+    /// Changes to a title's Everyone's bookmarks (universal editor v5 D37, WP15): adding a profile's bookmark, removing, renaming and moving one,
+    /// an applied import, and "Start over from profiles". <see cref="EditSessionChange.EntityId"/> is the title (its work);
+    /// <see cref="EditSessionChange.Bookmarks"/> lists the operations in order. Administrators only, never in the Vault. Library's own data only,
+    /// written in one transaction with the same-spot merge, and put back exactly if a later change in the session fails.
+    /// </summary>
+    public const string Bookmarks = "bookmarks";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles, MatchRemoval, Bookmarks];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 
@@ -154,6 +163,11 @@ public sealed class EditSessionChange
     [JsonPropertyName("supporting_files")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest? SupportingFiles { get; init; }
+
+    /// <summary>The operations for a <see cref="EditSessionChangeKinds.Bookmarks"/> change.</summary>
+    [JsonPropertyName("bookmarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Playback.EditorBookmarkChangeDto? Bookmarks { get; init; }
 }
 
 /// <summary>One staged value for a details field. An empty value reverts the field to the provider's value.</summary>

@@ -23,6 +23,7 @@ public static class EditorDeleteFlow
             && editor.Binding?.ShowHistory == true
             && editor.Mode.Fields.Loaded
             && editor.Mode.Fields.SubjectKind is null
+            && editor.Mode.Fields.SupportingFile is null
             && editor.Session.ActiveItem is not null
             && LibraryItemDeletionFlow.CanDelete(device, session);
     }

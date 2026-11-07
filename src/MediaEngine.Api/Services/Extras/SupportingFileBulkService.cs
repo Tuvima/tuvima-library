@@ -2,8 +2,10 @@ using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Extras;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Extras;
 
@@ -31,12 +33,15 @@ public sealed record SupportingFileBulkOutcome<T>(T? Value, SupportingFileBulkPr
 /// file to what it already reads as changes nothing, a file already gone is reported as gone, and a repeat of a saved Belongs to change
 /// plans no second move. All data changes of one call are written in one transaction; file moves come last and cannot be undone, so a move
 /// that fails leaves the data saved and says which file stayed. A picture folder is one item, so an action on it applies to every picture in it.
+/// Each saved change is written to the file's History (<see cref="SupportingFileHistory"/>): one row per changed field, per move and per delete.
 /// </summary>
 public sealed class SupportingFileBulkService(
     IItemExtraRepository extras,
     ISupportingFileTitleResolver resolver,
     SupportingFileDiskService disk,
-    IExtrasConfigurationSource? rules = null)
+    IExtrasConfigurationSource? rules = null,
+    IEntityTimelineRepository? timeline = null,
+    ILogger<SupportingFileBulkService>? logger = null)
 {
     public const int MaxFilesPerCall = 2000;
     public const string NothingPicked = "Pick at least one file.";
@@ -46,6 +51,8 @@ public sealed class SupportingFileBulkService(
     public const string FileGone = "That file is no longer in the Library.";
     public const string BadPlace = "That is not a place a supporting file can belong to.";
     public const string ToManyFiles = "Too many files at once. Pick fewer and try again.";
+    public const string OneFileOnly = "A title and a description belong to one file. Pick one file to change them.";
+    public const string BadAlongside = "That is not an episode, lesson or track a supporting file can be shown alongside.";
 
     /// <summary>Checks the change and plans any file moves, writing nothing: what Review lists and the amber footer shows.</summary>
     public Task<SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>> PreviewAsync(
@@ -114,6 +121,12 @@ public sealed class SupportingFileBulkService(
             }
         }
 
+        // A title and a description belong to one file; a folder of pictures is one item, so it counts as one file.
+        if ((update.Title.IsChanged || update.Description.IsChanged) && load.Requested.Count(item => item.Row is not null) > 1)
+        {
+            return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, OneFileOnly);
+        }
+
         // Belongs to must name a real place of the title: the title itself, one of its seasons, or an episode, lesson or section.
         if (update.Scope.IsSet)
         {
@@ -122,6 +135,18 @@ public sealed class SupportingFileBulkService(
                 if (!await disk.IsPlaceOfTitleAsync(folder, update.Scope.Value, ct).ConfigureAwait(false))
                 {
                     return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, BadPlace);
+                }
+            }
+        }
+
+        // Shown alongside names a real episode, lesson or track of the title; it never moves a file.
+        if (update.Alongside.IsSet && update.Alongside.Value.Level != ExtraScopeLevel.None)
+        {
+            foreach (var folder in load.Targets.Select(target => target.ItemFolder).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!await disk.IsPlaceOfTitleAsync(folder, update.Alongside.Value, ct).ConfigureAwait(false))
+                {
+                    return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, BadAlongside);
                 }
             }
         }
@@ -198,6 +223,13 @@ public sealed class SupportingFileBulkService(
                 SupportingFileBulkProblem.Invalid, RoleNotAvailable(config, ex.FileKind, ex.Role));
         }
 
+        var history = new List<EntityEvent>();
+        foreach (var target in load.Targets)
+        {
+            history.AddRange(SupportingFileHistory.Describe(target, update, config)
+                .Select(words => SupportingFileHistory.Row(target.Id, SupportingFileHistory.FieldEvent, words)));
+        }
+
         var moves = new List<SupportingFilePlannedMoveDto>();
         var moved = new List<(ItemExtra Row, SupportingFileMovePlan Plan)>();
         foreach (var (id, plan) in plans.Where(pair => pair.Value.Moves))
@@ -211,6 +243,7 @@ public sealed class SupportingFileBulkService(
                 var nowSitsIn = update.Scope.IsSet ? update.Scope.Value : row.InferredScope;
                 await extras.RelocateFileAsync(id, plan.To!, nowSitsIn, ct).ConfigureAwait(false);
                 moved.Add((row, plan));
+                history.Add(SupportingFileHistory.Row(id, SupportingFileHistory.MoveEvent, SupportingFileHistory.MoveWords(row, plan.From!, plan.To!)));
             }
 
             moves.Add(ToMove(id, plan, failure is null ? SupportingFileMoveStatuses.Moved : SupportingFileMoveStatuses.Failed, failure));
@@ -221,6 +254,8 @@ public sealed class SupportingFileBulkService(
             undoBox.Undo = _ => RestoreAsync(load.Targets, moved);
         }
 
+        await RecordAsync(history, ct).ConfigureAwait(false);
+
         return SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto
         {
             Preview = false,
@@ -228,6 +263,24 @@ public sealed class SupportingFileBulkService(
             Changed = results.Count(result => result.Status == SupportingFileBulkStatuses.Changed),
             Moves = moves,
         });
+    }
+
+    // The data is already saved, so a History row that cannot be written is logged and never fails the change.
+    private async Task RecordAsync(IReadOnlyList<EntityEvent> events, CancellationToken ct)
+    {
+        if (timeline is null || events.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await timeline.InsertEventsAsync(events, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogWarning(ex, "The History of {Count} supporting file change(s) could not be written.", events.Count);
+        }
     }
 
     // Puts every row back as it was before the change. A file that moved goes back first; one that cannot go back keeps its new path,
@@ -275,6 +328,10 @@ public sealed class SupportingFileBulkService(
         }
 
         var removed = await extras.RemoveManyAsync([.. load.Targets.Select(target => target.Id)], ct).ConfigureAwait(false);
+        await RecordAsync(
+            [.. load.Targets.Select(target => SupportingFileHistory.Row(
+                target.Id, SupportingFileHistory.DeleteEvent, SupportingFileHistory.DeleteWords(disks[target.Id].Outcome, disks[target.Id].Reason)))],
+            ct).ConfigureAwait(false);
 
         var results = new List<SupportingFileDeleteItemResultDto>(request.Ids.Count);
         foreach (var requested in load.Requested)
@@ -392,9 +449,50 @@ public sealed class SupportingFileBulkService(
             RemoveTags = Clean(changes.RemoveTags),
         };
 
+        if (!string.IsNullOrWhiteSpace(changes.Title))
+        {
+            update = update with { Title = ExtraValue<string>.Set(changes.Title.Trim()) };
+        }
+        else if (changes.ClearTitle || changes.Title is not null)
+        {
+            update = update with { Title = ExtraValue<string>.Clear };
+        }
+
+        if (!string.IsNullOrWhiteSpace(changes.Description))
+        {
+            update = update with { Description = ExtraValue<string>.Set(changes.Description.Trim()) };
+        }
+        else if (changes.ClearDescription || changes.Description is not null)
+        {
+            update = update with { Description = ExtraValue<string>.Clear };
+        }
+
+        if (!string.IsNullOrWhiteSpace(changes.AlongsideKey))
+        {
+            if (!ExtraScope.TryParse(changes.AlongsideKey, out var alongside)
+                || alongside.Level is not (ExtraScopeLevel.Episode or ExtraScopeLevel.File or ExtraScopeLevel.Track))
+            {
+                return (null, BadAlongside);
+            }
+
+            update = update with { Alongside = ExtraValue<ExtraScope>.Set(alongside) };
+        }
+        else if (changes.NoAlongside)
+        {
+            update = update with { Alongside = ExtraValue<ExtraScope>.Set(ExtraScope.None) };
+        }
+        else if (changes.UseGuessedAlongside)
+        {
+            update = update with { Alongside = ExtraValue<ExtraScope>.Clear };
+        }
+
         if (!string.IsNullOrWhiteSpace(changes.GroupName))
         {
             update = update with { GroupName = ExtraValue<string>.Set(changes.GroupName.Trim()) };
+        }
+        else if (changes.NoGroup)
+        {
+            update = update with { NoGroup = true };
         }
         else if (changes.ClearGroup)
         {
@@ -444,6 +542,42 @@ public sealed class SupportingFileBulkService(
         }
 
         if (update.GroupName is { State: ExtraValueState.Cleared } && file.GroupSource == ExtraGroupSources.You)
+        {
+            return true;
+        }
+
+        // "No group" is a decision of its own: a file already told to have none (source "you", nothing in it) stays as it is.
+        if (update.NoGroup && (file.GroupName is not null || file.GroupSource != ExtraGroupSources.You))
+        {
+            return true;
+        }
+
+        if (update.Title.IsSet && !string.Equals(file.OwnTitle, update.Title.Value, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (update.Title is { State: ExtraValueState.Cleared } && !string.IsNullOrWhiteSpace(file.OwnTitle))
+        {
+            return true;
+        }
+
+        if (update.Description.IsSet && !string.Equals(file.OwnDescription, update.Description.Value, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (update.Description is { State: ExtraValueState.Cleared } && !string.IsNullOrWhiteSpace(file.OwnDescription))
+        {
+            return true;
+        }
+
+        if (update.Alongside.IsSet && !string.Equals(file.Alongside?.Key, update.Alongside.Value.Key, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (update.Alongside is { State: ExtraValueState.Cleared } && file.Alongside is not null)
         {
             return true;
         }
