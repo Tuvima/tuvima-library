@@ -4809,6 +4809,7 @@ input[type="reset"],
 .subtitle-preview[data-subtitle-size="Small"] { --subtitle-preview-size: 14px; }
 .subtitle-preview[data-subtitle-size="Large"] { --subtitle-preview-size: 23px; }
 .subtitle-preview[data-subtitle-background="false"] { --subtitle-preview-bg: transparent; }
+.subtitle-preview[data-subtitle-shadow="true"] { --subtitle-preview-shadow: 0 1px 3px black, 0 0 6px black; }
 .subtitle-preview__line { margin: 0; text-align: center; }
 .subtitle-preview__text { padding: 0.1em 0.4em; background: var(--subtitle-preview-bg); color: white; font-size: var(--subtitle-preview-size); line-height: 1.4; text-shadow: var(--subtitle-preview-shadow); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 

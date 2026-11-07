@@ -228,4 +228,66 @@ public sealed class SubtitleAppearanceTests : AsyncBunitContext
         Assert.Equal(PlaybackPreferenceValues.Medium, SubtitleAppearance.SizeChoice(null));
         Assert.Equal(SubtitleBackdrop.Box, SubtitleAppearance.BackdropChoice(null));
     }
+
+    [Fact]
+    public void AnExtraLargeLook_TicksNoPresetEvenThoughTheSizeControlShowsLarge()
+    {
+        var look = new SubtitleLanguageSettingsDto();
+        SubtitleAppearance.Apply(look, SubtitlePreset.LargeText);
+        look.SubtitleSize = PlaybackPreferenceValues.ExtraLarge;
+
+        Assert.Equal(PlaybackPreferenceValues.Large, SubtitleAppearance.SizeChoice(look));
+        Assert.Null(SubtitleAppearance.Matching(look));
+    }
+
+    [Fact]
+    public async Task TheStylePresets_AreOneTabStopWithTheTickedTileHoldingIt()
+    {
+        var cut = await OpenAppearanceAsync();
+
+        var tiles = cut.FindAll("[data-sav-preset]");
+        Assert.Equal(["default"], tiles.Where(tile => tile.GetAttribute("tabindex") == "0").Select(tile => tile.GetAttribute("data-sav-preset")));
+        await cut.Find("[data-sav-preset='large']").ClickAsync();
+        Assert.Equal(["large"], cut.FindAll("[data-sav-preset]").Where(tile => tile.GetAttribute("tabindex") == "0").Select(tile => tile.GetAttribute("data-sav-preset")));
+        // A custom look ticks no tile; the first tile then holds the one Tab stop.
+        await cut.Find(".sav__row:not(.sav__row--first) .app-segmented-control__item:first-child").ClickAsync();
+        Assert.Equal(["default"], cut.FindAll("[data-sav-preset]").Where(tile => tile.GetAttribute("tabindex") == "0").Select(tile => tile.GetAttribute("data-sav-preset")));
+    }
+
+    [Fact]
+    public async Task TheCustomAppearanceOpacitySliders_UseThePlayersOwnSliderStyleWithPercentMarks()
+    {
+        var cut = await OpenAppearanceAsync();
+
+        await cut.Find("[data-sav-custom]").ClickAsync();
+
+        var sliders = cut.FindAll(".player-settings-menu__group--slider .playback-range-slider");
+        Assert.Equal(2, sliders.Count);
+        Assert.All(sliders, slider => Assert.Contains("playback-range-slider--player", slider.ClassName, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll(".player-settings-menu__group--slider .app-slider"));
+        Assert.Equal(["20%", "40%", "60%", "80%", "100%"],
+            cut.FindAll(".player-settings-menu__group--slider")[0].QuerySelectorAll(".playback-range-slider__label").Select(label => label.TextContent.Trim()));
+    }
+
+    [Fact]
+    public void TheSettingsPreview_FollowsTheShadowSwitchLikeThePlayerDoes()
+    {
+        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/wwwroot/app.css"));
+        var page = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Settings/PlaybackSettingsPage.razor"));
+
+        Assert.Contains(".subtitle-preview[data-subtitle-shadow=\"true\"] { --subtitle-preview-shadow: 0 1px 3px black, 0 0 6px black; }", css, StringComparison.Ordinal);
+        Assert.Contains("data-subtitle-shadow=\"@(Subtitles.SubtitleShadow", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("subtitle-preview[data-subtitle-background=\"false\"] { --subtitle-preview-bg: transparent; --subtitle-preview-shadow", css, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root not found.");
+    }
 }

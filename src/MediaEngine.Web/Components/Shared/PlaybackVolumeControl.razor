@@ -35,7 +35,7 @@
     }
     else
     {
-        <span class="playback-volume__button" @onkeydown="HandleKeyAsync">
+        <span class="playback-volume__button" @onkeydown="HandleKeyAsync" data-volume-keys="@(Supported ? "true" : null)">
             <PlaybackIconButton Control="@Control" Surface="@Surface" Size="@Size" Appearance="@Appearance" GlyphOverride="@SpeakerGlyph" OnClick="OnToggleMute" />
         </span>
         <span class="playback-volume__slot" data-volume-slot>
@@ -118,7 +118,8 @@
         if (!_disposed) _ = InvokeAsync(StateHasChanged);
     }
 
-    // Arrow keys on the speaker button itself step the volume too, so the control works before the slider has focus.
+    // Arrow keys on the speaker button itself step the volume too, so the control works before the slider has focus. The page must not scroll
+    // under them: a handler here runs after the browser has acted, so playback-volume.js cancels the keys' default for the speaker (data-volume-keys).
     // (A key pressed on the slider is handled by the slider's own range input, which sits outside this handler.)
     private async Task HandleKeyAsync(KeyboardEventArgs args)
     {

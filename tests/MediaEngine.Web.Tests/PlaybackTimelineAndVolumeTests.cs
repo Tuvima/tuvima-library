@@ -1,8 +1,10 @@
 using Bunit;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Tests;
 
@@ -10,6 +12,8 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
 {
     private const string Minus = "−";
+
+    private IStringLocalizer<SharedStrings> L => Services.GetRequiredService<IStringLocalizer<SharedStrings>>();
 
     public PlaybackTimelineAndVolumeTests()
     {
@@ -154,8 +158,8 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [Fact]
     public void AudiobookLabel_InChapterMode_ReadsChapterElapsedAndTimeLeft()
     {
-        Assert.Equal("Chapter 8", PlaybackTimelineMetaRow.ChapterLabel(8));
-        Assert.Equal($"Chapter 8 · 12:08 · {Minus}18:32", PlaybackTimelineMetaRow.ChapterSummary(8, 12 * 60 + 8, 18 * 60 + 32));
+        Assert.Equal("Chapter 8", PlaybackTimelineMetaRow.ChapterLabel(L, 8));
+        Assert.Equal($"Chapter 8 · 12:08 · {Minus}18:32", PlaybackTimelineMetaRow.ChapterSummary(L, 8, 12 * 60 + 8, 18 * 60 + 32));
     }
 
     [Fact]
@@ -163,8 +167,8 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     {
         const double book = 8 * 3600 + 30 * 60; // 8 h 30 m
         const double position = book * 0.32;
-        Assert.Equal("Book · 32%", PlaybackTimelineMetaRow.BookLabel(position, book));
-        Assert.Equal("Book · 32% · 5h 46m left", PlaybackTimelineMetaRow.BookSummary(position, book));
+        Assert.Equal("Book · 32%", PlaybackTimelineMetaRow.BookLabel(L, position, book));
+        Assert.Equal("Book · 32% · 5h 46m left", PlaybackTimelineMetaRow.BookSummary(L, position, book));
     }
 
     [Theory]
@@ -175,23 +179,23 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [InlineData(-5, "Less than a minute left")]
     public void AudiobookLabel_TimeLeftIsHoursAndMinutes(double seconds, string expected)
     {
-        Assert.Equal(expected, PlaybackTimelineMetaRow.TimeLeft(seconds));
+        Assert.Equal(expected, PlaybackTimelineMetaRow.TimeLeft(L, seconds));
     }
 
     [Fact]
     public void AudiobookLabel_PercentRoundsDownSoItReadsOneHundredOnlyWhenTheBookIsDone()
     {
-        Assert.Equal("Book · 99%", PlaybackTimelineMetaRow.BookLabel(999, 1000));
-        Assert.Equal("Book · 100%", PlaybackTimelineMetaRow.BookLabel(1000, 1000));
-        Assert.Equal("Book · 0%", PlaybackTimelineMetaRow.BookLabel(5, 0));
+        Assert.Equal("Book · 99%", PlaybackTimelineMetaRow.BookLabel(L, 999, 1000));
+        Assert.Equal("Book · 100%", PlaybackTimelineMetaRow.BookLabel(L, 1000, 1000));
+        Assert.Equal("Book · 0%", PlaybackTimelineMetaRow.BookLabel(L, 5, 0));
     }
 
     [Fact]
     public void Timeline_ShowsTheAudiobookLabelBetweenElapsedAndTheRailAndSpeaksTheWholeLine()
     {
         var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 3000).Add(c => c.Position, 728)
-            .Add(c => c.Label, PlaybackTimelineMetaRow.ChapterLabel(8))
-            .Add(c => c.Summary, PlaybackTimelineMetaRow.ChapterSummary(8, 728, 2272)));
+            .Add(c => c.Label, PlaybackTimelineMetaRow.ChapterLabel(L, 8))
+            .Add(c => c.Summary, PlaybackTimelineMetaRow.ChapterSummary(L, 8, 728, 2272)));
 
         var rail = cut.Find("[data-playback-seek-rail]");
         Assert.Equal("group", rail.GetAttribute("role"));
@@ -288,7 +292,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Volume_SliderOpensIntoAReservedSlotSoNothingElseInTheBarMoves()
+    public void Volume_SliderOverlaysAZeroWidthSlotSoNothingElseInTheBarMoves()
     {
         var cut = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.6).Add(c => c.Surface, "dock").Add(c => c.Touch, false));
 
@@ -301,10 +305,29 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
         Assert.Equal(root, slot.ParentElement);
 
         var css = SourceText("Components/Shared/PlaybackVolumeControl.razor.css");
-        Assert.Contains("overflow:hidden; width:0; visibility:hidden;", css, StringComparison.Ordinal);
-        Assert.Contains(".playback-volume[data-open=\"true\"] .playback-volume__slot {", css, StringComparison.Ordinal);
-        Assert.Contains("width:calc(var(--playback-volume-slider-width) + 20px)", css, StringComparison.Ordinal);
+        // The slot keeps no width, open or closed, and never clips; only the slider inside it is drawn over the bar.
+        Assert.Contains("flex:none; width:0; height:0; visibility:hidden;", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("overflow:hidden", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("width:calc(var(--playback-volume-slider-width) + 20px)", css, StringComparison.Ordinal);
+        var openSlot = css[css.IndexOf(".playback-volume[data-open=\"true\"] .playback-volume__slot", StringComparison.Ordinal)..];
+        Assert.DoesNotContain("width:", openSlot[..openSlot.IndexOf('}', StringComparison.Ordinal)], StringComparison.Ordinal);
+        var panelRule = css[css.IndexOf(".playback-volume__panel {", StringComparison.Ordinal)..];
+        panelRule = panelRule[..panelRule.IndexOf('}', StringComparison.Ordinal)];
+        Assert.Contains("position:absolute; left:0; top:50%", panelRule, StringComparison.Ordinal);
+        Assert.Contains("z-index:", panelRule, StringComparison.Ordinal);
+        Assert.Contains("background:var(--tl-bg-shell)", panelRule, StringComparison.Ordinal);
         Assert.DoesNotContain(":hover", css, StringComparison.Ordinal); // the reveal is the script's, so the 400 ms linger is real
+    }
+
+    [Fact]
+    public void Tools_WhenTheyOverflowAreRightAlignedButScrollableFromTheirFirstTool()
+    {
+        var css = SourceText("Components/Shared/PlaybackShell.razor.css");
+        var narrow = css[css.IndexOf("@media (max-width: 1180px)", StringComparison.Ordinal)..];
+        narrow = narrow[..narrow.IndexOf("\n}", StringComparison.Ordinal)];
+        Assert.Contains("overflow-x: auto", narrow, StringComparison.Ordinal);
+        Assert.Contains("justify-content: flex-start", narrow, StringComparison.Ordinal);
+        Assert.Contains("margin-inline-start: auto", narrow, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -376,5 +399,45 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
 
         Assert.NotNull(dir);
         return File.ReadAllText(Path.Combine(dir!, "src", "MediaEngine.Web", relativeToWeb));
+    }
+
+    [Fact]
+    public void Volume_ArrowKeysOnTheSpeakerAreMarkedSoThePageDoesNotScrollUnderThem()
+    {
+        var cut = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.6).Add(c => c.Touch, false));
+        Assert.Equal("true", cut.Find(".playback-volume__button").GetAttribute("data-volume-keys"));
+        Assert.Contains("data-volume-keys", SourceText("wwwroot/js/playback-volume.js"), StringComparison.Ordinal);
+
+        var fixedVolume = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.6).Add(c => c.Touch, false).Add(c => c.Supported, false));
+        Assert.Null(fixedVolume.Find(".playback-volume__button").GetAttribute("data-volume-keys"));
+    }
+
+    [Fact]
+    public void Timeline_TheClockReadoutsAreNotLiveRegionsSoAScreenReaderIsNotReadTheTimeEverySecond()
+    {
+        var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30));
+
+        Assert.Equal("off", cut.Find(".playback-seek-rail__start").GetAttribute("aria-live"));
+        Assert.Equal("off", cut.Find(".playback-seek-rail__end").GetAttribute("aria-live"));
+    }
+
+    [Fact]
+    public void AudiobookLabel_OnATouchScreenHasAFortyFourPixelHitArea()
+    {
+        var css = SourceText("Components/Shared/PlaybackSeekRail.razor.css");
+        var coarse = css[css.IndexOf("@media (pointer: coarse)", StringComparison.Ordinal)..];
+
+        Assert.Contains("playback-seek-rail__label--action", coarse, StringComparison.Ordinal);
+        Assert.Contains("min-height:44px", coarse, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AudiobookLabel_ReadsItsWordsFromTheStringTable()
+    {
+        Assert.Equal("Chapter 8", PlaybackTimelineMetaRow.ChapterLabel(L, 8));
+        Assert.Equal("Less than a minute left", PlaybackTimelineMetaRow.TimeLeft(L, 30));
+        var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30).Add(c => c.Label, "Chapter 8").Add(c => c.LabelClick, EventCallback.Factory.Create(this, () => { })));
+        Assert.Equal("Chapter 8. Switch between the chapter and the whole book", cut.Find("button.playback-seek-rail__label").GetAttribute("aria-label"));
+        Assert.Equal("Elapsed time 0:30", cut.Find(".playback-seek-rail__start").GetAttribute("aria-label"));
     }
 }

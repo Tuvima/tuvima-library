@@ -96,8 +96,12 @@ public static class SubtitleAppearance
         }
     }
 
+    private static string RawSize(SubtitleLanguageSettingsDto look) =>
+        string.IsNullOrWhiteSpace(look.SubtitleSize) ? PlaybackPreferenceValues.Medium : look.SubtitleSize.Trim();
+
     private static bool SameLook(SubtitleLanguageSettingsDto left, SubtitleLanguageSettingsDto right) =>
-        SizeChoice(left) == SizeChoice(right)
+        // The raw size, not the three-way choice: Extra large shows as Large in the segmented control but is not the Large text preset (D13).
+        string.Equals(RawSize(left), RawSize(right), StringComparison.OrdinalIgnoreCase)
         && string.Equals(left.SubtitleFont, right.SubtitleFont, StringComparison.OrdinalIgnoreCase)
         && left.SubtitleShadow == right.SubtitleShadow
         && SubtitleStyleCss.ColorName(left.SubtitleColor, string.Empty) == SubtitleStyleCss.ColorName(right.SubtitleColor, string.Empty)

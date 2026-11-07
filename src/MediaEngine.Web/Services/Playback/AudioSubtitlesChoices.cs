@@ -1,5 +1,7 @@
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Formatting;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Services.Playback;
 
@@ -12,8 +14,8 @@ public enum AudioTrackPurpose
 }
 
 /// <summary>
-/// One row of the Audio column. <see cref="Switchable"/> is false for a track the app cannot switch to (the row is listed with
-/// <see cref="AudioSubtitlesChoices.NotSwitchableHelper"/> and cannot be chosen).
+/// One row of the Audio column. <see cref="Switchable"/> is false for a track the app cannot switch to (the row is listed with a
+/// "Not switchable in this browser" note and cannot be chosen).
 /// </summary>
 public sealed record AudioChoice(int Index, string Label, string? Detail, AudioTrackPurpose Purpose, bool Selected, bool Switchable);
 
@@ -41,10 +43,8 @@ public sealed record TrackSwitchRequest(TrackSwitchKind Kind, double ResumeSecon
 /// </summary>
 public static class AudioSubtitlesChoices
 {
-    public const string NotSwitchableHelper = "Not switchable in this browser";
-
     /// <summary>The audio rows, ordinary tracks first, then audio description, then commentary (each group keeps the file's order).</summary>
-    public static IReadOnlyList<AudioChoice> BuildAudio(IReadOnlyList<PlaybackTrackDto> tracks, int? selectedIndex, bool canSwitch)
+    public static IReadOnlyList<AudioChoice> BuildAudio(IStringLocalizer<SharedStrings> L, IReadOnlyList<PlaybackTrackDto> tracks, int? selectedIndex, bool canSwitch)
     {
         if (tracks.Count == 0)
         {
@@ -59,7 +59,7 @@ public static class AudioSubtitlesChoices
             {
                 var purpose = PurposeOf(track);
                 var isCurrent = index == current;
-                return new AudioChoice(index, AudioLabel(track, index, purpose), AudioDetail(track, purpose), purpose,
+                return new AudioChoice(index, AudioLabel(L, track, index, purpose), AudioDetail(L, track, purpose), purpose,
                     isCurrent, Switchable: tracks.Count > 1 && canSwitch);
             })
             .OrderBy(choice => (int)choice.Purpose)
@@ -82,32 +82,34 @@ public static class AudioSubtitlesChoices
                 : AudioTrackPurpose.Main;
     }
 
-    private static string AudioLabel(PlaybackTrackDto track, int index, AudioTrackPurpose purpose)
+    private static string AudioLabel(IStringLocalizer<SharedStrings> L, PlaybackTrackDto track, int index, AudioTrackPurpose purpose)
     {
         var language = DisplayFormat.FormatLanguageName(track.Language);
         return purpose switch
         {
             AudioTrackPurpose.Commentary => (track.DisplayName ?? string.Empty).Contains("director", StringComparison.OrdinalIgnoreCase)
-                ? "Director commentary"
-                : "Commentary",
-            AudioTrackPurpose.AudioDescription => language is null ? "Audio description" : $"{language} · Audio description",
-            _ => language ?? $"Audio {index + 1}",
+                ? L["AudioSubtitles_DirectorCommentary"].Value
+                : L["AudioSubtitles_Commentary"].Value,
+            AudioTrackPurpose.AudioDescription => language is null
+                ? L["AudioSubtitles_AudioDescription"].Value
+                : L["AudioSubtitles_LanguageAudioDescription", language].Value,
+            _ => language ?? L["AudioSubtitles_AudioNumber", index + 1].Value,
         };
     }
 
-    private static string? AudioDetail(PlaybackTrackDto track, AudioTrackPurpose purpose)
+    private static string? AudioDetail(IStringLocalizer<SharedStrings> L, PlaybackTrackDto track, AudioTrackPurpose purpose)
     {
         var language = purpose == AudioTrackPurpose.Commentary ? DisplayFormat.FormatLanguageName(track.Language) : null;
-        var parts = new[] { language, Facts(track) }.Where(part => !string.IsNullOrWhiteSpace(part));
+        var parts = new[] { language, Facts(L, track) }.Where(part => !string.IsNullOrWhiteSpace(part));
         var joined = string.Join(" · ", parts);
         return joined.Length == 0 ? null : joined;
     }
 
     /// <summary>"Dolby Atmos · 7.1", "Dolby Digital · 5.1", "Stereo · 2.0"; null when the file says nothing about the track.</summary>
-    private static string? Facts(PlaybackTrackDto track)
+    private static string? Facts(IStringLocalizer<SharedStrings> L, PlaybackTrackDto track)
     {
         var codec = CodecName(track);
-        var channels = ChannelLayout(track.Channels);
+        var channels = ChannelLayout(L, track.Channels);
         if (codec is null && channels is null)
         {
             var raw = track.Codec?.Trim();
@@ -136,13 +138,13 @@ public static class AudioSubtitlesChoices
         };
     }
 
-    private static string? ChannelLayout(int? channels) => channels switch
+    private static string? ChannelLayout(IStringLocalizer<SharedStrings> L, int? channels) => channels switch
     {
-        1 => "Mono · 1.0",
-        2 => "Stereo · 2.0",
+        1 => L["AudioSubtitles_ChannelsMono"].Value,
+        2 => L["AudioSubtitles_ChannelsStereo"].Value,
         6 => "5.1",
         8 => "7.1",
-        > 2 => $"{channels} channels",
+        > 2 => L["AudioSubtitles_ChannelCount", channels.Value].Value,
         _ => null,
     };
 
@@ -150,15 +152,17 @@ public static class AudioSubtitlesChoices
     /// A subtitle row's name with the kind kept: "English", "English · SDH", "English · Forced". An unknown language falls back to
     /// whatever the player named the track.
     /// </summary>
-    public static string SubtitleLabel(string? language, string? fallback, bool isForced, bool isHearingImpaired)
+    public static string SubtitleLabel(IStringLocalizer<SharedStrings> L, string? language, string? fallback, bool isForced, bool isHearingImpaired)
     {
         var name = DisplayFormat.FormatLanguageName(language);
         if (name is null)
         {
-            name = string.IsNullOrWhiteSpace(fallback) ? "Subtitles" : fallback.Trim();
+            name = string.IsNullOrWhiteSpace(fallback) ? L["AudioSubtitles_Subtitles"].Value : fallback.Trim();
         }
 
-        return isHearingImpaired ? $"{name} · SDH" : isForced ? $"{name} · Forced" : name;
+        return isHearingImpaired ? L["AudioSubtitles_NameSdh", name].Value
+            : isForced ? L["AudioSubtitles_NameForced", name].Value
+            : name;
     }
 
     /// <summary>True when a track's own name says it is for the deaf and hard of hearing.</summary>

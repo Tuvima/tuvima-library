@@ -2,9 +2,11 @@ using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Watch;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Tests;
 
@@ -16,6 +18,8 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
 {
     private readonly PlaybackTransientToolCoordinator _tools = new();
     private readonly List<TrackSwitchRequest> _switches = [];
+
+    private IStringLocalizer<SharedStrings> L => Services.GetRequiredService<IStringLocalizer<SharedStrings>>();
 
     public AudioSubtitlesPanelTests()
     {
@@ -53,7 +57,7 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     {
         var cut = Render<AudioSubtitlesPanel>(parameters =>
         {
-            parameters.Add(p => p.Audio, audio ?? AudioSubtitlesChoices.BuildAudio(FileAudio, null, canSwitch: true))
+            parameters.Add(p => p.Audio, audio ?? AudioSubtitlesChoices.BuildAudio(L, FileAudio, null, canSwitch: true))
                 .Add(p => p.Subtitles, subtitles ?? FileSubtitles)
                 .Add(p => p.Position, position)
                 .Add(p => p.OnSwitch, EventCallback.Factory.Create<TrackSwitchRequest>(this, request => _switches.Add(request)));
@@ -97,7 +101,7 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public void AudioRows_NameTheLanguageThenTheFormatAndChannels()
     {
-        var rows = AudioSubtitlesChoices.BuildAudio(FileAudio, null, canSwitch: true);
+        var rows = AudioSubtitlesChoices.BuildAudio(L, FileAudio, null, canSwitch: true);
 
         var atmos = rows.Single(row => row.Index == 0);
         Assert.Equal("English", atmos.Label);
@@ -133,9 +137,9 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public void SubtitleLabels_KeepSdhAndForcedAndFallBackToThePlayersOwnName()
     {
-        Assert.Equal("English · SDH", AudioSubtitlesChoices.SubtitleLabel("eng", null, isForced: false, isHearingImpaired: true));
-        Assert.Equal("French · Forced", AudioSubtitlesChoices.SubtitleLabel("fre", null, isForced: true, isHearingImpaired: false));
-        Assert.Equal("Commentary subs", AudioSubtitlesChoices.SubtitleLabel("und", "Commentary subs", isForced: false, isHearingImpaired: false));
+        Assert.Equal("English · SDH", AudioSubtitlesChoices.SubtitleLabel(L, "eng", null, isForced: false, isHearingImpaired: true));
+        Assert.Equal("French · Forced", AudioSubtitlesChoices.SubtitleLabel(L, "fre", null, isForced: true, isHearingImpaired: false));
+        Assert.Equal("Commentary subs", AudioSubtitlesChoices.SubtitleLabel(L, "und", "Commentary subs", isForced: false, isHearingImpaired: false));
         Assert.True(AudioSubtitlesChoices.NamesHearingImpaired("English (SDH)"));
         Assert.False(AudioSubtitlesChoices.NamesHearingImpaired("English"));
     }
@@ -223,12 +227,14 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public async Task ATrackTheAppCannotSwitch_IsListedNotSelectableWithTheBrowserHelper()
     {
-        var audio = AudioSubtitlesChoices.BuildAudio(FileAudio, null, canSwitch: false);
+        var audio = AudioSubtitlesChoices.BuildAudio(L, FileAudio, null, canSwitch: false);
         var cut = await OpenAsync(audio);
 
         var spanish = cut.Find("[data-asv-audio='3']");
         Assert.True(spanish.HasAttribute("disabled"));
-        Assert.Contains("Not switchable in this browser", spanish.QuerySelector(".asv__sub")!.TextContent);
+        // The row keeps its facts and adds the note under them; the note does not replace them.
+        var lines = spanish.QuerySelectorAll(".asv__sub").Select(line => line.TextContent).ToList();
+        Assert.Equal(["Dolby Digital · 5.1", "Not switchable in this browser"], lines);
         await spanish.ClickAsync();
         Assert.Empty(_switches);
         // The track that is playing keeps its check and its facts.
@@ -239,7 +245,7 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public async Task OneAudioTrackAndNoSubtitles_StillShowsThePanelWithTheTrackListedAndNotSelectable()
     {
-        var single = AudioSubtitlesChoices.BuildAudio([new() { Index = 0, Language = "jpn", Codec = "aac", Channels = 2, IsDefault = true }], null, canSwitch: true);
+        var single = AudioSubtitlesChoices.BuildAudio(L, [new() { Index = 0, Language = "jpn", Codec = "aac", Channels = 2, IsDefault = true }], null, canSwitch: true);
         var cut = await OpenAsync(single, [new SubtitleChoice(null, "Off", true)]);
 
         var track = cut.Find("[data-asv-audio='0']");
@@ -346,5 +352,63 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
         }
 
         return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root not found.");
+    }
+
+    [Fact]
+    public async Task EachRadioGroupHasOneTabStop_TheChosenRow_SoTheArrowKeysCanMoveWithinIt()
+    {
+        var cut = await OpenAsync();
+
+        var audio = cut.FindAll("[data-asv-audio]");
+        Assert.Equal(["0"], audio.Where(row => row.GetAttribute("tabindex") == "0").Select(row => row.GetAttribute("data-asv-audio")));
+        Assert.All(audio.Where(row => row.GetAttribute("data-asv-audio") != "0"), row => Assert.Equal("-1", row.GetAttribute("tabindex")));
+        var subtitles = cut.FindAll("[data-asv-subtitle]");
+        Assert.Equal(["manifest:0"], subtitles.Where(row => row.GetAttribute("tabindex") == "0").Select(row => row.GetAttribute("data-asv-subtitle")));
+        Assert.All(subtitles.Where(row => row.GetAttribute("data-asv-subtitle") != "manifest:0"), row => Assert.Equal("-1", row.GetAttribute("tabindex")));
+        // The arrow keys come from the shared roving-focus script, told to move with Up and Down as well.
+        var invocations = JSInterop.Invocations.Where(call => call.Identifier == "attach").ToList();
+        Assert.True(invocations.Count >= 2, "both radio groups attach the roving focus script");
+    }
+
+    [Fact]
+    public async Task WhenNoAudioRowCanBeChosen_NoRowHoldsATabStop()
+    {
+        var cut = await OpenAsync(AudioSubtitlesChoices.BuildAudio(L, FileAudio, null, canSwitch: false));
+
+        Assert.DoesNotContain(cut.FindAll("[data-asv-audio]"), row => row.GetAttribute("tabindex") == "0");
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheTabsAreLinkedToTheirPanelAndMoveWithTheArrowKeys()
+    {
+        var cut = await OpenAsync(phone: true);
+
+        var subtitlesTab = cut.Find("[data-asv-tab='subtitles']");
+        var panel = cut.Find("[data-asv-column='subtitles']");
+        Assert.Equal("tabpanel", panel.GetAttribute("role"));
+        Assert.Equal(subtitlesTab.Id, panel.GetAttribute("aria-labelledby"));
+        Assert.Equal(panel.Id, subtitlesTab.GetAttribute("aria-controls"));
+        Assert.Equal("0", subtitlesTab.GetAttribute("tabindex"));
+        Assert.Equal("-1", cut.Find("[data-asv-tab='audio']").GetAttribute("tabindex"));
+
+        await cut.Find("[role='tablist']").KeyDownAsync(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowLeft" });
+
+        Assert.Equal("true", cut.Find("[data-asv-tab='audio']").GetAttribute("aria-selected"));
+        Assert.Equal("0", cut.Find("[data-asv-tab='audio']").GetAttribute("tabindex"));
+        Assert.Equal(["audio"], cut.FindAll("[data-asv-column]").Select(column => column.GetAttribute("data-asv-column")));
+        await cut.Find("[role='tablist']").KeyDownAsync(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowRight" });
+        Assert.Equal("true", cut.Find("[data-asv-tab='subtitles']").GetAttribute("aria-selected"));
+    }
+
+    [Fact]
+    public async Task OnADesktop_TheColumnsAreNamedRegionsNotTabPanels()
+    {
+        var cut = await OpenAsync();
+
+        Assert.All(cut.FindAll("[data-asv-column]"), column =>
+        {
+            Assert.Null(column.GetAttribute("role"));
+            Assert.False(string.IsNullOrWhiteSpace(column.GetAttribute("aria-label")));
+        });
     }
 }

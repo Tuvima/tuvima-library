@@ -123,7 +123,9 @@
 
 @media (max-width: 1180px) {
     /* The inner padding keeps the 2 px focus ring (2 px offset) inside the scroll box, which clips both axes. */
-    .playback-shell__tools { overflow-x: auto; scrollbar-width: none; padding: 4px; margin: -4px; }
+    .playback-shell__tools { overflow-x: auto; scrollbar-width: none; padding: 4px; margin: -4px; justify-content: flex-start; }
+    /* Right-aligned when everything fits, yet scrollable from the first tool when it does not (flex-end would clip the tools at the start). */
+    .playback-shell__tools > ::deep :first-child { margin-inline-start: auto; }
     .playback-shell__tools::-webkit-scrollbar { display: none; }
 }
 

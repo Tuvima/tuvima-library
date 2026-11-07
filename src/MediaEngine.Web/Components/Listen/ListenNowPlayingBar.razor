@@ -99,16 +99,16 @@
                 @if (ChapterScope is { } scope)
                 {
                     <PlaybackSeekRail Position="@scope.Elapsed(Playback.CurrentTimeSeconds)" Duration="@scope.Length" ValueChanged="@(seconds => SeekOnHostAsync(scope.ToAbsolute(seconds)))" Surface="dock"
-                                      Label="@PlaybackTimelineMetaRow.ChapterLabel(scope.Number)" LabelClick="@(() => SetBarScopeAsync(true))" LabelActionText="Show the whole book"
-                                      Summary="@PlaybackTimelineMetaRow.ChapterSummary(scope.Number, scope.Elapsed(Playback.CurrentTimeSeconds), Math.Max(0, scope.Length - scope.Elapsed(Playback.CurrentTimeSeconds)))"
+                                      Label="@PlaybackTimelineMetaRow.ChapterLabel(L, scope.Number)" LabelClick="@(() => SetBarScopeAsync(true))" LabelActionText="@L["ListenNowPlayingBar_ShowWholeBook"].Value"
+                                      Summary="@PlaybackTimelineMetaRow.ChapterSummary(L, scope.Number, scope.Elapsed(Playback.CurrentTimeSeconds), Math.Max(0, scope.Length - scope.Elapsed(Playback.CurrentTimeSeconds)))"
                                       Bookmarks="@BarMarkers(scope)" BookmarkJump="@(marker => SeekOnHostAsync(AudiobookBarMarkers.ToAbsolute(marker, scope)))" />
                 }
                 else if (Playback.IsAudiobookMode && AudiobookWindow is not null)
                 {
                     <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
-                                      Label="@PlaybackTimelineMetaRow.BookLabel(Playback.CurrentTimeSeconds, Playback.DurationSeconds)" LabelClick="@(() => SetBarScopeAsync(false))" LabelActionText="Show this chapter"
-                                      EndText="@PlaybackTimelineMetaRow.TimeLeft(Playback.DurationSeconds - Playback.CurrentTimeSeconds)"
-                                      Summary="@PlaybackTimelineMetaRow.BookSummary(Playback.CurrentTimeSeconds, Playback.DurationSeconds)"
+                                      Label="@PlaybackTimelineMetaRow.BookLabel(L, Playback.CurrentTimeSeconds, Playback.DurationSeconds)" LabelClick="@(() => SetBarScopeAsync(false))" LabelActionText="@L["ListenNowPlayingBar_ShowThisChapter"].Value"
+                                      EndText="@PlaybackTimelineMetaRow.TimeLeft(L, Playback.DurationSeconds - Playback.CurrentTimeSeconds)"
+                                      Summary="@PlaybackTimelineMetaRow.BookSummary(L, Playback.CurrentTimeSeconds, Playback.DurationSeconds)"
                                       Bookmarks="@BarMarkers(null)" BookmarkJump="@(marker => SeekOnHostAsync(marker.Seconds))" />
                 }
                 else

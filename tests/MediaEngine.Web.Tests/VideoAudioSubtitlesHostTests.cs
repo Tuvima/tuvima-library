@@ -1,11 +1,16 @@
+using System.Security.Claims;
 using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Watch;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 
@@ -21,6 +26,12 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(settings);
         public void UpdateCache(UserPlaybackSettingsDto next) { }
         public void Invalidate() { }
+    }
+
+    private sealed class ProfileAuthentication(Guid profileId) : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
+            new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id", profileId.ToString("D"))], "test"))));
     }
 
     private static readonly IReadOnlyList<PlaybackTrackDto> TwoAudioTracks =
@@ -40,7 +51,7 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         SubtitleTracks = [new() { Index = 0, Language = "eng", DisplayName = "Subtitles (eng)", DeliveryUrl = "/subs/0" }, new() { Index = 1, Language = "eng", DisplayName = "English SDH", DeliveryUrl = "/subs/1" }],
     };
 
-    private PlaybackSessionController Arrange(UserPlaybackSettingsDto settings, Guid asset, Func<Guid, PlaybackManifestDto?>? adaptive = null)
+    private PlaybackSessionController Arrange(UserPlaybackSettingsDto settings, Guid asset, Func<Guid, PlaybackManifestDto?>? adaptive = null, List<UserPlaybackSettingsDto>? saved = null)
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
@@ -50,6 +61,18 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync), _ => Task.FromResult(adaptive?.Invoke(asset)));
+            if (saved is not null)
+            {
+                // The save path of the profile's playback settings: the profile, the settings read, and the settings written back.
+                stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
+                    { new(settings.ProfileId, "Viewer", "#000000", "RestrictedProfile", DateTimeOffset.UtcNow) }));
+                stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), _ => Task.FromResult<UserPlaybackSettingsDto?>(UserPlaybackSettingsDto.CreateDefaults(settings.ProfileId)));
+                stub.SetHandler(nameof(IEngineApiClient.UpdatePlaybackSettingsAsync), args =>
+                {
+                    saved.Add((UserPlaybackSettingsDto)args![1]!);
+                    return Task.FromResult<UserPlaybackSettingsDto?>((UserPlaybackSettingsDto)args[1]!);
+                });
+            }
         });
         var playback = new PlaybackSessionController(null!, api, preferences: preferences);
         playback.RestoreState(new()
@@ -59,6 +82,13 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
             Experience = PlayerExperienceModes.Video,
             IsVideoExpanded = true,
         });
+        if (saved is not null)
+        {
+            var profiles = new ActiveProfileSessionService(null!, api, authenticationStateProvider: new ProfileAuthentication(settings.ProfileId));
+            var orchestrator = new UIOrchestratorService(api, new UniverseStateContainer(), profiles, new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance);
+            Services.AddSingleton(new PlayerPreferenceService(preferences, orchestrator));
+        }
+
         Services.AddSingleton(api);
         Services.AddSingleton(playback);
         Services.AddSingleton(new VideoPresentationResolver(api, null!, playback, preferences));
@@ -139,5 +169,76 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         Assert.True(switched);
         Assert.True(Math.Abs(playback.CurrentItem!.InitialPositionSeconds!.Value - 1694.4) <= 1d, "A9: audio switching keeps the position within one second.");
         Assert.True(playback.CurrentItem.StartAtExactPosition);
+    }
+
+    [Fact]
+    public async Task SwitchingAudioThroughTheEngine_ResumesAtTheSecondTheChoiceWasMadeAt()
+    {
+        var asset = Guid.NewGuid();
+        var playback = Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), asset, id => Direct(id) with
+        {
+            RecommendedDelivery = PlaybackDeliveryModes.Hls,
+            HlsUrl = "/hls/master.m3u8",
+            HlsStatus = "ready",
+            DirectStreamUrl = null,
+            DirectPlaySupported = false,
+        });
+        playback.UpdateTransportState(currentTimeSeconds: 100, durationSeconds: 7200, isPlaying: true);
+
+        // The request carries the second the choice was made at; the stream restarts there, not at whatever the clock reads when the Engine answers.
+        var switched = await playback.SwitchVideoToAdaptiveAsync(resumeSeconds: 1694.4);
+
+        Assert.True(switched);
+        Assert.Equal(1694.4, playback.CurrentItem!.InitialPositionSeconds!.Value, 3);
+        Assert.True(playback.CurrentItem.StartAtExactPosition);
+    }
+
+    [Fact]
+    public async Task ChoosingAnotherAudioTrackInThePanel_RestartsTheStreamAtThePositionThePanelWasOpenedAt()
+    {
+        var asset = Guid.NewGuid();
+        var playback = Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), asset, id => Direct(id) with
+        {
+            RecommendedDelivery = PlaybackDeliveryModes.Hls,
+            HlsUrl = "/hls/master.m3u8",
+            HlsStatus = "ready",
+            DirectStreamUrl = null,
+            DirectPlaySupported = false,
+        });
+        playback.UpdateTransportState(currentTimeSeconds: 1694.4, durationSeconds: 7200, isPlaying: true);
+        var cut = Render<VideoPlaybackHost>();
+        var panel = cut.FindComponent<AudioSubtitlesPanel>().FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForElement("[data-audio-subtitles]");
+
+        await cut.FindAll("[data-asv-audio]")[1].ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.True(playback.CurrentItem!.StartAtExactPosition));
+        Assert.True(Math.Abs(playback.CurrentItem!.InitialPositionSeconds!.Value - 1694.4) <= 1d, "A9: the panel's choice keeps the position within one second.");
+    }
+
+    [Theory]
+    [InlineData("large", PlaybackPreferenceValues.Large, true, 60)]
+    [InlineData("contrast", PlaybackPreferenceValues.Medium, true, 100)]
+    public async Task ChoosingAPreset_SavesThatPresetsValuesOnTheProfile(string preset, string size, bool background, int backgroundOpacity)
+    {
+        var saved = new List<UserPlaybackSettingsDto>();
+        var profile = Guid.NewGuid();
+        Arrange(UserPlaybackSettingsDto.CreateDefaults(profile), Guid.NewGuid(), saved: saved);
+        var cut = Render<VideoPlaybackHost>();
+        var panel = cut.FindComponent<AudioSubtitlesPanel>().FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForElement("[data-audio-subtitles]");
+        await cut.Find("[data-asa-action='appearance']").ClickAsync();
+
+        await cut.Find($"[data-sav-preset='{preset}']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(saved));
+        var look = saved[^1].Subtitles;
+        Assert.Equal(profile, saved[^1].ProfileId);
+        Assert.Equal(size, look.SubtitleSize);
+        Assert.Equal(background, look.SubtitleBackground);
+        Assert.Equal(backgroundOpacity, look.SubtitleBackgroundOpacity);
+        Assert.Equal(SubtitleAppearance.Matching(look), preset == "large" ? SubtitlePreset.LargeText : SubtitlePreset.HighContrast);
     }
 }

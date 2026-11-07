@@ -325,7 +325,7 @@
     // Audio can be switched when the browser sees every track, or when the Engine can stream them (the player then resumes at the same second).
     private bool AudioSwitchPossible => AudioTracks.Count > 1
         && (CanSwitchAudio || Playback.CurrentManifest?.HlsStatus is not ("failed" or "unavailable"));
-    private IReadOnlyList<AudioChoice> AudioChoices => AudioSubtitlesChoices.BuildAudio(AudioTracks, _selectedAudioTrackIndex, AudioSwitchPossible);
+    private IReadOnlyList<AudioChoice> AudioChoices => AudioSubtitlesChoices.BuildAudio(L, AudioTracks, _selectedAudioTrackIndex, AudioSwitchPossible);
     private IReadOnlyList<SubtitleChoice> SubtitleChoices => _captionTracks
         .Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))
         .Prepend(new SubtitleChoice(null, L["Common_Off"].Value, !_captionTracks.Any(track => track.Selected)))
@@ -1374,25 +1374,25 @@
             && Guid.TryParse(track.Key[8..], out var id)
             && ManagedSubtitleTracks.FirstOrDefault(candidate => candidate.Id == id) is { } managed)
         {
-            return AudioSubtitlesChoices.SubtitleLabel(managed.Language, track.Label, isForced: false, managed.IsHearingImpaired);
+            return AudioSubtitlesChoices.SubtitleLabel(L, managed.Language, track.Label, isForced: false, managed.IsHearingImpaired);
         }
         if (track.Key.StartsWith("manifest:", StringComparison.Ordinal)
             && int.TryParse(track.Key[9..], out var index)
             && SubtitleTracks.FirstOrDefault(candidate => candidate.Index == index) is { } manifest)
         {
-            return AudioSubtitlesChoices.SubtitleLabel(manifest.Language, manifest.DisplayName ?? track.Label, manifest.IsForced, AudioSubtitlesChoices.NamesHearingImpaired(manifest.DisplayName));
+            return AudioSubtitlesChoices.SubtitleLabel(L, manifest.Language, manifest.DisplayName ?? track.Label, manifest.IsForced, AudioSubtitlesChoices.NamesHearingImpaired(manifest.DisplayName));
         }
-        return AudioSubtitlesChoices.SubtitleLabel(track.Language, track.Label, isForced: false, AudioSubtitlesChoices.NamesHearingImpaired(track.Label));
+        return AudioSubtitlesChoices.SubtitleLabel(L, track.Language, track.Label, isForced: false, AudioSubtitlesChoices.NamesHearingImpaired(track.Label));
     }
 
     // One choice from the Audio & subtitles panel. Subtitles switch in the browser (the picture is untouched); audio switches in the browser or, when it
     // cannot see the file's tracks, through the Engine stream, which restarts at the second the player is at (SwitchVideoToAdaptiveAsync). The request
     // carries that second too, so the panel's promise (A9: within one second) is stated where the choice is made.
     private Task HandleTrackSwitchAsync(TrackSwitchRequest request) => request.Kind == TrackSwitchKind.Audio
-        ? SelectAudioTrackAsync(request.AudioIndex)
+        ? SelectAudioTrackAsync(request.AudioIndex, request.ResumeSeconds)
         : SelectCaptionAsync(request.CaptionKey);
 
-    private async Task SelectAudioTrackAsync(int index)
+    private async Task SelectAudioTrackAsync(int index, double? resumeSeconds = null)
     {
         if (AudioTracks.Count < 2 || _switchingAudio) return;
         _trackNotice = null;
@@ -1406,7 +1406,7 @@
         _pendingAudioIndex = index;
         _switchingAudio = true;
         await InvokeAsync(StateHasChanged);
-        if (!await Playback.SwitchVideoToAdaptiveAsync(_lifetimeCancellation.Token))
+        if (!await Playback.SwitchVideoToAdaptiveAsync(_lifetimeCancellation.Token, resumeSeconds))
         {
             _switchingAudio = false;
             _pendingAudioIndex = null;

@@ -2,7 +2,10 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
 
 @* Subtitle appearance, the nested view of Audio & subtitles (unified player v2 D13; mockup screen 4). From the top: a live preview strip, three style
    presets (Default, Large text, High contrast; a tile is ticked only while the look matches it exactly), Text size and Background as segmented
@@ -12,12 +15,12 @@
         <AppCssElement Tag="span" Class="sav__preview-line" Css="@PreviewStyle" aria-live="polite">@L["SubtitleAppearance_PreviewLine"]</AppCssElement>
     </div>
     <div class="sav__heading">@L["SubtitleAppearance_Style"]</div>
-    <div class="sav__presets" role="radiogroup" aria-label="@L["SubtitleAppearance_Style"].Value">
+    <div class="sav__presets" role="radiogroup" aria-label="@L["SubtitleAppearance_Style"].Value" @ref="_presetGroup">
         @foreach (var preset in Presets)
         {
             var tile = preset;
             var on = Current == tile.Preset;
-            <AppNativeButton Type="button" Class="@($"sav__tile sav__tile--{tile.Key}{(on ? " is-on" : null)}")" role="radio" aria-checked="@(on ? "true" : "false")"
+            <AppNativeButton Type="button" Class="@($"sav__tile sav__tile--{tile.Key}{(on ? " is-on" : null)}")" role="radio" aria-checked="@(on ? "true" : "false")" tabindex="@(tile.Preset == TabStop ? 0 : -1)"
                              data-sav-preset="@tile.Key" OnClick="@(() => ChoosePresetAsync(tile.Preset))">
                 <b class="sav__aa">@L["SubtitleAppearance_Sample"]</b>
                 <span class="sav__tile-label">@tile.Label</span>
@@ -56,6 +59,47 @@
     private sealed record PresetTile(string Key, SubtitlePreset Preset, string Label);
 
     private SubtitlePreset? Current => SubtitleAppearance.Matching(Look);
+
+    // One Tab stop for the three tiles: the ticked one, or the first when the look is custom. The arrow keys move between them (roving-focus.js).
+    private SubtitlePreset TabStop => Current ?? SubtitlePreset.Default;
+
+    private ElementReference _presetGroup;
+    private IJSObjectReference? _roving;
+    private bool _attached, _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _attached) return;
+        try
+        {
+            _roving ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            await _roving.InvokeVoidAsync("attach", _presetGroup, "[role=radio]", new { vertical = true });
+            _attached = true;
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering has no browser yet; the tiles are ordinary buttons until the arrow keys attach.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the view was drawing; there is nothing left to attach to.
+        }
+        catch (JSException)
+        {
+            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every tile.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_roving is null) return;
+        try { await _roving.DisposeAsync(); }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
 
     private IReadOnlyList<PresetTile> Presets =>
     [

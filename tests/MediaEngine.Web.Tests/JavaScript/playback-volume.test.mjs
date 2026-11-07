@@ -158,3 +158,20 @@ test('mouse focus on the button does not hold the slider open', () => {
     assert.equal(root.dataset.open, undefined);
     volume.detach(root);
 });
+
+test('arrow up and down on the speaker are kept from scrolling the page, other keys and the slider are left alone', () => {
+    globalThis.window = globalThis;
+    globalThis.addEventListener = () => { };
+    globalThis.removeEventListener = () => { };
+    const root = fakeRoot();
+    volume.attach(root);
+    const speaker = { closest: selector => selector === '[data-volume-keys]' ? speaker : null };
+    const slider = { closest: () => null };
+    const press = (key, target) => { const event = { key, target, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; root.fire('keydown', event); return event; };
+
+    assert.equal(press('ArrowUp', speaker).defaultPrevented, true);
+    assert.equal(press('ArrowDown', speaker).defaultPrevented, true);
+    assert.equal(press('Enter', speaker).defaultPrevented, false);
+    assert.equal(press('ArrowUp', slider).defaultPrevented, false);
+    volume.detach(root);
+});

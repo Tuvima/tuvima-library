@@ -41,6 +41,8 @@ export function attach(root) {
     listen(root, 'pointerleave', e => { if (e.pointerType !== 'touch') reveal.pointerLeave(); });
     listen(root, 'focusin', e => { if (e.target?.matches?.(':focus-visible') !== false) reveal.focusIn(); });
     listen(root, 'focusout', e => { if (!root.contains?.(e.relatedTarget)) reveal.focusOut(); });
+    // ArrowUp and ArrowDown on the speaker step the volume (the page handles them); the page behind must not scroll with them.
+    listen(root, 'keydown', e => { if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target?.closest?.('[data-volume-keys]')) e.preventDefault(); });
     listen(root, 'pointerdown', e => { if (e.pointerType !== 'touch') reveal.press(); });
     listen(globalThis.window ?? globalThis, 'pointerup', () => reveal.release());
     listen(globalThis.window ?? globalThis, 'pointercancel', () => reveal.release());

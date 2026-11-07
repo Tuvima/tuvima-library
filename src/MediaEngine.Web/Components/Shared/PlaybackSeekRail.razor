@@ -6,14 +6,14 @@
 @inject IStringLocalizer<SharedStrings> L
 <div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson" data-scrub-index-url="@(HasPreview ? PreviewIndexUrl : null)" data-scrub-index="@PreviewJson"
      role="@(string.IsNullOrWhiteSpace(Summary) ? null : "group")" aria-label="@(string.IsNullOrWhiteSpace(Summary) ? null : Summary)">
-    <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
+    <output class="playback-seek-rail__start" aria-live="off" aria-label="@L["PlaybackSeekRail_ElapsedTime", Time(Position)].Value">@Time(Position)</output>
     @if (!string.IsNullOrWhiteSpace(Label))
     {
         @* The audiobook's chapter or whole-book label sits between the elapsed time and the rail (mockup screen 1). Until the Chapters panel
            carries the Chapter | Whole book choice, the label itself switches it when the host listens. *@
         @if (LabelClick.HasDelegate)
         {
-            <AppNativeButton Type="button" Class="playback-seek-rail__label playback-seek-rail__label--action" OnClick="@(() => LabelClick.InvokeAsync())" AriaLabel="@($"{Label}. {LabelActionText}")"
+            <AppNativeButton Type="button" Class="playback-seek-rail__label playback-seek-rail__label--action" OnClick="@(() => LabelClick.InvokeAsync())" AriaLabel="@($"{Label}. {LabelAction}")"
                              data-overflow-tooltip="@Label">@Label</AppNativeButton>
         }
         else
@@ -66,7 +66,7 @@
             </div>
         }
     </div>
-    <output class="playback-seek-rail__end" aria-label="@EndAriaLabel">@EndTime</output>
+    <output class="playback-seek-rail__end" aria-live="off" aria-label="@EndAriaLabel">@EndTime</output>
 </div>
 @code {
     [Parameter] public double Position { get; set; }
@@ -124,7 +124,7 @@
     /// <summary>What the right end shows: the time left with a real minus sign ("−1:49"), unless the host passes its own text (the whole-book "6h 12m left").</summary>
     [Parameter] public string? EndText { get; set; }
     private string EndTime => !string.IsNullOrWhiteSpace(EndText) ? EndText : Duration <= 0 ? "—" : RemainingTime(Math.Max(0, Duration - Position));
-    private string EndAriaLabel => !string.IsNullOrWhiteSpace(EndText) ? EndText : Duration <= 0 ? "Remaining time unknown" : $"Remaining time {Time(Math.Max(0, Duration - Position))}";
+    private string EndAriaLabel => !string.IsNullOrWhiteSpace(EndText) ? EndText : Duration <= 0 ? L["PlaybackSeekRail_RemainingUnknown"].Value : L["PlaybackSeekRail_RemainingTime", Time(Math.Max(0, Duration - Position))].Value;
 
     /// <summary>The audiobook label between the elapsed time and the rail: "Chapter 8", or "Book · 32%" in whole-book mode (see <see cref="PlaybackTimelineMetaRow"/>).</summary>
     [Parameter] public string? Label { get; set; }
@@ -134,7 +134,9 @@
 
     /// <summary>Raised when the label is pressed (switches the audiobook between the chapter and the whole book).</summary>
     [Parameter] public EventCallback LabelClick { get; set; }
-    [Parameter] public string LabelActionText { get; set; } = "Switch between the chapter and the whole book";
+    /// <summary>What the label does when pressed, for assistive technology. Left unset, it reads "Switch between the chapter and the whole book".</summary>
+    [Parameter] public string? LabelActionText { get; set; }
+    private string LabelAction => string.IsNullOrWhiteSpace(LabelActionText) ? L["PlaybackSeekRail_SwitchChapterOrBook"].Value : LabelActionText;
 
     /// <summary>A seek never goes outside the loaded duration (unified player v2 D9).</summary>
     public static double ClampSeek(double seconds, double duration) =>
