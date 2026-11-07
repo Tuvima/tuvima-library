@@ -120,14 +120,10 @@ public sealed class BookmarkSetService
         {
             // Imported and applied bookmarks get their frames the same way a saved one does (Unified player v2 D21a), and the
             // pictures of the bookmarks they replaced go.
+            _frames.RemoveFrames(request.Set.AssetId, outcome.DeletedIds);
             foreach (var (id, position) in outcome.AddedIds)
             {
                 await _frames.TryEnqueueAsync(new AudiobookBookmarkDto { Id = id, AssetId = request.Set.AssetId, PositionSeconds = position }, ct);
-            }
-
-            if (outcome.Replaced > 0)
-            {
-                await _frames.SweepOrphansAsync(ct);
             }
         }
 

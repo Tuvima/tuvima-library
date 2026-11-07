@@ -34,8 +34,12 @@ public sealed class BookmarkFrameService(
     public static string KeyFor(Guid bookmarkId, double positionSeconds) =>
         $"bookmark-frame:{bookmarkId:N}:{(long)Math.Round(positionSeconds * 1000)}";
 
-    /// <summary>Where the Engine serves a bookmark's frame (the frame route in the player endpoints).</summary>
-    public static string AddressFor(Guid bookmarkId) => $"/api/v1/player/bookmarks/{bookmarkId:D}/frame";
+    /// <summary>
+    /// Where the Engine serves a bookmark's frame (the frame route in the player endpoints). The route ignores <c>v</c>; it changes
+    /// whenever the frame is made again, so a browser never shows a picture of the old moment.
+    /// </summary>
+    public static string AddressFor(Guid bookmarkId, long version) =>
+        $"/api/v1/player/bookmarks/{bookmarkId:D}/frame?v={version.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
 
     /// <summary>
     /// Queues the frame of a bookmark at its time. Does nothing (and returns false) for a file that is not a video, or when the same job
@@ -106,7 +110,7 @@ public sealed class BookmarkFrameService(
         list.Count == 0 ? list : list.Select(Decorate).ToList();
 
     public AudiobookBookmarkDto Decorate(AudiobookBookmarkDto bookmark) =>
-        cache.Exists(bookmark.AssetId, bookmark.Id) ? bookmark with { FrameUrl = AddressFor(bookmark.Id) } : bookmark;
+        cache.Version(bookmark.AssetId, bookmark.Id) is { } version ? bookmark with { FrameUrl = AddressFor(bookmark.Id, version) } : bookmark;
 
     /// <summary>
     /// The file of a bookmark's finished frame, or null when it has not been made. <see cref="BookmarkFrameFile.InVault"/> tells the
@@ -121,9 +125,19 @@ public sealed class BookmarkFrameService(
     /// <summary>Removes a bookmark's frame (it goes with the bookmark).</summary>
     public void RemoveFrame(Guid assetId, Guid bookmarkId) => cache.Delete(assetId, bookmarkId);
 
+    /// <summary>Removes the frames of bookmarks that an import or a promote just replaced, all on one file.</summary>
+    public void RemoveFrames(Guid assetId, IEnumerable<Guid> bookmarkIds)
+    {
+        foreach (var id in bookmarkIds)
+        {
+            cache.Delete(assetId, id);
+        }
+    }
+
     /// <summary>
-    /// Removes the frames whose bookmark no longer exists, however it went (merged by an import, promoted over a duplicate, removed with
-    /// its profile), and temporary files a crash left behind. Returns how many frames were removed.
+    /// Removes the frames whose bookmark no longer exists, however it went (removed with its profile, or any path that does not remove
+    /// its own frames), and temporary files a crash left behind. Runs in the background pass, never inside a request. Returns how many
+    /// frames were removed.
     /// </summary>
     public async Task<int> SweepOrphansAsync(CancellationToken ct)
     {
@@ -134,8 +148,10 @@ public sealed class BookmarkFrameService(
             var alive = await bookmarks.ExistingIdsAsync(frames.Select(frame => frame.BookmarkId).Distinct().ToList(), ct).ConfigureAwait(false);
             foreach (var frame in frames.Where(frame => !alive.Contains(frame.BookmarkId)))
             {
-                cache.Delete(frame.AssetId, frame.BookmarkId);
-                removed++;
+                if (cache.Delete(frame.AssetId, frame.BookmarkId))
+                {
+                    removed++;
+                }
             }
         }
 

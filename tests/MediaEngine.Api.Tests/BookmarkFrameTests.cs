@@ -98,32 +98,30 @@ public sealed class BookmarkFrameTests : IDisposable
 
         await Worker().RunOnceAsync(CancellationToken.None);
 
-        Assert.Equal($"/api/v1/player/bookmarks/{saved.Id:D}/frame", _frames.Decorate(saved).FrameUrl);
+        var url = _frames.Decorate(saved).FrameUrl;
+        Assert.StartsWith($"/api/v1/player/bookmarks/{saved.Id:D}/frame?v=", url, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheFrameRoute_NeedsTheProgressReadScope_AndMatchesTheAddressTheListHandsOut()
+    public async Task TheFrameAddress_ChangesWhenTheFrameIsMadeAgain_SoABrowserNeverShowsTheOldMoment()
     {
-        var source = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Api", "Endpoints", "PlayerEndpoints.cs"));
-        var start = source.IndexOf("group.MapGet(\"/bookmarks/{bookmarkId:guid}/frame\"", StringComparison.Ordinal);
-        Assert.True(start >= 0, "the frame route is mapped");
-        var route = source[start..source.IndexOf("group.MapPost(", start, StringComparison.Ordinal)];
+        var assetId = await _world.AddVideoAsync("film.mp4", seconds: 5, makeFile: false);
+        var saved = await SaveBookmarkAsync(assetId, 30);
+        _cache.Write(assetId, saved.Id, [1, 2, 3]);
+        var first = _frames.Decorate(saved).FrameUrl;
 
-        Assert.Contains(".RequireClientScope(ClientApiScopes.ProgressRead)", route, StringComparison.Ordinal);
-        Assert.Contains("player.GetBookmarkFramePathAsync(", route, StringComparison.Ordinal);
-        Assert.Equal("/api/v1/player/bookmarks/" + Guid.Empty.ToString("D") + "/frame", BookmarkFrameService.AddressFor(Guid.Empty));
+        // The same picture asked for again gives the same address (so it can be cached)...
+        Assert.Equal(first, _frames.Decorate(saved).FrameUrl);
+
+        // ...and a frame taken again later gives a new one.
+        File.SetLastWriteTimeUtc(_cache.PathFor(assetId, saved.Id), DateTime.UtcNow.AddMinutes(5));
+        var second = _frames.Decorate(saved).FrameUrl;
+
+        Assert.NotEqual(first, second);
+        Assert.StartsWith($"/api/v1/player/bookmarks/{saved.Id:D}/frame?v=", second, StringComparison.Ordinal);
     }
 
-    private static string RepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
-    }
+    private void MakeRetryDue(Guid bookmarkId) => MakeRetryDue(_world, bookmarkId);
 
     [Fact]
     public async Task AnAudioBookmark_IsNeverQueued_AndGetsNoFrame()
@@ -259,19 +257,112 @@ public sealed class BookmarkFrameTests : IDisposable
         Assert.Equal(0, await _frames.BackfillAsync(perPass: 10, CancellationToken.None));
     }
 
-    [Fact]
-    public void DeletingAnAssetsFrames_RemovesTheWholeFolder_AndLeavesOtherFilesAlone()
+    [RealFfmpegFact]
+    public async Task AVideoOnAnOfflineDrive_IsRetriedMuchLater_AndGetsItsFrameOnceTheDriveIsBack()
     {
-        var first = Guid.NewGuid();
-        var second = Guid.NewGuid();
-        var bookmark = Guid.NewGuid();
-        _cache.Write(first, bookmark, [1]);
-        _cache.Write(second, bookmark, [1]);
+        var assetId = await _world.AddVideoAsync("film.mp4", seconds: 12);
+        var path = Path.Combine(_world.Root, "media", "film.mp4");
+        var saved = await SaveBookmarkAsync(assetId, 6);
+        var hidden = path + ".offline";
+        File.Move(path, hidden);
 
-        _cache.DeleteAsset(first);
+        await Worker().RunOnceAsync(CancellationToken.None);
 
-        Assert.False(Directory.Exists(_cache.FolderFor(first)));
-        Assert.True(_cache.Exists(second, bookmark));
+        var waiting = (await _world.Operations.GetByEntityAsync(saved.Id)).Single();
+        Assert.Equal(MediaOperationStatus.RetryWaiting, waiting.Status);
+        Assert.InRange(waiting.NextRetryAt!.Value - DateTimeOffset.UtcNow, TimeSpan.FromHours(5), TimeSpan.FromHours(7));
+        Assert.False(_cache.Exists(assetId, saved.Id));
+
+        // The drive comes back and the retry time arrives: the frame is made, nothing was given up.
+        File.Move(hidden, path);
+        MakeRetryDue(saved.Id);
+        await Worker().RunOnceAsync(CancellationToken.None);
+
+        Assert.True(_cache.Exists(assetId, saved.Id));
+        Assert.Equal(MediaOperationStatus.Succeeded, (await _world.Operations.GetByEntityAsync(saved.Id)).Single().Status);
+    }
+
+    [Fact]
+    public async Task WaitingForFfmpeg_NeverUsesUpTheTries()
+    {
+        using var world = new ScrubPreviewWorld(new ScrubPreviewWorld.MissingFfmpeg());
+        var local = Build(world);
+        var assetId = await world.AddVideoAsync("film.mp4", seconds: 12);
+        var saved = await local.Save(assetId, 4);
+        var worker = Worker(world);
+
+        for (var round = 0; round < 6; round++)
+        {
+            await worker.RunOnceAsync(CancellationToken.None);
+            MakeRetryDue(world, saved.Id);
+        }
+
+        var operation = (await world.Operations.GetByEntityAsync(saved.Id)).Single();
+        Assert.Equal(MediaOperationStatus.RetryWaiting, operation.Status);
+        Assert.Equal(0, operation.PoisonAttemptCount);
+    }
+
+    [Fact]
+    public async Task AFrameThatFfmpegCannotTake_IsTriedThreeTimes_ThenGivenUp()
+    {
+        using var world = new ScrubPreviewWorld(new FailingFfmpeg());
+        var local = Build(world);
+        var assetId = await world.AddVideoAsync("film.mp4", seconds: 12);
+        var saved = await local.Save(assetId, 4);
+        var worker = Worker(world);
+        var statuses = new List<string>();
+
+        for (var round = 0; round < 3; round++)
+        {
+            await worker.RunOnceAsync(CancellationToken.None);
+            statuses.Add((await world.Operations.GetByEntityAsync(saved.Id)).Single().Status);
+            MakeRetryDue(world, saved.Id);
+        }
+
+        Assert.Equal([MediaOperationStatus.RetryWaiting, MediaOperationStatus.RetryWaiting, MediaOperationStatus.FailedTerminal], statuses);
+        Assert.False(local.Cache.Exists(assetId, saved.Id));
+    }
+
+    private sealed record Local(AudiobookBookmarkRepository Bookmarks, BookmarkFrameCache Cache, BookmarkFrameService Frames, ScrubPreviewWorld World)
+    {
+        public async Task<AudiobookBookmarkDto> Save(Guid assetId, double seconds)
+        {
+            var bookmark = await Bookmarks.CreateAsync(
+                Profile.SeedProfileId, WorkOf(World, assetId), new CreateAudiobookBookmarkRequestDto { AssetId = assetId, PositionSeconds = seconds });
+            await Frames.TryEnqueueAsync(bookmark, CancellationToken.None);
+            return bookmark;
+        }
+    }
+
+    private static Local Build(ScrubPreviewWorld world)
+    {
+        var bookmarks = new AudiobookBookmarkRepository(world.Database);
+        var cache = new BookmarkFrameCache(world.AssetPaths);
+        var frames = new BookmarkFrameService(
+            world.Operations, world.Assets, new MediaTypeExtensionCatalog(), bookmarks, new VaultLibraryRepository(world.Database), cache,
+            NullLogger<BookmarkFrameService>.Instance);
+        return new Local(bookmarks, cache, frames, world);
+    }
+
+    private static void MakeRetryDue(ScrubPreviewWorld world, Guid bookmarkId)
+    {
+        using var connection = world.Database.CreateConnection();
+        connection.Execute(
+            "UPDATE media_operations SET next_retry_at = @past WHERE entity_id = @id;",
+            new { past = DateTimeOffset.UtcNow.AddMinutes(-1).ToString("O"), id = bookmarkId });
+    }
+
+    /// <summary>FFmpeg is there, but every run fails: a picture that cannot be taken.</summary>
+    private sealed class FailingFfmpeg : MediaEngine.Domain.Contracts.IFFmpegService
+    {
+        public string? FfmpegPath => "ffmpeg";
+        public string? FfprobePath => "ffprobe";
+        public bool IsAvailable => true;
+        public MediaEngine.Domain.Models.HardwareCapabilities HardwareCapabilities { get; } = new();
+        public Task<MediaEngine.Domain.Models.MediaProbeResult?> ProbeAsync(string filePath, CancellationToken ct = default) =>
+            Task.FromResult<MediaEngine.Domain.Models.MediaProbeResult?>(null);
+        public Task<(int ExitCode, string Output, string Error)> RunAsync(string arguments, CancellationToken ct = default) =>
+            Task.FromResult((1, string.Empty, "cannot decode"));
     }
 
     private sealed class CapturingLogger<T> : ILogger<T>

@@ -24,6 +24,8 @@ public sealed class BookmarkFrameOperationWorker(
     private static readonly TimeSpan IdleWait = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan MissingFfmpegWait = TimeSpan.FromMinutes(5);
     private const int GiveUpAfterAttempts = 3;
+    // A video on a drive that is offline (a NAS that is switched off) comes back; look again much later, and never give up.
+    private static readonly TimeSpan SourceMissingRetry = TimeSpan.FromHours(6);
 
     private bool _loggedFfmpegMissing;
 
@@ -88,7 +90,9 @@ public sealed class BookmarkFrameOperationWorker(
             var asset = await assets.FindByIdAsync(bookmark.AssetId, ct).ConfigureAwait(false);
             if (asset is null || !File.Exists(asset.FilePathRoot))
             {
-                await operations.MarkNoResultAsync(operation.Id, "source_missing", "The video file is not there.", ct).ConfigureAwait(false);
+                await operations.MarkFailedRetryableForOutcomeAsync(
+                    operation.Id, "The video file is not there.", DateTimeOffset.UtcNow.Add(SourceMissingRetry),
+                    BackgroundJobOutcomeCategory.UnavailableCapability, ct).ConfigureAwait(false);
                 return TimeSpan.Zero;
             }
 
@@ -139,7 +143,9 @@ public sealed class BookmarkFrameOperationWorker(
 
     private async Task<TimeSpan> FailAsync(MediaOperation operation, string error, CancellationToken ct)
     {
-        if (operation.AttemptCount >= GiveUpAfterAttempts)
+        // The queue counts a lease and a retry as two attempts each, and a wait for FFmpeg or for the drive as one too. The poison count
+        // only grows when FFmpeg really ran and failed, so this gives up after GiveUpAfterAttempts real tries.
+        if (operation.PoisonAttemptCount + 1 >= GiveUpAfterAttempts)
         {
             await operations.MarkFailedTerminalAsync(operation.Id, error, ct).ConfigureAwait(false);
         }

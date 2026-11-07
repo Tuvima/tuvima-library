@@ -1176,11 +1176,13 @@ public sealed class PlayerService
             throw new ArgumentException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
         }
 
-        var promoted = await _bookmarks.PromoteAsync(bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct));
+        var replaced = new List<Guid>();
+        var promoted = await _bookmarks.PromoteAsync(
+            bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct), replaced);
         if (promoted is not null && _frames is not null)
         {
             // Bookmarks it replaced are gone, so their pictures go; the promoted one gets its picture if it has none yet.
-            await _frames.SweepOrphansAsync(ct);
+            _frames.RemoveFrames(promoted.AssetId, replaced);
             await _frames.TryEnqueueAsync(promoted, ct);
             return _frames.Decorate(promoted);
         }

@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
@@ -6,8 +7,11 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Playback;
 using MediaEngine.Storage.Services;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -92,7 +96,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The list and the frame agree: the same two bookmarks are listed, each with its frame address.
         var listed = await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
         Assert.Equal(new[] { own.Id, shared.Id }.Order(), listed.Select(item => item.Id).Order());
-        Assert.All(listed, item => Assert.Equal($"/api/v1/player/bookmarks/{item.Id:D}/frame", item.FrameUrl));
+        Assert.All(listed, item => Assert.StartsWith($"/api/v1/player/bookmarks/{item.Id:D}/frame?v=", item.FrameUrl, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -230,5 +234,118 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.NotNull(result.FrameUrl);
         Assert.True(cache.Exists(shape.Normal.AssetId, promoted.Id));
         Assert.False(cache.Exists(shape.Normal.AssetId, duplicate.Id));
+    }
+
+    // ----- The frame route, run for real: route table, filters, a real data store and cache -----
+
+    private sealed record FrameResponse(int Status, string? ContentType, string? CacheControl, string? NoSniff, byte[] Body);
+
+    private RouteEndpoint MapFrameRoute()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
+        builder.Services.AddAuthorization();
+        // Only so mapping can tell which parameters come from services; each request brings its own.
+        builder.Services.AddSingleton<PlayerService>(_ => throw new InvalidOperationException("Not used by mapping."));
+        var app = builder.Build();
+        app.MapBookmarkFrameEndpoints();
+        _routeApps.Add(app);
+        return ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>().Single();
+    }
+
+    private async Task<FrameResponse> GetFrameAsync(RouteEndpoint endpoint, Guid account, Guid session, Guid bookmarkId)
+    {
+        var context = VaultContext(account, session);
+        PlayerService? player = null;
+        context.RequestServices = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
+            .AddSingleton(CreateService(context, RealReaders()))
+            .AddSingleton(_ => player!)
+            .BuildServiceProvider();
+        var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
+        player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, closeness: null, frames: FrameService());
+        context.Request.Method = HttpMethods.Get;
+        context.Request.RouteValues["bookmarkId"] = bookmarkId.ToString("D");
+        // The address the list hands out carries a version; the route must not care about it.
+        context.Request.QueryString = new QueryString("?v=638000000000000000");
+        context.Response.Body = new MemoryStream();
+
+        await endpoint.RequestDelegate!(context);
+
+        return new FrameResponse(
+            context.Response.StatusCode,
+            context.Response.ContentType,
+            context.Response.Headers.TryGetValue("Cache-Control", out var cache) ? cache.ToString() : null,
+            context.Response.Headers.TryGetValue("X-Content-Type-Options", out var sniff) ? sniff.ToString() : null,
+            ((MemoryStream)context.Response.Body).ToArray());
+    }
+
+    [Fact]
+    public async Task BookmarkFrameRoute_ServesTheJpegToTheProfileThatMaySeeIt_WithTheScopeAndCacheHeaders()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Normal.AssetId);
+        var saved = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 75);
+        byte[] jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0xFF, 0xD9];
+        FrameCache().Write(shape.Normal.AssetId, saved.Id, jpeg);
+        var endpoint = MapFrameRoute();
+
+        var response = await GetFrameAsync(endpoint, shape.Account, NewVaultSession(shape.Account), saved.Id);
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        Assert.Equal("image/jpeg", response.ContentType);
+        Assert.Equal("nosniff", response.NoSniff);
+        Assert.Equal("private, max-age=3600", response.CacheControl);
+        Assert.Equal(jpeg, response.Body);
+        Assert.Equal("/api/v1/player/bookmarks/{bookmarkId:guid}/frame", endpoint.RoutePattern.RawText);
+        Assert.Contains(endpoint.Metadata.OfType<ClientScopeRequirementMetadata>(), metadata => metadata.Scope == MediaEngine.Contracts.Authentication.ClientApiScopes.ProgressRead);
+    }
+
+    [Fact]
+    public async Task BookmarkFrameRoute_AnswersNotFound_ForADeniedAnUnknownAndANotYetMadeFrame_AllAlike()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Normal.AssetId);
+        var theirs = await BookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 360);
+        var notMadeYet = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 90);
+        FrameCache().Write(shape.Normal.AssetId, theirs.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+        var endpoint = MapFrameRoute();
+        var session = NewVaultSession(shape.Account);
+
+        var denied = await GetFrameAsync(endpoint, shape.Account, session, theirs.Id);
+        var unknown = await GetFrameAsync(endpoint, shape.Account, session, Guid.NewGuid());
+        var pending = await GetFrameAsync(endpoint, shape.Account, session, notMadeYet.Id);
+
+        foreach (var response in new[] { denied, unknown, pending })
+        {
+            Assert.Equal(StatusCodes.Status404NotFound, response.Status);
+            Assert.NotEqual("image/jpeg", response.ContentType);
+        }
+
+        // Nothing tells the denied one from the others: same status, same body.
+        Assert.Equal(unknown.Body, denied.Body);
+        Assert.Equal(unknown.Body, pending.Body);
+    }
+
+    [Fact]
+    public async Task BookmarkFrameRoute_AVaultFrame_IsNotFoundWhileLocked_AndNeverCachedOnceUnlocked()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Secret.AssetId);
+        var saved = await BookmarkOf(VaultProfile, shape.Secret.WorkId, shape.Secret.AssetId, 90);
+        FrameCache().Write(shape.Secret.AssetId, saved.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+        var endpoint = MapFrameRoute();
+
+        var locked = await GetFrameAsync(endpoint, shape.Account, NewVaultSession(shape.Account), saved.Id);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var unlocked = await GetFrameAsync(endpoint, shape.Account, session, saved.Id);
+
+        Assert.Equal(StatusCodes.Status404NotFound, locked.Status);
+        Assert.Equal(StatusCodes.Status200OK, unlocked.Status);
+        Assert.Equal("image/jpeg", unlocked.ContentType);
+        Assert.Equal("private, no-store", unlocked.CacheControl);
+        Assert.Equal("nosniff", unlocked.NoSniff);
     }
 }

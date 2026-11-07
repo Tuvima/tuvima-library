@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Playback;
 /// bookmark inside it (<c>bookmark-frames/{assetId}/{bookmarkId}.jpg</c>). A frame is written whole to a temporary name and moved into
 /// place, so a half-written picture is never offered. Everything here is a cache that can be rebuilt, so removing it is always safe.
 /// </summary>
-public sealed class BookmarkFrameCache(AssetPathService assetPaths)
+public sealed class BookmarkFrameCache(AssetPathService assetPaths, ILogger<BookmarkFrameCache>? logger = null)
 {
     /// <summary>How wide a frame is (D21a: a 320 px wide still).</summary>
     public const int FrameWidth = 320;
@@ -26,6 +26,16 @@ public sealed class BookmarkFrameCache(AssetPathService assetPaths)
     /// <summary>The file of a finished frame, or null when it has not been made yet.</summary>
     public string? Resolve(Guid assetId, Guid bookmarkId) => Exists(assetId, bookmarkId) ? PathFor(assetId, bookmarkId) : null;
 
+    /// <summary>
+    /// A number that changes whenever the frame is made again (the file's last-write time), for the address the list hands out so a
+    /// re-taken frame is never served from a browser's cache. Null when there is no frame.
+    /// </summary>
+    public long? Version(Guid assetId, Guid bookmarkId)
+    {
+        var path = PathFor(assetId, bookmarkId);
+        return File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : null;
+    }
+
     /// <summary>Writes a frame, replacing an earlier one for the same bookmark.</summary>
     public void Write(Guid assetId, Guid bookmarkId, byte[] jpeg)
     {
@@ -40,22 +50,13 @@ public sealed class BookmarkFrameCache(AssetPathService assetPaths)
         }
         finally
         {
+            // After a successful move the temporary name no longer exists; after a failed write it is cleaned up here.
             DeleteFile(staging);
         }
     }
 
-    /// <summary>Removes one bookmark's frame (it has no file when none was made).</summary>
-    public void Delete(Guid assetId, Guid bookmarkId) => DeleteFile(PathFor(assetId, bookmarkId));
-
-    /// <summary>Removes every frame of one asset (used when the file is deleted).</summary>
-    public void DeleteAsset(Guid assetId)
-    {
-        var folder = FolderFor(assetId);
-        if (Directory.Exists(folder) && !new DirectoryInfo(folder).Attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            Directory.Delete(folder, recursive: true);
-        }
-    }
+    /// <summary>Removes one bookmark's frame. True only when a frame existed and is now gone.</summary>
+    public bool Delete(Guid assetId, Guid bookmarkId) => DeleteFile(PathFor(assetId, bookmarkId));
 
     /// <summary>Every finished frame in the cache, as (asset, bookmark) pairs, for the orphan sweep.</summary>
     public IReadOnlyList<(Guid AssetId, Guid BookmarkId, string Path)> ListFrames()
@@ -111,15 +112,23 @@ public sealed class BookmarkFrameCache(AssetPathService assetPaths)
         }
     }
 
-    private static void DeleteFile(string path)
+    private bool DeleteFile(string path)
     {
         try
         {
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
             File.Delete(path);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A frame that cannot be removed now is removed by the next orphan sweep; it is only a cache.
+            logger?.LogDebug(ex, "Could not remove the bookmark frame {File}", System.IO.Path.GetFileName(path));
+            return false;
         }
     }
 

@@ -326,14 +326,16 @@ public sealed class AudiobookBookmarkRepository
     /// <summary>
     /// Makes a personal bookmark Global at once (the caller has checked that they are a server administrator). Any personal bookmark
     /// of any profile on the same file within <paramref name="mergeWindowSeconds"/> of the spot is treated as the same bookmark and is
-    /// replaced by the Global one, so nobody loses a bookmark. Returns null when there is no such personal bookmark.
+    /// replaced by the Global one, so nobody loses a bookmark. Returns null when there is no such personal bookmark. The ids of the
+    /// bookmarks it replaced are added to <paramref name="replacedIds"/> when given (so their bookmark frames can go too).
     /// </summary>
     public Task<AudiobookBookmarkDto?> PromoteAsync(
         Guid bookmarkId,
         string? name,
         double mergeWindowSeconds,
         CancellationToken ct = default,
-        IReadOnlySet<Guid>? authorizedAssetIds = null)
+        IReadOnlySet<Guid>? authorizedAssetIds = null,
+        ICollection<Guid>? replacedIds = null)
     {
         ct.ThrowIfCancellationRequested();
         return _db.ExecuteWriteAsync<AudiobookBookmarkDto?>((conn, tx, innerCt) =>
@@ -359,14 +361,16 @@ public sealed class AudiobookBookmarkRepository
             }
 
             var label = BlankToNull(name) ?? row.Label;
-            conn.Execute(
-                """
-                DELETE FROM audiobook_bookmarks
-                WHERE is_global = 0 AND position_kind = 'time' AND id <> @bookmarkId AND asset_id = @assetId
-                  AND ABS(position_seconds - @position) <= @window;
-                """,
-                new { bookmarkId, assetId = row.AssetId, position = row.PositionSeconds, window = mergeWindowSeconds },
-                tx);
+            const string duplicates =
+                "FROM audiobook_bookmarks WHERE is_global = 0 AND position_kind = 'time' AND id <> @bookmarkId AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;";
+            var spot = new { bookmarkId, assetId = row.AssetId, position = row.PositionSeconds, window = mergeWindowSeconds };
+            var replaced = conn.Query<Guid>("SELECT id " + duplicates, spot, tx).ToList();
+            conn.Execute("DELETE " + duplicates, spot, tx);
+            foreach (var id in replaced)
+            {
+                replacedIds?.Add(id);
+            }
+
             conn.Execute(
                 "UPDATE audiobook_bookmarks SET is_global = 1, label = @label WHERE id = @bookmarkId;",
                 new { bookmarkId, label },
@@ -428,8 +432,12 @@ public sealed class AudiobookBookmarkRepository
     public sealed record SetBookmark(
         double PositionSeconds, double? EndSeconds, string? ChapterTitle, string? Note, string? Description);
 
-    /// <summary>What happened when a bookmark set was applied. <paramref name="AddedIds"/> are the new bookmarks, in the order they were added.</summary>
-    public sealed record SetApplyOutcome(int Added, int Replaced, IReadOnlyList<(Guid Id, double PositionSeconds)> AddedIds);
+    /// <summary>
+    /// What happened when a bookmark set was applied. <paramref name="AddedIds"/> are the new bookmarks, in the order they were added;
+    /// <paramref name="DeletedIds"/> are the bookmarks that were removed (so their bookmark frames can go too).
+    /// </summary>
+    public sealed record SetApplyOutcome(
+        int Added, int Replaced, IReadOnlyList<(Guid Id, double PositionSeconds)> AddedIds, IReadOnlyList<Guid> DeletedIds);
 
     /// <summary>
     /// Applies a bookmark set in one write (Global bookmarks spec D8): the bookmarks in <paramref name="deleteIds"/> go, every
@@ -455,8 +463,13 @@ public sealed class AudiobookBookmarkRepository
         {
             innerCt.ThrowIfCancellationRequested();
             var replaced = 0;
+            var deletedIds = new List<Guid>();
             if (replaceGlobalSet && addAsGlobal)
             {
+                deletedIds.AddRange(conn.Query<Guid>(
+                    "SELECT id FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'time' AND asset_id = @assetId;",
+                    new { assetId },
+                    tx));
                 replaced += conn.Execute(
                     "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'time' AND asset_id = @assetId;",
                     new { assetId },
@@ -465,7 +478,7 @@ public sealed class AudiobookBookmarkRepository
 
             foreach (var id in deleteIds)
             {
-                replaced += conn.Execute(
+                var removed = conn.Execute(
                     """
                     DELETE FROM audiobook_bookmarks
                     WHERE id = @id AND asset_id = @assetId
@@ -473,6 +486,11 @@ public sealed class AudiobookBookmarkRepository
                     """,
                     new { id, assetId, profileId, addAsGlobal = addAsGlobal ? 1 : 0 },
                     tx);
+                replaced += removed;
+                if (removed > 0)
+                {
+                    deletedIds.Add(id);
+                }
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -481,13 +499,11 @@ public sealed class AudiobookBookmarkRepository
             {
                 if (addAsGlobal)
                 {
-                    replaced += conn.Execute(
-                        """
-                        DELETE FROM audiobook_bookmarks
-                        WHERE is_global = 0 AND position_kind = 'time' AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;
-                        """,
-                        new { assetId, position = add.PositionSeconds, window = sameSpotSeconds },
-                        tx);
+                    const string sameSpot =
+                        "FROM audiobook_bookmarks WHERE is_global = 0 AND position_kind = 'time' AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;";
+                    var spot = new { assetId, position = add.PositionSeconds, window = sameSpotSeconds };
+                    deletedIds.AddRange(conn.Query<Guid>("SELECT id " + sameSpot, spot, tx));
+                    replaced += conn.Execute("DELETE " + sameSpot, spot, tx);
                 }
 
                 var newId = Guid.NewGuid();
@@ -519,7 +535,7 @@ public sealed class AudiobookBookmarkRepository
                     tx);
             }
 
-            return new SetApplyOutcome(adds.Count, replaced, addedIds);
+            return new SetApplyOutcome(adds.Count, replaced, addedIds, deletedIds);
         }, ct);
     }
 
