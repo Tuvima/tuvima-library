@@ -39,9 +39,9 @@ public sealed partial class EditorV5HeaderGuardrailTests
     }
 
     [Fact]
-    public void TheEditorOffersOnlyDetailsArtworkMatchAndHistory_NeverAContentsOrFilesTool()
+    public void TheEditorOffersOnlyDetailsArtworkMatchBookmarksAndHistory_NeverAContentsOrFilesTool()
     {
-        Assert.Equal(["Details", "Artwork", "Match", "History"], Enum.GetNames<EditTool>());
+        Assert.Equal(["Details", "Artwork", "Match", "Bookmarks", "History"], Enum.GetNames<EditTool>());
         Assert.DoesNotContain("contents", EditorTabRules.Standard);
         Assert.DoesNotContain("files", EditorTabRules.Standard);
     }

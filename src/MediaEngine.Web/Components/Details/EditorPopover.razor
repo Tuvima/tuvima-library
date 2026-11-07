@@ -89,6 +89,10 @@
                                          Session="flow.Session"
                                          CanEdit="@mode.CanEdit" />
                 }
+                else if (tool == EditTool.Bookmarks)
+                {
+                    <EditorBookmarksPanel Flow="flow" HasFamily="@(Editor.Family.Kind != EditorFamilyKind.None)" />
+                }
                 else if (tool == EditTool.History)
                 {
                     <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" />

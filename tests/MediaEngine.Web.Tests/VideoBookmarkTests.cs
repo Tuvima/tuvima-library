@@ -50,12 +50,12 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         var generation = service.GetSnapshot(context.DialogId).Draft!.Generation;
 
         var saved = await service.SaveWithFieldsAsync(context, generation, new HashSet<Guid> { AssetId },
-            new AudiobookBookmarkSaveFields("  The reveal ", "  Watch the window.  ", ShareWithEveryone: true));
+            new AudiobookBookmarkSaveFields("  The reveal ", "  Watch the window.  "));
 
         Assert.Equal(AudiobookBookmarkOperationOutcome.Success, saved.Outcome);
         Assert.Equal("The reveal", sent!.Note);
         Assert.Equal("Watch the window.", sent.Description);
-        Assert.True(sent.IsGlobal);
+        Assert.False(sent.IsGlobal);
         Assert.Equal(750, sent.PositionSeconds);
         Assert.Equal(AssetId, sent.AssetId);
     }
@@ -107,29 +107,17 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
     // ---------------------------------------------------------------- the dialog
 
     [Fact]
-    public void Add_ForAnAdministrator_OffersTheLongerDescriptionAndAShareSwitchThatIsOffByDefault()
+    public void Add_OffersTheLongerDescription_AndNeverASwitchToMakeTheBookmarkGlobal()
     {
         var (service, context) = OpenedService();
-        var cut = RenderDialog(service, context, canShare: true, allowDescription: true);
+        var cut = RenderDialog(service, context, allowDescription: true);
 
         Assert.Equal(2, cut.FindAll("textarea").Count);
         Assert.Contains("0 / 200", cut.Markup);
         Assert.Contains("0 / 4000", cut.Markup);
-        var share = cut.Find("input[role=switch]");
-        Assert.Contains("Make Global", cut.Markup);
-        Assert.False(share.HasAttribute("checked"));
-        Assert.Contains("Position in video", cut.Markup);
-    }
-
-    [Fact]
-    public void Add_ForAnyoneElse_NeverShowsTheShareSwitch()
-    {
-        var (service, context) = OpenedService();
-        var cut = RenderDialog(service, context, canShare: false, allowDescription: true);
-
         Assert.Empty(cut.FindAll("input[role=switch]"));
         Assert.DoesNotContain("Make Global", cut.Markup);
-        Assert.Equal(2, cut.FindAll("textarea").Count);
+        Assert.Contains("Position in video", cut.Markup);
     }
 
     [Fact]
@@ -148,7 +136,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Saving_PassesTheTypedNoteDescriptionAndSwitchToTheOwner()
+    public async Task Saving_PassesTheTypedNoteAndDescriptionToTheOwner_AsAPersonalBookmark()
     {
         CreateAudiobookBookmarkRequestDto? sent = null;
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.CreateAudiobookBookmarkWithOutcomeAsync), args =>
@@ -158,21 +146,20 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
                 Dto(Guid.NewGuid(), Me, 750, global: sent.IsGlobal) with { Note = sent.Note, Description = sent.Description }));
         }));
         var (service, context) = OpenedService(api);
-        var cut = RenderDialog(service, context, canShare: true, allowDescription: true);
+        var cut = RenderDialog(service, context, allowDescription: true);
 
         cut.FindAll("textarea")[0].Input("The reveal");
         cut.FindAll("textarea")[1].Input("Watch the reflection in the window.");
-        cut.Find("input[role=switch]").Change(true);
         await cut.Find("form").SubmitAsync();
 
         Assert.Equal("The reveal", sent!.Note);
         Assert.Equal("Watch the reflection in the window.", sent.Description);
-        Assert.True(sent.IsGlobal);
+        Assert.False(sent.IsGlobal);
         Assert.Equal("Saved", cut.Find("button.audiobook-bookmark-dialog__tab.is-selected").TextContent.Trim());
     }
 
     [Fact]
-    public async Task Saved_ShowsSharedBookmarksAsEveryone_AndOnlyAnAdministratorCanDeleteThem()
+    public async Task Saved_ShowsSharedBookmarksAsEveryone_AndNobodyDeletesThemFromThePlayer()
     {
         var shared = Dto(Guid.NewGuid(), SomeoneElse, 300, global: true) with { Note = "For all", Description = "The long story." };
         var mine = Dto(Guid.NewGuid(), Me, 500) with { Note = "Mine" };
@@ -180,7 +167,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
             Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([mine, shared]))));
 
         var (service, context) = OpenedService(api);
-        var asViewer = RenderDialog(service, context, canShare: false, allowDescription: true);
+        var asViewer = RenderDialog(service, context, allowDescription: true);
         await asViewer.Find("button.audiobook-bookmark-dialog__tab.is-selected ~ button").ClickAsync();
         Assert.Equal(2, asViewer.FindAll("[data-bookmark-swipe-row]").Count);
         Assert.Contains("Global", asViewer.Markup);
@@ -191,10 +178,6 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         await asViewer.FindAll("button.audiobook-bookmark-dialog__note-toggle")[1].ClickAsync();
         Assert.Contains("The long story.", asViewer.Markup);
 
-        var (adminService, adminContext) = OpenedService(api);
-        var asAdmin = RenderDialog(adminService, adminContext, canShare: true, allowDescription: true);
-        await asAdmin.Find("button.audiobook-bookmark-dialog__tab.is-selected ~ button").ClickAsync();
-        Assert.Equal(2, asAdmin.FindAll("button.audiobook-bookmark-dialog__delete-request").Count);
     }
 
     // ---------------------------------------------------------------- the progress rail
@@ -307,13 +290,12 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
     }
 
     private IRenderedComponent<AudiobookBookmarkDialog> RenderDialog(
-        AudiobookBookmarkActionService service, AudiobookBookmarkActionContext context, bool canShare, bool allowDescription) =>
+        AudiobookBookmarkActionService service, AudiobookBookmarkActionContext context, bool allowDescription) =>
         Render<AudiobookBookmarkDialog>(parameters => parameters
             .Add(component => component.Context, context)
             .Add(component => component.Actions, service)
             .Add(component => component.AuthorizedAssetIds, new HashSet<Guid> { AssetId })
             .Add(component => component.WorkTitle, "The Film")
-            .Add(component => component.CanShare, canShare)
             .Add(component => component.AllowDescription, allowDescription)
             .Add(component => component.PositionLabel, "Position in video"));
 }

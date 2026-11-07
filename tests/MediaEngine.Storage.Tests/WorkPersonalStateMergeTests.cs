@@ -94,6 +94,29 @@ public sealed class WorkPersonalStateMergeTests : IDisposable
     }
 
     [Fact]
+    public void ADefinitiveSetOfEveryonesBookmarks_FollowsItsTitle_UnlessTheSurvivorAlreadyHasItsOwn()
+    {
+        var source = Work("Audiobooks");
+        var target = Work("Audiobooks");
+        var other = Work("Audiobooks");
+        var otherTarget = Work("Audiobooks");
+        Execute(
+            """
+            INSERT INTO bookmark_definitive_sets (work_id, made_at, made_by) VALUES (@source, '2026-10-01T00:00:00Z', @person);
+            INSERT INTO bookmark_definitive_sets (work_id, made_at, made_by) VALUES (@other, '2026-10-02T00:00:00Z', @person);
+            INSERT INTO bookmark_definitive_sets (work_id, made_at, made_by) VALUES (@otherTarget, '2026-10-03T00:00:00Z', @person);
+            """,
+            new { person = Person, source, other, otherTarget });
+
+        Carry(source, target);
+        Carry(other, otherTarget);
+
+        Assert.Equal("2026-10-01T00:00:00Z", Scalar<string>("SELECT made_at FROM bookmark_definitive_sets WHERE work_id = @target;", new { target }));
+        Assert.Equal(0, Scalar<long>("SELECT COUNT(*) FROM bookmark_definitive_sets WHERE work_id IN (@source, @other);", new { source, other }));
+        Assert.Equal("2026-10-03T00:00:00Z", Scalar<string>("SELECT made_at FROM bookmark_definitive_sets WHERE work_id = @otherTarget;", new { otherTarget }));
+    }
+
+    [Fact]
     public void ASavedItemEitherTitleHad_IsKept_AndHandPickedCollectionsHoldTheSurvivorOnce()
     {
         var source = Work("Music");

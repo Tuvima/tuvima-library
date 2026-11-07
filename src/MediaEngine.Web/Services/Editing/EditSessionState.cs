@@ -6,6 +6,7 @@ public enum EditTool
     Details,
     Artwork,
     Match,
+    Bookmarks,
     History,
 }
 

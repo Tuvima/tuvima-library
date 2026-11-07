@@ -46,7 +46,8 @@ public static class EditorTabRules
     /// <summary>The fixed order of every tab there is: Preview is a supporting file's (WP7) and Bookmarks a title's (WP15); Pictures takes Artwork's place for a Universe.</summary>
     public static readonly IReadOnlyList<string> Order = ["details", "artwork", "pictures", "match", "preview", "bookmarks", "history"];
 
-    public static IReadOnlyList<EditorTab> For(EditorHeaderConfigDto? config, ItemFieldEditSession fields, bool showHistory)
+    /// <param name="showBookmarks">True for an administrator: the Bookmarks tab is theirs alone (the Engine checks again), so it is left out for everyone else.</param>
+    public static IReadOnlyList<EditorTab> For(EditorHeaderConfigDto? config, ItemFieldEditSession fields, bool showHistory, bool showBookmarks = false)
     {
         ArgumentNullException.ThrowIfNull(fields);
         // The config chooses which tabs a kind has; the order is the product's and fixed here (D34 leaves it out of configuration).
@@ -64,6 +65,9 @@ public static class EditorTabRules
                     break;
                 case "match" when fields.CanMatch || EditorUniverseRules.IsUniverseSubject(fields.SubjectKind):
                     tabs.Add(new EditorTab(EditTool.Match, EditorUniverseRules.MatchTabLabel(fields.SubjectKind)));
+                    break;
+                case "bookmarks" when showBookmarks:
+                    tabs.Add(new EditorTab(EditTool.Bookmarks, "Bookmarks"));
                     break;
                 case "history" when showHistory:
                     tabs.Add(new EditorTab(EditTool.History, "History"));

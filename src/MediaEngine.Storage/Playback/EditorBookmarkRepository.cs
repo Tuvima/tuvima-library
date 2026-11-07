@@ -280,113 +280,113 @@ public sealed class EditorBookmarkRepository
                 switch (op.Kind)
                 {
                     case EditorBookmarkOpKinds.Add:
-                    {
-                        var target = Find(op.BookmarkId, "add");
-                        EnsureDefinitive();
-                        target = rows[target.Id];
-                        if (!target.IsGlobal)
                         {
-                            SetFlag(target.Id, true);
-                            MergeSameSpot(rows[target.Id]);
-                        }
+                            var target = Find(op.BookmarkId, "add");
+                            EnsureDefinitive();
+                            target = rows[target.Id];
+                            if (!target.IsGlobal)
+                            {
+                                SetFlag(target.Id, true);
+                                MergeSameSpot(rows[target.Id]);
+                            }
 
-                        break;
-                    }
+                            break;
+                        }
 
                     case EditorBookmarkOpKinds.Remove:
-                    {
-                        var target = Find(op.BookmarkId, "remove");
-                        EnsureDefinitive();
-                        if (rows[target.Id].IsGlobal)
                         {
-                            SetFlag(target.Id, false);
-                        }
+                            var target = Find(op.BookmarkId, "remove");
+                            EnsureDefinitive();
+                            if (rows[target.Id].IsGlobal)
+                            {
+                                SetFlag(target.Id, false);
+                            }
 
-                        break;
-                    }
+                            break;
+                        }
 
                     case EditorBookmarkOpKinds.Rename:
-                    {
-                        var target = Find(op.BookmarkId, "rename");
-                        EnsureDefinitive();
-                        target = InSet(target.Id, "rename");
-                        if (!AudiobookBookmarkNotePolicy.TryNormalize(op.Name, out var name))
                         {
-                            throw new EditorBookmarkCommitException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.");
-                        }
+                            var target = Find(op.BookmarkId, "rename");
+                            EnsureDefinitive();
+                            target = InSet(target.Id, "rename");
+                            if (!AudiobookBookmarkNotePolicy.TryNormalize(op.Name, out var name))
+                            {
+                                throw new EditorBookmarkCommitException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.");
+                            }
 
-                        conn.Execute("UPDATE audiobook_bookmarks SET label = @name WHERE id = @id;", new { id = target.Id, name }, tx);
-                        rows[target.Id] = target with { Label = name };
-                        break;
-                    }
+                            conn.Execute("UPDATE audiobook_bookmarks SET label = @name WHERE id = @id;", new { id = target.Id, name }, tx);
+                            rows[target.Id] = target with { Label = name };
+                            break;
+                        }
 
                     case EditorBookmarkOpKinds.ChangeTime:
-                    {
-                        var target = Find(op.BookmarkId, "move");
-                        EnsureDefinitive();
-                        target = InSet(target.Id, "move");
-                        if (target.PositionKind != BookmarkPooling.TimeKind)
                         {
-                            throw new EditorBookmarkCommitException("Only a bookmark at a time can be moved.");
-                        }
+                            var target = Find(op.BookmarkId, "move");
+                            EnsureDefinitive();
+                            target = InSet(target.Id, "move");
+                            if (target.PositionKind != BookmarkPooling.TimeKind)
+                            {
+                                throw new EditorBookmarkCommitException("Only a bookmark at a time can be moved.");
+                            }
 
-                        if (op.PositionSeconds is not { } seconds || !double.IsFinite(seconds) || seconds < 0
-                            || target.DurationSeconds is { } length && seconds > length)
-                        {
-                            throw new EditorBookmarkCommitException("That time is not inside the file.");
-                        }
+                            if (op.PositionSeconds is not { } seconds || !double.IsFinite(seconds) || seconds < 0
+                                || target.DurationSeconds is { } length && seconds > length)
+                            {
+                                throw new EditorBookmarkCommitException("That time is not inside the file.");
+                            }
 
-                        // An end that would now sit before the start goes (a bookmark's end is optional).
-                        var end = target.EndSeconds is { } oldEnd && oldEnd > seconds ? oldEnd : (double?)null;
-                        conn.Execute(
-                            "UPDATE audiobook_bookmarks SET position_seconds = @seconds, end_seconds = @end WHERE id = @id;",
-                            new { id = target.Id, seconds, end },
-                            tx);
-                        rows[target.Id] = target with { PositionSeconds = seconds, EndSeconds = end };
-                        timeChanged.Add((target.Id, target.AssetId, seconds));
-                        break;
-                    }
+                            // An end that would now sit before the start goes (a bookmark's end is optional).
+                            var end = target.EndSeconds is { } oldEnd && oldEnd > seconds ? oldEnd : (double?)null;
+                            conn.Execute(
+                                "UPDATE audiobook_bookmarks SET position_seconds = @seconds, end_seconds = @end WHERE id = @id;",
+                                new { id = target.Id, seconds, end },
+                                tx);
+                            rows[target.Id] = target with { PositionSeconds = seconds, EndSeconds = end };
+                            timeChanged.Add((target.Id, target.AssetId, seconds));
+                            break;
+                        }
 
                     case EditorBookmarkOpKinds.Import:
-                    {
-                        if (importAssetId is not { } assetId)
                         {
-                            throw new EditorBookmarkCommitException("This title has no file to import bookmarks onto.");
-                        }
-
-                        EnsureDefinitive();
-                        foreach (var item in op.Items)
-                        {
-                            if (!double.IsFinite(item.PositionSeconds) || item.PositionSeconds < 0
-                                || item.EndSeconds is { } itemEnd && (!double.IsFinite(itemEnd) || itemEnd <= item.PositionSeconds)
-                                || !AudiobookBookmarkNotePolicy.TryNormalize(item.Name, out var itemName)
-                                || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(item.Description, out var itemDescription))
+                            if (importAssetId is not { } assetId)
                             {
-                                throw new EditorBookmarkCommitException("A bookmark in the file is not valid.");
+                                throw new EditorBookmarkCommitException("This title has no file to import bookmarks onto.");
                             }
 
-                            if (item.ReplacesBookmarkId is { } replaces && rows.TryGetValue(replaces, out var replaced) && replaced.IsGlobal)
+                            EnsureDefinitive();
+                            foreach (var item in op.Items)
                             {
-                                SetFlag(replaced.Id, false);
-                            }
+                                if (!double.IsFinite(item.PositionSeconds) || item.PositionSeconds < 0
+                                    || item.EndSeconds is { } itemEnd && (!double.IsFinite(itemEnd) || itemEnd <= item.PositionSeconds)
+                                    || !AudiobookBookmarkNotePolicy.TryNormalize(item.Name, out var itemName)
+                                    || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(item.Description, out var itemDescription))
+                                {
+                                    throw new EditorBookmarkCommitException("A bookmark in the file is not valid.");
+                                }
 
-                            var created = new EditorBookmarkRow
-                            {
-                                Id = Guid.NewGuid(),
-                                ProfileId = actingProfileId,
-                                WorkId = workId,
-                                AssetId = assetId,
-                                PositionKind = BookmarkPooling.TimeKind,
-                                PositionSeconds = item.PositionSeconds,
-                                EndSeconds = item.EndSeconds,
-                                ChapterTitle = string.IsNullOrWhiteSpace(item.ChapterTitle) ? null : item.ChapterTitle.Trim(),
-                                Label = itemName,
-                                Description = itemDescription,
-                                IsGlobal = true,
-                                CreatedAt = DateTimeOffset.UtcNow,
-                            };
-                            conn.Execute(
-                                """
+                                if (item.ReplacesBookmarkId is { } replaces && rows.TryGetValue(replaces, out var replaced) && replaced.IsGlobal)
+                                {
+                                    SetFlag(replaced.Id, false);
+                                }
+
+                                var created = new EditorBookmarkRow
+                                {
+                                    Id = Guid.NewGuid(),
+                                    ProfileId = actingProfileId,
+                                    WorkId = workId,
+                                    AssetId = assetId,
+                                    PositionKind = BookmarkPooling.TimeKind,
+                                    PositionSeconds = item.PositionSeconds,
+                                    EndSeconds = item.EndSeconds,
+                                    ChapterTitle = string.IsNullOrWhiteSpace(item.ChapterTitle) ? null : item.ChapterTitle.Trim(),
+                                    Label = itemName,
+                                    Description = itemDescription,
+                                    IsGlobal = true,
+                                    CreatedAt = DateTimeOffset.UtcNow,
+                                };
+                                conn.Execute(
+                                    """
                                 INSERT INTO audiobook_bookmarks
                                     (id, profile_id, work_id, asset_id, chapter_index, chapter_title, position_seconds, duration_seconds, end_seconds,
                                      label, note, description, is_global, created_at, position_kind, locator)
@@ -394,15 +394,15 @@ public sealed class EditorBookmarkRepository
                                     (@Id, @ProfileId, @WorkId, @AssetId, NULL, @ChapterTitle, @PositionSeconds, NULL, @EndSeconds,
                                      @Label, NULL, @Description, 1, @CreatedAt, 'time', NULL);
                                 """,
-                                created,
-                                tx);
-                            rows[created.Id] = created;
-                            added.Add((created.Id, created.AssetId, created.PositionSeconds));
-                            MergeSameSpot(created);
-                        }
+                                    created,
+                                    tx);
+                                rows[created.Id] = created;
+                                added.Add((created.Id, created.AssetId, created.PositionSeconds));
+                                MergeSameSpot(created);
+                            }
 
-                        break;
-                    }
+                            break;
+                        }
 
                     case EditorBookmarkOpKinds.StartOver:
                         conn.Execute("DELETE FROM bookmark_definitive_sets WHERE work_id = @workId;", new { workId }, tx);

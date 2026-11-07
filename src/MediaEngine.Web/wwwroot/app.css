@@ -2846,7 +2846,7 @@ button.app-menu-item {
 .video-bookmark-pane .video-bookmark-pane__close { display:grid; place-items:center; width:44px; height:44px; margin:-8px -8px -8px 0; border:0; background:transparent; color:inherit; cursor:pointer; }
 .video-bookmark-pane .video-bookmark-pane__add { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:44px; padding:8px 14px; border:1px solid var(--tl-accent-primary); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--tl-accent-primary); font-weight:600; cursor:pointer; }
 .video-bookmark-pane .video-bookmark-pane__add:hover { background:var(--playback-accent-soft); }
-.video-bookmark-pane__note,.video-bookmark-pane__search,.video-bookmark-pane__edit input { width:100%; box-sizing:border-box; min-height:44px; padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:inherit; }
+.video-bookmark-pane__note,.video-bookmark-pane__search { width:100%; box-sizing:border-box; min-height:44px; padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:inherit; }
 .video-bookmark-pane__filter { display:flex; gap:20px; border-bottom:1px solid var(--playback-border); }
 .video-bookmark-pane .video-bookmark-pane__tab { min-height:44px; padding:0 2px; border:0; border-bottom:3px solid transparent; background:transparent; color:var(--playback-text-secondary); font:inherit; cursor:pointer; }
 .video-bookmark-pane__tab.is-selected { border-bottom-color:var(--tl-accent-primary); color:var(--playback-text); }
@@ -2858,19 +2858,14 @@ button.app-menu-item {
 .video-bookmark-pane__empty { padding:12px 4px; color:var(--playback-text-secondary); font-size:var(--tl-font-size-sm); }
 .video-bookmark-pane__row { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--tl-radius-sm,6px); }
 .video-bookmark-pane__row.is-near { background:var(--playback-accent-soft); }
-.video-bookmark-pane__row.is-glow { animation:video-bookmark-glow 1.4s ease-out 1; }
-@keyframes video-bookmark-glow { 0% { background:var(--tl-accent-primary); } 100% { background:transparent; } }
 .video-bookmark-pane__dot { flex:0 0 12px; width:12px; height:12px; border-radius:50%; background:var(--tl-accent-primary); }
 .video-bookmark-pane__dot.is-global { background:var(--playback-text); }
 .video-bookmark-pane__copy { display:grid; flex:1; min-width:0; }
 .video-bookmark-pane__copy > strong,.video-bookmark-pane__copy > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .video-bookmark-pane__copy > span { color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
-.video-bookmark-pane__edit { display:grid; flex:1; gap:6px; min-width:0; }
-.video-bookmark-pane__edit-actions { display:flex; gap:4px; }
 .video-bookmark-pane .video-bookmark-pane__action { padding:4px 8px; border:0; border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); font-size:var(--tl-font-size-sm); cursor:pointer; }
 .video-bookmark-pane .video-bookmark-pane__action:hover { color:var(--tl-accent-primary); }
 .video-bookmark-pane .video-bookmark-pane__action.is-danger { color:var(--tl-status-danger,#ff6b6b); }
-@media (prefers-reduced-motion:reduce) { .video-bookmark-pane__row.is-glow { animation:none; } }
 @media (max-width: 720px){
     .playback-panel .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
     .playback-panel .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }
@@ -5288,8 +5283,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 
 .app-official-pill__icon { display: block; flex: 0 0 auto; }
 
-.video-bookmark-pane .video-bookmark-pane__find { padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); font-weight:600; cursor:pointer; }
-.video-bookmark-pane .video-bookmark-pane__find:hover { color:var(--tl-accent-primary); }
 /* Find bookmarks inside the bookmark pane (Global bookmarks spec D6, D7). */
 .video-bookmark-find { display:grid; gap:10px; width:100%; }
 .video-bookmark-find__head { display:flex; align-items:center; gap:8px; }
@@ -5321,14 +5314,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .video-bookmark-find .video-bookmark-find__leave { padding:2px 6px; border:0; background:transparent; color:var(--playback-text); font-size:var(--tl-font-size-secondary); cursor:pointer; }
 .video-bookmark-find__note { margin:0; color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
 .video-bookmark-find__actions { display:flex; align-items:center; gap:10px; color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
-.audiobook-global-extras { display:grid; gap:8px; margin-top:12px; }
-.audiobook-global-extras__buttons { display:flex; gap:8px; }
-.audiobook-global-extras__message { margin:0; font-size:var(--tl-font-size-sm); }
-.audiobook-global-extras__list { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
-.audiobook-global-extras__list li { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--tl-radius-sm,6px); }
-.audiobook-global-extras__list li.is-glow { animation:video-bookmark-glow 1.4s ease-out 1; }
-.audiobook-global-extras__list li > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.75; }
-.audiobook-global-extras__empty { opacity:.75; }
 /* The quiet facts in the side column of a plugin or integration page (Plugins and Integrations screens v6 D60). Global because the
    facts are drawn by the page that owns them, not by the column component. */
 .app-detail-columns__side dl { margin: 0; }

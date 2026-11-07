@@ -5,16 +5,10 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The video player's bookmark pane (player-controls-v3 D10): a tall pane above the control bar. One click adds a personal bookmark at the
-   time the pane opened; the title's bookmarks sit below in time order, filtered All, Mine or Global (and Everyone's for an administrator
-   on a desktop or tablet). Global bookmarks are read-only for everyone but an administrator, who can rename, edit and delete them.
-   Promote is immediate: no confirmation, a short glow on the row instead of a toast. *@
+   time the pane opened; the title's bookmarks sit below in time order, filtered Mine or Global. Global bookmarks are read-only here for
+   everybody: making, renaming, moving, removing, importing and exporting Everyone's bookmarks is an administrator's job in the editor's
+   Bookmarks tab (universal editor v5 D37), not in the player. *@
 <div class="video-bookmark-pane">
-@if (_finding && AllowFind && FindView is not null)
-{
-    @FindView(EventCallback.Factory.Create(this, CloseFindAsync))
-}
-else
-{
     <header class="video-bookmark-pane__header">
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Class="video-bookmark-pane__header-icon" />
         <h3>@L["Glossary_Bookmarks"]</h3>
@@ -42,7 +36,7 @@ else
             }
         </div>
     }
-    @if (Bookmarks.Count + Everyones.Count > 0)
+    @if (Bookmarks.Count > 0)
     {
         <div @onkeydown:stopPropagation="true">
             <InputText @bind-Value="_search" class="video-bookmark-pane__search" type="search" placeholder="@L["VideoBookmarkPane_Search"].Value" aria-label="@L["VideoBookmarkPane_Search"].Value" />
@@ -56,20 +50,7 @@ else
         }
         @foreach (var bookmark in rows)
         {
-            <li class="video-bookmark-pane__row @(bookmark.Id == nearest ? "is-near" : null) @(bookmark.Id == _glowId ? "is-glow" : null)" @key="bookmark.Id">
-                @if (_editId == bookmark.Id)
-                {
-                    <div class="video-bookmark-pane__edit" @onkeydown:stopPropagation="true">
-                        <InputText @bind-Value="_editLabel" maxlength="200" placeholder="@L["VideoBookmarkPane_Name"].Value" aria-label="@L["VideoBookmarkPane_Name"].Value" />
-                        <InputText @bind-Value="_editNote" maxlength="200" placeholder="@L["VideoBookmarkQuickList_AddANoteOptional"].Value" aria-label="@L["VideoBookmarkQuickList_BookmarkNote"].Value" />
-                        <InputText @bind-Value="_editDescription" placeholder="@L["VideoBookmarkPane_Description"].Value" aria-label="@L["VideoBookmarkPane_Description"].Value" />
-                        <span class="video-bookmark-pane__edit-actions">
-                            <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => SaveEditAsync(bookmark))">@L["Common_Save"]</AppNativeButton>
-                            <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => _editId = null)">@L["VideoBookmarkPane_Cancel"]</AppNativeButton>
-                        </span>
-                    </div>
-                }
-                else
+            <li class="video-bookmark-pane__row @(bookmark.Id == nearest ? "is-near" : null)" @key="bookmark.Id">
                 {
                     <AppNativeButton Type="button" Class="@($"video-bookmark-pane__time {(bookmark.IsGlobal ? "is-global" : null)}")" OnClick="@(() => Play.InvokeAsync(bookmark.Seconds))" AriaLabel="@($"Play from {PlaybackSeekRail.Time(bookmark.Seconds)}")">@PlaybackSeekRail.Time(bookmark.Seconds)</AppNativeButton>
                     <span class="video-bookmark-pane__copy">
@@ -83,16 +64,6 @@ else
                     }
                     else
                     {
-                        @if (IsAdministrator && !bookmark.IsGlobal && IsEveryonesView && Promote is not null)
-                        {
-                            <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => PromoteAsync(bookmark))">@L["VideoBookmarkPane_Promote"]</AppNativeButton>
-                        }
-                        @if (IsAdministrator && bookmark.IsGlobal && Update is not null)
-                        {
-                            <AppNativeButton Type="button" Class="video-bookmark-pane__action video-bookmark-pane__action--icon" OnClick="@(() => BeginEdit(bookmark))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" /><span class="sr-only">@L["Common_Edit"]</span>
-                            </AppNativeButton>
-                        }
                         @if (CanDelete(bookmark))
                         {
                             <AppNativeButton Type="button" Class="video-bookmark-pane__action video-bookmark-pane__action--icon" OnClick="@(() => _confirmId = bookmark.Id)" AriaLabel="@($"Delete bookmark at {PlaybackSeekRail.Time(bookmark.Seconds)}")">
@@ -104,12 +75,7 @@ else
             </li>
         }
     </ul>
-    @if (AllowFind && FindView is not null)
-    {
-        <AppNativeButton Type="button" Class="video-bookmark-pane__find" OnClick="@(() => _finding = true)">@L["VideoBookmarkPane_Find"]</AppNativeButton>
-    }
     <p class="video-bookmark-pane__hint">@L["VideoBookmarkPane_Hint"]</p>
-}
 </div>
 
 @code {
@@ -119,13 +85,7 @@ else
     [Parameter] public double Current { get; set; }
     /// <summary>The person's own bookmarks and the Global ones on this title.</summary>
     [Parameter] public IReadOnlyList<PlaybackRailBookmark> Bookmarks { get; set; } = [];
-    /// <summary>Every profile's personal bookmarks (an administrator's Everyone's view). Empty for everyone else.</summary>
-    [Parameter] public IReadOnlyList<PlaybackRailBookmark> Everyones { get; set; } = [];
-    /// <summary>True for a server administrator (the Engine checks again).</summary>
-    [Parameter] public bool IsAdministrator { get; set; }
-    /// <summary>False in the Vault and on phones and TVs, where Everyone's is never offered.</summary>
-    [Parameter] public bool AllowEveryones { get; set; }
-    /// <summary>The remembered filter: All, Mine, Global or Everyones.</summary>
+    /// <summary>The remembered filter: All, Mine or Global.</summary>
     [Parameter] public string Filter { get; set; } = PlaybackPreferenceValues.All;
     [Parameter] public EventCallback<string> FilterChanged { get; set; }
     /// <summary>Closes the whole panel (the header's close button; not drawn when no handler is set).</summary>
@@ -136,38 +96,21 @@ else
     [Parameter] public Func<double, string?, Task<bool>>? Add { get; set; }
     [Parameter] public EventCallback<double> Play { get; set; }
     [Parameter] public Func<PlaybackRailBookmark, Task<bool>>? Delete { get; set; }
-    /// <summary>Makes a personal bookmark Global at once (administrators, Everyone's view).</summary>
-    [Parameter] public Func<PlaybackRailBookmark, string?, Task<bool>>? Promote { get; set; }
-    /// <summary>Changes a Global bookmark's name, note and description (administrators).</summary>
-    [Parameter] public Func<PlaybackRailBookmark, string?, string?, string?, Task<bool>>? Update { get; set; }
-    /// <summary>
-    /// The Find bookmarks sub-view (Global bookmarks spec D6). When set, a "Find bookmarks" entry sits below the switch and replaces the
-    /// list with this view, which gets a callback that returns to the list. Not offered in the Vault, on phones or on TVs.
-    /// </summary>
-    /// <summary>False in the Vault and on phones and TVs, where Find bookmarks is never offered.</summary>
-    [Parameter] public bool AllowFind { get; set; }
-    [Parameter] public RenderFragment<EventCallback>? FindView { get; set; }
 
-    private string? _note, _editLabel, _editNote, _editDescription, _search;
+    private string? _note, _search;
     private bool _saving, _failed;
-    private Guid? _confirmId, _editId, _glowId;
-    private bool _finding;
-    private Task CloseFindAsync() { _finding = false; StateHasChanged(); return Task.CompletedTask; }
+    private Guid? _confirmId;
 
-    private bool IsEveryonesView => EffectiveFilter == PlaybackPreferenceValues.Everyones;
-    private bool EveryonesAvailable => IsAdministrator && AllowEveryones;
     private bool HasMine => Bookmarks.Any(bookmark => !bookmark.IsGlobal);
     private bool HasGlobal => Bookmarks.Any(bookmark => bookmark.IsGlobal);
 
-    /// <summary>The filter only appears when there is a choice to make: both kinds are present, or Everyone's is available.</summary>
-    private bool ShowFilter => (HasMine && HasGlobal) || EveryonesAvailable;
+    /// <summary>The filter only appears when there is a choice to make: both kinds are present.</summary>
+    private bool ShowFilter => HasMine && HasGlobal;
 
-    // Unified player D9a: Mine and Global tabs (and Everyone's for an administrator); the old "All" view is gone. A title with only Global
-    // bookmarks opens on Global.
+    // Unified player D9a: Mine and Global tabs; the old "All" view is gone. A title with only Global bookmarks opens on Global.
     private string EffectiveFilter => Filter switch
     {
         PlaybackPreferenceValues.Global when HasGlobal => PlaybackPreferenceValues.Global,
-        PlaybackPreferenceValues.Everyones when EveryonesAvailable => PlaybackPreferenceValues.Everyones,
         _ when !HasMine && HasGlobal => PlaybackPreferenceValues.Global,
         _ => PlaybackPreferenceValues.Mine,
     };
@@ -178,13 +121,11 @@ else
     {
         get
         {
-            var tabs = new List<AppSelectOption>
+            return new List<AppSelectOption>
             {
                 new(PlaybackPreferenceValues.Mine, $"{L["VideoBookmarkPane_Mine"].Value} ({Bookmarks.Count(bookmark => !bookmark.IsGlobal)})"),
                 new(PlaybackPreferenceValues.Global, $"{L["VideoBookmarkPane_Global"].Value} ({Bookmarks.Count(bookmark => bookmark.IsGlobal)})"),
             };
-            if (EveryonesAvailable) tabs.Add(new(PlaybackPreferenceValues.Everyones, L["VideoBookmarkPane_Everyones"].Value));
-            return tabs;
         }
     }
 
@@ -193,7 +134,6 @@ else
         IEnumerable<PlaybackRailBookmark> rows = EffectiveFilter switch
         {
             PlaybackPreferenceValues.Global => Bookmarks.Where(bookmark => bookmark.IsGlobal),
-            PlaybackPreferenceValues.Everyones => Everyones.OrderBy(bookmark => bookmark.Seconds),
             _ => Bookmarks.Where(bookmark => !bookmark.IsGlobal),
         };
         if (!string.IsNullOrWhiteSpace(_search))
@@ -207,12 +147,10 @@ else
     }
 
     private string Owner(PlaybackRailBookmark bookmark) =>
-        bookmark.IsGlobal ? L["VideoBookmarkPane_Global"].Value
-        : IsEveryonesView && !string.IsNullOrWhiteSpace(bookmark.OwnerName) ? bookmark.OwnerName!
-        : L["VideoBookmarkPane_Mine"].Value;
+        bookmark.IsGlobal ? L["VideoBookmarkPane_Global"].Value : L["VideoBookmarkPane_Mine"].Value;
 
-    /// <summary>Anyone deletes their own; only an administrator deletes a Global bookmark. Everyone's rows belong to other people.</summary>
-    private bool CanDelete(PlaybackRailBookmark bookmark) => Delete is not null && (bookmark.IsGlobal ? IsAdministrator : !IsEveryonesView);
+    /// <summary>Anyone deletes their own. A Global bookmark is changed or removed in the editor's Bookmarks tab, never here.</summary>
+    private bool CanDelete(PlaybackRailBookmark bookmark) => Delete is not null && !bookmark.IsGlobal;
 
     private Guid? NearestId(IReadOnlyList<PlaybackRailBookmark> rows) => rows.Count == 0 ? null : rows.OrderBy(item => Math.Abs(item.Seconds - Current)).First().Id;
 
@@ -239,26 +177,4 @@ else
         if (Delete is not null) await Delete(bookmark);
     }
 
-    private async Task PromoteAsync(PlaybackRailBookmark bookmark)
-    {
-        if (Promote is null || !await Promote(bookmark, null)) return;
-        _glowId = bookmark.Id;
-        StateHasChanged();
-        await Task.Delay(TimeSpan.FromMilliseconds(1400));
-        _glowId = null;
-    }
-
-    private void BeginEdit(PlaybackRailBookmark bookmark)
-    {
-        _editId = bookmark.Id;
-        _editLabel = bookmark.Label;
-        _editNote = bookmark.Note;
-        _editDescription = bookmark.Description;
-    }
-
-    private async Task SaveEditAsync(PlaybackRailBookmark bookmark)
-    {
-        if (Update is null) return;
-        if (await Update(bookmark, _editLabel, _editNote, _editDescription)) _editId = null;
-    }
 }

@@ -1,5 +1,6 @@
 using System.Text;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Playback;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -10,6 +11,7 @@ public enum EditReviewGroup
     Identity,
     Artwork,
     Relationships,
+    Bookmarks,
     PhysicalFiles,
 }
 
@@ -40,6 +42,7 @@ public sealed record EditReviewRow(
         EditSessionChangeKinds.Details => EditTool.Details,
         EditSessionChangeKinds.ThingAdd => EditTool.Details,
         EditSessionChangeKinds.Artwork => EditTool.Artwork,
+        EditSessionChangeKinds.Bookmarks => EditTool.Bookmarks,
         _ => EditTool.Match,
     };
 }
@@ -80,6 +83,22 @@ public static class EditReviewRows
 
     public const string NotInASeries = "Not in a series";
 
+    public const string EveryoneAsItIsNow = "Everyone's bookmarks as they are now";
+
+    public const string StartOverNote = "Everyone's list goes back to every profile's bookmarks, pooled. The definitive set you made is thrown away.";
+
+    /// <summary>What a bookmark operation changes, in the words of the Bookmarks tab.</summary>
+    public static string BookmarkWhat(EditorBookmarkOp op) => op.Kind switch
+    {
+        EditorBookmarkOpKinds.Add => "Add to Everyone's",
+        EditorBookmarkOpKinds.Remove => "Remove from Everyone's",
+        EditorBookmarkOpKinds.Rename => "Rename",
+        EditorBookmarkOpKinds.ChangeTime => "Change time",
+        EditorBookmarkOpKinds.Import => "Import",
+        EditorBookmarkOpKinds.StartOver => "Start over from profiles",
+        _ => "Everyone's bookmarks",
+    };
+
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
     public static string GroupTitle(EditReviewGroup group) => group switch
@@ -88,6 +107,7 @@ public static class EditReviewRows
         EditReviewGroup.Identity => "Identity",
         EditReviewGroup.Artwork => "Artwork",
         EditReviewGroup.Relationships => "Relationships",
+        EditReviewGroup.Bookmarks => "Bookmarks",
         _ => "Physical files",
     };
 
@@ -188,6 +208,16 @@ public static class EditReviewRows
                 case EditSessionChangeKinds.VideoRename:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, label ?? item,
                         "File names", "As they are now", "Numbered to match the order", VideoRenameWarning));
+                    break;
+                case EditSessionChangeKinds.Bookmarks:
+                    // One row per operation, so the count on Save matches the rows and one operation can be taken back out on its own.
+                    foreach (var op in change.Bookmarks?.Ops ?? [])
+                    {
+                        rows.Add(new EditReviewRow(change.Id, op.Id, change.EntityId, change.Kind, EditReviewGroup.Bookmarks, item,
+                            BookmarkWhat(op), pending.Before(change.Id + ":" + op.Id) ?? EveryoneAsItIsNow, pending.BookmarkLabel(change.Id, op.Id) ?? BookmarkWhat(op),
+                            op.Kind == EditorBookmarkOpKinds.StartOver ? StartOverNote : null));
+                    }
+
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,

@@ -1,0 +1,33 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+
+@* The editor's Bookmarks tab (universal editor v5 D37, mockups Q and Q2), an administrator's alone and on a desktop only (the editor is
+   desktop-only, and the tab is not offered to anyone else). A show, season or album opens the overview that follows the header's
+   dropdowns; any other title opens its two lists. Everything is staged and written on Save changes. *@
+<div class="tl-bookmarks-host">
+    @if (Item is { } item)
+    {
+        @if (UsesOverview(item))
+        {
+            <EditorBookmarkOverview @key="item.EntityId" Flow="Flow" WorkId="item.EntityId" AtTheTop="@(item.Kind != EditTrailKinds.Season)" />
+        }
+        else
+        {
+            <EditorBookmarkTitle @key="item.EntityId" Flow="Flow" WorkId="item.EntityId" HasFamily="HasFamily" />
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public EditSessionFlow Flow { get; set; } = null!;
+
+    /// <summary>True when the item sits in a show, season or album: Export and Import are then offered on the family's page, not on each title.</summary>
+    [Parameter] public bool HasFamily { get; set; }
+
+    private EditTrailItem? Item => Flow.Session.ActiveItem;
+
+    /// <summary>A show, season or album is read as its members; an episode, song, film, book or audiobook as itself.</summary>
+    public static bool UsesOverview(EditTrailItem item) =>
+        item.Kind is EditTrailKinds.Show or EditTrailKinds.Season or EditTrailKinds.Album;
+}

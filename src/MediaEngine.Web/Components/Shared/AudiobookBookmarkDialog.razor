@@ -63,11 +63,6 @@
                                       @bind="_description" @bind:event="oninput" data-bookmark-swipe-exclude="true"></textarea>
                             <div id="@_descriptionCounterId" class="audiobook-bookmark-dialog__counter">@_description.Length / @AudiobookBookmarkNotePolicy.MaximumDescriptionLength</div>
                         }
-                        @if (CanShare)
-                        {
-                            <AppSwitchRow Label="@L["AudiobookBookmarkDialog_ShareWithEveryone"].Value" Description="@L["AudiobookBookmarkDialog_EveryoneWhoCanSeeThis"].Value"
-                                          Value="_share" ValueChanged="@(value => _share = value)" Size="AppSize.Small" />
-                        }
                     }
                     else
                     {
@@ -177,10 +172,6 @@
                     </div>
                 }
                 @if (SavedExtras is not null) { @SavedExtras }
-                @if (Surface != "video" && (Context.ExpectedAssetId ?? Snapshot.Draft?.AssetId) is Guid globalAssetId)
-                {
-                    <AudiobookGlobalExtras ProfileId="Context.ProfileId" WorkId="Context.WorkId" AssetId="globalAssetId" Changed="ReloadSavedAsync" />
-                }
                 @if (ShowMessage is { } savedMessage)
                 {
                     <div class="audiobook-bookmark-dialog__message" role="status">@savedMessage</div>
@@ -200,8 +191,6 @@
     [Parameter] public ElementReference Trigger { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public bool Embedded { get; set; }
-    /// <summary>True for a server administrator: shows the Share switch and allows deleting a bookmark shared with everyone. The Engine checks it again.</summary>
-    [Parameter] public bool CanShare { get; set; }
     /// <summary>Offers the optional longer description (videos). Audiobook players keep the short note alone.</summary>
     [Parameter] public bool AllowDescription { get; set; }
     /// <summary>What a bookmark with no chapter is called in Add and Saved.</summary>
@@ -222,7 +211,6 @@
     private BookmarkTab SelectedTab { get; set; }
     private string _note = string.Empty;
     private string _description = string.Empty;
-    private bool _share;
     private string? _localMessage;
     private Guid? _expandedNoteId;
     private bool _previewing;
@@ -251,7 +239,6 @@
         SelectedTab = BookmarkTab.Add;
         _note = string.Empty;
         _description = string.Empty;
-        _share = false;
         _localMessage = null;
         _expandedNoteId = null;
         _savedLoaded = false;
@@ -417,7 +404,7 @@
         var context = Context;
         var generation = _generation;
         var authorizedAssetIds = AuthorizedAssetIds;
-        var fields = new AudiobookBookmarkSaveFields(_note, AllowDescription ? _description : null, CanShare && _share);
+        var fields = new AudiobookBookmarkSaveFields(_note, AllowDescription ? _description : null);
         AudiobookBookmarkOperationResult<AudiobookBookmarkDto> result;
         try { result = await Actions.SaveWithFieldsAsync(context, draft.Generation, authorizedAssetIds, fields); }
         finally { if (IsCurrent(context, generation)) _savePending = false; }
@@ -428,7 +415,6 @@
         {
             _note = string.Empty;
             _description = string.Empty;
-            _share = false;
             _savedLoaded = true;
             SelectedTab = BookmarkTab.Saved;
             _localMessage = L["AudiobookBookmarkDialog_BookmarkSaved"].Value;
@@ -517,8 +503,8 @@
         if (IsCurrent(context, generation)) await OnClose.InvokeAsync();
     }
 
-    /// <summary>A personal bookmark is the person's to delete; one shared with everyone only an administrator may change.</summary>
-    private bool CanChange(AudiobookBookmarkDto bookmark) => !bookmark.IsGlobal || CanShare;
+    /// <summary>A personal bookmark is the person's to delete; one in Everyone's is changed in the editor's Bookmarks tab, never here.</summary>
+    private static bool CanChange(AudiobookBookmarkDto bookmark) => !bookmark.IsGlobal;
 
     private void ToggleNote(Guid bookmarkId) => _expandedNoteId = _expandedNoteId == bookmarkId ? null : bookmarkId;
 

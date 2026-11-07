@@ -1,0 +1,111 @@
+/* The show overview: episodes grouped by season, each with its Everyone's count (universal editor v5 D37, mockup Q2). Tokens only. */
+.tl-bookmarks,
+.tl-bookmarks-compare {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+}
+
+.tl-bookmarks__state {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+}
+
+.tl-bookmarks__state-copy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-3);
+}
+
+.tl-bookmarks__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+h3 {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-bookmarks__count,
+.tl-bookmarks__state-text,
+.tl-bookmarks__from,
+.tl-bookmarks__notice {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+    color: var(--tl-text-muted);
+}
+
+.tl-bookmarks__profiles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+}
+
+.tl-bookmarks__list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+}
+
+.tl-bookmarks__row {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-height: 3.5rem;
+    padding: var(--tl-space-2) var(--tl-space-3);
+}
+
+.tl-bookmarks__row + .tl-bookmarks__row {
+    border-top: 1px solid var(--tl-border-default);
+}
+
+.tl-bookmarks__row[data-mark="removed"] .tl-bookmarks__copy {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.tl-bookmarks__place {
+    flex: none;
+    min-width: 3.5rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-bookmarks__copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-bookmarks__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-bookmarks__row-action {
+    flex: none;
+    margin-left: auto;
+}
+
+.tl-bookmarks__empty {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    color: var(--tl-text-muted);
+}

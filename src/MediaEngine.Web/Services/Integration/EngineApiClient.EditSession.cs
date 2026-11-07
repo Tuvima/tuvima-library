@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -101,4 +102,26 @@ public sealed partial class EngineApiClient
                 ActorLabel = item.ActorLabel,
             }).ToList(), null);
     }
+
+    public Task<EditorBookmarksDto?> GetEditorBookmarksAsync(Guid workId, CancellationToken ct = default) =>
+        GetAsync<EditorBookmarksDto>("GET /api/v1/editor-bookmarks/titles/{id}", $"/api/v1/editor-bookmarks/titles/{workId:D}", logAsWarning: false, ct: ct);
+
+    public Task<BookmarkSetCompareDto?> CompareEditorBookmarkFileAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default) =>
+        PostAsync<EditorBookmarkCompareRequestDto, BookmarkSetCompareDto>(
+            "POST /api/v1/editor-bookmarks/titles/{id}/compare", $"/api/v1/editor-bookmarks/titles/{workId:D}/compare", request, logAsWarning: false, ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportEditorBookmarksAsync(Guid workId, CancellationToken ct = default) =>
+        PostAsync<object, BookmarkPackFileDto>(
+            "POST /api/v1/editor-bookmarks/titles/{id}/export", $"/api/v1/editor-bookmarks/titles/{workId:D}/export", new object(), logAsWarning: false, ct: ct);
+
+    public Task<EditorBookmarkOverviewDto?> GetEditorBookmarkOverviewAsync(Guid workId, CancellationToken ct = default) =>
+        GetAsync<EditorBookmarkOverviewDto>("GET /api/v1/editor-bookmarks/families/{id}", $"/api/v1/editor-bookmarks/families/{workId:D}", logAsWarning: false, ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportEditorShowBookmarksAsync(Guid workId, CancellationToken ct = default) =>
+        PostAsync<object, BookmarkPackFileDto>(
+            "POST /api/v1/editor-bookmarks/families/{id}/export", $"/api/v1/editor-bookmarks/families/{workId:D}/export", new object(), logAsWarning: false, ct: ct);
+
+    public Task<EditorBookmarkShowCompareDto?> CompareEditorShowBookmarkFileAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default) =>
+        PostAsync<EditorBookmarkCompareRequestDto, EditorBookmarkShowCompareDto>(
+            "POST /api/v1/editor-bookmarks/families/{id}/compare", $"/api/v1/editor-bookmarks/families/{workId:D}/compare", request, logAsWarning: false, ct: ct);
 }

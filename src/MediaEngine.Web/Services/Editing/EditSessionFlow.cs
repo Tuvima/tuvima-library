@@ -132,7 +132,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             _session.SetTool(open);
         }
-        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.History)
+        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.Bookmarks or EditTool.History)
         {
             _session.SetTool(null);
         }
@@ -156,6 +156,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             EditTool.Details => await _mode.ShowSectionAsync(EditingSection.Details),
             EditTool.History => await _mode.ShowSectionAsync(EditingSection.History),
+            EditTool.Bookmarks => await _mode.ShowSectionAsync(EditingSection.Bookmarks),
             EditTool.Artwork => _mode.Fields.CanEditArtwork && await _mode.ShowSectionAsync(EditingSection.Artwork),
             EditTool.Match => _mode.Fields.CanMatch && await _mode.ShowSectionAsync(EditingSection.Match),
             _ => false,
@@ -343,7 +344,9 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     public bool RemoveReviewRow(EditReviewRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        return row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
+        return row.Kind == EditSessionChangeKinds.Bookmarks && row.FieldKey is { } opId
+            ? _session.Pending.ClearBookmarkOp(row.EntityId, opId)
+            : row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
     }
 
     /// <summary>Whether Review's Edit can reach the row's item: any staged item can be switched to (spec D7), so it is offered whenever editing is active.</summary>
@@ -487,6 +490,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
                 EditSessionChangeKinds.SiblingMatch => "Other episodes",
                 EditSessionChangeKinds.ChildRematch => "Seasons and episodes",
                 EditSessionChangeKinds.ThingAdd => "New item",
+                EditSessionChangeKinds.Bookmarks => "Everyone's bookmarks",
                 _ => "Details",
             };
         }
@@ -499,6 +503,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         EditingSection.Artwork => EditTool.Artwork,
         EditingSection.Match => EditTool.Match,
         EditingSection.History => EditTool.History,
+        EditingSection.Bookmarks => EditTool.Bookmarks,
         EditingSection.Details => EditTool.Details,
         _ => null,
     };
