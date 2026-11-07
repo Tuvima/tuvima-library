@@ -1,0 +1,6 @@
+/* Favorite, Like, Dislike and More: square 44 px buttons, 8 px apart (unified player v2 D5; the buttons draw themselves, see PlaybackIconButton). */
+.playback-identity-actions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}

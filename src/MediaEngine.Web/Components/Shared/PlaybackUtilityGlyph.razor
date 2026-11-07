@@ -100,17 +100,17 @@
             <path d="M4 18a2 2 0 0 1 2 2M4 14a6 6 0 0 1 6 6M4 10a10 10 0 0 1 10 10M4 5h16v13h-4" />
             break;
         case PlaybackUtilityGlyphKind.Favorite:
-            <path d="M20.5 8.8c0 5.2-8.5 10.2-8.5 10.2S3.5 14 3.5 8.8A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8.5 1.8z" />
+            <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
             break;
         case PlaybackUtilityGlyphKind.Popup:
             <rect x="3" y="5" width="14" height="14" rx="2" />
             <path d="M13 3h8v8M21 3l-9 9" />
             break;
         case PlaybackUtilityGlyphKind.Like:
-            <path d="M8 10 12 3a2.5 2.5 0 0 1 2 3l-1 4h6a2 2 0 0 1 2 2.4l-1.2 6A2 2 0 0 1 17.8 20H8zM3 10h5v10H3z" />
+            <path d="M7 10v10H3V10zM7 10l4-7a2 2 0 0 1 2 2v5h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 16.8 21H7" />
             break;
         case PlaybackUtilityGlyphKind.Dislike:
-            <path transform="rotate(180 12 12)" d="M8 10 12 3a2.5 2.5 0 0 1 2 3l-1 4h6a2 2 0 0 1 2 2.4l-1.2 6A2 2 0 0 1 17.8 20H8zM3 10h5v10H3z" />
+            <path d="M17 14V4h4v10zM17 14l-4 7a2 2 0 0 1-2-2v-5H6a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 7.2 3H17" />
             break;
         case PlaybackUtilityGlyphKind.Expand:
             <path d="M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6" />
@@ -127,6 +127,33 @@
             break;
         case PlaybackUtilityGlyphKind.Back:
             <path d="M15 5l-7 7 7 7" />
+            break;
+        case PlaybackUtilityGlyphKind.Playlist:
+            <path d="M4 6h12M4 11h12M4 16h7M17 13v8M13 17h8" />
+            break;
+        case PlaybackUtilityGlyphKind.Clock:
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+            break;
+        case PlaybackUtilityGlyphKind.Disc:
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <circle cx="12" cy="12" r="3.5" />
+            break;
+        case PlaybackUtilityGlyphKind.Person:
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0" />
+            break;
+        case PlaybackUtilityGlyphKind.Reset:
+            <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5" />
+            <path d="M4 3.5v5h5" />
+            break;
+        case PlaybackUtilityGlyphKind.Book:
+            <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
+            <path d="M4 5v16" />
+            break;
+        case PlaybackUtilityGlyphKind.Film:
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <path d="M8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4" />
             break;
         case PlaybackUtilityGlyphKind.More:
             <circle cx="5" cy="12" r="1.1" fill="currentColor" />

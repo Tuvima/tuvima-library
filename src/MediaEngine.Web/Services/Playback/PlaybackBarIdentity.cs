@@ -35,7 +35,8 @@ public sealed record PlaybackBarIdentity(
     /// <param name="showTitle">The show's name for a TV episode when the presentation context has loaded; the queue's show name is used until then.</param>
     /// <param name="chapterTitle">The audiobook's current chapter name, when it has chapters.</param>
     /// <param name="hideEpisodeTitle">True when the profile's Spoilers setting hides the episode title: it is then left out of the line.</param>
-    public static PlaybackBarIdentity Build(PlaybackBarMedia media, ListenQueueItem item, string? showTitle = null, string? chapterTitle = null, bool hideEpisodeTitle = false)
+    /// <param name="showWorkId">The show of a TV episode once its presentation context has loaded; the show name and the episode title link only then.</param>
+    public static PlaybackBarIdentity Build(PlaybackBarMedia media, ListenQueueItem item, string? showTitle = null, string? chapterTitle = null, bool hideEpisodeTitle = false, Guid? showWorkId = null)
     {
         var parts = new List<PlaybackIdentityPart>();
         switch (media)
@@ -63,17 +64,18 @@ public sealed record PlaybackBarIdentity(
 
             case PlaybackBarMedia.Tv:
                 AddIfText(parts, EpisodeLabel(item), null, null);
+                var hasShow = showWorkId is { } known && known != Guid.Empty;
                 if (!hideEpisodeTitle)
                 {
-                    AddIfText(parts, StringHelpers.FirstNonBlank(item.EpisodeTitle, item.Title), null, null);
+                    AddIfText(parts, StringHelpers.FirstNonBlank(item.EpisodeTitle, item.Title), hasShow ? "episode" : null, hasShow ? item.WorkId : null);
                 }
                 // The bar names the show (the queue's show name until the presentation context has loaded); the episode name is on the second line.
-                return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), null, null, parts);
+                return new(StringHelpers.FirstNonBlankOr(item.Title, showTitle, item.Album), hasShow ? "show" : null, hasShow ? showWorkId : null, parts);
 
             default:
                 AddIfText(parts, item.Year, null, null);
                 parts.Add(new("Movie"));
-                return new(item.Title, null, null, parts);
+                return new(item.Title, item.WorkId != Guid.Empty ? "movie" : null, item.WorkId != Guid.Empty ? item.WorkId : null, parts);
         }
     }
 

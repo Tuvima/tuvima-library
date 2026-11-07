@@ -1,0 +1,115 @@
+/* The identity zone of the persistent bar (unified player v2 D5; mockup screen 1 marker 4): a 56 px tall artwork slot, the title and second line, then
+   the item's actions. The zone keeps at least 240 px (the phone's collapsed form lets it shrink) and the title takes what is left and ends in an
+   ellipsis; the actions never shrink, so Favorite, Like, Dislike and More stay visible beside a song title at 1024 wide. */
+.playback-identity {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    min-width: 240px;
+}
+
+.playback-identity--compact {
+    min-width: 0;
+}
+
+.playback-identity__art {
+    background: var(--tl-bg-surface-elevated);
+    border: 0;
+    border-radius: 6px;
+    color: inherit;
+    flex: none;
+    height: 56px;
+    overflow: hidden;
+    padding: 0;
+    position: relative;
+    width: 56px;
+}
+
+.playback-identity__art--wide {
+    width: 100px;
+}
+
+.playback-identity__art--button {
+    cursor: pointer;
+}
+
+.playback-identity__art--button:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-identity__art-image,
+.playback-identity__art-fill,
+.playback-identity__art-placeholder {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+/* A cover is drawn whole (never cropped or stretched). An episode still fills the 16:9 slot; a poster is contained inside it, over its blurred fill. */
+.playback-identity__art-image {
+    object-fit: contain;
+}
+
+.playback-identity__art--wide .playback-identity__art-image {
+    object-fit: cover;
+}
+
+.playback-identity__art--poster .playback-identity__art-image {
+    object-fit: contain;
+    position: relative;
+}
+
+/* The blurred fill behind a contained poster: the poster again, scaled past the edges, blurred and dimmed (mockup: blur 6 px, 60% brightness). */
+.playback-identity__art-fill {
+    filter: blur(6px) brightness(0.6);
+    inset: 0;
+    object-fit: cover;
+    position: absolute;
+    transform: scale(1.15);
+}
+
+.playback-identity__text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.playback-identity__title,
+.playback-identity__secondary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-identity__title {
+    color: var(--playback-text);
+    font-size: var(--playback-title-size);
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.playback-identity__secondary {
+    color: var(--playback-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    line-height: 1.45;
+}
+
+.playback-identity__error {
+    color: var(--tl-status-danger);
+    font-size: var(--tl-font-size-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-identity__actions {
+    align-items: center;
+    display: flex;
+    flex: none;
+    margin-left: 2px;
+}
+
+/* The phone's collapsed bar (D26, finished by the phone packet): art, text, then Play and Next, no Favorite. */
+.playback-identity--compact .playback-identity__title {
+    font-size: var(--tl-font-size-sm);
+}

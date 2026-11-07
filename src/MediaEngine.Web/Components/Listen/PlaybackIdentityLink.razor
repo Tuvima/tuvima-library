@@ -7,7 +7,12 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <span class="playback-identity-owner">
-    @if (Id is Guid id && PlaybackIdentityNavigation.Route(Current, Kind, id) is not null && Commands is IPlaybackIdentityNavigationSink)
+    @if (!string.IsNullOrWhiteSpace(Href))
+    {
+        @* A page the host already knows (the video bar's show, episode and movie): a plain link, with no main-window hand-off. *@
+        <a class="playback-identity-link" href="@Href">@Text</a>
+    }
+    else if (Id is Guid id && PlaybackIdentityNavigation.Route(Current, Kind, id) is not null && Commands is IPlaybackIdentityNavigationSink)
     {
         <a @ref="_link" class="playback-identity-link" href="@PlaybackIdentityNavigation.Route(Current, Kind, id)">@Text</a>
     }
@@ -15,8 +20,10 @@
 </span>
 
 @code {
-    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
-    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    [Parameter] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter] public IPlaybackCommandSink Commands { get; set; } = null!;
+    /// <summary>The page to open, when the host knows it. The link is then a plain anchor and <see cref="Kind"/> and <see cref="Id"/> are not used.</summary>
+    [Parameter] public string? Href { get; set; }
     [Parameter] public string Kind { get; set; } = string.Empty;
     [Parameter] public Guid? Id { get; set; }
     [Parameter] public string? Text { get; set; }
