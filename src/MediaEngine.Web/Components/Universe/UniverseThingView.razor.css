@@ -9,7 +9,7 @@
     align-self: flex-start;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     text-decoration: none;
 }
 
@@ -67,7 +67,7 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     letter-spacing: 0.04em;
 }
@@ -76,7 +76,7 @@
     padding: 0.1rem 0.5rem;
     border-radius: var(--tl-radius-sm, 0.25rem);
     background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     text-transform: none;
     letter-spacing: 0;
 }
@@ -96,7 +96,7 @@
     max-width: 62ch;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.5;
 }
 
@@ -108,7 +108,7 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .universe-thing__actions {
@@ -183,14 +183,14 @@
 .universe-thing__initial {
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 2rem;
+    font-size: var(--tl-font-size-hero);
     font-weight: 600;
 }
 
 .universe-thing__name {
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1.25;
     overflow-wrap: anywhere;

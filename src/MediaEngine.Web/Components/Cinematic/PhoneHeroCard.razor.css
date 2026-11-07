@@ -24,8 +24,8 @@
     overflow: hidden;
     height: var(--phone-hero-card-height);
     border-radius: var(--tl-radius-lg, 1.25rem);
-    background: #0b0f19;
-    color: var(--tl-text-primary, #f8fafc);
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
 }
 
 .phone-hero__link {
@@ -35,7 +35,7 @@
 }
 
 .phone-hero__link:focus-visible {
-    outline: 3px solid var(--tl-accent-primary, #8852fc);
+    outline: 3px solid var(--tl-accent-primary);
     outline-offset: -4px;
 }
 
@@ -194,7 +194,7 @@
     border-radius: var(--tl-radius-round, 999px);
     appearance: none;
     background: rgba(255, 255, 255, 0.2);
-    color: var(--tl-accent-primary, #8852fc);
+    color: var(--tl-accent-primary);
     overflow: hidden;
 }
 
@@ -203,11 +203,11 @@
 }
 
 .phone-hero__progress::-webkit-progress-value {
-    background: var(--tl-accent-primary, #8852fc);
+    background: var(--tl-accent-primary);
 }
 
 .phone-hero__progress::-moz-progress-bar {
-    background: var(--tl-accent-primary, #8852fc);
+    background: var(--tl-accent-primary);
 }
 
 .phone-hero__actions {
@@ -234,5 +234,5 @@
 
 .phone-hero__dot.is-active .phone-hero__dot-mark {
     width: 1.5rem;
-    background: var(--tl-accent-primary, #8852fc);
+    background: var(--tl-accent-primary);
 }

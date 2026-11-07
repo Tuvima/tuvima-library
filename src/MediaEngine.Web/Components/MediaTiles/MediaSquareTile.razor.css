@@ -22,13 +22,13 @@
     aspect-ratio: 1;
     overflow: hidden;
     border-radius: var(--tl-radius-md);
-    background: #1A1B21;
+    background: var(--tl-bg-surface);
     color: var(--tl-text-secondary);
 }
 
 /* One hover for every tile (D5): a thin outline around the cover, nothing moves. */
 .media-square-tile__link:is(:hover, :focus-visible) .media-square-tile__picture {
-    outline: 2px solid var(--tl-accent-primary, #8852FC);
+    outline: 2px solid var(--tl-accent-primary);
     outline-offset: 0;
 }
 
@@ -77,7 +77,7 @@
     -webkit-line-clamp: 2;
     overflow: hidden;
     overflow-wrap: anywhere;
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-md));
     font-weight: 600;
     line-height: 1.25;

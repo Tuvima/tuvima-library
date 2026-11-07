@@ -168,7 +168,7 @@
 }
 
 ::deep .tl-detail-watch-metadata-item--rating .tl-icon-root {
-    color: #f6c64f;
+    color: var(--tl-accent-collection-hover);
 }
 
 ::deep .tl-detail-actions {
@@ -274,7 +274,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 88%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 88%, var(--tl-text-on-accent));
     font-size: clamp(1.2rem, 2vw, 1.85rem);
     font-weight: 600;
     letter-spacing: 0.38em;
@@ -414,7 +414,7 @@
 :where(.tl-detail-page) .tl-detail-hero__tagline {
     order: 5;
     margin: 0;
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font-size: clamp(0.94rem, 1.1vw, 1.05rem);
     line-height: 1.55;
 }
@@ -428,7 +428,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
     margin: -0.2rem 0 0;
-    color: color-mix(in srgb, rgb(var(--hero-text-rgb, 246, 240, 232)) 76%, var(--tl-detail-primary, #c9922e));
+    color: color-mix(in srgb, rgb(var(--hero-text-rgb, 246, 240, 232)) 76%, var(--tl-detail-primary, var(--tl-accent-collection)));
     font-size: clamp(1.05rem, 1.8vw, 1.55rem);
     font-weight: 600;
 }
@@ -847,7 +847,7 @@
 
 @media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-hero__subtitle {
-        color: #e7c36d;
+        color: var(--tl-accent-collection-hover);
     }
 }
 

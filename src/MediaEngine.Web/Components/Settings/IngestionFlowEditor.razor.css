@@ -6,7 +6,7 @@
 .ingestion-flow__row { display:flex; align-items:center; gap:var(--tl-space-3); min-height:52px; padding:var(--tl-space-2) 0; border-top:1px solid var(--tl-border-subtle); }
 .ingestion-flow__row:first-child { border-top:0; }
 .ingestion-flow__row.is-off { opacity:.55; }
-.ingestion-flow__order { width:1.5rem; color:var(--tl-text-muted); text-align:center; font-variant-numeric:tabular-nums; }
+.ingestion-flow__order { width:1.5rem; color:var(--tl-text-muted); text-align:right; font-variant-numeric:tabular-nums; }
 .ingestion-flow__name { flex:1 1 auto; display:flex; align-items:center; gap:var(--tl-space-2); min-width:0; }
 .ingestion-flow__name a { color:var(--tl-text-primary); text-decoration:none; font-weight:600; }
 .ingestion-flow__name a:hover { text-decoration:underline; }

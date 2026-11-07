@@ -76,7 +76,7 @@
 .plugin-conn--attention { border-color: color-mix(in srgb, var(--tl-status-warning, #f59e0b) 50%, transparent); background: color-mix(in srgb, var(--tl-status-warning, #f59e0b) 7%, transparent); }
 
 .plugin-conn__copy { display: grid; flex: 1 1 12rem; min-width: 0; }
-.plugin-conn__copy small { color: var(--tl-text-muted); }
+.plugin-conn__copy small { font-size: var(--tl-font-size-sm); color: var(--tl-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* One line: a changing result never grows the row (D15.6). */
 .plugin-conn__actions, .plugin-conn__tests { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2, 8px); }
 .plugin-conn--saved { animation: plugin-access-glow 2.4s ease-out; }
 

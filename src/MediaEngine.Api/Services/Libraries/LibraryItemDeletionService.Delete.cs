@@ -450,6 +450,14 @@ public sealed partial class LibraryItemDeletionService
                 assetPaths.ScrubPreviewsRoot, data.StillReferencedFiles);
         }
 
+        // The same for the still frames of the file's video bookmarks (Unified player v2 D21a): the bookmarks went with the file.
+        foreach (var id in data.AssetIds)
+        {
+            RemoveOwnedFolder(
+                Path.Combine(assetPaths.BookmarkFramesRoot, id.ToString("D", CultureInfo.InvariantCulture)),
+                assetPaths.BookmarkFramesRoot, data.StillReferencedFiles);
+        }
+
         foreach (var kindFolder in SafeSubfolders(assetPaths.TextTracksRoot))
         {
             foreach (var id in data.AssetIds)

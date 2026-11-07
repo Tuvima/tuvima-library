@@ -15,12 +15,12 @@
                OnClick="ToggleAsync" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
     <AppInfoTip Label="@L["HouseholdKidSettings_WhatKidsCanSee"].Value"
                 Text="@($"The highest rating a Kid's profile in {HouseholdTitle} can open, for each area. It applies to every Kid's profile here at once. Items without a rating follow the switch below.")" />
+    <span class="kid-settings__saved" role="status" data-kid-settings-saved>
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
-        <span class="kid-settings__saved" role="status" data-kid-settings-saved>
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
-        </span>
     }
+    </span>
     @if (_open)
     {
         <div id="@_bodyId" class="kid-settings__body">

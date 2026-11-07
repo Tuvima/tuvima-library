@@ -106,6 +106,9 @@ public static class MediaOperationType
     public const string ViewDocumentTextRead = "view.document_text_read";
     public const string ViewDocumentOcr = "view.document_ocr";
 
+    /// <summary>Takes the one still frame of a video bookmark at its timestamp (Unified player v2 D21a).</summary>
+    public const string PlaybackBookmarkFrame = "playback.bookmark_frame";
+
     /// <summary>Makes the scrub-preview sprite sheets for one video file (Unified player v2 D9a). Lowest priority, one at a time.</summary>
     public const string PlaybackScrubPreviews = "playback.scrub_previews";
 
@@ -125,6 +128,9 @@ public static class MediaOperationType
 /// <summary>Queue names for operations that need more than the default queue.</summary>
 public static class MediaOperationQueue
 {
+    /// <summary>Bookmark frames: one quick still per bookmark, ahead of the scrub previews.</summary>
+    public const string BookmarkFrames = "bookmark_frames";
+
     /// <summary>Scrub-preview generation. One file at a time, behind everything else.</summary>
     public const string ScrubPreviews = "scrub_previews";
 

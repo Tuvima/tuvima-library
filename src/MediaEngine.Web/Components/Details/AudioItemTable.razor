@@ -80,15 +80,15 @@
                             <td data-card-role="actions" class="tl-audio-item-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                                 @if (!IsAudiobook && CanFavorite(item))
                                 {
-                                    <AppNativeButton Type="button" Class="@($"tl-audio-item-table__icon-button {(_favoriteIds.Contains(ItemId(item)) ? " is-active" : null)}")" AriaLabel="@FavoriteLabel(item)" Tooltip="@FavoriteLabel(item)" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(item))">
-                                        <AppMaterialIcon Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppIconSize.Control20" />
-                                    </AppNativeButton>
+                                    <span @onclick:stopPropagation="true">
+                                        <AppIconButton Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" ButtonStyle="@(_favoriteIds.Contains(ItemId(item)) ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" AriaLabel="@FavoriteLabel(item)" Tooltip="@FavoriteLabel(item)" OnClick="@(() => ToggleFavoriteAsync(item))" />
+                                    </span>
                                 }
                                 @if (IsAudiobook)
                                 {
-                                    <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Play {item.Title}")" Tooltip="@L["Common_Play"].Value" StopPropagation="true" OnClick="@(() => PlayItemAsync(item))">
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppIconSize.Control20" />
-                                    </AppNativeButton>
+                                    <span @onclick:stopPropagation="true">
+                                        <AppIconButton Icon="@AppMaterialIcons.Filled.PlayArrow" ButtonStyle="AppButtonStyle.Text" AriaLabel="@($"Play {item.Title}")" Tooltip="@L["Common_Play"].Value" OnClick="@(() => PlayItemAsync(item))" />
+                                    </span>
                                 }
                                 else if (item.IsOwned)
                                 {
@@ -353,16 +353,16 @@
                                             break;
                                         case "favorite":
                                             <td class="tl-audio-item-table__favorite">
-                                                <AppNativeButton Type="button" Class="@($"tl-audio-item-table__icon-button {(_favoriteIds.Contains(ItemId(item)) ? " is-active" : null)}")" AriaLabel="@FavoriteLabel(item)" Tooltip="@FavoriteLabel(item)" Disabled="@(!CanFavorite(item))" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(item))">
-                                                    <AppMaterialIcon Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppIconSize.Control20" />
-                                                </AppNativeButton>
+                                                <span @onclick:stopPropagation="true">
+                                                    <AppIconButton Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" ButtonStyle="@(_favoriteIds.Contains(ItemId(item)) ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" AriaLabel="@FavoriteLabel(item)" Tooltip="@FavoriteLabel(item)" Disabled="@(!CanFavorite(item))" OnClick="@(() => ToggleFavoriteAsync(item))" />
+                                                </span>
                                             </td>
                                             break;
                                         case "queue":
                                             <td class="tl-audio-item-table__queue">
-                                                <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Add {item.Title} to queue")" Tooltip="@L["Common_AddToQueue"].Value" Disabled="@(!item.IsOwned)" StopPropagation="true" OnClick="@(() => QueueItemAsync(item))">
-                                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppIconSize.Control20" />
-                                                </AppNativeButton>
+                                                <span @onclick:stopPropagation="true">
+                                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.PlaylistAdd" ButtonStyle="AppButtonStyle.Text" AriaLabel="@($"Add {item.Title} to queue")" Tooltip="@L["Common_AddToQueue"].Value" Disabled="@(!item.IsOwned)" OnClick="@(() => QueueItemAsync(item))" />
+                                                </span>
                                             </td>
                                             break;
                                     }

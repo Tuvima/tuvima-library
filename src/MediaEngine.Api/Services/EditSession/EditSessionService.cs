@@ -143,6 +143,8 @@ public sealed class EditSessionService(
                 EditSessionChangeKinds.ChildRematch => 5,
                 EditSessionChangeKinds.SiblingMatch => 4,
                 EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove => 3,
+                // Supporting files can move files on disk (put back if a later change fails), so they go after the plain data changes.
+                EditSessionChangeKinds.SupportingFiles => 2,
                 // A video joins its series before the series is put in order, so the order can name the newcomer.
                 EditSessionChangeKinds.VideoOrder => 1,
                 _ => 0,
