@@ -59,6 +59,7 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<BookmarkClosenessProvider>();
         services.AddSingleton<BookmarkSetService>();
         services.AddSingleton<EditorBookmarkRepository>();
+        services.AddSingleton<PlayerBookmarkVisibility>();
         services.AddSingleton<EditorBookmarksService>();
         services.AddScoped<EditorBookmarkOverviewService>();
         services.AddSingleton<ReaderBookmarkSetService>();

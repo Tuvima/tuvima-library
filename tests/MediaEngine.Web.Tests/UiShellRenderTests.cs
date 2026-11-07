@@ -355,7 +355,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MainLayoutInvalidatesChangedBookmarkLeasesWhileSuccessfulReplayDismissesAndRestoresFocus()
+    public async Task MainLayoutInvalidatesChangedBookmarkLeasesWhileSuccessfulReplayInvalidatesTheReplayedLease()
     {
         var profileId = Guid.NewGuid();
         var otherProfileId = Guid.NewGuid();
@@ -431,34 +431,22 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         var layoutOwner = new ReplayInvalidatingBookmarkActions(actions, playback, currentContext,
             sourceItem with { AssetId = replayAssetId, StreamUrl = "https://media.invalid/source-b.mp3" });
-        var sheetModule = JSInterop.SetupModule("./js/playback-tool-sheet.js");
-        sheetModule.SetupVoid("attachModal");
-        sheetModule.SetupVoid("restoreFocus");
-        var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder =>
-        {
-            builder.OpenComponent<BookmarkDialogTestHost>(0);
-            builder.AddAttribute(1, nameof(BookmarkDialogTestHost.Context), currentContext);
-            builder.AddAttribute(2, nameof(BookmarkDialogTestHost.Actions), layoutOwner);
-            builder.AddAttribute(3, nameof(BookmarkDialogTestHost.AuthorizedAssetIds),
-                new HashSet<Guid> { firstAssetId, replayAssetId });
-            builder.AddAttribute(4, nameof(BookmarkDialogTestHost.WorkTitle), "A Test Audiobook");
-            builder.CloseComponent();
-        }));
+        var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder => { }));
 
         typeof(MainLayout).GetField("_activeProfileId", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(layout.Instance, profileId);
 
-        await layout.Find("button.audiobook-bookmark-dialog__tab:not(.is-selected)").ClickAsync();
-        await layout.Find("button.audiobook-bookmark-dialog__replay").ClickAsync();
+        var replayed = await layoutOwner.ReplayAsync(currentContext, bookmark.Id, new HashSet<Guid> { firstAssetId, replayAssetId });
+        Assert.Equal(AudiobookBookmarkOperationOutcome.Success, replayed.Outcome);
 
         Assert.Equal("Playback changed. This captured bookmark is no longer active.", layoutOwner.InvalidatedReplayMessage);
         Assert.Contains("Playback changed", actions.GetSnapshot(subjectContext.DialogId).Message ?? string.Empty);
         Assert.Contains("Playback changed", actions.GetSnapshot(profileContext.DialogId).Message ?? string.Empty);
+        Assert.Null((await actions.GetSnapshotAsync(currentContext)).Draft);
+        await layoutOwner.CloseAsync(currentContext);
         var closedContextSnapshot = await actions.GetSnapshotAsync(currentContext);
         Assert.Null(closedContextSnapshot.Draft);
         Assert.Equal("This bookmark dialog is no longer active.", closedContextSnapshot.Message);
-        Assert.Empty(layout.FindAll(".audiobook-bookmark-dialog-layer"));
-        Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "restoreFocus");
     }
 
     [Fact]
@@ -2146,39 +2134,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         LibraryVisibility = "visible",
         Confidence = 0.92,
     };
-
-    private sealed class BookmarkDialogTestHost : ComponentBase
-    {
-        [Parameter, EditorRequired] public AudiobookBookmarkActionContext Context { get; set; } = default!;
-        [Parameter, EditorRequired] public IAudiobookBookmarkActions Actions { get; set; } = default!;
-        [Parameter, EditorRequired] public IReadOnlySet<Guid> AuthorizedAssetIds { get; set; } = default!;
-        [Parameter] public string WorkTitle { get; set; } = string.Empty;
-
-        private bool _open = true;
-
-        protected override void BuildRenderTree(RenderTreeBuilder builder)
-        {
-            if (!_open)
-            {
-                return;
-            }
-
-            builder.OpenComponent<AudiobookBookmarkDialog>(0);
-            builder.AddAttribute(1, nameof(AudiobookBookmarkDialog.Context), Context);
-            builder.AddAttribute(2, nameof(AudiobookBookmarkDialog.Actions), Actions);
-            builder.AddAttribute(3, nameof(AudiobookBookmarkDialog.AuthorizedAssetIds), AuthorizedAssetIds);
-            builder.AddAttribute(4, nameof(AudiobookBookmarkDialog.WorkTitle), WorkTitle);
-            builder.AddAttribute(5, nameof(AudiobookBookmarkDialog.IsMobile), true);
-            builder.AddAttribute(6, nameof(AudiobookBookmarkDialog.OnClose), EventCallback.Factory.Create(this, CloseAsync));
-            builder.CloseComponent();
-        }
-
-        private Task CloseAsync()
-        {
-            _open = false;
-            return InvokeAsync(StateHasChanged);
-        }
-    }
 
     private sealed class ReplayInvalidatingBookmarkActions(
         AudiobookBookmarkActionService inner,

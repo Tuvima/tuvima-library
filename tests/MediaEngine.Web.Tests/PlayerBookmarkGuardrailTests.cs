@@ -12,9 +12,9 @@ public sealed class PlayerBookmarkGuardrailTests
 {
     private static readonly string[] PlayerFiles =
     [
-        "src/MediaEngine.Web/Components/Watch/VideoBookmarkPane.razor",
+        "src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor",
         "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor",
-        "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor",
+        "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor",
         "src/MediaEngine.Web/Components/Pages/BookReader.razor",
     ];
 
@@ -49,12 +49,43 @@ public sealed class PlayerBookmarkGuardrailTests
     }
 
     [Fact]
-    public void ThePlayerDialog_HasNoSwitchToMakeANewBookmarkGlobal()
+    public void TheBookmarksPanel_HasNoSwitchToMakeANewBookmarkEveryones_AndOldPanesAreGone()
     {
-        var dialog = Read("src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor");
+        var panel = Read("src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor");
 
-        Assert.DoesNotContain("AppSwitchRow", dialog, StringComparison.Ordinal);
-        Assert.DoesNotContain("CanShare", dialog, StringComparison.Ordinal);
+        // The only switch is "Show on timeline"; a bookmark is never shared from the player.
+        Assert.Single(Regex.Matches(panel, "<AppSwitchRow"));
+        Assert.DoesNotContain("CanShare", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsGlobal = true", panel, StringComparison.Ordinal);
+        var root = FindRepoRoot();
+        foreach (var gone in new[]
+        {
+            "src/MediaEngine.Web/Components/Watch/VideoBookmarkPane.razor",
+            "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor",
+            "src/MediaEngine.Web/wwwroot/js/audiobook-bookmark-dialog.js",
+        })
+        {
+            Assert.False(File.Exists(Path.Combine(root, gone)), $"{gone} should be gone: the Bookmarks panel replaced it.");
+        }
+    }
+
+    [Fact]
+    public void ThePlayerBookmarkWording_NeverSaysGlobalEveryonesPromoteFindOrImport()
+    {
+        var root = FindRepoRoot();
+        var banned = new Regex(@"\bGlobal\b|Everyone['’]s|\bPromote\b|\bFind\b|\bImport\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var strings = XDocument.Load(Path.Combine(root, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
+        var values = strings.Root!.Elements("data")
+            .Where(data => ((string?)data.Attribute("name"))?.StartsWith("BookmarksPanel_", StringComparison.Ordinal) == true)
+            .Select(data => (Name: (string)data.Attribute("name")!, Value: (string?)data.Element("value") ?? string.Empty))
+            .ToList();
+        Assert.NotEmpty(values);
+        foreach (var (name, value) in values)
+        {
+            Assert.False(banned.IsMatch(value), $"{name} says \"{value}\".");
+        }
+
+        Assert.DoesNotContain("Global", (string?)strings.Root!.Elements("data").Single(data => (string?)data.Attribute("name") == "Common_Everyone").Element("value"));
     }
 
     [Fact]

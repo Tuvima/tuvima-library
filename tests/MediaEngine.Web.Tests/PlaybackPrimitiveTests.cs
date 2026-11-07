@@ -188,7 +188,7 @@ public sealed class PlaybackPrimitiveTests
         var speedView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor"));
         var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor"));
         var sleepView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor"));
-        var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor"));
+        var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor"));
 
         Assert.Contains("<PlaybackShell", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackFullPlayer", bar, StringComparison.Ordinal);
@@ -212,9 +212,10 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("Availability.CanEndCurrent", sleepView, StringComparison.Ordinal);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppRangeSlider", sleep + sleepView, StringComparison.Ordinal);
-        Assert.Contains("<AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
-        Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
-        Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
+        // Unified player v2 D21: the audiobook bar hosts the one Bookmarks panel (no Add/Saved dialog), and a delete is the panel's own two-click confirm.
+        Assert.Contains("<BookmarksPanel", bar, StringComparison.Ordinal);
+        Assert.DoesNotContain("AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
+        Assert.Contains("data-bookmark-delete-confirm", bookmark, StringComparison.Ordinal);
         Assert.Contains("OpenDockPanelAsync(control.Sheet)", bar, StringComparison.Ordinal);
         var chaptersPanel = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor"));
         var chaptersRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanelRow.razor"));

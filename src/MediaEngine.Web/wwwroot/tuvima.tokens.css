@@ -255,6 +255,8 @@
     --playback-panel-episodes-height: 534px;
     --playback-panel-chapters-width: 600px;
     --playback-panel-chapters-height: 470px;
+    --playback-panel-bookmarks-width: 460px;
+    --playback-panel-bookmarks-height: calc(100dvh - 120px);
     --playback-panel-radius: 8px;
     --playback-panel-row-height: 44px;
     --playback-panel-edge: 12px;

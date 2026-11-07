@@ -227,8 +227,12 @@ public sealed record AudiobookBookmarkDto
     /// <summary>True for a bookmark shared with everybody who can see the title; only a server administrator can make or change one.</summary>
     public bool IsGlobal { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
-    /// <summary>Whose bookmark it is, by display name. Filled in only in the administrator's Everyone's view; null everywhere else.</summary>
+    /// <summary>Whose bookmark it is, by display name. The player lists it on an Everyone row (and on the person's own).</summary>
     public string? OwnerName { get; init; }
+    /// <summary>True when the profile asking made this bookmark (it belongs in Mine). Decided by the Engine; a client never compares profile ids.</summary>
+    public bool IsYours { get; init; }
+    /// <summary>True when the bookmark is part of the title's Everyone list for the profile asking: the administrator's set once there is one, otherwise every profile's bookmarks pooled.</summary>
+    public bool InEveryone { get; init; }
     /// <summary>
     /// Where the Engine serves the still frame taken at this bookmark's time (Unified player v2 D21a): a 320 px wide JPEG, shown only to a
     /// profile that may see the bookmark. Null for an audiobook, music or book bookmark (the cover is used instead) and until the frame
@@ -263,6 +267,13 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public string? Description { get; init; }
     /// <summary>Share the bookmark with everybody who can see the title. Refused unless the caller is a server administrator.</summary>
     public bool IsGlobal { get; init; }
+}
+
+/// <summary>A person's change to one of their own bookmarks: its name and its note. Both are replaced; an empty value clears it.</summary>
+public sealed record UpdateAudiobookBookmarkRequestDto
+{
+    public string? Label { get; init; }
+    public string? Note { get; init; }
 }
 
 public sealed record AudiobookChapterTitleOverrideDto

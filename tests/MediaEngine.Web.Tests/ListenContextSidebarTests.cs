@@ -118,6 +118,42 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AudiobookBar_HostsTheBookmarksPanel_EveryoneFirst_WithTheMakerOnTheirRows_AndNoOldDialog()
+    {
+        var profileId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var theirs = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = workId, AssetId = assetId, PositionSeconds = 120, Note = "The first clue", OwnerName = "Morgan", InEveryone = true };
+        var mine = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = workId, AssetId = assetId, PositionSeconds = 300, Note = "My own", OwnerName = "Me", IsYours = true };
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
+            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([theirs, mine]))));
+        var preferences = new TestPlaybackPreferencesAccessor(profileId);
+        var item = CreateItem("A book", "Narrator") with { MediaType = "Audiobook", AssetId = assetId, WorkId = workId, AudiobookWorkId = workId, StreamUrl = "stream://book" };
+        var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Render<AppPopoverHost>();
+
+        var cut = Render<ListenNowPlayingBar>();
+        var panel = cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.ToolId == "audio-bookmarks");
+        Assert.Equal("bookmarks", panel.Instance.Kind);
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll("[data-bookmark-id]");
+            var row = Assert.Single(rows);
+            Assert.Contains("The first clue", row.TextContent);
+            Assert.Contains("Morgan", row.TextContent);
+        });
+        Assert.Empty(cut.FindAll("[data-bookmark-edit]"));
+        Assert.Contains("Everyone · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Contains("Mine · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Empty(cut.FindAll(".audiobook-bookmark-dialog-layer"));
+    }
+
+    [Fact]
     public async Task BarRemovedWhileItsScriptsAreLoadingRegistersNothingAndReleasesWhatItHad()
     {
         // A reload that swaps the shell can remove the bar while its first render still waits on the browser.

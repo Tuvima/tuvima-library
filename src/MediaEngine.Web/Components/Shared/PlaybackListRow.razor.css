@@ -39,6 +39,15 @@
     --plr-columns: 28px minmax(0, 1fr) auto 24px;
 }
 
+/* Mockup screen 11: a bookmark row is the frame (72 x 40), the text, and the Edit and Delete actions of a row that is the person's own. */
+.plr--bookmark {
+    --plr-columns: 72px minmax(0, 1fr) auto;
+}
+
+.plr[data-playback-list-row="bookmark-cover"] {
+    --plr-columns: 40px minmax(0, 1fr) auto;
+}
+
 .plr.is-actionable:hover {
     background: var(--playback-state-hover);
 }
@@ -96,6 +105,11 @@
 .plr__art--still {
     height: 54px;
     width: 96px;
+}
+
+.plr__art--frame {
+    height: 40px;
+    width: 72px;
 }
 
 .plr__art img {

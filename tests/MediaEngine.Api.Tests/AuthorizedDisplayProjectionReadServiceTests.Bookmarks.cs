@@ -14,6 +14,10 @@ namespace MediaEngine.Api.Tests;
 // (not found), and unlocking brings it back.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
+    // The Everyone list as the player reads it: the administrator's set once there is one, else every profile's bookmarks pooled.
+    private PlayerBookmarkVisibility BookmarkVisibility() =>
+        new(new EditorBookmarkRepository(_database), new BookmarkClosenessProvider(() => null), new VaultLibraryRepository(_database));
+
     private (PlayerService Player, PlayerCatalogueScope Scope) BookmarkPlayer(Guid account, Guid? session)
     {
         var context = VaultContext(account, session);
@@ -24,7 +28,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         context.RequestServices = services;
         var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
         var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
-            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!);
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, bookmarkVisibility: BookmarkVisibility());
         return (player, scope);
     }
 

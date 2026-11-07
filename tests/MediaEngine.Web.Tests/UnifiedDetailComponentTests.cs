@@ -1217,7 +1217,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".playback-range-slider ::deep .playback-range-slider__label", playbackRangeSliderStyles);
         Assert.Contains("position: absolute;", playbackRangeSliderStyles);
         Assert.Contains("top: 0;", playbackRangeSliderStyles);
-        Assert.Contains("<AudiobookBookmarkDialog", phonePlayer);
+        Assert.Contains("<BookmarksPanel", phonePlayer);
         Assert.DoesNotContain("_snapshot.AudiobookBookmarks", phonePlayer);
         Assert.Contains("<PlaybackContextRow Variant=\"history\"", phonePlayer);
         Assert.DoesNotContain("playback-sheet-row__index", phonePlayer);
@@ -1313,7 +1313,7 @@ public sealed class UnifiedDetailComponentTests
     public void PhonePlayerUsesSharedFullPlayerAndAuthorizedTools()
     {
         var host = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
-        var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor");
+        var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor");
         var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
 
         // The phone's Now playing draws the catalog's transport and its one row of tools; the bar's own panels (Speed, Sleep timer, Chapters, Lyrics, Queue)
@@ -1330,11 +1330,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<AppRangeSlider", speed);
         Assert.Contains("Availability.CanEndCurrent", ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerView.razor"));
         Assert.Contains("<SleepTimerPanel", host);
-        Assert.Contains("<AudiobookBookmarkDialog", host);
-        Assert.Contains("OnValidSubmit=\"SaveAsync\"", bookmark);
-        Assert.Contains("ReplayAsync(bookmark.Id)", bookmark);
-        Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark);
-        Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark);
+        Assert.Contains("<BookmarksPanel", host);
+        Assert.DoesNotContain("AudiobookBookmarkDialog", host);
+        Assert.Contains("@onclick=\"AddAsync\"", bookmark);
+        Assert.Contains("Seek.InvokeAsync(bookmark)", bookmark);
+        Assert.Contains("data-bookmark-delete-confirm", bookmark);
         Assert.Contains("State=\"@Playback.SleepTimerState\"", host);
     }
     [Fact]

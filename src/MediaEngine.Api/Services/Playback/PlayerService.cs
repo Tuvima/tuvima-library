@@ -26,6 +26,7 @@ public sealed class PlayerService
     private readonly AudiobookListenHistoryRepository _history;
     private readonly AudiobookBookmarkRepository _bookmarks;
     private readonly BookmarkFrameService? _frames;
+    private readonly PlayerBookmarkVisibility? _bookmarkVisibility;
     private readonly MusicPlayStatsRepository _musicStats;
     private readonly PlayerCatalogueScope _scope;
     private readonly PlaybackTelemetryLifecycleService _telemetry;
@@ -45,9 +46,11 @@ public sealed class PlayerService
         PlayerCatalogueScope scope,
         PlaybackTelemetryLifecycleService telemetry,
         PlayerDeviceStateRepository deviceStates,
-        BookmarkFrameService? frames = null)
+        BookmarkFrameService? frames = null,
+        PlayerBookmarkVisibility? bookmarkVisibility = null)
     {
         _frames = frames;
+        _bookmarkVisibility = bookmarkVisibility;
         _sessions = sessions;
         _playback = playback;
         _db = db;
@@ -1094,8 +1097,73 @@ public sealed class PlayerService
         CancellationToken ct = default)
     {
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
-        var saved = await _bookmarks.GetByWorkAsync(normalizedProfile, workId, ct, await _scope.AssetIdsAsync(ct));
+        var visible = await VisibleBookmarks.ReadAsync(normalizedProfile, workId, await _scope.AssetIdsAsync(ct), ct);
+        IReadOnlyList<AudiobookBookmarkDto> saved = [.. visible.Select(entry => ToPlayerBookmark(entry))];
         return _frames?.Decorate(saved) ?? saved;
+    }
+
+    private PlayerBookmarkVisibility VisibleBookmarks =>
+        _bookmarkVisibility ?? throw new InvalidOperationException("The bookmark visibility rule is not registered.");
+
+    /// <summary>A bookmark as the player lists it: the Engine says whether it is the profile's own and whether it is in Everyone.</summary>
+    private static AudiobookBookmarkDto ToPlayerBookmark(PlayerBookmarkVisibility.Entry entry) => new()
+    {
+        Id = entry.Bookmark.Id,
+        ProfileId = entry.Bookmark.ProfileId,
+        WorkId = entry.Bookmark.WorkId,
+        AssetId = entry.Bookmark.AssetId,
+        ChapterIndex = entry.Bookmark.ChapterIndex,
+        ChapterTitle = entry.Bookmark.ChapterTitle,
+        PositionSeconds = entry.Bookmark.PositionSeconds,
+        DurationSeconds = entry.Bookmark.DurationSeconds,
+        EndSeconds = entry.Bookmark.EndSeconds,
+        Label = entry.Bookmark.Label,
+        Note = entry.Bookmark.Note,
+        Description = entry.Bookmark.Description,
+        IsGlobal = entry.Bookmark.IsGlobal,
+        CreatedAt = entry.Bookmark.CreatedAt,
+        OwnerName = entry.Bookmark.OwnerName,
+        IsYours = entry.IsYours,
+        InEveryone = entry.InEveryone,
+    };
+
+    /// <summary>
+    /// Renames the profile's own bookmark and changes its note. Returns null (the endpoint answers not found) for anyone else's bookmark, one in
+    /// the administrator's set (changed only in the editor) and one on a file the profile cannot see.
+    /// </summary>
+    /// <summary>The longest name a person can give their own bookmark.</summary>
+    public const int MaximumBookmarkLabelLength = 120;
+
+    public async Task<AudiobookBookmarkDto?> UpdateOwnAudiobookBookmarkAsync(
+        Guid? profileId, Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
+        {
+            throw new ArgumentException($"A bookmark note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
+        }
+
+        var label = string.IsNullOrWhiteSpace(request.Label) ? null : request.Label.Trim();
+        if (label is { Length: > MaximumBookmarkLabelLength })
+        {
+            throw new ArgumentException($"A bookmark name cannot exceed {MaximumBookmarkLabelLength} characters.", nameof(request));
+        }
+
+        var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
+        var allowed = await _scope.AssetIdsAsync(ct);
+        if (!await _bookmarks.UpdateOwnAsync(normalizedProfile, bookmarkId, label, note, ct, allowed))
+        {
+            return null;
+        }
+
+        var changed = await _bookmarks.GetByIdAsync(bookmarkId, ct);
+        if (changed is null)
+        {
+            return null;
+        }
+
+        var entry = (await VisibleBookmarks.ReadAsync(normalizedProfile, changed.WorkId, allowed, ct)).FirstOrDefault(item => item.Bookmark.Id == bookmarkId);
+        return entry is null ? null : _frames?.Decorate(ToPlayerBookmark(entry)) ?? ToPlayerBookmark(entry);
     }
 
     public async Task<AudiobookBookmarkDto> CreateAudiobookBookmarkAsync(
@@ -1128,7 +1196,7 @@ public sealed class PlayerService
 
     /// <summary>
     /// The file of a video bookmark's frame, only for a profile that may see the bookmark by exactly the rule of the bookmark list (its
-    /// own, a Global one, or any profile's for a server administrator), on a file it may play (Vault and Kid limits included). Anything
+    /// own, one in the title's Everyone list, or any profile's for a server administrator), on a file it may play (Vault and Kid limits included). Anything
     /// else, and a frame not made yet, is null, which the endpoint answers as not found.
     /// </summary>
     public async Task<BookmarkFrameFile?> GetBookmarkFramePathAsync(Guid? profileId, Guid bookmarkId, CancellationToken ct = default)
@@ -1139,8 +1207,15 @@ public sealed class PlayerService
             return null;
         }
 
-        var bookmark = await _bookmarks.GetVisibleAsync(
-            normalizedProfile, bookmarkId, await _scope.IsServerAdministratorAsync(ct), await _scope.AssetIdsAsync(ct), ct);
+        var allowed = await _scope.AssetIdsAsync(ct);
+        var bookmark = await _bookmarks.GetVisibleAsync(normalizedProfile, bookmarkId, await _scope.IsServerAdministratorAsync(ct), allowed, ct);
+        if (bookmark is null && await _bookmarks.GetByIdAsync(bookmarkId, ct) is { } other
+            && await VisibleBookmarks.MaySeeAsync(normalizedProfile, other.WorkId, bookmarkId, allowed, ct))
+        {
+            // Another profile's bookmark in the title's Everyone list: seen by exactly the rule of the list.
+            bookmark = other;
+        }
+
         return bookmark is null ? null : await _frames.ResolveFrameAsync(bookmark, ct);
     }
 

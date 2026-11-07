@@ -293,9 +293,6 @@
     "src/MediaEngine.Web/Components/Shared/AppToastHost.razor": [
       "app-toast__icon"
     ],
-    "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor": [
-      "audiobook-bookmark-dialog__secondary"
-    ],
     "src/MediaEngine.Web/Components/Shared/DeleteFromLibraryDialog.razor": [
       "delete-library__more"
     ],

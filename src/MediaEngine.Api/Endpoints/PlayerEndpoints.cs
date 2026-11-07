@@ -298,7 +298,7 @@ public static class PlayerEndpoints
         })
         .WithName("GetAudiobookBookmarks")
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
-        .WithSummary("Return the profile's saved bookmarks for a work, plus the bookmarks shared with everyone. Works for videos and audiobooks.")
+        .WithSummary("Return the profile's own bookmarks for a work plus the title's Everyone list (the administrator's set, else every profile's pooled), each marked with IsYours and InEveryone. Works for videos and audiobooks.")
         .Produces<IReadOnlyList<AudiobookBookmarkDto>>(StatusCodes.Status200OK)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
@@ -324,6 +324,32 @@ public static class PlayerEndpoints
         .Produces<AudiobookBookmarkDto>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        group.MapPut("/audiobooks/bookmarks/{bookmarkId:guid}", async (
+            Guid bookmarkId,
+            Guid? profileId,
+            UpdateAudiobookBookmarkRequestDto request,
+            ClaimsPrincipal user,
+            PlayerService player,
+            CancellationToken ct) =>
+        {
+            var identity = Bind(user, profileId, null, null);
+            try
+            {
+                var updated = await player.UpdateOwnAudiobookBookmarkAsync(identity.ProfileId, bookmarkId, request, ct);
+                return updated is null ? ApiErrors.NotFound($"Bookmark '{bookmarkId}' not found.") : Results.Ok(updated);
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+        .WithName("UpdateAudiobookBookmark")
+        .WithSummary("Rename one of the caller's own bookmarks and change its note. Anyone else's bookmark, and one in the administrator's set, is not found.")
+        .Produces<AudiobookBookmarkDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 
         group.MapDelete("/audiobooks/bookmarks/{bookmarkId:guid}", async (

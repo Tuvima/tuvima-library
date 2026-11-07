@@ -186,4 +186,53 @@ public sealed class BookmarkStorageTests : IDisposable
         Assert.Equal(_assetId, listed.AssetId);
     }
 
+    // ---------------------------------------------------------------- Renaming your own (unified player v2 D21)
+
+    [Fact]
+    public async Task UpdateOwn_RenamesAndChangesTheNote_OfTheCallersOwnPersonalBookmark_AndBlankMeansNone()
+    {
+        var saved = await SaveAsync(_viewer, 125, "old note");
+
+        Assert.True(await _bookmarks.UpdateOwnAsync(_viewer, saved.Id, "The reveal", "Watch the window"));
+        var changed = Assert.Single(await _bookmarks.GetByWorkAsync(_viewer, _workId));
+        Assert.Equal("The reveal", changed.Label);
+        Assert.Equal("Watch the window", changed.Note);
+        Assert.Equal(125, changed.PositionSeconds);
+
+        Assert.True(await _bookmarks.UpdateOwnAsync(_viewer, saved.Id, "  ", null));
+        var cleared = Assert.Single(await _bookmarks.GetByWorkAsync(_viewer, _workId));
+        Assert.Null(cleared.Label);
+        Assert.Null(cleared.Note);
+    }
+
+    [Fact]
+    public async Task UpdateOwn_NeverChangesAnotherProfilesBookmark_OrOneInEveryonesSet_OrOneOnAFileTheCallerCannotSee()
+    {
+        var theirs = await SaveAsync(_viewer, 60, "theirs");
+        var shared = await SaveAsync(_admin, 90, "shared", global: true);
+        var mine = await SaveAsync(_admin, 120, "mine");
+
+        Assert.False(await _bookmarks.UpdateOwnAsync(_admin, theirs.Id, "Hijacked", "x"));
+        Assert.False(await _bookmarks.UpdateOwnAsync(_admin, shared.Id, "Renamed", "x"));
+        Assert.False(await _bookmarks.UpdateOwnAsync(_admin, Guid.NewGuid(), "Nothing", null));
+        Assert.False(await _bookmarks.UpdateOwnAsync(_admin, mine.Id, "Hidden", null, authorizedAssetIds: new HashSet<Guid>()));
+
+        var viewerList = await _bookmarks.GetByWorkAsync(_viewer, _workId);
+        Assert.Equal("theirs", Assert.Single(viewerList, row => row.Id == theirs.Id).Note);
+        Assert.Null(viewerList.Single(row => row.Id == theirs.Id).Label);
+        var adminList = await _bookmarks.GetByWorkAsync(_admin, _workId);
+        Assert.Null(adminList.Single(row => row.Id == shared.Id).Label);
+        Assert.Null(adminList.Single(row => row.Id == mine.Id).Label);
+        Assert.Equal("mine", adminList.Single(row => row.Id == mine.Id).Note);
+    }
+
+    [Fact]
+    public async Task UpdateOwn_OnAFileTheCallerMaySee_ChangesTheBookmark()
+    {
+        var mine = await SaveAsync(_viewer, 120, "mine");
+
+        Assert.True(await _bookmarks.UpdateOwnAsync(_viewer, mine.Id, "Named", null, authorizedAssetIds: new HashSet<Guid> { _assetId }));
+        Assert.Equal("Named", Assert.Single(await _bookmarks.GetByWorkAsync(_viewer, _workId)).Label);
+    }
+
 }

@@ -1,14 +1,6 @@
 {
   "reason": "Older player code written before this guardrail existed. Fix each entry when its file is next edited and delete it; nothing new may be added. Each entry carries its own reason.",
-  "materialIcons": {
-    "src/MediaEngine.Web/Components/Watch/VideoBookmarkPane.razor": {
-      "reason": "deleted by WP8 (the old video bookmark pane is replaced by the Bookmarks panel)",
-      "hits": [
-        "appmaterialicon",
-        "appmaterialicons."
-      ]
-    }
-  },
+  "materialIcons": {},
   "literalColors": {
     "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": {
       "reason": "data, not style: the sample picture behind the subtitle preview stands in for a video frame so the person can judge the subtitle colors they choose",

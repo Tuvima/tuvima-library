@@ -1,0 +1,316 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Domain.Services
+@using Microsoft.AspNetCore.Components.Web
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Bookmarks panel for every medium with bookmarks (unified player v2 D21, D21a, D22; mockup screen 11), drawn inside a PlaybackPanel (heading "Bookmarks").
+   One full-width purple "Bookmark at 34:12" button that saves at the moment it is pressed, with no note unless the optional "Add a note…" field was opened and
+   filled; the Everyone | Mine choice (Everyone by default); a search box once the list has more than eight rows; one compact row per bookmark (time in purple, the
+   title or note, the frame from that moment or the cover, and the maker on Everyone rows); and a footer switch "Show on timeline". Selecting a row seeks. Mine
+   rows have Edit (name and note, inline) and a two-click Delete; Everyone rows have no actions here, because Everyone's set is made in the editor's Bookmarks
+   tab. Which list a bookmark belongs to, who made it and which pictures exist all come from the Engine's list; this panel never compares profile ids. *@
+<PlaybackListPanel ScrollKey="@ScrollKey" ShowFooter="true">
+    <Header>
+        <div class="bmk__head" data-bookmarks-head @onkeydown:stopPropagation="true">
+            <button type="button" class="bmk__add" @onclick="AddAsync" disabled="@(_saving || Add is null)" aria-label="@AddLabel" data-bookmarks-add>
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Add" />
+                <span>@(_failed ? L["BookmarksPanel_AddFailed"].Value : AddLabel)</span>
+            </button>
+            @if (_noteOpen)
+            {
+                <div class="bmk__note-box" data-bookmarks-note>
+                    <textarea @ref="_noteField" class="bmk__note" maxlength="@AudiobookBookmarkNotePolicy.MaximumLength" rows="3" placeholder="@L["BookmarksPanel_AddNote"].Value"
+                              aria-label="@L["BookmarksPanel_NoteLabel"].Value" @bind="_note" @bind:event="oninput" @onkeydown="NoteKeyDown"></textarea>
+                    <button type="button" class="bmk__note-toggle bmk__note-toggle--open" @onclick="CloseNote" aria-label="@L["BookmarksPanel_HideNote"].Value" aria-expanded="true">
+                        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronUp" />
+                    </button>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="bmk__note-toggle" @onclick="OpenNote" aria-label="@L["BookmarksPanel_AddNote"].Value" aria-expanded="false" data-bookmarks-note-toggle>
+                    <span class="bmk__note-hint">@(string.IsNullOrWhiteSpace(_note) ? L["BookmarksPanel_AddNote"].Value : _note)</span>
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronDown" />
+                </button>
+            }
+        </div>
+        <div class="bmk__choice" data-bookmarks-choice>
+            <AppSegmentedControl Options="@ChoiceOptions" Value="@(IsMine ? MineValue : EveryoneValue)" AriaLabel="@L["BookmarksPanel_Choice"].Value" ValueChanged="ChooseAsync" />
+        </div>
+        @if (ShowSearch)
+        {
+            <div class="bmk__search" data-bookmarks-search @onkeydown:stopPropagation="true">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Search" />
+                <input type="search" class="bmk__search-field" placeholder="@L["BookmarksPanel_Search"].Value" aria-label="@L["BookmarksPanel_Search"].Value" @bind="_search" @bind:event="oninput" />
+            </div>
+        }
+    </Header>
+    <ChildContent>
+        @{ var rows = Rows; }
+        @if (rows.Count == 0)
+        {
+            <p class="bmk__empty" data-bookmarks-empty>@EmptyText</p>
+        }
+        @foreach (var bookmark in rows)
+        {
+            <div class="bmk__item" @key="bookmark.Id" data-bookmark-id="@bookmark.Id">
+                <PlaybackListRow Variant="@RowVariant" Title="@TitleOf(bookmark)" TitleAccent="@PlaybackSeekRail.Time(bookmark.Seconds)"
+                                 Secondary="@MakerOf(bookmark)" ArtUrl="@ArtOf(bookmark)" OnClick="@(() => Seek.InvokeAsync(bookmark))"
+                                 AriaLabel="@L["BookmarksPanel_Jump", PlaybackSeekRail.Time(bookmark.Seconds)].Value">
+                    <Trailing>
+                        @if (CanChange(bookmark))
+                        {
+                            @if (_confirmId == bookmark.Id)
+                            {
+                                <button type="button" class="bmk__action bmk__action--danger" @onclick="@(() => DeleteAsync(bookmark))" data-bookmark-delete-confirm
+                                                 aria-label="@L["BookmarksPanel_DeleteAt", PlaybackSeekRail.Time(bookmark.Seconds)].Value">@L["Common_Delete"]</button>
+                                <button type="button" class="bmk__action" @onclick="@(() => _confirmId = null)"
+                                                 aria-label="@L["BookmarksPanel_KeepAt", PlaybackSeekRail.Time(bookmark.Seconds)].Value">@L["BookmarksPanel_Keep"]</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="bmk__action" @onclick="@(() => BeginEdit(bookmark))" data-bookmark-edit
+                                                 aria-label="@L["BookmarksPanel_EditAt", PlaybackSeekRail.Time(bookmark.Seconds)].Value">@L["Common_Edit"]</button>
+                                <button type="button" class="bmk__action" @onclick="@(() => AskDelete(bookmark))" data-bookmark-delete
+                                                 aria-label="@L["BookmarksPanel_DeleteAt", PlaybackSeekRail.Time(bookmark.Seconds)].Value">@L["Common_Delete"]</button>
+                            }
+                        }
+                    </Trailing>
+                </PlaybackListRow>
+                @if (_editId == bookmark.Id)
+                {
+                    <div class="bmk__edit" data-bookmark-edit-form @onkeydown:stopPropagation="true">
+                        <label class="bmk__edit-label">@L["BookmarksPanel_Name"]
+                            <input type="text" class="bmk__edit-field" maxlength="@MaximumNameLength" @bind="_editName" @bind:event="oninput" />
+                        </label>
+                        <label class="bmk__edit-label">@L["Common_Note"]
+                            <textarea class="bmk__edit-field bmk__edit-field--note" rows="2" maxlength="@AudiobookBookmarkNotePolicy.MaximumLength" @bind="_editNote" @bind:event="oninput"></textarea>
+                        </label>
+                        @if (_editFailed)
+                        {
+                            <p class="bmk__edit-failed" role="status">@L["BookmarksPanel_SaveFailed"]</p>
+                        }
+                        <div class="bmk__edit-actions">
+                            <button type="button" class="bmk__action" @onclick="CancelEdit">@L["BookmarksPanel_Cancel"]</button>
+                            <button type="button" class="bmk__action bmk__action--primary" disabled="@_editSaving" @onclick="@(() => SaveEditAsync(bookmark))" data-bookmark-edit-save>@L["Common_Save"]</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        @if (rows.Count > 0)
+        {
+            <p class="bmk__hint">@L["BookmarksPanel_Hint"]</p>
+        }
+    </ChildContent>
+    <Footer>
+        <div class="bmk__footer" data-bookmarks-footer>
+            <AppSwitchRow Label="@L["BookmarksPanel_ShowOnTimeline"].Value" Value="@ShowOnTimeline" ValueChanged="@(value => ShowOnTimelineChanged.InvokeAsync(value))" />
+        </div>
+    </Footer>
+</PlaybackListPanel>
+
+@code {
+    /// <summary>The remembered-choice values: Everyone is <c>All</c> (the default), Mine is <c>Mine</c>.</summary>
+    internal const string EveryoneValue = PlaybackPreferenceValues.All;
+    internal const string MineValue = PlaybackPreferenceValues.Mine;
+
+    /// <summary>More rows than this in the shown list brings the search box.</summary>
+    public const int SearchThreshold = 8;
+    private const int MaximumNameLength = 120;
+
+    /// <summary>Every bookmark the Engine lets this profile see on the title, in time order.</summary>
+    [Parameter] public IReadOnlyList<PlaybackRailBookmark> Bookmarks { get; set; } = [];
+
+    /// <summary>Where playback is now: the time on the add button, which saves exactly the time it shows when pressed.</summary>
+    [Parameter] public double Position { get; set; }
+
+    /// <summary>The remembered choice: <c>Mine</c>, or anything else for Everyone.</summary>
+    [Parameter] public string? Choice { get; set; }
+    [Parameter] public EventCallback<string> ChoiceChanged { get; set; }
+
+    [Parameter] public bool ShowOnTimeline { get; set; }
+    [Parameter] public EventCallback<bool> ShowOnTimelineChanged { get; set; }
+
+    /// <summary>True draws each row's frame (72 x 40, video); false draws the cover instead (audio, 40 x 40).</summary>
+    [Parameter] public bool UseFrames { get; set; } = true;
+
+    /// <summary>The cover shown on every row of an audio title.</summary>
+    [Parameter] public string? CoverUrl { get; set; }
+
+    /// <summary>Changes when the title changes, so the list scrolls back to the top.</summary>
+    [Parameter] public string? ScrollKey { get; set; }
+
+    /// <summary>Saves a bookmark at the time with an optional note; true when it was saved. The host decides where the time comes from.</summary>
+    [Parameter] public Func<double, string?, Task<bool>>? Add { get; set; }
+
+    /// <summary>A row was chosen: go to that moment.</summary>
+    [Parameter] public EventCallback<PlaybackRailBookmark> Seek { get; set; }
+
+    /// <summary>Renames the person's own bookmark and changes its note; true when saved.</summary>
+    [Parameter] public Func<PlaybackRailBookmark, string?, string?, Task<bool>>? Edit { get; set; }
+
+    /// <summary>Removes the person's own bookmark; true when removed.</summary>
+    [Parameter] public Func<PlaybackRailBookmark, Task<bool>>? Delete { get; set; }
+
+    private string? _note, _search, _editName, _editNote;
+    private bool _noteOpen, _focusNote, _saving, _failed, _editSaving, _editFailed;
+    private Guid? _confirmId, _editId;
+    private ElementReference _noteField;
+    private IReadOnlyList<AppSelectOption>? _choiceOptions;
+    private string? _choiceLabelKey;
+
+    private bool IsMine => PlaybackRailBookmark.IsMineChoice(Choice);
+    private string AddLabel => L["BookmarksPanel_AddHere", PlaybackSeekRail.Time(Position)].Value;
+    private string RowVariant => UseFrames ? "bookmark" : "bookmark-cover";
+    private IReadOnlyList<PlaybackRailBookmark> EveryoneList => PlaybackRailBookmark.EveryoneOf(Bookmarks);
+    private IReadOnlyList<PlaybackRailBookmark> MineList => PlaybackRailBookmark.MineOf(Bookmarks);
+    private IReadOnlyList<PlaybackRailBookmark> Shown => IsMine ? MineList : EveryoneList;
+    private bool ShowSearch => Shown.Count > SearchThreshold;
+    private string EmptyText => !string.IsNullOrWhiteSpace(_search) && Shown.Count > 0 ? L["BookmarksPanel_NoMatches"].Value
+        : IsMine ? L["BookmarksPanel_EmptyMine"].Value : L["BookmarksPanel_EmptyEveryone"].Value;
+
+    // The counts sit in the choice's labels, as on the mockup ("Everyone · 8", "Mine · 3").
+    private IReadOnlyList<AppSelectOption> ChoiceOptions
+    {
+        get
+        {
+            var key = $"{EveryoneList.Count}/{MineList.Count}";
+            if (_choiceOptions is null || _choiceLabelKey != key)
+            {
+                _choiceLabelKey = key;
+                _choiceOptions =
+                [
+                    new(EveryoneValue, L["BookmarksPanel_Everyone", EveryoneList.Count].Value),
+                    new(MineValue, L["BookmarksPanel_Mine", MineList.Count].Value),
+                ];
+            }
+
+            return _choiceOptions;
+        }
+    }
+
+    private IReadOnlyList<PlaybackRailBookmark> Rows
+    {
+        get
+        {
+            IEnumerable<PlaybackRailBookmark> rows = Shown.OrderBy(bookmark => bookmark.Seconds);
+            if (!string.IsNullOrWhiteSpace(_search) && ShowSearch)
+            {
+                var term = _search.Trim();
+                rows = rows.Where(bookmark => (bookmark.DisplayName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (bookmark.OwnerName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || PlaybackSeekRail.Time(bookmark.Seconds).Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return rows.ToList();
+        }
+    }
+
+    private static string TitleOf(PlaybackRailBookmark bookmark) => bookmark.DisplayName ?? string.Empty;
+
+    /// <summary>The maker's name on an Everyone row; a person's own list does not repeat their name.</summary>
+    private string? MakerOf(PlaybackRailBookmark bookmark) => IsMine ? null : bookmark.OwnerName;
+
+    private string? ArtOf(PlaybackRailBookmark bookmark) => UseFrames ? FrameAddress(bookmark) : CoverUrl;
+
+    /// <summary>The Dashboard's own address for the Engine's still from the bookmark's moment (the Engine address carries a version that changes when the still is made again).</summary>
+    public static string? FrameAddress(PlaybackRailBookmark bookmark)
+    {
+        if (string.IsNullOrWhiteSpace(bookmark.FrameUrl))
+        {
+            return null;
+        }
+
+        var query = bookmark.FrameUrl.IndexOf('?', StringComparison.Ordinal);
+        return $"/engine-bookmark-frame/{bookmark.Id:D}" + (query >= 0 ? bookmark.FrameUrl[query..] : string.Empty);
+    }
+
+    /// <summary>A person changes only their own bookmarks here; one in Everyone's set is changed in the editor's Bookmarks tab, never in the player.</summary>
+    private bool CanChange(PlaybackRailBookmark bookmark) => IsMine && bookmark.IsYours && !bookmark.IsGlobal && (Edit is not null || Delete is not null);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusNote) return;
+        _focusNote = false;
+        await _noteField.FocusAsync();
+    }
+
+    private void OpenNote()
+    {
+        _noteOpen = true;
+        _focusNote = true;
+    }
+
+    private void CloseNote() => _noteOpen = false;
+
+    private async Task NoteKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !args.ShiftKey) await AddAsync();
+    }
+
+    private async Task ChooseAsync(string value)
+    {
+        _search = null;
+        _confirmId = null;
+        _editId = null;
+        await ChoiceChanged.InvokeAsync(value);
+    }
+
+    private async Task AddAsync()
+    {
+        if (_saving || Add is null) return;
+        _saving = true;
+        try
+        {
+            var note = string.IsNullOrWhiteSpace(_note) ? null : _note.Trim();
+            _failed = !await Add(Position, note);
+            if (!_failed)
+            {
+                _note = null;
+                _noteOpen = false;
+            }
+        }
+        finally { _saving = false; }
+    }
+
+    private void AskDelete(PlaybackRailBookmark bookmark)
+    {
+        _editId = null;
+        _confirmId = bookmark.Id;
+    }
+
+    private async Task DeleteAsync(PlaybackRailBookmark bookmark)
+    {
+        _confirmId = null;
+        if (Delete is not null) await Delete(bookmark);
+    }
+
+    private void BeginEdit(PlaybackRailBookmark bookmark)
+    {
+        _confirmId = null;
+        _editId = bookmark.Id;
+        _editName = bookmark.Label;
+        _editNote = bookmark.Note;
+        _editFailed = false;
+    }
+
+    private void CancelEdit()
+    {
+        _editId = null;
+        _editFailed = false;
+    }
+
+    private async Task SaveEditAsync(PlaybackRailBookmark bookmark)
+    {
+        if (_editSaving || Edit is null) return;
+        _editSaving = true;
+        try
+        {
+            _editFailed = !await Edit(bookmark, _editName, _editNote);
+            if (!_editFailed) _editId = null;
+        }
+        finally { _editSaving = false; }
+    }
+}

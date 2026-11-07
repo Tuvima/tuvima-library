@@ -335,6 +335,7 @@ Generated from source by `generate-endpoint-ledger.ps1`. It is a syntactic inven
 | GET | `/api/v1/player/audiobooks/{workId:guid}/history` | RequireClientScope(ClientApiScopes.ProgressRead) | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:242` |
 | GET | `/api/v1/player/audiobooks/{workId:guid}/bookmarks` | RequireClientScope(ClientApiScopes.ProgressRead) | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:263` |
 | POST | `/api/v1/player/audiobooks/{workId:guid}/bookmarks` | RequireClientScope(ClientApiScopes.ProgressWrite) | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:280` |
+| PUT | `/api/v1/player/audiobooks/bookmarks/{bookmarkId:guid}` | RequireClientScope(ClientApiScopes.ProgressWrite) | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:329` |
 | DELETE | `/api/v1/player/audiobooks/bookmarks/{bookmarkId:guid}` | RequireClientScope(ClientApiScopes.ProgressWrite) | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:303` |
 | GET | `/api/v1/player/audiobooks/{workId:guid}/chapter-overrides` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:320` |
 | POST | `/api/v1/player/audiobooks/{workId:guid}/chapter-overrides` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs:342` |

@@ -58,6 +58,13 @@
     width: var(--playback-panel-chapters-width);
 }
 
+/* Mockup screen 11: the Bookmarks panel is 460 px wide and runs nearly the height of the page, as the Lyrics panel does. */
+.playback-panel--bookmarks {
+    height: var(--playback-panel-bookmarks-height);
+    max-height: var(--playback-panel-bookmarks-height);
+    width: var(--playback-panel-bookmarks-width);
+}
+
 .playback-panel ::deep .playback-panel__frame {
     display: flex;
     flex-direction: column;

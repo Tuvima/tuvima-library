@@ -278,6 +278,38 @@ public sealed class AudiobookBookmarkRepository
         }, ct);
     }
 
+    /// <summary>
+    /// Renames the profile's own personal bookmark and changes its note. Another profile's bookmark, a global one (changed only in the
+    /// editor's Bookmarks tab) and one on a file the caller cannot see are left alone and reported as not found.
+    /// </summary>
+    public Task<bool> UpdateOwnAsync(Guid profileId, Guid bookmarkId, string? label, string? note, CancellationToken ct = default,
+        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var affected = conn.Execute(
+                """
+                UPDATE audiobook_bookmarks
+                SET label = @label, note = @note
+                WHERE id = @bookmarkId AND is_global = 0 AND profile_id = @profileId AND position_kind = 'time'
+                  AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
+                """,
+                new
+                {
+                    profileId,
+                    bookmarkId,
+                    label = BlankToNull(label),
+                    note = BlankToNull(note),
+                    unrestricted = authorizedAssetIds is null ? 1 : 0,
+                    allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+                },
+                tx);
+            return affected > 0;
+        }, ct);
+    }
+
     private static AudiobookBookmarkDto ToDto(BookmarkRow row) => new()
     {
         OwnerName = row.OwnerName,
