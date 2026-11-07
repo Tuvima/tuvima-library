@@ -187,8 +187,9 @@ public static partial class ItemCanonicalEndpoints
             return ApiErrors.Conflict("This retail match changed while the item was open. Reload and review it again.");
         }
 
-        // Matching a record never moves anything on its own (universal editor spec D6): the edit session passes
-        // allowParentMove false, and the parent changes only through its own relationship change.
+        // Saving the match itself never moves anything (universal editor spec D6): the edit session passes allowParentMove false.
+        // Applying a match in the editor stages the parent change as its own Relationship change and a Managed file's move as its
+        // own FileMove, both shown in Review (spec D8).
         var hierarchyRequest = allowParentMove
             ? BuildHierarchyAlignmentRequest(
                 policy,
@@ -336,7 +337,7 @@ public static partial class ItemCanonicalEndpoints
         ]);
 
         // The person's decision is pinned (universal editor v5, D8): a later scan or a folder hint that now disagrees never re-identifies it.
-        foreach (var pinTarget in new[] { identityTarget, context.AssetId }.Distinct())
+        foreach (var pinTarget in new[] { identityTarget, context.AssetId, lineage.TargetForSelfScope }.Where(target => target != Guid.Empty).Distinct())
         {
             claims.Add(new MetadataClaim
             {

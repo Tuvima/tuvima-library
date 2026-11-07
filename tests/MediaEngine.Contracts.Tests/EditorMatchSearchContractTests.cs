@@ -46,7 +46,6 @@ public sealed class EditorMatchSearchContractTests
     {
         var request = new EditorMatchSearchRequestDto
         {
-            Kind = "book",
             Provider = "openlibrary",
             Fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["title"] = "Dune", ["author"] = "Frank Herbert" },
         };
@@ -54,8 +53,31 @@ public sealed class EditorMatchSearchContractTests
         var json = JsonSerializer.Serialize(request);
         var back = JsonSerializer.Deserialize<EditorMatchSearchRequestDto>(json)!;
 
-        Assert.Equal("{\"kind\":\"book\",\"provider\":\"openlibrary\",\"fields\":{\"title\":\"Dune\",\"author\":\"Frank Herbert\"}}", json);
+        Assert.Equal("{\"provider\":\"openlibrary\",\"fields\":{\"title\":\"Dune\",\"author\":\"Frank Herbert\"}}", json);
         Assert.Equal("Dune", back.Fields["title"]);
+    }
+
+    [Fact]
+    public void Placement_UsesSnakeCaseNames()
+    {
+        var placement = new EditorMatchPlacementDto
+        {
+            DestinationId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            ParentLabel = "OK Computer (Radiohead)",
+            CurrentParentLabel = "The Best Of (Radiohead)",
+            Managed = true,
+            FromPath = "/m/a.flac",
+            ToPath = "/m/b.flac",
+        };
+
+        var json = JsonSerializer.Serialize(placement);
+        var back = JsonSerializer.Deserialize<EditorMatchPlacementDto>(json)!;
+
+        Assert.Contains("\"destination_id\":\"11111111-1111-1111-1111-111111111111\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"current_parent_label\":\"The Best Of (Radiohead)\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"from_path\":\"/m/a.flac\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"to_path\":\"/m/b.flac\"", json, StringComparison.Ordinal);
+        Assert.True(back.Managed);
     }
 
     [Fact]

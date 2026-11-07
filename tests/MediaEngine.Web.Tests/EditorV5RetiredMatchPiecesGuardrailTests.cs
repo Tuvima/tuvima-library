@@ -3,9 +3,10 @@ using System.Text.RegularExpressions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Universal editor v5 (spec WP9): the Match tab no longer moves an item to another place. "Change placement", the placement picker,
+/// Universal editor v5 (spec WP9): the Match tab has no placement controls of its own. "Change placement", the placement picker,
 /// the line-up table, the connected-show panel and the placement rules are deleted, not hidden; a person finds the record that fits
-/// the file and chooses it. These rules keep them from coming back under their old names, in code, styles or strings.
+/// the file and chooses it, and applying it re-parents the item (and moves a Managed file) through the staged Relationship and file-move
+/// changes every move uses, shown in Review. These rules keep the old pieces from coming back under their old names, in code, styles or strings.
 /// </summary>
 public sealed partial class EditorV5RetiredMatchPiecesGuardrailTests
 {
@@ -37,7 +38,7 @@ public sealed partial class EditorV5RetiredMatchPiecesGuardrailTests
             .ToList();
 
         Assert.True(offenders.Count == 0,
-            "These files name a retired Match placement piece (the Match tab finds a record and applies it; it does not move an item): " + string.Join(", ", offenders));
+            "These files name a retired Match placement piece (the Match tab finds a record and applies it; the move is staged for it, not chosen on the tab): " + string.Join(", ", offenders));
     }
 
     [Fact]

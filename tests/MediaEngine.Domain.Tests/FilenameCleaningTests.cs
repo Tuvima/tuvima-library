@@ -165,6 +165,47 @@ public sealed class FilenameCleaningTests : IDisposable
         Assert.Equal("My Show", ReleaseTitleHints.Parse("My Show - FanSub", rules).Title);
     }
 
+    // A catastrophic pattern in a person's file (nested quantifiers) runs out of time on a long name: the name is read as if it had no match,
+    // the warning is heard once for the pattern, and nothing throws into the scan or the editor's pre-fill.
+    private const string Hostile = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!";
+
+    private static FilenameCleaningRules RulesWith(string json, List<string> warnings)
+    {
+        var rules = FilenameCleaningConfigurationProvider.TryRead(json, FilenameCleaningConfigurationProvider.BuiltIn, out var problem, warnings.Add);
+        Assert.True(rules is not null, problem);
+        return rules!;
+    }
+
+    [Fact]
+    public void ACatastrophicTrackPattern_IsReadAsNoMatch_AndWarnedOnce()
+    {
+        var warnings = new List<string>();
+        var rules = RulesWith("{ \"version\": \"1\", \"track_patterns\": [\"^(?<track>(a+)+)$\"] }", warnings);
+
+        var first = rules.ReadTrack(Hostile);
+        var second = rules.ReadTrack(Hostile);
+
+        Assert.Equal((null, null, Hostile), first);
+        Assert.Equal(first, second);
+        Assert.Single(warnings);
+        Assert.Contains("took too long", warnings[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACatastrophicNoisePattern_StripsNothing_FindsNoEdition_AndDoesNotThrow()
+    {
+        var warnings = new List<string>();
+        var rules = RulesWith("{ \"version\": \"1\", \"noise_patterns\": [\"(a+)+$\"] }", warnings);
+
+        var stripped = rules.StripTags(Hostile, out var edition);
+
+        Assert.Null(edition);
+        Assert.Equal(Hostile, stripped);
+        Assert.False(rules.IsNoiseWord(Hostile));
+        Assert.NotEmpty(warnings);
+        Assert.Equal(warnings.Distinct().Count(), warnings.Count);
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

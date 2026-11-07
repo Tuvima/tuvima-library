@@ -31,12 +31,14 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         _session.Begin([new EditTrailItem(EpisodeId, "Pilot", "Item")]);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorMatchContextAsync), _ => Task.FromResult(_context));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorCurrentMatchAsync), _ => Task.FromResult(_currentMatch));
             // The Match tab opens on its read of the item; the TV flows sit inside Change match, so these items open there (not matched yet).
             stub.SetHandler(nameof(IEngineApiClient.GetEditorMatchSetupAsync), args =>
                 Task.FromResult<EditorMatchSetupDto?>(new EditorMatchSetupDto
                 {
                     EntityId = EpisodeId,
-                    Kind = (string)args![1]!,
+                    Kind = "tv_episode",
                     Providers = [new EditorMatchProviderDto { Name = "tvdb", DisplayName = "TheTVDB", State = EditorMatchProviderStates.Ready, IsDefault = true }],
                     Fields = [new EditorMatchFieldDto { Key = "title", Label = "Title" }],
                 }));
@@ -75,6 +77,9 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         Render<AppPopoverHost>();
     }
 
+    private EditorMatchContextDto? _context;
+    private EditorCurrentMatchDto? _currentMatch;
+
     private static EditorMatchSubject Episode() => new(
         EpisodeId, "TV", "episode", "show_episode", "Pilot", null, "Original Show", "2010",
         new Dictionary<string, string> { ["title"] = "Pilot" }, []);
@@ -94,6 +99,70 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
     {
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").HasAttribute("disabled")));
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
+    }
+
+    private static EditorMatchContextDto ParsedFromTheFileName() => new()
+    {
+        EntityId = EpisodeId,
+        MediaType = "TV",
+        FileName = "Parsed.Show.S01E02.mkv",
+        ParsedShow = "Original Show",
+        ParsedSeason = 1,
+        ParsedEpisode = 2,
+        BestGuess = new EditorMatchBestGuessDto { ProviderName = "tvdb", ProviderItemId = "100", Name = "Original Show" },
+    };
+
+    [Fact]
+    public void AnUnmatchedEpisode_StartsFromTheParsedShow_OpensTheParsedSeason_AndTagsTheBestGuess()
+    {
+        _context = ParsedFromTheFileName();
+        var cut = RenderPanel(Episode());
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
+        Assert.Contains("shows:Original Show", _calls);
+        Assert.Contains("seasons:100", _calls);
+        Assert.Contains("episodes:100:1", _calls);
+        var guessRow = cut.FindAll("[aria-label='Show'] .tl-tvm__row").Single(row => row.TextContent.Contains("Best guess", StringComparison.Ordinal));
+        Assert.Contains("Original Show", guessRow.TextContent, StringComparison.Ordinal);
+        var episodeGuess = cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Single(row => row.TextContent.Contains("Best guess", StringComparison.Ordinal));
+        Assert.Contains("Second", episodeGuess.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnEpisodeThatIsMatched_StartsFromItsOwnShow_WithNoBestGuess()
+    {
+        _context = ParsedFromTheFileName();
+        _currentMatch = new EditorCurrentMatchDto
+        {
+            EntityId = EpisodeId,
+            State = EditorCurrentMatchStates.Matched,
+            Record = new EditorMatchedRecordDto { ProviderId = "tvdb", ProviderName = "TheTVDB", ProviderItemId = "e1002", Kind = "Episode", Title = "Second" },
+        };
+        var cut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Episode())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, false));
+
+        // A matched item opens on its match; Change match opens the TV lists on its own show, where nothing is tagged as a guess.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        cut.Find("[data-testid=match-change]").Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
+        Assert.Contains("shows:Original Show", _calls);
+        Assert.DoesNotContain("Best guess", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SearchAllShows_ClearsTheBox_SoAnotherShowCanBeTyped()
+    {
+        _context = ParsedFromTheFileName();
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[aria-label='Episode'] .tl-tvm__row")));
+
+        cut.Find("button[aria-label='Search all shows']").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Type a show name to search all shows.", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[aria-label='Episode'] .tl-tvm__row"));
     }
 
     [Fact]

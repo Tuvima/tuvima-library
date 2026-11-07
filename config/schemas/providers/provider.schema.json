@@ -741,6 +741,16 @@
         "default_for": {
           "type": "array",
           "items": { "enum": ["movie", "tv_show", "tv_season", "tv_episode", "album", "song", "book", "audiobook", "comic", "video"] }
+        },
+        "kinds": {
+          "type": "array",
+          "description": "The editor kinds this source may be offered for. Empty or missing means every kind of the media types it handles.",
+          "items": { "enum": ["movie", "tv_show", "tv_season", "tv_episode", "album", "song", "book", "audiobook", "comic", "video"] }
+        },
+        "id_lookup": {
+          "type": "object",
+          "description": "The identifiers (isbn, isrc, imdb, tmdb, musicbrainz, comicvine) this source can look up directly, each mapped to the search field its lookup strategy needs. Anything else typed in is evidence only.",
+          "additionalProperties": { "type": "string" }
         }
       },
       "additionalProperties": false

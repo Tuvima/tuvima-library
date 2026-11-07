@@ -33,6 +33,9 @@ public interface IBridgeIdRepository
 
     /// <summary>Deletes all bridge IDs for the given entity.</summary>
     Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default);
+
+    /// <summary>Removes the entity's bridge ids of these types and nothing else (a removed match drops its provider ids, not the Wikidata id).</summary>
+    Task DeleteByTypesAsync(Guid entityId, IReadOnlyCollection<string> idTypes, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 /// <summary>

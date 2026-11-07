@@ -57,6 +57,8 @@ public static class EditReviewRows
 
     public const string FileSortIgnoreNote = "The file stays on disk. Library hides it and skips it in future scans. Add it back in Settings.";
 
+    public const string MatchRemovalNote = "Details you or the provider set, locked fields and pictures stay. The Wikidata match is not touched. Removing a match cannot be undone from here.";
+
     public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
 
     /// <summary>The Before of a row whose old value was not recorded when it was staged (a list holds no loaded values); never blank, so every row can be compared.</summary>
@@ -141,7 +143,11 @@ public static class EditReviewRows
                     break;
                 case EditSessionChangeKinds.Identity:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
-                        "Match", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, label ?? IdentityText(change.TargetId), null));
+                        "Match changed", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, label ?? IdentityText(change.TargetId), null));
+                    break;
+                case EditSessionChangeKinds.MatchRemoval:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Match removed", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, "No match", MatchRemovalNote));
                     break;
                 case EditSessionChangeKinds.SiblingMatch:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,

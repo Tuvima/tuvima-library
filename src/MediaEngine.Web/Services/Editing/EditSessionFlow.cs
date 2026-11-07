@@ -477,7 +477,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             what = failure.Kind switch
             {
                 EditSessionChangeKinds.Artwork => "Artwork",
-                EditSessionChangeKinds.Identity => "Match",
+                EditSessionChangeKinds.Identity or EditSessionChangeKinds.MatchRemoval => "Match",
                 EditSessionChangeKinds.Relationship => "Relationship",
                 EditSessionChangeKinds.FileMove => "File move",
                 EditSessionChangeKinds.ExtraMove => "Extras move",

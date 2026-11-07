@@ -11132,13 +11132,220 @@
   <data name="EditorMatchResults_ClosestToYourFile" xml:space="preserve">
     <value>Closest to your file</value>
   </data>
-  <data name="EditorMatchResults_YourFileMeasured" xml:space="preserve">
-    <value>Your file: {0} measured</value>
-  </data>
   <data name="EditorMatchResults_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
   <data name="EditorMatchResults_ApplyMatch" xml:space="preserve">
     <value>Apply match</value>
+  </data>
+  <data name="EditorMatchPanel_MediaProviders" xml:space="preserve">
+    <value>Media providers</value>
+  </data>
+  <data name="EditorMatchPanel_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorMatchPanel_ProviderOption" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="EditorMatchPanel_StateNeedsKey" xml:space="preserve">
+    <value>Needs a key</value>
+  </data>
+  <data name="EditorMatchPanel_StateOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="EditorMatchPanel_StateReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="EditorMatchPanel_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="EditorMatchPanel_CouldNotReachEngine" xml:space="preserve">
+    <value>Library could not reach the Engine. Try again.</value>
+  </data>
+  <data name="EditorMatchPanel_ManualPlacement" xml:space="preserve">
+    <value>Season {0}, episode {1} as this item's own details</value>
+  </data>
+  <data name="EditorMatchPanel_StagedMoves" xml:space="preserve">
+    <value>It will also move to {0}.</value>
+  </data>
+  <data name="EditorMatchPanel_StagedFilesStay" xml:space="preserve">
+    <value>Its files stay where they are, because they are in a folder Library only reads.</value>
+  </data>
+  <data name="EditorMatchPanel_NoMatch" xml:space="preserve">
+    <value>No match</value>
+  </data>
+  <data name="EditorMatchPanel_RemovalStaged" xml:space="preserve">
+    <value>Match removal staged.</value>
+  </data>
+  <data name="EditorMatchPanel_NotMatchedYet" xml:space="preserve">
+    <value>Not matched yet</value>
+  </data>
+  <data name="EditorMatchPanel_CouldNotReadSetup" xml:space="preserve">
+    <value>Library could not read what this item would be matched with. Try again.</value>
+  </data>
+  <data name="EditorMatchPanel_NoProvider" xml:space="preserve">
+    <value>No provider matches this kind of item. The details you enter stand on their own.</value>
+  </data>
+  <data name="EditorMatchPanel_Staged" xml:space="preserve">
+    <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
+  </data>
+  <data name="EditorMatchPanel_CurrentMatch" xml:space="preserve">
+    <value>Current match</value>
+  </data>
+  <data name="EditorMatchPanel_Matched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorMatchPanel_ChosenByYou" xml:space="preserve">
+    <value>Chosen by you</value>
+  </data>
+  <data name="EditorMatchPanel_OpenSource" xml:space="preserve">
+    <value>Open source ↗</value>
+  </data>
+  <data name="EditorMatchPanel_RemoveMatch" xml:space="preserve">
+    <value>Remove match</value>
+  </data>
+  <data name="EditorMatchPanel_ChangeMatch" xml:space="preserve">
+    <value>Change match</value>
+  </data>
+  <data name="EditorMatchPanel_DirectedBy" xml:space="preserve">
+    <value>Directed by {0}</value>
+  </data>
+  <data name="EditorMatchPanel_WhyThisMatch" xml:space="preserve">
+    <value>Why this match</value>
+  </data>
+  <data name="EditorMatchPanel_MatchVerdict" xml:space="preserve">
+    <value>{0} match</value>
+  </data>
+  <data name="EditorMatchPanel_Field" xml:space="preserve">
+    <value>Field</value>
+  </data>
+  <data name="EditorMatchPanel_YourFile" xml:space="preserve">
+    <value>Your file</value>
+  </data>
+  <data name="EditorMatchPanel_MatchedRecord" xml:space="preserve">
+    <value>Matched record</value>
+  </data>
+  <data name="EditorMatchPanel_Result" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="EditorMatchPanel_NotCheckedNote" xml:space="preserve">
+    <value>{0}: not in your file, so it was not checked.</value>
+  </data>
+  <data name="EditorMatchPanel_ChangingKeepsLocked" xml:space="preserve">
+    <value>Fields you changed stay yours; the rest update.</value>
+  </data>
+  <data name="EditorMatchPanel_Measured" xml:space="preserve">
+    <value>{0} measured</value>
+  </data>
+  <data name="EditorMatchPanel_Rounded" xml:space="preserve">
+    <value>{0} (rounded)</value>
+  </data>
+  <data name="EditorMatchPanel_FieldTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorMatchPanel_FieldYear" xml:space="preserve">
+    <value>Year</value>
+  </data>
+  <data name="EditorMatchPanel_FieldSeason" xml:space="preserve">
+    <value>Season</value>
+  </data>
+  <data name="EditorMatchPanel_FieldEpisode" xml:space="preserve">
+    <value>Episode</value>
+  </data>
+  <data name="EditorMatchPanel_FieldRuntime" xml:space="preserve">
+    <value>Runtime</value>
+  </data>
+  <data name="EditorMatchPanel_Match" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorMatchPanel_MatchKind" xml:space="preserve">
+    <value>Match {0}</value>
+  </data>
+  <data name="EditorMatchPanel_YourFileLine" xml:space="preserve">
+    <value>Your file: {0}</value>
+  </data>
+  <data name="EditorMatchPanel_NeedsKeySentence" xml:space="preserve">
+    <value>{0} needs a key before it can be searched. Add it in Settings, or choose another provider.</value>
+  </data>
+  <data name="EditorMatchPanel_OffSentence" xml:space="preserve">
+    <value>{0} is switched off. Turn it on in Settings, or choose another provider.</value>
+  </data>
+  <data name="EditorMatchPanel_ChooseProvider" xml:space="preserve">
+    <value>Choose a provider to search.</value>
+  </data>
+  <data name="EditorMatchPanel_KindMovie" xml:space="preserve">
+    <value>movie</value>
+  </data>
+  <data name="EditorMatchPanel_KindBook" xml:space="preserve">
+    <value>book</value>
+  </data>
+  <data name="EditorMatchPanel_KindAudiobook" xml:space="preserve">
+    <value>audiobook</value>
+  </data>
+  <data name="EditorMatchPanel_KindComic" xml:space="preserve">
+    <value>comic</value>
+  </data>
+  <data name="EditorMatchPanel_KindShow" xml:space="preserve">
+    <value>show</value>
+  </data>
+  <data name="EditorMatchPanel_KindSeason" xml:space="preserve">
+    <value>season</value>
+  </data>
+  <data name="EditorMatchPanel_KindEpisode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="EditorMatchPanel_KindAlbum" xml:space="preserve">
+    <value>album</value>
+  </data>
+  <data name="EditorMatchPanel_KindSong" xml:space="preserve">
+    <value>song</value>
+  </data>
+  <data name="EditorMatchPanel_KindVideo" xml:space="preserve">
+    <value>video</value>
+  </data>
+  <data name="EditorMatchPanel_KindItem" xml:space="preserve">
+    <value>item</value>
+  </data>
+  <data name="EditorMatchPanel_MatchedToNow" xml:space="preserve">
+    <value>Matched to now</value>
+  </data>
+  <data name="EditorMatchPanel_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorMatchPanel_OpenUniverse" xml:space="preserve">
+    <value>Open Universe</value>
+  </data>
+  <data name="EditorMatchResults_YourFileEvidence" xml:space="preserve">
+    <value>Your file: {0}</value>
+  </data>
+  <data name="EditorMatchResults_EvidenceNumber" xml:space="preserve">
+    <value>number {0}</value>
+  </data>
+  <data name="EditorMatchResults_EvidenceMeasured" xml:space="preserve">
+    <value>{0} measured</value>
+  </data>
+  <data name="EditorMatchResults_EvidenceIdentifier" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="EditorMatchResults_IdYouTube" xml:space="preserve">
+    <value>YouTube ID</value>
+  </data>
+  <data name="EditorMatchResults_IdIsbn" xml:space="preserve">
+    <value>ISBN</value>
+  </data>
+  <data name="EditorMatchResults_IdIsrc" xml:space="preserve">
+    <value>ISRC</value>
+  </data>
+  <data name="EditorMatchResults_IdImdb" xml:space="preserve">
+    <value>IMDb ID</value>
+  </data>
+  <data name="EditorMatchResults_IdTmdb" xml:space="preserve">
+    <value>TMDB ID</value>
+  </data>
+  <data name="EditorMatchResults_IdMusicBrainz" xml:space="preserve">
+    <value>MusicBrainz ID</value>
+  </data>
+  <data name="EditorMatchResults_IdEmbeddedTitle" xml:space="preserve">
+    <value>embedded title</value>
   </data>
 </root>

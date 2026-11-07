@@ -18,6 +18,10 @@ public static class EditorMatchFieldIds
     public const string Song = "song";
     public const string AuthorOrNarrator = "author_or_narrator";
 
+    /// <summary>The words above a box; a video's one box takes a YouTube link or ID.</summary>
+    public static string Label(string field, string? kind) =>
+        field == ProviderId && string.Equals(kind, EditorKinds.Video, StringComparison.OrdinalIgnoreCase) ? "YouTube link or ID" : Label(field);
+
     /// <summary>The words above a box.</summary>
     public static string Label(string field) => field switch
     {

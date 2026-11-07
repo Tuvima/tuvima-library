@@ -224,6 +224,25 @@ public sealed class BridgeIdRepository : IBridgeIdRepository
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
+    public Task DeleteByTypesAsync(Guid entityId, IReadOnlyCollection<string> idTypes, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (idTypes.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            DELETE FROM bridge_ids
+            WHERE entity_id = @entityId
+              AND id_type IN @idTypes;
+            """, new { entityId, idTypes = idTypes.ToArray() });
+
+        return Task.CompletedTask;
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------

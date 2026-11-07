@@ -10,24 +10,20 @@
 .tl-matchrow__start {
     display: flex;
     flex: 1 1 auto;
-    align-items: center;
-    gap: var(--tl-space-2);
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tl-space-3);
     min-width: 0;
 }
 
 .tl-matchrow__provider {
-    flex: 0 1 16rem;
+    flex: 0 1 14rem;
     min-width: 0;
 }
 
-.tl-matchrow__file {
-    flex: 1 1 auto;
+.tl-matchrow__field {
+    flex: 1 1 10rem;
     min-width: 0;
-    overflow: hidden;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .tl-matchrow__end {
@@ -119,13 +115,6 @@
     margin-inline-start: var(--tl-space-2);
 }
 
-.tl-matchsearch__fields {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--tl-space-3);
-}
-
-.tl-matchsearch__field {
-    flex: 1 1 12rem;
-    min-width: 0;
+.tl-matchwhy__footnote {
+    margin: 0;
 }

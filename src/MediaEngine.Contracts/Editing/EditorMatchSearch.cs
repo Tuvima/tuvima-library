@@ -168,10 +168,6 @@ public sealed class EditorMatchSetupDto
 /// <summary>A Match search: the provider to ask and the boxes as the person left them.</summary>
 public sealed class EditorMatchSearchRequestDto
 {
-    /// <summary>The editor's kind; the Engine checks it against the item.</summary>
-    [JsonPropertyName("kind")]
-    public string Kind { get; set; } = string.Empty;
-
     /// <summary>The provider to ask (its <c>name</c>); empty asks the kind's default provider.</summary>
     [JsonPropertyName("provider")]
     public string? Provider { get; set; }
@@ -335,4 +331,51 @@ public sealed class EditorMatchSearchResultDto
     /// <summary>The local evidence the verdicts were judged against.</summary>
     [JsonPropertyName("evidence")]
     public EditorMatchLocalEvidenceDto Evidence { get; init; } = new();
+}
+
+/// <summary>The result a person is about to apply, sent to ask where the match would put the item.</summary>
+public sealed class EditorMatchPlacementRequestDto
+{
+    [JsonPropertyName("candidate")]
+    public ItemCanonicalRetailCandidateDto Candidate { get; init; } = new();
+}
+
+/// <summary>
+/// Where applying a match would put the item and its file (universal editor v5, D8). A read: nothing is moved. The Dashboard stages a
+/// Relationship change when <see cref="DestinationId"/> is set, and a file move when <see cref="Managed"/> is true, so Review and the
+/// footer say what Save changes will do.
+/// </summary>
+public sealed class EditorMatchPlacementDto
+{
+    /// <summary>The album, season or series the match names, when it is not where the item already is; null when the parent stays.</summary>
+    [JsonPropertyName("destination_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? DestinationId { get; init; }
+
+    /// <summary>The place it will sit in, as shown ("Season 2 (Other Show)"); null when the parent stays.</summary>
+    [JsonPropertyName("parent_label")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ParentLabel { get; init; }
+
+    /// <summary>The place it sits in now, as shown; null when it has none.</summary>
+    [JsonPropertyName("current_parent_label")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CurrentParentLabel { get; init; }
+
+    /// <summary>True when the item's file is in a Managed folder, so applying the match renames or moves it by itself. False for a Read-only or As-is folder.</summary>
+    [JsonPropertyName("managed")]
+    public bool Managed { get; init; }
+
+    [JsonPropertyName("from_path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FromPath { get; init; }
+
+    [JsonPropertyName("to_path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ToPath { get; init; }
+
+    /// <summary>Why the item or its file will stay where it is (no such place in the Library yet, a Read-only folder); null when nothing is blocked. The match still applies.</summary>
+    [JsonPropertyName("blocked_reason")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? BlockedReason { get; init; }
 }

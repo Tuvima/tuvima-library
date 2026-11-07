@@ -74,6 +74,16 @@ public sealed class ItemEndpointRouteTests
     }
 
     [Fact]
+    public void ARetailMatchTheEditorSaves_PinsTheAssetTheIdentityTargetAndTheWorkItSavedTo()
+    {
+        // A scan reads the pin on whichever of these it looks at, so a match a person applied is kept on all of them (universal editor v5, D8).
+        var route = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.RetailMatch.cs"));
+
+        Assert.Contains("new[] { identityTarget, context.AssetId, lineage.TargetForSelfScope }", route, StringComparison.Ordinal);
+        Assert.Contains("ClaimKey = MetadataFieldConstants.MatchPinned", route, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ItemEditorEndpoints_ResolveCurrentMediaAssetOrWorkTargets()
     {
         var canonical = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));

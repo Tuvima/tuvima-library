@@ -3760,6 +3760,18 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchLocalEvid
   MeasuredText: System.String | nullability=nullable | accessors=get,init
   Identifiers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchIdentifierDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchPlacementDto
+  DestinationId: System.Guid? | nullability=nullable | accessors=get,init
+  ParentLabel: System.String | nullability=nullable | accessors=get,init
+  CurrentParentLabel: System.String | nullability=nullable | accessors=get,init
+  Managed: System.Boolean | nullability=not-null | accessors=get,init
+  FromPath: System.String | nullability=nullable | accessors=get,init
+  ToPath: System.String | nullability=nullable | accessors=get,init
+  BlockedReason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchPlacementRequestDto
+  Candidate: MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchProviderDto
   Name: System.String | nullability=not-null | accessors=get,init
   DisplayName: System.String | nullability=not-null | accessors=get,init
@@ -3792,7 +3804,6 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchResultDto
   IsSuggested: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchSearchRequestDto
-  Kind: System.String | nullability=not-null | accessors=get,set
   Provider: System.String | nullability=nullable | accessors=get,set
   Fields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
 
@@ -6096,6 +6107,7 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearc
   SearchMode: System.String | nullability=not-null | accessors=get,set
   MaxCandidates: System.Int32 | nullability=not-null | accessors=get,set
   ProviderName: System.String | nullability=nullable | accessors=get,set
+  LookupFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto
   ProviderErrors: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set

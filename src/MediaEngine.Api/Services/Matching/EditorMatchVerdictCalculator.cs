@@ -43,9 +43,21 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
     {
         ArgumentNullException.ThrowIfNull(facts);
         var identity = new HashSet<string>(settings.IdentityFacts, StringComparer.OrdinalIgnoreCase);
-        if (facts.Any(fact => fact.State == EditorMatchEvidenceStates.Differs && identity.Contains(fact.Fact)))
+
+        // An identifier that agrees (IMDb, TMDB, ISBN, ISRC, YouTube ID) says which record this is more surely than a title does: files carry
+        // alternate and translated titles. So a title that differs on its own then reads as Possible, never Check. Any other identity fact
+        // that differs (a number, a second identifier) still reads as Check.
+        var identifierAgrees = facts.Any(fact => fact.Fact == MatchFactNames.Identifier && fact.State == EditorMatchEvidenceStates.Agrees);
+        if (facts.Any(fact => fact.State == EditorMatchEvidenceStates.Differs
+                              && identity.Contains(fact.Fact)
+                              && !(identifierAgrees && fact.Fact == MatchFactNames.Title)))
         {
             return EditorMatchVerdicts.Check;
+        }
+
+        if (identifierAgrees && facts.Any(fact => fact.Fact == MatchFactNames.Title && fact.State == EditorMatchEvidenceStates.Differs))
+        {
+            return EditorMatchVerdicts.Possible;
         }
 
         var differing = facts.Count(fact => fact.State == EditorMatchEvidenceStates.Differs);

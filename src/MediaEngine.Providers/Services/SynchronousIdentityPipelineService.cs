@@ -56,11 +56,13 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     /// </summary>
     public async ValueTask<Guid> EnqueueAsync(HarvestRequest request, CancellationToken ct = default)
     {
-        if (await IsInNoLookupLibraryAsync(request, ct) || await IsPinnedAgainstAutomaticWorkAsync(request, ct))
+        if (await IsInNoLookupLibraryAsync(request, ct))
         {
             return Guid.Empty;
         }
 
+        // A pinned match skips only the retail stage: the Wikidata bridge, hydration and enrichment still run for the matched record.
+        var pinned = await IsPinnedAgainstAutomaticWorkAsync(request, ct);
         var job = new IdentityJob
         {
             EntityId = request.EntityId,
@@ -74,7 +76,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             job.State = nameof(IdentityJobState.QidResolved);
             job.ResolvedQid = request.PreResolvedQid;
         }
-        else if (request.SkipRetailStage)
+        else if (request.SkipRetailStage || pinned)
         {
             job.State = nameof(IdentityJobState.RetailMatched);
         }
@@ -112,11 +114,12 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     public async Task<HydrationResult> RunSynchronousAsync(
         HarvestRequest request, CancellationToken ct = default)
     {
-        if (await IsInNoLookupLibraryAsync(request, ct) || await IsPinnedAgainstAutomaticWorkAsync(request, ct))
+        if (await IsInNoLookupLibraryAsync(request, ct))
         {
             return new HydrationResult();
         }
 
+        var pinned = await IsPinnedAgainstAutomaticWorkAsync(request, ct);
         var job = new IdentityJob
         {
             EntityId = request.EntityId,
@@ -143,8 +146,8 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
                     request.EntityId, request.PreResolvedQid, job.MediaType, token),
                 ct);
         }
-        // Path B: Skip retail, run bridge (user confirmed a retail match, now auto-resolve Wikidata)
-        else if (request.SkipRetailStage)
+        // Path B: Skip retail, run bridge (user confirmed a retail match, or a person pinned it; now auto-resolve Wikidata)
+        else if (request.SkipRetailStage || pinned)
         {
             job.State = nameof(IdentityJobState.RetailMatched);
             await PersistInitialJobAsync(job, request.IsUserResolution, ct);
@@ -243,8 +246,8 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
         return true;
     }
 
-    // A match a person applied is never re-identified by automatic work (a scan, a folder hint that now disagrees). Work the person
-    // asked for (a user resolution, a pre-resolved QID, a retail stage already settled) goes on.
+    // A match a person applied is never re-identified by automatic work (a scan, a folder hint that now disagrees): the retail stage is
+    // skipped and nothing else is. Work the person asked for (a user resolution, a pre-resolved QID, a retail stage already settled) goes on as asked.
     private async Task<bool> IsPinnedAgainstAutomaticWorkAsync(HarvestRequest request, CancellationToken ct)
     {
         if (_pinnedGuard is null
@@ -258,7 +261,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
         }
 
         _logger.LogInformation(
-            "Identity work for {EntityType} {EntityId} was not started: a person applied its match.",
+            "Identity work for {EntityType} {EntityId} skips the retail stage: a person applied its match.",
             request.EntityType,
             request.EntityId);
         return true;

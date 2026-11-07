@@ -168,8 +168,17 @@ public sealed record RetailSearchProvider(string Name, string DisplayName);
 /// <param name="NeedsKey">True when the provider needs a key and none is saved.</param>
 /// <param name="DefaultForKinds">The editor kinds this provider is the default for (from <c>editor_match.default_for</c>).</param>
 /// <param name="Order">Where the provider registers among the others; the tie-break after the default.</param>
+/// <param name="Kinds">The editor kinds it may be offered for (from <c>editor_match.kinds</c>); empty means every kind of its media types.</param>
+/// <param name="IdLookup">The identifier kinds it can look up directly, by the search field its lookup needs (from <c>editor_match.id_lookup</c>).</param>
 public sealed record RetailProviderInfo(
-    string Name, string DisplayName, bool Enabled, bool NeedsKey, IReadOnlyList<string> DefaultForKinds, int Order);
+    string Name,
+    string DisplayName,
+    bool Enabled,
+    bool NeedsKey,
+    IReadOnlyList<string> DefaultForKinds,
+    int Order,
+    IReadOnlyList<string>? Kinds = null,
+    IReadOnlyDictionary<string, string>? IdLookup = null);
 
 // ── Apply Match ───────────────────────────────────────────────────────────────
 
