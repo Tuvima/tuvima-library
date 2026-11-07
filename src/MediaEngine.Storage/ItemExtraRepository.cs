@@ -17,6 +17,7 @@ namespace MediaEngine.Storage;
 public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigurationSource? rules = null) : IItemExtraRepository
 {
     private const int TagQueryChunk = 400;
+    private const int MaxSearchWords = 6;
 
     private const string SelectSql = """
         SELECT e.id AS Id,
@@ -328,6 +329,79 @@ public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigura
 
         return db.ExecuteWriteAsync((connection, transaction, token) =>
             DeleteRows(connection, transaction, "file_path = @filePath", new { filePath }, token) > 0, ct);
+    }
+
+    public Task<IReadOnlyList<ItemExtra>> SearchAsync(IReadOnlyList<string> words, int limit, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(words);
+        ct.ThrowIfCancellationRequested();
+        var terms = words.Select(word => word?.Trim() ?? string.Empty).Where(word => word.Length > 0).Take(MaxSearchWords).ToList();
+        if (terms.Count == 0 || limit <= 0)
+        {
+            return Task.FromResult<IReadOnlyList<ItemExtra>>([]);
+        }
+
+        // Every word must be found in the title shown, the description or the file name (the last part of the path, either slash).
+        var parameters = new DynamicParameters();
+        parameters.Add("limit", limit);
+        var clauses = new List<string>();
+        for (var index = 0; index < terms.Count; index++)
+        {
+            var name = $"w{index.ToString(CultureInfo.InvariantCulture)}";
+            parameters.Add(name, "%" + EscapeLike(terms[index]) + "%");
+            clauses.Add($$"""
+                (COALESCE(NULLIF(e.own_title, ''), e.title) LIKE @{{name}} ESCAPE '\'
+                 OR COALESCE(e.own_description, '') LIKE @{{name}} ESCAPE '\'
+                 OR replace(replace(e.file_path, char(92), '/'), rtrim(replace(e.file_path, char(92), '/'), replace(replace(e.file_path, char(92), '/'), '/', '')), '')
+                    LIKE @{{name}} ESCAPE '\')
+                """);
+        }
+
+        using var connection = db.CreateConnection();
+        var rows = connection.Query<Row>(new CommandDefinition(
+            SelectSql + " WHERE e.origin <> 'user_episode' AND " + string.Join(" AND ", clauses)
+                + " ORDER BY COALESCE(NULLIF(e.own_title, ''), e.title) COLLATE NOCASE, e.file_path LIMIT @limit;",
+            parameters,
+            cancellationToken: ct)).ToList();
+        return Task.FromResult<IReadOnlyList<ItemExtra>>(ToModels(connection, rows, ct));
+    }
+
+    private static string EscapeLike(string text) =>
+        text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
+
+    public Task<int> RemoveManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        ct.ThrowIfCancellationRequested();
+        if (ids.Count == 0)
+        {
+            return Task.FromResult(0);
+        }
+
+        return db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            var removed = 0;
+            foreach (var chunk in ids.Distinct().Chunk(TagQueryChunk))
+            {
+                token.ThrowIfCancellationRequested();
+                removed += DeleteRows(connection, transaction, "id IN @ids", new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }, token);
+            }
+
+            return removed;
+        }, ct);
+    }
+
+    public Task<bool> RelocateFileAsync(Guid id, string newFilePath, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newFilePath);
+        ct.ThrowIfCancellationRequested();
+
+        return db.ExecuteWriteAsync((connection, transaction, token) =>
+            connection.Execute(new CommandDefinition(
+                "UPDATE item_extras SET file_path = @newFilePath WHERE id = @id;",
+                new { id, newFilePath },
+                transaction,
+                cancellationToken: token)) > 0, ct);
     }
 
     public Task<int> RemoveUnderFolderAsync(string folder, CancellationToken ct = default)

@@ -69,6 +69,21 @@ public interface IItemExtraRepository
     /// <summary>Removes the row at this file path. Returns true when a row was removed.</summary>
     Task<bool> RemoveByPathAsync(string filePath, CancellationToken ct = default);
 
+    /// <summary>
+    /// The supporting files whose title shown, description or file name contains every one of <paramref name="words"/> (ignoring case),
+    /// A to Z by title, at most <paramref name="limit"/>. The caller applies the visibility of the title each file belongs to.
+    /// </summary>
+    Task<IReadOnlyList<ItemExtra>> SearchAsync(IReadOnlyList<string> words, int limit, CancellationToken ct = default);
+
+    /// <summary>Removes the rows with these ids (and their tag links), whatever decided them. Ids that are not there are skipped. Returns how many were removed.</summary>
+    Task<int> RemoveManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
+    /// <summary>
+    /// Points a row at the new place of its file after the file was moved (a Belongs to change in a Managed folder). Everything a person
+    /// set stays with the row. Returns false when there is no such row.
+    /// </summary>
+    Task<bool> RelocateFileAsync(Guid id, string newFilePath, CancellationToken ct = default);
+
     /// <summary>Removes every row whose item folder is this folder or inside it. Returns how many.</summary>
     Task<int> RemoveUnderFolderAsync(string folder, CancellationToken ct = default);
 
