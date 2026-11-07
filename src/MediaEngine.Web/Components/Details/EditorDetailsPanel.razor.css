@@ -19,17 +19,3 @@
         padding: 0 var(--tl-space-4) var(--tl-space-4);
     }
 }
-
-/* The lock (keep my value when the provider refreshes) and the revert arrow (shown once the value is changed) sit at the end of the label. */
-.tl-editor-field__tools {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--tl-space-1);
-    margin-left: auto;
-}
-
-/* A changed field has an accent edge, so it is easy to see which ones will change. */
-.tl-editor-field--changed {
-    padding-left: var(--tl-space-2);
-    border-left: 2px solid var(--tl-accent-primary);
-}

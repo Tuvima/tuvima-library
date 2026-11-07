@@ -423,7 +423,8 @@ public sealed class UniversePageTests : AsyncBunitContext
     {
         var cut = await StartEditingAsync();
 
-        _editor.WaitForElement(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
+        _editor.UnlockField("title");
+        _editor.Find(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
 
         _editor.WaitForAssertion(() =>
         {
@@ -441,7 +442,7 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         var title = _editor.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
+        Assert.Equal("yours", _editor.LockStateOf("title"));
         Assert.Contains(title.QuerySelectorAll("button"), button => button.GetAttribute("aria-label") == "Reset to canonical value");
     }
 
