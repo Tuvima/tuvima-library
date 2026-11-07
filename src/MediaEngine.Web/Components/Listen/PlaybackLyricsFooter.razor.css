@@ -18,7 +18,7 @@
     white-space: nowrap;
 }
 
-.playback-lyrics-footer__more {
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more {
     --playback-glyph-size: 20px;
     align-items: center;
     background: transparent;
@@ -35,20 +35,20 @@
     width: 36px;
 }
 
-.playback-lyrics-footer__more:hover {
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more:hover {
     background: var(--playback-state-hover);
 }
 
-.playback-lyrics-footer__more:active {
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more:active {
     background: var(--playback-state-pressed);
 }
 
-.playback-lyrics-footer__more[aria-expanded="true"] {
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more[aria-expanded="true"] {
     background: var(--playback-state-selected);
     color: var(--tl-accent-primary-hover);
 }
 
-.playback-lyrics-footer__more:focus-visible {
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: var(--playback-focus-ring-offset);
 }

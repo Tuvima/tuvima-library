@@ -23,7 +23,7 @@
     color: var(--playback-text-secondary);
 }
 
-.listen-context-sidebar__replay {
+.listen-context-sidebar ::deep .listen-context-sidebar__replay {
     display: grid;
     width: 44px;
     height: 44px;
@@ -34,7 +34,7 @@
     background: var(--playback-surface-elevated);
 }
 
-.listen-context-sidebar__replay .tl-icon-root {
+.listen-context-sidebar ::deep .listen-context-sidebar__replay .tl-icon-root {
     font-size: var(--tl-icon-size-sm);
 }
 

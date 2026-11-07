@@ -20,7 +20,7 @@
     flex: 1;
 }
 
-.stp__extend {
+.stp__footer ::deep .stp__extend {
     background: transparent;
     border: 1px solid var(--playback-hairline);
     border-radius: 8px;
@@ -32,7 +32,7 @@
     padding: 8px 14px;
 }
 
-.stp__cancel {
+.stp__footer ::deep .stp__cancel {
     background: transparent;
     border: 0;
     border-radius: 6px;
@@ -43,29 +43,29 @@
     padding: 4px 12px;
 }
 
-.stp__extend:hover,
-.stp__cancel:hover {
+.stp__footer ::deep .stp__extend:hover,
+.stp__footer ::deep .stp__cancel:hover {
     background: var(--playback-state-hover);
 }
 
-.stp__cancel:hover {
+.stp__footer ::deep .stp__cancel:hover {
     color: var(--playback-text);
 }
 
-.stp__extend:active,
-.stp__cancel:active {
+.stp__footer ::deep .stp__extend:active,
+.stp__footer ::deep .stp__cancel:active {
     background: var(--playback-state-pressed);
 }
 
-.stp__extend:focus-visible,
-.stp__cancel:focus-visible {
+.stp__footer ::deep .stp__extend:focus-visible,
+.stp__footer ::deep .stp__cancel:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }
 
 @media (pointer: coarse) {
-    .stp__extend,
-    .stp__cancel {
+    .stp__footer ::deep .stp__extend,
+    .stp__footer ::deep .stp__cancel {
         min-height: var(--playback-control-target);
     }
 }

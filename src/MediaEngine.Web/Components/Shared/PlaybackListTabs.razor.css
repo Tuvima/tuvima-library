@@ -5,7 +5,7 @@
     padding: 0 16px;
 }
 
-.plt__tab {
+.plt ::deep .plt__tab {
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
@@ -16,16 +16,16 @@
     padding: 10px 0;
 }
 
-.plt__tab:hover {
+.plt ::deep .plt__tab:hover {
     color: var(--playback-text);
 }
 
-.plt__tab.is-on {
+.plt ::deep .plt__tab.is-on {
     border-bottom-color: var(--playback-accent);
     color: var(--playback-text);
 }
 
-.plt__tab:focus-visible {
+.plt ::deep .plt__tab:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }

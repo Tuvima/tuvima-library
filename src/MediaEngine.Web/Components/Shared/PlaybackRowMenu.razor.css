@@ -4,7 +4,7 @@
     flex-direction: column;
 }
 
-.prm__row {
+.prm ::deep .prm__row {
     --playback-glyph-size: var(--playback-control-glyph);
     --playback-glyph-stroke: 1.8;
     align-items: center;
@@ -23,20 +23,20 @@
     width: 100%;
 }
 
-.prm__row:hover:not(:disabled) {
+.prm ::deep .prm__row:hover:not(:disabled) {
     background: var(--playback-state-hover);
 }
 
-.prm__row:active:not(:disabled) {
+.prm ::deep .prm__row:active:not(:disabled) {
     background: var(--playback-state-pressed);
 }
 
-.prm__row:disabled {
+.prm ::deep .prm__row:disabled {
     cursor: default;
     opacity: var(--playback-state-disabled-opacity);
 }
 
-.prm__row:focus-visible {
+.prm ::deep .prm__row:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }

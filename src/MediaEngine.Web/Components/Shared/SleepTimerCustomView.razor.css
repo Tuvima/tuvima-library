@@ -12,7 +12,7 @@
     font: 400 13px/1.45 var(--font-ui);
 }
 
-.stc__input {
+.stc ::deep .stc__input {
     background: transparent;
     border: 1px solid var(--playback-hairline);
     border-radius: 8px;
@@ -24,12 +24,12 @@
     width: 100%;
 }
 
-.stc__input:focus-visible {
+.stc ::deep .stc__input:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }
 
-.stc__input[aria-invalid="true"] {
+.stc ::deep .stc__input[aria-invalid="true"] {
     border-color: var(--tl-status-error);
 }
 
@@ -43,7 +43,7 @@
     color: var(--tl-status-error);
 }
 
-.stc__set {
+.stc ::deep .stc__set {
     background: var(--playback-accent);
     border: 0;
     border-radius: 8px;
@@ -55,15 +55,15 @@
     padding: 10px 14px;
 }
 
-.stc__set:hover {
+.stc ::deep .stc__set:hover {
     filter: brightness(1.08);
 }
 
-.stc__set:active {
+.stc ::deep .stc__set:active {
     filter: brightness(0.94);
 }
 
-.stc__set:focus-visible {
+.stc ::deep .stc__set:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }

@@ -12,7 +12,7 @@
     flex: 1;
 }
 
-.asp-footer__reset {
+.asp-footer ::deep .asp-footer__reset {
     background: transparent;
     border: 0;
     border-radius: 6px;
@@ -24,15 +24,15 @@
     padding: 4px 8px;
 }
 
-.asp-footer__reset:hover {
+.asp-footer ::deep .asp-footer__reset:hover {
     background: var(--playback-state-hover);
 }
 
-.asp-footer__reset:active {
+.asp-footer ::deep .asp-footer__reset:active {
     background: var(--playback-state-pressed);
 }
 
-.asp-footer__reset:focus-visible {
+.asp-footer ::deep .asp-footer__reset:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
@@ -43,7 +43,7 @@
 }
 
 @media (pointer: coarse) {
-    .asp-footer__reset {
+    .asp-footer ::deep .asp-footer__reset {
         min-height: var(--playback-control-target);
     }
 }

@@ -37,7 +37,7 @@
         <p class="sr-only" role="status" aria-live="polite" data-queue-announce>@_announcement</p>
         @if (_failure is not null)
         {
-            <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="qp__failure" data-queue-failure>@_failure</AppAlert>
+            <div class="qp__failure"><AppAlert Tone="AppUiTone.Warning" Dense="true" data-queue-failure>@_failure</AppAlert></div>
         }
     </ChildContent>
     <Footer>

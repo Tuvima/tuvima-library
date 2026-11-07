@@ -39,7 +39,7 @@
     gap: 8px;
 }
 
-.stv__preset {
+.stv ::deep .stv__preset {
     align-items: center;
     background: transparent;
     border: 1px solid var(--playback-hairline);
@@ -55,22 +55,22 @@
     padding: 10px 0;
 }
 
-.stv__preset:hover {
+.stv ::deep .stv__preset:hover {
     background: var(--playback-state-hover);
 }
 
-.stv__preset:active {
+.stv ::deep .stv__preset:active {
     background: var(--playback-state-pressed);
 }
 
-.stv__preset.is-selected,
-.stv__preset.is-selected:hover {
+.stv ::deep .stv__preset.is-selected,
+.stv ::deep .stv__preset.is-selected:hover {
     background: var(--playback-accent);
     border-color: var(--playback-accent);
     color: var(--tl-text-on-accent);
 }
 
-.stv__preset:focus-visible {
+.stv ::deep .stv__preset:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }
@@ -81,7 +81,7 @@
     margin: 12px 0;
 }
 
-.stv__row {
+.stv ::deep .stv__row {
     align-items: center;
     background: transparent;
     border: 0;
@@ -98,20 +98,20 @@
     width: 100%;
 }
 
-.stv__row:hover:not(:disabled) {
+.stv ::deep .stv__row:hover:not(:disabled) {
     background: var(--playback-state-hover);
 }
 
-.stv__row:active:not(:disabled) {
+.stv ::deep .stv__row:active:not(:disabled) {
     background: var(--playback-state-pressed);
 }
 
-.stv__row:focus-visible {
+.stv ::deep .stv__row:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
 
-.stv__row:disabled {
+.stv ::deep .stv__row:disabled {
     cursor: default;
     opacity: var(--playback-state-disabled-opacity);
 }

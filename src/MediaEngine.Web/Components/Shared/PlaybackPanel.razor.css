@@ -58,7 +58,7 @@
     width: var(--playback-panel-chapters-width);
 }
 
-.playback-panel__frame {
+.playback-panel ::deep .playback-panel__frame {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -74,7 +74,7 @@
     position: relative;
 }
 
-.playback-panel[data-playback-popover-surface="video"] .playback-panel__frame {
+.playback-panel[data-playback-popover-surface="video"] ::deep .playback-panel__frame {
     background: var(--playback-panel-surface-video);
 }
 
@@ -197,7 +197,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-    .playback-panel:not(.playback-panel--sheet) .playback-panel__frame {
+    .playback-panel:not(.playback-panel--sheet) ::deep .playback-panel__frame {
         animation: playback-panel-in 140ms ease-out;
     }
 }
