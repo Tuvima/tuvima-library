@@ -136,7 +136,7 @@
 
 .playback-shell--compact .playback-shell__row {
     gap: 4px;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     min-height: 56px;
 }
 
@@ -155,6 +155,15 @@
 .playback-shell--compact .playback-shell__timeline ::deep .playback-seek-rail {
     inset: -8px 0 auto 0;
     position: absolute;
+}
+
+/* A video player on a phone (D26): the tool row is the four tools centred under the five transport buttons. */
+.playback-shell--phone .playback-shell__tools {
+    justify-content: center;
+}
+
+.playback-shell--phone .playback-shell__tools > ::deep :first-child {
+    margin-inline-start: 0;
 }
 
 /* Phones watching a video: one column, so Play stays reachable; the dedicated phone layout belongs to the phone packet. */

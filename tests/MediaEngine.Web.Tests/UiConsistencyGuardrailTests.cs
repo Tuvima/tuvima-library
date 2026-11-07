@@ -11,22 +11,16 @@ public sealed partial class UiConsistencyGuardrailTests
     [Fact]
     public void PlaybackSongActionRows_UseOneOwnerForIconTypeAndGeometry()
     {
-        // The persistent bar draws its actions through PlaybackIdentityActions (unified player v2 D5: square 44 px buttons, Like and Dislike apart);
-        // The phone player keeps PlaybackSongActions; the desktop Now playing page draws no second set of controls (D24).
-        var bar = Read("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
-        Assert.Contains("<PlaybackIdentityActions", bar, StringComparison.Ordinal);
-        Assert.DoesNotContain("<SongActions", bar, StringComparison.Ordinal);
-        foreach (var host in new[] { "PlaybackFullPlayer" })
+        // The persistent bar and the phone's Now playing draw their actions through PlaybackIdentityActions (unified player v2 D5, D26: square buttons, Like and
+        // Dislike apart); the desktop Now playing page draws no second set of controls (D24). The old circular song-action row is gone.
+        foreach (var host in new[] { "ListenNowPlayingBar", "PlaybackFullPlayer" })
         {
             var source = Read($"src/MediaEngine.Web/Components/Listen/{host}.razor");
-            Assert.Contains("<PlaybackSongActions", source, StringComparison.Ordinal);
+            Assert.Contains("<PlaybackIdentityActions", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<SongActions", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<PlaybackSongActions", source, StringComparison.Ordinal);
         }
-        var style = Read("src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css");
-        Assert.Contains(".playback-song-actions ::deep .playback-song-action", style, StringComparison.Ordinal);
-        Assert.Contains("width:44px; height:44px;", style, StringComparison.Ordinal);
-        Assert.Contains("border-radius:50%", style, StringComparison.Ordinal);
-        Assert.DoesNotContain("!important", style, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor")));
         Assert.DoesNotContain("playback-lyrics__sync", Read("src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor"), StringComparison.Ordinal);
     }
 

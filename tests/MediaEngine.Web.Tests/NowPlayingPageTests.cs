@@ -586,6 +586,123 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         Assert.NotEqual(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
     }
 
+    // ---- Starting media from a details window on a phone or a tablet (issue 705; unified player v1 D6) ----
+
+    [Fact]
+    public async Task OnAPhoneAnAudiobookStartedFromADetailsWindowClosesTheWindowShowsTheExpandedPlayerAndCollapsingReturnsToTheWindow()
+    {
+        var asset = Guid.NewGuid();
+        var book = Book("The Way Beyond", asset, position: 0);
+        var playback = AddServices(book, audiobook: true, position: 0, duration: 240);
+        Services.AddSingleton(provider => NewOverlayWithBack(provider.GetRequiredService<NavigationManager>(), "/listen/audiobooks"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/listen/audiobooks");
+        var overlay = Services.GetRequiredService<DetailsOverlayState>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>(parameters => parameters.AddCascadingValue(overlay));
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(390));
+        var details = $"/details/work/{book.AudiobookWorkId!.Value:D}";
+        await bar.InvokeAsync(() => navigation.NavigateTo(details));
+        Assert.True(overlay.IsOpen);
+
+        // The person presses Play on the details window: a new playback request starts.
+        await bar.InvokeAsync(() => { playback.ReservePlaybackRequest(); playback.SetAudioCapabilities(true, true); });
+
+        bar.WaitForAssertion(() =>
+        {
+            Assert.False(overlay.IsOpen);
+            Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+            Assert.NotEmpty(bar.FindAll("[data-playback-full]"));
+        });
+        Assert.Equal("/listen/audiobooks", new Uri(navigation.Uri).AbsolutePath);
+
+        await bar.Find("[data-playback-full-collapse]").ClickAsync();
+
+        bar.WaitForAssertion(() => Assert.Equal(details, new Uri(navigation.Uri).AbsolutePath));
+        Assert.Equal(PlaybackPresentationSurface.Docked, playback.PresentationSurface);
+    }
+
+    [Fact]
+    public async Task OnATabletAnAudiobookStartedFromADetailsWindowClosesTheWindowAndOpensTheNowPlayingPage()
+    {
+        var asset = Guid.NewGuid();
+        var book = Book("The Way Beyond", asset, position: 0);
+        var playback = AddServices(book, audiobook: true, position: 0, duration: 240);
+        Services.AddSingleton(provider => NewOverlay(provider.GetRequiredService<NavigationManager>(), "/listen/audiobooks"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/listen/audiobooks");
+        var overlay = Services.GetRequiredService<DetailsOverlayState>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>(parameters => parameters.AddCascadingValue(overlay));
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(800));
+        await bar.InvokeAsync(() => navigation.NavigateTo($"/details/work/{book.AudiobookWorkId!.Value:D}"));
+        Assert.True(overlay.IsOpen);
+
+        await bar.InvokeAsync(() => { playback.ReservePlaybackRequest(); playback.SetAudioCapabilities(true, true); });
+
+        bar.WaitForAssertion(() =>
+        {
+            Assert.False(overlay.IsOpen);
+            Assert.Equal(NowPlayingRoute.Path, new Uri(navigation.Uri).AbsolutePath);
+        });
+        Assert.Empty(bar.FindAll("[data-playback-full]"));
+    }
+
+    [Fact]
+    public async Task OnAPhoneMusicStartedFromADetailsWindowLeavesTheWindowAloneBecauseTheBarNeverCoversThePage()
+    {
+        var playback = AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        Services.AddSingleton(provider => NewOverlay(provider.GetRequiredService<NavigationManager>(), "/listen/music"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/listen/music");
+        var overlay = Services.GetRequiredService<DetailsOverlayState>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>(parameters => parameters.AddCascadingValue(overlay));
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(390));
+        await bar.InvokeAsync(() => navigation.NavigateTo($"/details/musicalbum/{Guid.NewGuid():D}"));
+
+        await bar.InvokeAsync(() => { playback.ReservePlaybackRequest(); playback.SetAudioCapabilities(true, true); });
+
+        Assert.True(overlay.IsOpen);
+        Assert.NotEqual(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+        Assert.Empty(bar.FindAll("[data-playback-full]"));
+    }
+
+    // ---- The page keeps room for the bar (unified player v2 D26) ----
+
+    [Fact]
+    public async Task OnAPhoneTheCollapsedBarTakesItsOwnRowOfThePageWhileShownAndNoRowWhenHidden()
+    {
+        var playback = AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(390));
+
+        // Shown: the bar is a block in the dock row (the page frame gives that row its height), collapsed to its 56 px form.
+        bar.WaitForAssertion(() => Assert.Single(bar.FindAll(".listen-player-shell .playback-shell.playback-shell--compact")));
+        Assert.Empty(bar.FindAll("[style*='position:fixed'],[style*='position: fixed']"));
+
+        // Hidden: closing the player removes the bar and the shell that holds its row, so the frame reserves nothing.
+        await bar.InvokeAsync(playback.ClosePlayer);
+
+        bar.WaitForAssertion(() => Assert.Empty(bar.FindAll(".listen-player-shell")));
+        Assert.Empty(bar.FindAll(".playback-shell"));
+    }
+
+    [Fact]
+    public async Task OnATabletTheBarKeepsTheDesktopRowWithItsToolsAndNoCollapsedForm()
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(800));
+
+        bar.WaitForAssertion(() => Assert.Single(bar.FindAll(".playback-shell")));
+        Assert.Empty(bar.FindAll(".playback-shell--compact"));
+        Assert.NotEmpty(bar.FindAll("[data-playback-zone='tools'] button"));
+        Assert.NotEmpty(bar.FindAll("[data-playback-identity-actions]"));
+    }
+
     // ---- Small page details ----
 
     [Fact]
@@ -760,11 +877,32 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
     }
 
     // The page under a details window must be one the overlay has seen, as it is in the running app.
-    private static DetailsOverlayState NewOverlay(NavigationManager navigation)
+    private static DetailsOverlayState NewOverlay(NavigationManager navigation, params string[] otherPages)
     {
         var overlay = new DetailsOverlayState(navigation, new NoHistory());
-        overlay.RememberPage(NowPlayingRoute.Path, new Microsoft.AspNetCore.Components.RouteData(typeof(NowPlayingPage), new Dictionary<string, object?>()));
+        foreach (var path in otherPages.Prepend(NowPlayingRoute.Path))
+        {
+            overlay.RememberPage(path, new Microsoft.AspNetCore.Components.RouteData(typeof(NowPlayingPage), new Dictionary<string, object?>()));
+        }
+
         return overlay;
+    }
+
+    // A details window closed with the browser's Back: the history of the running app takes the address back to the page under it.
+    private static DetailsOverlayState NewOverlayWithBack(NavigationManager navigation, string underlay)
+    {
+        var overlay = new DetailsOverlayState(navigation, new BackToPage(navigation, underlay));
+        overlay.RememberPage(underlay, new Microsoft.AspNetCore.Components.RouteData(typeof(NowPlayingPage), new Dictionary<string, object?>()));
+        return overlay;
+    }
+
+    private sealed class BackToPage(NavigationManager navigation, string underlay) : IDetailsOverlayHistory
+    {
+        public ValueTask<bool> GoBackAsync(int steps)
+        {
+            navigation.NavigateTo(underlay, replace: true);
+            return ValueTask.FromResult(true);
+        }
     }
 
     private sealed class NoHistory : IDetailsOverlayHistory

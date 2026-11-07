@@ -168,13 +168,12 @@ Films:
 | 6 | close | Close | always |
 
 Folder videos and lessons have a film's controls and add the list of the other
-videos when there are any. The tool is named Episodes in the Dashboard today and
-its panel is titled Lessons:
+videos when there are any. The tool and its panel are both named Lessons:
 
 <!-- contract-table: tools-lesson -->
 | Order | Control | Label | Shown when |
 | --- | --- | --- | --- |
-| 1 | episodes | Episodes | has episodes |
+| 1 | episodes | Lessons | has episodes |
 | 2 | audio-subtitles | Audio & subtitles | always |
 | 3 | bookmarks | Bookmarks | can bookmark |
 | 4 | volume | Volume | always |
@@ -196,7 +195,7 @@ Words with `{0}` are filled in. Items are separated by semicolons.
 | --- | --- | --- | --- | --- |
 | Queue | Music | Queue | Up next · {0}; History; Clear; Play next; Move up; Move down; Remove; Go to album; Go to artist | Playing from |
 | Episodes | TV episodes | Episodes | Season; {0} episodes; Up next; Playing; Paused | Autoplay next episode |
-| Lessons | Folder videos and lessons | Episodes | {0} lessons; Up next; Playing; Paused | Autoplay next episode |
+| Lessons | Folder videos and lessons | Lessons | {0} lessons; Up next; Playing; Paused | Autoplay next episode |
 | Chapters | Audiobooks | Chapters | Chapter {0} of {1}; Book · {0}% complete; {0} elapsed · {1} remaining; Finished | Timeline shows; Chapter; Whole book; Select a chapter to start listening. |
 | Lyrics | Music | Lyrics | Synced; Unsynced; Open Now playing; Resume following; Select a line to jump to that moment.; Looking for lyrics…; Find lyrics; Add a lyrics file | Synced lyrics · {0}; Unsynced lyrics · {0}; Local file; LRCLIB; Find another; About lyrics sources |
 | Audio & subtitles | TV episodes, films, folder videos and lessons | Audio & subtitles | Audio; Subtitles; Director commentary; Audio description; {0} · SDH; {0} · Forced; Not switchable in this browser | Subtitle appearance; Find subtitles… |
@@ -357,8 +356,8 @@ Close (a television is already full screen):
 
 - TV episodes: Episodes, Audio & subtitles, Bookmarks, Playback settings;
 - films: Audio & subtitles, Bookmarks, Playback settings;
-- folder videos and lessons: Episodes, Audio & subtitles, Bookmarks, Playback
-  settings (Episodes only when other videos follow).
+- folder videos and lessons: Lessons, Audio & subtitles, Bookmarks, Playback
+  settings (Lessons only when other videos follow).
 
 A tool opens a **side panel on the right** with the same name, rows and footer as
 the Panels table. The paused details, the end card, the Everyone | Mine

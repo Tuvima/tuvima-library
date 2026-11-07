@@ -10,9 +10,6 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
 {
     public Guid RecipientId { get; } = Guid.NewGuid();
     public Func<ListenPlaybackCommandDto, string, Task<bool>>? NavigateIdentityAsync { get; set; }
-    public Func<Guid, Task<bool>>? ValidatePopupWindowAsync { get; set; }
-    private (Guid Sender, Guid Window, long Generation)? _popupRegistration;
-    private long _lastPopupRegistrationGeneration;
     private readonly SemaphoreSlim _transportGate = new(1, 1);
     private readonly SemaphoreSlim _presentationGate = new(1, 1);
     private readonly Dictionary<(Guid Sender, Guid Command), ListenPlaybackCommandReplyDto> _presentationReplies = [];
@@ -30,8 +27,7 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
         {
             return await services.GetRequiredService<AudiobookBookmarkCommandDispatcher>().HandleAsync(command, ct).ConfigureAwait(false);
         }
-        if (command.Action is ListenPlaybackPresentationActions.SelectLyrics or ListenPlaybackPresentationActions.NavigateIdentity
-            or ListenPlaybackPresentationActions.RegisterPopup or ListenPlaybackCommandActions.PopupClosed)
+        if (command.Action is ListenPlaybackPresentationActions.SelectLyrics or ListenPlaybackPresentationActions.NavigateIdentity)
         {
             await _presentationGate.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -54,22 +50,6 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     {
                         accepted = await navigate(command, route).ConfigureAwait(false);
                     }
-                }
-                else if (command.Action == ListenPlaybackPresentationActions.RegisterPopup && command.PopupWindowId is { } window
-                    && window != Guid.Empty && command.OwnerGeneration > _lastPopupRegistrationGeneration
-                    && ValidatePopupWindowAsync is { } validate && await validate(window).ConfigureAwait(false))
-                {
-                    _lastPopupRegistrationGeneration = command.OwnerGeneration;
-                    _popupRegistration = (command.SenderId, window, command.OwnerGeneration);
-                    playback.SetPopupOpen(true);
-                    accepted = true;
-                }
-                else if (command.Action == ListenPlaybackCommandActions.PopupClosed && command.PopupWindowId is { } closed
-                    && _popupRegistration == (command.SenderId, closed, command.OwnerGeneration))
-                {
-                    _popupRegistration = null;
-                    playback.SetPopupOpen(false);
-                    accepted = true;
                 }
                 var reply = new ListenPlaybackCommandReplyDto
                 {

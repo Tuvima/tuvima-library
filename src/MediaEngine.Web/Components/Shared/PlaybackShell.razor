@@ -41,6 +41,8 @@
             }
         </div>
 
+        @if (!Compact)
+        {
         <div class="playback-shell__tools" role="toolbar" aria-label="@ToolsLabel" data-playback-zone="tools" data-playback-tools-zone>
             @foreach (var tool in ToolControls)
             {
@@ -71,6 +73,7 @@
                 }
             }
         </div>
+        }
     </div>
 </section>
 
@@ -83,6 +86,12 @@
 
     /// <summary>The phone's collapsed bar (unified player v2 D26): Play and Next (Skip forward for audiobooks) and the one tool that opens Now playing.</summary>
     [Parameter] public bool Compact { get; set; }
+
+    /// <summary>
+    /// A video player on a phone (unified player v2 D26): the same five transport buttons and one row of Audio &amp; subtitles, Episodes (Lessons), Bookmarks and
+    /// Fullscreen; Playback settings and Close move to the header the host draws. Not the collapsed audio bar, which is <see cref="Compact"/>.
+    /// </summary>
+    [Parameter] public bool Phone { get; set; }
 
     [Parameter] public string? Class { get; set; }
 
@@ -165,6 +174,7 @@
         $"playback-shell--{MediaName}",
         $"playback-shell--surface-{NormalizedSurface}",
         Compact ? "playback-shell--compact" : null,
+        Phone ? "playback-shell--phone" : null,
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
@@ -189,13 +199,7 @@
         }
     }
 
-    /// <summary>The tools of D4; the phone's collapsed bar keeps only the one that opens Now playing.</summary>
-    private IReadOnlyList<PlaybackControlDefinition> ToolControls
-    {
-        get
-        {
-            var all = PlaybackControlCatalog.BuildBarTools(Media, State);
-            return Compact ? all.Where(control => control.Key == PlaybackControlKey.NowPlaying).ToList() : all;
-        }
-    }
+    /// <summary>The tools of D4. The phone's collapsed bar has none: a tap on its art or text expands the player, whose own row holds the tools (D26).</summary>
+    private IReadOnlyList<PlaybackControlDefinition> ToolControls =>
+        Compact ? [] : Phone ? PlaybackControlCatalog.BuildPhoneTools(Media, State) : PlaybackControlCatalog.BuildBarTools(Media, State);
 }

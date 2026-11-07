@@ -18,8 +18,11 @@
         <PlaybackIconButton Control="@LikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(true))" />
         <PlaybackIconButton Control="@DislikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(false))" />
     }
-    <PlaybackItemMenu Media="@Media" Item="@Item" Surface="@Surface" ShowWorkId="@ShowWorkId" SeasonId="@SeasonId" Snapshot="@Snapshot" Commands="@Commands"
-                      IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" />
+    @if (ShowMore)
+    {
+        <PlaybackItemMenu Media="@Media" Item="@Item" Surface="@Surface" ShowWorkId="@ShowWorkId" SeasonId="@SeasonId" Snapshot="@Snapshot" Commands="@Commands"
+                          IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" />
+    }
 </div>
 
 @code {
@@ -28,6 +31,9 @@
 
     /// <summary>"dock" (the music and audiobook bar) or "video" (over the picture).</summary>
     [Parameter] public string Surface { get; set; } = "dock";
+
+    /// <summary>False leaves the "..." menu out; the phone's expanded player draws it in its top line instead (unified player v2 D26).</summary>
+    [Parameter] public bool ShowMore { get; set; } = true;
 
     /// <summary>A TV episode's show and season once the presentation context has loaded. Favorite for TV is the show's, so it appears only then.</summary>
     [Parameter] public Guid? ShowWorkId { get; set; }

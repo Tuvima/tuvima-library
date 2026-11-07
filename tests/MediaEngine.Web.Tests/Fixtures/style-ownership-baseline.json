@@ -1121,10 +1121,6 @@
       "important": 0,
       "deep": 21
     },
-    "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css": {
-      "important": 28,
-      "deep": 23
-    },
     "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
       "important": 0,
       "deep": 6
@@ -1141,21 +1137,9 @@
       "important": 0,
       "deep": 3
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css": {
-      "important": 0,
-      "deep": 4
-    },
     "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
       "important": 0,
       "deep": 1
-    },
-    "src/MediaEngine.Web/Components/Listen/PlaybackQualityBadge.razor.css": {
-      "important": 0,
-      "deep": 1
-    },
-    "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css": {
-      "important": 0,
-      "deep": 7
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
       "important": 6,
@@ -1641,10 +1625,6 @@
       "important": 0,
       "deep": 8
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css": {
-      "important": 0,
-      "deep": 7
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
       "important": 1,
       "deep": 22
@@ -1671,7 +1651,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css": {
       "important": 0,
-      "deep": 13
+      "deep": 14
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
       "important": 0,
@@ -1763,7 +1743,7 @@
     },
     "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
       "important": 0,
-      "deep": 9
+      "deep": 12
     },
     "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css": {
       "important": 0,
@@ -1872,6 +1852,14 @@
     "src/MediaEngine.Web/Components/Watch/SubtitleFindView.razor.css": {
       "important": 0,
       "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css": {
+      "important": 0,
+      "deep": 2
     }
   },
   "lineExceptions": {},
@@ -4294,6 +4282,51 @@
         ".np__top ::deep .np__back"
       ],
       "reason": "The Now playing page replaces the desktop Now playing scene (unified player v2 WP10). Its Back to library and Close are AppNativeButtons inside the top row, so their look is reached with deep rules from that row (scoped styles never reach a class passed to a child component); the deleted scene gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css",
+      "important": 0,
+      "deep": 7,
+      "selectors": [
+        ".playback-tool-row ::deep .playback-popover-trigger",
+        ".playback-tool-row ::deep .playback-popover-trigger.playback-shell__chip",
+        ".playback-tool-row ::deep .playback-utility-glyph"
+      ],
+      "reason": "The phone's one row of tools (unified player v2 WP13) draws the panel triggers that PlaybackPanel, the speed panel and the sleep timer panel render, so the tool-button look is reached with deep rules from the row (a class inside a child component is never reached by scoped styles). The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".playback-shell--phone .playback-shell__tools > ::deep :first-child"
+      ],
+      "reason": "A video player on a phone (WP13) centres its four tools, so the bar's push-to-the-right rule for the first tool is switched off for it. The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css",
+      "important": 0,
+      "deep": 3,
+      "selectors": [
+        ".video-playback-host__phone-header ::deep .playback-popover-trigger",
+        ".video-playback-host__phone-header ::deep .playback-popover-trigger:focus-visible",
+        ".video-playback-host__phone-header ::deep .playback-utility-glyph"
+      ],
+      "reason": "The phone's video header (WP13) holds the Playback settings trigger, which PlaybackPanel draws, so its look is reached with deep rules from the header. The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".playback-identity ::deep .playback-identity__expand",
+        ".playback-identity ::deep .playback-identity__expand:focus-visible"
+      ],
+      "reason": "The phone's collapsed bar (WP13) is one AppNativeButton holding the picture and the text, so its look is reached with deep rules from the identity zone. The deleted phone transport controls gave up the same number."
     }
   ],
   "finalBundleBytes": 1283347,

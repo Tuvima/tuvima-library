@@ -92,7 +92,6 @@ public enum PlaybackCommandKind
     PlayQueueItem,
     PlayAudiobookChapter,
     PlayAudiobookHistory,
-    SetPopupOpen,
     ClosePlayer,
     RestoreState,
     UpdateTransportState,
@@ -203,7 +202,6 @@ public sealed record PlaybackSessionState
     public PlaybackExperience Experience { get; init; } = PlaybackExperience.Music;
     public PlaybackPhase Phase { get; init; } = PlaybackPhase.Idle;
     public bool NeedsUserGestureToStart { get; init; }
-    public bool IsPopupOpen { get; init; }
     public bool IsVideoExpanded { get; init; }
     public PlaybackPresentationSurface PresentationSurface { get; init; } = PlaybackPresentationSurface.Docked;
     public string? CurrentError { get; init; }
@@ -435,9 +433,6 @@ public sealed record ListenPlaybackSnapshot
     [JsonPropertyName("is_playing")]
     public bool IsPlaying { get; init; }
 
-    [JsonPropertyName("is_popup_open")]
-    public bool IsPopupOpen { get; init; }
-
     [JsonPropertyName("is_video_expanded")]
     public bool IsVideoExpanded { get; init; }
 
@@ -472,10 +467,6 @@ public sealed record ListenPlaybackSnapshot
 
 public sealed record ListenPlaybackClientSettings
 {
-    [JsonPropertyName("popup_width")]
-    public int PopupWidth { get; init; } = 420;
-    [JsonPropertyName("popup_height")]
-    public int PopupHeight { get; init; } = 780;
     [JsonPropertyName("immediate_action_dedup_milliseconds")]
     public int ImmediateActionDedupMilliseconds { get; init; } = 900;
     [JsonPropertyName("immediate_action_consume_milliseconds")]
@@ -523,8 +514,6 @@ public sealed record ListenPlaybackClientSettings
         LyricsInstrumentalMinSeconds = double.IsFinite(LyricsInstrumentalMinSeconds) ? Math.Clamp(LyricsInstrumentalMinSeconds, .25, 30) : 2,
         LyricsIntroMinSeconds = double.IsFinite(LyricsIntroMinSeconds) ? Math.Clamp(LyricsIntroMinSeconds, .25, 30) : 3,
         LyricsWordGapMinSeconds = double.IsFinite(LyricsWordGapMinSeconds) ? Math.Clamp(LyricsWordGapMinSeconds, .25, 30) : 4,
-        PopupWidth = Math.Clamp(PopupWidth, 280, 1200),
-        PopupHeight = Math.Clamp(PopupHeight, 360, 1400),
         ImmediateActionDedupMilliseconds = Math.Clamp(ImmediateActionDedupMilliseconds, 100, 5000),
         ImmediateActionConsumeMilliseconds = Math.Clamp(ImmediateActionConsumeMilliseconds, 100, 10000),
         AudioObserverIntervalMilliseconds = Math.Clamp(AudioObserverIntervalMilliseconds, 100, 10000),

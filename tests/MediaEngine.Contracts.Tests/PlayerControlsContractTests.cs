@@ -179,7 +179,7 @@ public sealed class PlayerControlsContractTests
     [InlineData("tools-lesson", PlaybackBarMedia.Movie, true)]
     public void ToolOrderNamesAndShownWhenRowsMatchTheDashboardBar(string tableName, PlaybackBarMedia media, bool hasEpisodes)
     {
-        var everything = new PlaybackBarState(HasChapters: true, HasEpisodes: hasEpisodes, CanBookmark: true, CanFullscreen: true, HasQueue: true);
+        var everything = new PlaybackBarState(HasChapters: true, HasEpisodes: hasEpisodes, CanBookmark: true, CanFullscreen: true, HasQueue: true, IsFolderVideo: tableName == "tools-lesson");
         var nothing = new PlaybackBarState(HasChapters: false, HasEpisodes: false, CanBookmark: false, CanFullscreen: false, HasQueue: false);
         var built = PlaybackControlCatalog.BuildBarTools(media, everything);
         var table = Tables.Value[tableName];

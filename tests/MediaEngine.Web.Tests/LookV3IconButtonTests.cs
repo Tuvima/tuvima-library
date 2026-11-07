@@ -195,7 +195,6 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
         string[] pending =
         [
             "Components/Watch/VideoPlaybackHost.razor.css",
-            "Components/Shared/PlaybackControlStrip.razor.css",
             "Components/Listen/ListenNowPlayingBar.razor.css",
         ];
         var pattern = new Regex(@"(?:icon-button|hero-icon-circle|hero-action|hero-open-folder|tl-detail-action--primary|folder-link)", RegexOptions.Compiled);

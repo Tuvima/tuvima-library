@@ -108,7 +108,8 @@ export function attach(root, externalTrigger, owner) {
     listen(window, 'scroll', reposition, true);
     listen(document, 'fullscreenchange', reposition);
     if (window.visualViewport) { listen(visualViewport, 'resize', reposition); listen(visualViewport, 'scroll', reposition); }
-    const breakpoint = matchMedia('(max-width:720px)');
+    // Phones, and touch tablets up to 1024 px (unified player v2 D26), draw panels as bottom sheets; a mouse at any width keeps the popover.
+    const breakpoint = matchMedia('(max-width:720px), (max-width:1024px) and (pointer:coarse)');
     const viewportChanged = () => owner.invokeMethodAsync('SetViewport', breakpoint.matches);
     listen(breakpoint, 'change', viewportChanged);
     viewportChanged();

@@ -399,17 +399,6 @@
             });
             return navigated;
         };
-        BookmarkCommandOwner.ValidatePopupWindowAsync = async window =>
-        {
-            if (_disposed) return false;
-            try
-            {
-                var current = await JS.InvokeAsync<bool>("listenPlayback.isCurrentPopupWindow", window.ToString("D"));
-                return !_disposed && current;
-            }
-            catch (JSDisconnectedException) { return false; }
-            catch (InvalidOperationException) { return false; }
-        };
         DeviceContext.OnChanged += OnDeviceContextChanged;
         Nav.LocationChanged += OnLocationChanged;
         State.OnStateChanged += OnUniverseStateChanged;
@@ -934,7 +923,6 @@
     public async ValueTask DisposeAsync()
     {
         BookmarkCommandOwner.NavigateIdentityAsync = null;
-        BookmarkCommandOwner.ValidatePopupWindowAsync = null;
         _disposed = true;
         Playback.Changed -= OnPlaybackChanged;
         ContextSidebar.Changed -= OnContextSidebarChanged;

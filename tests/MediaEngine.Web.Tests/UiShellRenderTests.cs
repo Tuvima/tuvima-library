@@ -129,7 +129,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             DurationSeconds = 600,
             PlaybackRate = 1.25,
             PlaybackRequestVersion = 9,
-            IsPopupOpen = true,
             SleepTimerState = new()
             {
                 ProfileId = profile,
@@ -182,7 +181,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Equal(before.SleepTimerState, playback.SleepTimerState);
         Assert.Equal(deadline, playback.SleepTimerState.DeadlineUtc);
         Assert.Equal(lease, playback.AudiobookBookSessionLeaseId);
-        Assert.True(playback.IsPopupOpen);
         Assert.Equal(0, transportCommands);
     }
 

@@ -7,7 +7,31 @@
    a landscape slot is drawn whole on a blurred copy of itself (contain, never stretch); a missing or broken picture is a neutral placeholder of the
    same size, so the text never moves. Names are links through the host's LinkContent. There is no "View details" button. *@
 <div class="@RootClass" data-playback-zone="identity" data-playback-identity>
-    @if (ShowArtwork)
+    @if (ExpandsAsOneButton)
+    {
+        @* The phone's collapsed bar: a tap anywhere on the artwork or the text expands the player (unified player v2 D26), so the names are plain text here
+           (a link inside a button is not allowed, and the person is not asking for the page). *@
+        <AppNativeButton @ref="_artworkButton" Type="button" Class="playback-identity__expand" OnClick="ArtworkClick" AriaLabel="@($"{ArtworkLabel}, {Identity.Title}")" data-playback-expand>
+            @if (ShowArtwork)
+            {
+                <span class="@ArtworkClass" data-playback-artwork="@ArtworkState">@ArtworkImage</span>
+            }
+            <span class="playback-identity__text">
+                <span class="playback-identity__title">@Identity.Title</span>
+                @if (Identity.Secondary.Count > 0)
+                {
+                    <span class="playback-identity__secondary">@Identity.SecondaryText</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(ErrorText))
+                {
+                    <span class="playback-identity__error" role="status">@ErrorText</span>
+                }
+            </span>
+        </AppNativeButton>
+    }
+    else
+    {
+    if (ShowArtwork)
     {
         @if (ArtworkClick.HasDelegate)
         {
@@ -36,9 +60,10 @@
             <div class="playback-identity__error" role="status">@ErrorText</div>
         }
     </div>
-    @if (Actions is not null && !Compact)
+    if (Actions is not null && !Compact)
     {
         <div class="playback-identity__actions">@Actions</div>
+    }
     }
 </div>
 
@@ -80,6 +105,7 @@
     public ElementReference? ArtworkElement => _artworkButton?.Element;
 
     private bool IsVideoMedia => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;
+    private bool ExpandsAsOneButton => Compact && ArtworkClick.HasDelegate;
     private bool ShowArtwork => !Compact || !IsVideoMedia;
     private bool HasImage => !string.IsNullOrWhiteSpace(ArtworkSrc) && !string.Equals(_failedSource, ArtworkSrc, StringComparison.Ordinal);
     private string ArtworkState => !HasImage ? "placeholder" : ArtworkIsPoster && IsVideoMedia ? "poster" : "image";

@@ -183,3 +183,40 @@
     stroke-width: 1.8;
     width: var(--playback-play-glyph);
 }
+
+/* The phone's Play (unified player v2 D26; mockup screen 15): a 64 px white disc with a black glyph. The disc is the target; pressed darkens it. */
+.playback-phone-play {
+    align-items: center;
+    background: var(--playback-text);
+    border: 0;
+    border-radius: 50%;
+    color: var(--playback-surface);
+    cursor: pointer;
+    display: inline-flex;
+    height: 64px;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 120ms ease;
+    width: 64px;
+}
+
+.playback-phone-play:not(:disabled):active {
+    background: color-mix(in srgb, var(--playback-text) 82%, var(--playback-surface));
+}
+
+.playback-phone-play:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-phone-play:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-phone-play .playback-utility-glyph {
+    flex-basis: var(--playback-play-glyph);
+    height: var(--playback-play-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-play-glyph);
+}

@@ -1,0 +1,42 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Linq
+
+@* The one row of at most four tools under the phone's transport (unified player v2 D26; mockup screen 15): 44 px targets spread across the width. A tool
+   whose panel the host owns (Lyrics, Queue, Chapters, Speed, Sleep timer) is drawn by the host's ToolContent, so it opens the same bottom sheet as on the
+   desktop bar; Shuffle and Repeat act at once; the rest go to the host. Nothing here depends on hover, and the tooltip system shows a tool's name on a
+   long press. *@
+<div class="playback-tool-row" role="toolbar" aria-label="@AriaLabel" data-playback-tool-row data-playback-tool-count="@Tools.Count">
+    @foreach (var tool in Tools)
+    {
+        <div class="playback-tool-row__slot" data-playback-tool="@tool.Key">
+            @if (HostedTools.Contains(tool.Key) && ToolContent is not null)
+            {
+                @ToolContent(tool)
+            }
+            else if (tool.Key is PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat)
+            {
+                <PlaybackIconButton Control="@tool" Surface="phone" Appearance="bare" OnClick="@(() => OnTransport.InvokeAsync(tool))" />
+            }
+            else
+            {
+                <PlaybackIconButton Control="@tool" Surface="phone" Appearance="bare"
+                                    OnActivated="@(trigger => OnTool.InvokeAsync(new PlaybackControlActivation(tool, trigger)))" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<PlaybackControlDefinition> Tools { get; set; } = [];
+    [Parameter] public string AriaLabel { get; set; } = "Playback tools";
+
+    /// <summary>Tools whose panel the host owns; <see cref="ToolContent"/> draws them in their place.</summary>
+    [Parameter] public IReadOnlySet<PlaybackControlKey> HostedTools { get; set; } = new HashSet<PlaybackControlKey>();
+    [Parameter] public RenderFragment<PlaybackControlDefinition>? ToolContent { get; set; }
+
+    /// <summary>Shuffle and Repeat are transport commands of the host.</summary>
+    [Parameter] public EventCallback<PlaybackControlDefinition> OnTransport { get; set; }
+
+    /// <summary>A tool with no panel of the host's own (Bookmarks, Audio &amp; subtitles, Fullscreen) was pressed; carries the button so the host can anchor a panel to it.</summary>
+    [Parameter] public EventCallback<PlaybackControlActivation> OnTool { get; set; }
+}

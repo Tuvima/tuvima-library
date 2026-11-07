@@ -124,7 +124,7 @@ public static class PlaybackItemMenuCatalog
 
             default:
                 AddMarkAndHistory(false, "Mark as watched", "Mark as unwatched", "Watch history");
-                Add(PlaybackItemActionKey.GoToMovie, "Go to movie", PlaybackUtilityGlyphKind.Film, true, PlaybackItemRoutes.Movie(item.WorkId));
+                Add(PlaybackItemActionKey.GoToMovie, VideoPlayerWording.IsFolderVideo(item) ? "Go to video" : "Go to movie", PlaybackUtilityGlyphKind.Film, true, PlaybackItemRoutes.Movie(item.WorkId));
                 break;
         }
 
