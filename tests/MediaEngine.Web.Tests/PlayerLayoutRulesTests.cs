@@ -29,11 +29,14 @@ public sealed class PlayerLayoutRulesTests
     }
 
     [Fact]
-    public void AudiobookChapterStrip_IsOutOfTheDockGridSoTheTransportRowStaysInsideTheWindow()
+    public void AudiobookChapterLabel_SitsOnTheTimelineSoTheBarIsNotTallerThanOtherMedia()
     {
+        // Unified player v2 D9: the audiobook's "Chapter 8" label is part of the 28 px timeline row; there is no extra strip above it.
         var css = RepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor.css");
+        var markup = RepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor");
 
-        Assert.Contains(".listen-player__scope { position:absolute;", css, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .playback-shell__timeline { height:56px; }", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("listen-player__scope", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("listen-player__scope", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(".playback-shell__timeline { height:56px; }", css, StringComparison.Ordinal);
     }
 }

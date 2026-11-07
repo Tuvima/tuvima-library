@@ -20,15 +20,11 @@
     padding: 0;
 }
 
-/* The seek rail is absolutely positioned by its own style; this keeps its 28 px row in the flow and centres the track in it (mockup: elapsed, rail, remaining). */
+/* The timeline row: the seek rail (elapsed, rail, time left) is 28 px tall and sits in the flow above the row (mockup screens 1, 2 and 14). */
 .playback-shell__timeline {
     height: 28px;
     min-width: 0;
     position: relative;
-}
-
-.playback-shell__timeline ::deep .playback-seek-rail--dock {
-    inset: -12px 0 auto 0;
 }
 
 .playback-shell__row {
@@ -148,13 +144,15 @@
     position: static;
 }
 
-/* Phone: the collapsed bar has no timeline row of its own beyond a thin rail; the safe area keeps it clear of the home indicator. */
+/* Phone: the collapsed bar has no timeline row of its own beyond a thin rail (the rail's 28 px row is centred on a 12 px slot); the safe area keeps it
+   clear of the home indicator. The phone packet finishes this layout. */
 .playback-shell--compact .playback-shell__timeline {
     height: 12px;
 }
 
-.playback-shell--compact .playback-shell__timeline ::deep .playback-seek-rail--dock {
-    inset: -20px 0 auto 0;
+.playback-shell--compact .playback-shell__timeline ::deep .playback-seek-rail {
+    inset: -8px 0 auto 0;
+    position: absolute;
 }
 
 /* Phones watching a video: one column, so Play stays reachable; the dedicated phone layout belongs to the phone packet. */

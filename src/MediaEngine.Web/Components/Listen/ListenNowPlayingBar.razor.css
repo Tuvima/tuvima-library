@@ -1,16 +1,6 @@
 /* The bar itself is drawn by PlaybackShell (unified player v2 D1 to D6). This file keeps only what belongs to the host: the container the
-   shell measures against, the hidden audio engine, the restore notice, and the audiobook's Chapter | Book strip in the timeline slot. */
+   shell measures against, the hidden audio engine, the restore notice. The audiobook's chapter label sits on the timeline itself (PlaybackSeekRail). */
 .listen-player-shell { container-name:listen-dock; container-type:inline-size; position:relative; width:100%; padding:0; pointer-events:none; }
 .listen-player__audio-native { display:none; }
 .listen-player__error,.listen-player__restore-status { color:var(--tl-status-danger); }
 @media(max-width:720px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }
-
-/* Audiobook bar: the chapter line and the Chapter | Book switch sit in their own strip above the rail, so the timeline slot is taller by that
-   strip. The Dashboard measures the dock (--tl-audio-dock-height) so pages and the Now Playing scene stay clear of it. */
-.listen-player-shell ::deep .listen-player--audiobook .playback-shell__timeline { height:56px; }
-.listen-player-shell ::deep .listen-player--audiobook .playback-shell__timeline .playback-seek-rail--dock { inset:16px 0 auto 0; }
-.listen-player__scope { position:absolute; top:0; left:0; right:0; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:28px; font-size:var(--tl-font-size-sm); color:var(--playback-text-secondary); pointer-events:none; }
-.listen-player__scope-switch { display:inline-flex; gap:2px; padding:2px; border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-surface-elevated); pointer-events:auto; }
-.listen-player__scope-label { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.listen-player__scope-label small { font-size:inherit; opacity:.85; }
-@media (max-width:720px) { .listen-player__scope { display:none; } .listen-player-shell ::deep .listen-player--audiobook .playback-shell__timeline { height:28px; } .listen-player-shell ::deep .listen-player--audiobook .playback-shell__timeline .playback-seek-rail--dock { inset:-12px 0 auto 0; } }

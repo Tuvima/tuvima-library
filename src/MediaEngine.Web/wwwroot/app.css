@@ -2957,22 +2957,6 @@ button.app-menu-item {
 .playback-panel__body--legacy { padding: 18px; }
 .playback-panel--settings .playback-panel__body { padding: 0; }
 .playback-panel__body .playback-sheet-list { flex: 1; min-height: 0; }
-/* Unified player D8: the one volume control. A dark rounded box with a thick vertical track, accent fill and round knob opens above the speaker on hover or keyboard focus (video, audiobook and music). Phones use the hardware buttons. */
-.playback-volume { position: relative; display: inline-flex; align-items: center; }
-.playback-volume__button { display: inline-flex; }
-.playback-volume__panel {
-    position: absolute; bottom: calc(100% - 4px); left: 50%; z-index: 30; transform: translateX(-50%);
-    display: grid; place-items: center; width: 52px; height: 168px; visibility: hidden; pointer-events: none;
-    border-radius: 14px; background: #0F131E; box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
-}
-.playback-volume__panel::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; }
-.playback-volume:hover .playback-volume__panel, .playback-volume:focus-within .playback-volume__panel { visibility: visible; pointer-events: auto; }
-.playback-volume__panel .playback-range-slider { --playback-range-thumb-size: 18px; --playback-range-track-height: 8px; --playback-range-accent: var(--tl-accent-primary); width: 44px; height: 132px; }
-.playback-volume__panel .playback-range-slider__track, .playback-volume__panel .playback-range-slider__fill { border-radius: 6px; }
-.playback-volume__panel .playback-range-slider__track { width: 8px; left: 18px; background: #30364A; }
-.playback-volume__panel .playback-range-slider__fill { background: var(--tl-accent-primary); }
-.playback-volume__panel .playback-range-slider__thumb { width: 18px; height: 18px; border-radius: 50%; background: #F7F7FA; }
-@media (pointer: coarse) and (hover: none) { .playback-volume__panel { display: none; } }
 .playback-context-tabs { display: flex; border-bottom: 1px solid var(--playback-border); gap: 20px; }
 .playback-context-tabs [role="tab"] {
     background: transparent; border: 0; border-bottom: 3px solid transparent; color: var(--playback-text-secondary);
