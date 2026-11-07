@@ -83,13 +83,6 @@
             }
         </div>
         <PlaybackVideoChrome>
-            <HeaderContent>            <AppTooltip Text="@L["Common_Close"].Value">
-                <AppNativeButton Type="button" Class="video-playback-host__icon video-playback-host__header-tools" OnClick="ClosePlayerAsync" AriaLabel="@L["VideoPlaybackHost_CloseVideo"].Value">
-                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
-                </AppNativeButton>
-            </AppTooltip>
-</HeaderContent>
-
             <BottomContent>
             @if (VisibleSkipSegment is { } segment)
             {
@@ -99,33 +92,36 @@
                         AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
+            <PlaybackShell Media="@BarMedia" Surface="video" Class="video-playback-host__bar" AriaLabel="@L["VideoPlaybackHost_VideoPlayback"].Value"
+                           State="@BarState" Identity="@BarIdentity"
+                           ArtworkSrc="@PlaybackArtworkUrl.ForDrawnSize(Playback.CurrentItem, 112)" ArtworkSrcSet="@PlaybackArtworkUrl.SrcSetForDrawnSize(Playback.CurrentItem, 112)"
+                           ArtworkAlt="" ArtworkDisplay="video-bar-thumbnail"
+                           Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))"
+                           CommitVolumeOnChange="false" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync"
+                           OnTransport="HandleBarTransportAsync" OnTool="HandleBarToolAsync"
+                           HostedTools="@HostedBarTools" OmittedTools="@OmittedBarTools">
+                <TimelineContent>
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
                                Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
-            <div class="playback-video-controls">
-                <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
-                <div class="playback-video-controls__centre">
-                    @if (CanGoToPreviousEpisode) { <AppTooltip Text="@L["VideoPlaybackHost_PreviousEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_PreviousEpisode"].Value" OnClick="@(() => Playback.SkipPreviousAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipPrevious" /></AppNativeButton></AppTooltip> }
-                    <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
-                    <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
-                                           disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
-                                           Size="compact" OnClick="TogglePlayPauseAsync" />
-                    <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="compact" OnClick="SkipForwardAsync" />
-                    @if (EligibleNextEpisode is not null) { <AppTooltip Text="@L["VideoPlaybackHost_NextEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_NextEpisode"].Value" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
-                </div>
-                <div class="playback-video-controls__right">
-                    <PlaybackVolumeControl Surface="video" Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
-                    @if (ContextKind is not null)
+                </TimelineContent>
+                <ToolContent Context="tool">
+                    @switch (tool.Key)
                     {
+                        case PlaybackControlKey.Episodes:
+                            if (ContextKind is not null)
+                            {
                         <PlaybackPopover Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
-                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" /></TriggerContent>
+                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Episodes" /></TriggerContent>
                             <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
                                 Lessons="@(!IsTvEpisode)" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
                                 Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
                                 EpisodeSelected="PlayOwnedEpisodeAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
                         </PlaybackPopover>
-                    }
-                    @if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
-                    {
+                            }
+                            break;
+                        case PlaybackControlKey.Bookmarks:
+                            if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
+                            {
                         <PlaybackPopover Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
@@ -146,19 +142,12 @@
                                 </VideoBookmarkPane>
                             </ChildContent>
                         </PlaybackPopover>
-                    }
-                    @if (VideoControlState.HasCaptions)
-                    {
-                        <PlaybackPopover Title="@L["PlayerSettings_StylingTitle"].Value" ToolId="video-subtitle-style" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
-                            <TriggerContent><span class="video-playback-host__aa" aria-hidden="true">@L["PlayerSettings_AaGlyph"]</span></TriggerContent>
-                            <ChildContent>
-                                <PlayerSettingsMenu StylingOnly="true" Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync" />
-                            </ChildContent>
-                        </PlaybackPopover>
-                    }
-                    <PlaybackPopover Title="@L["PlayerSettings_Title"].Value" ToolId="video-captions" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
+                            }
+                            break;
+                        case PlaybackControlKey.AudioSubtitles:
+                    <PlaybackPopover Title="@tool.AriaLabel" ToolId="video-captions" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
                                      OpenChanged="HandleSettingsOpenChangedAsync" TriggerClass="@(_captionTracks.Any(track => track.Selected) || Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? "is-on" : null)">
-                        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" /></TriggerContent>
+                        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.AudioSubtitles" /></TriggerContent>
                         <ChildContent>
                             <PlayerSettingsMenu AudioSummary="@AudioSummary" SubtitlesSummary="@SubtitlesSummary" NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
                                                StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync"
@@ -206,10 +195,10 @@
                             </PlayerSettingsMenu>
                         </ChildContent>
                     </PlaybackPopover>
-                    <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video" OnControl="HandleVideoUtilityControl" />
-                    <PlaybackIconButton Control="@FullscreenControl" Surface="video" OnClick="ToggleFullscreenAsync" />
-                </div>
-            </div>
+                            break;
+                    }
+                </ToolContent>
+            </PlaybackShell>
         </BottomContent>
         </PlaybackVideoChrome>
         <div class="video-touch-feedback" data-video-touch-feedback aria-hidden="true"></div>
@@ -345,8 +334,6 @@
     private bool CanGoToPreviousEpisode => Playback.CurrentIndex > 0 && VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
     private VideoOwnedEpisode? EligibleNextEpisode => _presentationContext is { NextEpisode: { } next } context
         && context.Identity.IsCurrent(Playback) && Playback.Queue.Skip(Playback.CurrentIndex + 1).FirstOrDefault()?.WorkId == next.WorkId ? next : null;
-    private PlaybackControlDefinition FullscreenControl => VideoUtilityControls.First(control => control.Key == PlaybackControlKey.Fullscreen)
-        with { AriaLabel = _isFullscreen ? "Exit fullscreen" : "Fullscreen" };
     [JSInvokable] public Task HandleFullscreenChanged(bool fullscreen) { _isFullscreen = fullscreen; return InvokeAsync(StateHasChanged); }
     [JSInvokable] public Task HandlePictureInPictureChanged(Guid profileId, Guid workId, Guid assetId, long requestVersion, bool active)
     {
@@ -449,24 +436,53 @@
                 CanPictureInPicture: _canPictureInPicture,
                 CanFullscreen: true,
                 IsMuted: PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported));
-    private IReadOnlyList<PlaybackControlDefinition> VideoUtilityControls =>
-        PlaybackControlCatalog.BuildUtilityControls(
-                PlaybackExperience.Video,
-                PlaybackControlSurface.Fullscreen,
-                VideoControlState)
-            .Where(control => control.Key != PlaybackControlKey.Volume)
-            .ToList();
-    private IReadOnlyList<PlaybackControlDefinition> VideoHeaderUtilityControls =>
-        VideoUtilityControls.Where(control => control.Key == PlaybackControlKey.PictureInPicture).ToList();
+    // The persistent bar (unified player v2 D1 to D6). PlaybackShell draws it from PlaybackControlCatalog; these are the host's answers.
+    private PlaybackBarMedia BarMedia => IsTvEpisode ? PlaybackBarMedia.Tv : PlaybackBarMedia.Movie;
+    private PlaybackBarIdentity BarIdentity => Playback.CurrentItem is { } item
+        ? PlaybackBarIdentity.Build(BarMedia, item, _presentationContext?.ShowTitle)
+        : new(string.Empty, null, null, []);
+    private PlaybackBarState BarState => new(
+        IsPlaying: VideoIsPlaying,
+        NeedsUserGestureToStart: Playback.NeedsUserGestureToStart,
+        CanPrevious: CanGoToPreviousEpisode,
+        CanNext: EligibleNextEpisode is not null,
+        SkipBackSeconds: Playback.SkipBackSeconds,
+        SkipForwardSeconds: Playback.SkipForwardSeconds,
+        PlaybackRate: Playback.PlaybackRate,
+        HasEpisodes: ContextKind is not null && !IsMovie,
+        CanBookmark: VideoControlState.CanBookmark,
+        CanFullscreen: true,
+        IsFullscreen: _isFullscreen,
+        Disabled: Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error,
+        ActiveSheet: Tools.OpenToolId switch { "video-context" => "episodes", "video-bookmarks" => "bookmarks", "video-captions" => "audio-subtitles", _ => null });
+    private static readonly IReadOnlySet<PlaybackControlKey> HostedBarTools = new HashSet<PlaybackControlKey>
+    {
+        PlaybackControlKey.Episodes, PlaybackControlKey.Bookmarks, PlaybackControlKey.AudioSubtitles,
+    };
+    // The Playback settings gear (speed, skip lengths, picture-in-picture, playback information) is built by a later packet; until then the bar
+    // leaves it out rather than draw a button that does nothing.
+    private static readonly IReadOnlySet<PlaybackControlKey> OmittedBarTools = new HashSet<PlaybackControlKey> { PlaybackControlKey.Settings };
+
+    private Task HandleBarTransportAsync(PlaybackControlDefinition control) => control.Command switch
+    {
+        "toggle-play" => TogglePlayPauseAsync(),
+        "skip-back" => SkipBackAsync(),
+        "skip-forward" => SkipForwardAsync(),
+        "play-previous" => Playback.SkipPreviousAsync(),
+        "play-next" => AdvanceCurrentVideoAsync(),
+        _ => Task.CompletedTask,
+    };
+
+    private Task HandleBarToolAsync(PlaybackControlActivation activation) => activation.Control.Command switch
+    {
+        "fullscreen" => ToggleFullscreenAsync(),
+        "close" => ClosePlayerAsync(),
+        _ => Task.CompletedTask,
+    };
+
     private string? VideoEpisodeMetadata => Playback.CurrentItem is { SeasonNumber: not null, EpisodeNumber: not null } item
         ? $"S{item.SeasonNumber} E{item.EpisodeNumber}"
         : null;
-    /// <summary>The centre of the bar: "From E4 · Episode name" for an episode, the title for a film.</summary>
-    private string VideoBarTitle => Playback.CurrentItem is { } item
-        ? item.EpisodeNumber is { } episode
-            ? $"From E{episode} · {item.EpisodeTitle ?? item.Title}"
-            : item.EpisodeTitle ?? item.Title
-        : string.Empty;
     private PlaybackSegmentDto? VisibleSkipSegment =>
         (Playback.CurrentManifest?.Segments ?? [])
             .Where(segment => segment.IsSkippable
@@ -1083,10 +1099,17 @@
         var item = Playback.CurrentItem;
         var shown = Playback.IsVideoMode && !Playback.IsDismissed && item is not null;
         var showTitle = _presentationContext?.ShowTitle;
-        var subject = shown ? $"{Playback.ActiveProfileId}:{item!.WorkId}:{item.AssetId}:{Playback.PlaybackRequestVersion}:{showTitle}:{item.IsVault}" : null;
+        var subject = shown ? $"{Playback.ActiveProfileId}:{item!.WorkId}:{item.AssetId}:{Playback.PlaybackRequestVersion}:{showTitle}:{item.IsVault}:{Nsfw.Unlocked}:{Playback.SkipBackSeconds}:{Playback.SkipForwardSeconds}:{EligibleNextEpisode?.WorkId}" : null;
         if (_mediaSessionSubject == subject) return;
         _mediaSessionSubject = subject;
-        await _mediaSessionModule.InvokeVoidAsync("videoMetadata", shown ? VideoMediaSessionMetadata.Create(item!, showTitle, new Uri(Nav.BaseUri)) : null);
+        // One builder serves the audio bar and the video player (unified player v2 D27): the same lines as the bar, the actions that work, and no
+        // metadata at all for a Vault video while Vault mode is locked.
+        var metadata = shown
+            ? PlaybackSessionMetadata.Create(new PlaybackSessionContext(BarMedia, item!, new Uri(Nav.BaseUri), ShowTitle: showTitle,
+                SkipBackSeconds: Playback.SkipBackSeconds, SkipForwardSeconds: Playback.SkipForwardSeconds,
+                HasNextEpisode: EligibleNextEpisode is not null, VaultLocked: !Nsfw.Unlocked))
+            : null;
+        await _mediaSessionModule.InvokeVoidAsync("videoMetadata", metadata);
     }
     [JSInvokable] public Task HandleNativeVideoEnded(Guid profileId, Guid workId, Guid assetId, long requestVersion)
     {
@@ -1449,14 +1472,6 @@
         _continuationStatus = null;
         Playback.SetVideoExpanded(true);
     }
-
-    private Task HandleVideoUtilityControl(PlaybackControlDefinition control) => control.Command switch
-    {
-        "toggle-mute" => ToggleMuteAsync(),
-        "fullscreen" => ToggleFullscreenAsync(),
-        "picture-in-picture" => EnterPictureInPictureAsync(),
-        _ => Task.CompletedTask,
-    };
 
     private void CloseToolSheet() => Tools.Close();
 

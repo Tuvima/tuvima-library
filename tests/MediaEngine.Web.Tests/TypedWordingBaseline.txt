@@ -4,7 +4,6 @@ src/MediaEngine.Web/Components/App.razor|1
 src/MediaEngine.Web/Components/Companion/CompanionScreen.razor|1
 src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor|1
 src/MediaEngine.Web/Components/Details/MediaMembershipDialog.razor|1
-src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor|1
 src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor|1
 src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor|1
 src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor|2

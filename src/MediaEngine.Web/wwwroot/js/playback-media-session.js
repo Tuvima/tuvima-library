@@ -6,24 +6,29 @@ let installed = null;
 const controller = () => (owners.video?.active ? owners.video : owners.audio);
 const position = (session, value) => { try { session.setPositionState?.(value); } catch { /* Position reporting is an optional browser capability. */ } };
 
-// Gives the session to `next`: its action handlers, its metadata and its playback state.
+// Gives the session to `next`: its action handlers, its metadata and its playback state. Only the actions the metadata lists get a handler
+// (unified player v2 D27: music has previous/next track and no skip buttons; video offers next only when an episode follows), and a skip never
+// carries the browser's default 10 s offset: the host uses the profile's own skip seconds.
 function install(next) {
     const previous = installed;
     installed = next ?? null;
     const session = (next ?? previous)?.session;
     if (!session) return;
-    if (previous !== installed) {
-        for (const action of actions) {
-            try {
-                session.setActionHandler(action, next ? details => next.receiver.invokeMethodAsync('MediaSessionActionAsync', action,
-                    details.seekTime ?? details.seekOffset ?? null).catch(() => {}) : null);
-            } catch { /* Each action is independently optional. */ }
-        }
+    const allowed = next?.active && Array.isArray(next.value?.actions) ? next.value.actions : null;
+    for (const action of actions) {
+        try {
+            const wanted = next && (allowed === null || allowed.includes(action));
+            session.setActionHandler(action, wanted ? details => next.receiver.invokeMethodAsync('MediaSessionActionAsync', action,
+                action === 'seekto' ? (details.seekTime ?? null) : null).catch(() => {}) : null);
+        } catch { /* Each action is independently optional. */ }
     }
-    session.metadata = next?.active && next.value && typeof MediaMetadata !== 'undefined' ? new MediaMetadata(next.value) : null;
+    session.metadata = next?.active && next.value && typeof MediaMetadata !== 'undefined' ? new MediaMetadata(mediaMetadata(next.value)) : null;
     if (next) next.update();
     else { session.playbackState = 'none'; position(session); }
 }
+
+// MediaMetadata takes title, artist, album and artwork; the other fields of the shared builder (actions, skip lengths) stay with the page.
+const mediaMetadata = value => ({ title: value.title ?? '', artist: value.artist ?? '', album: value.album ?? '', artwork: value.artwork ?? [] });
 
 function create(kind, element, receiver) {
     const session = navigator.mediaSession;

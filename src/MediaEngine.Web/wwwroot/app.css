@@ -3060,45 +3060,9 @@ button.app-menu-item {
 }
 .video-touch-hint[hidden] { display: none; }
 @media (max-height: 450px) {
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-video-controls__identity { display: none; }
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__header { top: max(6px, var(--tl-safe-area-top)); }
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
-}
-/* Desktop video bar (player-controls-v3 D1, D2; unified player D1: title left, Play in the true centre, tools right): one size set from the tokens (38 px glyph in a 56 px target, Play 44 px, title 22 px at 1440 wide).
-   The title truncates before any icon shrinks. Hover or focus: the icon grows a little (skipped under reduced motion) and its name shows above it (AppTooltip). */
-@media (min-width: 840px) {
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-video-controls__identity { text-align: left; font-size: var(--playback-title-size); line-height: var(--playback-control-target); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button { position: relative; min-width: var(--playback-control-target); height: var(--playback-control-target); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-icon-button-shell--surface-video { width: var(--playback-control-target); flex: 0 0 var(--playback-control-target); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell { --playback-primary-size: var(--playback-control-target); --playback-primary-icon-size: var(--playback-play-glyph); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell .playback-primary-button,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell .playback-primary-button:hover { border: 0; }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-relative-skip { --playback-relative-skip-size: var(--playback-control-target); --playback-relative-skip-svg-size: var(--playback-control-glyph); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .tl-icon-root,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .playback-icon-button__visual { width: var(--playback-control-glyph); height: var(--playback-control-glyph); font-size: var(--playback-control-glyph); flex-basis: var(--playback-control-glyph); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell button .tl-icon-root { width: var(--playback-play-glyph); height: var(--playback-play-glyph); font-size: var(--playback-play-glyph); flex-basis: var(--playback-play-glyph); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .tl-icon-root { transition: transform 120ms ease-out; }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):hover .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):hover .tl-icon-root,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible .tl-icon-root { transform: scale(1.18); }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):hover,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible { color: var(--tl-accent-primary); background: transparent; }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button.is-on::after,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .is-on button::after,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button.is-active::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 2px; background: var(--tl-accent-primary); }
-}
-@media (min-width: 840px) and (prefers-reduced-motion: reduce) {
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button .tl-icon-root { transition: none; }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):hover .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible .playback-utility-glyph,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):hover .tl-icon-root,
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible .tl-icon-root { transform: none; }
 }
 /* Video Bookmarks panel quick list (video-player-controls-and-bookmarks D6, D7) */
 /* Bookmarks panel (unified player D9a): header with count, timeline switch, full-width add button, tabs, search, rows with a time chip, footer line.
