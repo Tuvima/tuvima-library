@@ -24,10 +24,12 @@ public static class EditorMatchStaging
 
         if (placement.DestinationId is { } destination && !string.IsNullOrWhiteSpace(placement.ParentLabel))
         {
+            // A song also takes the chosen track's number in its new album; the move and the number travel as one change.
             pending.SetTarget(
                 EditSessionChangeKinds.Relationship,
                 entityId,
                 destination.ToString("D"),
+                token: placement.Position is { } position ? EditSessionPosition.PlaceToken(position) : null,
                 label: placement.ParentLabel,
                 before: string.IsNullOrWhiteSpace(placement.CurrentParentLabel) ? EditReviewRows.AsItIsNow : placement.CurrentParentLabel);
         }

@@ -21,6 +21,7 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
 
     private readonly PendingEditList _pending = new();
     private EditorGroupMatchRequestDto? _request;
+    private bool _emptyLineUp;
 
     public EditorGroupMatchPanelTests()
     {
@@ -42,17 +43,25 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.LineUpEditorGroupMatchAsync), args =>
             {
                 _request = (EditorGroupMatchRequestDto)args![1]!;
+                if (_emptyLineUp)
+                {
+                    return Task.FromResult<EditorGroupMatchDto?>(new EditorGroupMatchDto { Kind = EditorGroupMatchKinds.Episodes, MessageCode = EditorMatchMessageCodes.NotOnProvider });
+                }
+
                 return Task.FromResult<EditorGroupMatchDto?>(new EditorGroupMatchDto
                 {
                     Kind = EditorGroupMatchKinds.Episodes,
                     TargetLabel = "The Last Signal Season 2",
+                    SubjectMediaType = "TV",
+                    SubjectScopeId = "episode",
+                    SubjectTargetGroup = "show_episode",
                     Lines =
                     [
                         Line(0, fits: true),
                         Line(1, fits: true),
                         new EditorGroupMatchLineDto
                         {
-                            EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "No number", Fits = false, Note = "The file has no episode number", Verdict = EditorMatchVerdicts.Check,
+                            EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Check,
                         },
                     ],
                 });
@@ -117,7 +126,8 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
 
         var misfit = Assert.Single(cut.FindAll("[data-testid=group-match-misfit]"));
         Assert.Contains("bonus-feature.mkv", misfit.TextContent, StringComparison.Ordinal);
-        Assert.Contains("The file has no episode number", misfit.TextContent, StringComparison.Ordinal);
+        Assert.Contains("No number could be read from the file name.", misfit.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Episode 9", misfit.TextContent, StringComparison.Ordinal);
         Assert.False(misfit.QuerySelector("input[type=checkbox]")!.HasAttribute("checked"));
         Assert.Empty(cut.FindAll("table"));
         Assert.Contains("Apply match to 2", cut.Find("[data-testid=group-match-apply]").TextContent, StringComparison.Ordinal);
@@ -134,5 +144,37 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
         Assert.Equal(2, _pending.Changes.Count(change => change.Kind == EditSessionChangeKinds.Relationship));
         Assert.Equal(2, _pending.Changes.Count(change => change.Kind == EditSessionChangeKinds.FileMove));
         Assert.DoesNotContain(_pending.Changes, change => change.EntityId == Ids[2]);
+    }
+
+    [Fact]
+    public void Applying_UsesTheKindOfItemTheEngineNamedInItsAnswer_NotNamesOfItsOwn()
+    {
+        var cut = Open();
+
+        cut.Find("[data-testid=group-match-apply]").Click();
+
+        var identity = _pending.Changes.First(change => change.Kind == EditSessionChangeKinds.Identity);
+        Assert.True(EditSessionIdentityTarget.TryParse(identity.TargetId, out var match));
+        Assert.Equal("show_episode", match!.TargetFieldGroup);
+    }
+
+    [Fact]
+    public void AMessageTheEngineSendsAsACode_IsSaidInTheDashboardsOwnWords()
+    {
+        _emptyLineUp = true;
+        IReadOnlyList<BulkEditRow> rows = [.. Ids.Select((id, index) => new BulkEditRow(id, $"s02e0{index + 1}.mkv", DetailEntityType.TvEpisode, Guid.NewGuid(), "TV"))];
+        var cut = Render<EditorGroupMatchPanel>(parameters => parameters
+            .Add(panel => panel.Rows, rows)
+            .Add(panel => panel.MediaType, "TV")
+            .Add(panel => panel.Pending, _pending)
+            .Add(panel => panel.CanChange, true));
+        cut.WaitForAssertion(() => Assert.Equal("The Last Signal", cut.Find("input[aria-label='Show']").GetAttribute("value")));
+        cut.Find("[data-testid=group-match-search]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=group-match-shows] button")));
+        cut.Find("[data-testid=group-match-shows] button").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=group-match-picked]")));
+        cut.Find("[data-testid=group-match-lineup]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("The provider does not have that.", cut.Find("[data-testid=group-match-message]").TextContent.Trim()));
     }
 }

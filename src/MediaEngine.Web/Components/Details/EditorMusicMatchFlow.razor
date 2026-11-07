@@ -3,29 +3,37 @@
 @using System.Net.Http
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Matching
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject ILogger<EditorMusicMatchFlow> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Match tab's music flow (universal editor v5, 3c, mockup G4): Artist, Album and Song boxes, the "Albums and releases" list with the current
-   release marked and the one that fits the file suggested, then the chosen release's discs and tracks with the track that fits the file
-   pre-selected and each recording's disambiguation in its row. A pick shows what it would do ("Moves from Album A track 4 to Album B disc 1
-   track 7; the song's album, artist and cover follow."), the verdict and Apply match. Choosing only hands the pick up; the match, the album
-   move and the file move are staged by the Match tab and written on Save changes. *@
+@* The Match tab's music flow (universal editor v5, 3c, mockup G4). Its Artist, Album and Song boxes and the icon-only Search sit in the Match tab's
+   first row, between the provider dropdown and the source switch (the tab hands those two in as RowStart and RowEnd). Below, two columns: the
+   "Albums and releases" list on the left, each release with its cover, "year · format · N tracks · label", and a muted "current" or "suggested";
+   and the chosen release's discs and tracks on the right as a table, with the track that fits the file pre-selected. A pick that would move the
+   song to another album says so in an amber card; the verdict and Apply match follow. Nothing runs on opening: the boxes are filled and the person
+   presses Search. Choosing only hands the pick up; the match, the album move and the file move are staged by the Match tab and written on Save changes. *@
 <div class="tl-musicflow" data-testid="music-flow">
-    <div class="tl-musicflow__search">
-        @foreach (var box in Boxes)
-        {
-            <div class="tl-musicflow__field">
-                <AppTextField Label="@box.Label" Value="@box.Get()" ValueChanged="@(value => box.Set(value ?? string.Empty))" Immediate="true" OnKeyDown="OnSearchKey"
-                              aria-label="@box.Label" data-testid="@("music-flow-" + box.Key)" />
-            </div>
-        }
-        <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                   Disabled="@(_releasesLoading || !HasWords)" OnClick="SearchAsync" data-testid="music-flow-search" />
-    </div>
+    <EditorMatchRow>
+        <Start>
+            @RowStart
+            @foreach (var box in Boxes)
+            {
+                <div class="tl-musicflow__field">
+                    <AppTextField Label="@box.Label" Value="@box.Get()" ValueChanged="@(value => box.Set(value ?? string.Empty))" Immediate="true" OnKeyDown="OnSearchKey"
+                                  aria-label="@box.Label" data-testid="@("music-flow-" + box.Key)" />
+                </div>
+            }
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(_releasesLoading || !HasWords)" OnClick="SearchAsync" data-testid="music-flow-search" />
+        </Start>
+        <End>@RowEnd</End>
+    </EditorMatchRow>
+
+    @Lead
 
     @if (_releasesLoading)
     {
@@ -37,68 +45,46 @@
     }
     else if (_releases.Count > 0)
     {
-        <section aria-label="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" data-testid="music-flow-releases">
-            <h3 class="tl-match__section-heading">@L["EditorMusicMatchFlow_AlbumsAndReleases"]</h3>
-            <div class="tl-match__results" role="list">
-                @foreach (var release in _releases)
-                {
-                    var active = _release?.ReleaseId == release.ReleaseId;
-                    <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(active ? "true" : "false")"
-                                  data-testid="music-flow-release" OnClick="@(() => ChooseReleaseAsync(release))">
-                        <span class="tl-match__text">
-                            <span class="tl-match__title">
-                                <span>@release.Title</span>
-                                @if (release.IsCurrent) { <AppChip Text="@L["EditorMusicMatchFlow_CurrentRelease"].Value" Tone="AppUiTone.Neutral" /> }
-                                @if (release.IsSuggested) { <AppChip Text="@L["EditorMusicMatchFlow_Suggested"].Value" Tone="AppUiTone.Success" /> }
-                            </span>
-                            <span class="tl-match__meta">@ReleaseLine(release)</span>
-                        </span>
-                    </AppRowButton>
-                }
-            </div>
-        </section>
-    }
-
-    @if (_tracksLoading)
-    {
-        <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
-    }
-    else if (_tracksProblem is not null)
-    {
-        <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="music-flow-problem">@_tracksProblem</AppAlert>
-    }
-    else if (_tracks is not null && _release is not null)
-    {
-        <section aria-label="@L["EditorMusicMatchFlow_DiscsAndTracks"].Value" data-testid="music-flow-tracks">
-            <h3 class="tl-match__section-heading">@L["EditorMusicMatchFlow_DiscsAndTracks"]</h3>
-            @foreach (var disc in _tracks.Discs)
-            {
-                if (_tracks.Discs.Count > 1 || !string.IsNullOrWhiteSpace(disc.Title))
-                {
-                    <div class="tl-match__meta tl-musicflow__disc">@(string.IsNullOrWhiteSpace(disc.Title) ? L["EditorMusicMatchFlow_Disc", disc.Number].Value : L["EditorMusicMatchFlow_DiscTitled", disc.Number, disc.Title].Value)</div>
-                }
-
+        <div class="tl-musicflow__columns">
+            <section class="tl-musicflow__releases" aria-label="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" data-testid="music-flow-releases">
+                <h3 class="tl-match__section-heading">@L["EditorMusicMatchFlow_AlbumsAndReleases"]</h3>
                 <div class="tl-match__results" role="list">
-                    @foreach (var track in disc.Tracks)
+                    @foreach (var release in _releases)
                     {
-                        var active = ReferenceEquals(_pickedTrack, track);
-                        <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(active ? "true" : "false")"
-                                      data-testid="music-flow-track" data-disc="@track.Disc" data-track="@track.Track" OnClick="@(() => PickTrackAsync(track))">
-                            <span class="tl-musicflow__number">@track.Track.ToString(CultureInfo.InvariantCulture)</span>
-                            <span class="tl-match__text">
-                                <span class="tl-match__title"><span>@track.Title</span> @if (track.IsSuggested) { <AppChip Text="@L["EditorMusicMatchFlow_Suggested"].Value" Tone="AppUiTone.Success" /> }</span>
-                                <span class="tl-match__meta" data-testid="music-flow-track-line">@TrackLine(track)</span>
-                            </span>
-                        </AppRowButton>
+                        var active = _release?.ReleaseId == release.ReleaseId;
+                        <div role="listitem">
+                            <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" aria-pressed="@(active ? "true" : "false")"
+                                          data-testid="music-flow-release" OnClick="@(() => ChooseReleaseAsync(release))">
+                                @Cover(release.ImageUrl)
+                                <span class="tl-match__text">
+                                    <span class="tl-match__title"><span>@release.Title</span>@if (release.IsCurrent) { <span class="tl-musicflow__tag">@L["EditorMusicMatchFlow_CurrentRelease"]</span> }@if (release.IsSuggested) { <span class="tl-musicflow__tag">@L["EditorMusicMatchFlow_Suggested"]</span> }</span>
+                                    <span class="tl-match__meta">@ReleaseLine(release)</span>
+                                </span>
+                                <span class="tl-musicflow__tick" aria-hidden="true">@(active ? "✓" : string.Empty)</span>
+                            </AppRowButton>
+                        </div>
                     }
                 </div>
+            </section>
+
+            @if (_tracksLoading)
+            {
+                <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
             }
-        </section>
+            else if (_tracksProblem is not null)
+            {
+                <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="music-flow-problem">@_tracksProblem</AppAlert>
+            }
+            else if (_tracks is not null && _release is not null)
+            {
+                @TracksPart()
+            }
+        </div>
     }
 
-    @if (_candidate is not null && !string.IsNullOrWhiteSpace(_preview))
+    @if (_candidate is not null && _placement is not null)
     {
-        <p class="tl-musicflow__preview" data-testid="music-flow-preview">@_preview</p>
+        @MoveCard()
     }
 
     <EditorMatchVerdictBar Result="_judged" Judging="_judging" ShowCancel="ShowCancel" CanApply="@(CanApply && _candidate is not null && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel" />
@@ -122,8 +108,17 @@
     private EditorMusicTrackDto? _pickedTrack;
     private ItemCanonicalRetailCandidateDto? _candidate;
     private EditorMatchResultDto? _judged;
+    private EditorMatchPlacementDto? _placement;
     private bool _judging;
-    private string? _preview;
+
+    /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
+    [Parameter] public RenderFragment? RowStart { get; set; }
+
+    /// <summary>What the Match tab puts last in the row: the source switch.</summary>
+    [Parameter] public RenderFragment? RowEnd { get; set; }
+
+    /// <summary>What the Match tab shows under the row: a staged note, the "Not matched yet" tag, the file the Engine read.</summary>
+    [Parameter] public RenderFragment? Lead { get; set; }
 
     /// <summary>The item being matched (a song).</summary>
     [Parameter, EditorRequired] public EditorMatchSubject? Subject { get; set; }
@@ -131,7 +126,7 @@
     /// <summary>The boxes the Engine pre-filled from the file name, tags and folders (artist, album, song).</summary>
     [Parameter] public IReadOnlyList<EditorMatchFieldDto> Fields { get; set; } = [];
 
-    /// <summary>What the Engine read from the file: its track and disc number are the "from" side of the move preview.</summary>
+    /// <summary>What the Engine read from the file: its track number is the "from" side of the move note.</summary>
     [Parameter] public EditorMatchLocalEvidenceDto? Evidence { get; set; }
 
     /// <summary>True when the person may stage a match (they may edit and an edit session is open).</summary>
@@ -182,7 +177,7 @@
         _candidate = null;
         _judged = null;
         _judging = false;
-        _preview = null;
+        _placement = null;
     }
 
     private CancellationToken NewToken()
@@ -235,7 +230,7 @@
         }
 
         _releases = found.Releases;
-        _releasesMessage = found.Message;
+        _releasesMessage = EditorMatchMessages.Text(L, found.MessageCode);
 
         // The release that fits the file is opened for the person; failing that, the one the song is on now.
         var start = _releases.FirstOrDefault(release => release.IsSuggested) ?? _releases.FirstOrDefault(release => release.IsCurrent);
@@ -303,7 +298,7 @@
             track.RecordingId, track.Title, track.Artist, track.Disc, track.Track, track.LengthSeconds, track.Disambiguation);
         _candidate = candidate;
         _judged = null;
-        _preview = null;
+        _placement = null;
         _judging = true;
         StateHasChanged();
         try
@@ -317,7 +312,7 @@
             }
 
             _judged = verdict.Result ?? new EditorMatchResultDto { Candidate = candidate, ProviderName = candidate.ProviderName, Title = candidate.Title, Verdict = EditorMatchVerdicts.Possible };
-            _preview = PreviewText(placement.Result, release, track);
+            _placement = placement.Result;
         }
         catch (HttpRequestException ex)
         {
@@ -333,39 +328,110 @@
         }
     }
 
-    // What choosing this track would do to the song's album: where it sits now, where it will sit, and what follows it there.
-    private string PreviewText(EditorMatchPlacementDto? placement, EditorMusicReleaseDto release, EditorMusicTrackDto track)
-    {
-        var disc = track.Disc.ToString(CultureInfo.InvariantCulture);
-        var number = track.Track.ToString(CultureInfo.InvariantCulture);
-        var from = placement?.CurrentParentLabel;
-        var moves = placement?.DestinationId is not null
-            && !string.IsNullOrWhiteSpace(from)
-            && !string.Equals(from, placement.ParentLabel, StringComparison.OrdinalIgnoreCase);
-        if (!moves)
-        {
-            return L["EditorMusicMatchFlow_Stays", placement?.ParentLabel ?? release.Title, disc, number].Value;
-        }
-
-        return Evidence?.Number is { } now
-            ? L["EditorMusicMatchFlow_MovesFromTrack", from!, now.ToString(CultureInfo.InvariantCulture), placement!.ParentLabel!, disc, number].Value
-            : L["EditorMusicMatchFlow_Moves", from!, placement!.ParentLabel!, disc, number].Value;
-    }
-
     private Task ApplyAsync() => _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
 
     private string ReleaseLine(EditorMusicReleaseDto release) => string.Join(" · ", new[]
     {
-        release.Artist,
         release.Year,
-        release.Label,
         release.Format,
-        release.Country,
         release.TrackCount > 0 ? L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value : null,
+        release.Label,
+        release.Country,
     }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
-    // Artist, length and the recording's own note ("live at Wembley", "2011 remaster") tell the recordings of one song apart.
-    private static string TrackLine(EditorMusicTrackDto track) => string.Join(" · ", new[] { track.Artist, track.LengthText, track.Disambiguation }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    // The recording's artist and its own note ("live at Wembley", "2011 remaster") tell the recordings of one song apart.
+    private static string RecordingText(EditorMusicTrackDto track) => string.Join(" · ", new[] { track.Artist, track.Disambiguation }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    private string NumberText(EditorMusicTrackDto track, bool manyDiscs) =>
+        manyDiscs ? $"{track.Disc.ToString(CultureInfo.InvariantCulture)}·{track.Track.ToString(CultureInfo.InvariantCulture)}" : track.Track.ToString(CultureInfo.InvariantCulture);
+
+    private RenderFragment Cover(string? url) => __builder =>
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            <AppImage Src="@url" Alt="" Width="40" Height="40" ObjectFit="AppObjectFit.Cover" Class="tl-match__cover" />
+        }
+        else
+        {
+            <span class="tl-match__cover tl-musicflow__cover--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
+        }
+    };
+
+    private RenderFragment TracksPart() => __builder =>
+    {
+        var manyDiscs = _tracks!.Discs.Count > 1;
+        <section class="tl-musicflow__tracks" aria-label="@L["EditorMusicMatchFlow_DiscsAndTracks", _release!.Title].Value" data-testid="music-flow-tracks">
+            <h3 class="tl-match__section-heading">@L["EditorMusicMatchFlow_DiscsAndTracks", _release.Title]</h3>
+            <table class="tl-musicflow__table" data-testid="music-flow-table">
+                <thead>
+                    <tr>
+                        <th scope="col">@L["EditorMusicMatchFlow_ColNumber"]</th>
+                        <th scope="col">@L["EditorMusicMatchFlow_ColTrack"]</th>
+                        <th scope="col">@L["EditorMusicMatchFlow_ColRecording"]</th>
+                        <th scope="col">@L["EditorMusicMatchFlow_ColLength"]</th>
+                        <th scope="col" class="tl-musicflow__tick"><span class="sr-only">@L["EditorMusicMatchFlow_ColChosen"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var disc in _tracks.Discs)
+                    {
+                        @if (manyDiscs || !string.IsNullOrWhiteSpace(disc.Title))
+                        {
+                            <tr class="tl-musicflow__disc">
+                                <th scope="colgroup" colspan="5">@(string.IsNullOrWhiteSpace(disc.Title) ? L["EditorMusicMatchFlow_Disc", disc.Number].Value : L["EditorMusicMatchFlow_DiscTitled", disc.Number, disc.Title].Value)</th>
+                            </tr>
+                        }
+
+                        @foreach (var track in disc.Tracks)
+                        {
+                            var active = ReferenceEquals(_pickedTrack, track);
+                            <tr class="@(active ? "is-active" : null)" data-testid="music-flow-track" data-disc="@track.Disc" data-track="@track.Track">
+                                <td>
+                                    <AppRowButton Class="tl-match__pick" aria-pressed="@(active ? "true" : "false")"
+                                                  aria-label="@L["EditorMusicMatchFlow_TrackRow", NumberText(track, manyDiscs), track.Title].Value"
+                                                  data-testid="music-flow-track-pick" OnClick="@(() => PickTrackAsync(track))">@NumberText(track, manyDiscs)</AppRowButton>
+                                </td>
+                                <td>@track.Title@if (track.IsSuggested) { <span class="tl-musicflow__tag">@L["EditorMusicMatchFlow_Suggested"]</span> }</td>
+                                <td>@RecordingText(track)</td>
+                                <td>@track.LengthText</td>
+                                <td class="tl-musicflow__tick" aria-hidden="true">@(active ? "✓" : string.Empty)</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </section>
+    };
+
+    // Shown only when the pick would put the song on a different album than it is on now (compared by the album's identity, never its name).
+    // Otherwise a pick the Engine cannot place says why; a pick that stays where it is says nothing.
+    private RenderFragment MoveCard() => __builder =>
+    {
+        var placement = _placement!;
+        var moves = placement.DestinationId is { } destination && destination != placement.CurrentParentId;
+        if (moves && _pickedTrack is { } track)
+        {
+            var from = placement.CurrentParentLabel ?? string.Empty;
+            var to = placement.ParentLabel ?? _release?.Title ?? string.Empty;
+            var disc = track.Disc.ToString(CultureInfo.InvariantCulture);
+            var number = track.Track.ToString(CultureInfo.InvariantCulture);
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" data-testid="music-flow-move">
+                <strong>@L["EditorMusicMatchFlow_MoveHeading"]</strong>
+                <span>@L["EditorMusicMatchFlow_MoveFrom"] <i>@from</i>@(Evidence?.Number is { } now ? L["EditorMusicMatchFlow_MoveTrackN", now.ToString(CultureInfo.InvariantCulture)].Value : string.Empty) @L["EditorMusicMatchFlow_MoveTo"] <i>@to</i>@L["EditorMusicMatchFlow_MoveToPos", disc, number]
+                    @L["EditorMusicMatchFlow_MoveFollows"] @if (placement.CurrentParentKeeps is { } keeps) { @KeepsText(from, keeps) }</span>
+            </AppAlert>
+        }
+        else if (!string.IsNullOrWhiteSpace(placement.BlockedReason))
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" data-testid="music-flow-move">@placement.BlockedReason</AppAlert>
+        }
+    };
+
+    private MarkupString KeepsText(string album, int keeps)
+    {
+        var tail = keeps == 1 ? L["EditorMusicMatchFlow_MoveKeepsOne"].Value : L["EditorMusicMatchFlow_MoveKeeps", keeps].Value;
+        return new MarkupString($"<i>{System.Net.WebUtility.HtmlEncode(album)}</i>{System.Net.WebUtility.HtmlEncode(tail)}");
+    }
 
     public void Dispose()
     {

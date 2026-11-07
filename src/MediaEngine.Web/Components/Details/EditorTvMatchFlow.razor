@@ -11,25 +11,33 @@
 @inject ILogger<EditorTvMatchFlow> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Match tab's TV flow (universal editor v5, 3c, mockup G3): a show search with Show and Year boxes, the chosen show as a compact card with
-   Change show, then, for an episode, a Season dropdown (Specials is season 0) over a plain table of Episode, Title, Air date and Runtime with the
-   episode the file name names pre-selected ("Suggested from filename: S02E03"; a file with no number falls back to the nearest runtime, then air
-   order; an anime's absolute number is shown as the provider's season and episode). A show page needs only the show. The pick is judged by the
-   Engine (Strong, Possible or Check, with the length line) and Apply match is always available. Choosing only hands the pick up; staging, the
-   move and the show re-match belong to the Match tab. *@
+@* The Match tab's TV flow (universal editor v5, 3c, mockup G3). Its Show and Year boxes and the icon-only Search sit in the Match tab's first row,
+   between the provider dropdown and the source switch (the tab hands those two in as RowStart and RowEnd). Then the chosen show as a compact card
+   with "Change show", and, for an episode, "Choose an episode" with a Season dropdown (Specials is season 0) over a plain table of Episode, Title,
+   Air date and Runtime with the episode the file name names pre-selected ("Suggested from filename: S02E03"; a file with no number falls back to
+   the nearest runtime, then air order; an anime's absolute number is shown as the provider's season and episode). A show page needs only the
+   show. A search never runs on opening for an item that is not matched yet: the boxes are filled and the person presses Search. The pick is judged
+   by the Engine (Strong, Possible or Check, with the length line) and Apply match is always available. Choosing only hands the pick up; staging,
+   the move and the show re-match belong to the Match tab. *@
 <div class="tl-tvflow" data-testid="tv-flow" data-scope="@(NeedsEpisode ? "episode" : "show")">
-    <div class="tl-tvflow__search">
-        <div class="tl-tvflow__field">
-            <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_showText" ValueChanged="@(value => _showText = value ?? string.Empty)" Immediate="true"
-                          OnKeyDown="OnSearchKey" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="tv-flow-show" />
-        </div>
-        <div class="tl-tvflow__year">
-            <AppTextField Label="@L["EditorTvMatchFlow_Year"].Value" Value="@_yearText" ValueChanged="@(value => _yearText = value ?? string.Empty)" Immediate="true"
-                          OnKeyDown="OnSearchKey" Placeholder="@L["EditorMatchPanel_Optional"].Value" aria-label="@L["EditorTvMatchFlow_Year"].Value" data-testid="tv-flow-year" />
-        </div>
-        <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                   Disabled="@(_showsLoading || string.IsNullOrWhiteSpace(_showText))" OnClick="SearchAsync" data-testid="tv-flow-search" />
-    </div>
+    <EditorMatchRow>
+        <Start>
+            @RowStart
+            <div class="tl-tvflow__field">
+                <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_showText" ValueChanged="@(value => _showText = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnSearchKey" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="tv-flow-show" />
+            </div>
+            <div class="tl-tvflow__year">
+                <AppTextField Label="@L["EditorTvMatchFlow_Year"].Value" Value="@_yearText" ValueChanged="@(value => _yearText = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnSearchKey" Placeholder="@L["EditorMatchPanel_Optional"].Value" aria-label="@L["EditorTvMatchFlow_Year"].Value" data-testid="tv-flow-year" />
+            </div>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(_showsLoading || string.IsNullOrWhiteSpace(_showText))" OnClick="SearchAsync" data-testid="tv-flow-search" />
+        </Start>
+        <End>@RowEnd</End>
+    </EditorMatchRow>
+
+    @Lead
 
     @if (_show is null)
     {
@@ -41,18 +49,20 @@
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="tv-flow-problem">@_showsProblem</AppAlert>
         }
-        else
+        else if (_searched)
         {
             <div class="tl-match__results" role="list" aria-label="@L["EditorTvMatchFlow_Shows"].Value" data-testid="tv-flow-shows">
                 @foreach (var show in _shows)
                 {
-                    <AppRowButton Class="tl-match__row" role="listitem" data-testid="tv-flow-show-row" OnClick="@(() => ChooseShowAsync(show))">
-                        @Art(show.ImageUrl)
-                        <span class="tl-match__text">
-                            <span class="tl-match__title"><span>@show.Name</span> @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchFlow_ThisItemsShow"].Value" Tone="AppUiTone.Neutral" /> } @if (IsBestGuess(show)) { <AppChip Text="@L["EditorTvMatchFlow_BestGuess"].Value" Tone="AppUiTone.Primary" /> }</span>
-                            <span class="tl-match__meta">@show.Year</span>
-                        </span>
-                    </AppRowButton>
+                    <div role="listitem">
+                        <AppRowButton Class="tl-match__row" data-testid="tv-flow-show-row" OnClick="@(() => ChooseShowAsync(show))">
+                            @Art(show.ImageUrl, 48, 72)
+                            <span class="tl-match__text">
+                                <span class="tl-match__title"><span>@show.Name</span> @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchFlow_ThisItemsShow"].Value" Tone="AppUiTone.Neutral" /> } @if (IsBestGuess(show)) { <AppChip Text="@L["EditorTvMatchFlow_BestGuess"].Value" Tone="AppUiTone.Primary" /> }</span>
+                                <span class="tl-match__meta">@show.Year</span>
+                            </span>
+                        </AppRowButton>
+                    </div>
                 }
             </div>
         }
@@ -60,16 +70,16 @@
     else
     {
         <section class="tl-tvflow__card" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="tv-flow-card">
-            @Art(_seasons?.ImageUrl ?? _show.ImageUrl)
+            @Art(_seasons?.ImageUrl ?? _show.ImageUrl, 64, 96)
             <span class="tl-match__text">
-                <span class="tl-match__title"><span>@_show.Name</span></span>
+                <span class="tl-tvflow__name">@_show.Name</span>
                 <span class="tl-match__meta">@ShowLine()</span>
                 @if (!string.IsNullOrWhiteSpace(_seasons?.Overview ?? _show.Overview))
                 {
                     <span class="tl-tvflow__overview">@(_seasons?.Overview ?? _show.Overview)</span>
                 }
             </span>
-            <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+            <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
                        OnClick="ChangeShow" data-testid="tv-flow-change-show" />
         </section>
 
@@ -88,6 +98,7 @@
     private string _showText = string.Empty;
     private string _yearText = string.Empty;
     private bool _showsLoading;
+    private bool _searched;
     private string? _showsProblem;
     private IReadOnlyList<TvMatchBrowserShowDto> _shows = [];
     private TvMatchBrowserShowDto? _show;
@@ -101,6 +112,15 @@
     private ItemCanonicalRetailCandidateDto? _candidate;
     private EditorMatchResultDto? _judged;
     private bool _judging;
+
+    /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
+    [Parameter] public RenderFragment? RowStart { get; set; }
+
+    /// <summary>What the Match tab puts last in the row: the source switch.</summary>
+    [Parameter] public RenderFragment? RowEnd { get; set; }
+
+    /// <summary>What the Match tab shows under the row: a staged note, the "Not matched yet" tag, the file the Engine read.</summary>
+    [Parameter] public RenderFragment? Lead { get; set; }
 
     /// <summary>The item being matched; the search starts from its show's name.</summary>
     [Parameter, EditorRequired] public EditorMatchSubject? Subject { get; set; }
@@ -141,7 +161,15 @@
         _seasons = null;
         _episodes = [];
         ClearPick();
-        await RunSearchAsync(chooseStart: true);
+        _shows = [];
+        _searched = false;
+        _showsProblem = null;
+
+        // Opening only fills the boxes. An item that is not matched yet waits for Search; one the person chose to change starts from its own show.
+        if (!Unmatched)
+        {
+            await RunSearchAsync(chooseStart: true);
+        }
     }
 
     // A failed item starts from what its file name says; a matched item starts from its own show (an episode) or title (a show).
@@ -238,14 +266,14 @@
         }
 
         _showsLoading = false;
+        _searched = true;
 
         // The show the item already has, else the Engine's best guess for a failed file, is opened for the person; an episode always opens on one.
         var start = !chooseStart
             ? null
             : _shows.FirstOrDefault(show => show.IsCurrent && !Unmatched)
               ?? (Unmatched && Context?.BestGuess is { } guess ? _shows.FirstOrDefault(show => show.SeriesId == guess.ProviderItemId) : null)
-              ?? _shows.FirstOrDefault(show => show.IsCurrent)
-              ?? (NeedsEpisode ? _shows.FirstOrDefault() : null);
+              ?? _shows.FirstOrDefault(show => show.IsCurrent);
         if (start is not null)
         {
             await ChooseShowAsync(start);
@@ -458,7 +486,7 @@
         {
             _seasons?.Year ?? _show?.Year,
             _seasons?.Genre,
-            seasons is > 0 ? L["EditorTvMatchFlow_SeasonCount", seasons.Value].Value : null,
+            seasons is > 0 ? (seasons == 1 ? L["EditorTvMatchFlow_SeasonCountOne"].Value : L["EditorTvMatchFlow_SeasonCount", seasons.Value].Value) : null,
         }.Where(part => !string.IsNullOrWhiteSpace(part)));
     }
 
@@ -498,14 +526,14 @@
                 {
                     <div class="tl-tvflow__season">
                         <AppSelect Value="@(_seasonNumber?.ToString(CultureInfo.InvariantCulture))" ValueChanged="OnSeasonChangedAsync" Options="@SeasonOptions"
-                                   Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" data-testid="tv-flow-season" />
+                                   Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" HideLabel="true" data-testid="tv-flow-season" />
                     </div>
                 }
+                @if (SuggestionText() is { Length: > 0 } suggested)
+                {
+                    <span class="tl-tvflow__suggested" data-testid="tv-flow-suggested">@suggested</span>
+                }
             </div>
-            @if (SuggestionText() is { Length: > 0 } suggested)
-            {
-                <div class="tl-match__meta" data-testid="tv-flow-suggested">@suggested</div>
-            }
 
             @if (_episodesLoading)
             {
@@ -524,19 +552,23 @@
                             <th scope="col">@L["EditorTvMatchFlow_ColTitle"]</th>
                             <th scope="col">@L["EditorTvMatchFlow_ColAired"]</th>
                             <th scope="col">@L["EditorTvMatchFlow_ColRuntime"]</th>
+                            <th scope="col" class="tl-tvflow__chosen"><span class="sr-only">@L["EditorTvMatchFlow_ColChosen"]</span></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var episode in _episodes)
                         {
                             var active = _picked?.EpisodeId == episode.EpisodeId;
-                            <tr class="@(active ? "is-active" : null)" data-testid="tv-flow-episode" data-number="@episode.EpisodeNumber" aria-selected="@(active ? "true" : "false")">
+                            var slot = EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber).Replace(" ", string.Empty, StringComparison.Ordinal);
+                            <tr class="@(active ? "is-active" : null)" data-testid="tv-flow-episode" data-number="@episode.EpisodeNumber">
                                 <td>
-                                    <AppRowButton Class="tl-tvflow__pick" aria-pressed="@(active ? "true" : "false")" OnClick="@(() => PickEpisodeAsync(episode))">@episode.EpisodeNumber.ToString(CultureInfo.InvariantCulture)</AppRowButton>
+                                    <AppRowButton Class="tl-match__pick" aria-pressed="@(active ? "true" : "false")" aria-label="@L["EditorTvMatchFlow_EpisodeRow", slot, episode.Title].Value"
+                                                  data-testid="tv-flow-episode-pick" OnClick="@(() => PickEpisodeAsync(episode))">@slot</AppRowButton>
                                 </td>
                                 <td>@episode.Title</td>
-                                <td>@episode.Aired</td>
+                                <td>@EditorMatchFormat.AirDate(episode.Aired)</td>
                                 <td>@(episode.RuntimeMinutes is > 0 ? L["EditorTvMatchFlow_Minutes", episode.RuntimeMinutes.Value].Value : string.Empty)</td>
+                                <td class="tl-tvflow__chosen" aria-hidden="true">@(active ? "✓" : string.Empty)</td>
                             </tr>
                         }
                     </tbody>
@@ -545,15 +577,15 @@
         </section>
     };
 
-    private RenderFragment Art(string? url) => __builder =>
+    private RenderFragment Art(string? url, int width, int height) => __builder =>
     {
         if (!string.IsNullOrWhiteSpace(url))
         {
-            <AppImage Src="@url" Alt="" Width="48" Height="72" ObjectFit="AppObjectFit.Cover" Class="tl-match__art" />
+            <AppImage Src="@url" Alt="" Width="@width" Height="@height" ObjectFit="AppObjectFit.Cover" Class="@(height > 80 ? "tl-match__art tl-match__art--poster" : "tl-match__art")" />
         }
         else
         {
-            <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
+            <span class="@(height > 80 ? "tl-match__art tl-match__art--poster tl-match__art--empty" : "tl-match__art tl-match__art--empty")" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
         }
     };
 

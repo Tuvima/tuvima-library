@@ -30,6 +30,21 @@
         }
       },
       "additionalProperties": false
+    },
+    "music_match": {
+      "type": "object",
+      "description": "The Match tab's music flow: releases listed and how the release and track to suggest are chosen.",
+      "properties": {
+        "max_releases": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "release_title_points": { "type": "integer", "minimum": 0 },
+        "release_track_count_exact_points": { "type": "integer", "minimum": 0 },
+        "release_track_count_more_points": { "type": "integer", "minimum": 0 },
+        "track_title_points": { "type": "integer", "minimum": 0 },
+        "track_number_points": { "type": "integer", "minimum": 0 },
+        "track_length_points": { "type": "integer", "minimum": 0 },
+        "track_min_points": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

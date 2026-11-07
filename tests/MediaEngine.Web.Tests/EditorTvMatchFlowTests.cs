@@ -136,17 +136,33 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
             .Add(panel => panel.IsUnmatched, true));
     }
 
+    // Opening only fills the boxes; the person presses Search and chooses the show.
+    private static void SearchAndChooseTheFirstShow(IRenderedComponent<EditorMatchPanel> cut)
+    {
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=tv-flow-search]").HasAttribute("disabled")));
+        cut.Find("[data-testid=tv-flow-search]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-show-row]")));
+        cut.FindAll("[data-testid=tv-flow-show-row]").First().Click();
+    }
+
+    private IRenderedComponent<EditorMatchPanel> OpenEpisode()
+    {
+        var cut = RenderPanel(EpisodeSubject());
+        SearchAndChooseTheFirstShow(cut);
+        return cut;
+    }
+
     private static void Apply(IRenderedComponent<EditorMatchPanel> cut) =>
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
 
     [Fact]
     public void TheEpisodeTheFileNameNames_IsPreSelected_WithTheReasonAndTheLengthLine()
     {
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-suggested]")));
         Assert.Equal("Suggested from filename: S02E03", cut.Find("[data-testid=tv-flow-suggested]").TextContent.Trim());
-        var selected = Assert.Single(cut.FindAll("[data-testid=tv-flow-episode][aria-selected=true]"));
+        var selected = Assert.Single(cut.FindAll("[data-testid=tv-flow-episode].is-active"));
         Assert.Equal("3", selected.GetAttribute("data-number"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-length-line]")));
         Assert.Equal("Your file: 45:52 measured · Provider: 46 min (rounded)", cut.Find("[data-testid=match-length-line]").TextContent.Trim());
@@ -158,14 +174,15 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
     [Fact]
     public void TheEpisodeTable_IsPlainText_WithEpisodeTitleAirDateAndRuntime()
     {
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
 
         cut.WaitForAssertion(() => Assert.Equal(4, cut.FindAll("[data-testid=tv-flow-episode]").Count));
         var headings = cut.FindAll("[data-testid=tv-flow-table] th").Select(heading => heading.TextContent.Trim()).ToList();
-        Assert.Equal(["Episode", "Title", "Air date", "Runtime"], headings);
+        Assert.Equal(["Episode", "Title", "Air date", "Runtime", "Chosen"], headings);
         var third = cut.FindAll("[data-testid=tv-flow-episode]")[2];
         Assert.Contains("Echoes in the Dark", third.TextContent, StringComparison.Ordinal);
-        Assert.Contains("2021-01-18", third.TextContent, StringComparison.Ordinal);
+        Assert.Contains("S02E03", third.TextContent, StringComparison.Ordinal);
+        Assert.Contains("18 Jan 2021", third.TextContent, StringComparison.Ordinal);
         Assert.Contains("46 min", third.TextContent, StringComparison.Ordinal);
     }
 
@@ -173,7 +190,7 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
     public void ASpecial_OpensOnSeasonZero_NamedSpecials()
     {
         _context = new EditorMatchContextDto { EntityId = ItemId, ParsedShow = "The Last Signal", ParsedSeason = 0, ParsedEpisode = 2 };
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
 
         cut.WaitForAssertion(() => Assert.Contains("episodes:0", _calls));
         cut.WaitForAssertion(() => Assert.Equal("Suggested from filename: S00E02", cut.Find("[data-testid=tv-flow-suggested]").TextContent.Trim()));
@@ -185,19 +202,19 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
     {
         _context = new EditorMatchContextDto { EntityId = ItemId, ParsedShow = "The Last Signal", ParsedAbsolute = 47 };
         _absolute = Episode(3, 2, "Carrier Wave", "2022-02-14", 44);
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-suggested]")));
         Assert.Contains("absolute number 47 is S03E02", cut.Find("[data-testid=tv-flow-suggested]").TextContent, StringComparison.Ordinal);
         Assert.Contains("episodes:3", _calls);
-        Assert.Equal("2", Assert.Single(cut.FindAll("[data-testid=tv-flow-episode][aria-selected=true]")).GetAttribute("data-number"));
+        Assert.Equal("2", Assert.Single(cut.FindAll("[data-testid=tv-flow-episode].is-active")).GetAttribute("data-number"));
     }
 
     [Fact]
     public void AFileWithNoNumber_FallsBackToTheNearestRuntime()
     {
         _context = new EditorMatchContextDto { EntityId = ItemId, ParsedShow = "The Last Signal", ParsedSeason = 2 };
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-suggested]")));
         Assert.Equal("Suggested from runtime: S02E03", cut.Find("[data-testid=tv-flow-suggested]").TextContent.Trim());
@@ -215,7 +232,7 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
             FromPath = "/media/tv/Signal Lost/Season 02/s02e03.mkv",
             ToPath = "/media/tv/The Last Signal/Season 02/s02e03.mkv",
         };
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-length-line]")));
 
         Apply(cut);
@@ -235,7 +252,7 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
             CurrentParentLabel = "Signal Lost · Season 2",
             Managed = false,
         };
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-length-line]")));
 
         Apply(cut);
@@ -251,8 +268,7 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
         _setup = SetupOf("tv_show", null);
         var cut = RenderPanel(ShowSubject());
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-show-row]")));
-        cut.FindAll("[data-testid=tv-flow-show-row]").First().Click();
+        SearchAndChooseTheFirstShow(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-card]")));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict-bar] [data-testid=match-verdict]")));
         Assert.Empty(cut.FindAll("[data-testid=tv-flow-table]"));
@@ -270,12 +286,70 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
     [Fact]
     public void ChangingTheShow_ListsTheShowsAgain_AndAPickedShowOpensItsSeasons()
     {
-        var cut = RenderPanel(EpisodeSubject());
+        var cut = OpenEpisode();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-card]")));
 
         cut.Find("[data-testid=tv-flow-change-show]").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=tv-flow-show-row]").Count));
         Assert.Empty(cut.FindAll("[data-testid=tv-flow-table]"));
+    }
+
+    [Fact]
+    public void AnItemThatIsNotMatchedYet_IsNotSearchedOnOpening_UntilThePersonPressesSearch()
+    {
+        var cut = RenderPanel(EpisodeSubject());
+
+        cut.WaitForAssertion(() => Assert.Equal("The Last Signal", cut.Find("input[aria-label='Show']").GetAttribute("value")));
+        Assert.DoesNotContain(_calls, call => call.StartsWith("shows:", StringComparison.Ordinal));
+        Assert.Single(cut.FindAll("[data-testid=match-row]"));
+
+        cut.Find("[data-testid=tv-flow-search]").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("shows:The Last Signal", _calls));
+    }
+
+    [Fact]
+    public void TheShowBoxes_SitInTheMatchTabsOneFirstRow_BesideTheProviderAndTheSourceSwitch()
+    {
+        var cut = RenderPanel(EpisodeSubject());
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-show]")));
+        var row = Assert.Single(cut.FindAll("[data-testid=match-row]"));
+        Assert.NotNull(row.QuerySelector("[data-testid=tv-flow-show]"));
+        Assert.NotNull(row.QuerySelector("[data-testid=tv-flow-year]"));
+        Assert.NotNull(row.QuerySelector("[data-testid=tv-flow-search]"));
+        Assert.NotNull(row.QuerySelector("[role=radiogroup], [role=group], [role=tablist]"));
+    }
+
+    [Fact]
+    public void AnEpisodeRow_IsOneButton_ShowsTheSlotAndATick_AndPickingAnotherJudgesIt()
+    {
+        var cut = OpenEpisode();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-length-line]")));
+
+        var picks = cut.FindAll("[data-testid=tv-flow-episode-pick]");
+        Assert.Equal("S02E03", picks[2].TextContent.Trim());
+        Assert.Equal("true", picks[2].GetAttribute("aria-pressed"));
+        Assert.Equal("Episode S02E03, Echoes in the Dark", picks[2].GetAttribute("aria-label"));
+        Assert.Contains("✓", cut.FindAll("[data-testid=tv-flow-episode]")[2].TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=tv-flow-episode][aria-selected]"));
+
+        picks[1].Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Carrier Wave", _judged[^1].Title));
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.FindAll("[data-testid=tv-flow-episode-pick]")[1].GetAttribute("aria-pressed")));
+    }
+
+    [Fact]
+    public void TheShowAndEpisodeLists_AreListsOfItems_NotButtonsPretendingToBeItems()
+    {
+        var cut = RenderPanel(EpisodeSubject());
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=tv-flow-search]").HasAttribute("disabled")));
+        cut.Find("[data-testid=tv-flow-search]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=tv-flow-show-row]")));
+
+        Assert.Empty(cut.FindAll("button[role=listitem]"));
+        Assert.All(cut.FindAll("[data-testid=tv-flow-shows] [role=listitem]"), item => Assert.NotNull(item.QuerySelector("button")));
     }
 }

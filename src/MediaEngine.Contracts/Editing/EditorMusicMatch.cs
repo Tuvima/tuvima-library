@@ -44,11 +44,14 @@ public sealed class EditorMusicReleaseDto
     [JsonPropertyName("track_count")]
     public int TrackCount { get; init; }
 
-    /// <summary>The cover for the row, through the Engine's own preview connection point; null when there is none.</summary>
     /// <summary>True when the release has a front cover on the Cover Art Archive; the chosen track then carries that cover address.</summary>
     [JsonPropertyName("has_cover")]
     public bool HasCover { get; init; }
 
+    /// <summary>
+    /// A small cover for the row, made by the Engine (the same bounded preview the retail match tiles use), so the Dashboard never contacts a
+    /// third party; null when the release has none or it could not be read.
+    /// </summary>
     [JsonPropertyName("image_url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ImageUrl { get; init; }
@@ -80,10 +83,10 @@ public sealed class EditorMusicReleasesDto
     [JsonPropertyName("releases")]
     public IReadOnlyList<EditorMusicReleaseDto> Releases { get; init; } = [];
 
-    /// <summary>The plain sentence shown when there are no releases or the provider did not answer; null otherwise.</summary>
-    [JsonPropertyName("message")]
+    /// <summary>One of <see cref="EditorMatchMessageCodes"/> when there are no releases or the provider did not answer; the Dashboard words it. Null otherwise.</summary>
+    [JsonPropertyName("message_code")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Message { get; init; }
+    public string? MessageCode { get; init; }
 }
 
 /// <summary>One track of a release: its disc and number, its length, and which recording it is.</summary>

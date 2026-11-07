@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
@@ -6,6 +7,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.Matching;
 
@@ -21,10 +23,12 @@ public sealed class EditorMusicMatchService(
     IMetadataEditorRepository launches,
     ICanonicalValueRepository canonicals,
     IMediaEditorOwnedChildReadService ownedChildren,
-    EditorMatchVerdictCalculator calculator)
+    EditorMatchVerdictCalculator calculator,
+    MusicMatchSettings settings,
+    IHttpClientFactory httpFactory,
+    IMemoryCache previews)
 {
-    /// <summary>How many releases one search lists.</summary>
-    private const int MaxReleases = 10;
+    private const string ProviderKey = "musicbrainz";
 
     /// <summary>The releases of the album the words name; null when no such music item is in the Library.</summary>
     public async Task<EditorMusicReleasesDto?> ReleasesAsync(Guid entityId, string? artist, string? album, string? song, CancellationToken ct = default)
@@ -38,27 +42,43 @@ public sealed class EditorMusicMatchService(
         var query = string.Join(" ", new[] { artist, album ?? song }.Where(part => !string.IsNullOrWhiteSpace(part))).Trim();
         if (query.Length == 0)
         {
-            return new EditorMusicReleasesDto { EntityId = entityId, Message = "Enter an artist, an album or a song to search for." };
+            return new EditorMusicReleasesDto { EntityId = entityId, MessageCode = EditorMatchMessageCodes.EnterWords };
         }
 
-        var found = await musicBrainz.SearchReleasesAsync(artist, album, song, MaxReleases, ct).ConfigureAwait(false);
+        var found = await musicBrainz.SearchReleasesAsync(artist, album, song, settings.MaxReleases, ct).ConfigureAwait(false);
         if (found is null)
         {
-            return new EditorMusicReleasesDto { EntityId = entityId, Query = query, Message = "MusicBrainz did not answer. Try again in a moment." };
+            return new EditorMusicReleasesDto { EntityId = entityId, Query = query, MessageCode = EditorMatchMessageCodes.ProviderSilent };
         }
 
         if (found.Count == 0)
         {
-            return new EditorMusicReleasesDto { EntityId = entityId, Query = query, Message = "Nothing matches that. Change the words and search again." };
+            return new EditorMusicReleasesDto { EntityId = entityId, Query = query, MessageCode = EditorMatchMessageCodes.NothingFound };
         }
 
+        // Releases that tie on title and track count are told apart by the song's length against the tracks of a release already read
+        // (kept by the client): no extra request is made for it.
         var wanted = string.IsNullOrWhiteSpace(album) ? item.AlbumTitle : album;
-        var suggested = EditorMusicSuggestion.SuggestRelease(found, wanted, item.LibraryTrackCount);
+        var measured = item.Read.Evidence.MeasuredSeconds;
+        var suggested = EditorMusicSuggestion.SuggestRelease(
+            found, wanted, item.LibraryTrackCount, settings,
+            measured is > 0 && item.Kind == EditorKinds.Song ? release => HasTrackOfLength(release, measured) : null);
+        var covers = await Task.WhenAll(found.Select(release => CoverAsync(release, ct))).ConfigureAwait(false);
         var releases = found
-            .Select(release => ToDto(release, item, suggested == release.ReleaseId))
+            .Select((release, index) => ToDto(release, item, suggested == release.ReleaseId, covers[index]))
             .ToList();
         return new EditorMusicReleasesDto { EntityId = entityId, Query = query, Releases = releases };
     }
+
+    private bool HasTrackOfLength(MusicBrainzReleaseSummary release, double? measured) =>
+        musicBrainz.KeptReleaseDetail(release.ReleaseId) is { } detail
+        && detail.Discs.SelectMany(disc => disc.Tracks).Any(track => calculator.TrackLength(measured, track.LengthSeconds).State == EditorMatchEvidenceStates.Agrees);
+
+    // A small cover for the row, made here (bounded, allow-listed) so the Dashboard never contacts the Cover Art Archive itself.
+    private Task<string?> CoverAsync(MusicBrainzReleaseSummary release, CancellationToken ct) =>
+        release.HasFrontCover
+            ? RetailCandidateArtworkPreview.LoadAsync(ProviderKey, $"https://coverartarchive.org/release/{release.ReleaseId}/front-250", httpFactory, previews, ct)
+            : Task.FromResult<string?>(null);
 
     /// <summary>A release opened with the track that fits the file marked; null when no such music item is in the Library or the release cannot be read.</summary>
     public async Task<EditorMusicReleaseTracksDto?> TracksAsync(Guid entityId, string releaseId, CancellationToken ct = default)
@@ -77,7 +97,7 @@ public sealed class EditorMusicMatchService(
 
         var tracks = detail.Discs.SelectMany(disc => disc.Tracks).ToList();
         var pick = item.Kind == EditorKinds.Song
-            ? EditorMusicSuggestion.SuggestTrack(tracks, item.Read.Evidence, calculator)
+            ? EditorMusicSuggestion.SuggestTrack(tracks, item.Read.Evidence, calculator, settings)
             : null;
         return new EditorMusicReleaseTracksDto
         {
@@ -91,10 +111,6 @@ public sealed class EditorMusicMatchService(
             })],
         };
     }
-
-    /// <summary>One release's tracks flattened, for the group Match; null when the release cannot be read.</summary>
-    internal Task<MusicBrainzReleaseDetail?> ReadReleaseAsync(string releaseId, CancellationToken ct) =>
-        musicBrainz.FetchReleaseDetailAsync(releaseId, ct);
 
     private sealed record Item(
         string Kind, EditorMatchLocalRead Read, string? CurrentReleaseId, string? AlbumTitle, int LibraryTrackCount);
@@ -126,8 +142,9 @@ public sealed class EditorMusicMatchService(
             children?.TotalCount ?? 0);
     }
 
-    private static EditorMusicReleaseDto ToDto(MusicBrainzReleaseSummary release, Item item, bool suggested) => new()
+    private static EditorMusicReleaseDto ToDto(MusicBrainzReleaseSummary release, Item item, bool suggested, string? image = null) => new()
     {
+        ImageUrl = image,
         ReleaseId = release.ReleaseId,
         ReleaseGroupId = release.ReleaseGroupId,
         Title = release.Title,
@@ -170,38 +187,46 @@ public sealed class EditorMusicMatchService(
 public static class EditorMusicSuggestion
 {
     /// <summary>
-    /// The release whose title is the album's and whose track count is the count the Library holds (or the smallest above it, when the
-    /// Library holds part of the album); null when none fits at all. Releases keep the provider's own order for ties.
+    /// The release whose title is the album's and whose track count is the count the Library holds (or one above it, when the Library holds
+    /// part of the album), by the points in <c>music_match</c>; null when none fits at all. Releases that tie on points are told apart by
+    /// <paramref name="lengthFits"/> (a release already read that holds a track of the song's length wins); a tie that still stands keeps the
+    /// provider's own order.
     /// </summary>
-    public static string? SuggestRelease(IReadOnlyList<MusicBrainzReleaseSummary> releases, string? albumTitle, int libraryTrackCount)
+    public static string? SuggestRelease(
+        IReadOnlyList<MusicBrainzReleaseSummary> releases, string? albumTitle, int libraryTrackCount, MusicMatchSettings settings,
+        Func<MusicBrainzReleaseSummary, bool>? lengthFits = null)
     {
-        string? best = null;
-        var bestScore = 0;
-        foreach (var release in releases)
+        ArgumentNullException.ThrowIfNull(settings);
+        var scored = releases.Select(release => (Release: release, Score: ScoreRelease(release, albumTitle, libraryTrackCount, settings))).ToList();
+        var bestScore = scored.Count == 0 ? 0 : scored.Max(item => item.Score);
+        if (bestScore <= 0)
         {
-            var score = 0;
-            if (!string.IsNullOrWhiteSpace(albumTitle) && EditorMatchVerdictCalculator.SameTitle(albumTitle, release.Title))
-            {
-                score += 4;
-            }
-
-            if (libraryTrackCount > 0 && release.TrackCount == libraryTrackCount)
-            {
-                score += 3;
-            }
-            else if (libraryTrackCount > 0 && release.TrackCount > libraryTrackCount)
-            {
-                score += 1;
-            }
-
-            if (score > bestScore)
-            {
-                best = release.ReleaseId;
-                bestScore = score;
-            }
+            return null;
         }
 
-        return best;
+        var tied = scored.Where(item => item.Score == bestScore).Select(item => item.Release).ToList();
+        var byLength = lengthFits is null ? null : tied.FirstOrDefault(lengthFits);
+        return (byLength ?? tied[0]).ReleaseId;
+    }
+
+    private static int ScoreRelease(MusicBrainzReleaseSummary release, string? albumTitle, int libraryTrackCount, MusicMatchSettings settings)
+    {
+        var score = 0;
+        if (!string.IsNullOrWhiteSpace(albumTitle) && EditorMatchVerdictCalculator.SameTitle(albumTitle, release.Title))
+        {
+            score += settings.ReleaseTitlePoints;
+        }
+
+        if (libraryTrackCount > 0 && release.TrackCount == libraryTrackCount)
+        {
+            score += settings.ReleaseTrackCountExactPoints;
+        }
+        else if (libraryTrackCount > 0 && release.TrackCount > libraryTrackCount)
+        {
+            score += settings.ReleaseTrackCountMorePoints;
+        }
+
+        return score;
     }
 
     /// <summary>
@@ -217,12 +242,13 @@ public static class EditorMusicSuggestion
     }
 
     /// <summary>
-    /// The track of a release whose title, number (with its disc) and length fit the file; null when nothing fits well enough. A title that
-    /// agrees is enough; a number and a length that agree are enough without one.
+    /// The track of a release whose title, number (with its disc) and length fit the file, by the points in <c>music_match</c>; null when
+    /// nothing earns the minimum. A title that agrees is enough; a number and a length that agree are enough without one.
     /// </summary>
     public static MusicBrainzTrackDetail? SuggestTrack(
-        IReadOnlyList<MusicBrainzTrackDetail> tracks, EditorMatchLocalEvidenceDto evidence, EditorMatchVerdictCalculator calculator)
+        IReadOnlyList<MusicBrainzTrackDetail> tracks, EditorMatchLocalEvidenceDto evidence, EditorMatchVerdictCalculator calculator, MusicMatchSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         MusicBrainzTrackDetail? best = null;
         var bestScore = 0;
         foreach (var track in tracks)
@@ -230,17 +256,17 @@ public static class EditorMusicSuggestion
             var score = 0;
             if (!string.IsNullOrWhiteSpace(evidence.FileTitle) && EditorMatchVerdictCalculator.SameTitle(evidence.FileTitle, track.Title))
             {
-                score += 4;
+                score += settings.TrackTitlePoints;
             }
 
             if (evidence.Number is { } number && number == track.Track)
             {
-                score += evidence.Disc is { } disc && disc != track.Disc ? 0 : 2;
+                score += evidence.Disc is { } disc && disc != track.Disc ? 0 : settings.TrackNumberPoints;
             }
 
             if (calculator.TrackLength(evidence.MeasuredSeconds, track.LengthSeconds).State == EditorMatchEvidenceStates.Agrees)
             {
-                score += 2;
+                score += settings.TrackLengthPoints;
             }
 
             if (score > bestScore)
@@ -250,6 +276,6 @@ public static class EditorMusicSuggestion
             }
         }
 
-        return bestScore >= 4 ? best : null;
+        return bestScore >= settings.TrackMinPoints ? best : null;
     }
 }

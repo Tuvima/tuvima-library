@@ -24,13 +24,15 @@
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorMatchPanel_YouCanLookAtMatches"]</AppAlert>
         }
 
-        <div class="tl-matchrow" data-testid="match-row">
-            <div class="tl-matchrow__start">
-                @if (HasProviders)
-                {
-                    <div class="tl-matchrow__provider">
-                        <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" Label="@L["EditorMatchPanel_Provider"].Value" Disabled="@(_searching || _wikidata)" />
-                    </div>
+        @if (FlowOwnsRow)
+        {
+            @FlowHost()
+        }
+        else
+        {
+            <EditorMatchRow>
+                <Start>
+                    @ProviderPart()
                     @if (ShowsSearchBoxes)
                     {
                         @foreach (var field in _setup!.Fields)
@@ -42,29 +44,27 @@
                             </div>
                         }
 
-                        <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                                   Disabled="@(_searching || _wikidata || !CanSearch)" OnClick="StartSearchAsync" data-testid="match-search-button" />
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                       Disabled="@(_searching || _wikidata || !CanSearch)" OnClick="StartSearchAsync" data-testid="match-search-button" />
                     }
-                }
-            </div>
-            <div class="tl-matchrow__end">
-                <AppSegmentedControl Options="@SideOptions" Value="@(_wikidata ? SideWikidata : SideProviders)" ValueChanged="OnSideChanged" AriaLabel="@L["EditorMatchPanel_MatchSource"].Value" />
-            </div>
-        </div>
+                </Start>
+                <End>@SwitchPart()</End>
+            </EditorMatchRow>
 
-        @if (_loading)
-        {
-            <div aria-busy="true" aria-label="@L["EditorMatchPanel_ReadingMatch"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
-        }
-        else if (_wikidata)
-        {
-            @* The Wikidata match plugs in here (WP9b); until then the Wikidata side keeps the identity card and the Universe link. *@
-            @IdentityCard()
-            @UniverseSection()
-        }
-        else
-        {
-            @ProvidersSide()
+            @if (_loading)
+            {
+                <div aria-busy="true" aria-label="@L["EditorMatchPanel_ReadingMatch"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            }
+            else if (_wikidata)
+            {
+                @* The Wikidata match plugs in here (WP9b); until then the Wikidata side keeps the identity card and the Universe link. *@
+                @IdentityCard()
+                @UniverseSection()
+            }
+            else
+            {
+                @ProvidersSide()
+            }
         }
     </div>
 }
@@ -128,6 +128,10 @@
     private bool HasProviders => _setup is { Providers.Count: > 0 };
 
     private bool UsesMusicFlow => _kind == MediaEngine.Domain.Configuration.EditorKinds.Song && HasProviders;
+
+    // While the TV or music flow is searching, its own boxes sit in the Match tab's first row, so the tab hands the flow the provider dropdown and
+    // the source switch and the flow draws the row. Every other time the tab draws the row itself.
+    private bool FlowOwnsRow => (UsesTvBrowser || UsesMusicFlow) && _setup is { NoProvider: false } && !_loading && !_wikidata && (_changing || !IsMatched);
 
     private bool ShowsSearchBoxes => HasProviders && !UsesTvBrowser && !UsesMusicFlow && (_changing || !IsMatched) && !_wikidata && _loading == false;
 
@@ -422,7 +426,8 @@
     {
         Unstage(EditSessionChangeKinds.ChildRematch);
         if (Subject is not { ScopeId: var scope } || !string.Equals(scope, "series", StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase)
+            || _setup is null
+            || !_setup.Providers.Any(provider => string.Equals(provider.Name, candidate.ProviderName, StringComparison.OrdinalIgnoreCase))
             || string.IsNullOrWhiteSpace(candidate.ProviderItemId))
         {
             return;
@@ -538,13 +543,10 @@
             }
         }
 
-        if (_staged is not null)
-        {
-            <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="match-staged">@L["EditorMatchPanel_Staged", _staged]@if (!string.IsNullOrWhiteSpace(_stagedMove)) { <span data-testid="match-staged-move"> @_stagedMove</span> }</AppAlert>
-        }
-
+        // A matched item that is not being changed shows its staged note here; while searching, the note sits inside the search section.
         if (!_changing && IsMatched)
         {
+            @StagedNote()
             @CurrentCard(_current!)
             @WhyTable(_current!)
         }
@@ -660,42 +662,83 @@
         _ => field.Replace('_', ' '),
     };
 
-    private RenderFragment SearchSection() => __builder =>
+    private RenderFragment ProviderPart() => __builder =>
+    {
+        if (HasProviders)
+        {
+            <div class="tl-matchrow__provider">
+                <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" Label="@L["EditorMatchPanel_Provider"].Value" Disabled="@(_searching || _wikidata)" />
+            </div>
+        }
+    };
+
+    private RenderFragment SwitchPart() => __builder =>
+    {
+        <AppSegmentedControl Options="@SideOptions" Value="@(_wikidata ? SideWikidata : SideProviders)" ValueChanged="OnSideChanged" AriaLabel="@L["EditorMatchPanel_MatchSource"].Value" />
+    };
+
+    private RenderFragment StagedNote() => __builder =>
+    {
+        if (_staged is not null)
+        {
+            <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="match-staged">@L["EditorMatchPanel_Staged", _staged]@if (!string.IsNullOrWhiteSpace(_stagedMove)) { <span data-testid="match-staged-move"> @_stagedMove</span> }</AppAlert>
+        }
+    };
+
+    private RenderFragment SearchHeading() => __builder =>
+    {
+        <div>
+            <h3 class="tl-matchsearch__heading">@L["EditorMatchPanel_MatchKind", KindWord]</h3>
+            @if (!IsMatched)
+            {
+                <span class="tl-matchsearch__tag"><NotMatchedTag /> <span class="tl-match__meta">@L["EditorMatchPanel_NotMatchedYet"]</span></span>
+            }
+        </div>
+        @if (YourFileLine() is { Length: > 0 } fileLine)
+        {
+            <div class="tl-match__meta" data-testid="match-your-file">@L["EditorMatchPanel_YourFileLine", fileLine]</div>
+        }
+    };
+
+    // What the flow shows under the row it draws: a staged note, the heading with the "Not matched yet" tag, and the file the Engine read.
+    private RenderFragment FlowLead() => __builder =>
+    {
+        @StagedNote()
+        @SearchHeading()
+    };
+
+    private RenderFragment FlowHost() => __builder =>
     {
         <section class="tl-matchsearch" aria-label="@L["EditorMatchPanel_Match"].Value" data-testid="match-search">
-            <div>
-                <h3 class="tl-matchsearch__heading">@L["EditorMatchPanel_MatchKind", KindWord]</h3>
-                @if (!IsMatched)
-                {
-                    <span class="tl-matchsearch__tag"><NotMatchedTag /> <span class="tl-match__meta">@L["EditorMatchPanel_NotMatchedYet"]</span></span>
-                }
-            </div>
-            @if (YourFileLine() is { Length: > 0 } fileLine)
-            {
-                <div class="tl-match__meta" data-testid="match-your-file">@L["EditorMatchPanel_YourFileLine", fileLine]</div>
-            }
             @if (UsesTvBrowser)
             {
                 <EditorTvMatchFlow Subject="Subject" Unmatched="@(!IsMatched)" Context="_tvContext" Evidence="_setup?.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
-                                   ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange" />
-            }
-            else if (UsesMusicFlow)
-            {
-                <EditorMusicMatchFlow Subject="Subject" Fields="_setup!.Fields" Evidence="_setup.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
-                                      ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange" />
+                                   ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange"
+                                   RowStart="ProviderPart()" RowEnd="SwitchPart()" Lead="FlowLead()" />
             }
             else
             {
-                @if (HasProviders && !ProviderIsReady)
-                {
-                    <AppAlert Severity="AppSeverity.Info" Dense="true">@ProviderStateSentence</AppAlert>
-                }
-
-                <EditorMatchResults Results="@(_found?.Results ?? [])" Evidence="_found?.Evidence ?? _setup?.Evidence"
-                                    Selected="_selected" SelectedChanged="OnSelectedAsync" Edition="_edition" EditionChanged="OnEditionAsync"
-                                    Loading="_searching" Message="@(_problem ?? _found?.Message)" Failed="@(_problem is not null || _found?.FailedProviders.Count > 0)"
-                                    CanApply="CanApply" OnApply="ApplyAsync" ShowCancel="IsMatched" OnCancel="CancelChange" />
+                <EditorMusicMatchFlow Subject="Subject" Fields="_setup!.Fields" Evidence="_setup.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
+                                      ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange"
+                                      RowStart="ProviderPart()" RowEnd="SwitchPart()" Lead="FlowLead()" />
             }
+        </section>
+    };
+
+    private RenderFragment SearchSection() => __builder =>
+    {
+        <section class="tl-matchsearch" aria-label="@L["EditorMatchPanel_Match"].Value" data-testid="match-search">
+            @StagedNote()
+            @SearchHeading()
+            @if (HasProviders && !ProviderIsReady)
+            {
+                <AppAlert Severity="AppSeverity.Info" Dense="true">@ProviderStateSentence</AppAlert>
+            }
+
+            <EditorMatchResults Results="@(_found?.Results ?? [])" Evidence="_found?.Evidence ?? _setup?.Evidence"
+                                Selected="_selected" SelectedChanged="OnSelectedAsync" Edition="_edition" EditionChanged="OnEditionAsync"
+                                Loading="_searching" Message="@(_problem ?? _found?.Message)" Failed="@(_problem is not null || _found?.FailedProviders.Count > 0)"
+                                CanApply="CanApply" OnApply="ApplyAsync" ShowCancel="IsMatched" OnCancel="CancelChange" />
         </section>
     };
 

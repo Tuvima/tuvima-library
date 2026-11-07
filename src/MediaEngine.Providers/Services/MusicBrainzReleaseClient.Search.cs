@@ -78,9 +78,25 @@ public sealed partial class MusicBrainzReleaseClient
         }
 
         var id = parsed.ToString("D", CultureInfo.InvariantCulture);
-        var url = $"{BaseUrl()}/release/{id}?inc=recordings%2Bartist-credits%2Blabels%2Brelease-groups&fmt=json";
-        return ParseReleaseDetail(await GetJsonAsync(url, ct).ConfigureAwait(false), id);
+        return ParseReleaseDetail(await GetJsonAsync(ReleaseDetailUrl(id), ct).ConfigureAwait(false), id);
     }
+
+    /// <summary>
+    /// A release's discs and tracks only if an earlier read is still kept (within the provider's <c>cache_ttl_hours</c>); never asks the
+    /// provider. Used to tell releases apart by their track lengths when that costs no extra request.
+    /// </summary>
+    public MusicBrainzReleaseDetail? KeptReleaseDetail(string releaseId)
+    {
+        if (!Guid.TryParse(releaseId, out var parsed))
+        {
+            return null;
+        }
+
+        var id = parsed.ToString("D", CultureInfo.InvariantCulture);
+        return _kept.TryGetValue(ReleaseDetailUrl(id), out var kept) && kept.Expires > DateTimeOffset.UtcNow ? ParseReleaseDetail(kept.Json, id) : null;
+    }
+
+    private string ReleaseDetailUrl(string id) => $"{BaseUrl()}/release/{id}?inc=recordings%2Bartist-credits%2Blabels%2Brelease-groups&fmt=json";
 
     /// <summary>Releases from a release search answer, best first as MusicBrainz ranked them.</summary>
     public static IReadOnlyList<MusicBrainzReleaseSummary> ParseReleaseSearch(JsonNode? json) =>

@@ -24,7 +24,7 @@ public sealed class EditorMusicMatchContractTests
                 new EditorMusicReleaseDto
                 {
                     ReleaseId = "r-1", ReleaseGroupId = "rg-1", Title = "Low Water", Artist = "The Tides", Year = "2011", Label = "Harbor Records",
-                    Format = "2 × CD", Country = "GB", TrackCount = 24, HasCover = true, IsCurrent = true, IsSuggested = true,
+                    Format = "2 × CD", Country = "GB", TrackCount = 24, HasCover = true, ImageUrl = "data:image/png;base64,AAAA", IsCurrent = true, IsSuggested = true,
                 },
             ],
         };
@@ -39,6 +39,7 @@ public sealed class EditorMusicMatchContractTests
         Assert.Contains("\"has_cover\":true", json, StringComparison.Ordinal);
         Assert.Contains("\"is_current\":true", json, StringComparison.Ordinal);
         Assert.Contains("\"is_suggested\":true", json, StringComparison.Ordinal);
+        Assert.Contains("\"image_url\":\"data:image/png;base64,AAAA\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"message\"", json, StringComparison.Ordinal);
         Assert.Equal("2 × CD", back.Releases[0].Format);
     }
@@ -80,10 +81,14 @@ public sealed class EditorMusicMatchContractTests
         {
             Kind = EditorGroupMatchKinds.Episodes,
             TargetLabel = "The Last Signal · Season 2",
+            MessageCode = EditorMatchMessageCodes.NothingFound,
+            SubjectMediaType = "TV",
+            SubjectScopeId = "episode",
+            SubjectTargetGroup = "show_episode",
             Lines =
             [
-                new EditorGroupMatchLineDto { EntityId = item, Title = "s02e03.mkv", NumberText = "Episode 3", TargetTitle = "Echoes in the Dark", Verdict = EditorMatchVerdicts.Strong, Fits = true },
-                new EditorGroupMatchLineDto { EntityId = Guid.NewGuid(), Title = "extra.mkv", Note = "Its name carries no episode number to line up by." },
+                new EditorGroupMatchLineDto { EntityId = item, Title = "s02e03.mkv", NumberText = "3", TargetTitle = "Echoes in the Dark", Verdict = EditorMatchVerdicts.Strong, Fits = true },
+                new EditorGroupMatchLineDto { EntityId = Guid.NewGuid(), Title = "extra.mkv", NoteCode = EditorMatchMessageCodes.OtherSeason, NoteValue = "1" },
             ],
         };
 
@@ -94,7 +99,14 @@ public sealed class EditorMusicMatchContractTests
         Assert.Equal("{\"kind\":\"episodes\",\"entity_ids\":[\"" + item.ToString("D") + "\"],\"series_id\":\"100\",\"season_number\":2,\"release_id\":null}", requestJson);
         Assert.Contains("\"target_label\":", answerJson, StringComparison.Ordinal);
         Assert.Equal("The Last Signal · Season 2", back.TargetLabel);
-        Assert.Contains("\"number_text\":\"Episode 3\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"number_text\":\"3\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"message_code\":\"nothing_found\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"subject_media_type\":\"TV\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"subject_scope_id\":\"episode\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"subject_target_group\":\"show_episode\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"note_code\":\"other_season\"", answerJson, StringComparison.Ordinal);
+        Assert.Contains("\"note_value\":\"1\"", answerJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"note\":", answerJson, StringComparison.Ordinal);
         Assert.Contains("\"target_title\":\"Echoes in the Dark\"", answerJson, StringComparison.Ordinal);
         Assert.Contains("\"fits\":true", answerJson, StringComparison.Ordinal);
         Assert.Contains("\"fits\":false", answerJson, StringComparison.Ordinal);
@@ -152,5 +164,43 @@ public sealed class EditorMusicMatchContractTests
         Assert.Null(episode.AbsoluteNumber);
         Assert.Null(seasons.Genre);
         Assert.Null(seasons.Overview);
+    }
+
+    [Fact]
+    public void TheVerdictRequest_IsOnePickInABody_NotAQueryString()
+    {
+        var candidate = EditorMatchCandidates.ForMusicTrack(
+            "r-1", "rg-1", "Low Water", "The Tides", "2011", hasCover: true, "rec-3", "Harbor Lights", null, disc: 2, track: 3, lengthSeconds: 222.4, disambiguation: null);
+
+        var json = JsonSerializer.Serialize(new EditorMatchVerdictRequestDto { Candidate = candidate });
+        var back = JsonSerializer.Deserialize<EditorMatchVerdictRequestDto>(json)!;
+
+        Assert.StartsWith("{\"candidate\":{", json, StringComparison.Ordinal);
+        Assert.Equal("Harbor Lights", back.Candidate.Title);
+    }
+
+    [Fact]
+    public void ThePlacement_NamesTheAlbumItLeavesById_WhatItKeeps_AndTheTrackNumberItTakes()
+    {
+        var current = Guid.NewGuid();
+        var json = JsonSerializer.Serialize(new EditorMatchPlacementDto { CurrentParentId = current, CurrentParentKeeps = 10, Position = 3 });
+        var back = JsonSerializer.Deserialize<EditorMatchPlacementDto>(json)!;
+
+        Assert.Contains("\"current_parent_id\":\"" + current.ToString("D") + "\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"current_parent_keeps\":10", json, StringComparison.Ordinal);
+        Assert.Contains("\"position\":3", json, StringComparison.Ordinal);
+        Assert.Equal(3, back.Position);
+    }
+
+    [Fact]
+    public void ThePlaceToken_RoundTripsTheTrackNumber_AndRefusesAnythingElse()
+    {
+        Assert.Equal("place:4", EditSessionPosition.PlaceToken(4));
+        Assert.True(EditSessionPosition.IsPlace("place:4", out var number));
+        Assert.Equal(4, number);
+        Assert.False(EditSessionPosition.IsPlace("position:4", out _));
+        Assert.True(EditSessionPosition.IsPlace("place:x", out var unreadable));
+        Assert.Equal(0, unreadable);
+        Assert.False(EditSessionPosition.IsPlace(null, out _));
     }
 }

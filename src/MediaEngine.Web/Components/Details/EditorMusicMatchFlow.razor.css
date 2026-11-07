@@ -1,31 +1,80 @@
-/* The music flow: the Artist, Album and Song boxes, and the disc and track rows. */
+/* The music flow: the Artist, Album and Song boxes (in the Match tab's first row), the releases list and the tracks table side by side. */
 .tl-musicflow {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
 }
 
-.tl-musicflow__search {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--tl-space-2);
-}
-
 .tl-musicflow__field {
-    flex: 1 1 0;
+    flex: 1 1 8rem;
     min-width: 0;
 }
 
-.tl-musicflow__disc {
-    margin-block: var(--tl-space-2) var(--tl-space-1);
+.tl-musicflow__columns {
+    display: grid;
+    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+    gap: var(--tl-space-4);
+    align-items: start;
 }
 
-.tl-musicflow__number {
-    flex: 0 0 2rem;
-    text-align: end;
+@media (max-width: 840px) {
+    .tl-musicflow__columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.tl-musicflow__cover--empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tl-bg-surface, rgba(127, 127, 127, 0.12));
     color: var(--tl-text-muted);
 }
 
-.tl-musicflow__preview {
-    margin: 0;
+.tl-musicflow__tag {
+    margin-inline-start: var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 400;
+}
+
+.tl-musicflow__tick {
+    flex: 0 0 auto;
+    width: 1.5rem;
+    text-align: end;
+    color: var(--tl-accent-primary, #8852FC);
+}
+
+.tl-musicflow__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-musicflow__table tr {
+    position: relative;
+}
+
+.tl-musicflow__table th,
+.tl-musicflow__table td {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    text-align: start;
+}
+
+.tl-musicflow__table th {
+    color: var(--tl-text-muted);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-musicflow__table .tl-musicflow__disc th {
+    padding-top: var(--tl-space-3);
+}
+
+.tl-musicflow__table tbody tr:hover {
+    background: var(--tl-bg-surface-hover, rgba(127, 127, 127, 0.08));
+}
+
+.tl-musicflow__table tr.is-active {
+    outline: 1px solid var(--tl-accent-primary, #8852FC);
+    outline-offset: -1px;
 }

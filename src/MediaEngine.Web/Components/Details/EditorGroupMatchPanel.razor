@@ -59,15 +59,17 @@
         {
             @if (_show is null)
             {
-                <div class="tl-match__results" role="list" data-testid="group-match-shows">
+                <div class="tl-match__results" role="list" aria-label="@L["EditorTvMatchFlow_Shows"].Value" data-testid="group-match-shows">
                     @foreach (var show in _shows)
                     {
-                        <AppRowButton Class="tl-match__row" role="listitem" OnClick="@(() => ChooseShowAsync(show))">
-                            <span class="tl-match__text">
-                                <span class="tl-match__title"><span>@show.Name</span></span>
-                                <span class="tl-match__meta">@show.Year</span>
-                            </span>
-                        </AppRowButton>
+                        <div role="listitem">
+                            <AppRowButton Class="tl-match__row" OnClick="@(() => ChooseShowAsync(show))">
+                                <span class="tl-match__text">
+                                    <span class="tl-match__title"><span>@show.Name</span></span>
+                                    <span class="tl-match__meta">@show.Year</span>
+                                </span>
+                            </AppRowButton>
+                        </div>
                     }
                 </div>
             }
@@ -85,20 +87,18 @@
         }
         else
         {
-            <div class="tl-match__results" role="list" data-testid="group-match-releases">
+            <div class="tl-match__results" role="list" aria-label="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" data-testid="group-match-releases">
                 @foreach (var release in _releases)
                 {
                     var active = _release?.ReleaseId == release.ReleaseId;
-                    <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(active ? "true" : "false")" OnClick="@(() => _release = release)">
-                        <span class="tl-match__text">
-                            <span class="tl-match__title">
-                                <span>@release.Title</span>
-                                @if (release.IsCurrent) { <AppChip Text="@L["EditorMusicMatchFlow_CurrentRelease"].Value" Tone="AppUiTone.Neutral" /> }
-                                @if (release.IsSuggested) { <AppChip Text="@L["EditorMusicMatchFlow_Suggested"].Value" Tone="AppUiTone.Success" /> }
+                    <div role="listitem">
+                        <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" aria-pressed="@(active ? "true" : "false")" OnClick="@(() => _release = release)">
+                            <span class="tl-match__text">
+                                <span class="tl-match__title"><span>@release.Title</span>@if (release.IsCurrent) { <span class="tl-groupmatch__tag">@L["EditorMusicMatchFlow_CurrentRelease"]</span> }@if (release.IsSuggested) { <span class="tl-groupmatch__tag">@L["EditorMusicMatchFlow_Suggested"]</span> }</span>
+                                <span class="tl-match__meta">@string.Join(" · ", new[] { release.Artist, release.Year, release.Format, release.TrackCount > 0 ? L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value : null }.Where(part => !string.IsNullOrWhiteSpace(part)))</span>
                             </span>
-                            <span class="tl-match__meta">@string.Join(" · ", new[] { release.Artist, release.Year, release.Format, release.TrackCount > 0 ? L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value : null }.Where(part => !string.IsNullOrWhiteSpace(part)))</span>
-                        </span>
-                    </AppRowButton>
+                        </AppRowButton>
+                    </div>
                 }
             </div>
         }
@@ -243,7 +243,7 @@
                 var response = await Api.GetEditorMusicReleasesAsync(first, _artist.Trim(), _album.Trim(), null);
                 _releases = response?.Releases ?? [];
                 _release = _releases.FirstOrDefault(release => release.IsSuggested) ?? _releases.FirstOrDefault(release => release.IsCurrent);
-                _message = response is null ? L["EditorMusicMatchFlow_DidNotAnswer"].Value : response.Message;
+                _message = response is null ? L["EditorMusicMatchFlow_DidNotAnswer"].Value : EditorMatchMessages.Text(L, response.MessageCode);
             }
         }
         catch (HttpRequestException ex)
@@ -314,7 +314,7 @@
         _busy = false;
         if (lined is null || lined.Lines.Count == 0)
         {
-            _message = lined?.Message ?? L["EditorTvMatchFlow_DidNotAnswer"].Value;
+            _message = EditorMatchMessages.Text(L, lined?.MessageCode) ?? L["EditorTvMatchFlow_DidNotAnswer"].Value;
             return;
         }
 
@@ -346,7 +346,11 @@
     }
 
     private string MisfitLine(EditorGroupMatchLineDto line) =>
-        string.Join(" · ", new[] { line.NumberText, line.TargetTitle, line.Note }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        string.Join(" · ", new[] { NumberLabel(line.NumberText), line.TargetTitle, EditorMatchMessages.Text(L, line.NoteCode, line.NoteValue) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    // The Engine sends the bare number ("3", or "2·4" for disc 2 track 4); the words around it are the Dashboard's.
+    private string? NumberLabel(string? number) =>
+        string.IsNullOrWhiteSpace(number) ? null : IsEpisodes ? L["EditorGroupMatchPanel_EpisodeNumber", number].Value : L["EditorGroupMatchPanel_TrackNumber", number].Value;
 
     // Each ticked item is staged the way a single Apply stages it: the match, then the move it brings, then the file move in a Managed folder.
     private async Task ApplyAsync()
@@ -356,9 +360,10 @@
             return;
         }
 
-        var mediaType = IsEpisodes ? "TV" : "Music";
-        var scope = IsEpisodes ? "episode" : "track";
-        var group = IsEpisodes ? "show_episode" : "track";
+        // What kind of item each line is comes from the Engine's answer, so the Dashboard repeats none of its names.
+        var mediaType = _result.SubjectMediaType ?? string.Empty;
+        var scope = _result.SubjectScopeId ?? string.Empty;
+        var group = _result.SubjectTargetGroup ?? string.Empty;
         foreach (var line in _result.Lines.Where(line => _ticked.Contains(line.EntityId) && line.Candidate is not null))
         {
             var candidate = line.Candidate!;

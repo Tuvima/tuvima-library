@@ -13,6 +13,7 @@ namespace MediaEngine.Api.Tests;
 public sealed class EditorMusicSuggestionTests
 {
     private readonly EditorMatchVerdictCalculator _calculator = new(new MatchVerdictSettings());
+    private readonly MusicMatchSettings _settings = new();
 
     private static MusicBrainzReleaseSummary Release(string id, string title, int tracks) => new(id, null, title, "The Tides", "2011", null, "CD", "GB", tracks, false);
 
@@ -24,7 +25,7 @@ public sealed class EditorMusicSuggestionTests
     {
         var releases = new[] { Release("a", "Low Water (Deluxe)", 24), Release("b", "Low Water", 11), Release("c", "Low Water", 12) };
 
-        Assert.Equal("b", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11));
+        Assert.Equal("b", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11, _settings));
     }
 
     [Fact]
@@ -32,12 +33,12 @@ public sealed class EditorMusicSuggestionTests
     {
         var releases = new[] { Release("a", "Other Album", 8), Release("b", "Low Water", 11) };
 
-        Assert.Equal("b", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 6));
+        Assert.Equal("b", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 6, _settings));
     }
 
     [Fact]
     public void WhenNothingFits_NoReleaseIsSuggested() =>
-        Assert.Null(EditorMusicSuggestion.SuggestRelease([Release("a", "Something Else", 3)], "Low Water", libraryTrackCount: 0));
+        Assert.Null(EditorMusicSuggestion.SuggestRelease([Release("a", "Something Else", 3)], "Low Water", libraryTrackCount: 0, _settings));
 
     [Fact]
     public void TheTrackWithTheFilesTitleNumberAndLength_IsPreSelected()
@@ -45,7 +46,7 @@ public sealed class EditorMusicSuggestionTests
         var tracks = new[] { Track(1, 3, "Opening", 180), Track(2, 3, "Harbor Lights", 222, "2013 remaster"), Track(2, 4, "Low Tide", 241) };
         var evidence = new EditorMatchLocalEvidenceDto { FileTitle = "Harbor Lights", Number = 3, Disc = 2, MeasuredSeconds = 222 };
 
-        var pick = EditorMusicSuggestion.SuggestTrack(tracks, evidence, _calculator);
+        var pick = EditorMusicSuggestion.SuggestTrack(tracks, evidence, _calculator, _settings);
 
         Assert.Equal("rec-2-3", pick!.RecordingId);
         Assert.Equal("2013 remaster", pick.Disambiguation);
@@ -57,7 +58,7 @@ public sealed class EditorMusicSuggestionTests
         var tracks = new[] { Track(1, 1, "One", 100), Track(1, 2, "Two", 222) };
         var evidence = new EditorMatchLocalEvidenceDto { Number = 2, MeasuredSeconds = 222 };
 
-        Assert.Equal("rec-1-2", EditorMusicSuggestion.SuggestTrack(tracks, evidence, _calculator)!.RecordingId);
+        Assert.Equal("rec-1-2", EditorMusicSuggestion.SuggestTrack(tracks, evidence, _calculator, _settings)!.RecordingId);
     }
 
     [Fact]
@@ -66,7 +67,7 @@ public sealed class EditorMusicSuggestionTests
         var tracks = new[] { Track(1, 1, "One", 100) };
         var evidence = new EditorMatchLocalEvidenceDto { FileTitle = "Unrelated", Number = 9, MeasuredSeconds = 500 };
 
-        Assert.Null(EditorMusicSuggestion.SuggestTrack(tracks, evidence, _calculator));
+        Assert.Null(EditorMusicSuggestion.SuggestTrack(tracks, evidence, _calculator, _settings));
     }
 
     [Fact]
@@ -98,4 +99,30 @@ public sealed class EditorMusicSuggestionTests
     [Fact]
     public void AGroupSongWhoseNumberTheReleaseLacks_IsLeftUnplaced() =>
         Assert.Null(EditorMusicSuggestion.TrackFor([Track(1, 1, "One")], 7, disc: null, fileTitle: null));
+    [Fact]
+    public void ReleasesThatTieOnTitleAndTrackCount_AreToldApartByWhichHoldsATrackOfTheSongsLength()
+    {
+        var releases = new[] { Release("a", "Low Water", 11), Release("b", "Low Water", 11) };
+
+        Assert.Equal("a", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11, _settings));
+        Assert.Equal("b", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11, _settings, release => release.ReleaseId == "b"));
+    }
+
+    [Fact]
+    public void TheLengthNeverOutweighsTheTitleAndTrackCount()
+    {
+        var releases = new[] { Release("a", "Low Water", 11), Release("b", "Something Else", 3) };
+
+        Assert.Equal("a", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11, _settings, release => release.ReleaseId == "b"));
+    }
+
+    [Fact]
+    public void TheWeightsComeFromTheSettings_NotFromTheCode()
+    {
+        var releases = new[] { Release("a", "Low Water", 24), Release("b", "Other Album", 11) };
+        var countFirst = new MusicMatchSettings { ReleaseTitlePoints = 1, ReleaseTrackCountExactPoints = 5 };
+
+        Assert.Equal("a", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11, _settings));
+        Assert.Equal("b", EditorMusicSuggestion.SuggestRelease(releases, "Low Water", libraryTrackCount: 11, countFirst));
+    }
 }

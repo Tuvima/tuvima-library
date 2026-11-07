@@ -141,6 +141,7 @@ public sealed partial class EditorMatchLocalEvidenceReader(
             FileTitle = isTv ? parsed.Show ?? title : title,
             Year = year,
             Number = number,
+            Season = isTv ? parsed.Season : null,
             EpisodeTitle = isTv ? parsed.Title : null,
             Disc = isMusic ? parsed.Disc ?? tags.Disc : null,
             Creator = creator,

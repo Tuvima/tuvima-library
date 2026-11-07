@@ -19,11 +19,14 @@ public sealed class EditorGroupMatchService(
     EditorMatchSearchService search,
     EditorMatchLocalEvidenceReader reader,
     IEditorMatchKindResolver kinds,
-    EditorMatchPlacementService placement,
-    EditorMusicMatchService music,
-    ProviderApiClient tvdb)
+    IEditorMatchPlacement placement,
+    MusicBrainzReleaseClient musicBrainz,
+    ProviderApiClient tvdb,
+    ILogger<EditorGroupMatchService> logger)
 {
     private const string TvdbProvider = "tvdb";
+    private const string EpisodeScope = "episode";
+    private const string TrackScope = "track";
 
     /// <summary>The refusal sentence for a request that cannot be lined up, or null. Checked before any provider is asked.</summary>
     public static string? Refusal(EditorGroupMatchRequestDto request)
@@ -42,7 +45,7 @@ public sealed class EditorGroupMatchService(
         return request.Kind switch
         {
             EditorGroupMatchKinds.Episodes when request.SeriesId is not { Length: >= 1 and <= 12 } || !request.SeriesId.All(char.IsAsciiDigit)
-                => "Choose a valid TheTVDB show.",
+                => "Choose a valid show.",
             EditorGroupMatchKinds.Episodes when request.SeasonNumber is not (>= 0 and <= 999)
                 => "Choose the season to line the episodes up with.",
             EditorGroupMatchKinds.Songs when !Guid.TryParse(request.ReleaseId, out _)
@@ -58,13 +61,62 @@ public sealed class EditorGroupMatchService(
         var refusal = Refusal(request);
         if (refusal is not null)
         {
-            return new EditorGroupMatchDto { Kind = request.Kind, Message = refusal };
+            return new EditorGroupMatchDto { Kind = request.Kind, MessageCode = EditorMatchMessageCodes.InvalidRequest };
         }
 
         return request.Kind == EditorGroupMatchKinds.Episodes
             ? await EpisodesAsync(request, actor, canEdit, ct).ConfigureAwait(false)
             : await SongsAsync(request, actor, canEdit, ct).ConfigureAwait(false);
     }
+
+    // What the lined-up items are matched as; the Dashboard stages each match with it instead of inventing the strings.
+    private static EditorGroupMatchDto Answer(string kind, string? label = null, IReadOnlyList<EditorGroupMatchLineDto>? lines = null, string? code = null)
+    {
+        var episodes = kind == EditorGroupMatchKinds.Episodes;
+        var match = EditorMatchKinds.For(episodes ? EditorKinds.TvEpisode : EditorKinds.Song);
+        return new EditorGroupMatchDto
+        {
+            Kind = kind,
+            TargetLabel = label ?? string.Empty,
+            Lines = lines ?? [],
+            MessageCode = code,
+            SubjectMediaType = match?.MediaType,
+            SubjectScopeId = episodes ? EpisodeScope : TrackScope,
+            SubjectTargetGroup = match?.TargetFieldGroup,
+        };
+    }
+
+    // Two ticked items that would take the same episode or track cannot both be right: neither is ticked, and each says so, so the person
+    // keeps the one that belongs. An item already left out for another reason does not count as taking it.
+    private static IReadOnlyList<EditorGroupMatchLineDto> FlagDuplicates(List<EditorGroupMatchLineDto> lines)
+    {
+        var duplicated = lines
+            .Where(line => line.Fits && line.Candidate is not null)
+            .GroupBy(line => TargetKey(line.Candidate!))
+            .Where(group => group.Count() > 1)
+            .SelectMany(group => group)
+            .Select(line => line.EntityId)
+            .ToHashSet();
+        return [.. lines.Select(line => duplicated.Contains(line.EntityId) ? Flagged(line, EditorMatchMessageCodes.Duplicate, line.NumberText) : line)];
+    }
+
+    private static string TargetKey(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) =>
+        string.Join("|", candidate.ProviderItemId, candidate.SuggestedFields.GetValueOrDefault("disc_number"), candidate.SuggestedFields.GetValueOrDefault("track_number"));
+
+    private static EditorGroupMatchLineDto Flagged(EditorGroupMatchLineDto line, string code, string? value) => new()
+    {
+        EntityId = line.EntityId,
+        Title = line.Title,
+        NumberText = line.NumberText,
+        TargetTitle = line.TargetTitle,
+        Verdict = line.Verdict,
+        Reasons = line.Reasons,
+        Fits = false,
+        NoteCode = code,
+        NoteValue = value,
+        Candidate = line.Candidate,
+        Placement = line.Placement,
+    };
 
     // ── Episodes ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -74,7 +126,7 @@ public sealed class EditorGroupMatchService(
         var number = request.SeasonNumber!.Value;
         if (!tvdb.IsConfigured(TvdbProvider))
         {
-            return new EditorGroupMatchDto { Kind = request.Kind, Message = "Connect TheTVDB in Settings before matching episodes." };
+            return Answer(request.Kind, code: EditorMatchMessageCodes.ProviderNotConnected);
         }
 
         IReadOnlyList<TvMatchBrowserEpisodeDto> episodes;
@@ -86,7 +138,7 @@ public sealed class EditorGroupMatchService(
             var picked = show is null ? null : TvMatchBrowserMapper.MapSeasons(show, seriesId, null).FirstOrDefault(item => item.SeasonNumber == number);
             if (show is null || picked is null)
             {
-                return new EditorGroupMatchDto { Kind = request.Kind, Message = "That show or season is not on TheTVDB." };
+                return Answer(request.Kind, code: EditorMatchMessageCodes.NotOnProvider);
             }
 
             var english = await tvdb.GetAsync(TvdbProvider, "series_translation", ProviderApiClient.Args(("id", seriesId)), ct).ConfigureAwait(false);
@@ -99,7 +151,8 @@ public sealed class EditorGroupMatchService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return new EditorGroupMatchDto { Kind = request.Kind, Message = $"TheTVDB did not answer: {ex.Message}" };
+            logger.LogWarning(ex, "The group match could not read show {SeriesId} from the provider", seriesId);
+            return Answer(request.Kind, code: EditorMatchMessageCodes.ProviderSilent);
         }
 
         var lines = new List<EditorGroupMatchLineDto>();
@@ -108,7 +161,7 @@ public sealed class EditorGroupMatchService(
             lines.Add(await EpisodeLineAsync(id, season, episodes, showName, actor, canEdit, ct).ConfigureAwait(false));
         }
 
-        return new EditorGroupMatchDto { Kind = request.Kind, TargetLabel = $"{showName} · {season.Title}", Lines = lines };
+        return Answer(request.Kind, $"{showName} · {season.Title}", FlagDuplicates(lines));
     }
 
     private async Task<EditorGroupMatchLineDto> EpisodeLineAsync(
@@ -118,47 +171,52 @@ public sealed class EditorGroupMatchService(
         var kind = await kinds.ResolveAsync(id, ct).ConfigureAwait(false);
         if (kind != EditorKinds.TvEpisode)
         {
-            return Unplaced(id, null, null, "This is not an episode, so it is left as it is.");
+            return Unplaced(id, null, null, EditorMatchMessageCodes.WrongKind);
         }
 
         if (!await canEdit(id, LibraryMoveRight.Match, ct).ConfigureAwait(false))
         {
-            return Unplaced(id, null, null, "You cannot change this one.");
+            return Unplaced(id, null, null, EditorMatchMessageCodes.CannotChange);
         }
 
         var read = await reader.ReadAsync(id, kind, ct).ConfigureAwait(false);
         if (read is null)
         {
-            return Unplaced(id, null, null, "This episode could not be read.");
+            return Unplaced(id, null, null, EditorMatchMessageCodes.CouldNotRead);
         }
 
         var title = TitleOf(read);
         if (read.Evidence.Number is not { } number)
         {
-            return Unplaced(id, title, null, "Its name carries no episode number to line up by.");
+            return Unplaced(id, title, null, EditorMatchMessageCodes.NoNumber);
         }
 
-        var numberText = $"Episode {number.ToString(CultureInfo.InvariantCulture)}";
+        var numberText = number.ToString(CultureInfo.InvariantCulture);
         var target = episodes.FirstOrDefault(episode => episode.EpisodeNumber == number);
         if (target is null)
         {
-            return Unplaced(id, title, numberText, $"{season.Title} has no episode {number.ToString(CultureInfo.InvariantCulture)}.");
+            return Unplaced(id, title, numberText, EditorMatchMessageCodes.NoSuchNumber, numberText);
         }
 
         var candidate = EditorMatchCandidates.ForTvEpisode(
             target.SeriesId, showName, target.EpisodeId, target.SeasonNumber, target.EpisodeNumber, target.Title,
             target.Aired, target.Overview, target.ImageUrl, target.RuntimeMinutes);
-        return await LineAsync(id, kind, read, title, numberText, candidate, actor, canEdit, ct).ConfigureAwait(false);
+        var line = await LineAsync(id, kind, read, title, numberText, candidate, actor, canEdit, ct).ConfigureAwait(false);
+
+        // A file that names another season (S01E03 in a group matched to Season 2) lines up with the wrong episode: it is left out unless ticked.
+        return read.Evidence.Season is { } fileSeason && fileSeason != season.SeasonNumber
+            ? Flagged(line, EditorMatchMessageCodes.OtherSeason, fileSeason.ToString(CultureInfo.InvariantCulture))
+            : line;
     }
 
     // ── Songs ────────────────────────────────────────────────────────────────────────────────────────────────
 
     private async Task<EditorGroupMatchDto> SongsAsync(EditorGroupMatchRequestDto request, LibraryMoveActor actor, LibraryMoveAccess canEdit, CancellationToken ct)
     {
-        var detail = await music.ReadReleaseAsync(request.ReleaseId!, ct).ConfigureAwait(false);
+        var detail = await musicBrainz.FetchReleaseDetailAsync(request.ReleaseId!, ct).ConfigureAwait(false);
         if (detail is null)
         {
-            return new EditorGroupMatchDto { Kind = request.Kind, Message = "MusicBrainz did not answer for that release. Try again in a moment." };
+            return Answer(request.Kind, code: EditorMatchMessageCodes.ProviderSilent);
         }
 
         var tracks = detail.Discs.SelectMany(disc => disc.Tracks).ToList();
@@ -169,7 +227,7 @@ public sealed class EditorGroupMatchService(
         }
 
         var label = string.IsNullOrWhiteSpace(detail.Summary.Artist) ? detail.Summary.Title : $"{detail.Summary.Title} · {detail.Summary.Artist}";
-        return new EditorGroupMatchDto { Kind = request.Kind, TargetLabel = label, Lines = lines };
+        return Answer(request.Kind, label, FlagDuplicates(lines));
     }
 
     private async Task<EditorGroupMatchLineDto> SongLineAsync(
@@ -179,33 +237,34 @@ public sealed class EditorGroupMatchService(
         var kind = await kinds.ResolveAsync(id, ct).ConfigureAwait(false);
         if (kind != EditorKinds.Song)
         {
-            return Unplaced(id, null, null, "This is not a song, so it is left as it is.");
+            return Unplaced(id, null, null, EditorMatchMessageCodes.WrongKind);
         }
 
         if (!await canEdit(id, LibraryMoveRight.Match, ct).ConfigureAwait(false))
         {
-            return Unplaced(id, null, null, "You cannot change this one.");
+            return Unplaced(id, null, null, EditorMatchMessageCodes.CannotChange);
         }
 
         var read = await reader.ReadAsync(id, kind, ct).ConfigureAwait(false);
         if (read is null)
         {
-            return Unplaced(id, null, null, "This song could not be read.");
+            return Unplaced(id, null, null, EditorMatchMessageCodes.CouldNotRead);
         }
 
         var title = TitleOf(read);
         if (read.Evidence.Number is not { } number)
         {
-            return Unplaced(id, title, null, "Its name and tags carry no track number to line up by.");
+            return Unplaced(id, title, null, EditorMatchMessageCodes.NoNumber);
         }
 
+        // The number as the person reads it: "2·4" for disc 2 track 4, "4" when the file names no disc.
         var numberText = read.Evidence.Disc is { } disc
-            ? $"Disc {disc.ToString(CultureInfo.InvariantCulture)}, track {number.ToString(CultureInfo.InvariantCulture)}"
-            : $"Track {number.ToString(CultureInfo.InvariantCulture)}";
+            ? $"{disc.ToString(CultureInfo.InvariantCulture)}·{number.ToString(CultureInfo.InvariantCulture)}"
+            : number.ToString(CultureInfo.InvariantCulture);
         var target = EditorMusicSuggestion.TrackFor(tracks, number, read.Evidence.Disc, read.Evidence.FileTitle);
         if (target is null)
         {
-            return Unplaced(id, title, numberText, $"{detail.Summary.Title} has no {numberText.ToLowerInvariant()}.");
+            return Unplaced(id, title, numberText, EditorMatchMessageCodes.NoSuchNumber, numberText);
         }
 
         var candidate = EditorMatchCandidates.ForMusicTrack(
@@ -237,13 +296,14 @@ public sealed class EditorGroupMatchService(
         };
     }
 
-    private static EditorGroupMatchLineDto Unplaced(Guid id, string? title, string? numberText, string note) => new()
+    private static EditorGroupMatchLineDto Unplaced(Guid id, string? title, string? numberText, string code, string? value = null) => new()
     {
         EntityId = id,
         Title = title ?? string.Empty,
         NumberText = numberText,
         Fits = false,
-        Note = note,
+        NoteCode = code,
+        NoteValue = value,
     };
 
     private static string TitleOf(EditorMatchLocalRead read) =>

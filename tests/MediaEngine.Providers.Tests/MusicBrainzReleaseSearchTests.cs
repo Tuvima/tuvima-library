@@ -164,6 +164,25 @@ public sealed class MusicBrainzReleaseSearchTests
     }
 
     [Fact]
+    public async Task AReleaseAlreadyRead_CanBeLookedAtAgainWithoutAskingTheProvider_AndOneNeverReadIsNotAsked()
+    {
+        var http = new FakeHttp(_ => Json(ReleaseDetail));
+        var client = Client(http, cacheHours: 24);
+
+        Assert.Null(client.KeptReleaseDetail(ReleaseB));
+        Assert.Empty(http.Requests);
+
+        await client.FetchReleaseDetailAsync(ReleaseB, CancellationToken.None);
+        var kept = client.KeptReleaseDetail(ReleaseB);
+
+        Assert.NotNull(kept);
+        Assert.Equal(ReleaseB, kept.Summary.ReleaseId);
+        Assert.Single(http.Requests);
+        Assert.Null(client.KeptReleaseDetail(ReleaseA));
+        Assert.Null(client.KeptReleaseDetail("not-an-id"));
+    }
+
+    [Fact]
     public async Task AnAnswerWithContent_IsKeptForTheProvidersCacheTime_SoAskingAgainMakesNoSecondRequest()
     {
         var http = new FakeHttp(_ => Json(ReleaseSearch));

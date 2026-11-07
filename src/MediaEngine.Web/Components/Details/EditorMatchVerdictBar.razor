@@ -3,32 +3,34 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The verdict line and the buttons under the TV and music flows (universal editor v5, 3c, mockups G3 and G4): Strong, Possible or Check with the
-   reasons, the "Your file: 45:52 measured · Provider: 46 min (rounded)" line when a length was compared, then Cancel and Apply match. Apply match
-   is always available once something is chosen; the verdict is advice. Nothing is saved here. *@
+   reasons, and at the right of the same line "Your file: 45:52 measured · Provider: 46 min (rounded)" when a length was compared, then Cancel
+   and Apply match. Apply match is always available once something is chosen; the verdict is advice. The verdict is a polite live region, so a
+   screen reader hears it change when another episode or track is chosen. Nothing is saved here. *@
 <div class="tl-matchbar" data-testid="match-verdict-bar">
-    @if (Judging)
-    {
-        <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
-    }
-    else if (Result is { } result)
-    {
-        <div class="tl-matchbar__verdict" data-testid="match-verdict">
-            <AppChip Text="@L["EditorMatchVerdictBar_Verdict", EditorMatchResults.VerdictText(result.Verdict)].Value" Tone="@EditorMatchResults.VerdictTone(result.Verdict)" />
+    <div class="tl-matchbar__verdict" aria-live="polite" aria-atomic="true" data-testid="@(Result is not null && !Judging ? "match-verdict" : null)">
+        @if (Judging)
+        {
+            <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+        }
+        else if (Result is { } result)
+        {
+            <span class="tl-matchbar__chip"><AppChip Text="@L["EditorMatchVerdictBar_Verdict", EditorMatchResults.VerdictText(result.Verdict)].Value" Tone="@EditorMatchResults.VerdictTone(result.Verdict)" /></span>
             @foreach (var reason in result.Reasons)
             {
                 <span class="tl-matchbar__reason" data-state="@reason.State">@Mark(reason.State) @reason.Text</span>
             }
-        </div>
-        @if (LengthNote(result) is { } note)
-        {
-            <div class="tl-match__meta" data-testid="match-length-line">@L["EditorMatchVerdictBar_LengthLine", note.Yours, note.Provider]</div>
+
+            @if (LengthNote(result) is { } note)
+            {
+                <span class="tl-matchbar__length" data-testid="match-length-line">@L["EditorMatchVerdictBar_LengthLine", note.Yours, note.Provider]</span>
+            }
         }
-    }
+    </div>
 
     <div class="tl-matchbar__actions">
         @if (ShowCancel)
         {
-            <AppButton Label="@L["EditorMatchResults_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancel" data-testid="match-cancel" />
+            <AppButton Label="@L["EditorMatchResults_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="OnCancel" data-testid="match-cancel" />
         }
         <AppButton Label="@L["EditorMatchResults_ApplyMatch"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApply)" OnClick="OnApply" data-testid="match-apply" />
     </div>

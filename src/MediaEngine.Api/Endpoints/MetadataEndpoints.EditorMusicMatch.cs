@@ -17,7 +17,7 @@ public static partial class MetadataEndpoints
     private static void MapEditorMusicMatchEndpoints(RouteGroupBuilder group)
     {
         group.MapPost("/{entityId:guid}/match-verdict", async (
-            Guid entityId, EditorMatchPlacementRequestDto request, EditorMatchSearchService match, CancellationToken ct) =>
+            Guid entityId, EditorMatchVerdictRequestDto request, EditorMatchSearchService match, CancellationToken ct) =>
         {
             var judged = await match.JudgeCandidateAsync(entityId, request.Candidate, ct);
             return judged is null ? ApiErrors.NotFound("Match verdict was not found.") : Results.Ok(judged);

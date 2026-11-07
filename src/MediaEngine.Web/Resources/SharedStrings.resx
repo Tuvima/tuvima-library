@@ -11790,7 +11790,10 @@
     <value>The provider lists no episodes for this season.</value>
   </data>
   <data name="EditorTvMatchFlow_SeasonCount" xml:space="preserve">
-    <value>Seasons: {0}</value>
+    <value>{0} seasons</value>
+  </data>
+  <data name="EditorTvMatchFlow_SeasonCountOne" xml:space="preserve">
+    <value>1 season</value>
   </data>
   <data name="EditorTvMatchFlow_Specials" xml:space="preserve">
     <value>Specials</value>
@@ -11828,6 +11831,12 @@
   <data name="EditorTvMatchFlow_ColRuntime" xml:space="preserve">
     <value>Runtime</value>
   </data>
+  <data name="EditorTvMatchFlow_ColChosen" xml:space="preserve">
+    <value>Chosen</value>
+  </data>
+  <data name="EditorTvMatchFlow_EpisodeRow" xml:space="preserve">
+    <value>Episode {0}, {1}</value>
+  </data>
   <data name="EditorTvMatchFlow_Minutes" xml:space="preserve">
     <value>{0} min</value>
   </data>
@@ -11844,13 +11853,31 @@
     <value>Albums and releases</value>
   </data>
   <data name="EditorMusicMatchFlow_CurrentRelease" xml:space="preserve">
-    <value>Current release</value>
+    <value>current</value>
   </data>
   <data name="EditorMusicMatchFlow_Suggested" xml:space="preserve">
-    <value>Suggested</value>
+    <value>suggested</value>
   </data>
   <data name="EditorMusicMatchFlow_DiscsAndTracks" xml:space="preserve">
-    <value>Discs and tracks</value>
+    <value>Discs and tracks of {0}</value>
+  </data>
+  <data name="EditorMusicMatchFlow_ColNumber" xml:space="preserve">
+    <value>#</value>
+  </data>
+  <data name="EditorMusicMatchFlow_ColTrack" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="EditorMusicMatchFlow_ColRecording" xml:space="preserve">
+    <value>Recording</value>
+  </data>
+  <data name="EditorMusicMatchFlow_ColLength" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="EditorMusicMatchFlow_ColChosen" xml:space="preserve">
+    <value>Chosen</value>
+  </data>
+  <data name="EditorMusicMatchFlow_TrackRow" xml:space="preserve">
+    <value>Track {0}, {1}</value>
   </data>
   <data name="EditorMusicMatchFlow_Disc" xml:space="preserve">
     <value>Disc {0}</value>
@@ -11863,15 +11890,6 @@
   </data>
   <data name="EditorMusicMatchFlow_TrackCount" xml:space="preserve">
     <value>{0} tracks</value>
-  </data>
-  <data name="EditorMusicMatchFlow_Stays" xml:space="preserve">
-    <value>Stays on {0} as disc {1} track {2}.</value>
-  </data>
-  <data name="EditorMusicMatchFlow_MovesFromTrack" xml:space="preserve">
-    <value>Moves from {0} track {1} to {2} disc {3} track {4}; the song's album, artist and cover follow.</value>
-  </data>
-  <data name="EditorMusicMatchFlow_Moves" xml:space="preserve">
-    <value>Moves from {0} to {1} disc {2} track {3}; the song's album, artist and cover follow.</value>
   </data>
   <data name="EditorGroupMatchPanel_Heading" xml:space="preserve">
     <value>Match {0} {1}</value>
@@ -11888,10 +11906,82 @@
   <data name="EditorGroupMatchPanel_Apply" xml:space="preserve">
     <value>Apply match to {0}</value>
   </data>
+  <data name="EditorGroupMatchPanel_EpisodeNumber" xml:space="preserve">
+    <value>Episode {0}</value>
+  </data>
+  <data name="EditorGroupMatchPanel_TrackNumber" xml:space="preserve">
+    <value>Track {0}</value>
+  </data>
+  <data name="EditorMatchMessage_EnterWords" xml:space="preserve">
+    <value>Type a few words to search for.</value>
+  </data>
+  <data name="EditorMatchMessage_InvalidRequest" xml:space="preserve">
+    <value>That search could not be read. Check the words and try again.</value>
+  </data>
+  <data name="EditorMatchMessage_ProviderSilent" xml:space="preserve">
+    <value>The provider did not answer. Try again in a moment.</value>
+  </data>
+  <data name="EditorMatchMessage_NothingFound" xml:space="preserve">
+    <value>Nothing matched. Try fewer words or another spelling.</value>
+  </data>
+  <data name="EditorMatchMessage_ProviderNotConnected" xml:space="preserve">
+    <value>That provider is not connected. Connect it in Settings to search it.</value>
+  </data>
+  <data name="EditorMatchMessage_NotOnProvider" xml:space="preserve">
+    <value>The provider does not have that.</value>
+  </data>
+  <data name="EditorMatchMessage_CannotChange" xml:space="preserve">
+    <value>This item cannot be matched here.</value>
+  </data>
+  <data name="EditorMatchMessage_WrongKind" xml:space="preserve">
+    <value>These items are not all the same kind, so they cannot be matched together.</value>
+  </data>
+  <data name="EditorMatchMessage_CouldNotRead" xml:space="preserve">
+    <value>One of these items could not be read.</value>
+  </data>
+  <data name="EditorMatchMessage_NoNumber" xml:space="preserve">
+    <value>No number could be read from the file name.</value>
+  </data>
+  <data name="EditorMatchMessage_NoSuchNumber" xml:space="preserve">
+    <value>The provider has no number {0}.</value>
+  </data>
+  <data name="EditorMatchMessage_OtherSeason" xml:space="preserve">
+    <value>The file name says season {0}.</value>
+  </data>
+  <data name="EditorMatchMessage_Duplicate" xml:space="preserve">
+    <value>Another item lines up with the same record.</value>
+  </data>
+  <data name="EditorMatchMessage_Unknown" xml:space="preserve">
+    <value>Something went wrong with this match.</value>
+  </data>
   <data name="EditorMatchPanel_EpisodesFollow" xml:space="preserve">
     <value>{0} episodes follow {1} by number; {2} go to Needs Review</value>
   </data>
   <data name="EditorMatchPanel_EpisodesAsTheyAre" xml:space="preserve">
     <value>Episodes as they are now</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveHeading" xml:space="preserve">
+    <value>This song moves to another album.</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveFrom" xml:space="preserve">
+    <value>From</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveTrackN" xml:space="preserve">
+    <value>, track {0}</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveTo" xml:space="preserve">
+    <value>to</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveToPos" xml:space="preserve">
+    <value>, disc {0} track {1}.</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveFollows" xml:space="preserve">
+    <value>Its album, artist and cover follow; the</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveKeeps" xml:space="preserve">
+    <value> album keeps {0} tracks.</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MoveKeepsOne" xml:space="preserve">
+    <value> album keeps 1 track.</value>
   </data>
 </root>

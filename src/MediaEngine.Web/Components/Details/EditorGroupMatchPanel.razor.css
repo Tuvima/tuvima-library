@@ -29,3 +29,10 @@
     justify-content: flex-end;
     gap: var(--tl-space-3);
 }
+
+.tl-groupmatch__tag {
+    margin-inline-start: var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 400;
+}

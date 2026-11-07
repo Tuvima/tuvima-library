@@ -1,18 +1,12 @@
-/* The TV flow: the show boxes, the chosen show's card, and the plain episode table. */
+/* The TV flow: the show boxes (in the Match tab's first row), the chosen show's card, and the plain episode table. */
 .tl-tvflow {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
 }
 
-.tl-tvflow__search {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--tl-space-2);
-}
-
 .tl-tvflow__field {
-    flex: 1 1 auto;
+    flex: 1 1 12rem;
     min-width: 0;
 }
 
@@ -24,6 +18,14 @@
     display: flex;
     align-items: flex-start;
     gap: var(--tl-space-3);
+}
+
+.tl-tvflow__card > .tl-match__text {
+    flex: 1 1 auto;
+}
+
+.tl-tvflow__name {
+    font-weight: var(--tl-font-weight-semibold);
 }
 
 .tl-tvflow__overview {
@@ -43,19 +45,31 @@
 
 .tl-tvflow__episodes-head {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
     gap: var(--tl-space-3);
 }
 
 .tl-tvflow__season {
-    flex: 0 0 12rem;
+    flex: 0 0 10rem;
+}
+
+.tl-tvflow__suggested {
+    margin-inline-start: auto;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-style: italic;
+    text-align: end;
 }
 
 .tl-tvflow__table {
     width: 100%;
     border-collapse: collapse;
     font-size: var(--tl-font-size-sm);
+}
+
+.tl-tvflow__table tr {
+    position: relative;
 }
 
 .tl-tvflow__table th,
@@ -69,7 +83,17 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
+.tl-tvflow__table tbody tr:hover {
+    background: var(--tl-bg-surface-hover, rgba(127, 127, 127, 0.08));
+}
+
 .tl-tvflow__table tr.is-active {
     outline: 1px solid var(--tl-accent-primary, #8852FC);
     outline-offset: -1px;
+}
+
+.tl-tvflow__table .tl-tvflow__chosen {
+    width: 2rem;
+    text-align: end;
+    color: var(--tl-accent-primary, #8852FC);
 }

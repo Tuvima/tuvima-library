@@ -52,7 +52,7 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
                 Releases =
                 [
                     new EditorMusicReleaseDto { ReleaseId = ReleaseA, Title = "Low Water", Artist = "The Tides", Year = "2011", Format = "CD", Country = "GB", TrackCount = 11, IsCurrent = true },
-                    new EditorMusicReleaseDto { ReleaseId = ReleaseB, Title = "Low Water (Deluxe)", Artist = "The Tides", Year = "2013", Format = "2 × CD", TrackCount = 24, HasCover = true, IsSuggested = true },
+                    new EditorMusicReleaseDto { ReleaseId = ReleaseB, Title = "Low Water (Deluxe)", Artist = "The Tides", Year = "2013", Format = "2 × CD", Label = "Harbor Records", TrackCount = 24, HasCover = true, ImageUrl = "data:image/png;base64,AAAA", IsSuggested = true },
                 ],
             }));
             stub.SetHandler(nameof(IEngineApiClient.GetEditorMusicReleaseTracksAsync), args =>
@@ -125,10 +125,14 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
         Assert.Equal("Low Water", cut.Find("input[aria-label='Album']").GetAttribute("value"));
         var rows = cut.FindAll("[data-testid=music-flow-release]");
         Assert.Equal(2, rows.Count);
-        Assert.Contains("Current release", rows[0].TextContent, StringComparison.Ordinal);
-        Assert.Contains("Suggested", rows[1].TextContent, StringComparison.Ordinal);
-        Assert.Contains("2 × CD", rows[1].TextContent, StringComparison.Ordinal);
-        Assert.Contains("24 tracks", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("current", rows[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("suggested", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("2013 · 2 × CD · 24 tracks · Harbor Records", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.NotNull(rows[1].QuerySelector("img"));
+        Assert.Null(rows[0].QuerySelector("img"));
+        Assert.Equal("true", rows[1].GetAttribute("aria-pressed"));
+        Assert.Contains("✓", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("button[role=listitem]"));
     }
 
     [Fact]
@@ -136,7 +140,9 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
     {
         var cut = Open();
 
-        var picked = Assert.Single(cut.FindAll("[data-testid=music-flow-track][aria-pressed=true]"));
+        var picked = Assert.Single(cut.FindAll("[data-testid=music-flow-track].is-active"));
+        Assert.Equal("true", picked.QuerySelector("[data-testid=music-flow-track-pick]")!.GetAttribute("aria-pressed"));
+        Assert.Equal("2·3", picked.QuerySelector("[data-testid=music-flow-track-pick]")!.TextContent.Trim());
         Assert.Equal("2", picked.GetAttribute("data-disc"));
         Assert.Equal("3", picked.GetAttribute("data-track"));
         Assert.Contains("2013 remaster", picked.TextContent, StringComparison.Ordinal);
@@ -148,38 +154,79 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
         Assert.Equal("2", candidate.SuggestedFields["disc_number"]);
     }
 
-    [Fact]
-    public void MovingToAnotherAlbum_IsPreviewedWithTheTrackItLeavesAndTheDiscAndTrackItTakes()
+    private static EditorMatchPlacementDto MovePlacement(Guid? currentId, Guid destinationId, string current = "Low Water") => new()
     {
-        _placement = new EditorMatchPlacementDto
-        {
-            DestinationId = Guid.NewGuid(),
-            ParentLabel = "Low Water (Deluxe)",
-            CurrentParentLabel = "Low Water",
-            Managed = true,
-            FromPath = "/music/Low Water/04.flac",
-            ToPath = "/music/Low Water (Deluxe)/2-03.flac",
-        };
+        DestinationId = destinationId,
+        CurrentParentId = currentId,
+        CurrentParentKeeps = 10,
+        Position = 3,
+        ParentLabel = "Low Water (Deluxe)",
+        CurrentParentLabel = current,
+        Managed = true,
+        FromPath = "/music/Low Water/04.flac",
+        ToPath = "/music/Low Water (Deluxe)/2-03.flac",
+    };
+
+    [Fact]
+    public void MovingToAnotherAlbum_ShowsAnAmberCard_WithTheTrackItLeavesTheDiscAndTrackItTakesAndWhatTheOldAlbumKeeps()
+    {
+        _placement = MovePlacement(Guid.NewGuid(), Guid.NewGuid());
         var cut = Open();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-preview]")));
-        Assert.Equal(
-            "Moves from Low Water track 4 to Low Water (Deluxe) disc 2 track 3; the song's album, artist and cover follow.",
-            cut.Find("[data-testid=music-flow-preview]").TextContent.Trim());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-move]")));
+        var text = cut.Find("[data-testid=music-flow-move]").TextContent;
+        Assert.Contains("This song moves to another album.", text, StringComparison.Ordinal);
+        Assert.Contains("From Low Water, track 4 to Low Water (Deluxe), disc 2 track 3.", text, StringComparison.Ordinal);
+        Assert.Contains("Its album, artist and cover follow;", text, StringComparison.Ordinal);
+        Assert.Contains("Low Water album keeps 10 tracks.", text, StringComparison.Ordinal);
+        Assert.NotNull(cut.Find("[data-testid=music-flow-move]").QuerySelector("i"));
+    }
+
+    [Fact]
+    public void ADifferentlyNamedAlbum_ThatIsTheSameAlbumById_ShowsNoMoveCard()
+    {
+        var same = Guid.NewGuid();
+        _placement = MovePlacement(same, same, current: "Low Water (Special Edition)");
+        var cut = Open();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
+
+        Assert.Empty(cut.FindAll("[data-testid=music-flow-move]"));
+        Assert.DoesNotContain("Stays on", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void APickTheEngineCannotPlace_SaysWhy_InsteadOfTheMoveCard()
+    {
+        _placement = new EditorMatchPlacementDto { BlockedReason = "That album is in a Read-only folder." };
+        var cut = Open();
+
+        cut.WaitForAssertion(() => Assert.Equal("That album is in a Read-only folder.", cut.Find("[data-testid=music-flow-move]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void Opening_AsksNothing_UntilSearchIsPressed_AndTheTracksComeAsATableWithDiscAndTrack()
+    {
+        var cut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Song())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, true));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-search]")));
+        Assert.Empty(cut.FindAll("[data-testid=music-flow-release]"));
+        Assert.NotNull(Assert.Single(cut.FindAll("[data-testid=match-row]")).QuerySelector("[data-testid=music-flow-song]"));
+
+        cut.Find("[data-testid=music-flow-search]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track]")));
+
+        Assert.Equal(["#", "Track", "Recording", "Length", "Chosen"], cut.FindAll("[data-testid=music-flow-table] thead th").Select(th => th.TextContent.Trim()).ToList());
+        Assert.Contains("Discs and tracks of Low Water (Deluxe)", cut.Find("[data-testid=music-flow-tracks]").TextContent, StringComparison.Ordinal);
+        Assert.Equal(2, cut.FindAll("[data-testid=music-flow-table] .tl-musicflow__disc").Count);
     }
 
     [Fact]
     public void Applying_StagesTheMatch_TheAlbumMove_AndAManagedFileMove()
     {
-        _placement = new EditorMatchPlacementDto
-        {
-            DestinationId = Guid.NewGuid(),
-            ParentLabel = "Low Water (Deluxe)",
-            CurrentParentLabel = "Low Water",
-            Managed = true,
-            FromPath = "/music/Low Water/04.flac",
-            ToPath = "/music/Low Water (Deluxe)/2-03.flac",
-        };
+        _placement = MovePlacement(Guid.NewGuid(), Guid.NewGuid());
         var cut = Open();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
 
@@ -197,7 +244,7 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
         var cut = Open();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
 
-        cut.FindAll("[data-testid=music-flow-track]").First(row => row.GetAttribute("data-track") == "2").Click();
+        cut.FindAll("[data-testid=music-flow-track]").First(row => row.GetAttribute("data-track") == "2").QuerySelector("button")!.Click();
 
         cut.WaitForAssertion(() => Assert.Equal(2, _judged.Count));
         Assert.Equal("Low Tide", _judged[^1].Title);

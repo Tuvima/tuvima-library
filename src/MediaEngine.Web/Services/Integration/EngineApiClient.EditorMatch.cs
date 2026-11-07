@@ -18,8 +18,8 @@ public sealed partial class EngineApiClient
             "Editor match placement", $"/metadata/{entityId}/match-placement", new EditorMatchPlacementRequestDto { Candidate = candidate }, ct: ct);
 
     public async Task<EditorMatchResultDto?> GetEditorMatchVerdictAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default) =>
-        await PostAsync<EditorMatchPlacementRequestDto, EditorMatchResultDto>(
-            "Editor match verdict", $"/metadata/{entityId}/match-verdict", new EditorMatchPlacementRequestDto { Candidate = candidate }, ct: ct);
+        await PostAsync<EditorMatchVerdictRequestDto, EditorMatchResultDto>(
+            "Editor match verdict", $"/metadata/{entityId}/match-verdict", new EditorMatchVerdictRequestDto { Candidate = candidate }, ct: ct);
 
     public async Task<EditorMusicReleasesDto?> GetEditorMusicReleasesAsync(Guid entityId, string? artist, string? album, string? song, CancellationToken ct = default) =>
         await GetAsync<EditorMusicReleasesDto>(
