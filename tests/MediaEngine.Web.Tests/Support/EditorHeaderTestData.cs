@@ -107,7 +107,7 @@ internal static class EditorHeaderTestData
     };
 
     /// <summary>A film on its own: nothing to move around in, so the header has no nav row unless it has supporting files.</summary>
-    public static EditorHeaderDto Movie(bool withSupportingFiles = false) => new()
+    public static EditorHeaderDto Movie(bool withSupportingFiles = false, bool withBookmarks = false) => new()
     {
         Kind = EditorKindNames.Movie,
         Root = new EditorHeaderRootDto { Id = EpisodeOneId, Title = "Dune: Part One", MediaType = "Movies" },
@@ -130,7 +130,7 @@ internal static class EditorHeaderTestData
                 }
                 : new EditorHeaderSupportingFilesDto(),
         },
-        Config = Config(EditorKindNames.Movie, "details", "artwork", "match", "history"),
+        Config = withBookmarks ? Config(EditorKindNames.Movie, "details", "artwork", "match", "bookmarks", "history") : Config(EditorKindNames.Movie, "details", "artwork", "match", "history"),
     };
 
     /// <summary>Lesson 2 of a course section: a Section dropdown and lessons with numbers and lengths, never season and episode codes.</summary>

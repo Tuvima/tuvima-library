@@ -47,15 +47,6 @@ public partial interface IEngineApiClient
 
     Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, Guid profileId, CancellationToken ct = default);
 
-    /// <summary>Every profile's personal bookmarks on a title with the owner's name (administrators only; the Everyone's filter).</summary>
-    Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> GetEveryonesBookmarksWithOutcomeAsync(Guid workId, Guid profileId, CancellationToken ct = default);
-
-    /// <summary>Makes a personal bookmark Global at once (administrators only). The name is optional.</summary>
-    Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> PromoteAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, string? name, Guid profileId, CancellationToken ct = default);
-
-    /// <summary>Changes a Global bookmark's name, note and description (administrators only).</summary>
-    Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateGlobalAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default);
-
     /// <summary>Find bookmarks: reads a bookmark file and lists each bookmark beside the nearest one the person has. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
     Task<BookmarkSetCompareDto?> CompareBookmarkSetAsync(Guid workId, Guid profileId, BookmarkSetRequestDto request, CancellationToken ct = default);
 

@@ -1,0 +1,530 @@
+using Bunit;
+using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Metadata;
+using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
+using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace MediaEngine.Web.Tests;
+
+/// <summary>
+/// The editor's Bookmarks tab on screen (universal editor v5 D37, WP15, mockups Q and Q2): offered to an administrator alone, two lists with
+/// picture rows only for video, every change staged and marked until Save changes, and a show's overview whose chevron picks an episode
+/// through the editor's own switch. The Engine is a hand-written stub.
+/// </summary>
+public sealed class EditorBookmarksTabTests : AsyncBunitContext
+{
+    private static readonly Guid MovieId = EditingModeTestData.MovieId;
+    private static readonly Guid ShowId = Guid.NewGuid();
+    private static readonly Guid SeasonOne = Guid.NewGuid();
+    private static readonly Guid SeasonTwo = Guid.NewGuid();
+    private static readonly Guid PilotId = Guid.NewGuid();
+    private static readonly Guid FinaleId = Guid.NewGuid();
+    private static readonly Guid Asset = Guid.NewGuid();
+    private static readonly Guid Opening = Guid.NewGuid();
+    private static readonly Guid Twist = Guid.NewGuid();
+
+    private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
+    private readonly List<Guid> _opened = [];
+    private EditorBookmarksDto _loaded = Titled(video: true, state: EditorBookmarkStates.Pooled);
+    private EditorBookmarkOverviewDto _overview = Overview();
+    private readonly DashboardSessionAccessor _accessor = new();
+    private readonly IRenderedComponent<AppPopoverHost> _popovers;
+    private IRenderedComponent<EditorBookmarksPanel>? _panel;
+    private MediaEditorContextDto? _context;
+
+    public EditorBookmarksTabTests()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        Services.AddLogging();
+        Services.AddSingleton(_device);
+        Services.AddSingleton(Api());
+        Services.AddSingleton(_accessor);
+        _popovers = Render<AppPopoverHost>();
+    }
+
+    private IEngineApiClient Api() => EngineApiClientStub.Create(stub =>
+    {
+        stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(_context ?? EditingModeTestData.MovieContext()));
+        stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+        stub.SetHandler(nameof(IEngineApiClient.GetEditorBookmarksAsync), _ => Task.FromResult<EditorBookmarksDto?>(_loaded));
+        stub.SetHandler(nameof(IEngineApiClient.GetEditorBookmarkOverviewAsync), _ => Task.FromResult<EditorBookmarkOverviewDto?>(_overview));
+    });
+
+    // ---------------------------------------------------------------- fixtures
+
+    private static EditorBookmarkRowDto Row(Guid id, string name, double seconds, bool inEveryone, string owner = "Mira", bool video = true) => new()
+    {
+        Id = id,
+        AssetId = Asset,
+        PositionSeconds = seconds,
+        Name = name,
+        OwnerName = owner,
+        InEveryone = inEveryone,
+        FrameUrl = video ? $"/api/v1/player/bookmarks/{id:D}/frame?v=1" : null,
+        CreatedAt = new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero).AddSeconds(seconds),
+    };
+
+    private static EditorBookmarksDto Titled(bool video, string state) => new()
+    {
+        WorkId = MovieId,
+        State = state,
+        AssetId = Asset,
+        HasTimes = true,
+        HasFrames = video,
+        RunningTimeSeconds = 9000,
+        Everyone = [Row(Opening, "Opening", 724, true, video: video)],
+        FromProfiles = [Row(Opening, "Opening", 724, true, video: video), Row(Twist, "The twist", 3100, false, "Ben", video)],
+    };
+
+    private static EditorBookmarkOverviewDto Overview() => new()
+    {
+        RootId = ShowId,
+        RootTitle = "Le Continental",
+        EveryoneTotal = 7,
+        MemberCount = 3,
+        DefinitiveCount = 1,
+        Groups =
+        [
+            new EditorBookmarkOverviewGroupDto
+            {
+                GroupId = SeasonOne,
+                Title = "Season 1",
+                Number = 1,
+                BookmarkCount = 5,
+                Rows = [new EditorBookmarkOverviewRowDto { WorkId = PilotId, Code = "S1 E1", Title = "Pilot", EveryoneCount = 5, State = EditorBookmarkStates.Definitive, ProfileCount = 6 }],
+            },
+            new EditorBookmarkOverviewGroupDto
+            {
+                GroupId = SeasonTwo,
+                Title = "Season 2",
+                Number = 2,
+                BookmarkCount = 2,
+                Rows = [new EditorBookmarkOverviewRowDto { WorkId = FinaleId, Code = "S2 E1", Title = "The Finale", EveryoneCount = 2, ProfileCount = 2 }],
+            },
+        ],
+    };
+
+    private void SignIn(bool administrator)
+    {
+        var profile = Guid.NewGuid();
+        _accessor.Set("token", Guid.NewGuid(), profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(profile, profile, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
+    }
+
+    private sealed record Editor(EditingModeContext Mode, EditSessionState Session, EditSessionFlow Flow);
+
+    private async Task<Editor> StartEditorAsync(EditTrailItem active)
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var api = Services.GetRequiredService<IEngineApiClient>();
+        var fields = new ItemFieldEditSession(api);
+        var mode = new EditingModeContext(_device, fields) { HasPermission = true };
+        var session = new EditSessionState(new PendingEditList());
+        var flow = new EditSessionFlow(session, mode, new EditSessionSaver(api), () => [active], () => Task.FromResult(false))
+        {
+            OpenItem = item =>
+            {
+                _opened.Add(item.EntityId);
+                return Task.FromResult(true);
+            },
+        };
+        session.Begin([active]);
+        return new Editor(mode, session, flow);
+    }
+
+    private IRenderedComponent<EditorBookmarksPanel> RenderPanel(Editor editor, bool hasFamily = false) =>
+        _panel = Render<EditorBookmarksPanel>(parameters => parameters
+            .Add(panel => panel.Flow, editor.Flow)
+            .Add(panel => panel.HasFamily, hasFamily));
+
+    private static EditTrailItem Movie => new(MovieId, "Dune: Part One", "Movie");
+
+    // ---------------------------------------------------------------- the tab is an administrator's alone
+
+    private async Task<IRenderedComponent<CascadingValue<EditingModeContext>>> RenderWindowAsync()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var context = EditingModeTestData.MovieContext();
+        context.Header = EditorHeaderTestData.Movie(withBookmarks: true);
+        _context = context;
+        var api = Services.GetRequiredService<IEngineApiClient>();
+        var fields = new ItemFieldEditSession(api);
+        var mode = new EditingModeContext(_device, fields) { HasPermission = true };
+        mode.Loader = () => fields.LoadAsync(MovieId, "Movies", "movie", null);
+        var session = new EditSessionState(new PendingEditList());
+        var flow = new EditSessionFlow(session, mode, new EditSessionSaver(api), () => [Movie], () => Task.FromResult(false));
+        Assert.True(await mode.EnterAsync());
+        await flow.SelectToolAsync(EditTool.Details);
+        return Render<CascadingValue<EditingModeContext>>(parameters => parameters
+            .Add(host => host.Value, mode)
+            .Add(host => host.ChildContent, builder =>
+            {
+                builder.OpenComponent<EditorPanelHost>(0);
+                builder.AddComponentParameter(1, nameof(EditorPanelHost.Mode), mode);
+                builder.AddComponentParameter(2, nameof(EditorPanelHost.Flow), flow);
+                builder.AddComponentParameter(3, nameof(EditorPanelHost.ShowHistory), true);
+                builder.CloseComponent();
+            }));
+    }
+
+    [Fact]
+    public async Task TheBookmarksTab_IsOfferedToAnAdministrator_BetweenMatchAndHistory()
+    {
+        SignIn(administrator: true);
+
+        var window = await RenderWindowAsync();
+
+        var tabs = window.FindAll(".tl-editor-tab").Select(tab => tab.TextContent.Trim()).ToList();
+        Assert.Contains("Bookmarks", tabs);
+        Assert.True(tabs.IndexOf("Bookmarks") < tabs.IndexOf("History"));
+        Assert.True(tabs.IndexOf("Bookmarks") > tabs.IndexOf("Match"));
+    }
+
+    [Fact]
+    public async Task TheBookmarksTab_IsNotOfferedToAnyoneElse()
+    {
+        SignIn(administrator: false);
+
+        var window = await RenderWindowAsync();
+
+        var tabs = window.FindAll(".tl-editor-tab").Select(tab => tab.TextContent.Trim()).ToList();
+        Assert.Contains("History", tabs);
+        Assert.DoesNotContain("Bookmarks", tabs);
+    }
+
+    [Fact]
+    public async Task TheBookmarksTab_IsNotOfferedWhenNobodyIsSignedIn()
+    {
+        var window = await RenderWindowAsync();
+
+        Assert.DoesNotContain("Bookmarks", window.FindAll(".tl-editor-tab").Select(tab => tab.TextContent.Trim()));
+    }
+
+    // ---------------------------------------------------------------- one title
+
+    [Fact]
+    public async Task ATitle_ShowsEveryonesBookmarksAbove_AndTheProfilesOwnBelow()
+    {
+        var editor = await StartEditorAsync(Movie);
+
+        var cut = RenderPanel(editor);
+
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+        var lists = cut.FindAll("ul.tl-bookmarks__list");
+        Assert.Single(lists[0].QuerySelectorAll("li.tl-bookmarks__row"));
+        Assert.Equal(2, lists[1].QuerySelectorAll("li.tl-bookmarks__row").Length);
+        Assert.Contains("Everyone's bookmarks", cut.Markup);
+        Assert.Contains("From profiles", cut.Markup);
+        Assert.Contains("Pooled from every profile's bookmarks", cut.Markup);
+        Assert.Contains("12:04", lists[0].TextContent);
+        Assert.Contains("from Ben", lists[1].TextContent);
+    }
+
+    [Fact]
+    public async Task AVideoTitle_HasAPictureColumn_AndOtherKindsDoNot()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var video = RenderPanel(editor);
+        video.WaitForState(() => video.FindAll(".tl-bookmarks__frame").Count == 3);
+        Assert.Equal($"/engine-bookmark-frame/{Opening:D}?v=1", video.FindAll(".tl-bookmarks__frame img")[0].GetAttribute("src"));
+
+        _loaded = Titled(video: false, state: EditorBookmarkStates.Pooled);
+        var audio = RenderPanel(editor);
+        audio.WaitForState(() => audio.FindAll("li.tl-bookmarks__row").Count == 3);
+        Assert.Empty(audio.FindAll(".tl-bookmarks__frame"));
+    }
+
+    [Fact]
+    public async Task AddToEveryones_StagesTheOperation_MarksTheRowStaged_AndNothingIsSaved()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var cut = RenderPanel(editor);
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+
+        cut.FindAll("ul.tl-bookmarks__list")[1].QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Add to Everyone's").Click();
+
+        var op = Assert.Single(editor.Session.Pending.BookmarkOps(MovieId));
+        Assert.Equal(EditorBookmarkOpKinds.Add, op.Kind);
+        Assert.Equal(Twist, op.BookmarkId);
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Staged: added", cut.Markup);
+            Assert.Contains("+1 staged", cut.Markup);
+            Assert.Contains("Definitive set", cut.Markup);
+            Assert.Equal(2, cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelectorAll("li.tl-bookmarks__row").Length);
+        });
+        var row = EditReviewRows.Build(editor.Session.Pending, _ => "Dune", null).Single();
+        Assert.Equal("Added to Everyone's: 51:40 The twist", row.After);
+    }
+
+    [Fact]
+    public async Task ARowAlreadyInEveryones_OffersNoAddButton()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var cut = RenderPanel(editor);
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+
+        var lower = cut.FindAll("ul.tl-bookmarks__list")[1];
+
+        Assert.Single(lower.QuerySelectorAll(".tl-bookmarks__in"));
+        Assert.Single(lower.QuerySelectorAll("button"));
+    }
+
+    [Fact]
+    public async Task RemoveFromEveryones_ShowsTheRowStruckThrough_WithUndo_AndUndoPutsItBack()
+    {
+        var editor = await StartEditorAsync(Movie);
+        editor.Session.Pending.StageBookmarkOp(MovieId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Remove, BookmarkId = Opening }, "Removed from Everyone's: 12:04 Opening");
+        var cut = RenderPanel(editor);
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+
+        var upper = cut.FindAll("ul.tl-bookmarks__list")[0];
+        Assert.Equal("removed", upper.QuerySelector("li.tl-bookmarks__row")!.GetAttribute("data-mark"));
+        Assert.Contains("Staged: removed", upper.TextContent);
+
+        upper.QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Undo").Click();
+
+        Assert.Empty(editor.Session.Pending.BookmarkOps(MovieId));
+        cut.WaitForAssertion(() => Assert.DoesNotContain("Staged: removed", cut.Markup));
+    }
+
+    [Fact]
+    public async Task TheRowMenu_RenamesInPlace_AndStagesOneRenameWithoutSaving()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var cut = RenderPanel(editor);
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+
+        cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelector(".app-row-menu__trigger")!.Click();
+        FindMenuItem("Rename").Click();
+        cut.WaitForElement("li.tl-bookmarks__row input");
+        cut.Find("li.tl-bookmarks__row input").Input("Cold open");
+        cut.FindAll("li.tl-bookmarks__row button").First(button => button.TextContent.Trim() == "Done").Click();
+
+        var op = Assert.Single(editor.Session.Pending.BookmarkOps(MovieId));
+        Assert.Equal(EditorBookmarkOpKinds.Rename, op.Kind);
+        Assert.Equal("Cold open", op.Name);
+        cut.WaitForAssertion(() => Assert.Contains("Staged: renamed", cut.Markup));
+    }
+
+    [Fact]
+    public async Task ChangeTime_AcceptsATimeInsideTheTitle_AndRefusesOnePastItsEnd()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var cut = RenderPanel(editor);
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+
+        cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelector(".app-row-menu__trigger")!.Click();
+        FindMenuItem("Change time").Click();
+        cut.WaitForElement("li.tl-bookmarks__row input");
+        cut.Find("li.tl-bookmarks__row input").Input("3:00:00");
+        cut.FindAll("li.tl-bookmarks__row button").First(button => button.TextContent.Trim() == "Done").Click();
+        Assert.Empty(editor.Session.Pending.BookmarkOps(MovieId));
+        cut.WaitForAssertion(() => Assert.Contains("falls inside the title", cut.Markup));
+
+        cut.Find("li.tl-bookmarks__row input").Input("12:30");
+        cut.FindAll("li.tl-bookmarks__row button").First(button => button.TextContent.Trim() == "Done").Click();
+
+        var op = Assert.Single(editor.Session.Pending.BookmarkOps(MovieId));
+        Assert.Equal(EditorBookmarkOpKinds.ChangeTime, op.Kind);
+        Assert.Equal(750, op.PositionSeconds);
+    }
+
+    [Fact]
+    public async Task StartOverFromProfiles_IsOfferedOnlyOnADefinitiveSet_AndStagesTheOperation()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var pooled = RenderPanel(editor);
+        pooled.WaitForState(() => pooled.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.DoesNotContain("Start over from profiles", pooled.Markup);
+
+        _loaded = Titled(video: true, state: EditorBookmarkStates.Definitive);
+        var definitive = RenderPanel(editor);
+        definitive.WaitForState(() => definitive.FindAll("ul.tl-bookmarks__list").Count == 2);
+        definitive.FindAll("button").First(button => button.TextContent.Trim() == "Start over from profiles").Click();
+
+        Assert.Equal(EditorBookmarkOpKinds.StartOver, Assert.Single(editor.Session.Pending.BookmarkOps(MovieId)).Kind);
+        definitive.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain(definitive.FindAll("button"), button => button.TextContent.Trim() == "Start over from profiles");
+            Assert.Contains("Pooled from every profile's bookmarks", definitive.Markup);
+        });
+    }
+
+    [Fact]
+    public async Task ExportAndImport_SitAtTheTopOfATitleThatIsNotInAFamily_AndNowhereElse()
+    {
+        var editor = await StartEditorAsync(Movie);
+        var alone = RenderPanel(editor, hasFamily: false);
+        alone.WaitForState(() => alone.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.Contains(alone.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Export");
+        Assert.Contains(alone.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Import");
+
+        var episode = await StartEditorAsync(new EditTrailItem(PilotId, "Pilot", EditTrailKinds.Episode));
+        _loaded = Titled(video: true, state: EditorBookmarkStates.Pooled) with { WorkId = PilotId };
+        var inAShow = RenderPanel(episode, hasFamily: true);
+        inAShow.WaitForState(() => inAShow.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.DoesNotContain(inAShow.FindAll("button"), button => button.TextContent.Trim() is "Export" or "Import");
+    }
+
+    [Fact]
+    public async Task ABookTitle_HasNoExportImportOrTimeChange_AndShowsItsPlaceInTheText()
+    {
+        var chapter = Row(Opening, "Chapter one", 0, true, video: false) with { PositionKind = "text", ChapterTitle = "The Beginning" };
+        _loaded = Titled(video: false, state: EditorBookmarkStates.Pooled) with { HasTimes = false, Everyone = [chapter], FromProfiles = [chapter] };
+        var editor = await StartEditorAsync(new EditTrailItem(MovieId, "A book", "Book"));
+
+        var cut = RenderPanel(editor);
+
+        cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
+        Assert.DoesNotContain(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() is "Export" or "Import");
+        Assert.Contains("The Beginning", cut.Markup);
+        cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelector(".app-row-menu__trigger")!.Click();
+        Assert.DoesNotContain(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Change time");
+    }
+
+    // ---------------------------------------------------------------- the compare view of an imported file
+
+    private static BookmarkSetCompareDto Compared() => new()
+    {
+        Name = "Everyone's bookmarks",
+        BookmarkCount = 3,
+        Match = BookmarkPackMatchResults.Match,
+        RowsReady = true,
+        Rows =
+        [
+            new BookmarkSetCompareRowDto
+            {
+                Index = 0,
+                Incoming = new BookmarkSetItemDto { PositionSeconds = 726, Note = "Opening scene" },
+                Yours = new BookmarkSetExistingDto { Id = Opening, PositionSeconds = 724, Name = "Opening", IsGlobal = true },
+                GapSeconds = 2,
+                Closeness = BookmarkClosenessLabels.SameSpot,
+                DefaultChoice = BookmarkRowChoices.Yours,
+            },
+            new BookmarkSetCompareRowDto
+            {
+                Index = 1,
+                Incoming = new BookmarkSetItemDto { PositionSeconds = 5400, Note = "Finale" },
+                Closeness = BookmarkClosenessLabels.New,
+                DefaultChoice = BookmarkRowChoices.Incoming,
+            },
+            new BookmarkSetCompareRowDto
+            {
+                Index = 2,
+                Incoming = new BookmarkSetItemDto { PositionSeconds = 60, Note = "Titles" },
+                Closeness = BookmarkClosenessLabels.New,
+                DefaultChoice = BookmarkRowChoices.Skip,
+            },
+        ],
+    };
+
+    [Fact]
+    public void TakeAllNew_TicksOnlyTheBookmarksNothingIsNear_AndTheyAreTakenWithoutReplacingAnything()
+    {
+        IReadOnlyList<EditorBookmarkImportItem>? taken = null;
+        var cut = Render<EditorBookmarkCompare>(parameters => parameters
+            .Add(compare => compare.Compare, Compared())
+            .Add(compare => compare.OnTake, EventCallback.Factory.Create<IReadOnlyList<EditorBookmarkImportItem>>(this, items => taken = items)));
+
+        cut.FindAll(".tl-bookmarks__actions button").First(button => button.TextContent.Trim() == "Take all new").Click();
+        cut.FindAll(".tl-bookmarks__actions button").First(button => button.TextContent.Trim().StartsWith("Add 2", StringComparison.Ordinal)).Click();
+
+        Assert.NotNull(taken);
+        Assert.Equal([5400d, 60d], taken!.Select(item => item.PositionSeconds).OrderByDescending(seconds => seconds).ToArray());
+        Assert.All(taken, item => Assert.Null(item.ReplacesBookmarkId));
+    }
+
+    [Fact]
+    public void ATickedRowBesideABookmarkInEveryones_ReplacesIt()
+    {
+        IReadOnlyList<EditorBookmarkImportItem>? taken = null;
+        var cut = Render<EditorBookmarkCompare>(parameters => parameters
+            .Add(compare => compare.Compare, Compared())
+            .Add(compare => compare.OnTake, EventCallback.Factory.Create<IReadOnlyList<EditorBookmarkImportItem>>(this, items => taken = items)));
+
+        cut.FindAll("li.tl-bookmarks__row")[0].QuerySelector("input[type=checkbox]")!.Change(true);
+        cut.FindAll(".tl-bookmarks__actions button").First(button => button.TextContent.Trim().StartsWith("Add", StringComparison.Ordinal)).Click();
+
+        var replaced = Assert.Single(taken!, item => item.ReplacesBookmarkId is not null);
+        Assert.Equal(Opening, replaced.ReplacesBookmarkId);
+        Assert.Equal("Opening scene", replaced.Name);
+    }
+
+    [Fact]
+    public void AFileForAnotherTitle_CannotBeTaken()
+    {
+        var wrong = Compared() with { Match = BookmarkPackMatchResults.WrongTitle, Reason = "This file is for another film." };
+        var cut = Render<EditorBookmarkCompare>(parameters => parameters.Add(compare => compare.Compare, wrong));
+
+        Assert.Contains("This file is for another film.", cut.Markup);
+        Assert.All(cut.FindAll(".tl-bookmarks__actions button"), button => Assert.True(button.HasAttribute("disabled")));
+    }
+
+    // ---------------------------------------------------------------- a show
+
+    [Fact]
+    public async Task AShowsOverview_GroupsEpisodesBySeason_WithStagedCountsAndExportAtTheTop()
+    {
+        var editor = await StartEditorAsync(new EditTrailItem(ShowId, "Le Continental", EditTrailKinds.Show));
+        editor.Session.Pending.StageBookmarkOp(PilotId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Add, BookmarkId = Twist }, "Added to Everyone's: 51:40 The twist");
+
+        var cut = RenderPanel(editor, hasFamily: true);
+
+        cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles h3").Count == 2);
+        Assert.Equal(["Season 1 5", "Season 2 2"], cut.FindAll(".tl-bookmarks__profiles h3").Select(heading => string.Join(' ', heading.TextContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).ToArray());
+        Assert.Contains("S1 E1", cut.Markup);
+        Assert.Contains("5 in Everyone's", cut.Markup);
+        Assert.Contains("+1 staged", cut.Markup);
+        Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Export the show");
+        Assert.Contains(cut.FindAll(".tl-bookmarks__actions button"), button => button.TextContent.Trim() == "Import for the show");
+    }
+
+    [Fact]
+    public async Task ASeasonsOverview_HasNoShowExportOrImport()
+    {
+        var editor = await StartEditorAsync(new EditTrailItem(SeasonOne, "Season 1", EditTrailKinds.Season));
+
+        var cut = RenderPanel(editor, hasFamily: true);
+
+        cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles h3").Count == 2);
+        Assert.Empty(cut.FindAll(".tl-bookmarks__actions"));
+    }
+
+    [Fact]
+    public async Task TheChevron_PicksThatEpisodeThroughTheEditorsSwitch_StayingOnTheTab()
+    {
+        var editor = await StartEditorAsync(new EditTrailItem(ShowId, "Le Continental", EditTrailKinds.Show));
+        var cut = RenderPanel(editor, hasFamily: true);
+        cut.WaitForState(() => cut.FindAll(".tl-bookmarks__row-action button").Count == 2);
+
+        cut.FindAll(".tl-bookmarks__row-action button")[1].Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(FinaleId, editor.Session.ActiveItem!.EntityId));
+        Assert.Equal([FinaleId], _opened);
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    private IReadOnlyList<AngleSharp.Dom.IElement> MenuItems() =>
+        [.. _popovers.FindAll("[role='menuitem']"), .. _panel?.FindAll("[role='menuitem']") ?? []];
+
+    private AngleSharp.Dom.IElement FindMenuItem(string label)
+    {
+        AngleSharp.Dom.IElement? found = null;
+        _popovers.WaitForAssertion(() =>
+        {
+            found = MenuItems().FirstOrDefault(item => item.TextContent.Contains(label, StringComparison.Ordinal));
+            Assert.NotNull(found);
+        });
+        return found!;
+    }
+}

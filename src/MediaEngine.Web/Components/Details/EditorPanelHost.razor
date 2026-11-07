@@ -4,9 +4,10 @@
 @inject IJSRuntime JS
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
+@inject IServiceProvider Services
 
 @* The universal editor's window (v4 spec D2, D3, D16; v5 D1, D3, D10): the content of the pop-over the layout shows in a modal dialog. Top to
-   bottom: the item's header (with the way around the family inside it), the tab bar (Details, Artwork, Match, History, as far as the item's kind
+   bottom: the item's header (with the way around the family inside it), the tab bar (Details, Artwork, Match, Bookmarks, History, as far as the item's kind
    has them; the kind's list comes from the Engine), one scroll area for the tool, and a footer with Delete, the file status text, the unsaved
    count, Discard and Save changes in the same places. The window keeps one size whatever the tab; only the tab's content
    scrolls. While several ticked items are edited together, or Review changes is open, the plain title bar replaces the header. Closing it with the X, Esc
@@ -16,7 +17,7 @@
 {
     var count = session.Pending.ChangeCount;
     var flow = Flow;
-    var railTools = RailTools(mode, ShowHistory).ToList();
+    var railTools = RailTools(mode, ShowHistory, IsAdministrator).ToList();
     // A tool the item switched to does not have (Match on a course video) falls back to Details instead of drawing nothing.
     var shown = railTools.Any(entry => entry.Item1 == tool) ? tool : EditTool.Details;
     var framed = ItemHeader is not null && TitleOverride is null && !_reviewing;
@@ -111,13 +112,17 @@
 
     // The tabs come from the kind's own list (config/editor.json, read by the Engine) in the fixed order Details, Artwork, Match, History; the item's
     // own abilities decide whether a listed tab can really open.
-    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode, bool showHistory) =>
-        [.. EditorTabRules.For(mode.Fields.Config, mode.Fields, showHistory).Select(tab => (tab.Tool, tab.Label, IconFor(tab.Tool)))];
+    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode, bool showHistory, bool isAdministrator) =>
+        [.. EditorTabRules.For(mode.Fields.Config, mode.Fields, showHistory, isAdministrator).Select(tab => (tab.Tool, tab.Label, IconFor(tab.Tool)))];
+
+    // The Bookmarks tab is an administrator's alone, and only on a desktop (the editor itself is desktop-only); the Engine checks again.
+    private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
 
     private static string IconFor(EditTool tool) => tool switch
     {
         EditTool.Artwork => AppMaterialIcons.Outlined.PhotoLibrary,
         EditTool.Match => AppMaterialIcons.Outlined.TravelExplore,
+        EditTool.Bookmarks => AppMaterialIcons.Outlined.Bookmarks,
         EditTool.History => AppMaterialIcons.Outlined.History,
         EditTool.Preview => AppMaterialIcons.Outlined.Visibility,
         _ => AppMaterialIcons.Outlined.Description,
@@ -141,6 +146,7 @@
     {
         EditTool.Artwork => "Artwork",
         EditTool.Match => "Match",
+        EditTool.Bookmarks => "Bookmarks",
         EditTool.History => "History",
         EditTool.Preview => "Preview",
         _ => "Details",

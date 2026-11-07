@@ -6,6 +6,7 @@ public enum EditTool
     Details,
     Artwork,
     Match,
+    Bookmarks,
     History,
 
     /// <summary>A supporting file's Preview tab (universal editor v5 WP7): the document, picture or clip itself, read where it is.</summary>

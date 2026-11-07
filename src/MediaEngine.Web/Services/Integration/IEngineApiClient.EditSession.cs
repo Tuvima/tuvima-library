@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -56,4 +57,26 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /library/editor-subjects/{id}/history - what was changed in the editor on a Universe or one of its things, newest first.</summary>
     Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetEditorSubjectHistoryAsync(Guid id, CancellationToken ct = default);
+
+    // The editor's Bookmarks tab (universal editor v5 D37, WP15). Administrators only; each returns null when the Engine refuses or cannot
+    // be reached, and LastError then says why. The changes themselves (add, remove, rename, move, import, start over) are staged like every
+    // other editor change and saved through RunEditSessionAsync.
+
+    /// <summary>GET /api/v1/editor-bookmarks/titles/{id} - a title's Everyone's list and every profile's bookmarks beside it.</summary>
+    Task<EditorBookmarksDto?> GetEditorBookmarksAsync(Guid workId, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/editor-bookmarks/titles/{id}/compare - a bookmark file laid beside the title's Everyone's list. Changes nothing.</summary>
+    Task<BookmarkSetCompareDto?> CompareEditorBookmarkFileAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/editor-bookmarks/titles/{id}/export - the title's Everyone's bookmarks as a file.</summary>
+    Task<BookmarkPackFileDto?> ExportEditorBookmarksAsync(Guid workId, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/editor-bookmarks/families/{id} - one row per episode or track of a show, season or album, grouped by season.</summary>
+    Task<EditorBookmarkOverviewDto?> GetEditorBookmarkOverviewAsync(Guid workId, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/editor-bookmarks/families/{id}/export - the Everyone's bookmarks of a whole show as one file.</summary>
+    Task<BookmarkPackFileDto?> ExportEditorShowBookmarksAsync(Guid workId, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/editor-bookmarks/families/{id}/compare - a show file set beside the show, episode by episode. Changes nothing.</summary>
+    Task<EditorBookmarkShowCompareDto?> CompareEditorShowBookmarkFileAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default);
 }

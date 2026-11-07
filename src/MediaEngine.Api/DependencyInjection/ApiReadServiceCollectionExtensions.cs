@@ -52,6 +52,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IEditSessionChangeHandler, MatchRemovalEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, SupportingFilesEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, BookmarksEditSessionChangeHandler>();
         services.AddSingleton<VideoOrderWriter>();
         services.AddSingleton<IEditSessionChangeHandler, VideoSeriesEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, VideoOrderEditSessionChangeHandler>();
@@ -103,6 +104,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<EditorConfigurationProvider>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(sp => sp.GetRequiredService<EditorConfigurationProvider>());
         services.AddScoped<EditorHeaderReadService>();
+        services.AddScoped<IEditorFamilySource>(sp => sp.GetRequiredService<EditorHeaderReadService>());
         services.AddScoped<EditorCurrentMatchService>();
         // The Match tab's search: the providers and boxes for an item, and results judged against the file (config/scoring.json match_verdict).
         services.AddScoped(sp => new MediaEngine.Api.Services.Matching.EditorMatchVerdictCalculator(

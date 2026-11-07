@@ -160,109 +160,47 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Everyones_IsOfferedToAdministratorsOnDesktopAndTabletOnly()
+    public void TheGlobalTab_IsReadOnly_AndThePaneOffersNoPromoteEditFindOrEveryones()
     {
-        var mine = new[] { Mark(10) };
-        var admin = Render<VideoBookmarkPane>(parameters => parameters
-            .Add(component => component.Bookmarks, mine).Add(component => component.IsAdministrator, true).Add(component => component.AllowEveryones, true));
-        Assert.Contains(admin.FindAll(".video-bookmark-pane__filter button"), button => button.TextContent.Trim() == "Everyone’s");
+        var cut = Render<VideoBookmarkPane>(parameters => parameters
+            .Add(component => component.Bookmarks, new[] { Mark(10), Mark(500, "For all", global: true, label: "The bridge") })
+            .Add(component => component.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true))));
 
-        var vaultOrPhone = Render<VideoBookmarkPane>(parameters => parameters
-            .Add(component => component.Bookmarks, mine).Add(component => component.IsAdministrator, true).Add(component => component.AllowEveryones, false));
-        Assert.DoesNotContain("Everyone’s", vaultOrPhone.Markup);
+        var tabs = cut.FindAll(".video-bookmark-pane__filter button").Select(button => button.TextContent.Trim()).ToList();
+        Assert.Equal(2, tabs.Count);
+        Assert.DoesNotContain(tabs, tab => tab.Contains("Everyone", StringComparison.Ordinal));
 
-        var member = Render<VideoBookmarkPane>(parameters => parameters
-            .Add(component => component.Bookmarks, mine).Add(component => component.IsAdministrator, false).Add(component => component.AllowEveryones, true));
-        Assert.DoesNotContain("Everyone’s", member.Markup);
+        var rows = cut.FindAll("li.video-bookmark-pane__row");
+        Assert.Single(rows); // The remembered filter opens on the person's own bookmarks.
+        Assert.Empty(cut.FindAll("button.video-bookmark-pane__find"));
+        Assert.DoesNotContain("Promote", cut.Markup);
+        Assert.DoesNotContain("Edit", cut.FindAll("button.video-bookmark-pane__action").Select(button => button.TextContent).ToList());
     }
 
     [Fact]
-    public async Task Promote_IsImmediate_WithNoConfirmation_AndTheRowGlows()
+    public void AGlobalBookmark_IsListedButNotDeletableFromThePane()
     {
-        var theirs = Mark(300, "Their note", owner: "Mira");
-        PlaybackRailBookmark? promoted = null;
         var cut = Render<VideoBookmarkPane>(parameters => parameters
-            .Add(component => component.Bookmarks, new[] { Mark(10) })
-            .Add(component => component.Everyones, new[] { theirs })
-            .Add(component => component.IsAdministrator, true)
-            .Add(component => component.AllowEveryones, true)
-            .Add(component => component.Filter, PlaybackPreferenceValues.Everyones)
-            .Add(component => component.Promote, (Func<PlaybackRailBookmark, string?, Task<bool>>)((item, _) => { promoted = item; return Task.FromResult(true); })));
+            .Add(component => component.Bookmarks, new[] { Mark(500, "For all", global: true, label: "The bridge") })
+            .Add(component => component.Filter, PlaybackPreferenceValues.Global)
+            .Add(component => component.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true))));
 
         var row = Assert.Single(cut.FindAll("li.video-bookmark-pane__row"));
-        Assert.Contains("Mira", row.TextContent);
-        Assert.DoesNotContain("Delete", row.TextContent); // Other people's personal bookmarks are theirs to delete.
-
-        var click = cut.FindAll("button.video-bookmark-pane__action").First(button => button.TextContent == "Promote").ClickAsync();
-        cut.WaitForAssertion(() => Assert.Contains("is-glow", cut.Find("li.video-bookmark-pane__row").ClassName));
-        await click;
-
-        Assert.Equal(theirs.Id, promoted!.Id);
+        Assert.Contains("The bridge", row.TextContent);
+        Assert.DoesNotContain(cut.FindAll("button.video-bookmark-pane__action"), button => button.TextContent.StartsWith("Delete", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task AnAdministrator_EditsAGlobalBookmarkInPlace_AndCanDeleteIt()
-    {
-        var global = Mark(500, "Old note", global: true, label: "Old name");
-        (string? Label, string? Note, string? Description)? sent = null;
-        var cut = Render<VideoBookmarkPane>(parameters => parameters
-            .Add(component => component.Bookmarks, new[] { global })
-            .Add(component => component.IsAdministrator, true)
-            .Add(component => component.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true)))
-            .Add(component => component.Update, (Func<PlaybackRailBookmark, string?, string?, string?, Task<bool>>)((_, label, note, description) =>
-            {
-                sent = (label, note, description);
-                return Task.FromResult(true);
-            })));
-        Assert.Contains(cut.FindAll("button.video-bookmark-pane__action"), button => button.TextContent == "Delete");
-
-        await cut.FindAll("button.video-bookmark-pane__action").First(button => button.TextContent == "Edit").ClickAsync();
-        cut.FindAll(".video-bookmark-pane__edit input")[0].Change("The bridge");
-        cut.FindAll(".video-bookmark-pane__edit input")[2].Change("Look left.");
-        await cut.FindAll("button.video-bookmark-pane__action").First(button => button.TextContent == "Save").ClickAsync();
-
-        Assert.Equal(("The bridge", "Old note", "Look left."), sent);
-        Assert.Empty(cut.FindAll(".video-bookmark-pane__edit"));
-    }
-
-    [Fact]
-    public async Task TheBarSwitch_ReportsItsChoice_AndFindBookmarksOpensTheHostsView_WithABackArrowToTheList()
+    public async Task TheBarSwitch_ReportsItsChoice()
     {
         bool? shown = null;
         var cut = Render<VideoBookmarkPane>(parameters => parameters
             .Add(component => component.ShowOnBar, false)
-            .Add(component => component.ShowOnBarChanged, EventCallback.Factory.Create<bool>(this, value => shown = value))
-            .Add(component => component.AllowFind, true)
-            .Add(component => component.FindView, (RenderFragment<EventCallback>)(close => builder =>
-            {
-                builder.AddMarkupContent(0, "<p class=\"find-slot\">Finding</p>");
-                builder.OpenElement(1, "button");
-                builder.AddAttribute(2, "class", "find-back");
-                builder.AddAttribute(3, "onclick", close);
-                builder.CloseElement();
-            })));
+            .Add(component => component.ShowOnBarChanged, EventCallback.Factory.Create<bool>(this, value => shown = value)));
 
         Assert.Contains("Show on timeline", cut.Markup);
         await cut.Find("input[role=switch]").ChangeAsync(true);
         Assert.True(shown);
-
-        await cut.Find("button.video-bookmark-pane__find").ClickAsync();
-        Assert.Equal("Finding", cut.Find(".find-slot").TextContent);
-        Assert.Empty(cut.FindAll(".video-bookmark-pane__add"));
-
-        await cut.Find(".find-back").ClickAsync();
-        Assert.Empty(cut.FindAll(".find-slot"));
-        Assert.NotEmpty(cut.FindAll(".video-bookmark-pane__add"));
-    }
-
-    [Fact]
-    public void FindBookmarks_IsNotOffered_WhenTheHostDoesNotAllowIt()
-    {
-        var cut = Render<VideoBookmarkPane>(parameters => parameters
-            .Add(component => component.AllowFind, false)
-            .Add(component => component.FindView, (RenderFragment<EventCallback>)(_ => builder => builder.AddContent(0, "x"))));
-
-        Assert.Empty(cut.FindAll("button.video-bookmark-pane__find"));
     }
 
     [Fact]

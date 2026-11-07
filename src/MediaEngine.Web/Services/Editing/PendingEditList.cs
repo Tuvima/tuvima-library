@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Playback;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -29,6 +30,7 @@ public sealed class PendingEditList
     {
         EditSessionChangeKinds.Details => Math.Max(1, change.Fields.Count),
         EditSessionChangeKinds.SupportingFiles => _supportingFiles.TryGetValue(change.Id, out var stage) ? Math.Max(1, stage.ChangeCount) : 1,
+        EditSessionChangeKinds.Bookmarks => Math.Max(1, change.Bookmarks?.Ops.Count ?? 0),
         _ => 1,
     });
 
@@ -281,6 +283,82 @@ public sealed class PendingEditList
         return removed;
     }
 
+    /// <summary>
+    /// Stages one bookmark operation on a title's Everyone's bookmarks (universal editor v5 D37). A title has one bookmarks change holding its
+    /// operations in the order they were made; a later operation can cancel or replace an earlier one (see <see cref="EditorBookmarkStaging"/>).
+    /// <paramref name="label"/> is the line Review changes shows for the operation ("Added to Everyone's: 12:04 Opening"); it is never sent to the Engine.
+    /// </summary>
+    public void StageBookmarkOp(Guid workId, EditorBookmarkOp op, string label, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(op);
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        var staged = op with { Id = string.IsNullOrWhiteSpace(op.Id) ? NewId() : op.Id };
+        var existing = Find(EditSessionChangeKinds.Bookmarks, workId);
+        var changeId = existing?.Id ?? NewId();
+        var ops = EditorBookmarkStaging.Stage(existing?.Bookmarks?.Ops ?? [], staged);
+        _labels[changeId + ":" + staged.Id] = label.Trim();
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            _before[changeId + ":" + staged.Id] = before.Trim();
+        }
+
+        ReplaceBookmarks(existing, changeId, workId, ops);
+    }
+
+    /// <summary>Takes one staged bookmark operation back out (Review's "take this change back out"). The title's change goes when its last operation does.</summary>
+    public bool ClearBookmarkOp(Guid workId, string opId)
+    {
+        var existing = Find(EditSessionChangeKinds.Bookmarks, workId);
+        if (existing?.Bookmarks is not { } staged || !staged.Ops.Any(op => string.Equals(op.Id, opId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        ReplaceBookmarks(existing, existing.Id, workId, EditorBookmarkStaging.Without(staged.Ops, opId));
+        return true;
+    }
+
+    /// <summary>The bookmark operations staged for one title, in the order they were made.</summary>
+    public IReadOnlyList<EditorBookmarkOp> BookmarkOps(Guid workId) =>
+        Find(EditSessionChangeKinds.Bookmarks, workId)?.Bookmarks?.Ops ?? [];
+
+    /// <summary>The Review line staged for one bookmark operation, or null.</summary>
+    public string? BookmarkLabel(string changeId, string opId) => _labels.GetValueOrDefault(changeId + ":" + opId);
+
+    private void ReplaceBookmarks(EditSessionChange? existing, string changeId, Guid workId, IReadOnlyList<EditorBookmarkOp> ops)
+    {
+        // Labels of operations that no longer exist (cancelled by a later one) go with them.
+        var kept = ops.Select(op => changeId + ":" + op.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in _labels.Keys.Where(key => key.StartsWith(changeId + ":", StringComparison.Ordinal) && !kept.Contains(key)).ToList())
+        {
+            _labels.Remove(key);
+        }
+
+        foreach (var key in _before.Keys.Where(key => key.StartsWith(changeId + ":", StringComparison.Ordinal) && !kept.Contains(key)).ToList())
+        {
+            _before.Remove(key);
+        }
+
+        if (ops.Count == 0)
+        {
+            if (existing is not null)
+            {
+                _changes.Remove(existing);
+                Changed?.Invoke();
+            }
+
+            return;
+        }
+
+        Replace(existing, new EditSessionChange
+        {
+            Id = changeId,
+            Kind = EditSessionChangeKinds.Bookmarks,
+            EntityId = workId,
+            Bookmarks = new EditorBookmarkChangeDto { Ops = ops },
+        });
+    }
+
     /// <summary>The staged order of one series or section, or null.</summary>
     public EditSessionChange? FindVideoOrder(Guid parentId) => Find(EditSessionChangeKinds.VideoOrder, parentId);
 
@@ -312,7 +390,7 @@ public sealed class PendingEditList
         if (removed)
         {
             _supportingFiles.Remove(changeId);
-            _labels.Remove(changeId);
+            ForgetLabels(changeId);
             _notes.Remove(changeId);
             ForgetBefore(changeId);
             Changed?.Invoke();
@@ -331,7 +409,7 @@ public sealed class PendingEditList
             gone.ForEach(id =>
             {
                 _supportingFiles.Remove(id);
-                _labels.Remove(id);
+                ForgetLabels(id);
                 _notes.Remove(id);
                 ForgetBefore(id);
             });
@@ -411,6 +489,14 @@ public sealed class PendingEditList
         if (!string.IsNullOrWhiteSpace(before))
         {
             _before[rowId] = before.Trim();
+        }
+    }
+
+    private void ForgetLabels(string changeId)
+    {
+        foreach (var key in _labels.Keys.Where(key => key == changeId || key.StartsWith(changeId + ":", StringComparison.Ordinal)).ToList())
+        {
+            _labels.Remove(key);
         }
     }
 

@@ -17,7 +17,10 @@ namespace MediaEngine.Api.Services.Playback;
 public sealed class BookmarkSetService
 {
     /// <summary>The name written into an exported file. A set's name is not shown anywhere once it is applied (Global bookmarks spec D10).</summary>
-    public const string ExportedSetName = "Global bookmarks";
+    public const string ExportedSetName = "Everyone's bookmarks";
+
+    /// <summary>The file name offered for an exported bookmark file.</summary>
+    public const string ExportedFileName = "everyone-bookmarks.zip";
 
     private readonly PlayerCatalogueScope _scope;
     private readonly AudiobookBookmarkRepository _bookmarks;
@@ -51,6 +54,43 @@ public sealed class BookmarkSetService
     {
         var prepared = await PrepareAsync(profileId, workId, request, ct);
         return prepared.Compare;
+    }
+
+    /// <summary>
+    /// The editor's Import (universal editor v5 D37): a bookmark file compared with the title's Everyone's list instead of the person's own
+    /// bookmarks. Changes nothing; the editor stages the rows the administrator takes and writes them on Save changes.
+    /// </summary>
+    public async Task<BookmarkSetCompareDto> CompareWithEveryoneAsync(
+        Guid? profileId, Guid workId, BookmarkSetRequestDto request, IReadOnlyList<AudiobookBookmarkDto> everyone, CancellationToken ct = default) =>
+        (await PrepareAsync(profileId, workId, request, ct, everyone)).Compare;
+
+    /// <summary>
+    /// One episode of a show file set beside the episode's Everyone's list (matched by season and episode number, so there is no title to
+    /// recognise). The rows carry how close each bookmark is, as for a single title.
+    /// </summary>
+    public BookmarkSetCompareDto CompareEpisode(
+        string name, IReadOnlyList<BookmarkPackBookmark> bookmarks, double? runningTimeSeconds, IReadOnlyList<AudiobookBookmarkDto> everyone)
+    {
+        var placed = bookmarks;
+        var skipped = 0;
+        if (runningTimeSeconds is double total && double.IsFinite(total) && total > 0)
+        {
+            var inside = bookmarks.Where(bookmark => bookmark.Time <= total).ToList();
+            skipped = bookmarks.Count - inside.Count;
+            placed = inside;
+        }
+
+        return new BookmarkSetCompareDto
+        {
+            Name = name,
+            BookmarkCount = bookmarks.Count,
+            Match = BookmarkPackMatchResults.Match,
+            RowsReady = true,
+            SkippedCount = skipped,
+            AppliesToGlobal = true,
+            Rows = BuildRows(placed, everyone),
+            GlobalCount = everyone.Count,
+        };
     }
 
     /// <summary>Applies the person's choices for every row. Nothing changes until this is called.</summary>
@@ -161,19 +201,48 @@ public sealed class BookmarkSetService
             .ToList();
         if (chosen.Count == 0)
         {
-            throw new BookmarkPackInvalidException("This title has no Global bookmarks to export yet.");
+            throw new BookmarkPackInvalidException("This title has no Everyone's bookmarks to export yet.");
         }
 
-        var recognition = await _recognition.GetRecognitionAsync(request.AssetId, ct);
+        return await BuildFileAsync(request.AssetId, chosen, request.RunningTimeSeconds, request.Chapters, ct);
+    }
+
+    /// <summary>
+    /// The editor's Export (universal editor v5 D37): the title's Everyone's list, definitive or pooled, as one bookmark file (times and names,
+    /// never anyone's personal bookmarks; the pictures are made again by the Engine that imports it, Unified player v2 D21a). The caller has
+    /// already checked that the person is an administrator and that the title is not in the Vault.
+    /// </summary>
+    public Task<BookmarkPackFileDto> ExportEveryoneAsync(
+        Guid assetId, IReadOnlyList<AudiobookBookmarkDto> everyone, double? runningTimeSeconds, CancellationToken ct = default)
+    {
+        var chosen = everyone
+            .Where(bookmark => bookmark.AssetId == assetId)
+            .OrderBy(bookmark => bookmark.PositionSeconds)
+            .Take(BookmarkPackLimits.MaximumBookmarks)
+            .ToList();
+        if (chosen.Count == 0)
+        {
+            throw new BookmarkPackInvalidException("This title has no Everyone's bookmarks to export yet.");
+        }
+
+        return BuildFileAsync(assetId, chosen, runningTimeSeconds, [], ct);
+    }
+
+    /// <summary>One title's bookmark pack: how to recognise the title, then each bookmark's time, end, chapter, name and description.</summary>
+    internal async Task<(BookmarkPackContent Content, byte[] Bytes)> BuildPackAsync(
+        Guid assetId, IReadOnlyList<AudiobookBookmarkDto> chosen, double? reportedRunningTime,
+        IReadOnlyList<BookmarkPackChapterDto> chapterDtos, CancellationToken ct)
+    {
+        var recognition = await _recognition.GetRecognitionAsync(assetId, ct);
         if (recognition is null || recognition.Ids.Count == 0)
         {
             throw new BookmarkPackInvalidException("This title has no ID that other libraries can recognise it by yet, so a file cannot be made for it.");
         }
 
-        var runningTime = request.RunningTimeSeconds is double reported && double.IsFinite(reported) && reported > 0
+        var runningTime = reportedRunningTime is double reported && double.IsFinite(reported) && reported > 0
             ? reported
             : chosen.Select(bookmark => bookmark.DurationSeconds).Where(value => value is > 0).DefaultIfEmpty(null).Max();
-        var chapters = ToChapters(request.Chapters);
+        var chapters = ToChapters(chapterDtos);
         var items = chosen.Select(bookmark => new BookmarkPackBookmark(
             bookmark.PositionSeconds,
             bookmark.EndSeconds,
@@ -188,19 +257,27 @@ public sealed class BookmarkSetService
             new BookmarkPackTitle(recognition.Ids, runningTime, recognition.EditionLabel),
             items,
             BookmarkPackArchive.Fingerprint(ExportedSetName, null, items));
-        var bytes = BookmarkPackArchive.Write(content, _time.GetUtcNow());
+        return (content, BookmarkPackArchive.Write(content, _time.GetUtcNow()));
+    }
+
+    private async Task<BookmarkPackFileDto> BuildFileAsync(
+        Guid assetId, IReadOnlyList<AudiobookBookmarkDto> chosen, double? reportedRunningTime,
+        IReadOnlyList<BookmarkPackChapterDto> chapterDtos, CancellationToken ct)
+    {
+        var (content, bytes) = await BuildPackAsync(assetId, chosen, reportedRunningTime, chapterDtos, ct);
         return new BookmarkPackFileDto
         {
-            FileName = "global-bookmarks.zip",
+            FileName = ExportedFileName,
             ContentBase64 = Convert.ToBase64String(bytes),
-            BookmarkCount = items.Count,
+            BookmarkCount = content.Bookmarks.Count,
         };
     }
 
     private sealed record Prepared(Guid Profile, BookmarkPackMatch Match, BookmarkSetCompareDto Compare);
 
     private async Task<Prepared> PrepareAsync(
-        Guid? profileId, Guid workId, BookmarkSetRequestDto request, CancellationToken ct)
+        Guid? profileId, Guid workId, BookmarkSetRequestDto request, CancellationToken ct,
+        IReadOnlyList<AudiobookBookmarkDto>? compareWith = null)
     {
         var profile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
         var assets = await _scope.AssetIdsAsync(ct);
@@ -216,7 +293,8 @@ public sealed class BookmarkSetService
         var runningTime = request.RunningTimeSeconds is double reported && double.IsFinite(reported) && reported > 0 ? reported : (double?)null;
         var match = BookmarkPackMatcher.Compare(content.Title, new BookmarkPackTitle(local.Ids, runningTime, local.EditionLabel));
         var isAdmin = await _scope.IsServerAdministratorAsync(ct);
-        var existing = (await _bookmarks.GetByWorkAsync(profile, workId, ct, assets))
+        // The player compares with the person's own bookmarks and the Global ones; the editor compares with the title's Everyone's list.
+        var existing = (compareWith ?? await _bookmarks.GetByWorkAsync(profile, workId, ct, assets))
             .Where(bookmark => bookmark.AssetId == request.AssetId).ToList();
         var globalCount = existing.Count(bookmark => bookmark.IsGlobal);
         var canAlign = match.Kind == BookmarkPackMatchKind.DifferentCut
@@ -246,6 +324,28 @@ public sealed class BookmarkSetService
             placed = inside;
         }
 
+        var rows = BuildRows(placed, existing);
+
+        var compare = new BookmarkSetCompareDto
+        {
+            Name = content.Name,
+            Author = content.Author,
+            BookmarkCount = content.Bookmarks.Count,
+            Match = ToMatchResult(match.Kind),
+            Reason = match.Reason,
+            CanAlignByChapter = canAlign,
+            RowsReady = ready,
+            SkippedCount = skipped,
+            AppliesToGlobal = isAdmin,
+            Rows = rows,
+            GlobalCount = globalCount,
+        };
+        return new Prepared(profile, match, compare);
+    }
+
+    /// <summary>Each incoming bookmark beside the nearest bookmark already there, with how close the two are (the Engine decides, never the Dashboard).</summary>
+    private List<BookmarkSetCompareRowDto> BuildRows(IReadOnlyList<BookmarkPackBookmark> placed, IReadOnlyList<AudiobookBookmarkDto> existing)
+    {
         var limits = _closeness.Current.For(BookmarkPositionKind.Time);
         var rows = new List<BookmarkSetCompareRowDto>(placed.Count);
         for (var index = 0; index < placed.Count; index++)
@@ -279,21 +379,7 @@ public sealed class BookmarkSetService
             });
         }
 
-        var compare = new BookmarkSetCompareDto
-        {
-            Name = content.Name,
-            Author = content.Author,
-            BookmarkCount = content.Bookmarks.Count,
-            Match = ToMatchResult(match.Kind),
-            Reason = match.Reason,
-            CanAlignByChapter = canAlign,
-            RowsReady = ready,
-            SkippedCount = skipped,
-            AppliesToGlobal = isAdmin,
-            Rows = rows,
-            GlobalCount = globalCount,
-        };
-        return new Prepared(profile, match, compare);
+        return rows;
     }
 
     private static AudiobookBookmarkRepository.SetBookmark ToSetBookmark(BookmarkSetItemDto item)

@@ -12,6 +12,7 @@ public enum EditingSection
     Details,
     Artwork,
     Match,
+    Bookmarks,
     History,
     Preview,
 }

@@ -234,24 +234,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> GetEveryonesBookmarksWithOutcomeAsync(
-        Guid workId, Guid profileId, CancellationToken ct = default) =>
-        SendBookmarkAsync<IReadOnlyList<AudiobookBookmarkDto>>(
-            $"/api/v1/player/audiobooks/{workId:D}/bookmarks/everyones", profileId, "load",
-            (path, token) => _http.GetAsync(path, token), ct);
-
-    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> PromoteAudiobookBookmarkWithOutcomeAsync(
-        Guid bookmarkId, string? name, Guid profileId, CancellationToken ct = default) =>
-        SendBookmarkAsync<AudiobookBookmarkDto>(
-            $"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}/promote", profileId, "save",
-            (path, token) => _http.PostAsJsonAsync(path, new PromoteAudiobookBookmarkRequestDto { Name = name }, token), ct);
-
-    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateGlobalAudiobookBookmarkWithOutcomeAsync(
-        Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default) =>
-        SendBookmarkAsync<AudiobookBookmarkDto>(
-            $"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}", profileId, "save",
-            (path, token) => _http.PutAsJsonAsync(path, request, token), ct);
-
     /// <summary>One bookmark call that returns a typed outcome: success with the body, a clear rejection, or "could not confirm".</summary>
     private async Task<AudiobookBookmarkOperationResult<T>> SendBookmarkAsync<T>(
         string endpoint, Guid profileId, string operation,
