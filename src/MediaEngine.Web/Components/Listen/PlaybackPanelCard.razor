@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Services.Playback
 <section class="playback-panel-card @(FullPlayer ? "playback-panel-card--full" : null)" aria-label="@Title">
-    @if (PanelKey is not ("lyrics" or "queue" or "history"))
+    @if (PanelKey is not ("lyrics" or "queue" or "history") && !(PanelKey == "chapters" && !FullPlayer))
     {
     <header class="playback-panel-card__header"><h2>@Title</h2>
     </header>

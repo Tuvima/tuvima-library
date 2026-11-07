@@ -17,7 +17,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("<AudioSubtitlesPanel ToolId=\"video-captions\"", razor);
         Assert.DoesNotContain("<PlayerSettingsMenu", razor);
         Assert.DoesNotContain("video-subtitle-style", razor);
-        Assert.Contains("<VideoContextPanel", razor);
+        Assert.Contains("<EpisodesPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);

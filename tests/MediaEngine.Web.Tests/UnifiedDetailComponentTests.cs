@@ -1046,7 +1046,7 @@ public sealed class UnifiedDetailComponentTests
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
         var popupHost = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor");
         var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
-        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor");
+        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor");
         var popupPlayer = popupHost + fullPlayer + contextPanel;
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
         var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
@@ -1170,8 +1170,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("AppMaterialIcons.Filled.Forward30", transportControls);
         Assert.DoesNotContain("audiobook-skip-button__icon", transportControls);
         Assert.DoesNotContain("title=\"@label\"", transportControls + playbackSkipButton);
-        Assert.Contains("ChapterDuration", popupPlayer);
-        Assert.Contains("chapter.EndSeconds.Value - chapter.StartSeconds", popupPlayer);
+        Assert.Contains("Length(chapter, position)", popupPlayer);
+        Assert.Contains("end - chapter.StartSeconds", popupPlayer);
         Assert.Contains("playback-relative-skip", playbackSkipButton);
         Assert.Contains("playback-relative-skip__arc", playbackSkipButton);
         Assert.Contains("playback-relative-skip__arrow", playbackSkipButton);

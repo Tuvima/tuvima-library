@@ -1,0 +1,184 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+@inject IServiceProvider Services
+
+@* The Chapters panel for audiobooks (unified player v2 D20; mockup screen 10). The book's cover, title and author; "Chapter 8 of 24" and "Book · 32% complete"; one
+   compact row per chapter (number, title, length, a check on finished chapters, and for the one playing: elapsed and remaining time, a progress line and the sound
+   bars). Selecting a row plays that chapter. The footer holds "Timeline shows Chapter | Whole book", which is the choice the bar's timeline uses. *@
+<PlaybackListPanel ScrollKey="@ScrollKey">
+    <Identity>
+        @if (Item is { } book)
+        {
+            <div class="chp__book" data-chapters-identity>
+                <div class="chp__cover" aria-hidden="true">
+                    @if (!string.IsNullOrWhiteSpace(book.CoverUrl))
+                    {
+                        <img src="@PlaybackArtworkUrl.ForDrawnSize(book, CoverPx)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(book, CoverPx)" sizes="@($"{CoverPx}px")" width="@CoverPx" height="@CoverPx" alt="" decoding="async" data-image-display="playback-chapters-cover" />
+                    }
+                </div>
+                <div class="chp__book-copy">
+                    <div class="chp__book-title" data-overflow-tooltip="@book.Title">@book.Title</div>
+                    @if (Author is { } author) { <div class="chp__book-author" data-overflow-tooltip="@author">@author</div> }
+                </div>
+            </div>
+            @if (_chapters.Count > 0)
+            {
+                <div class="chp__progress" data-chapters-position>
+                    <span>@L["ChaptersPanel_Position", CurrentNumber, _chapters.Count]</span>
+                    @if (BookProgress is { } projection)
+                    {
+                        <span class="chp__progress-book">@PlaybackTimelineLabels.BookComplete(L, projection.Position, projection.Total)</span>
+                    }
+                </div>
+            }
+        }
+    </Identity>
+    <ChildContent>
+        @if (_chapters.Count == 0)
+        {
+            <p class="chp__empty">@L["PlaybackContextPanel_NoTimedChaptersWereFound"]</p>
+        }
+        @for (var position = 0; position < _chapters.Count; position++)
+        {
+            var chapter = _chapters[position];
+            var number = position + 1;
+            var isCurrent = number == CurrentNumber;
+            var done = number < CurrentNumber;
+            <PlaybackListRow @key="chapter.Index" Variant="chapter" Title="@ChapterTitle(chapter, number)" Length="@Length(chapter, position)"
+                             Secondary="@(isCurrent ? CurrentTimes(chapter, position) : null)" ProgressPercent="@(isCurrent ? CurrentPercent(chapter, position) : null)" IsCurrent="isCurrent"
+                             AriaLabel="@L["ChaptersPanel_PlayLabel", ChapterTitle(chapter, number)].Value"
+                             OnClick="@(() => PlayChapterAsync(chapter))">
+                <Leading><span class="chp__number">@number</span></Leading>
+                <Trailing>
+                    @if (isCurrent)
+                    {
+                        <PlaybackActivityMark IsPlaying="@IsPlaybackActive" Size="compact" />
+                    }
+                    else if (done)
+                    {
+                        <span class="chp__done" data-chapter-done role="img" aria-label="@L["ChaptersPanel_Finished"].Value"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span>
+                    }
+                </Trailing>
+            </PlaybackListRow>
+        }
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="chp__failure">@_failure</AppAlert>
+        }
+    </ChildContent>
+    <Footer>
+        @if (ShowFooter && Scope is { } scope)
+        {
+            <div class="chp__footer" data-chapters-footer>
+                <span class="chp__footer-label">@L["ChaptersPanel_TimelineShows"]</span>
+                <AppSegmentedControl Options="@ScopeOptions" Value="@(scope.WholeBook ? WholeBookValue : ChapterValue)" AriaLabel="@L["ChaptersPanel_TimelineShows"].Value"
+                                     Size="AppControlSize.Compact" ValueChanged="@(value => scope.SetWholeBookAsync(value == WholeBookValue))" />
+                <span class="chp__footer-hint">@L["ChaptersPanel_Hint"]</span>
+            </div>
+        }
+    </Footer>
+</PlaybackListPanel>
+
+@code {
+    private const string ChapterValue = "chapter";
+    private const string WholeBookValue = "book";
+    private const int CoverPx = 64;
+
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+
+    /// <summary>False leaves the "Timeline shows" footer out.</summary>
+    [Parameter] public bool ShowFooter { get; set; } = true;
+
+    private IReadOnlyList<PlaybackChapterDto> _chapters = [];
+    private string? _failure;
+    private PlaybackTimelineScope? _scope;
+    private IReadOnlyList<AppSelectOption>? _scopeOptions;
+
+    private ListenQueueItem? Item => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    private string? Author => string.IsNullOrWhiteSpace(Item?.AuthorName) ? Item?.Subtitle : Item.AuthorName;
+    private bool IsPlaybackActive => Snapshot.IsPlaying && !Snapshot.NeedsUserGestureToStart && string.IsNullOrWhiteSpace(Snapshot.CurrentError);
+    private string ScrollKey => $"{Item?.AssetId}:{Snapshot.PlaybackRequestVersion}:chapters";
+    private PlaybackTimelineScope? Scope => _scope ??= Services.GetService<PlaybackTimelineScope>();
+    private IReadOnlyList<AppSelectOption> ScopeOptions => _scopeOptions ??= [new(ChapterValue, L["ChaptersPanel_ScopeChapter"].Value), new(WholeBookValue, L["ChaptersPanel_ScopeBook"].Value)];
+
+    private AudiobookPlaybackProjection? BookProgress => Item is null ? null
+        : AudiobookPlaybackProjection.Create(Item.Chapters, Item.AssetId, Snapshot.CurrentTimeSeconds, Snapshot.DurationSeconds);
+
+    protected override void OnInitialized()
+    {
+        if (Scope is { } scope) scope.Changed += ScopeChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Scope is { } scope) await scope.EnsureLoadedAsync();
+    }
+
+    protected override void OnParametersSet() => _chapters = Item?.Chapters is { Count: > 0 } chapters ? chapters.OrderBy(chapter => chapter.Index).ToArray() : [];
+
+    private void ScopeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_scope is not null) _scope.Changed -= ScopeChanged;
+    }
+
+    // The chapter that holds the position, as the list counts them (1 for the first). Zero chapters or an unplaced position read as the first.
+    private int CurrentNumber
+    {
+        get
+        {
+            if (Item is not { } item || _chapters.Count == 0) return 1;
+            var time = Snapshot.CurrentTimeSeconds;
+            var found = -1;
+            for (var i = 0; i < _chapters.Count; i++)
+            {
+                var chapter = _chapters[i];
+                if (chapter.AssetId == item.AssetId && chapter.StartSeconds <= time && (chapter.EndSeconds is null || time < chapter.EndSeconds)) found = i;
+            }
+            return found + 1 > 0 ? found + 1 : 1;
+        }
+    }
+
+    private string ChapterTitle(PlaybackChapterDto chapter, int number) => string.IsNullOrWhiteSpace(chapter.Title) ? L["PlaybackTimeline_Chapter", number].Value : chapter.Title;
+
+    private double? EndOf(PlaybackChapterDto chapter, int position)
+    {
+        if (chapter.EndSeconds is { } end && double.IsFinite(end) && end > chapter.StartSeconds) return end;
+        if (position + 1 < _chapters.Count && _chapters[position + 1].AssetId == chapter.AssetId && _chapters[position + 1].StartSeconds > chapter.StartSeconds) return _chapters[position + 1].StartSeconds;
+        return position + 1 == _chapters.Count && Snapshot.DurationSeconds > chapter.StartSeconds ? Snapshot.DurationSeconds : null;
+    }
+
+    private string? Length(PlaybackChapterDto chapter, int position) => EndOf(chapter, position) is { } end ? PlaybackSeekRail.Time(end - chapter.StartSeconds) : null;
+
+    private string? CurrentTimes(PlaybackChapterDto chapter, int position)
+    {
+        if (EndOf(chapter, position) is not { } end) return null;
+        var elapsed = Math.Clamp(Snapshot.CurrentTimeSeconds - chapter.StartSeconds, 0d, end - chapter.StartSeconds);
+        return L["ChaptersPanel_ElapsedRemaining", PlaybackSeekRail.Time(elapsed), PlaybackSeekRail.Time(Math.Max(0d, end - chapter.StartSeconds - elapsed))].Value;
+    }
+
+    private double? CurrentPercent(PlaybackChapterDto chapter, int position) => EndOf(chapter, position) is { } end && end > chapter.StartSeconds
+        ? Math.Clamp((Snapshot.CurrentTimeSeconds - chapter.StartSeconds) / (end - chapter.StartSeconds) * 100d, 0d, 100d) : null;
+
+    private async Task PlayChapterAsync(PlaybackChapterDto chapter)
+    {
+        var shown = Snapshot;
+        try
+        {
+            var reply = await Commands.SendAsync(shown, new() { Action = ListenPlaybackCommandActions.PlayChapter, ChapterIndex = chapter.Index });
+            _failure = reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success ? null : reply?.Message ?? L["QueuePanel_NotConfirmed"].Value;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
+        {
+            _failure = L["QueuePanel_Interrupted"].Value;
+        }
+    }
+}

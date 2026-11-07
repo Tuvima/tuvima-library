@@ -55,15 +55,6 @@ else if (_settings is not null)
         }
 
         <div class="playback-settings-grid">
-            <SettingsSectionPanel Title="@L["PlaybackSettingsPage_Autoplay"].Value"
-                                  Description="@L["PlaybackSettingsPage_WhatHappensWhenAnEpisode"].Value">
-                @BoolRow(
-                    "Autoplay next episode",
-                    "Start the next episode after a short countdown. Turn off to choose it yourself.",
-                    _settings.Watching.AutoplayNextEpisode,
-                    value => UpdateAndSaveAsync(s => s.Watching.AutoplayNextEpisode = value))
-            </SettingsSectionPanel>
-
             <SettingsSectionPanel Title="@L["Common_Resume"].Value"
                                   Description="@L["PlaybackSettingsPage_WhereAMovieOrEpisode"].Value">
                 @BoolRow(

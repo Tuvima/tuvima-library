@@ -18,6 +18,7 @@ public sealed class MenuMarkupGuardrailTests
         ["Components/Listen/SongActions.razor"] = "The player's song menu, a playback popover (Group E); it uses the shared menu items.",
         ["Components/Shared/PlaybackItemMenu.razor"] = "The persistent bar's item actions menu (unified player v2 D23): rows live inside a PlaybackPanel popover and follow the player mockup, not the app menu look.",
         ["Components/Listen/PlaybackLyricsMenu.razor"] = "The Lyrics footer's \"...\" menu (unified player v2 D17): rows live inside a PlaybackPanel popover and follow the player mockup, like the item actions menu.",
+        ["Components/Shared/PlaybackRowMenu.razor"] = "The \"...\" menu on a Queue or History row (unified player v2 D18): rows live inside a PlaybackPanel popover and follow the player mockup (screen 8), not the app menu look.",
     };
 
     [Fact]

@@ -25,7 +25,8 @@ public sealed class PersonalSettingsSimplificationTests
     {
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor");
 
-        Assert.Contains("Autoplay next episode", source, StringComparison.Ordinal);
+        // Unified player v2 D19: Autoplay next episode lives in the Episodes panel now; the preference itself stays.
+        Assert.DoesNotContain("Autoplay next episode", source, StringComparison.Ordinal);
         Assert.Contains("Resume where you left off", source, StringComparison.Ordinal);
         // Unified player v2 D14: the skip lengths and the subtitle look live in the player's Playback settings, not here.
         Assert.DoesNotContain("Skip back", source, StringComparison.Ordinal);

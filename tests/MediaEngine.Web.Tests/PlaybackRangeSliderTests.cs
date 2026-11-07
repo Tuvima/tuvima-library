@@ -115,30 +115,6 @@ public sealed class AppRangeSliderTests : LocalizedBunitContext
         Assert.Contains("grid-column:4; width:44px", css, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData(false, "is-paused", "Current item paused")]
-    [InlineData(true, "is-playing", "Now playing")]
-    public void ChapterContextRowUsesInlineActivityAndOmitsEmptyActionColumn(bool isPlaying, string activityClass, string activityLabel)
-    {
-        var cut = Render<PlaybackContextRow>(parameters => parameters
-            .Add(component => component.Title, "Chapter Twelve")
-            .Add(component => component.Variant, "chapter")
-            .Add(component => component.LeadingText, "12")
-            .Add(component => component.Duration, "43:20")
-            .Add(component => component.IsCurrent, true)
-            .Add(component => component.IsPlaying, isPlaying)
-            .Add(component => component.Actions, builder => builder.AddMarkupContent(0, "<button>Unavailable</button>")));
-
-        var row = cut.Find(".playback-context-row--chapter");
-        Assert.Equal("true", row.GetAttribute("aria-current"));
-        Assert.Contains("12", row.TextContent);
-        Assert.Contains("43:20", row.TextContent);
-        Assert.Contains("playback-context-row__activity--chapter", row.InnerHtml);
-        Assert.Contains(activityClass, row.QuerySelector(".playback-activity-mark")!.GetAttribute("class"));
-        Assert.Equal(activityLabel, row.QuerySelector(".playback-activity-mark")!.GetAttribute("aria-label"));
-        Assert.Empty(row.QuerySelectorAll(".playback-context-row__actions"));
-    }
-
     [Fact]
     public void InlinePlaybackSheetUsesRegionSemantics()
     {

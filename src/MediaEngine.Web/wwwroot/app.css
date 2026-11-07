@@ -2787,6 +2787,9 @@ button.app-menu-item {
 }
 .playback-popover-trigger[aria-expanded="true"] { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary); }
 .playback-popover-trigger:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: 2px; }
+/* The "..." at the end of a Queue or History row (unified player v2 D18, mockup screen 8): 32 px wide in the row's last column, 44 px for a coarse pointer. */
+.playback-popover-trigger.prm__trigger { --playback-glyph-size: 20px; min-height: 36px; min-width: 32px; }
+@media (pointer: coarse) { .playback-popover-trigger.prm__trigger { min-height: var(--playback-control-target); min-width: var(--playback-control-target); } }
 /* Unified player v2 D11: the header buttons (back, close) of a PlaybackPanel and its phone sheet. 36 px targets inside the 44 px header rhythm; the panel frame itself is PlaybackPanel.razor.css. */
 .playback-panel__icon-button { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--playback-text); cursor: pointer; }
 .playback-panel__icon-button:hover { background: var(--playback-state-hover); }

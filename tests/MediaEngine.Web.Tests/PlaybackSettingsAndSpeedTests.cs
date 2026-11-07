@@ -495,6 +495,22 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task EpisodesAutoplaySwitch_SavesThePreferenceOnTheProfileAndTheRunningPlayerFollowsItAtOnce()
+    {
+        var saved = new List<UserPlaybackSettingsDto>();
+        var profile = Guid.NewGuid();
+        var playback = ArrangeVideo(UserPlaybackSettingsDto.CreateDefaults(profile), saved);
+        Assert.True(playback.AutoplayNextEpisode);
+
+        var done = await Services.GetRequiredService<PlaybackSettingsActions>().SetAutoplayNextEpisodeAsync(false);
+
+        Assert.True(done);
+        Assert.Equal(profile, Assert.Single(saved).ProfileId);
+        Assert.False(saved[0].Watching.AutoplayNextEpisode);
+        Assert.False(playback.AutoplayNextEpisode);
+    }
+
+    [Fact]
     public async Task VideoGear_ResetPlaybackPreferencesPutsTheSkipLengthsBackToTenAndThirtyAndSpeedToNormal()
     {
         var saved = new List<UserPlaybackSettingsDto>();

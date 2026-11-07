@@ -1109,10 +1109,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
-      "important": 0,
-      "deep": 19
-    },
     "src/MediaEngine.Web/Components/Listen/ListenNavigationSection.razor.css": {
       "important": 0,
       "deep": 0
@@ -1131,7 +1127,7 @@
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
       "important": 0,
-      "deep": 21
+      "deep": 4
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css": {
       "important": 0,
@@ -1647,7 +1643,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css": {
       "important": 0,
-      "deep": 9
+      "deep": 8
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css": {
       "important": 0,
@@ -1768,10 +1764,6 @@
     "src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor.css": {
       "important": 0,
       "deep": 7
-    },
-    "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css": {
-      "important": 0,
-      "deep": 4
     },
     "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
       "important": 0,
