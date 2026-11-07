@@ -66,8 +66,25 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 .tl-button.app-button--filled:disabled, .tl-button.app-button--filled[aria-disabled="true"] { background: var(--tl-palette-action-disabled-background); }
 .tl-button:focus-visible, .tl-icon-button:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .tl-button:disabled, .tl-button[aria-disabled="true"], .tl-icon-button:disabled, .tl-icon-button[aria-disabled="true"] { opacity: .5; cursor: default; }
-.tl-icon-button { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; border: 0; border-radius: 50%; background: transparent; color: var(--app-tone-color,var(--tl-text-primary)); width: var(--app-control-height,var(--tl-control-height-md)); height: var(--app-control-height,var(--tl-control-height-md)); min-width: var(--app-control-height,var(--tl-control-height-md)); padding: 8px; cursor: pointer; text-decoration: none; }
-.tl-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb,currentColor 8%,transparent); }
+/* The one icon button (Look v3 D9). Outlined on surfaces, Plain (with a soft scrim over artwork) and Filled. 36 / 44 / 48 px with 20 / 24 / 24 px icons. */
+.app-icon-button.app-icon-button { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: 0 0 auto; width: var(--app-control-height,var(--tl-control-height-md)); height: var(--app-control-height,var(--tl-control-height-md)); min-width: var(--app-control-height,var(--tl-control-height-md)); padding: 0; border: 1px solid transparent; border-radius: var(--tl-radius-md); background: transparent; color: var(--tl-text-secondary); cursor: pointer; text-decoration: none; font: inherit; transition: background-color .12s ease, color .12s ease, border-color .12s ease; }
+.app-icon-button.app-icon-button:not(.app-tone--neutral) { color: var(--app-tone-color,var(--tl-text-secondary)); }
+.app-icon-button.app-icon-button .tl-icon-root, .app-icon-button.app-icon-button .playback-utility-glyph { width: var(--tl-icon-button-icon-lg); height: var(--tl-icon-button-icon-lg); font-size: var(--tl-icon-button-icon-lg); }
+.app-icon-button.app-icon-button.app-control--compact .tl-icon-root, .app-icon-button.app-icon-button.app-control--compact .playback-utility-glyph { width: var(--tl-icon-button-icon-sm); height: var(--tl-icon-button-icon-sm); font-size: var(--tl-icon-button-icon-sm); }
+.app-icon-button--outlined.app-icon-button { border-color: var(--tl-border-strong); }
+.app-icon-button--outlined.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--tl-text-primary); background: var(--tl-bg-surface-hover); }
+.app-icon-button--plain.app-icon-button { color: var(--tl-text-primary); }
+.app-icon-button--plain.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb,currentColor 10%,transparent); }
+.app-icon-button--over-artwork.app-icon-button { color: var(--tl-on-scrim); background: var(--tl-scrim-soft); }
+.app-icon-button--over-artwork.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]), .app-icon-button--over-artwork.app-icon-button[aria-expanded="true"] { background: var(--tl-scrim-soft-strong); }
+.app-icon-button--filled.app-icon-button { background: var(--tl-accent-primary); border-color: var(--tl-accent-primary); color: var(--tl-text-on-accent); }
+.app-icon-button--filled.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--tl-accent-primary-hover); border-color: var(--tl-accent-primary-hover); }
+.app-icon-button--soft.app-icon-button { background: var(--tl-accent-primary-soft); border-color: var(--tl-accent-primary); color: var(--tl-accent-primary-hover); }
+.app-icon-button--soft.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--tl-accent-primary-soft); border-color: var(--tl-accent-primary); }
+.app-icon-button.app-icon-button[aria-pressed="true"]:not(.app-icon-button--filled) { color: var(--tl-accent-primary-hover); }
+.app-icon-button.app-icon-button--over-artwork[aria-pressed="true"] { color: var(--tl-on-scrim); }
+.app-icon-button-stack { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.app-icon-button__label { max-width: 5.5rem; overflow: hidden; color: var(--tl-text-secondary); font-size: 12px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .tl-progress-circular { display: inline-block; flex: none; width: 40px; height: 40px; color: var(--tl-accent-primary); vertical-align: middle; transform: rotate(-90deg); }
 .tl-progress-circular--small { width: 24px; height: 24px; }
 .tl-progress-circular--large { width: 56px; height: 56px; }

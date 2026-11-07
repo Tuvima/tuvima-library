@@ -1,25 +1,23 @@
-.tl-detail-actions { --media-rate-trigger-size:48px; display:flex; flex-direction:column; align-items:flex-start; gap:12px; width:100%; min-width:0; max-width:100%; }
-.tl-detail-primary-actions,.tl-detail-secondary-actions { display:flex; align-items:center; gap:10px; min-width:0; }
+/* The shared hero row (Look v3 D12): one wide light main button, 56 px tall, and Plain icon-button companions (AppIconButton) at 48 px. */
+.tl-detail-actions { display:flex; flex-direction:column; align-items:flex-start; gap:12px; width:100%; min-width:0; max-width:100%; }
+.tl-detail-primary-actions,.tl-detail-secondary-actions { display:flex; align-items:center; gap:14px; min-width:0; }
 .tl-detail-primary-actions { flex:0 1 auto; }
-.tl-detail-actions ::deep .tl-detail-action--primary { position:relative; display:flex; align-items:center; justify-content:center; gap:12px; flex:0 0 auto; width:min(100%, 24rem); min-width:11rem; max-width:100%; height:var(--tl-control-height-lg); min-height:var(--tl-control-height-lg); padding-inline:1.2rem; border:0; border-radius:var(--tl-control-radius); background:var(--tl-text-primary); color:var(--tl-bg-page); font-family:var(--font-ui); font-size:var(--tl-font-size-lg); white-space:nowrap; font-weight:var(--tl-font-weight-semibold); cursor:pointer; overflow:hidden; }
-.tl-detail-actions ::deep :is(.hero-icon-circle, .media-rate-control .hero-icon-circle) { box-sizing:border-box; display:grid; place-items:center; flex:0 0 48px; width:48px; height:48px; padding:0; border:1px solid transparent; border-radius:var(--tl-control-radius); background:transparent; color:var(--tl-text-primary); cursor:pointer; }
-.tl-detail-actions ::deep .hero-icon-circle .playback-utility-glyph { width:22px; height:22px; }
-.tl-detail-actions ::deep .hero-icon-circle:hover,.tl-detail-actions ::deep .hero-icon-circle:focus-visible { border-color:var(--tl-accent-primary); }
-.tl-detail-action-progress__track { position:absolute; left:0; right:0; bottom:0; height:3px; border-radius:0; background:color-mix(in srgb, var(--tl-bg-page) 25%, transparent); }
+.tl-detail-actions ::deep .tl-detail-action--primary { position:relative; display:flex; align-items:center; justify-content:center; gap:10px; flex:0 0 auto; width:min(100%, 24rem); min-width:180px; max-width:100%; height:var(--tl-hero-action-height); min-height:var(--tl-hero-action-height); padding-inline:24px; border:0; border-radius:var(--tl-control-radius); background:var(--tl-hero-action-bg); color:var(--tl-hero-action-text); font-family:var(--font-ui); font-size:var(--tl-hero-action-label-size); white-space:nowrap; font-weight:var(--tl-font-weight-semibold); cursor:pointer; overflow:hidden; }
+.tl-detail-actions ::deep .tl-detail-action--primary:hover:not(:disabled) { background:var(--tl-hero-action-bg-hover); }
+.tl-detail-actions ::deep .tl-detail-action--primary:focus-visible { outline:2px solid var(--tl-on-scrim); outline-offset:2px; }
+.tl-detail-action-progress__track { position:absolute; left:0; right:0; bottom:0; height:3px; border-radius:0; background:color-mix(in srgb, var(--tl-hero-action-text) 20%, transparent); }
 .tl-detail-action-progress__track ::deep .tl-detail-action-progress__fill { display:block; height:100%; background:var(--tl-accent-primary); border-radius:inherit; }
+.tl-detail-actions ::deep .tl-detail-action-label { display:flex; flex-direction:row; align-items:baseline; gap:8px; min-width:0; line-height:1.15; text-align:left; }
+.tl-detail-actions ::deep .tl-detail-action-progress__label { font-size:var(--tl-font-size-sm); font-weight:var(--tl-font-weight-regular); }
+.tl-detail-actions ::deep .tl-detail-action--primary .tl-icon-root { width:var(--tl-hero-action-icon-size); height:var(--tl-hero-action-icon-size); font-size:var(--tl-hero-action-icon-size); flex:0 0 var(--tl-hero-action-icon-size); }
+.tl-detail-secondary-actions { align-items:flex-start; gap:6px 14px; }
 @media (max-width: 600px) {
     .tl-detail-actions { flex-wrap:wrap; }
     .tl-detail-primary-actions { width:100%; }
-    .tl-detail-actions ::deep .tl-detail-action--primary { flex-basis:auto; width:22rem; }
+    .tl-detail-actions ::deep .tl-detail-action--primary { flex:1 1 auto; width:100%; }
+    .tl-detail-secondary-actions { flex-wrap:wrap; gap:4px 18px; }
 }
-
-.tl-detail-actions ::deep .tl-detail-action-label { display:flex; flex-direction:row; align-items:baseline; gap:8px; min-width:0; line-height:1.15; text-align:left; }
-.tl-detail-actions ::deep .tl-detail-action-progress__label { font-size:var(--tl-font-size-sm); font-weight:var(--tl-font-weight-regular); }
-.tl-detail-actions ::deep .tl-detail-action--primary .tl-icon-root { width:24px; height:24px; font-size:24px; flex:0 0 24px; }
-.tl-detail-actions ::deep .tl-detail-action--has-progress { font-size:var(--tl-font-size-lg); }
-.tl-detail-actions ::deep .tl-detail-action--has-progress .tl-icon-root { width:22px; height:22px; font-size:22px; flex-basis:22px; }
-/* Detail page: facts, then the main button, then one row of small icons (Home, detail and tiles spec D9). The Home hero keeps button and + on one line. */
+/* Detail page: facts, then the main button, then one row of companions with their names underneath. The Home hero keeps button and companions on one line, without the names. */
 .cinematic-hero--landing .tl-detail-actions { flex-direction:row; align-items:center; }
-
+.cinematic-hero--landing .tl-detail-actions ::deep .app-icon-button__label { display:none; }
 .tl-detail-actions:has(.media-rate-control.is-open) { position:relative; z-index:40; }
-

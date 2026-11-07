@@ -110,11 +110,8 @@ else if (Slides.Count > 0)
                                            OverflowActions="@NoActions"
                                            Progress="@LandingProgress"
                                            UsePrimaryHeroChrome="true"
+                                           FolderHref="@(ShowsFolderLink ? ActiveDetailsUrl : null)"
                                            OnActionSelected="OpenLandingActionAsync" />
-                            @if (ShowsFolderLink)
-                            {
-                                <a class="cinematic-hero-carousel__folder-link" href="@ActiveDetailsUrl">@VideoFolderWording.OpenLabel</a>
-                            }
                         </div>
                     </ActionContent>
                     <SupplementalContent>
@@ -336,11 +333,9 @@ else if (Slides.Count > 0)
     private bool IsOpenAction => ActiveHero.PrimaryActionLabel.StartsWith("Open", StringComparison.OrdinalIgnoreCase);
     // Videos, Other videos and YouTube read Play, or Resume with the time left on the progress line, never Reading.
     private bool IsVideoHero => PhoneHeroPresentation.IsVideoKind(ActiveHero.MediaKind);
-    // A folder of videos whose button plays a video also offers its folder as a quiet link beside the + (it hides when there is no room).
+    // A folder of videos whose button plays a video also offers its folder as an Open button beside the + (Look v3 D12).
     private bool ShowsFolderLink => IsVideoHero && !IsOpenAction && VideoFolderWording.IsVideoFolderMediaType(ActiveHero.MediaKind);
-    private string ActionsClass => ShowsFolderLink
-        ? "cinematic-hero-carousel__actions cinematic-hero-carousel__actions--with-link"
-        : "cinematic-hero-carousel__actions";
+    private string ActionsClass => "cinematic-hero-carousel__actions";
     private string LandingPrimaryLabel => ActiveEntityType switch
     {
         _ when IsVideoHero && !IsOpenAction => VideoFolderWording.PlayButton(IsContinuation),
