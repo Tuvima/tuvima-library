@@ -199,6 +199,9 @@ public sealed class EditorHost : IDisposable
     /// <summary>The rail of the Universe editor: the Universe, its kinds with counts, and the things of each kind (universal editor v4, WP11).</summary>
     public EditorUniverseState Universe { get; }
 
+    /// <summary>Where the header's supporting-file rows and the folder button lead; the viewer and the folder browser register here when they are built.</summary>
+    public EditorHeaderHooks HeaderHooks { get; } = new();
+
     /// <summary>How the window asks "Save or discard?" (set by the layout's pop-over, which owns the dialogs). Unset, unsaved input keeps the person where they are.</summary>
     public Func<Task<SaveOrDiscardChoice>>? AskSaveOrDiscard { get; set; }
 

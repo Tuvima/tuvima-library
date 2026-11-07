@@ -32,6 +32,11 @@
                 {
                     <section class="delete-library__section delete-library__group" aria-label="@L["DeleteFromLibraryDialog_WhatWillBeDeleted"].Value">
                         <h3>@LibraryGroupDeletionText.Totals(groupInfo, Items)</h3>
+                        @if (LibraryGroupDeletionText.SupportingFilesLine(Group?.SupportingFileCount ?? 0) is { } supportingLine)
+                        {
+                            <p class="delete-library__supporting">@supportingLine</p>
+                        }
+
                         @if (groupInfo.RemovesParent)
                         {
                             <p class="delete-library__emphasis">@LibraryGroupDeletionText.LastSeasonLine</p>

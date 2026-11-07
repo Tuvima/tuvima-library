@@ -38,8 +38,6 @@
                          Picker="Editor.Picker"
                          TitleOverride="@BulkPanelTitle"
                          ShowHistory="@(binding?.ShowHistory == true)"
-                         ShowContents="@EditorHeaderRules.HasContents(mode.Fields.ScopeId, Editor.Family.Kind != EditorFamilyKind.None)"
-                         ShowFiles="@(binding?.ShowHistory == true && mode.Fields.SubjectKind is null)"
                          ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
                          FooterStart="@(Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
@@ -52,17 +50,6 @@
                 @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
                     @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
-                    @if (Editor.Batch.ReturnTool == EditTool.Contents && Editor.Batch.Panel == BulkPanelKind.Edit)
-                    {
-                        <AppButton Label="@L["EditorContents_Back"].Value"
-                                   StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
-                                   ButtonStyle="AppButtonStyle.Text"
-                                   Tone="AppUiTone.Neutral"
-                                   Size="AppControlSize.Compact"
-                                   Class="tl-editor-popover__back"
-                                   OnClick="BackToContentsAsync" />
-                    }
-
                     <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" MatchParentName="@MatchParentName(mode)" />
                 }
                 else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
@@ -120,31 +107,6 @@
                 {
                     <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" />
                 }
-                else if (tool == EditTool.Contents)
-                {
-                    <EditorContentsTab Flow="flow"
-                                       Family="Editor.Family"
-                                       Batch="Editor.Batch"
-                                       OnDeleted="Editor.ItemsDeletedAsync"
-                                       ParentId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)"
-                                       CanEdit="@mode.CanEdit">
-                        <OrderContent>
-                            @* A video series' order is the person's to set (v3.1): drag or arrows, here beside the list of videos. *@
-                            <EditorVideoSeriesPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
-                                                    Session="flow.Session"
-                                                    Family="Editor.Family"
-                                                    CanEdit="@mode.CanEdit"
-                                                    ShowSeriesChooser="false" />
-                        </OrderContent>
-                    </EditorContentsTab>
-                }
-                else if (tool == EditTool.Files)
-                {
-                    <EditorFilesTab EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)"
-                                    CanDelete="@mode.CanEdit"
-                                    OnDeleted="Editor.ItemsDeletedAsync"
-                                    IsGrouping="@Editor.Family.IsParentOf(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
-                }
             </ChildContent>
         </EditorPanelHost>
     </AppDialogFrame>
@@ -153,19 +115,16 @@
 @code {
     private RenderFragment ItemHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
-        @* The family sits inside the header (v4.1 D1): a fixed tile at the left, the dropdowns under the title. A Universe draws its own kinds. *@
+        @* The way around the family (home, Season or Section, item) sits in the header's nav row and is read from the Engine's header (v5 D1). A
+           Universe keeps its own tile and kind dropdowns. *@
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
                           UniverseName="@Editor.Universe.UniverseName"
-                          HasFamily="@(Editor.Family.Visible || Editor.Universe.Visible)"
-                          CanDelete="false">
+                          HasFamily="@Editor.Universe.Visible"
+                          Hooks="Editor.HeaderHooks">
             <Tile>
                 @if (Editor.Universe.Visible)
                 {
                     <EditorUniverseRail State="Editor.Universe" Flow="flow" Part="EditorFamilyRailPart.Tile" />
-                }
-                else
-                {
-                    <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" Part="EditorFamilyRailPart.Tile" />
                 }
             </Tile>
             <Selects>
@@ -173,21 +132,18 @@
                 {
                     <EditorUniverseRail State="Editor.Universe" Flow="flow" Part="EditorFamilyRailPart.Selects" />
                 }
-                else
-                {
-                    <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" Part="EditorFamilyRailPart.Selects" />
-                }
             </Selects>
         </EditorItemHeader>
     };
 
-    // Delete sits bottom-left of the footer as a red button (v4.1 D3). It asks once and then happens at once; it does not wait for Save.
+    // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). It asks once, naming the item and what goes with
+    // it, and then happens at once; it does not wait for Save.
     private RenderFragment DeleteButtonFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
                    StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching)"
                    OnClick="@(CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)">
-            @(CanDeleteThing ? "Delete from this Universe…" : EditorDeleteRules.MenuLabel(EditorDeleteFlow.ActiveGroup(Editor), mode.Fields.ScopeId))
+            @EditorDeleteRules.FooterLabel
         </AppButton>
     };
 
@@ -244,14 +200,6 @@
     };
 
     // Match is where a failed item is fixed: the tree's own mark wins for an item it lists, else the page's answer for the item it was opened on.
-    // Back from the several-items panel to the Contents list the rows were ticked in: the ticks stay, the panel closes.
-    private async Task BackToContentsAsync()
-    {
-        Editor.Batch.ClosePanel();
-        Editor.Batch.ReturnTool = null;
-        await Editor.Flow.SelectToolAsync(EditTool.Contents);
-    }
-
     private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
         && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
 

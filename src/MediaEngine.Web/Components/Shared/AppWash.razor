@@ -1,0 +1,12 @@
+@namespace MediaEngine.Web.Components.Shared
+@* A decorative colour wash behind a block (the editor header's gradient from the cover's colours). The colours are data that differ per item, so the
+   one inline declaration lives here and not in the feature page; the page gives the wash its place and size through Class. It is hidden from
+   assistive technology and never takes a click. *@
+<div class="app-wash @Class" style="@Background" aria-hidden="true"></div>
+
+@code {
+    /// <summary>A complete CSS declaration such as <c>background:linear-gradient(...)</c>; empty draws nothing.</summary>
+    [Parameter] public string? Background { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+}

@@ -891,7 +891,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
         // The list is still there under the pop-over, with its ticks.
         Assert.Equal("4 selected", list.Find(".tl-batch__count").TextContent.Trim());
-        Assert.Empty(popover.FindAll(".tl-rail"));
+        Assert.Empty(popover.FindAll(".tl-hnav"));
     }
 
     [Fact]
@@ -903,7 +903,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
         list.Find(".tl-batch__edit").Click();
         popover.WaitForElement("[data-field-key='year']");
         TypeScalar(popover, "year", "2021");
-        popover.WaitForAssertion(() => Assert.Equal("Save 4 changes", popover.Find("button.tl-editor-window__save").TextContent.Trim()));
+        popover.WaitForAssertion(() => Assert.Equal("Save changes", popover.Find("button.tl-editor-window__save").TextContent.Trim()));
 
         // Save changes opens Review changes; nothing is saved until its own Save.
         popover.Find("button.tl-editor-window__save").Click();

@@ -1,5 +1,5 @@
 /* The gallery and its photos in the View editor's header (header revision v4.1 D1): the gallery is a fixed tile, the photo is a dropdown. It looks like
-   the library editor's family in its header (EditorFamilyRail), which owns the same names for its own markup. */
+   the library editor's nav row in its header (EditorHeaderNav), which owns its own names for its own markup. */
 .tl-rail {
     position: relative;
     display: flex;

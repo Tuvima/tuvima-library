@@ -63,6 +63,14 @@ public static class LibraryGroupDeletionText
             .Where(part => part.Owned < part.Total)
             .Select(part => $"{part.Title}: {DisplayFormat.FormatCount(part.Owned)} of {DisplayFormat.FormatCount(part.Total)} {Noun(items, part.Total)} owned")];
 
+    /// <summary>
+    /// The supporting files that go with the group (universal editor v5 D29): "238 supporting files will be removed from the Library too."
+    /// Null when the count is not known, so the dialog never claims a number it was not given.
+    /// </summary>
+    public static string? SupportingFilesLine(int count) => count > 0
+        ? $"{DisplayFormat.FormatCount(count)} supporting {(count == 1 ? "file" : "files")} will be removed from the Library too."
+        : null;
+
     /// <summary>The Series warning (D11): the books go with it.</summary>
     public static string? SeriesLine(LibraryItemDeletionGroupDto group, IReadOnlyCollection<LibraryItemDeletionItemDto> items) =>
         group.Kind == "series"

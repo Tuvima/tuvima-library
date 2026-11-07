@@ -262,8 +262,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         {
             var save = cut.Find("button.tl-editor-window__save");
             Assert.False(save.HasAttribute("disabled"));
-            Assert.Equal("Save 3 changes", save.TextContent.Trim());
-            Assert.Equal("3 changes waiting", cut.Find(".tl-editor-window__changes").TextContent.Trim());
+            Assert.Equal("Save changes", save.TextContent.Trim());
+            Assert.Equal("3 unsaved changes", cut.Find(".tl-editor-window__changes").TextContent.Trim());
         });
     }
 
@@ -274,7 +274,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
 
         var cut = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork", "Match & Identity", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork", "Match", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -287,7 +287,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var noArtwork = EditingModeTestData.MovieContext();
         noArtwork.Scopes[0].CanEditArtwork = false;
         var second = await StartEditorAsync(noArtwork);
-        Assert.Equal(["Details", "Match & Identity", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Match", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]

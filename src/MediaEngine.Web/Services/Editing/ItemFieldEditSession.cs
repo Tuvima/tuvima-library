@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
@@ -93,6 +94,19 @@ public sealed class ItemFieldEditSession
         }
     }
 
+    /// <summary>
+    /// What the editor's header shows for a library title (universal editor v5): the way around the family, the cover's colours, the file
+    /// facts and the rules of the item's kind. Null for a person, Series, collection or Universe (they have no family to walk) and when the
+    /// Engine could not build it; the header then draws the plain title and the tabs fall back to the kind's rules below.
+    /// </summary>
+    public EditorHeaderDto? Header => _subject is null ? _context?.Header : null;
+
+    /// <summary>The rules of a person, Series or Universe (tabs, facts) read from <c>config/editor.json</c>; null for a library title or when the read failed.</summary>
+    public EditorHeaderConfigDto? KindConfig { get; private set; }
+
+    /// <summary>The rules of the item being edited, from its header or, for a person, Series or Universe, from the kind's own read.</summary>
+    public EditorHeaderConfigDto? Config => Header?.Config ?? KindConfig;
+
     /// <summary>What the Engine reports about the active item's match (provider, provider id, Wikidata id); null when it reports nothing.</summary>
     public MediaEditorIdentitySummaryDto? Identity => _subject is null ? _scope?.IdentitySummary ?? _context?.IdentitySummary : null;
 
@@ -162,6 +176,7 @@ public sealed class ItemFieldEditSession
         _presentation = new MediaEditorDetailsPresentation();
         ExplicitMark = null;
         QuickFacts = null;
+        KindConfig = null;
         EditorEntityId = Guid.Empty;
         LoadError = null;
         Loading = false;
@@ -181,6 +196,7 @@ public sealed class ItemFieldEditSession
         LoadError = null;
         _subject = null;
         QuickFacts = null;
+        KindConfig = null;
         Changed?.Invoke();
         try
         {
@@ -280,6 +296,7 @@ public sealed class ItemFieldEditSession
             }
 
             ApplySubject(subject);
+            await LoadKindConfigAsync(subject.Kind, ct);
             await LoadQuickFactsAsync(subject.Id, ct);
             if (subject.Fields.Any(field => field.InputKind == EditorSubjectInputKinds.Chips))
             {
@@ -380,6 +397,27 @@ public sealed class ItemFieldEditSession
         Options: field.InputKind == EditorSubjectInputKinds.Choice
             ? field.Options.Select(option => new MediaEditorChoiceOption(option.Value, option.Label)).ToList()
             : null);
+
+    // A person, Series or Universe has no header of its own, so its tabs and facts come from the kind's rules in config/editor.json. A kind the
+    // file does not know (a curated collection) or a failed read leaves the editor on its standard tabs.
+    private async Task LoadKindConfigAsync(string kind, CancellationToken ct)
+    {
+        KindConfig = null;
+        if (!EditorKinds.All.Contains(kind, StringComparer.Ordinal))
+        {
+            return;
+        }
+
+        try
+        {
+            KindConfig = await _api.GetEditorKindConfigAsync(kind, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogDebug(ex, "The editor's rules for {Kind} were unavailable", kind);
+            KindConfig = null;
+        }
+    }
 
     // The totals only add to the panel: a failed or missing read leaves the facts the fields give, and never blocks the editor.
     private async Task LoadQuickFactsAsync(Guid id, CancellationToken ct)
