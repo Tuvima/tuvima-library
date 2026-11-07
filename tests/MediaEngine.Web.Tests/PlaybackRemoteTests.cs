@@ -86,13 +86,14 @@ public sealed class PlaybackRemoteTests : AsyncBunitContext
 
     // The script is replaced by a recorded module: support and the prompt's answer are what the test says they are.
     private PlaybackRemoteController Arrange(string support = "supported", CastSessionAttempt? attempt = null, string baseUri = "http://192.168.1.5:5016/",
-        string promptOutcome = "prompted", bool probe = true)
+        string promptOutcome = "prompted", bool probe = true, string availability = "available")
     {
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.CreateCastSessionAsync), _ => Task.FromResult(attempt ?? Refused)));
         _stub = (EngineApiClientStub)(object)api;
         _module = JSInterop.SetupModule(PlaybackRemoteController.ModulePath);
         _module.Mode = JSRuntimeMode.Loose;
         _module.Setup<PlaybackRemoteDescription?>("attachTo", _ => true).SetResult(new(support, "unknown", "local", null));
+        _module.Setup<PlaybackRemoteDescription?>("readOn", _ => true).SetResult(new(support, availability, "local", null));
         _module.Setup<PlaybackRemotePromptResult>("openPickerOn", _ => true).SetResult(new(promptOutcome));
         _module.Setup<bool>("stopOn", _ => true).SetResult(true);
         _module.Setup<bool>("followOn", _ => true).SetResult(true);
@@ -565,6 +566,47 @@ public sealed class PlaybackRemoteTests : AsyncBunitContext
         var remote = Arrange(support: "unsupported", attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
 
         await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(0, CastLinkRequests);
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("none")]
+    public async Task NothingIsFetchedAheadUnlessADeviceIsAvailableRightNow(string availability)
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)), availability: availability);
+
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(0, CastLinkRequests);
+
+        // The click keeps the path it always had: it asks the Engine, then opens the picker.
+        await remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+        Assert.Equal(1, CastLinkRequests);
+        Assert.Single(Called("openPickerOn"));
+    }
+
+    [Fact]
+    public async Task ALinkIsFetchedAheadWhenADeviceIsAvailableRightNow()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)), availability: "available");
+
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(1, CastLinkRequests);
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("none")]
+    public async Task OpeningTheMenuOrThePanelFetchesNothingUnlessADeviceIsAvailable(string availability)
+    {
+        Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)), availability: availability);
+        await OpenMenuAsync(PlaybackBarMedia.Music, Item("Music"));
+        await OpenSettingsAsync(PlaybackBarMedia.Movie, new() { AssetId = Asset });
+
+        await Task.Delay(200);
 
         Assert.Equal(0, CastLinkRequests);
     }

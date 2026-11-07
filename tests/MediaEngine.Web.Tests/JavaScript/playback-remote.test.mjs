@@ -215,3 +215,17 @@ test('the by-id entry points find the element on the page and answer unsupported
         delete globalThis.document;
     }
 });
+
+test('readOn reports the current availability by element id, and unsupported for a missing element', async () => {
+    const remote = fakeRemote();
+    const element = fakeElement(remote);
+    globalThis.document = { getElementById: id => (id === 'listen-audio-engine' ? element : null) };
+    try {
+        await remoteModule.attachTo('listen-audio-engine', fakeReceiver());
+        assert.equal(remoteModule.readOn('listen-audio-engine').availability, 'available');
+        assert.equal(remoteModule.readOn('tuvima-video-engine').support, 'unsupported');
+        remoteModule.detachFrom('listen-audio-engine');
+    } finally {
+        delete globalThis.document;
+    }
+});

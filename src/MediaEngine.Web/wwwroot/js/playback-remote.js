@@ -229,6 +229,12 @@ export function attachTo(id, receiver) {
     return element ? attach(element, receiver) : Promise.resolve(missing);
 }
 
+// What the element says right now, by id (the availability watch keeps it current without telling the page).
+export function readOn(id) {
+    const element = byId(id);
+    return element ? read(element) : missing;
+}
+
 export function openPickerOn(id, castUrl) {
     const element = byId(id);
     return element ? openPicker(element, castUrl) : Promise.resolve({ outcome: 'unsupported' });

@@ -113,8 +113,10 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
     /// <summary>
     /// Gets the cast link for the playing item ahead of the click, when the menu or the Playback settings panel opens, and keeps it for that item until it
     /// is about to expire. The click can then open the browser's picker at once, still inside the person's gesture (Safari drops the gesture while the
-    /// Engine is asked). Nothing is fetched for a Vault item, when nothing is playing, in a browser that cannot prompt, or while a receiver plays. When the
-    /// Engine refuses nothing is kept and nothing is shown: the click then asks again and reports the reason as before.
+    /// Engine is asked). Fetching can make the Engine prepare the stream, which costs the server work, so it is done only when a cast could follow: the browser
+    /// can prompt, its availability watch reports a device right now ("available"; not "unknown" and not "none"), and the item is playing and not in the
+    /// Vault. In every other case nothing is fetched and the click asks the Engine as before. When the Engine refuses nothing is kept and nothing is
+    /// shown: the click then asks again and reports the reason as before.
     /// </summary>
     public async Task PrefetchAsync(string elementId, Guid? assetId, bool isVault)
     {
@@ -126,7 +128,13 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
         try
         {
             await ProbeAsync(elementId);
-            if (Support == PlaybackRemoteSupport.Unsupported)
+            if (Support != PlaybackRemoteSupport.Supported || _module is null)
+            {
+                return;
+            }
+
+            var now = await _module.InvokeAsync<PlaybackRemoteDescription?>("readOn", elementId);
+            if (now is not { Support: "supported", Availability: "available" } || Mode != PlaybackRemoteMode.Local || _disposed)
             {
                 return;
             }
