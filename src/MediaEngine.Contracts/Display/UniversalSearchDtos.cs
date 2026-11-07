@@ -30,6 +30,9 @@ public sealed record UniversalSearchResultDto(
 {
     public IReadOnlyList<string> Facts { get; init; } = [];
     public IReadOnlyList<UniversalSearchPreviewItemDto> PreviewItems { get; init; } = [];
+
+    /// <summary>Who owns the file and where in the owner it sits; set only on a result of the "Supporting files" section.</summary>
+    public MediaEngine.Contracts.Details.SupportingFileSearchHitDto? SupportingFile { get; init; }
 }
 
 public sealed record UniversalSearchPreviewItemDto(

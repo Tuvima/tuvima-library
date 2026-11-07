@@ -55,6 +55,35 @@ public sealed class EditSessionContractTests
     }
 
     [Fact]
+    public void SupportingFilesChange_CarriesTheFilesAndTheChangeByTheirWireNames_AndLeavesTheNameOutWhenThereIsNone()
+    {
+        var title = Guid.NewGuid();
+        var change = new EditSessionChange
+        {
+            Id = "s1",
+            Kind = EditSessionChangeKinds.SupportingFiles,
+            EntityId = title,
+            SupportingFiles = new MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest
+            {
+                Ids = ["a", "b"],
+                Changes = new MediaEngine.Contracts.Details.SupportingFileBulkChangesDto { GroupName = "Homework", ScopeKey = "season:2", AddTags = ["maths"] },
+            },
+        };
+
+        var json = JsonSerializer.Serialize(change);
+        var roundTrip = JsonSerializer.Deserialize<EditSessionChange>(json)!;
+
+        Assert.Contains("\"kind\":\"supporting_files\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"supporting_files\":{\"ids\":[\"a\",\"b\"],\"changes\":{\"groupName\":\"Homework\"", json, StringComparison.Ordinal);
+        Assert.Equal(["a", "b"], roundTrip.SupportingFiles!.Ids);
+        Assert.Equal("season:2", roundTrip.SupportingFiles.Changes.ScopeKey);
+        Assert.Equal(["maths"], roundTrip.SupportingFiles.Changes.AddTags);
+        Assert.True(EditSessionChangeKinds.IsKnown("supporting_files"));
+        Assert.True(EditSessionChangeKinds.IsDataChange(EditSessionChangeKinds.SupportingFiles));
+        Assert.DoesNotContain("supporting_files\":null", JsonSerializer.Serialize(new EditSessionChange { Id = "d", Kind = EditSessionChangeKinds.Details, EntityId = title }), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void VideoSeriesTargets_AreReadFromTheTokenOrTheTargetId()
     {
         Assert.Equal("new:Garden talks", EditSessionVideo.NewSeriesToken("  Garden talks "));

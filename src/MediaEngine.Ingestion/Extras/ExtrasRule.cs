@@ -206,6 +206,102 @@ public static class ExtrasRule
             && Classify(context, file) is null);
     }
 
+    /// <summary>
+    /// The folder a supporting file sits in when it belongs to <paramref name="scope"/> (universal editor v5 D30): the title's own folder,
+    /// the season's folder, the folder of the episode's or lesson's own file (its own folder when it has one), or the section's folder.
+    /// Null when the title has no such place on disk (a season with no folder of its own, an album track, an episode that is not there).
+    /// </summary>
+    public static string? ResolveScopeFolder(ExtrasLibraryContext context, string itemFolder, ExtraScope scope)
+    {
+        var book = BookOf(context);
+        var root = TrimSeparators(Path.GetFullPath(itemFolder));
+        if (!Directory.Exists(root))
+        {
+            return null;
+        }
+
+        switch (scope.Level)
+        {
+            case ExtraScopeLevel.Root:
+                return root;
+
+            case ExtraScopeLevel.Season:
+                foreach (var directory in Directory.EnumerateDirectories(root))
+                {
+                    var name = Path.GetFileName(directory);
+                    var match = book.SeasonFolder.Match(name);
+                    if (!match.Success)
+                    {
+                        continue;
+                    }
+
+                    var number = match.Groups["specials"].Success
+                        ? 0
+                        : int.Parse(match.Groups["season"].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    if (number == scope.Season)
+                    {
+                        return TrimSeparators(directory);
+                    }
+                }
+
+                return null;
+
+            case ExtraScopeLevel.Folder:
+                var section = TrimSeparators(Path.GetFullPath(Path.Combine(root, scope.Path ?? string.Empty)));
+                return IsBelow(root, section) && Directory.Exists(section) ? section : null;
+
+            case ExtraScopeLevel.Episode:
+            case ExtraScopeLevel.File:
+                var entry = ExtraPlacementInference.BuildIndex(context, book, root).Entries.FirstOrDefault(item => item.Scope == scope);
+                return entry is null ? null : TrimSeparators(entry.Directory);
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// The places a supporting file of this title can belong to (universal editor v5 D30): the title itself, every season (a season folder,
+    /// or a season one of the title's own files names), and every episode, lesson or section one of the title's own files sits in. Empty
+    /// when the title folder is not there.
+    /// </summary>
+    public static IReadOnlyList<ExtraScope> ListPlaces(ExtrasLibraryContext context, string itemFolder)
+    {
+        var book = BookOf(context);
+        var root = TrimSeparators(Path.GetFullPath(itemFolder));
+        if (!Directory.Exists(root))
+        {
+            return [];
+        }
+
+        var places = new HashSet<ExtraScope> { ExtraScope.Root };
+        foreach (var directory in Directory.EnumerateDirectories(root))
+        {
+            var match = book.SeasonFolder.Match(Path.GetFileName(directory));
+            if (match.Success)
+            {
+                places.Add(ExtraScope.ForSeason(match.Groups["specials"].Success
+                    ? 0
+                    : int.Parse(match.Groups["season"].Value, System.Globalization.CultureInfo.InvariantCulture)));
+            }
+        }
+
+        foreach (var entry in ExtraPlacementInference.BuildIndex(context, book, root).Entries)
+        {
+            if (entry.Scope.Level != ExtraScopeLevel.Root && entry.Scope.Level != ExtraScopeLevel.None)
+            {
+                places.Add(entry.Scope);
+            }
+
+            if (entry.Scope is { Level: ExtraScopeLevel.Episode, Season: { } season })
+            {
+                places.Add(ExtraScope.ForSeason(season));
+            }
+        }
+
+        return [.. places];
+    }
+
     /// <summary>Every Extra in one title's folder, in natural order. An unreadable folder gives an empty list.</summary>
     public static IReadOnlyList<ExtraCandidate> ScanItemFolder(ExtrasLibraryContext context, string itemFolder)
     {
