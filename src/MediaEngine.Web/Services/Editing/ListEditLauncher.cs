@@ -154,7 +154,7 @@ public sealed class ListEditLauncher
         };
         binding.OpenItem = async item =>
         {
-            await _host.Mode.Fields.LoadAsync(item.EntityId, mediaType, EditTrailKinds.ScopeOf(item.Kind), await ProfileIdAsync());
+            await _host.Mode.Fields.LoadAsync(item.EntityId, mediaType, EditTrailKinds.ScopeOf(item.Kind, mediaType), await ProfileIdAsync());
             return _host.Mode.Fields.Loaded && _host.Mode.Fields.EntityId == item.EntityId;
         };
         binding.Saved = saved;
@@ -222,7 +222,7 @@ public sealed class ListEditLauncher
         };
         binding.OpenItem = async item =>
         {
-            await _host.Mode.Fields.LoadAsync(item.EntityId, mediaType, EditTrailKinds.ScopeOf(item.Kind), await ProfileIdAsync());
+            await _host.Mode.Fields.LoadAsync(item.EntityId, mediaType, EditTrailKinds.ScopeOf(item.Kind, mediaType), await ProfileIdAsync());
             return _host.Mode.Fields.Loaded && _host.Mode.Fields.EntityId == item.EntityId;
         };
         return binding;

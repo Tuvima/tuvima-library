@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Services.Extras;
@@ -9,7 +10,7 @@ public static class ExtraCardBuilder
 {
     private const int MosaicSize = 4;
 
-    public static IReadOnlyList<DetailExtraCardViewModel> Build(IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists)
+    public static IReadOnlyList<DetailExtraCardViewModel> Build(IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists, ExtrasConfiguration? rules = null)
     {
         ArgumentNullException.ThrowIfNull(extras);
         ArgumentNullException.ThrowIfNull(fileExists);
@@ -22,12 +23,20 @@ public static class ExtraCardBuilder
             {
                 Id = document.Id.ToString("D"),
                 Kind = DetailExtraCardKinds.Document,
-                Title = document.Title,
+                Title = document.DisplayTitle,
                 Subtitle = DocumentSubtitle(document),
                 ExtraKind = KindOf(document),
                 Place = PlaceOf(document),
                 Badge = BadgeOf(document),
                 IsMissing = !fileExists(document.FilePath),
+                Description = document.Description,
+                Role = document.EffectiveRole,
+                RoleLabel = RoleLabelOf(document, rules),
+                Group = document.GroupName,
+                ScopeKey = document.EffectiveScope.Key,
+                ScopeSource = document.ScopeSource,
+                AlongsideKey = document.EffectiveAlongside?.Key,
+                Tags = document.TagList,
             });
         }
 
@@ -50,6 +59,14 @@ public static class ExtraCardBuilder
                 ItemCount = pictures.Count,
                 PreviewIds = [.. pictures.Take(MosaicSize).Select(picture => picture.Id.ToString("D"))],
                 IsMissing = pictures.All(picture => !fileExists(picture.FilePath)),
+                Description = pictures[0].Description,
+                Role = pictures[0].EffectiveRole,
+                RoleLabel = RoleLabelOf(pictures[0], rules),
+                Group = pictures[0].GroupName,
+                ScopeKey = pictures[0].EffectiveScope.Key,
+                ScopeSource = pictures[0].ScopeSource,
+                AlongsideKey = pictures[0].EffectiveAlongside?.Key,
+                Tags = pictures[0].TagList,
             });
         }
 
@@ -59,25 +76,81 @@ public static class ExtraCardBuilder
             {
                 Id = clip.Id.ToString("D"),
                 Kind = DetailExtraCardKinds.Clip,
-                Title = clip.Title,
+                Title = clip.DisplayTitle,
                 Subtitle = ClipSubtitle(clip),
                 ExtraKind = KindOf(clip),
                 Place = PlaceOf(clip),
                 Badge = BadgeOf(clip),
                 IsMissing = !fileExists(clip.FilePath),
+                Description = clip.Description,
+                Role = clip.EffectiveRole,
+                RoleLabel = RoleLabelOf(clip, rules),
+                Group = clip.GroupName,
+                ScopeKey = clip.EffectiveScope.Key,
+                ScopeSource = clip.ScopeSource,
+                AlongsideKey = clip.EffectiveAlongside?.Key,
+                Tags = clip.TagList,
             });
         }
 
         return cards;
     }
 
-    /// <summary>What the Extra is: the kind a person gave it, else the default for its file type (a rule-found Extra has none stored).</summary>
-    private static string KindOf(ItemExtra extra) =>
-        ExtraKinds.IsKnown(extra.ExtraKind) ? extra.ExtraKind! : ExtraKinds.DefaultFor(extra.Kind);
+    /// <summary>One supporting file as the editor and the browser read it: what a person set and what the folder says, side by side.</summary>
+    public static SupportingFileDto ToSupportingFile(ItemExtra extra, Func<string, bool> fileExists, ExtrasConfiguration? rules = null)
+    {
+        ArgumentNullException.ThrowIfNull(extra);
+        ArgumentNullException.ThrowIfNull(fileExists);
+        return new SupportingFileDto
+        {
+            Id = extra.Id.ToString("D"),
+            Kind = extra.Kind switch
+            {
+                ItemExtraKinds.Picture => DetailExtraCardKinds.Pictures,
+                ItemExtraKinds.Clip => DetailExtraCardKinds.Clip,
+                _ => DetailExtraCardKinds.Document,
+            },
+            FileName = Path.GetFileName(extra.FilePath),
+            Title = extra.DisplayTitle,
+            OwnTitle = string.IsNullOrWhiteSpace(extra.OwnTitle) ? null : extra.OwnTitle,
+            Description = extra.Description,
+            GroupId = extra.GroupId?.ToString("D"),
+            Group = extra.GroupName,
+            GroupSource = extra.GroupName is null ? null : extra.GroupSource,
+            Role = extra.EffectiveRole,
+            RoleLabel = RoleLabelOf(extra, rules),
+            RoleIsSetByYou = extra.RoleIsSetByYou,
+            ScopeKey = extra.EffectiveScope.Key,
+            InferredScopeKey = extra.InferredScope.Key,
+            ScopeSource = extra.ScopeSource,
+            AlongsideKey = extra.EffectiveAlongside?.Key,
+            InferredAlongsideKey = extra.InferredAlongside?.Key,
+            Tags = extra.TagList,
+            SizeBytes = extra.SizeBytes,
+            PageCount = extra.PageCount,
+            DurationSeconds = extra.DurationSeconds,
+            IsMissing = extra.IsMissingFromDisk || !fileExists(extra.FilePath),
+        };
+    }
 
-    /// <summary>Where in its title the Extra belongs ("Season 1"); null for the whole title.</summary>
-    private static string? PlaceOf(ItemExtra extra) =>
-        ExtraPlaces.Label(extra.PlaceSeason, extra.PlaceEpisode, extra.PlaceTrack) is { Length: > 0 } place ? place : null;
+    /// <summary>What the Extra is: the kind a person gave it, else the one its role amounts to (a rule-found Extra has no kind stored).</summary>
+    private static string KindOf(ItemExtra extra) =>
+        ExtraKinds.IsKnown(extra.ExtraKind) ? extra.ExtraKind! : ExtraRoles.ToExtraKind(extra.EffectiveRole, extra.Kind);
+
+    /// <summary>Where in its title the Extra belongs ("Season 1", "Section 1"); null for the whole title.</summary>
+    private static string? PlaceOf(ItemExtra extra)
+    {
+        if (ExtraPlaces.Label(extra.PlaceSeason, extra.PlaceEpisode, extra.PlaceTrack) is { Length: > 0 } place)
+        {
+            return place;
+        }
+
+        return extra.EffectiveScope.Label() is { Length: > 0 } scope ? scope : null;
+    }
+
+    /// <summary>The words for the file's role: the configured label for its kind of file, else the built-in words.</summary>
+    private static string RoleLabelOf(ItemExtra extra, ExtrasConfiguration? rules) =>
+        rules?.LabelFor(extra.Kind, extra.EffectiveRole) ?? ExtraRoles.Label(extra.EffectiveRole);
 
     private static string BadgeOf(ItemExtra extra) =>
         PlaceOf(extra) is { } place ? $"{ExtraKinds.Label(KindOf(extra))} · {place}" : ExtraKinds.Label(KindOf(extra));

@@ -18,6 +18,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
     private readonly IOptionsMonitor<IngestionOptions> _options;
     private readonly ILogger<ItemExtrasScanner> _logger;
     private readonly IItemExtraFactsReader? _facts;
+    private readonly ExtrasConfigurationProvider? _rules;
     private readonly ConcurrentDictionary<string, byte> _queued = new(StringComparer.OrdinalIgnoreCase);
 
     public ItemExtrasScanner(
@@ -27,7 +28,8 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         IVaultIngestionHook vault,
         IOptionsMonitor<IngestionOptions> options,
         ILogger<ItemExtrasScanner> logger,
-        IItemExtraFactsReader? facts = null)
+        IItemExtraFactsReader? facts = null,
+        ExtrasConfigurationProvider? rules = null)
     {
         _libraries = libraries;
         _extensions = extensions;
@@ -36,6 +38,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         _options = options;
         _logger = logger;
         _facts = facts;
+        _rules = rules;
     }
 
     public async Task<bool> ClaimsFileAsync(string filePath, LibraryFolderEntry? library, CancellationToken ct = default)
@@ -303,14 +306,20 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
                     candidate.SizeBytes,
                     facts.DurationSeconds,
                     facts.PageCount,
-                    known?.FoundAt ?? DateTimeOffset.UtcNow));
+                    known?.FoundAt ?? DateTimeOffset.UtcNow,
+                    InferredRole: candidate.Role,
+                    InferredGroup: candidate.Group,
+                    InferredScope: candidate.Scope,
+                    InferredAlongside: candidate.Alongside));
             }
 
             var gone = existing.Values
-                .Where(row => row.Origin != ItemExtraOrigins.Rule && !File.Exists(row.FilePath))
+                .Where(row => !File.Exists(row.FilePath))
                 .Select(row => row.FilePath)
                 .ToList();
-            await _extras.SyncItemFolderAsync(full, found, gone, ct).ConfigureAwait(false);
+            // A file that left the disk keeps its record as "File missing" for the configured days (D20), then goes.
+            var keepDays = (_rules?.Current ?? ExtrasConfigurationProvider.BuiltIn).MissingFileKeepDays;
+            await _extras.SyncItemFolderAsync(full, found, gone, DateTimeOffset.UtcNow.AddDays(-keepDays), ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -355,7 +364,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
             main.UnionWith(_extensions.GetExtensionsFor(type));
         }
 
-        return new ExtrasLibraryContext(library.Id, library.MediaTypes, sourcePath, main);
+        return new ExtrasLibraryContext(library.Id, library.MediaTypes, sourcePath, main, _rules?.Current);
     }
 
     private void Queue(string itemFolder) => _queued.TryAdd(Path.GetFullPath(itemFolder), 0);

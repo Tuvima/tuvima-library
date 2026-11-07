@@ -2,6 +2,7 @@
     --cinematic-hero-rotation-duration: 8s;
     --cinematic-hero-height: clamp(22rem,var(--tl-hero-height),calc(100svh - var(--app-topbar-height,65px)));
     --cinematic-hero-min-height: var(--cinematic-hero-height);
+    --lc-topbar: var(--app-topbar-height, 65px);
     position: relative;
     min-height: var(--cinematic-hero-min-height);
     isolation: isolate;
@@ -33,7 +34,7 @@
     align-items: flex-end;
     box-sizing: border-box;
     padding:
-        calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 2rem)
+        var(--lc-content-top, calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 2rem))
         max(5.5rem, 6vw)
         4.5rem;
     pointer-events: none;
@@ -315,7 +316,7 @@
         width: 100%;
         max-width: 100%;
         min-width: 0;
-        padding-top: max(calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 4.5rem), 28svh);
+        padding-top: var(--lc-content-top, max(calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 4.5rem), 28svh));
         padding-bottom: calc(4rem + var(--tl-safe-area-bottom, 0px));
         padding-left: calc(var(--tl-safe-area-left, 0px) + 56px);
         padding-right: calc(var(--tl-safe-area-right, 0px) + 56px);
@@ -426,3 +427,14 @@
 /* The "Recently added music" slide: eight covers in a grid on the right of the hero (Home, detail and tiles spec D4). */
 .cinematic-hero-carousel__collage { position: absolute; top: 50%; right: clamp(1.5rem, 5vw, 4rem); z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(46%, 34rem); transform: translateY(-50%); pointer-events: none; }
 .cinematic-hero-carousel__collage img { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
+
+/* A cover-led book, comic or audiobook hero on a narrow stage: the hero grows to its content, the large cover sits above the text, and the
+   text starts below it (issue 709). The cover itself is placed by HeroBackdrop.razor.css from --lc-narrow-h. */
+@media (width < 840px) {
+    .cinematic-hero-carousel--cover-led {
+        --cinematic-hero-height: auto;
+        --cinematic-hero-min-height: 0px;
+        --lc-narrow-h: min(24rem, 44svh);
+        --lc-content-top: calc(var(--lc-topbar) + var(--tl-safe-area-top, 0px) + 1rem + var(--lc-narrow-h) + 1.25rem);
+    }
+}

@@ -34,4 +34,28 @@ public sealed class VideoFolderWordingTests
         Assert.Equal("3 videos · Next up: Variables", VideoFolderWording.HeroLine(3, 1, "Variables", null));
         Assert.False(VideoFolderWording.UsesTvWording(VideoFolderWording.HeroLine(88, 14, "Variables", 1500)));
     }
+
+    [Theory]
+    [InlineData("3", "Ball handling", "3 · Ball handling")]
+    [InlineData("03", "Ball handling", "3 · Ball handling")]
+    [InlineData("E3", "Ball handling", "3 · Ball handling")]
+    [InlineData("Episode 12", "Ball handling", "12 · Ball handling")]
+    [InlineData(null, "Ball handling", "Ball handling")]
+    [InlineData("", "Ball handling", "Ball handling")]
+    [InlineData("Special", "Ball handling", "Ball handling")]
+    public void ANumberedTitle_IsTheVideosNumberAndTitle_AndNeverASeasonOrEpisodeCode(string? number, string title, string expected)
+    {
+        Assert.Equal(expected, VideoFolderWording.NumberedTitle(number, title));
+        Assert.False(VideoFolderWording.UsesTvWording(VideoFolderWording.NumberedTitle(number, title)));
+    }
+
+    [Theory]
+    [InlineData("Videos", true)]
+    [InlineData("Video", true)]
+    [InlineData("TV", false)]
+    [InlineData("TvEpisode", false)]
+    [InlineData("Movies", false)]
+    [InlineData(null, false)]
+    public void OnlyAVideosLibraryItemUsesVideoWording(string? mediaType, bool expected)
+        => Assert.Equal(expected, VideoFolderWording.IsVideoItemMediaType(mediaType));
 }

@@ -94,6 +94,6 @@ else if (Items.Count > 0)
     }
 
     private static string Identity(MediaTileViewModel item) => item.EpisodeContext is { } episode
-        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : item.Title;
+        ? MediaTileLabels.EpisodeHeading(item, episode) : item.Title;
 
 }

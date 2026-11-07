@@ -164,7 +164,7 @@ else if (!_removed)
     @if (ShowsEpisodeCaption)
     {
         @* Only the episode lists of a show or season (their own pages) keep text under a still: the episode number and title. *@
-        <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
+        <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? MediaTileLabels.EpisodeHeading(Item, episode) : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
     @if (ShowActions)

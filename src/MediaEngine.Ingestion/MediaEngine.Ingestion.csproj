@@ -33,4 +33,9 @@
     <PackageReference Include="TagLibSharp" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The supporting-files rules (universal editor v5 D34). The config folder's copy wins; this one is used when that folder predates it. -->
+    <EmbeddedResource Include="..\..\config\extras.json" LogicalName="MediaEngine.Ingestion.extras.json" />
+  </ItemGroup>
+
 </Project>
