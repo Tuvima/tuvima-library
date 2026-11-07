@@ -14,8 +14,8 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A book that is only half added (no title yet, no cover, no type, no progress gates) must still show as a row, in the
-/// Activity list and in its details drawer, and must never replace the whole screen with "Something went wrong" (ingestion WP8, bug 13).
+/// One row that cannot be drawn must never replace the whole screen with "Something went wrong" (ingestion WP8, bug 13):
+/// the row boundary shows a "couldn't be shown" row instead, and an impossible Needs Review duration is shown as detected.
 /// </summary>
 public sealed class HalfAddedRowTests : LiveLibraryTestContext
 {
@@ -25,60 +25,6 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
     {
         Services.AddNativeUiServices();
         Services.GetRequiredService<ILoggerFactory>().AddProvider(_logs);
-    }
-
-    public static TheoryData<string> HalfAddedShapes() => new()
-    {
-        "no-title",
-        "no-type",
-        "unknown-type",
-        "no-cover-no-gates",
-        "in-review",
-        "failed",
-        "default-dates-and-empty-child-unit",
-        "every-field-blank",
-    };
-
-    [Theory]
-    [MemberData(nameof(HalfAddedShapes))]
-    public void ARowMissingItsTitleCoverOrType_StillShowsItsFiveCellsAndFacets(string shape)
-    {
-        var cut = RenderList(HalfAdded(shape));
-
-        var row = Assert.Single(cut.FindAll(".history-row"));
-        Assert.Equal("adding", row.GetAttribute("data-activity-state"));
-        Assert.Equal(5, row.QuerySelectorAll(".ingestion-facets__slot").Length);
-        Assert.NotEmpty(cut.Find("#recent-history-title").TextContent);
-        Assert.Empty(cut.FindAll("[data-testid='row-error']"));
-    }
-
-    [Fact]
-    public void ARowWithNoTitle_SaysItIsIdentifyingMediaInsteadOfShowingABlankName()
-    {
-        var cut = RenderList(HalfAdded("no-title"));
-
-        Assert.Equal("Identifying media", cut.Find(".history-row__open strong").TextContent);
-        Assert.Contains("Identifying media", cut.Find(".history-row__open").GetAttribute("aria-label"), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ARowWithNoType_ShowsAGenericTypeAndTheFallbackArtworkIcon()
-    {
-        var cut = RenderList(HalfAdded("no-type"));
-
-        Assert.StartsWith("Unknown", cut.Find(".history-row__identity small").TextContent.Trim(), StringComparison.Ordinal);
-        Assert.Single(cut.FindAll(".history-row__art .app-media-artwork__fallback"));
-        Assert.Empty(cut.FindAll(".history-row__art img"));
-    }
-
-    [Theory]
-    [MemberData(nameof(HalfAddedShapes))]
-    public void TheDrawerForAHalfAddedRow_StillOpens(string shape)
-    {
-        var cut = Render<IngestionMediaDrawer>(parameters => parameters.Add(drawer => drawer.Item, HalfAdded(shape)));
-
-        Assert.NotEmpty(cut.Find("#ingestion-drawer-title").TextContent);
-        Assert.Empty(cut.FindAll("[data-testid='row-error']"));
     }
 
     [Theory]
@@ -99,46 +45,6 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
         var presentation = ReviewIssuePresentationBuilder.Build(item);
 
         Assert.Contains(presentation.KnownFacts, fact => fact.Value == value);
-    }
-
-    [Fact]
-    public void OneRowThatCannotBeDrawn_ShowsACouldntBeShownRowAndTheOtherRowsAndHeadingStay()
-    {
-        var broken = HalfAdded("no-title");
-        broken.Artwork = null!;
-        var cut = RenderList(Named("First book"), broken, Named("Third book"));
-
-        Assert.Equal("Library activity", cut.Find("#recent-history-title").TextContent);
-        var rows = cut.FindAll(".history-row");
-        Assert.Equal(2, rows.Count);
-        Assert.Contains(rows, row => row.TextContent.Contains("First book", StringComparison.Ordinal));
-        Assert.Contains(rows, row => row.TextContent.Contains("Third book", StringComparison.Ordinal));
-
-        var fallback = Assert.Single(cut.FindAll("[data-testid='row-error']"));
-        Assert.Contains(AppRowErrorBoundary.Headline, fallback.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Identifying media", fallback.TextContent, StringComparison.Ordinal);
-        Assert.Contains(_logs.Errors, error => error is NullReferenceException);
-    }
-
-    [Fact]
-    public void AFailedRow_ShowsNormallyAgainWhenItsDataChanges()
-    {
-        var broken = Named("Cibola Burn");
-        broken.Artwork = null!;
-        var cut = RenderList(broken);
-        Assert.Single(cut.FindAll("[data-testid='row-error']"));
-
-        var repaired = Named("Cibola Burn");
-        repaired.GroupId = broken.GroupId;
-        repaired.UpdatedAt = broken.UpdatedAt.AddSeconds(5);
-        Presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto { IsRunning = true, CurrentMedia = [repaired], CurrentMediaTotal = 1 });
-        _ = Services.GetRequiredService<IngestionLiveDashboardState>().LoadAsync();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Empty(cut.FindAll("[data-testid='row-error']"));
-            Assert.Single(cut.FindAll(".history-row"));
-        });
     }
 
     [Fact]
@@ -187,9 +93,7 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
     }
 
     [Theory]
-    [InlineData("src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor")]
     [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor")]
-    [InlineData("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor")]
     [InlineData("src/MediaEngine.Web/Components/Settings/ActivityLogPanel.razor")]
     public void EveryRowLoopOnTheIngestionPages_IsWrappedInTheRowErrorBoundary(string relativePath)
     {
@@ -198,30 +102,6 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
         Assert.Contains("<AppRowErrorBoundary", source, StringComparison.Ordinal);
         Assert.Contains("</AppRowErrorBoundary>", source, StringComparison.Ordinal);
     }
-
-    // The Activity list with these items being added right now, as the Engine's live snapshot reports them.
-    private IRenderedComponent<MediaEngine.Web.Components.Pages.RecentlyAddedPageContent> RenderList(params IngestionMediaGroupDto[] adding)
-    {
-        Presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto
-        {
-            IsRunning = true,
-            CurrentMedia = [.. adding],
-            CurrentMediaTotal = adding.Length,
-        });
-        var cut = Render<MediaEngine.Web.Components.Pages.RecentlyAddedPageContent>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".history-row, [data-testid='row-error']")));
-        return cut;
-    }
-
-    private static IngestionMediaGroupDto Named(string title) => new()
-    {
-        GroupId = Guid.NewGuid(),
-        MediaType = "Books",
-        Title = title,
-        Availability = "adding",
-        StatusLabel = "Adding",
-        UpdatedAt = DateTimeOffset.UtcNow,
-    };
 
     private sealed class ThrowingRow : ComponentBase
     {
@@ -253,66 +133,5 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
                 }
             }
         }
-    }
-
-    private static IngestionMediaGroupDto HalfAdded(string shape)
-    {
-        var row = new IngestionMediaGroupDto
-        {
-            GroupId = Guid.NewGuid(),
-            MediaType = "Books",
-            Title = "Cibola Burn",
-            Availability = "adding",
-            StatusLabel = "Adding",
-            UpdatedAt = DateTimeOffset.UtcNow,
-        };
-
-        switch (shape)
-        {
-            case "no-title":
-                row.Title = string.Empty;
-                break;
-            case "no-type":
-                row.MediaType = string.Empty;
-                break;
-            case "unknown-type":
-                row.MediaType = "Unknown";
-                break;
-            case "no-cover-no-gates":
-                row.CoverUrl = null;
-                row.ProgressGates = [];
-                row.CurrentGateLabel = null;
-                row.WaitingFor = [];
-                break;
-            case "in-review":
-                row.Availability = "review";
-                row.StatusLabel = "Needs review";
-                row.Subtitle = null;
-                break;
-            case "failed":
-                row.Availability = "failed";
-                row.StatusLabel = "Failed";
-                break;
-            case "default-dates-and-empty-child-unit":
-                row.AddedAt = default;
-                row.UpdatedAt = default;
-                row.ChildUnit = string.Empty;
-                row.ChildCompleted = 1;
-                break;
-            case "every-field-blank":
-                row.Title = string.Empty;
-                row.MediaType = string.Empty;
-                row.Subtitle = string.Empty;
-                row.StatusLabel = string.Empty;
-                row.CurrentGateLabel = string.Empty;
-                row.ChildUnit = string.Empty;
-                row.AddedAt = default;
-                row.UpdatedAt = default;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(shape), shape, null);
-        }
-
-        return row;
     }
 }

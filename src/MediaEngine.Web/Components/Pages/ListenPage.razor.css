@@ -200,8 +200,6 @@
 .listen-rail__delete-confirm ::deep .is-cancel { background: #b91c1c; }
 .listen-rail__delete-confirm ::deep .tl-icon-root { font-size: var(--tl-icon-size-xs); }
 
-
-
 .listen-rail__drag,
 .listen-rail__more,
 .listen-rail__add {
@@ -291,8 +289,6 @@
     text-align: left;
     cursor: pointer;
 }
-
-
 
 ::deep .listen-rail__drag,
 ::deep .listen-rail__more,
@@ -620,10 +616,6 @@
     object-fit: cover;
 }
 
-
-
-
-
 .listen-detail {
     align-items: flex-start;
     margin-bottom: 24px;
@@ -722,14 +714,6 @@
     gap: 22px;
     align-items: start;
 }
-
-
-
-
-
-
-
-
 
 .listen-empty {
     min-height: 320px;
@@ -1218,10 +1202,6 @@
     color: rgba(203, 213, 225, 0.62);
 }
 
-
-
-
-
 .audiobooks-empty {
     min-height: 108px;
     display: grid;
@@ -1521,14 +1501,6 @@
     color: #d8ccff;
 }
 
-
-
-
-
-
-
-
-
 @media (max-width: 1180px) {
 .listen-page {
         grid-template-columns: 284px minmax(0, 1fr);
@@ -1618,10 +1590,6 @@
         flex-direction: column;
         display: flex;
     }
-
-    
-
-    
 
     .listen-detail__art,
     .listen-detail__collage,

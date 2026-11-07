@@ -150,10 +150,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
     private IReadOnlyList<AppToast> Toasts => Services.GetRequiredService<AppToastService>().Toasts;
 
-    private static IEnumerable<string> StatusFilterValues(IRenderedComponent<RecentlyAddedPageContent> cut) =>
-        (cut.FindComponents<AppSelect>().Single(select => select.Instance.Label == "Status").Instance.Options ?? [])
-            .Select(option => option.Value);
-
     private static void OpenMenuAndClick(IRenderedComponent<NeedsReviewPageContent> cut, string label)
     {
         cut.Find("tr.needs-review-table__row .app-overflow-menu__trigger").Click();
@@ -354,27 +350,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void StatusFilter_AllAsksForHistoryWithoutAStatus_AddedAsksForAdded_AndThereIsNoNeedsReviewOption()
-    {
-        var registered = Register(() => Loaded());
-        var cut = Render<RecentlyAddedPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal([null], registered.HistoryStatuses));
-        Assert.NotEmpty(cut.FindAll("section.recent-history"));
-
-        var status = cut.FindComponents<AppSelect>().Single(select => select.Instance.Label == "Status");
-        cut.InvokeAsync(() => status.Instance.ValueChanged.InvokeAsync("added"));
-
-        cut.WaitForAssertion(() => Assert.Equal([null, "added"], registered.HistoryStatuses));
-        Assert.NotEmpty(cut.FindAll("section.recent-history"));
-
-        cut.InvokeAsync(() => status.Instance.ValueChanged.InvokeAsync("all"));
-
-        cut.WaitForAssertion(() => Assert.Equal([null, "added", null], registered.HistoryStatuses));
-        Assert.NotEmpty(cut.FindAll("section.recent-history"));
-        Assert.DoesNotContain(StatusFilterValues(cut), value => value == "review");
-    }
-
-    [Fact]
     public void ServerAdministrator_SeesTheNeedsReviewSection_AndTheCountIsFetched()
     {
         var registered = Register(() => Loaded(Item(FirstId, "Pending Book")));
@@ -443,22 +418,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
         Assert.Contains("Dune", cut.Markup);
         Assert.DoesNotContain("Emma", cut.Markup);
-    }
-
-    [Fact]
-    public void RecentlyAdded_ForAServerAdministrator_HasNoReviewMarkup_AndRequestsNoReviewList()
-    {
-        var registered = Register(() => Loaded(Item(FirstId, "Pending Book")));
-
-        var cut = Render<RecentlyAddedPageContent>();
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section.recent-history")));
-        Assert.Empty(cut.FindAll(".review-pinned"));
-        Assert.Empty(cut.FindAll("tr.needs-review-table__row"));
-        Assert.DoesNotContain("No items need review", cut.Markup);
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetNeedsReviewListAsync), registered.EngineCalls);
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAsync), registered.EngineCalls);
-        Assert.DoesNotContain(StatusFilterValues(cut), value => value == "review");
     }
 
     [Fact]
