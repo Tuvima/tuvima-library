@@ -164,7 +164,7 @@
 
 .app-dialog-shell__footer {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* buttons never stack on desktop (Look v3 D15.3); under 600 px the footer rule in app.css stacks them full width */
     align-items: center;
     justify-content: flex-end; /* Cancel or Discard goes far left through the footer rule in app.css */
     gap: 8px;

@@ -596,7 +596,7 @@ body {
     border-color: var(--app-tone-border);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
     .app-dialog-shell__footer {
         flex-direction: column-reverse;
         align-items: stretch;
@@ -1280,14 +1280,15 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 .app-field {
     display: flex;
     flex-direction: column;
-    gap: var(--tl-space-2);
+    gap: var(--tl-field-label-gap, 6px);
     min-width: 0;
 }
 
+/* Form field (Look v3 D15.2): the label sits above the field, 13 / 500, 6 px gap, on every width; helper under the field at 13 muted. */
 .app-field__label {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 500;
     line-height: 1.2;
     letter-spacing: 0;
 }
@@ -1298,6 +1299,10 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     line-height: 1.4;
+}
+
+.app-field__help {
+    font-size: var(--tl-font-size-secondary);
 }
 
 .app-control.app-control--compact,
@@ -1589,6 +1594,27 @@ input.app-control.tl-input-slot,
     flex-wrap: wrap;
     gap: var(--tl-control-gap);
     min-width: 0;
+    min-height: var(--tl-row-h-compact);
+}
+
+/* Toolbar and button labels never wrap (Look v3 D15.1): they shorten with an ellipsis, and data-overflow-tooltip shows the full text. */
+.app-button .tl-button-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Phones (Look v3 D15.3): a button row stacks full width and the primary button comes first. */
+@media (max-width: 600px) {
+    .app-action-bar {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .app-action-bar > .app-button {
+        width: 100%;
+    }
 }
 
 .app-action-bar--end {
@@ -2093,6 +2119,7 @@ input.app-control.tl-input-slot,
 .app-segmented-control__item {
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
     gap: var(--tl-space-2);
     min-height: var(--app-control-height, var(--tl-control-height-md));
     padding: 0 var(--tl-control-padding-x);
@@ -2116,6 +2143,14 @@ input.app-control.tl-input-slot,
 .app-segmented-control__item:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+}
+
+/* A segmented label never wraps either (Look v3 D15.1). */
+.app-segmented-control__item > span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .app-chip__remove { display: inline-flex; align-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
@@ -5167,10 +5202,9 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-match{padding:var(--tl-space-4)}
 .tl-match__searchrow{display:flex;align-items:flex-start;gap:var(--tl-space-2)}
 .tl-match__searchrow>:first-child{flex:1 1 auto;min-width:0}
-.tl-match__provider{display:flex;align-items:center;gap:var(--tl-space-2)}
 .tl-match__why{border-collapse:collapse;margin-top:var(--tl-space-2);font-size:var(--tl-font-size-sm);color:var(--tl-text-secondary)}.tl-match__why caption{text-align:left;color:var(--tl-text-muted);padding-bottom:var(--tl-space-1)}.tl-match__why th{text-align:left;font-weight:400;padding-right:var(--tl-space-4)}.tl-match__why td{text-align:right}
 .tl-match__provider-name{display:flex;align-items:center;gap:var(--tl-space-2)}
-.tl-match__provider-label,.tl-match__meta,.tl-match__provider-name{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
+.tl-match__meta,.tl-match__provider-name{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__leftout{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2);margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__results{display:flex;flex-direction:column}
 .tl-match__row{display:flex;align-items:center;gap:var(--tl-space-3);padding:var(--tl-space-2) 0;border-bottom:1px solid var(--tl-divider)}
