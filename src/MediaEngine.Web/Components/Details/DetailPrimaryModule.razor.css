@@ -335,7 +335,7 @@
     box-shadow: 0 0.25rem 0.8rem rgba(0, 0, 0, 0.28);
     color: rgba(255, 255, 255, 0.92);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.07em;
     line-height: 1;
     text-overflow: ellipsis;

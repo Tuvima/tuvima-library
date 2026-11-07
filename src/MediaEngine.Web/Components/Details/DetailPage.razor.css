@@ -101,7 +101,7 @@
         radial-gradient(circle at 30% 20%, hsla(calc(var(--person-avatar-hue) + 32), 72%, 72%, 0.42), transparent 58%),
         linear-gradient(145deg, hsl(var(--person-avatar-hue), 48%, 30%), hsl(calc(var(--person-avatar-hue) + 72), 46%, 18%));
     color: #fff8eb;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
 }
 
@@ -161,7 +161,7 @@
 ::deep :where(.tl-section-heading) h2 {
     margin: 0 0 1rem;
     font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-weight: 600;
     color: #fff8eb;
 }
 
@@ -172,7 +172,7 @@
 ::deep .tl-detail-watch-metadata-item--lane-count {
     gap: 0.35rem;
     color: #c4a7ff;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 ::deep .tl-detail-watch-metadata-item--lane-count .tl-icon-root {
@@ -182,7 +182,7 @@
 ::deep .tl-detail-watch-metadata-item__lane-label {
     color: #c4a7ff;
     font-size: 0.92em;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 ::deep .tl-series-strip {
@@ -217,7 +217,7 @@
 
 ::deep .tl-series-item__title,
 ::deep .tl-credit-card__name {
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.25;
 }
 
@@ -702,7 +702,7 @@
 ::deep .tl-overview-section__heading > span {
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.13em;
 }
 

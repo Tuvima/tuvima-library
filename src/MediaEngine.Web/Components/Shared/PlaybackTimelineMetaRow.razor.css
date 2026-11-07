@@ -3,7 +3,7 @@
     color: var(--playback-text);
     display: flex;
     font-size: var(--tl-font-size-sm);
-    font-weight: 700;
+    font-weight: 600;
     gap: 14px;
     justify-content: space-between;
     min-width: 0;

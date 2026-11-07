@@ -20,7 +20,7 @@
 .tl-audiobook-tracks__heading div > span {
     color: var(--tl-accent-primary-hover, #a98cff);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.12em;
 }
 

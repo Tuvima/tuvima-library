@@ -63,16 +63,14 @@
 
 .browse-shell__title-eyebrow {
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-weight: 600;
     color: var(--tl-text-muted);
 }
 
 .browse-shell__title-text {
     margin: 0;
     font-size: clamp(1.55rem, 1.2vw + 1rem, 2rem);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
     line-height: 1;
     color: var(--tl-text-primary);

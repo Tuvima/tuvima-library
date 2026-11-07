@@ -77,9 +77,8 @@
     --tl-text-disabled: rgba(148, 163, 184, 0.58);
     --tl-text-on-accent: #FFFFFF;
     --tl-text-on-warning: #1F1303;
-    --font-ui: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
-        BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-    --font-brand: "Tuvima Sans", "Montserrat", sans-serif;
+    --font-ui: "Inter", system-ui, -apple-system, sans-serif;
+    --font-brand: "Tuvima Sans", sans-serif;
     --font-reader: "Merriweather", Georgia, serif;
     --font-reader-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
     --tl-reader-light-bg: #FAF8F2;
@@ -136,12 +135,12 @@
     --tl-divider: rgba(148, 163, 184, 0.10);
 
     /* Shared dropdown and secondary-action chrome. */
-    --tl-menu-surface: rgba(18, 11, 42, 0.97);
-    --tl-menu-border: rgba(136, 82, 252, 0.65);
-    --tl-menu-divider: rgba(196, 181, 253, 0.14);
-    --tl-menu-item-hover: rgba(136, 82, 252, 0.14);
-    --tl-menu-item-selected: rgba(136, 82, 252, 0.2);
-    --tl-menu-icon: #c4b5fd;
+    --tl-menu-surface: var(--tl-bg-surface-elevated);
+    --tl-menu-border: var(--tl-border-default);
+    --tl-menu-divider: var(--tl-border-subtle);
+    --tl-menu-item-hover: rgba(255, 255, 255, 0.06);
+    --tl-menu-item-selected: var(--tl-accent-primary-soft);
+    --tl-menu-icon: var(--tl-text-secondary);
     --tl-menu-min-width: 10.75rem;
     --tl-menu-width: 272px;
     --tl-menu-row-height: 44px;
@@ -153,11 +152,11 @@
     --tl-menu-helper-font-size: 13px;
     --tl-menu-icon-size: 24px;
     --tl-menu-item-height: var(--tl-menu-row-height);
-    --tl-secondary-action-bg: rgba(76, 29, 149, 0.12);
-    --tl-secondary-action-bg-hover: rgba(109, 40, 217, 0.2);
-    --tl-secondary-action-bg-selected: rgba(136, 82, 252, 0.3);
-    --tl-secondary-action-border: rgba(167, 139, 250, 0.58);
-    --tl-secondary-action-border-hover: rgba(196, 181, 253, 0.82);
+    --tl-secondary-action-bg: transparent;
+    --tl-secondary-action-bg-hover: var(--tl-menu-item-hover);
+    --tl-secondary-action-bg-selected: var(--tl-accent-primary-soft);
+    --tl-secondary-action-border: var(--tl-border-default);
+    --tl-secondary-action-border-hover: var(--tl-border-strong);
 
     --tl-status-success: #22C55E;
     --tl-status-success-soft: rgba(34, 197, 94, 0.14);
@@ -183,15 +182,15 @@
     --tl-status-idle: #7F8DA5;
     --tl-status-idle-soft: rgba(127, 141, 165, 0.12);
 
-    /* Player surfaces share the approved navy, blue and purple visual recipe. */
-    --player-bg: #0F131E;
-    --player-surface: #121623;
+    /* Player surfaces alias the shared neutral surface tokens. */
+    --player-bg: var(--tl-bg-root);
+    --player-surface: var(--tl-bg-surface);
     --player-accent: var(--tl-accent-primary);
     --player-accent-hover: #A46FFF;
     --player-accent-soft: rgba(136, 82, 252, 0.16);
-    --player-track: #30364A;
+    --player-track: var(--tl-bg-surface-hover);
     --player-text: #F7F7FA;
-    --player-text-secondary: #9EA4BC;
+    --player-text-secondary: var(--tl-text-secondary);
     /* One size set for every playback button (player-controls-v3 D1): 38 px glyph in a 56 px target, Play 44 px, bottom title 22 px. */
     --playback-control-target: 56px;
     --playback-control-glyph: 38px;
@@ -219,7 +218,7 @@
     --playback-danger: var(--tl-status-danger);
     --playback-tool-width: 400px;
     --playback-tool-radius: 12px;
-    --playback-popover-surface: rgba(18, 22, 35, .96);
+    --playback-popover-surface: var(--tl-bg-surface-elevated);
     --playback-popover-gap: 8px;
     --playback-popover-margin: 8px;
     --playback-tool-max-height: min(70dvh, 640px);

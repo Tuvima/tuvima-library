@@ -29,7 +29,7 @@
     width: min(47.5rem, 100%);
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.25rem, 6vw, 6.35rem);
     font-weight: 500;
     line-height: 0.94;
@@ -285,7 +285,7 @@
 :where(.tl-detail-page) .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1 {
     max-width: 16ch;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(4rem, 7.1vw, 7.8rem);
     font-weight: 500;
     line-height: 0.92;
@@ -451,7 +451,7 @@
     margin: -0.2rem 0 0;
     color: color-mix(in srgb, rgb(var(--hero-text-rgb, 246, 240, 232)) 76%, var(--tl-detail-primary, #c9922e));
     font-size: clamp(1.05rem, 1.8vw, 1.55rem);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 @media (width < 840px) {
@@ -541,7 +541,7 @@
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1 {
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.25rem, 6vw, 6.35rem);
     font-weight: 500;
     line-height: .94;
@@ -767,7 +767,7 @@
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-hero__copy h1 {
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.6rem, 4vw, 4.75rem);
     font-weight: 500;
     line-height: 0.94;
@@ -913,7 +913,7 @@
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--person .tl-detail-person-hero__copy h1 {
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.6rem, 4vw, 4.75rem);
     font-weight: 500;
     line-height: .94;

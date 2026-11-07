@@ -1,7 +1,7 @@
 .lact-history { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; }
 /* The heading on the left, one compact row of controls on the right (the row's own layout is in app.css). */
 .lact-history__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tl-space-3); }
-.lact-heading { margin: 0; font-size: var(--tl-font-size-lg); font-weight: var(--tl-font-weight-bold); }
+.lact-heading { margin: 0; font-size: var(--tl-font-size-lg); font-weight: var(--tl-font-weight-semibold); }
 .lact-heading__count { color: var(--tl-text-muted); font-weight: var(--tl-font-weight-regular); }
 .lact-controls__search { flex: 0 1 210px; width: 210px; min-width: 0; }
 .lact-controls__select { flex: 0 1 140px; min-width: 0; }
@@ -10,7 +10,7 @@
 .lact-controls__select--sort { width: 140px; flex-basis: 140px; }
 /* Month and year headings: a chevron, the name in bold, then a muted "· 3 batches". The button root itself is styled in app.css. */
 .lact-group { margin-top: var(--tl-space-2); }
-.lact-group__toggle strong { color: var(--tl-text-secondary); font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-bold); }
+.lact-group__toggle strong { color: var(--tl-text-secondary); font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-semibold); }
 .lact-group__count { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-regular); }
 .lact-group--year { margin-bottom: var(--tl-space-1); }
 .lact-line { list-style: none; margin: 0 0 var(--tl-space-2); padding: 0; position: relative; }

@@ -14,24 +14,32 @@
     font-display: swap;
 }
 
-/* -- Self-hosted Montserrat variable font ------------------------------ */
+/* -- Self-hosted Inter variable font (SIL OFL 1.1; licence in fonts/Inter-OFL.txt). Carries all interface text. ----- */
 @font-face {
-    font-family: "Montserrat";
-    src: url("fonts/Montserrat-VariableFont_wght.ttf") format("truetype");
+    font-family: "Inter";
+    src: url("fonts/InterVariable.woff2") format("woff2");
     font-weight: 100 900;
+    font-style: normal;
     font-display: swap;
 }
 
 @font-face {
     font-family: "Merriweather";
-    src: url("fonts/Merriweather-Regular.ttf") format("truetype");
+    src: url("fonts/Merriweather-Regular.woff2") format("woff2");
     font-weight: 400;
     font-display: swap;
 }
 
 @font-face {
+    font-family: "Merriweather";
+    src: url("fonts/Merriweather-Bold.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
     font-family: "JetBrains Mono";
-    src: url("fonts/JetBrainsMono-Regular.ttf") format("truetype");
+    src: url("fonts/JetBrainsMono-Regular.woff2") format("woff2");
     font-weight: 400;
     font-display: swap;
 }
@@ -539,7 +547,7 @@ body {
     background: rgba(39, 40, 50, 0.72) !important;
     border-bottom: 1px solid var(--tl-border-default) !important;
     font-size: var(--tl-font-size-xs) !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     line-height: 1.4 !important;
     letter-spacing: 0.02em !important;
 }
@@ -750,7 +758,7 @@ code{
 .app-metric-card__copy { min-width: 0; }
 .app-metric-card__label,
 .app-metric-card__description { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height: 1.45; }
-.app-metric-card__value { color: var(--tl-text-primary); font-size: var(--tl-font-size-lg); font-weight: 700; line-height: 1.25; }
+.app-metric-card__value { color: var(--tl-text-primary); font-size: var(--tl-font-size-lg); font-weight: 600; line-height: 1.25; }
 
 .app-media-artwork { position: relative; width: 100%; aspect-ratio: var(--app-media-artwork-aspect, 2 / 3); overflow: hidden; color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); }
 .app-media-artwork::after { content: ""; position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none; background: var(--tl-hover-overlay-bg); transition: opacity var(--tl-motion-duration-medium) var(--tl-motion-ease-standard); }
@@ -832,7 +840,7 @@ code{
 
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
-.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:700; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
+.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
 .media-tile-label--status { top:0; left:0; border-bottom-right-radius:var(--tl-radius-md); }
 .media-tile-label--bottom { bottom:0; left:0; border-top-right-radius:var(--tl-radius-md); }
 
@@ -876,7 +884,6 @@ code{
     /* One colour per area (Library setup D39): the Libraries screens and Add folder tiles read these. */
     --app-font-sans: var(--font-ui);
     --app-font-brand: var(--font-brand);
-    --app-surface-muted: rgba(21, 30, 47, 0.72);
     --app-card-padding: var(--tl-space-5);
     --app-section-padding: var(--tl-space-6);
     --app-topbar-height: 65px;
@@ -1136,7 +1143,7 @@ body,
 .tl-field-label {
     color: var(--tl-text-secondary) !important;
     font-size: var(--tl-font-size-xs) !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     letter-spacing: 0 !important;
 }
 
@@ -1512,7 +1519,7 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 .app-field__label {
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.2;
     letter-spacing: 0;
 }
@@ -1907,7 +1914,7 @@ input.app-control.tl-input-slot,
     margin: 0;
     color: var(--app-avatar-foreground, var(--tl-text-primary));
     font-size: var(--settings-card-title-size, 1rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
 }
 
@@ -1940,7 +1947,7 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-muted);
     background: var(--tl-bg-surface-raised);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.02em;
     line-height: 1.35;
     text-align: left;
@@ -2124,8 +2131,8 @@ input.app-control.tl-input-slot,
 
 .app-chip.browse-shell__grouping-chip.is-active {
     color: var(--tl-text-primary);
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 42%, rgba(148, 163, 184, 0.22));
-    background: color-mix(in srgb, var(--tl-accent-primary) 18%, rgba(7, 12, 27, 0.72));
+    border-color: var(--tl-accent-primary-border);
+    background: var(--tl-accent-primary-soft);
 }
 
 .app-chip--clickable {
@@ -2180,7 +2187,7 @@ input.app-control.tl-input-slot,
 
 .app-slider__mark--current {
     color: var(--tl-text-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .app-progress-bar--indeterminate .app-progress-bar__fill {
@@ -2249,7 +2256,7 @@ input.app-control.tl-input-slot,
 .app-checkbox-row__label {
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-sm);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
 }
 
@@ -2403,7 +2410,7 @@ input.app-control.tl-input-slot,
     margin: 0 0 var(--tl-space-1);
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .app-error-state__copy p {
@@ -2526,7 +2533,7 @@ input.app-control.tl-input-slot,
 .tl-u-font-size-64px { font-size: 64px !important; }
 
 .tl-u-font-weight-600 { font-weight: 600 !important; }
-.tl-u-font-weight-700 { font-weight: 700 !important; }
+.tl-u-font-weight-700 { font-weight: 600 !important; }
 
 .tl-u-height-100pct { height: 100% !important; }
 .tl-u-height-10px { height: 10px !important; }
@@ -2655,7 +2662,7 @@ input.app-control.tl-input-slot,
 
 .dev-harness-field-label {
     color: var(--tl-text-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .dev-harness-chip-row {
@@ -2753,7 +2760,7 @@ input.app-control.tl-input-slot,
    their own component roots outside MainLayout's CSS-isolation scope. */
 .main-content-with-topbar--cinematic.tl-main-content {
     padding-top: 0 !important;
-    background: #05070c !important;
+    background: var(--tl-bg-page) !important;
 }
 
 .layout-shell__appbar--cinematic.tl-appbar {
@@ -2914,7 +2921,7 @@ button.app-menu-item {
 /* Shared selected state for persistent navigation menus. Editor rails, settings
    selectors, and lane menus use this treatment instead of relying on icon color. */
 .app-selection-nav__item.is-active {
-    border-color: var(--tl-accent-primary-border) !important;
+    border-color: transparent !important;
     color: var(--tl-text-primary) !important;
     background: var(--tl-menu-item-selected) !important;
     box-shadow: inset var(--tl-space-1) 0 0 var(--tl-accent-primary) !important;
@@ -3262,7 +3269,7 @@ button.app-menu-item {
     align-items: center;
     color: var(--tl-accent-primary);
     display: inline-flex;
-    font-weight: 700;
+    font-weight: 600;
     justify-content: center;
     position: absolute;
     right: 14px;
@@ -3904,7 +3911,7 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     background: var(--tl-accent-primary);
     color: #fff;
     font: inherit;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
 }
 
@@ -4053,7 +4060,7 @@ input[type="reset"],
     color: var(--tl-text-muted);
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
     letter-spacing: 0.08em;
 }
@@ -4569,8 +4576,8 @@ input[type="reset"],
 
 .profile-switcher__item:hover,
 .profile-switcher__item:focus-visible {
-    color: #fff;
-    background: rgba(136, 82, 252, 0.16);
+    color: var(--tl-text-primary);
+    background: var(--tl-menu-item-hover);
 }
 
 .profile-switcher__item:focus-visible,
@@ -4609,7 +4616,7 @@ input[type="reset"],
     color: #fff;
     background: rgba(136, 82, 252, 0.45);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .profile-switcher__lock {
@@ -4655,7 +4662,7 @@ input[type="reset"],
     color: #fff;
     background: var(--tl-accent-primary, #8852fc);
     font: inherit;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
 }
 
@@ -4741,7 +4748,7 @@ input[type="reset"],
     background: var(--tl-kids-accent, var(--tl-accent-primary, #8852FC));
     color: #fff;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.4;
     letter-spacing: .04em;
 }
@@ -4825,7 +4832,7 @@ input[type="reset"],
 
 .phone-nav-menu__item:hover,
 .phone-nav-menu__item:focus-visible {
-    background: var(--tl-accent-primary-soft);
+    background: var(--tl-menu-item-hover);
 }
 
 .phone-nav-menu__item:focus-visible {
@@ -4835,7 +4842,7 @@ input[type="reset"],
 
 .phone-nav-menu__item.is-current {
     color: var(--tl-accent-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 /* The menu sheet's dialog frame comes from AppDialogFrame. The shared dialog surface, border, radius and max-height are
@@ -5034,7 +5041,7 @@ input[type="reset"],
 .player-settings-menu__group--slider { align-items: flex-start; }
 .player-settings-menu__group--slider .app-field__label { display: none; }
 .player-settings-menu__slider { flex: 1; min-width: 0; }
-.video-playback-host__aa { font-weight: 700; font-size: var(--tl-font-size-lg); }
+.video-playback-host__aa { font-weight: 600; font-size: var(--tl-font-size-lg); }
 .player-settings-menu__group { display: flex; align-items: center; gap: 8px; padding: 10px 20px; }
 .player-settings-menu__group > h4 { min-width: 6.5em; font-weight: 500; color: var(--playback-text-secondary); }
 .player-settings-menu .player-settings-menu__choice { min-height: 44px; padding: 6px 16px; border: 1px solid var(--playback-border); border-radius: 4px; background: transparent; color: inherit; font-size: var(--tl-font-size-lg); cursor: pointer; }
@@ -5181,7 +5188,7 @@ button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; borde
 @media (max-width: 640px) {
     .lact-box__toggle { grid-template-areas: "what status chev" "covers covers covers" "count count count"; grid-template-columns: minmax(0, 1fr) auto auto; row-gap: var(--tl-space-2); }
 }
-a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 700; white-space: nowrap; }
+a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
 /* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
 .needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
@@ -5246,7 +5253,7 @@ a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 7
 
 .library-switcher__row.is-current {
     color: var(--tl-accent-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 /* /downloads: the page that points phones and TVs to the Tuvima app. */
@@ -5568,7 +5575,7 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     background: var(--tl-accent-primary, #8852fc);
     color: var(--tl-text-on-accent, #ffffff);
     font: inherit;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
 }
 
@@ -5796,7 +5803,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .my-profile-page .settings-section-card__header .tl-typography {
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-lg);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
 }
 

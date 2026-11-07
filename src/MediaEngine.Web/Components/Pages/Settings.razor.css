@@ -16,7 +16,7 @@
 .settings-page-canvas {
     --settings-section-icon-size: 28px;
     min-width: 0;
-    font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
+    font-family: var(--font-ui);
     font-size: var(--tl-font-size-md);
     line-height: 1.5;
 }
@@ -60,7 +60,7 @@
     border-radius: var(--tl-radius-lg);
     background-color: var(--tl-bg-surface-raised);
     font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .settings-page-canvas ::deep .tl-page {
@@ -79,7 +79,7 @@
 .settings-page-canvas ::deep .tl-table-head .tl-table-cell {
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.35;
     letter-spacing: .045em;
 }
@@ -200,7 +200,7 @@
 .settings-page-canvas ::deep .settings-section-card__title {
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-lg);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
 }
 
@@ -242,7 +242,7 @@
 
 .settings-page-canvas ::deep .settings-section-card__header .tl-typography {
     font-size: var(--tl-font-size-lg);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
 }
 
@@ -516,7 +516,7 @@
     margin-top: 2px !important;
     font-size: var(--tl-font-size-lg) !important;
     line-height: 1.25 !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-preference-row {
@@ -776,7 +776,7 @@
 
 :where(.settings-admin-panel) ::deep .settings-plugin-list-item__title {
     overflow: hidden;
-    font-weight: 700;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
 }

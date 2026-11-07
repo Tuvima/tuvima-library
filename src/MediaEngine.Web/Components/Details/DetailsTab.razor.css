@@ -61,7 +61,7 @@
 :where(.tl-detail-page) .tl-file-facts__title {
     margin: 0 0 0.35rem;
     font-size: var(--tl-font-size-sm);
-    font-weight: 700;
+    font-weight: 600;
     overflow-wrap: anywhere;
 }
 

@@ -218,7 +218,7 @@
     max-width: 100%;
     overflow: hidden;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -267,7 +267,7 @@
 }
 
 .app-bg--cinematic {
-    background: #05070c;
+    background: var(--tl-bg-page);
 }
 
 ::deep .layout-shell__appbar .tl-toolbar {
@@ -316,6 +316,7 @@
     font-size: var(--tl-font-size-dialog-title);
     font-weight: 600;
     letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .layout-shell__appbar,

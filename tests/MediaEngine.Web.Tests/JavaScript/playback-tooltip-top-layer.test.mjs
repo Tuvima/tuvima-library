@@ -27,7 +27,8 @@ globalThis.window=new EventTarget(); globalThis.innerWidth=1024; globalThis.inne
 globalThis.setTimeout=fn=>{const timer={fn};timers.push(timer);return timer;};
 globalThis.clearTimeout=timer=>{timers=timers.filter(item=>item!==timer);};
 function event(type,properties={}) {const value=new Event(type);Object.assign(value,properties);return value;}
-function flush(){while(timers.length)timers.shift().fn();}
+// Runs the timers that are due now; the 4 s rest timer a shown tooltip starts stays pending (Look v3 D8).
+function flush(){const due=timers;timers=[];due.forEach(timer=>timer.fn());}
 function openDialog(modal=true){const dialog=new Element('dialog');dialog.modal=modal;dialogs.push(dialog);return dialog;}
 
 test('a tooltip shown over an open modal dialog is a manual popover inside that dialog',()=>{

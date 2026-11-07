@@ -77,4 +77,6 @@ Documentation checks use TypeScript 6.0.3 (Apache-2.0), Astro Check 0.9.10 (MIT)
 
 Documentation fonts are self-hosted Montserrat and JetBrains Mono under SIL Open Font License 1.1. Their original notices are retained in `website/src/fonts/Montserrat-OFL.txt` and `website/src/fonts/JetBrainsMono-OFL.txt`, and are included in the built site's `licenses/` directory. Montserrat is credited to its authors in its OFL notice; JetBrains Mono is copyright JetBrains s.r.o.
 
+The Dashboard self-hosts Inter (`src/MediaEngine.Web/wwwroot/fonts/InterVariable.woff2`, version 4.1, <https://github.com/rsms/inter>) for all interface text, under SIL Open Font License 1.1. Copyright 2016 The Inter Project Authors. The licence is kept beside it in `src/MediaEngine.Web/wwwroot/fonts/Inter-OFL.txt`. The reader's book face Merriweather and the monospace face JetBrains Mono ship beside it as woff2 files under the same licence; Montserrat itself is no longer shipped in the Dashboard.
+
 The Dashboard also self-hosts Tuvima Sans (`src/MediaEngine.Web/wwwroot/fonts/TuvimaSans-Variable.woff2`), a modified version of Montserrat with the crossbar removed from the capital A, under SIL Open Font License 1.1. Its notice is retained in `src/MediaEngine.Web/wwwroot/fonts/TuvimaSans-OFL.txt`; copyright 2024 The Montserrat.Git Project Authors.

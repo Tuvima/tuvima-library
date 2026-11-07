@@ -19,7 +19,8 @@ globalThis.window=new EventTarget(); globalThis.innerWidth=320; globalThis.inner
 globalThis.setTimeout=fn=>{const timer={fn};timers.push(timer);return timer;};
 globalThis.clearTimeout=timer=>{timers=timers.filter(item=>item!==timer);};
 function event(type,properties={}) {const value=new Event(type);Object.assign(value,properties);return value;}
-function flush(){while(timers.length)timers.shift().fn();}
+// Runs the timers that are due now; the 4 s rest timer a shown tooltip starts stays pending (Look v3 D8).
+function flush(){const due=timers;timers=[];due.forEach(timer=>timer.fn());}
 test('disabled and noninteractive content has a focusable bounded tooltip and restores accessibility on Escape and detach',()=>{
     const root=new Element();root.dataset.playbackTooltip='Full label';root.setAttribute('tabindex','-1');
     const disabled=new Element();disabled.disabled=true;root.candidate=disabled;

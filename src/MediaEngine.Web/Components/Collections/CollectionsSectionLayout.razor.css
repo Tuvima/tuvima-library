@@ -144,7 +144,7 @@
 .collections-section ::deep .browse-shell__display-label {
     color: rgba(215, 224, 240, 0.72);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
     line-height: 1;
 }

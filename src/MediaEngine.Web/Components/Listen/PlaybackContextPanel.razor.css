@@ -103,7 +103,7 @@
 
 .listen-context-sidebar__chapter-summary strong {
     color: var(--playback-text);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .listen-context-sidebar__replay {
