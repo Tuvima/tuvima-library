@@ -7,9 +7,9 @@
 <div @ref="_root" class="@RootClass">
     @if (!string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
     <div class="tl-input-control tl-input-container">
-        @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" Class="tl-input-adornment" /> }
+        @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" Class="tl-input-adornment" /> }
         <input @ref="_input" id="@InputId" type="text" class="tl-input tl-input-slot app-control app-autocomplete" value="@_text" placeholder="@Placeholder" disabled="@Disabled" role="combobox" aria-autocomplete="list" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_listId" aria-activedescendant="@ActiveId" @oninput="SearchAsync" @onfocus="FocusedAsync" @onblur="BlurredAsync" @onkeydown="KeyDownAsync" style="@InlineStyle" @attributes="AdditionalAttributes" />
-        @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" Class="tl-input-adornment" /> }
+        @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" Class="tl-input-adornment" /> }
         <AppPopover Open="@_open" OpenChanged="SetOpenAsync" MatchAnchorWidth="true" Class="app-autocomplete__popover" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
             <div id="@_listId" role="listbox" class="tl-list tl-select-options">
                 @for (var index = 0; index < _items.Count; index++)

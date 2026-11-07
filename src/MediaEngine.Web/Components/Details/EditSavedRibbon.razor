@@ -16,7 +16,7 @@
 @if (Flow?.LastSave is { } saved)
 {
     <div class="tl-saved-ribbon" role="status" aria-live="polite" data-steps="@(_steps.Count > 0 ? "true" : "false")">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" />
         <span>@Message(saved)@(_arrived.Count == 0 ? string.Empty : " " + Arrived())</span>
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                        Size="AppControlSize.Compact"
@@ -33,16 +33,16 @@
                         @switch (step.State)
                         {
                             case EditorFollowUpStates.Done:
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" />
                                 break;
                             case EditorFollowUpStates.Running:
                                 <AppSpinner Size="AppSize.Small" />
                                 break;
                             case EditorFollowUpStates.Failed:
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" Size="AppSize.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" Size="AppIconSize.Control20" />
                                 break;
                             default:
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Circle" Size="AppSize.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Circle" Size="AppIconSize.Control20" />
                                 break;
                         }
                         <span>@step.Label</span>

@@ -11,14 +11,14 @@
                          AriaLabel="@($"{Label}. Highlight the matching episode.")"
                          aria-pressed="@(IsHighlighting ? "true" : "false")"
                          OnClick="Activate">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppIconSize.Control20" />
             <span class="same-file-chip__text">@Label</span>
         </AppNativeButton>
     }
     else
     {
         <span class="same-file-chip">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppIconSize.Control20" />
             <span class="same-file-chip__text">@Label</span>
         </span>
     }

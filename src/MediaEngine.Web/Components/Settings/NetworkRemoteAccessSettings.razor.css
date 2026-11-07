@@ -47,7 +47,7 @@
 }
 
 .network-settings ::deep .network-status-card__label { display: flex; align-items: center; gap: 8px; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
-.network-settings ::deep .network-status-card__label .tl-icon-root { font-size: 18px; }
+.network-settings ::deep .network-status-card__label .tl-icon-root { font-size: var(--tl-icon-size-sm); }
 .network-settings ::deep .network-status-card__value { display: block; margin-top: 12px; color: var(--tl-text-primary); font-size: var(--tl-font-size-md); }
 .network-settings ::deep .network-status-card__value.is-healthy,
 .network-settings ::deep .network-status-card__value.is-available,

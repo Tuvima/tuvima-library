@@ -46,7 +46,7 @@
 }
 
 .view-add-media__label ::deep .tl-icon-root {
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 .view-search {
     display: flex;
@@ -182,7 +182,7 @@
 
 .view-tile__file-icon ::deep .tl-icon-root {
     color: #a78bfa;
-    font-size: 3.2rem;
+    font-size: var(--tl-icon-size-xl);
 }
 
 .view-tile__play {
@@ -251,7 +251,7 @@
 
 .view-empty ::deep > .tl-icon-root {
     color: #a78bfa;
-    font-size: 3rem;
+    font-size: var(--tl-icon-size-xl);
 }
 
 .view-empty h2,

@@ -24,7 +24,7 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("white-space: normal;", phone, StringComparison.Ordinal);
         Assert.Contains("overflow-wrap: anywhere;", phone, StringComparison.Ordinal);
         Assert.Contains("width: 24px;", phone, StringComparison.Ordinal);
-        Assert.Contains("width: 22px;\n    height: 22px;\n    font-size: 22px;", phone, StringComparison.Ordinal);
+        Assert.Contains("width: var(--tl-icon-size-md);\n    height: var(--tl-icon-size-md);\n    font-size: var(--tl-icon-size-md);", phone, StringComparison.Ordinal);
         // The phone top bar has no search icon (Search is a dock tab) and no wordmark (the icon only).
         Assert.DoesNotContain("layout-shell__search-action", phone, StringComparison.Ordinal);
         Assert.DoesNotContain("layout-shell__brand-lockup", phone, StringComparison.Ordinal);

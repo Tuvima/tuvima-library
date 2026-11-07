@@ -654,7 +654,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("item.PublicationDate", source);
         Assert.DoesNotContain("tl-series-item__owned-badge", source);
         Assert.Contains("tl-series-item__completed-badge", source);
-        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppSize.Small\"", source);
+        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppIconSize.Control20\"", source);
         Assert.Contains("ItemNoun", source);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 6), minmax(5.8rem, 7.3rem))", styles);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 7), minmax(7.2rem, 9.2rem))", styles);

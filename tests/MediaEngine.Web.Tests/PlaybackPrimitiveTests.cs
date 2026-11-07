@@ -327,7 +327,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
         Assert.Contains("place-items: center;", shellStyles, StringComparison.Ordinal);
         Assert.Contains("object-fit: contain;", shellStyles, StringComparison.Ordinal);
-        Assert.Contains("font-size:22px", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size:var(--tl-icon-size-md)", videoStyles, StringComparison.Ordinal);
         Assert.Contains("--playback-primary-icon-size:24px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
         Assert.Contains("object-fit:contain", videoStyles, StringComparison.Ordinal);
         Assert.True(

@@ -603,7 +603,7 @@
 
 :where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-default-action .tl-icon-root {
     color: currentColor;
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 :where(.tl-detail-page) .tl-series-show-link {
@@ -1165,7 +1165,7 @@
 
 .tl-detail-page .tl-series-detail__identity ::deep > .tl-icon-root {
         flex: 0 0 auto;
-        font-size: 1.15rem;
+        font-size: var(--tl-icon-size-sm);
     }
 
 .tl-detail-page .tl-series-detail__identity > div {

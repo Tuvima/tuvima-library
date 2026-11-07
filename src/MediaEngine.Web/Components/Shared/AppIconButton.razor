@@ -57,7 +57,7 @@ else
     {
         builder.OpenComponent<AppMaterialIcon>(0);
         builder.AddAttribute(1, nameof(AppMaterialIcon.Icon), Icon);
-        builder.AddAttribute(2, nameof(AppMaterialIcon.Size), AppUiMaps.ToAppSize(ResolvedSize));
+        builder.AddAttribute(2, nameof(AppMaterialIcon.Size), AppIconSizes.ForControl(ResolvedSize));
         builder.CloseComponent();
     });
     private string VariantClass => ButtonStyle switch

@@ -85,7 +85,7 @@
 .ingestion-media-list-row__copy small,
 .ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 .ingestion-media-list-row__format strong { display: flex; align-items: center; gap: .42rem; font-size: var(--tl-font-size-secondary); }
-.ingestion-media-list-row__format ::deep .tl-icon-root { flex: none; font-size: 1.1rem; }
+.ingestion-media-list-row__format ::deep .tl-icon-root { flex: none; font-size: var(--tl-icon-size-xs); }
 .ingestion-media-list-row__step { min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 
 .ingestion-media-list-row__status {
@@ -103,7 +103,7 @@
 }
 
 .ingestion-media-list-row__status > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ingestion-media-list-row__status ::deep .tl-icon-root { flex: none; font-size: 1.2rem; }
+.ingestion-media-list-row__status ::deep .tl-icon-root { flex: none; font-size: var(--tl-icon-size-sm); }
 
 /* Above the stretched title button so each symbol's tooltip still answers to the pointer. */
 .ingestion-media-list-row__details { position: relative; z-index: 1; display: block; min-width: 0; }

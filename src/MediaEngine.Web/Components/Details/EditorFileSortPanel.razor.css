@@ -23,9 +23,10 @@
     overflow-wrap: anywhere;
 }
 
+/* The four "What is this file?" choices are choice tiles (Look v3 D13): icon above the name. */
 .tl-filesort__choices {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
     gap: var(--tl-space-2);
 }
 

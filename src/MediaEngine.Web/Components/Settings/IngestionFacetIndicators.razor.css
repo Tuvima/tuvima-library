@@ -16,7 +16,7 @@
     height: 1.7rem;
     color: var(--tl-text-secondary);
 }
-.ingestion-facet ::deep > .tl-icon-root { font-size: 1.5rem; }
+.ingestion-facet ::deep > .tl-icon-root { font-size: var(--tl-icon-size-md); }
 .ingestion-facet ::deep .ingestion-facet__state,
 .ingestion-facet__spinner {
     position: absolute;

@@ -59,7 +59,7 @@
 
 .playback-tool-sheet ::deep .playback-tool-sheet__header-icon {
     color: var(--playback-text-secondary);
-    font-size: 28px !important;
+    font-size: var(--tl-icon-size-lg) !important;
     height: 28px;
     width: 28px;
 }

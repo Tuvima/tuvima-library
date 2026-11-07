@@ -64,7 +64,7 @@
                         @foreach (var fact in PersonHeroFacts)
                         {
                             <span class="tl-detail-watch-metadata-item tl-detail-person-fact">
-                                <AppMaterialIcon Icon="@fact.Icon" Size="AppSize.Small" />
+                                <AppMaterialIcon Icon="@fact.Icon" Size="AppIconSize.Control20" />
                                 <span>@fact.Label</span>
                             </span>
                         }
@@ -83,7 +83,7 @@
                                rel="noopener noreferrer"
                                aria-label="@link.Label">
                                 <AppIcon Name="@PersonExternalIcon(link)"
-                                         Size="1.08rem"
+                                         Size="AppIconSize.Inline16"
                                          Title="@link.Label"
                                          Decorative="false" />
                                 <span>@link.Label</span>
@@ -115,7 +115,7 @@
                 }
 
                 <p class="@SeriesContextClass" aria-hidden="@(SeriesContextLabel is null)">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" Size="AppIconSize.Control20" />
                     <span>@SeriesContextLabel</span>
                 </p>
             </IdentityBeforeTitle>

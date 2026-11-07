@@ -13,25 +13,25 @@
     else
     {
         <ul class="view-edit-history__list">
-            <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" Size="AppSize.Small" /> <span>@L["ViewEdit_HistoryAdded", Format(Item.CreatedAt)]</span></li>
+            <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" Size="AppIconSize.Control20" /> <span>@L["ViewEdit_HistoryAdded", Format(Item.CreatedAt)]</span></li>
             @if (Item.CapturedAt is { } taken)
             {
-                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppSize.Small" /> <span>@L["ViewEdit_HistoryTaken", Format(taken)]</span></li>
+                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppIconSize.Control20" /> <span>@L["ViewEdit_HistoryTaken", Format(taken)]</span></li>
             }
 
             @if (Item.Favorite)
             {
-                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Star" Size="AppSize.Small" /> <span>@L["ViewEdit_HistoryFavorite"]</span></li>
+                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Star" Size="AppIconSize.Control20" /> <span>@L["ViewEdit_HistoryFavorite"]</span></li>
             }
 
             @if (Item.Hidden)
             {
-                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Visibility" Size="AppSize.Small" /> <span>@L["ViewEdit_HistoryHidden"]</span></li>
+                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Visibility" Size="AppIconSize.Control20" /> <span>@L["ViewEdit_HistoryHidden"]</span></li>
             }
 
             @if (Item.ArchivedAt is { } archived)
             {
-                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppSize.Small" /> <span>@L["ViewEdit_HistoryArchived", Format(archived)]</span></li>
+                <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" /> <span>@L["ViewEdit_HistoryArchived", Format(archived)]</span></li>
             }
         </ul>
     }

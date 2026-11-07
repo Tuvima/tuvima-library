@@ -77,7 +77,7 @@
                                Class="@TabClass(tab.Id)"
                                aria-current="@(IsTabSelected(tab.Id) ? "page" : null)"
                                OnClick="@(() => OnTabChanged(tabIndex))">
-                        <AppMaterialIcon Icon="@tab.Icon" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />
                         <span>@tab.Label</span>
                     </AppButton>
 
@@ -2360,7 +2360,7 @@
                             @foreach (var choice in IconChoices)
                             {
                                 <AppSelectItem T="string" Value="@choice.Icon">
-                                    <AppMaterialIcon Icon="@choice.Icon" Size="AppSize.Small" />
+                                    <AppMaterialIcon Icon="@choice.Icon" Size="AppIconSize.Control20" />
                                     @choice.Label
                                 </AppSelectItem>
                             }
@@ -2795,7 +2795,7 @@
                                 else
                                 {
                                     <span class="collection-editor-item-art collection-editor-item-art--placeholder" aria-hidden="true">
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ImageNotSupported" Size="AppSize.Small" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ImageNotSupported" Size="AppIconSize.Control20" />
                                     </span>
                                 }
                                 <div class="collection-editor-preview-copy">

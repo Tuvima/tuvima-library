@@ -25,8 +25,8 @@
         var rows = RowsOf(area.Key);
         <AppPanel Class="setup-area" data-area="@area.Key" aria-label="@area.Label">
             <header class="setup-area__head">
-                <AppMaterialIcon Icon="@area.Icon" />
-                <div class="setup-area__copy"><strong>@area.Label</strong><span>@FitsFor(area.Key)</span></div>
+                <AppChoiceTile Static="true" Icon="@area.Icon" Area="@area.Key" Label="@area.Label" Description="@FitsFor(area.Key)" Class="setup-area__tile" />
+                <span class="setup-area__spacer"></span>
                 @if (!ReadOnly)
                 {
                     <AppButton Label="@L["SetupAreaCards_Add"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" aria-label="@($"Add a {area.Label} library")" OnClick="@(() => AddAsync(area.Key))" />

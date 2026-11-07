@@ -196,7 +196,7 @@
 
     // Applications and webhooks get distinct icon colours from the tone tokens (v6 D67).
     private RenderFragment IntegrationLogo(ApplicationResponse app) => @<AppIconTile MaterialIcon="@(IsWebhook(app) ? AppMaterialIcons.Outlined.Sync : AppMaterialIcons.Outlined.Apps)"
-                                                                          Tone="@(IsWebhook(app) ? AppIconTone.Info : AppIconTone.Accent)" Size="AppControlSize.Large" />;
+                                                                          Tone="@(IsWebhook(app) ? AppIconTone.Info : AppIconTone.Accent)" Size="AppIconSize.Tile32" />;
 
     private string KindSentence(ApplicationResponse app) => IsWebhook(app) ? "Sends events to another service." : $"A {TypeLabel(app.ApplicationType).ToLowerInvariant()} that connects to your Library.";
 
