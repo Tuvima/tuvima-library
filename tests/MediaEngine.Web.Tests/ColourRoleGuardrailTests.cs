@@ -9,7 +9,7 @@ namespace MediaEngine.Web.Tests;
 public sealed class ColourRoleGuardrailTests
 {
     // Hex and rgb()/rgba() colours in component styles and app.css/native-*.css, outside the allowlist below. Set to the count after WP0.
-    private const int ComponentStyleColourCeiling = 2189;
+    private const int ComponentStyleColourCeiling = 1921;
 
     // Colour belongs to the data here: the map and the places views, the activity heatmap and the person avatar placeholder.
     // Chart colours and subtitle swatches live inside app.css rules and are counted with the rest until WP7 moves them to tokens.

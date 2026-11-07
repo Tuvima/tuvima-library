@@ -2,7 +2,7 @@
    thin outline on hover or focus. Sizes come from the tile tokens (tuvima.tokens.css); nothing here sets a pixel size of its own. */
 .media-tile-link { display:block; width:100%; color:inherit; text-decoration:none; cursor:pointer; }
 .media-tile-link:focus-visible { outline:none; }
-.media-tile { --media-tile-accent:#38bdf8; --media-tile-secondary-accent:#111827; --media-tile-media-aspect:2 / 3; display:flex; flex:0 0 auto; flex-direction:column; gap:8px; min-width:0; color:#f8fafc; outline:none; position:relative; scroll-snap-align:start; }
+.media-tile { --media-tile-accent:var(--tl-accent-secondary); --media-tile-secondary-accent:var(--tl-bg-root); --media-tile-media-aspect:2 / 3; display:flex; flex:0 0 auto; flex-direction:column; gap:8px; min-width:0; color:var(--tl-text-primary); outline:none; position:relative; scroll-snap-align:start; }
 .media-tile.is-media-book, .media-tile.is-book-series { --media-tile-accent:var(--tl-media-book); }
 .media-tile.is-media-comic, .media-tile.is-comic-series { --media-tile-accent:var(--tl-media-comic); }
 .media-tile.is-media-audio, .media-tile.is-audiobook-series, .media-tile.is-album, .media-tile.is-artist { --media-tile-accent:var(--tl-media-audio); }
@@ -15,17 +15,17 @@
 .media-tile.is-landscape { width:var(--tl-tile-landscape-w); --media-tile-media-aspect:16 / 9; }
 
 .media-tile-frame { position:relative; display:flex; flex-direction:column; width:100%; }
-.media-tile-media { position:relative; display:block; overflow:hidden; width:100%; height:auto; padding:0; aspect-ratio:var(--media-tile-media-aspect); border-radius:var(--tl-radius-md); background:#1A1B21; }
+.media-tile-media { position:relative; display:block; overflow:hidden; width:100%; height:auto; padding:0; aspect-ratio:var(--media-tile-media-aspect); border-radius:var(--tl-radius-md); background:var(--tl-bg-surface); }
 .media-tile-media.has-artwork-surface { background:transparent; }
 
 /* Hover and keyboard focus (D5): a thin outline in the accent around the cover only. The tile does not grow, move or change shape. */
-.media-tile:is(:hover, :focus-within) .media-tile-media { outline:2px solid var(--tl-accent-primary,#8852FC); outline-offset:0; }
+.media-tile:is(:hover, :focus-within) .media-tile-media { outline:2px solid var(--tl-accent-primary); outline-offset:0; }
 
 .media-tile-image { width:100%; height:100%; display:block; }
 .media-tile-image.is-fill { object-fit:cover; }
 .media-tile-contained-backdrop { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:blur(24px) brightness(.45); transform:scale(1.1); pointer-events:none; }
 .media-tile-image.is-contained { position:relative; padding:0; background:transparent; object-fit:contain; }
-.media-tile.is-portrait .media-tile-image { object-fit:contain; background:color-mix(in srgb,var(--media-tile-secondary-accent) 82%,#080b12); }
+.media-tile.is-portrait .media-tile-image { object-fit:contain; background:color-mix(in srgb,var(--media-tile-secondary-accent) 82%,var(--tl-bg-root)); }
 .media-tile.is-square .media-tile-image:not(.is-contained) { object-fit:cover; background:transparent; }
 .media-tile-static-group-preview { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
 
@@ -43,7 +43,7 @@
 .media-tile.is-portrait .media-tile-stack-image-2 { left:68%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
 
 /* An episode TheTVDB has no picture for: a marked stand-in, never a real-looking still. */
-.media-tile-standin { position:absolute; inset:0; overflow:hidden; background:linear-gradient(135deg,#1b2230,#0d121b); }
+.media-tile-standin { position:absolute; inset:0; overflow:hidden; background:linear-gradient(135deg,var(--tl-bg-surface-raised),var(--tl-bg-root)); }
 .media-tile-standin__image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.45) saturate(.85); }
 .media-tile-standin__library-tile { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
 .media-tile-standin__number { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--font-ui); font-weight:600; font-size:clamp(1.4rem,18%,2.6rem); letter-spacing:.04em; color:rgba(248,250,252,.92); text-shadow:0 2px 14px rgba(0,0,0,.65); }
@@ -56,23 +56,23 @@
 .media-tile-collection-wash { position:absolute; inset:0; background:var(--art-bg-gradient,linear-gradient(90deg,var(--art-bg-base-dark,rgba(3,7,13,.88)) 0%,var(--art-bg-base,rgba(3,7,13,.7)) 34%,color-mix(in srgb,var(--art-bg-accent-muted,rgba(3,7,13,.08)) 36%,transparent) 64%,var(--art-bg-overlay,rgba(3,7,13,.28)) 100%)); z-index:1; }
 .media-tile-landscape-logo { max-width:60%; max-height:34px; object-fit:contain; object-position:left bottom; }
 .media-tile-landscape-logo.is-banner { position:absolute; left:14px; bottom:14px; z-index:2; max-height:44px; }
-.media-tile-landscape-title { color:#fff; font-weight:600; font-size:var(--tl-font-size-md); line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,.7); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.media-tile-landscape-title { color:var(--tl-text-on-accent); font-weight:600; font-size:var(--tl-font-size-md); line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,.7); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .media-tile-landscape-title.is-banner { position:absolute; left:14px; bottom:14px; right:14px; z-index:2; }
 
 /* A cover with no art (D7): a plain dark cover, the kind's icon, the title and the author or artist at the bottom. Text is never under the
    floor, wraps to two lines and is never clipped by the tile edge. */
-.media-tile-fallback { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:12px; text-align:center; font-family:var(--font-ui); color:rgba(248,250,252,.78); background:#1A1B21; }
+.media-tile-fallback { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:12px; text-align:center; font-family:var(--font-ui); color:rgba(248,250,252,.78); background:var(--tl-bg-surface); }
 .media-tile-fallback__title, .media-tile-fallback__detail, .media-tile-video-text__title, .media-tile-video-text__detail { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-sm)); line-height:1.3; }
-.media-tile-fallback__title { font-weight:600; color:#f8fafc; }
+.media-tile-fallback__title { font-weight:600; color:var(--tl-text-primary); }
 .media-tile-fallback__detail { font-weight:500; color:rgba(226,232,240,.72); }
 
 /* A video with no cover art (D7, D16): the still on top, the name and one detail line below, at poster size. */
-.media-tile.is-video-still .media-tile-media { display:flex; flex-direction:column; background:#1A1B21; }
-.media-tile-video-still { position:relative; flex:0 0 auto; width:100%; aspect-ratio:16 / 9; overflow:hidden; background:#101115; }
+.media-tile.is-video-still .media-tile-media { display:flex; flex-direction:column; background:var(--tl-bg-surface); }
+.media-tile-video-still { position:relative; flex:0 0 auto; width:100%; aspect-ratio:16 / 9; overflow:hidden; background:var(--tl-bg-root); }
 .media-tile-video-still__image { display:block; width:100%; height:100%; object-fit:cover; }
 .media-tile-video-still__panel { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:44px; color:rgba(255,255,255,.28); }
 .media-tile-video-text { display:flex; flex:1 1 auto; flex-direction:column; justify-content:flex-end; gap:4px; min-height:0; padding:10px 12px; }
-.media-tile-video-text__title { font-weight:600; color:#f8fafc; }
+.media-tile-video-text__title { font-weight:600; color:var(--tl-text-primary); }
 .media-tile-video-text__detail { font-weight:500; color:rgba(226,232,240,.72); }
 
 /* Episode lists on a show or season page keep their number and title under the still. */

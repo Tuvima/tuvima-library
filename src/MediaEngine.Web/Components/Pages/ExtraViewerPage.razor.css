@@ -47,14 +47,14 @@
     min-height: 75vh;
     border: 1px solid rgba(246, 240, 232, 0.12);
     border-radius: 0.8rem;
-    background: #fff;
+    background: var(--tl-on-scrim);
 }
 
 .tl-extra-viewer__video {
     width: 100%;
     max-height: 78vh;
     border-radius: 0.8rem;
-    background: #000;
+    background: var(--tl-bg-root);
 }
 
 .tl-extra-viewer__audio {
@@ -94,7 +94,7 @@
 }
 
 .tl-extra-viewer__thumb:focus-visible {
-    outline: 2px solid #fff8eb;
+    outline: 2px solid var(--tl-text-primary);
     outline-offset: 2px;
 }
 

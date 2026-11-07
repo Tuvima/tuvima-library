@@ -14,8 +14,8 @@
     border: 0;
     border-radius: 1rem;
     overflow: hidden;
-    background: #101115;
-    color: #f6f0e8;
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
     box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.6);
     /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
     contain: layout;

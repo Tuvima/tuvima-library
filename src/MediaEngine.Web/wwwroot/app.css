@@ -3096,11 +3096,8 @@ button.app-menu-item {
     :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
-    :root:root .listen-icon-button,
     :root:root .listen-song-table__favorite-button,
-    :root:root .listen-song-table__icon-button,
     :root:root .listen-track-grid__favorite,
-    :root:root .tl-audio-item-table__icon-button,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
     :root:root .listen-song-table-cards__more-button,
@@ -3732,7 +3729,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 
 /* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */
 .sme-close,
-.listen-icon-button,
 .tl-embedded-audio__row-play {
     min-width: 36px;
     min-height: 36px;
@@ -3741,7 +3737,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 /* Touch floor (Look pass v2 A9): on touch screens small icon buttons and chips never drop below 44px. */
 @media (hover: none), (pointer: coarse) {
     .sme-close,
-    .listen-icon-button,
     .tl-embedded-audio__row-play,
     .settings-notice__dismiss,
     .lib-chip,

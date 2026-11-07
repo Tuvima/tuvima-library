@@ -13,7 +13,7 @@
     }
     .gen-label {
         min-width: 90px;
-        color: #888;
+        color: var(--tl-text-muted);
         padding-top: 6px;
         font-size: var(--tl-font-size-xs);
         text-align: right;
@@ -30,20 +30,20 @@
         align-items: center;
         padding: 8px;
         border-radius: 8px;
-        background: #1a1a1a;
-        border: 1px solid #333;
+        background: var(--tl-bg-surface);
+        border: 1px solid var(--tl-bg-surface-raised);
         min-width: 80px;
         cursor: pointer;
         transition: border-color 0.15s;
     }
     .family-node:hover {
-        border-color: #555;
+        border-color: var(--tl-border-strong);
     }
     .family-node-center {
         border-color: var(--tl-accent-primary) !important;
     }
     .gen-divider {
         height: 1px;
-        background: #222;
+        background: var(--tl-bg-surface);
         margin: 8px 0;
     }
