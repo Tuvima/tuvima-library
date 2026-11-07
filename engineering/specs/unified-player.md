@@ -1,6 +1,6 @@
 # Spec: Unified player (video, audiobook and music)
 
-> **Status:** In progress (Shy, 2026-11-04) · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Player controls v3](player-controls-v3.md) (this spec proposes v4 changes where stated) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Global bookmarks](global-bookmarks.md) · [Design system](../design/design-system.md) · [Local check 2026-11-03](../validation/local-check-2026-11-03.md) items 31 to 33 and 48 to 56 · Mockups: [unified-player.html](../design/mockups/unified-player.html)
+> **Status:** Superseded by [Unified player v2](unified-player-v2.md) (2026-11-07); not built further · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Player controls v3](player-controls-v3.md) (this spec proposes v4 changes where stated) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Global bookmarks](global-bookmarks.md) · [Design system](../design/design-system.md) · [Local check 2026-11-03](../validation/local-check-2026-11-03.md) items 31 to 33 and 48 to 56 · Mockups: [unified-player.html](../design/mockups/unified-player.html)
 
 ## 1. Goal
 
