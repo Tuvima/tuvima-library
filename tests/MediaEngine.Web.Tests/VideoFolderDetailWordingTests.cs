@@ -136,6 +136,57 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
         Assert.DoesNotContain("S1", metadata.Artist, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ANumberedFolderVideoShowsNoEpisodeOrSeasonWordingAnywhereInThePlayer()
+    {
+        var video = QueueVideo("Videos", "3", "Ball handling") with { SeasonNumber = "1", Album = "Basketball course" };
+        var state = new PlaybackBarState(CanPrevious: true, CanNext: true, HasEpisodes: true, IsFolderVideo: true, CanBookmark: true);
+        var texts = new List<string>();
+
+        // The resolver no longer calls it an episode, yet its numbered list (Previous, Next, the Lessons panel) keeps working.
+        Assert.False(VideoPresentationResolver.IsTvEpisode(video));
+        Assert.True(VideoPresentationResolver.HasOwnedSequence(video));
+        Assert.True(VideoPresentationResolver.IsTvEpisode(QueueVideo("TV", "3", "The Door")));
+
+        // The bar and the phone's video overlay: the transport, the tools (the list tool reads "Lessons"), the title and the second line.
+        foreach (var phone in new[] { false, true })
+        {
+            var bar = Render<PlaybackShell>(p => p
+                .Add(x => x.Media, PlaybackBarMedia.Movie).Add(x => x.Phone, phone).Add(x => x.State, state)
+                .Add(x => x.Identity, PlaybackBarIdentity.Build(PlaybackBarMedia.Movie, video, "Basketball course")));
+            // What a person reads or hears: text, accessible names and tooltips (not class names such as the tool's internal key).
+            texts.Add(bar.Find("section").TextContent);
+            texts.AddRange(bar.FindAll("[aria-label],[data-playback-tooltip]").SelectMany(element => new[] { element.GetAttribute("aria-label") ?? string.Empty, element.GetAttribute("data-playback-tooltip") ?? string.Empty }));
+            Assert.Contains(bar.FindAll("button"), button => button.GetAttribute("aria-label") == "Lessons");
+        }
+
+        // The "..." menu, the lock screen and the list panel's title.
+        texts.AddRange(PlaybackItemMenuCatalog.Build(new(PlaybackBarMedia.Movie, video)).Select(row => row.Label));
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Movie, video, new Uri("http://localhost/"), ShowTitle: "Basketball course"));
+        Assert.NotNull(metadata);
+        texts.AddRange([metadata.Title, metadata.Artist ?? string.Empty, metadata.Album ?? string.Empty]);
+        texts.AddRange(PlaybackControlCatalog.BuildPhoneTools(PlaybackBarMedia.Movie, state).Select(tool => tool.Label + " " + tool.AriaLabel));
+        texts.AddRange(PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Movie, state).Select(tool => tool.Label + " " + tool.AriaLabel));
+        texts.Add(EpisodesPanel.Title(Services.GetRequiredService<Microsoft.Extensions.Localization.IStringLocalizer<MediaEngine.Web.Resources.SharedStrings>>(), tvEpisode: VideoPresentationResolver.IsTvEpisode(video)));
+
+        foreach (var text in texts)
+        {
+            Assert.DoesNotContain("Episode", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Season", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Movie", text, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void TheListToolOfATvEpisodeStillReadsEpisodesAndOfAFolderVideoLessons()
+    {
+        string Label(bool folder) => PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Tv, new PlaybackBarState(HasEpisodes: true, IsFolderVideo: folder))
+            .Single(tool => tool.Key == PlaybackControlKey.Episodes).Label;
+
+        Assert.Equal("Episodes", Label(folder: false));
+        Assert.Equal("Lessons", Label(folder: true));
+    }
+
     private IRenderedComponent<SequencePlacementPanel> RenderPanel(SequencePlacementViewModel placement) =>
         Render<SequencePlacementPanel>(p => p.Add(c => c.Placement, placement).Add(c => c.DetailSurface, true));
 

@@ -1,0 +1,71 @@
+/* The phone's tool row (unified player v2 D26; mockup screen 15 ".tools": space-between, 44 px buttons, 0 8 px of side padding). The trigger buttons of the
+   panels the host owns are drawn by PlaybackPanel and the speed and sleep panels, so the rules that make them look like the other tools are repeated here
+   (the bar's own are scoped to PlaybackShell). A tool never gets less than 44 px to press (A12). */
+.playback-tool-row {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 8px;
+}
+
+.playback-tool-row__slot {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+}
+
+.playback-tool-row ::deep .playback-popover-trigger {
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    display: grid;
+    height: var(--playback-control-target);
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: 0;
+    place-items: center;
+    transition: background-color 120ms ease, color 120ms ease;
+    width: var(--playback-control-target);
+}
+
+/* The audiobook's speed value is a text chip, as on the bar, but never under 44 px tall on a phone. */
+.playback-tool-row ::deep .playback-popover-trigger.playback-shell__chip {
+    display: inline-flex;
+    font: 600 var(--tl-font-size-sm)/1 var(--font-ui);
+    gap: 8px;
+    height: var(--playback-control-target);
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: 0 12px;
+    width: auto;
+}
+
+.playback-tool-row ::deep .playback-popover-trigger:not(:disabled):active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-tool-row ::deep .playback-popover-trigger:not(:disabled):is([aria-expanded="true"], [aria-pressed="true"], .is-on) {
+    background: var(--playback-state-selected);
+    color: var(--tl-accent-primary-hover);
+}
+
+.playback-tool-row ::deep .playback-popover-trigger:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-tool-row ::deep .playback-popover-trigger:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-tool-row ::deep .playback-utility-glyph {
+    flex-basis: var(--playback-control-glyph);
+    height: var(--playback-control-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
+}

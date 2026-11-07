@@ -6,33 +6,6 @@ namespace MediaEngine.Web.Tests;
 public sealed class AppRangeSliderTests : LocalizedBunitContext
 {
     [Fact]
-    public void BareAppearancePropagatesThroughControlStripWithoutChangingSurfaceRecipe()
-    {
-        JSInterop.SetupModule("./js/playback-tooltip.js").Mode = JSRuntimeMode.Loose;
-        var control = new PlaybackControlDefinition(
-            PlaybackControlKey.Speed,
-            "Speed",
-            "Playback speed 1.25x",
-            "speed",
-            PlaybackControlPlacement.ToolStrip,
-            "speed",
-            ValueText: "1.25x");
-
-        var cut = Render<PlaybackControlStrip>(parameters => parameters
-            .Add(component => component.Controls, [control])
-            .Add(component => component.Surface, "dock")
-            .Add(component => component.Appearance, "bare"));
-
-        Assert.Contains("playback-control-strip--surface-dock", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("playback-control-strip--appearance-bare", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("playback-icon-button-shell--surface-dock", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("playback-icon-button-shell--appearance-bare", cut.Markup, StringComparison.Ordinal);
-        Assert.Equal("Playback speed 1.25x", cut.Find("button").GetAttribute("aria-label"));
-        Assert.Equal(string.Empty, cut.Find("button").TextContent.Trim());
-        Assert.NotNull(cut.Find("button svg"));
-    }
-
-    [Fact]
     public void ReadOnlyBookProgressUsesSharedRailWithoutSeekInput()
     {
         var cut = Render<AppRangeSlider>(parameters => parameters

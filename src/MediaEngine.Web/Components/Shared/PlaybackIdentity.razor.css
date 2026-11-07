@@ -96,6 +96,7 @@
 
 /* The third line while a receiver plays (unified player v2 D28; mockup screen 16): the second line's type in the accent color. */
 .playback-identity__remote {
+    display: block;
     color: var(--playback-accent-hover);
     font-size: var(--tl-font-size-secondary);
     line-height: 1.45;
@@ -119,7 +120,43 @@
     margin-left: 2px;
 }
 
-/* The phone's collapsed bar (D26, finished by the phone packet): art, text, then Play and Next, no Favorite. */
+/* The phone's collapsed bar (D26; mockup screen 15 marker 1): a 44 px picture, the title at 15 px and the second line, all one button that expands the player. */
+.playback-identity ::deep .playback-identity__expand {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    flex: 1 1 auto;
+    gap: 10px;
+    min-height: 56px;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+}
+
+.playback-identity ::deep .playback-identity__expand:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+/* The collapsed bar draws the lines as spans inside its button, so every line is a block. */
+.playback-identity__title,
+.playback-identity__secondary,
+.playback-identity__error {
+    display: block;
+}
+
+.playback-identity--compact .playback-identity__art {
+    height: 44px;
+    width: 44px;
+}
+
+.playback-identity--compact .playback-identity__art--wide {
+    width: 78px;
+}
+
 .playback-identity--compact .playback-identity__title {
-    font-size: var(--tl-font-size-sm);
+    font-size: 15px;
 }

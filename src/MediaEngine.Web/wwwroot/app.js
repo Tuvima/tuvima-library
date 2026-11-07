@@ -1351,8 +1351,6 @@ window.tuvimaPopupStateSync = (function () {
 
 window.listenPlayback = (function () {
     var playbackConfig = {
-        popupWidth: 420,
-        popupHeight: 780,
         immediateActionDedupMilliseconds: 900,
         immediateActionConsumeMilliseconds: 1800,
         audioObserverIntervalMilliseconds: 1200,
@@ -1363,13 +1361,9 @@ window.listenPlayback = (function () {
     };
     var stateKey = 'tuvima.playback.v2.state';
     var commandKey = 'tuvima.playback.v2.command';
-    var popupName = 'tuvima-listen-mini-player';
     var channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('tuvima-listen-playback') : null;
     var stateHandler = null;
     var commandHandler = null;
-    var popupWindow = null;
-    var popupWindowId = null;
-    var popupUnloadHandler = null;
     var audioObservers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
     var playerShortcutHandlers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
@@ -1391,8 +1385,6 @@ window.listenPlayback = (function () {
     }
 
     function configure(options) {
-        playbackConfig.popupWidth = asFiniteNumber(readConfigValue(options, 'popupWidth', 'popup_width', playbackConfig.popupWidth), playbackConfig.popupWidth, 280, 1200);
-        playbackConfig.popupHeight = asFiniteNumber(readConfigValue(options, 'popupHeight', 'popup_height', playbackConfig.popupHeight), playbackConfig.popupHeight, 360, 1400);
         playbackConfig.immediateActionDedupMilliseconds = asFiniteNumber(readConfigValue(options, 'immediateActionDedupMilliseconds', 'immediate_action_dedup_milliseconds', playbackConfig.immediateActionDedupMilliseconds), playbackConfig.immediateActionDedupMilliseconds, 100, 5000);
         playbackConfig.immediateActionConsumeMilliseconds = asFiniteNumber(readConfigValue(options, 'immediateActionConsumeMilliseconds', 'immediate_action_consume_milliseconds', playbackConfig.immediateActionConsumeMilliseconds), playbackConfig.immediateActionConsumeMilliseconds, 100, 10000);
         playbackConfig.audioObserverIntervalMilliseconds = asFiniteNumber(readConfigValue(options, 'audioObserverIntervalMilliseconds', 'audio_observer_interval_milliseconds', playbackConfig.audioObserverIntervalMilliseconds), playbackConfig.audioObserverIntervalMilliseconds, 100, 10000);
@@ -2045,57 +2037,6 @@ window.listenPlayback = (function () {
         return Math.max(0, position || 0);
     }
 
-    function openPopupWindow(url) {
-        if (!url) return false;
-        if (popupWindow && !popupWindow.closed) {
-            if (typeof popupWindow.focus === 'function') {
-                popupWindow.focus();
-            }
-            return true;
-        }
-
-        var availableWidth = Math.max(280, Number(window.screen && window.screen.availWidth) || window.innerWidth || playbackConfig.popupWidth);
-        var availableHeight = Math.max(360, Number(window.screen && window.screen.availHeight) || window.innerHeight || playbackConfig.popupHeight);
-        var width = Math.min(Math.round(playbackConfig.popupWidth), availableWidth);
-        var height = Math.min(Math.round(playbackConfig.popupHeight), availableHeight);
-        var leftBase = Number(window.screen && window.screen.availLeft) || 0;
-        var topBase = Number(window.screen && window.screen.availTop) || 0;
-        var left = Math.round(leftBase + (availableWidth - width) / 2);
-        var top = Math.round(topBase + (availableHeight - height) / 2);
-        var ownerId = window.tuvimaBookmarkCommands && window.tuvimaBookmarkCommands.getOwnerId();
-        popupWindowId = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() :
-            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
-        if (ownerId) {
-            try {
-                var popupUrl = new URL(url, window.location.href);
-                popupUrl.searchParams.set('owner', ownerId);
-                popupUrl.searchParams.set('window', popupWindowId);
-                url = popupUrl.pathname + popupUrl.search + popupUrl.hash;
-            } catch (_) { }
-        }
-
-        popupWindow = window.open(
-            url,
-            popupName,
-            'popup=yes,width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=no'
-        );
-
-        if (popupWindow && typeof popupWindow.focus === 'function') {
-            popupWindow.focus();
-        }
-
-        return !!popupWindow;
-    }
-
-    function focusPopup() {
-        window.requestAnimationFrame(function () {
-            var target = document.querySelector('.listen-popup button:not([disabled]), .listen-popup input:not([disabled]), main button:not([disabled]), main input:not([disabled])');
-            if (target && typeof target.focus === 'function') {
-                target.focus({ preventScroll: true });
-            }
-        });
-    }
-
     function captureAudiobookBookmarkPosition(expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
         var audio = document.getElementById('listen-audio-engine');
         if (!audio || !expectedAssetId || !expectedSourceUrl) return null;
@@ -2147,8 +2088,6 @@ window.listenPlayback = (function () {
 
     var lastImmediateStartAction = null;
     var lastImmediateStartAt = 0;
-    var lastImmediatePopupAction = null;
-    var lastImmediatePopupAt = 0;
 
     function startAudioFromImmediateAction(target, allowDuplicate) {
         var action = target && target.closest ? target.closest('[data-listen-immediate-start]') : null;
@@ -2253,28 +2192,10 @@ window.listenPlayback = (function () {
         }
     }
 
-    function openPopupFromImmediateAction(target, allowDuplicate) {
-        var action = target && target.closest ? target.closest('[data-listen-popup-route]') : null;
-        if (!action || action.disabled || action.getAttribute('aria-disabled') === 'true') return;
-
-        var route = action.dataset.listenPopupRoute || '';
-        if (!route) return;
-
-        var now = Date.now();
-        if (!allowDuplicate && action === lastImmediatePopupAction && now - lastImmediatePopupAt < playbackConfig.immediateActionDedupMilliseconds) {
-            return;
-        }
-
-        lastImmediatePopupAction = action;
-        lastImmediatePopupAt = now;
-        openPopupWindow(route);
-    }
-
     document.addEventListener('click', function (event) {
         startAudioFromImmediateAction(event.target, true);
         toggleAudioFromImmediateAction(event.target, false);
         seekAudioFromImmediateAction(event.target, false);
-        openPopupFromImmediateAction(event.target, false);
     }, true);
 
     if (channel) {
@@ -2356,7 +2277,6 @@ window.listenPlayback = (function () {
                 commandHandler = null;
             }
         },
-        openPopup: openPopupWindow,
         pauseAudioForClose: function (assetId, requestVersion, sourceUrl, predecessorSourceUrl, pendingSource) {
             var audio = document.getElementById('listen-audio-engine');
             if (!audio || String(audio.dataset.currentAssetId || '').toLowerCase() !== String(assetId || '').toLowerCase()
@@ -2399,54 +2319,11 @@ window.listenPlayback = (function () {
                 }
             }
             window.listenPlayback.clearState();
-            window.listenPlayback.closePopup();
             return true;
         },
         captureAudiobookBookmarkPosition: captureAudiobookBookmarkPosition,
         readCurrentAudiobookPosition: readCurrentAudiobookPosition,
-        closePopup: function () {
-            if (popupWindow && !popupWindow.closed) {
-                popupWindow.close();
-            }
-
-            popupWindow = null;
-            popupWindowId = null;
-        },
-        isCurrentPopupWindow: function (id) {
-            return !!id && !!popupWindow && !popupWindow.closed && String(id).toLowerCase() === String(popupWindowId).toLowerCase();
-        },
-        registerPopupWindow: function (ownerId, senderId, windowId) {
-            if (popupUnloadHandler) {
-                window.removeEventListener('beforeunload', popupUnloadHandler);
-            }
-
-            if (!ownerId || !senderId || !windowId || typeof BroadcastChannel === 'undefined') return;
-            var registrationGeneration = Date.now();
-            function notifyOwner(action) {
-                try {
-                    var addressed = new BroadcastChannel('tuvima-bookmark-commands:' + String(ownerId).replace(/-/g, '').toLowerCase());
-                    var id = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() :
-                        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
-                    addressed.postMessage({ type: 'command', command: { action: action, commandId: id,
-                        recipientId: ownerId, senderId: senderId, popupWindowId: windowId, ownerGeneration: registrationGeneration } });
-                    addressed.close();
-                } catch (error) {
-                    console.debug('Could not notify the current popup owner.', error);
-                }
-            }
-            notifyOwner('register-popup');
-            popupUnloadHandler = function () { notifyOwner('popup-closed'); };
-
-            window.addEventListener('beforeunload', popupUnloadHandler);
-        },
-        focusPopup: focusPopup,
-        focusMainWindow: function () { try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (_) { } },
         returnToVideo: returnToVideo,
-        unregisterPopupWindow: function () {
-            if (!popupUnloadHandler) return;
-            window.removeEventListener('beforeunload', popupUnloadHandler);
-            popupUnloadHandler = null;
-        },
         readAudioState: function (element) {
             return readAudioElementState(element);
         },

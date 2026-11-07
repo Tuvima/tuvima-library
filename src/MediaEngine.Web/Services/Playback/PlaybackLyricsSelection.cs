@@ -18,7 +18,6 @@ public static class ListenPlaybackPresentationActions
 {
     public const string SelectLyrics = "select-lyrics";
     public const string NavigateIdentity = "navigate-identity";
-    public const string RegisterPopup = "register-popup";
 }
 
 public interface IPlaybackLyricsSelectionSink

@@ -772,7 +772,6 @@ public sealed class PlaybackSessionControllerTests
             Experience = PlayerExperienceModes.Audiobook,
             NeedsUserGestureToStart = true,
             IsPlaying = false,
-            IsPopupOpen = true,
             AudiobookHistory =
             [
                 new AudiobookListenHistoryItemDto
@@ -807,7 +806,6 @@ public sealed class PlaybackSessionControllerTests
         Assert.Equal(PlayerExperienceModes.Audiobook, roundTrip.Experience);
         Assert.True(roundTrip.NeedsUserGestureToStart);
         Assert.False(roundTrip.IsPlaying);
-        Assert.True(roundTrip.IsPopupOpen);
         Assert.Equal(7, roundTrip.PlaybackStartVersion);
         Assert.Single(roundTrip.AudiobookHistory);
         Assert.Equal(AudiobookSleepTimerModes.Off, roundTrip.SleepTimerState.Mode);
@@ -1553,7 +1551,6 @@ public sealed class PlaybackSessionControllerTests
             History = [CreateQueueItem("Previous", "stream://previous")],
             CurrentIndex = 0,
             IsPlaying = true,
-            IsPopupOpen = true,
         });
 
         service.ClosePlayer();
@@ -1561,7 +1558,6 @@ public sealed class PlaybackSessionControllerTests
         Assert.Empty(service.Queue);
         Assert.Empty(service.History);
         Assert.False(service.HasQueue);
-        Assert.False(service.IsPopupOpen);
         Assert.True(service.IsDismissed);
     }
 

@@ -11,7 +11,7 @@
                      OnClick="@HandleClickAsync"
                      AriaLabel="@ResolvedAriaLabel"
                      @attributes="AdditionalAttributes">
-        @if (IsBar)
+        @if (IsBar || IsPhone)
         {
             <PlaybackUtilityGlyph Glyph="@(ShowsPause ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play)" />
         }
@@ -59,14 +59,17 @@
         "compact" => "compact",
         "large" => "large",
         "bar" => "bar",
+        "phone" => "phone",
         _ => "standard"
     };
 
     /// <summary>The persistent bar's Play button (unified player v2 D6): a 32 px stroke glyph in a 48 px target, no ring, the shared state set.</summary>
     private bool IsBar => NormalizedSize == "bar";
+    /// <summary>The phone's expanded player (unified player v2 D26, mockup screen 15): a 64 px white disc with a black glyph.</summary>
+    private bool IsPhone => NormalizedSize == "phone";
     private bool ShowsPause => IsPlaying && !NeedsUserGestureToStart;
     // The bar does not wear the ring button's class, so none of the ring button's state rules can reach it.
-    private string ButtonClass => IsBar ? "playback-bar-play" : "playback-primary-button";
+    private string ButtonClass => IsPhone ? "playback-phone-play" : IsBar ? "playback-bar-play" : "playback-primary-button";
 
     private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
 
