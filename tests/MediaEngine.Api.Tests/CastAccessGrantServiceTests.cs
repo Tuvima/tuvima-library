@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Domain.Aggregates;
@@ -238,6 +239,254 @@ public sealed class CastAccessGrantServiceTests : IDisposable
 
         Assert.Matches("^[0-9a-f]{8}$", id);
     }
+
+    // ── Signed-in Dashboard session grants (the browser's own device picker) ────────────────────────
+
+    [Fact]
+    public async Task ASessionGrantRoundTripsAsAHumanForTheProfileThatMadeIt()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var assetId = Guid.NewGuid();
+        var service = CreateSessionService();
+
+        var grant = await service.CreateForSessionAsync(assetId, null, signedIn.Authority, 5400);
+        var validation = await CreateSessionService().ValidateAsync(grant.Value);
+
+        Assert.NotNull(validation);
+        Assert.Equal(assetId, validation.AssetId);
+        Assert.Null(validation.PackageId);
+        Assert.Empty(validation.Scopes);
+        Assert.Equal(PrincipalKind.Human, validation.Authority.PrincipalKind);
+        Assert.Equal(paired.Account.Id, validation.Authority.AccountId);
+        Assert.Equal(Profile.SeedProfileId, validation.Authority.ActiveProfileId);
+        Assert.Equal(signedIn.Session.Id, validation.Authority.SessionId);
+        Assert.Null(validation.Authority.DeviceId);
+        Assert.Equal(_clock.GetUtcNow().AddMinutes(90 + 90), grant.ExpiresAt);
+    }
+
+    [Fact]
+    public async Task OnlyALiveSignedInDashboardSessionCanCreateASessionGrant()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var assetId = Guid.NewGuid();
+
+        // A paired device and a service application use their own paths.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, paired.Authority, 3600));
+        var serviceApp = new RequestAuthority(
+            PrincipalKind.ServiceApplication, true, ApplicationId: paired.Application.Id, ApplicationEnabled: true,
+            ApplicationAuthorizationVersion: paired.Application.AuthorizationVersion);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, serviceApp, 3600));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, new RequestAuthority(PrincipalKind.Anonymous, false), 3600));
+        // A person with no managed session id (for example a host-recovery or setup caller) is refused.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, signedIn.Authority with { SessionId = null }, 3600));
+        // A session that does not exist, or belongs to another account, is refused.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, signedIn.Authority with { SessionId = Guid.NewGuid() }, 3600));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, signedIn.Authority with { AccountId = Guid.NewGuid() }, 3600));
+        // The service built with no identity store cannot make a session grant at all.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            CreateService().CreateForSessionAsync(assetId, null, signedIn.Authority, 3600));
+        // A signed-out session.
+        await _identities.RevokeSessionAsync(signedIn.Session.Id, _clock.GetUtcNow(), "test");
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(assetId, null, signedIn.Authority, 3600));
+    }
+
+    [Fact]
+    public async Task SigningOutOrRevokingTheSessionStopsASessionGrantAtItsNextRequest()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        Assert.True(await _identities.RevokeSessionAsync(signedIn.Session.Id, _clock.GetUtcNow(), "signed out"));
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Fact]
+    public async Task RevokingEveryOneOfTheAccountsSessionsStopsASessionGrant()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        await _identities.RevokeAccountSessionsAsync(paired.Account.Id, _clock.GetUtcNow(), "sign out everywhere");
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Fact]
+    public async Task ASessionThatExpiresBeforeTheGrantStopsTheGrant()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account, sessionLife: TimeSpan.FromMinutes(30));
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        _clock.Advance(TimeSpan.FromMinutes(31));
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Fact]
+    public async Task ASessionWaitingForAProfilePickStopsTheGrant()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+
+        await _identities.MarkSessionProfilePendingAsync(signedIn.Session.Id);
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Theory]
+    [InlineData("UPDATE profiles SET authorization_version = authorization_version + 1 WHERE id = @profile")]
+    [InlineData("UPDATE profiles SET household_id = NULL WHERE id = @profile")]
+    [InlineData("UPDATE accounts SET authorization_version = authorization_version + 1 WHERE id = @account")]
+    [InlineData("UPDATE accounts SET is_enabled = 0 WHERE id = @account")]
+    public async Task AnyAuthorisationChangeStopsASessionGrant(string statement)
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(statement, new { account = paired.Account.Id, profile = Profile.SeedProfileId, session = signedIn.Session.Id });
+        }
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Fact]
+    public async Task ASessionGrantIsNeverReadAsADeviceGrantAndADeviceGrantIsNeverReadAsASessionGrant()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var sessionGrant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        var deviceGrant = await service.CreateAsync(Guid.NewGuid(), null, paired.Authority, paired.Token.Id, PlaybackRead, 3600);
+
+        var session = await service.ValidateAsync(sessionGrant.Value);
+        var device = await service.ValidateAsync(deviceGrant.Value);
+
+        // Each validates as exactly what it is.
+        Assert.Equal(PrincipalKind.Human, session!.Authority.PrincipalKind);
+        Assert.Equal(PrincipalKind.DelegatedUserClient, device!.Authority.PrincipalKind);
+        Assert.Equal(paired.Device.Id, device.Authority.DeviceId);
+
+        // And a payload that mixes the two (made with the real protector) is refused either way.
+        var protector = _protection.CreateProtector(CastAccessGrantService.ProtectorPurpose);
+        string Forge(Dictionary<string, object?> binding) => protector.Protect(JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["AssetId"] = Guid.NewGuid(),
+            ["PackageId"] = null,
+            ["ExpiresAtUnixSeconds"] = _clock.GetUtcNow().AddHours(1).ToUnixTimeSeconds(),
+            ["Binding"] = binding,
+        }));
+        Dictionary<string, object?> Binding(string? kind, bool deviceIds, Guid? sessionId)
+        {
+            var binding = new Dictionary<string, object?>
+            {
+                ["AccountId"] = paired.Account.Id,
+                ["ProfileId"] = Profile.SeedProfileId,
+                ["ApplicationId"] = deviceIds ? paired.Application.Id : null,
+                ["DeviceId"] = deviceIds ? paired.Device.Id : null,
+                ["TokenFamilyId"] = deviceIds ? paired.Token.TokenFamilyId : null,
+                ["AccountAuthorizationVersion"] = paired.Account.AuthorizationVersion,
+                ["ProfileAuthorizationVersion"] = paired.Authority.ProfileAuthorizationVersion,
+                ["ApplicationAuthorizationVersion"] = paired.Application.AuthorizationVersion,
+                ["Scopes"] = deviceIds ? PlaybackRead : [],
+                ["SessionId"] = sessionId,
+            };
+            if (kind is not null)
+            {
+                binding["Kind"] = kind;
+            }
+
+            return binding;
+        }
+
+        // A device-kind payload with the device's ids validates (the control for the refusals below).
+        Assert.NotNull(await service.ValidateAsync(Forge(Binding("device", deviceIds: true, sessionId: null))));
+        // A session-kind payload carrying the device's ids and no session id.
+        Assert.Null(await service.ValidateAsync(Forge(Binding("session", deviceIds: true, sessionId: null))));
+        // A device-kind payload carrying a live session id and no device ids.
+        Assert.Null(await service.ValidateAsync(Forge(Binding("device", deviceIds: false, sessionId: signedIn.Session.Id))));
+        // No kind at all, and an unknown kind.
+        Assert.Null(await service.ValidateAsync(Forge(Binding(null, deviceIds: true, sessionId: null))));
+        Assert.Null(await service.ValidateAsync(Forge(Binding("tv", deviceIds: true, sessionId: null))));
+        // A session grant is refused by a service that has no identity store, rather than guessed at.
+        Assert.Null(await CreateService().ValidateAsync(sessionGrant.Value));
+    }
+
+    [Fact]
+    public async Task AHlsGrantIsNotACastSessionGrantEither()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var packageId = Guid.NewGuid();
+        var hls = new HlsAccessGrantService(
+            _protection,
+            new ConfigurationDirectoryLoader(Path.Combine(FindRepoRoot(), "config")),
+            _accounts, _applications, _identities, _clients, new PermissionRegistry(), _clock);
+        var hlsGrant = hls.Create(Guid.NewGuid(), packageId, signedIn.Authority, null, []);
+        var service = CreateSessionService();
+        var sessionGrant = await service.CreateForSessionAsync(Guid.NewGuid(), packageId, signedIn.Authority, 3600);
+
+        Assert.Null(await service.ValidateAsync(hlsGrant.Value));
+        Assert.Null(await hls.ValidateAsync(sessionGrant.Value, packageId));
+    }
+
+    private sealed record SignedIn(AuthSession Session, RequestAuthority Authority);
+
+    private async Task<SignedIn> SignInAsync(Account account, TimeSpan? sessionLife = null)
+    {
+        var session = new AuthSession
+        {
+            Id = Guid.NewGuid(),
+            AccountId = account.Id,
+            ActiveProfileId = Profile.SeedProfileId,
+            TokenHash = Guid.NewGuid().ToString("N"),
+            DeviceId = "browser",
+            DeviceName = "Browser",
+            Client = "web",
+            AuthenticationMethod = "password",
+            SecurityStamp = Guid.NewGuid().ToString("N"),
+            CreatedAt = _clock.GetUtcNow(),
+            LastSeenAt = _clock.GetUtcNow(),
+            ExpiresAt = _clock.GetUtcNow().Add(sessionLife ?? TimeSpan.FromDays(1)),
+        };
+        await _identities.InsertSessionAsync(session);
+        var grantRow = (await _accounts.GetGrantAsync(account.Id, Profile.SeedProfileId))!;
+        var authority = new RequestAuthority(
+            PrincipalKind.Human, true, account.Id, Profile.SeedProfileId, SessionId: session.Id,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            AccountAuthorizationVersion: account.AuthorizationVersion,
+            ProfileAuthorizationVersion: grantRow.AuthorizationVersion);
+        return new SignedIn(session, authority);
+    }
+
+    private CastAccessGrantService CreateSessionService() =>
+        new(_protection, _accounts, _applications, _clients, new PermissionRegistry(), _clock, _identities);
 
     private CastAccessGrantService CreateService() =>
         new(_protection, _accounts, _applications, _clients, new PermissionRegistry(), _clock);

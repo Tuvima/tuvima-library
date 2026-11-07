@@ -2,9 +2,11 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
@@ -29,6 +31,7 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     private CastAccessGrantService _grants = null!;
     private PlaybackStateRepository _state = null!;
     private PairedDevice _paired = null!;
+    private IdentityRepository _identities = null!;
 
     public async Task InitializeAsync()
     {
@@ -44,10 +47,11 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
         var accounts = new AccountRepository(_database);
         var applications = new ApplicationRepository(_database);
         var identities = new IdentityRepository(_database);
+        _identities = identities;
         var clients = new ClientAuthorizationRepository(_database);
         var protection = new EphemeralDataProtectionProvider();
         _paired = await PairedDevice.CreateAsync(_database, accounts, applications, DateTimeOffset.UtcNow);
-        _grants = new CastAccessGrantService(protection, accounts, applications, clients, new PermissionRegistry());
+        _grants = new CastAccessGrantService(protection, accounts, applications, clients, new PermissionRegistry(), identities: identities);
 
         var assets = new MediaAssetRepository(_database);
         var tracks = new TextTrackRepository(_database);
@@ -162,23 +166,7 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     {
         var ordinary = await SeedVideoAsync("home.mp4", "h264", "aac", 1080, durationSeconds: 60);
         var vault = await SeedVideoAsync("private.mp4", "h264", "aac", 1080, durationSeconds: 60);
-        var vaultLibrary = Guid.NewGuid().ToString("D");
-        var now = DateTimeOffset.UtcNow;
-        await new VaultLibraryRepository(_database).AddAsync(
-            new MediaEngine.Domain.Contracts.VaultLibrary(vaultLibrary, MediaEngine.Domain.Contracts.VaultLookupSources.None, null, now, null, now, now));
-        using (var connection = _database.CreateConnection())
-        {
-            // The data store refuses to move an existing file into a Vault, so the same file is entered again as a Vault file.
-            connection.Execute(
-                """
-                CREATE TEMP TABLE vault_copy AS SELECT id, edition_id, content_hash, file_path_root FROM media_assets WHERE id = @vault;
-                DELETE FROM media_assets WHERE id = @vault;
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status, library_id)
-                SELECT id, edition_id, content_hash, file_path_root, 'Normal', @vaultLibrary FROM vault_copy;
-                DROP TABLE vault_copy;
-                """,
-                new { vault, vaultLibrary });
-        }
+        await MoveIntoTheVaultAsync(vault);
 
         Assert.False((await _playback.BuildManifestAsync(ordinary, "web"))!.IsVault);
         Assert.True((await _playback.BuildManifestAsync(vault, "web"))!.IsVault);
@@ -273,6 +261,176 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
         Assert.Equal(300, second!.ResumeSeconds);
         Assert.Null(unseen!.ResumeSeconds);
         Assert.Null(none!.ResumeSeconds);
+    }
+
+    // ── A signed-in Dashboard session (the browser's own device picker) ─────────────────────────────
+
+    [Fact]
+    public async Task ASignedInDashboardSessionGetsASessionGrantForAVideo()
+    {
+        var assetId = await SeedVideoAsync("browser.mp4", "h264", "aac", 1080, durationSeconds: 5400);
+        var signedIn = await SignInAsync();
+
+        var session = await _sessions.CreateAsync(assetId, signedIn, null, []);
+
+        Assert.Equal(CastSessionStatuses.Ready, session!.Status);
+        Assert.Equal("video/mp4", session.ContentType);
+        var validation = await _grants.ValidateAsync(session.MediaPath!.Split('/')[3]);
+        Assert.Equal(assetId, validation?.AssetId);
+        Assert.Equal(PrincipalKind.Human, validation?.Authority.PrincipalKind);
+        Assert.Equal(signedIn.SessionId, validation?.Authority.SessionId);
+    }
+
+    [Fact]
+    public async Task AnApplicationASetupCallerOrAnAnonymousCallerCannotStartACastSession()
+    {
+        var assetId = await SeedVideoAsync("refused.mp4", "h264", "aac", 1080, durationSeconds: 600);
+        var application = new RequestAuthority(
+            PrincipalKind.ServiceApplication, true, ApplicationId: _paired.Application.Id, ApplicationEnabled: true,
+            ApplicationAuthorizationVersion: _paired.Application.AuthorizationVersion);
+
+        foreach (var authority in new[]
+        {
+            application,
+            new RequestAuthority(PrincipalKind.Setup, true),
+            new RequestAuthority(PrincipalKind.HostRecovery, true),
+            new RequestAuthority(PrincipalKind.Anonymous, false),
+        })
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sessions.CreateAsync(assetId, authority, null, PlaybackRead));
+        }
+    }
+
+    [Fact]
+    public async Task AVaultVideoNeverCasts_OnEitherPath()
+    {
+        var assetId = await SeedVideoAsync("private-cast.mp4", "h264", "aac", 1080, durationSeconds: 600);
+        await MoveIntoTheVaultAsync(assetId);
+        var signedIn = await SignInAsync();
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sessions.CreateAsync(assetId, _paired.Authority, _paired.Token.Id, PlaybackRead));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sessions.CreateAsync(assetId, signedIn, null, []));
+    }
+
+    [Fact]
+    public async Task AVaultSongNeverCasts_OnEitherPath()
+    {
+        var assetId = await SeedAudioAsync("private-song.mp3", "Music");
+        await MoveIntoTheVaultAsync(assetId);
+        var signedIn = await SignInAsync();
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sessions.CreateAsync(assetId, _paired.Authority, _paired.Token.Id, PlaybackRead));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sessions.CreateAsync(assetId, signedIn, null, []));
+    }
+
+    [Theory]
+    [InlineData("song.mp3", "Music", "audio/mpeg")]
+    [InlineData("song.flac", "Music", "audio/flac")]
+    [InlineData("book.m4b", "Audiobooks", "audio/mp4")]
+    [InlineData("book.m4a", "Audiobooks", "audio/mp4")]
+    public async Task MusicAndAudiobooksCastAsTheFileItselfWithTheirOwnContentTypeAndNoSubtitles(string fileName, string mediaType, string contentType)
+    {
+        var assetId = await SeedAudioAsync(fileName, mediaType);
+        var signedIn = await SignInAsync();
+
+        var fromPhone = await _sessions.CreateAsync(assetId, _paired.Authority, _paired.Token.Id, PlaybackRead);
+        var fromDashboard = await _sessions.CreateAsync(assetId, signedIn, null, []);
+
+        foreach (var session in new[] { fromPhone, fromDashboard })
+        {
+            Assert.NotNull(session);
+            Assert.Equal(CastSessionStatuses.Ready, session.Status);
+            Assert.Equal(PlaybackDeliveryModes.DirectStream, session.Delivery);
+            Assert.Equal(contentType, session.ContentType);
+            Assert.Matches("^/cast/v1/[A-Za-z0-9_-]+/media$", session.MediaPath);
+            Assert.Matches("^/cast/v1/[A-Za-z0-9_-]+/poster$", session.PosterPath);
+            Assert.Empty(session.TextTracks);
+            Assert.NotNull(session.ExpiresAt);
+            Assert.Equal(assetId, (await _grants.ValidateAsync(session.MediaPath!.Split('/')[3]))?.AssetId);
+        }
+    }
+
+    [Fact]
+    public async Task ABookOrAPictureStillDoesNotCast()
+    {
+        var assetId = await SeedAudioAsync("novel.epub", "Books");
+
+        var session = await _sessions.CreateAsync(assetId, _paired.Authority, _paired.Token.Id, PlaybackRead);
+
+        Assert.Equal(CastSessionStatuses.Unavailable, session!.Status);
+        Assert.Null(session.MediaPath);
+    }
+
+    [Fact]
+    public async Task AVideoStillNeedsItsStoredInspectionBeforeACastGrantIsMade_ButAnAudioFileDoesNot()
+    {
+        var video = await SeedVideoAsync("uninspected.mp4", null, null, 0, durationSeconds: 0);
+        var audio = await SeedAudioAsync("uninspected.mp3", "Music");
+
+        Assert.Equal(CastSessionStatuses.Unavailable, (await _sessions.CreateAsync(video, _paired.Authority, _paired.Token.Id, PlaybackRead))!.Status);
+        Assert.Equal(CastSessionStatuses.Ready, (await _sessions.CreateAsync(audio, _paired.Authority, _paired.Token.Id, PlaybackRead))!.Status);
+    }
+
+    private async Task<RequestAuthority> SignInAsync()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var session = new AuthSession
+        {
+            Id = Guid.NewGuid(),
+            AccountId = _paired.Account.Id,
+            ActiveProfileId = Profile.SeedProfileId,
+            TokenHash = Guid.NewGuid().ToString("N"),
+            DeviceId = "browser",
+            DeviceName = "Browser",
+            Client = "web",
+            AuthenticationMethod = "password",
+            SecurityStamp = Guid.NewGuid().ToString("N"),
+            CreatedAt = now,
+            LastSeenAt = now,
+            ExpiresAt = now.AddDays(1),
+        };
+        await _identities.InsertSessionAsync(session);
+        return new RequestAuthority(
+            PrincipalKind.Human, true, _paired.Account.Id, Profile.SeedProfileId, SessionId: session.Id,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            AccountAuthorizationVersion: _paired.Account.AuthorizationVersion,
+            ProfileAuthorizationVersion: _paired.Authority.ProfileAuthorizationVersion);
+    }
+
+    private async Task MoveIntoTheVaultAsync(Guid vault)
+    {
+        var vaultLibrary = Guid.NewGuid().ToString("D");
+        var now = DateTimeOffset.UtcNow;
+        await new VaultLibraryRepository(_database).AddAsync(
+            new MediaEngine.Domain.Contracts.VaultLibrary(vaultLibrary, MediaEngine.Domain.Contracts.VaultLookupSources.None, null, now, null, now, now));
+        using var connection = _database.CreateConnection();
+        // The data store refuses to move an existing file into a Vault, so the same file is entered again as a Vault file.
+        connection.Execute(
+            """
+            CREATE TEMP TABLE vault_copy AS SELECT id, edition_id, content_hash, file_path_root FROM media_assets WHERE id = @vault;
+            DELETE FROM media_assets WHERE id = @vault;
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status, library_id)
+            SELECT id, edition_id, content_hash, file_path_root, 'Normal', @vaultLibrary FROM vault_copy;
+            DROP TABLE vault_copy;
+            """,
+            new { vault, vaultLibrary });
+    }
+
+    private async Task<Guid> SeedAudioAsync(string fileName, string mediaType)
+    {
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var path = Path.Combine(_root, fileName);
+        await File.WriteAllBytesAsync(path, [0, 1, 2, 3]);
+        using var connection = _database.CreateConnection();
+        connection.Execute("INSERT INTO works (id, media_type) VALUES (@workId, @mediaType);", new { workId, mediaType });
+        connection.Execute("INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);", new { editionId, workId });
+        connection.Execute("""
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
+            VALUES (@assetId, @editionId, @hash, @path, 'Normal');
+            """, new { assetId, editionId, hash = assetId.ToString("N"), path });
+        return assetId;
     }
 
     private Task<CastSessionDto?> CreateAsync(Guid assetId) =>

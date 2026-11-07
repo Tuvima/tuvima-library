@@ -2,11 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Contracts.Playback;
 
-/// <summary>The receivers a paired app may ask the Engine to prepare a cast session for.</summary>
+/// <summary>The receivers a caller may ask the Engine to prepare a cast session for.</summary>
 public static class CastReceivers
 {
-    /// <summary>Google's Default Media Receiver (a Chromecast or Google TV with no custom receiver app).</summary>
+    /// <summary>Google's Default Media Receiver (a Chromecast or Google TV with no custom receiver app). Asked for by a paired app only.</summary>
     public const string GoogleCastDefault = "google-cast-default";
+
+    /// <summary>The browser's own device picker (Remote Playback). Asked for by a signed-in Dashboard session only.</summary>
+    public const string BrowserRemotePlayback = "browser-remote-playback";
 }
 
 /// <summary>How ready a cast session is: the TV may start only at <see cref="Ready"/>.</summary>
@@ -17,7 +20,10 @@ public static class CastSessionStatuses
     public const string Unavailable = "unavailable";
 }
 
-/// <summary>What a paired app sends to start a cast session. Only <see cref="CastReceivers.GoogleCastDefault"/> is accepted.</summary>
+/// <summary>
+/// What a caller sends to start a cast session. A paired app sends <see cref="CastReceivers.GoogleCastDefault"/>; a signed-in
+/// Dashboard session sends <see cref="CastReceivers.BrowserRemotePlayback"/>. Any other value is refused.
+/// </summary>
 public sealed record CastSessionRequestDto
 {
     [JsonPropertyName("receiver")] public string Receiver { get; init; } = string.Empty;

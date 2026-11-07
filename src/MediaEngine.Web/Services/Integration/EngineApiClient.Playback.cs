@@ -91,10 +91,10 @@ public sealed partial class EngineApiClient
         }
     }
 
-    // A refusal is an expected answer here (the Engine only lets a paired device cast today), so it is not logged as a warning; the caller logs why.
+    // A refusal is an expected answer here (a Vault item, a bad session, a setting), so it is not logged as a warning; the caller logs why.
     public async Task<CastSessionAttempt> CreateCastSessionAsync(Guid assetId, CancellationToken ct = default)
     {
-        var request = new CastSessionRequestDto { Receiver = CastReceivers.GoogleCastDefault };
+        var request = new CastSessionRequestDto { Receiver = CastReceivers.BrowserRemotePlayback };
         var session = await PostAsync<CastSessionRequestDto, CastSessionDto>(
             $"POST /playback/{assetId}/cast", $"/api/v1/playback/{assetId:D}/cast", request, logAsWarning: false, ct: ct);
         return session is null
