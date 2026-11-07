@@ -1187,35 +1187,11 @@
   <data name="EditorMatchPanel_YouCanLookAtMatches" xml:space="preserve">
     <value>You can look at matches but not change them.</value>
   </data>
-  <data name="EditorTvMatchBrowser_Show" xml:space="preserve">
-    <value>Show</value>
-  </data>
-  <data name="EditorTvMatchBrowser_OpenAShowToSee" xml:space="preserve">
-    <value>Open a show to see its seasons.</value>
-  </data>
-  <data name="EditorTvMatchBrowser_OpenASeasonToSee" xml:space="preserve">
-    <value>Open a season to see its episodes.</value>
-  </data>
-  <data name="EditorTvMatchBrowser_SearchShows" xml:space="preserve">
-    <value>Search shows</value>
-  </data>
-  <data name="EditorTvMatchBrowser_SearchForAShow" xml:space="preserve">
-    <value>Search for a show</value>
-  </data>
-  <data name="EditorTvMatchBrowser_ThisItemSShow" xml:space="preserve">
-    <value>This item's show</value>
-  </data>
   <data name="Common_Open" xml:space="preserve">
     <value>Open</value>
   </data>
   <data name="Common_Select" xml:space="preserve">
     <value>Select</value>
-  </data>
-  <data name="EditorTvMatchBrowser_ThisItemSSeason" xml:space="preserve">
-    <value>This item's season</value>
-  </data>
-  <data name="EditorTvMatchBrowser_ThisEpisode" xml:space="preserve">
-    <value>This episode</value>
   </data>
   <data name="ExtrasSection_FileNotFound" xml:space="preserve">
     <value>File not found</value>
@@ -9122,12 +9098,6 @@
   <data name="EditorFamily_Matched" xml:space="preserve">
     <value>Matched</value>
   </data>
-  <data name="EditorTvMatchBrowser_SearchAllShows" xml:space="preserve">
-    <value>Search all shows</value>
-  </data>
-  <data name="EditorTvMatchBrowser_BestGuess" xml:space="preserve">
-    <value>Best guess</value>
-  </data>
   <data name="ToolsSummaryLine_Downloading" xml:space="preserve">
     <value>{0} downloading</value>
   </data>
@@ -11042,9 +11012,6 @@
   <data name="EditorMatchPanel_ReadingMatch" xml:space="preserve">
     <value>Reading this item's match</value>
   </data>
-  <data name="BulkEditPanel_MatchOneAtATime" xml:space="preserve">
-    <value>Match one item at a time: open an item and use its Match tab.</value>
-  </data>
   <data name="EditorMatchResults_LookingUp" xml:space="preserve">
     <value>Looking up…</value>
   </data>
@@ -11323,9 +11290,6 @@
   </data>
   <data name="EditorMatchPanel_CouldNotReachEngine" xml:space="preserve">
     <value>Library could not reach the Engine. Try again.</value>
-  </data>
-  <data name="EditorMatchPanel_ManualPlacement" xml:space="preserve">
-    <value>Season {0}, episode {1} as this item's own details</value>
   </data>
   <data name="EditorMatchPanel_StagedMoves" xml:space="preserve">
     <value>It will also move to {0}.</value>
@@ -11785,5 +11749,149 @@
   </data>
   <data name="EditorSupportingFile_ChooseTrack" xml:space="preserve">
     <value>Choose a track</value>
+  </data>
+  <data name="EditorMatchVerdictBar_Verdict" xml:space="preserve">
+    <value>{0} match</value>
+  </data>
+  <data name="EditorMatchVerdictBar_LengthLine" xml:space="preserve">
+    <value>Your file: {0} · Provider: {1}</value>
+  </data>
+  <data name="EditorTvMatchFlow_Show" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="EditorTvMatchFlow_Year" xml:space="preserve">
+    <value>Year</value>
+  </data>
+  <data name="EditorTvMatchFlow_Shows" xml:space="preserve">
+    <value>Shows</value>
+  </data>
+  <data name="EditorTvMatchFlow_ThisItemsShow" xml:space="preserve">
+    <value>This item's show</value>
+  </data>
+  <data name="EditorTvMatchFlow_BestGuess" xml:space="preserve">
+    <value>Best guess</value>
+  </data>
+  <data name="EditorTvMatchFlow_ChangeShow" xml:space="preserve">
+    <value>Change show</value>
+  </data>
+  <data name="EditorTvMatchFlow_DidNotAnswer" xml:space="preserve">
+    <value>The provider did not answer. Try again.</value>
+  </data>
+  <data name="EditorTvMatchFlow_TypeAShow" xml:space="preserve">
+    <value>Type a show name to search for.</value>
+  </data>
+  <data name="EditorTvMatchFlow_NothingCalled" xml:space="preserve">
+    <value>Nothing called "{0}". Try other words.</value>
+  </data>
+  <data name="EditorTvMatchFlow_NoSeasons" xml:space="preserve">
+    <value>The provider lists no seasons for this show.</value>
+  </data>
+  <data name="EditorTvMatchFlow_NoEpisodes" xml:space="preserve">
+    <value>The provider lists no episodes for this season.</value>
+  </data>
+  <data name="EditorTvMatchFlow_SeasonCount" xml:space="preserve">
+    <value>Seasons: {0}</value>
+  </data>
+  <data name="EditorTvMatchFlow_Specials" xml:space="preserve">
+    <value>Specials</value>
+  </data>
+  <data name="EditorTvMatchFlow_Season" xml:space="preserve">
+    <value>Season {0}</value>
+  </data>
+  <data name="EditorTvMatchFlow_SeasonLabel" xml:space="preserve">
+    <value>Season</value>
+  </data>
+  <data name="EditorTvMatchFlow_SuggestedFileName" xml:space="preserve">
+    <value>Suggested from filename: {0}</value>
+  </data>
+  <data name="EditorTvMatchFlow_SuggestedAbsolute" xml:space="preserve">
+    <value>Suggested from filename: absolute number {0} is {1} at the provider</value>
+  </data>
+  <data name="EditorTvMatchFlow_SuggestedRuntime" xml:space="preserve">
+    <value>Suggested from runtime: {0}</value>
+  </data>
+  <data name="EditorTvMatchFlow_SuggestedAirOrder" xml:space="preserve">
+    <value>Suggested by air order: {0}</value>
+  </data>
+  <data name="EditorTvMatchFlow_ChooseAnEpisode" xml:space="preserve">
+    <value>Choose an episode</value>
+  </data>
+  <data name="EditorTvMatchFlow_ColEpisode" xml:space="preserve">
+    <value>Episode</value>
+  </data>
+  <data name="EditorTvMatchFlow_ColTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorTvMatchFlow_ColAired" xml:space="preserve">
+    <value>Air date</value>
+  </data>
+  <data name="EditorTvMatchFlow_ColRuntime" xml:space="preserve">
+    <value>Runtime</value>
+  </data>
+  <data name="EditorTvMatchFlow_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Artist" xml:space="preserve">
+    <value>Artist</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Album" xml:space="preserve">
+    <value>Album</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Song" xml:space="preserve">
+    <value>Song</value>
+  </data>
+  <data name="EditorMusicMatchFlow_AlbumsAndReleases" xml:space="preserve">
+    <value>Albums and releases</value>
+  </data>
+  <data name="EditorMusicMatchFlow_CurrentRelease" xml:space="preserve">
+    <value>Current release</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Suggested" xml:space="preserve">
+    <value>Suggested</value>
+  </data>
+  <data name="EditorMusicMatchFlow_DiscsAndTracks" xml:space="preserve">
+    <value>Discs and tracks</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Disc" xml:space="preserve">
+    <value>Disc {0}</value>
+  </data>
+  <data name="EditorMusicMatchFlow_DiscTitled" xml:space="preserve">
+    <value>Disc {0}: {1}</value>
+  </data>
+  <data name="EditorMusicMatchFlow_DidNotAnswer" xml:space="preserve">
+    <value>The provider did not answer. Try again.</value>
+  </data>
+  <data name="EditorMusicMatchFlow_TrackCount" xml:space="preserve">
+    <value>{0} tracks</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Stays" xml:space="preserve">
+    <value>Stays on {0} as disc {1} track {2}.</value>
+  </data>
+  <data name="EditorMusicMatchFlow_MovesFromTrack" xml:space="preserve">
+    <value>Moves from {0} track {1} to {2} disc {3} track {4}; the song's album, artist and cover follow.</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Moves" xml:space="preserve">
+    <value>Moves from {0} to {1} disc {2} track {3}; the song's album, artist and cover follow.</value>
+  </data>
+  <data name="EditorGroupMatchPanel_Heading" xml:space="preserve">
+    <value>Match {0} {1}</value>
+  </data>
+  <data name="EditorGroupMatchPanel_LineUp" xml:space="preserve">
+    <value>Line up</value>
+  </data>
+  <data name="EditorGroupMatchPanel_Summary" xml:space="preserve">
+    <value>{0} of {1} line up with {2} by their own numbers.</value>
+  </data>
+  <data name="EditorGroupMatchPanel_CheckMatch" xml:space="preserve">
+    <value>Check match</value>
+  </data>
+  <data name="EditorGroupMatchPanel_Apply" xml:space="preserve">
+    <value>Apply match to {0}</value>
+  </data>
+  <data name="EditorMatchPanel_EpisodesFollow" xml:space="preserve">
+    <value>{0} episodes follow {1} by number; {2} go to Needs Review</value>
+  </data>
+  <data name="EditorMatchPanel_EpisodesAsTheyAre" xml:space="preserve">
+    <value>Episodes as they are now</value>
   </data>
 </root>

@@ -40,6 +40,13 @@ public sealed class FilenameCleaningConfiguration
     [JsonPropertyName("season_episode_patterns")]
     public List<string> SeasonEpisodePatterns { get; set; } = [];
 
+    /// <summary>
+    /// Regular expressions with the named group <c>e</c> that read an absolute episode number, for shows numbered straight through
+    /// without seasons (anime). Used only when no season-and-episode pattern matches. Optional.
+    /// </summary>
+    [JsonPropertyName("absolute_episode_patterns")]
+    public List<string> AbsoluteEpisodePatterns { get; set; } = [];
+
     /// <summary>A regular expression for a folder that names a season.</summary>
     [JsonPropertyName("season_folder_pattern")]
     public string SeasonFolderPattern { get; set; } = string.Empty;

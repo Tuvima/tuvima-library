@@ -106,6 +106,16 @@ public sealed class EditorMatchLocalEvidenceDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Number { get; init; }
 
+    /// <summary>For a TV episode, the title the file name carries after its season and episode ("Echoes in the Dark"); null when it says none.</summary>
+    [JsonPropertyName("episode_title")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EpisodeTitle { get; init; }
+
+    /// <summary>For a song, the disc the file name or tags name; null when they say none.</summary>
+    [JsonPropertyName("disc")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Disc { get; init; }
+
     /// <summary>The creator the tags name: the author, the artist or the director.</summary>
     [JsonPropertyName("creator")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

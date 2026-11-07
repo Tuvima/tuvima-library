@@ -1,0 +1,375 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Globalization
+@using System.Net.Http
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Matching
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorMusicMatchFlow> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tab's music flow (universal editor v5, 3c, mockup G4): Artist, Album and Song boxes, the "Albums and releases" list with the current
+   release marked and the one that fits the file suggested, then the chosen release's discs and tracks with the track that fits the file
+   pre-selected and each recording's disambiguation in its row. A pick shows what it would do ("Moves from Album A track 4 to Album B disc 1
+   track 7; the song's album, artist and cover follow."), the verdict and Apply match. Choosing only hands the pick up; the match, the album
+   move and the file move are staged by the Match tab and written on Save changes. *@
+<div class="tl-musicflow" data-testid="music-flow">
+    <div class="tl-musicflow__search">
+        @foreach (var box in Boxes)
+        {
+            <div class="tl-musicflow__field">
+                <AppTextField Label="@box.Label" Value="@box.Get()" ValueChanged="@(value => box.Set(value ?? string.Empty))" Immediate="true" OnKeyDown="OnSearchKey"
+                              aria-label="@box.Label" data-testid="@("music-flow-" + box.Key)" />
+            </div>
+        }
+        <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                   Disabled="@(_releasesLoading || !HasWords)" OnClick="SearchAsync" data-testid="music-flow-search" />
+    </div>
+
+    @if (_releasesLoading)
+    {
+        <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_releasesMessage))
+    {
+        <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="music-flow-message">@_releasesMessage</AppAlert>
+    }
+    else if (_releases.Count > 0)
+    {
+        <section aria-label="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" data-testid="music-flow-releases">
+            <h3 class="tl-match__section-heading">@L["EditorMusicMatchFlow_AlbumsAndReleases"]</h3>
+            <div class="tl-match__results" role="list">
+                @foreach (var release in _releases)
+                {
+                    var active = _release?.ReleaseId == release.ReleaseId;
+                    <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(active ? "true" : "false")"
+                                  data-testid="music-flow-release" OnClick="@(() => ChooseReleaseAsync(release))">
+                        <span class="tl-match__text">
+                            <span class="tl-match__title">
+                                <span>@release.Title</span>
+                                @if (release.IsCurrent) { <AppChip Text="@L["EditorMusicMatchFlow_CurrentRelease"].Value" Tone="AppUiTone.Neutral" /> }
+                                @if (release.IsSuggested) { <AppChip Text="@L["EditorMusicMatchFlow_Suggested"].Value" Tone="AppUiTone.Success" /> }
+                            </span>
+                            <span class="tl-match__meta">@ReleaseLine(release)</span>
+                        </span>
+                    </AppRowButton>
+                }
+            </div>
+        </section>
+    }
+
+    @if (_tracksLoading)
+    {
+        <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+    }
+    else if (_tracksProblem is not null)
+    {
+        <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="music-flow-problem">@_tracksProblem</AppAlert>
+    }
+    else if (_tracks is not null && _release is not null)
+    {
+        <section aria-label="@L["EditorMusicMatchFlow_DiscsAndTracks"].Value" data-testid="music-flow-tracks">
+            <h3 class="tl-match__section-heading">@L["EditorMusicMatchFlow_DiscsAndTracks"]</h3>
+            @foreach (var disc in _tracks.Discs)
+            {
+                if (_tracks.Discs.Count > 1 || !string.IsNullOrWhiteSpace(disc.Title))
+                {
+                    <div class="tl-match__meta tl-musicflow__disc">@(string.IsNullOrWhiteSpace(disc.Title) ? L["EditorMusicMatchFlow_Disc", disc.Number].Value : L["EditorMusicMatchFlow_DiscTitled", disc.Number, disc.Title].Value)</div>
+                }
+
+                <div class="tl-match__results" role="list">
+                    @foreach (var track in disc.Tracks)
+                    {
+                        var active = ReferenceEquals(_pickedTrack, track);
+                        <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(active ? "true" : "false")"
+                                      data-testid="music-flow-track" data-disc="@track.Disc" data-track="@track.Track" OnClick="@(() => PickTrackAsync(track))">
+                            <span class="tl-musicflow__number">@track.Track.ToString(CultureInfo.InvariantCulture)</span>
+                            <span class="tl-match__text">
+                                <span class="tl-match__title"><span>@track.Title</span> @if (track.IsSuggested) { <AppChip Text="@L["EditorMusicMatchFlow_Suggested"].Value" Tone="AppUiTone.Success" /> }</span>
+                                <span class="tl-match__meta" data-testid="music-flow-track-line">@TrackLine(track)</span>
+                            </span>
+                        </AppRowButton>
+                    }
+                </div>
+            }
+        </section>
+    }
+
+    @if (_candidate is not null && !string.IsNullOrWhiteSpace(_preview))
+    {
+        <p class="tl-musicflow__preview" data-testid="music-flow-preview">@_preview</p>
+    }
+
+    <EditorMatchVerdictBar Result="_judged" Judging="_judging" ShowCancel="ShowCancel" CanApply="@(CanApply && _candidate is not null && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel" />
+</div>
+
+@code {
+    private sealed record Box(string Key, string Label, Func<string> Get, Action<string> Set);
+
+    private CancellationTokenSource? _cts;
+    private Guid _startedFor;
+    private string _artist = string.Empty;
+    private string _album = string.Empty;
+    private string _song = string.Empty;
+    private bool _releasesLoading;
+    private string? _releasesMessage;
+    private IReadOnlyList<EditorMusicReleaseDto> _releases = [];
+    private EditorMusicReleaseDto? _release;
+    private bool _tracksLoading;
+    private string? _tracksProblem;
+    private EditorMusicReleaseTracksDto? _tracks;
+    private EditorMusicTrackDto? _pickedTrack;
+    private ItemCanonicalRetailCandidateDto? _candidate;
+    private EditorMatchResultDto? _judged;
+    private bool _judging;
+    private string? _preview;
+
+    /// <summary>The item being matched (a song).</summary>
+    [Parameter, EditorRequired] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>The boxes the Engine pre-filled from the file name, tags and folders (artist, album, song).</summary>
+    [Parameter] public IReadOnlyList<EditorMatchFieldDto> Fields { get; set; } = [];
+
+    /// <summary>What the Engine read from the file: its track and disc number are the "from" side of the move preview.</summary>
+    [Parameter] public EditorMatchLocalEvidenceDto? Evidence { get; set; }
+
+    /// <summary>True when the person may stage a match (they may edit and an edit session is open).</summary>
+    [Parameter] public bool CanApply { get; set; }
+
+    /// <summary>Shown as Cancel when there is a current match to go back to.</summary>
+    [Parameter] public bool ShowCancel { get; set; }
+
+    /// <summary>Raised by Apply match with the chosen track as a song record carrying its exact release and recording.</summary>
+    [Parameter] public EventCallback<ItemCanonicalRetailCandidateDto> OnApplyMatch { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private IReadOnlyList<Box> Boxes =>
+    [
+        new("artist", L["EditorMusicMatchFlow_Artist"].Value, () => _artist, value => _artist = value),
+        new("album", L["EditorMusicMatchFlow_Album"].Value, () => _album, value => _album = value),
+        new("song", L["EditorMusicMatchFlow_Song"].Value, () => _song, value => _song = value),
+    ];
+
+    private bool HasWords => !string.IsNullOrWhiteSpace(_album) || !string.IsNullOrWhiteSpace(_song);
+
+    protected override void OnParametersSet()
+    {
+        if (Subject is null || _startedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        _startedFor = Subject.EntityId;
+        _artist = FieldValue("artist");
+        _album = FieldValue("album");
+        _song = FieldValue("song");
+        _releases = [];
+        _releasesMessage = null;
+        _release = null;
+        _tracks = null;
+        ClearPick();
+    }
+
+    private string FieldValue(string key) => Fields.FirstOrDefault(field => string.Equals(field.Key, key, StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+
+    private Task OnSearchKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private void ClearPick()
+    {
+        _pickedTrack = null;
+        _candidate = null;
+        _judged = null;
+        _judging = false;
+        _preview = null;
+    }
+
+    private CancellationToken NewToken()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        return _cts.Token;
+    }
+
+    private async Task SearchAsync()
+    {
+        if (Subject is null || !HasWords)
+        {
+            return;
+        }
+
+        var ct = NewToken();
+        _releasesLoading = true;
+        _releasesMessage = null;
+        _releases = [];
+        _release = null;
+        _tracks = null;
+        _tracksProblem = null;
+        ClearPick();
+        StateHasChanged();
+        EditorMusicReleasesDto? found = null;
+        try
+        {
+            found = await Api.GetEditorMusicReleasesAsync(Subject.EntityId, _artist.Trim(), _album.Trim(), _song.Trim(), ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The music match flow could not list releases for {EntityId}", Subject.EntityId);
+        }
+
+        _releasesLoading = false;
+        if (found is null)
+        {
+            _releasesMessage = L["EditorMusicMatchFlow_DidNotAnswer"].Value;
+            return;
+        }
+
+        _releases = found.Releases;
+        _releasesMessage = found.Message;
+
+        // The release that fits the file is opened for the person; failing that, the one the song is on now.
+        var start = _releases.FirstOrDefault(release => release.IsSuggested) ?? _releases.FirstOrDefault(release => release.IsCurrent);
+        if (start is not null)
+        {
+            await ChooseReleaseAsync(start);
+        }
+    }
+
+    private async Task ChooseReleaseAsync(EditorMusicReleaseDto release)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        var ct = NewToken();
+        _release = release;
+        _tracks = null;
+        _tracksProblem = null;
+        _tracksLoading = true;
+        ClearPick();
+        StateHasChanged();
+        try
+        {
+            _tracks = await Api.GetEditorMusicReleaseTracksAsync(Subject.EntityId, release.ReleaseId, ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The music match flow could not read release {ReleaseId} for {EntityId}", release.ReleaseId, Subject.EntityId);
+        }
+
+        _tracksLoading = false;
+        if (_tracks is null)
+        {
+            _tracksProblem = L["EditorMusicMatchFlow_DidNotAnswer"].Value;
+            return;
+        }
+
+        var suggested = _tracks.Discs.SelectMany(disc => disc.Tracks).FirstOrDefault(track => track.IsSuggested);
+        if (suggested is not null)
+        {
+            await PickTrackAsync(suggested);
+        }
+    }
+
+    private async Task PickTrackAsync(EditorMusicTrackDto track)
+    {
+        if (Subject is null || _release is not { } release)
+        {
+            return;
+        }
+
+        _pickedTrack = track;
+        var candidate = EditorMatchCandidates.ForMusicTrack(
+            release.ReleaseId, release.ReleaseGroupId, release.Title, release.Artist, release.Year, release.HasCover,
+            track.RecordingId, track.Title, track.Artist, track.Disc, track.Track, track.LengthSeconds, track.Disambiguation);
+        _candidate = candidate;
+        _judged = null;
+        _preview = null;
+        _judging = true;
+        StateHasChanged();
+        try
+        {
+            var verdict = Api.GetEditorMatchVerdictAsync(Subject.EntityId, candidate);
+            var placement = Api.GetEditorMatchPlacementAsync(Subject.EntityId, candidate);
+            await Task.WhenAll(verdict, placement);
+            if (!ReferenceEquals(_candidate, candidate))
+            {
+                return;
+            }
+
+            _judged = verdict.Result ?? new EditorMatchResultDto { Candidate = candidate, ProviderName = candidate.ProviderName, Title = candidate.Title, Verdict = EditorMatchVerdicts.Possible };
+            _preview = PreviewText(placement.Result, release, track);
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The music match flow could not judge a pick for {EntityId}", Subject.EntityId);
+            _judged = new EditorMatchResultDto { Candidate = candidate, ProviderName = candidate.ProviderName, Title = candidate.Title, Verdict = EditorMatchVerdicts.Possible };
+        }
+        finally
+        {
+            if (ReferenceEquals(_candidate, candidate))
+            {
+                _judging = false;
+            }
+        }
+    }
+
+    // What choosing this track would do to the song's album: where it sits now, where it will sit, and what follows it there.
+    private string PreviewText(EditorMatchPlacementDto? placement, EditorMusicReleaseDto release, EditorMusicTrackDto track)
+    {
+        var disc = track.Disc.ToString(CultureInfo.InvariantCulture);
+        var number = track.Track.ToString(CultureInfo.InvariantCulture);
+        var from = placement?.CurrentParentLabel;
+        var moves = placement?.DestinationId is not null
+            && !string.IsNullOrWhiteSpace(from)
+            && !string.Equals(from, placement.ParentLabel, StringComparison.OrdinalIgnoreCase);
+        if (!moves)
+        {
+            return L["EditorMusicMatchFlow_Stays", placement?.ParentLabel ?? release.Title, disc, number].Value;
+        }
+
+        return Evidence?.Number is { } now
+            ? L["EditorMusicMatchFlow_MovesFromTrack", from!, now.ToString(CultureInfo.InvariantCulture), placement!.ParentLabel!, disc, number].Value
+            : L["EditorMusicMatchFlow_Moves", from!, placement!.ParentLabel!, disc, number].Value;
+    }
+
+    private Task ApplyAsync() => _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
+
+    private string ReleaseLine(EditorMusicReleaseDto release) => string.Join(" · ", new[]
+    {
+        release.Artist,
+        release.Year,
+        release.Label,
+        release.Format,
+        release.Country,
+        release.TrackCount > 0 ? L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value : null,
+    }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    // Artist, length and the recording's own note ("live at Wembley", "2011 remaster") tell the recordings of one song apart.
+    private static string TrackLine(EditorMusicTrackDto track) => string.Join(" · ", new[] { track.Artist, track.LengthText, track.Disambiguation }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

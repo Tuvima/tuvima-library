@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Matching;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain;
@@ -45,39 +46,10 @@ public static class EditorTvMatchCandidates
         },
     };
 
-    public static ItemCanonicalRetailCandidateDto ForEpisode(TvMatchBrowserEpisodeDto episode)
-    {
-        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [MetadataFieldConstants.ShowName] = episode.ShowName,
-            [MetadataFieldConstants.SeasonNumber] = episode.SeasonNumber.ToString(CultureInfo.InvariantCulture),
-            [MetadataFieldConstants.EpisodeNumber] = episode.EpisodeNumber.ToString(CultureInfo.InvariantCulture),
-            [MetadataFieldConstants.EpisodeTitle] = episode.Title,
-        };
-        return new ItemCanonicalRetailCandidateDto
-        {
-            CandidateId = $"{ProviderName}:{episode.EpisodeId}",
-            ProviderId = WellKnownProviders.Tvdb.ToString("D"),
-            ProviderName = ProviderName,
-            ProviderItemId = episode.EpisodeId,
-            Title = episode.Title,
-            Year = episode.Aired is { Length: >= 4 } aired ? aired[..4] : null,
-            Description = episode.Overview,
-            CoverUrl = episode.ImageUrl,
-            IsApplicable = true,
-            RequiredFields = fields,
-            SuggestedFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-            // Facts the Match tab compares but never stages (air date), kept apart from the fields a save would write.
-            ExtraFields = string.IsNullOrWhiteSpace(episode.Aired)
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [MetadataFieldConstants.AirDate] = episode.Aired! },
-            BridgeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [BridgeIdKeys.TvdbId] = episode.SeriesId,
-                [BridgeIdKeys.TvdbEpisodeId] = episode.EpisodeId,
-            },
-        };
-    }
+    public static ItemCanonicalRetailCandidateDto ForEpisode(TvMatchBrowserEpisodeDto episode) =>
+        EditorMatchCandidates.ForTvEpisode(
+            episode.SeriesId, episode.ShowName, episode.EpisodeId, episode.SeasonNumber, episode.EpisodeNumber, episode.Title,
+            episode.Aired, episode.Overview, episode.ImageUrl, episode.RuntimeMinutes);
 
     /// <summary>"S02 E05" for an episode row; "Specials" season 0 reads "S00 E03".</summary>
     public static string SlotLabel(int seasonNumber, int episodeNumber) =>

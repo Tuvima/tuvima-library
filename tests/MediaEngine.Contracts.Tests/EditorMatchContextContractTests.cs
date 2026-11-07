@@ -26,7 +26,7 @@ public sealed class EditorMatchContextContractTests
         var back = JsonSerializer.Deserialize<EditorMatchContextDto>(json)!;
 
         Assert.Equal(
-            "{\"entity_id\":\"" + id.ToString("D") + "\",\"media_type\":\"TV\",\"file_name\":\"Show.S02E05.mkv\",\"parsed_title\":null,\"parsed_show\":\"Show\",\"parsed_season\":2,\"parsed_episode\":5,\"parsed_year\":null,"
+            "{\"entity_id\":\"" + id.ToString("D") + "\",\"media_type\":\"TV\",\"file_name\":\"Show.S02E05.mkv\",\"parsed_title\":null,\"parsed_show\":\"Show\",\"parsed_season\":2,\"parsed_episode\":5,\"parsed_year\":null,\"parsed_absolute\":null,"
             + "\"best_guess\":{\"provider_name\":\"tvdb\",\"provider_item_id\":\"200\",\"name\":\"Show\",\"year\":\"2015\",\"image_url\":null}}",
             json);
         Assert.Equal("200", back.BestGuess!.ProviderItemId);

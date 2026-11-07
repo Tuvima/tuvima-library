@@ -121,13 +121,15 @@
     private bool RemovalStaged => Session is not null && Subject is not null
         && Session.Pending.Changes.Any(change => change.Kind == EditSessionChangeKinds.MatchRemoval && change.EntityId == Subject.EntityId);
 
-    // The TV show and episode lists live in the TV browser (WP9a rebuilds them); every other kind uses the search below.
+    // A show page and an episode page use the TV flow, a song uses the music flow; every other kind uses the search below.
     private bool UsesTvBrowser => Subject is not null && EditorTvMatchCandidates.UsesBrowser(Subject.MediaType, Subject.ScopeId);
 
     // An item with no provider of its own can still offer a box (a local video: paste a YouTube link or ID), so the row follows what the Engine sent.
     private bool HasProviders => _setup is { Providers.Count: > 0 };
 
-    private bool ShowsSearchBoxes => HasProviders && !UsesTvBrowser && (_changing || !IsMatched) && !_wikidata && _loading == false;
+    private bool UsesMusicFlow => _kind == MediaEngine.Domain.Configuration.EditorKinds.Song && HasProviders;
+
+    private bool ShowsSearchBoxes => HasProviders && !UsesTvBrowser && !UsesMusicFlow && (_changing || !IsMatched) && !_wikidata && _loading == false;
 
     private bool CanSearch => _kind is not null && HasProviders && ProviderIsReady && _setup!.Fields.Count > 0;
 
@@ -368,53 +370,18 @@
         return Task.CompletedTask;
     }
 
-    // A pick in the TV browser becomes the same kind of candidate a search result is, so Apply match stages it the same way.
-    private Task OnShowChosenAsync(TvMatchBrowserShowDto show) => PickAsync(EditorTvMatchCandidates.ForShow(show));
-
-    private Task OnEpisodeChosenAsync(TvMatchBrowserEpisodeDto episode) => PickAsync(EditorTvMatchCandidates.ForEpisode(episode));
-
-    // Season and episode typed by hand, for a file the provider has nothing for: staged as the item's own details.
-    private Task OnManualPlacementAsync((int Season, int Episode) numbers)
-    {
-        if (!CanEdit || Subject is null || Session is not { IsActive: true })
-        {
-            return Task.CompletedTask;
-        }
-
-        var season = numbers.Season.ToString(CultureInfo.InvariantCulture);
-        var episode = numbers.Episode.ToString(CultureInfo.InvariantCulture);
-        Session.Pending.SetField(Subject.EntityId, MetadataFieldConstants.SeasonNumber, season);
-        Session.Pending.SetField(Subject.EntityId, MetadataFieldConstants.EpisodeNumber, episode);
-        _staged = L["EditorMatchPanel_ManualPlacement", season, episode].Value;
-        _changing = false;
-        return Task.CompletedTask;
-    }
-
-    private Task PickAsync(ItemCanonicalRetailCandidateDto candidate)
-    {
-        _selected = new EditorMatchResultDto
-        {
-            Candidate = candidate,
-            ProviderName = candidate.ProviderName,
-            Title = candidate.Title,
-            Year = candidate.Year,
-            Verdict = EditorMatchVerdicts.Possible,
-        };
-        _edition = null;
-        return Task.CompletedTask;
-    }
-
     // Stages the choice: an Identity entry in the pending list, plus the move the match brings when it names another place (a Relationship
     // change, and a FileMove only in a Managed folder). Review shows them and Save changes writes them. Nothing is written here.
-    private async Task ApplyAsync()
+    private Task ApplyAsync() => (_edition ?? _selected) is { } chosen ? ApplyCandidateAsync(chosen.Candidate) : Task.CompletedTask;
+
+    // The TV and music flows hand up the record they judged; it is staged exactly as a search result is.
+    private async Task ApplyCandidateAsync(ItemCanonicalRetailCandidateDto candidate)
     {
-        var chosen = _edition ?? _selected;
-        if (!CanApply || Subject is null || Session is null || chosen is null)
+        if (!CanEdit || Subject is null || Session is not { IsActive: true })
         {
             return;
         }
 
-        var candidate = chosen.Candidate;
         var id = Subject.EntityId;
         var request = EditorMatchRules.RequestFor(candidate, Subject, Subject.TargetGroup);
         request.ClearAutoAlignedWikidata = true;
@@ -435,6 +402,7 @@
                 ? null
                 : await Api.GetEditorMatchPlacementAsync(id, candidate);
             StagePlacement(id, placement);
+            await StageShowRematchAsync(id, candidate);
         }
         finally
         {
@@ -448,34 +416,48 @@
         _edition = null;
     }
 
+    // A show whose match changes takes its seasons and episodes with it: one Review row says how many follow by number and how many go to
+    // Needs Review. No switch and no table; the person sees the count and Save changes does the rest.
+    private async Task StageShowRematchAsync(Guid id, ItemCanonicalRetailCandidateDto candidate)
+    {
+        Unstage(EditSessionChangeKinds.ChildRematch);
+        if (Subject is not { ScopeId: var scope } || !string.Equals(scope, "series", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(candidate.ProviderItemId))
+        {
+            return;
+        }
+
+        var preview = await Api.PreviewShowChildRematchAsync(id, candidate.ProviderItemId);
+        if (preview is null || preview.EpisodeCount == 0)
+        {
+            return;
+        }
+
+        Session!.Pending.SetTarget(
+            EditSessionChangeKinds.ChildRematch,
+            id,
+            EditSessionChildRematchTarget.Serialize(new ShowChildRematchTarget { SeriesId = candidate.ProviderItemId }),
+            label: L["EditorMatchPanel_EpisodesFollow", preview.MatchableCount, candidate.Title, preview.NotFoundCount].Value,
+            before: L["EditorMatchPanel_EpisodesAsTheyAre"].Value);
+    }
+
     private void StagePlacement(Guid id, EditorMatchPlacementDto? placement)
     {
-        var pending = Session!.Pending;
-        Unstage(EditSessionChangeKinds.Relationship);
-        Unstage(EditSessionChangeKinds.FileMove);
+        EditorMatchStaging.StageMove(Session!.Pending, id, placement);
         _stagedMove = null;
         if (placement is null)
         {
             return;
         }
 
-        if (placement.DestinationId is { } destination && !string.IsNullOrWhiteSpace(placement.ParentLabel))
+        if (placement.DestinationId is not null && !string.IsNullOrWhiteSpace(placement.ParentLabel))
         {
-            pending.SetTarget(
-                EditSessionChangeKinds.Relationship,
-                id,
-                destination.ToString("D"),
-                label: placement.ParentLabel,
-                before: string.IsNullOrWhiteSpace(placement.CurrentParentLabel) ? EditReviewRows.AsItIsNow : placement.CurrentParentLabel);
             _stagedMove = L["EditorMatchPanel_StagedMoves", placement.ParentLabel].Value;
         }
 
         // Files follow the match only in a Managed folder; a read-only folder keeps its files and the match still applies.
-        if (placement.Managed && !string.IsNullOrWhiteSpace(placement.FromPath) && !string.IsNullOrWhiteSpace(placement.ToPath))
-        {
-            pending.SetTarget(EditSessionChangeKinds.FileMove, id, null, label: placement.ToPath, before: placement.FromPath);
-        }
-        else if (!placement.Managed && placement.DestinationId is not null)
+        if (!placement.Managed && placement.DestinationId is not null)
         {
             _stagedMove = string.Join(" ", new[] { _stagedMove, L["EditorMatchPanel_StagedFilesStay"].Value }.Where(part => !string.IsNullOrWhiteSpace(part)));
         }
@@ -500,6 +482,7 @@
             Unstage(EditSessionChangeKinds.Identity);
             Unstage(EditSessionChangeKinds.Relationship);
             Unstage(EditSessionChangeKinds.FileMove);
+            Unstage(EditSessionChangeKinds.ChildRematch);
             Session.Pending.SetTarget(
                 EditSessionChangeKinds.MatchRemoval,
                 subject.EntityId,
@@ -693,14 +676,13 @@
             }
             @if (UsesTvBrowser)
             {
-                @* WP9a replaces the TV browser with the show-first flow; until then a pick here is staged with Apply match. *@
-                <EditorTvMatchBrowser Subject="Subject" CanEdit="CanEdit" Unmatched="@(!IsMatched)" Context="_tvContext"
-                                      OnShowChosen="OnShowChosenAsync" OnEpisodeChosen="OnEpisodeChosenAsync" OnManualPlacement="OnManualPlacementAsync" />
-                @if (_selected is not null)
-                {
-                    <EditorMatchResults Results="@(new[] { _selected })" Selected="_selected" SelectedChanged="OnSelectedAsync" Evidence="_setup?.Evidence"
-                                        CanApply="CanApply" OnApply="ApplyAsync" ShowCancel="IsMatched" OnCancel="CancelChange" />
-                }
+                <EditorTvMatchFlow Subject="Subject" Unmatched="@(!IsMatched)" Context="_tvContext" Evidence="_setup?.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
+                                   ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange" />
+            }
+            else if (UsesMusicFlow)
+            {
+                <EditorMusicMatchFlow Subject="Subject" Fields="_setup!.Fields" Evidence="_setup.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
+                                      ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange" />
             }
             else
             {

@@ -27,6 +27,9 @@ public partial interface IEngineApiClient
     /// <summary>The Match tool's Episode column: the real episode records of one season, each saying whether a library file holds it.</summary>
     Task<TvMatchBrowserEpisodesDto?> GetTvMatchBrowserEpisodesAsync(Guid entityId, string seriesId, int seasonNumber, CancellationToken ct = default);
 
+    /// <summary>The one episode of a show that carries an absolute number (a file named for the show's 125th episode), as the provider's season and episode. Null when the show has none or the Engine could not be reached.</summary>
+    Task<TvMatchBrowserEpisodeDto?> GetTvMatchBrowserAbsoluteEpisodeAsync(Guid entityId, string seriesId, int absoluteNumber, CancellationToken ct = default);
+
     /// <summary>The Match tool's starting point: what the item's file name says (show, season, episode) and the provider's best guess for it.</summary>
     Task<EditorMatchContextDto?> GetEditorMatchContextAsync(Guid entityId, CancellationToken ct = default);
 

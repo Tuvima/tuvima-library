@@ -115,6 +115,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchProviderCatalog, MediaEngine.Api.Services.Matching.RetailEditorMatchProviderCatalog>();
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchCandidateSearch, MediaEngine.Api.Services.Matching.CanonicalEditorMatchCandidateSearch>();
         services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchSearchService>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMusicMatchService>();
         services.AddScoped<EditorSuggestDetailsService>();
         services.AddScoped<MediaEngine.Api.Services.Extras.SupportingFileEditorReadService>();
         services.AddScoped<EditorFolderTreeService>();

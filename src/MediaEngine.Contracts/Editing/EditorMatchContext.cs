@@ -38,6 +38,10 @@ public sealed class EditorMatchContextDto
     [JsonPropertyName("parsed_year")]
     public string? ParsedYear { get; set; }
 
+    /// <summary>For TV, an absolute episode number the file name carries in place of a season and episode (a show numbered straight through, as anime is).</summary>
+    [JsonPropertyName("parsed_absolute")]
+    public int? ParsedAbsolute { get; set; }
+
     /// <summary>The provider's top answer for the parsed show; null when no provider is connected or nothing fits.</summary>
     [JsonPropertyName("best_guess")]
     public EditorMatchBestGuessDto? BestGuess { get; set; }
