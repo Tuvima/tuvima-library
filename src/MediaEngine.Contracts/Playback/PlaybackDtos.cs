@@ -632,8 +632,8 @@ public sealed class WatchingSettingsDto
 public sealed class ListeningSettingsDto
 {
     public decimal AudiobookDefaultSpeed { get; set; } = 1.25m;
-    public int SkipBackSeconds { get; set; } = 15;
-    public int SkipForwardSeconds { get; set; } = 15;
+    public int SkipBackSeconds { get; set; } = 10;
+    public int SkipForwardSeconds { get; set; } = 30;
     public int ResumeRewindSeconds { get; set; } = 10;
     public int AudiobookListenQualificationSeconds { get; set; } = 60;
     public int AudiobookHistoryLimit { get; set; } = 25;

@@ -19,7 +19,7 @@
         <PlaybackIconButton Control="@DislikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(false))" />
     }
     <PlaybackItemMenu Media="@Media" Item="@Item" Surface="@Surface" ShowWorkId="@ShowWorkId" SeasonId="@SeasonId" Snapshot="@Snapshot" Commands="@Commands"
-                      IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" ExtraRows="@ExtraMenuRows" />
+                      IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" />
 </div>
 
 @code {
@@ -42,6 +42,9 @@
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
     [Parameter] public EventCallback OnPlaybackSettings { get; set; }
+
+    /// <summary>The Playback settings panel the host draws for music and audiobooks; the "..." menu's Playback settings row opens it.</summary>
+    [Parameter] public RenderFragment<PlaybackAnchoredPanel>? SettingsPanel { get; set; }
 
     /// <summary>Rows the host adds to the end of the item actions menu (packet 15: "Play on another device...").</summary>
     [Parameter] public RenderFragment? ExtraMenuRows { get; set; }

@@ -1,0 +1,15 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Speed panel's fixed footer (unified player v2 D15; mockup screen 5): "Reset to 1×" centered under a hairline. *@
+<div class="psf" data-playback-speed-footer>
+    <AppNativeButton Type="button" Class="psf__reset" data-speed-reset OnClick="ResetAsync">@L["PlaybackSpeed_Reset"]</AppNativeButton>
+</div>
+
+@code {
+    /// <summary>Asks the host to play at normal speed.</summary>
+    [Parameter] public EventCallback<double> RateChanged { get; set; }
+
+    private Task ResetAsync() => RateChanged.InvokeAsync(PlaybackSpeedChoices.Normal);
+}

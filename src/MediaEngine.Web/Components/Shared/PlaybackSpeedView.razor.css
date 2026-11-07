@@ -1,0 +1,90 @@
+/* Mockup screen 5, the Speed panel: body padded 12 / 16, the current speed 40 / 700 centered with "Current speed" 13 px under it, five presets (flex 1,
+   10 px tall padding, 1 px hairline, radius 8, 15 / 600, the ticked one filled with the accent), the slider 22 px below the presets, the range 12 px
+   under the slider, and the 13 px step note 8 px below that. */
+.psv {
+    padding: 4px 8px 0;
+}
+
+.psv__current {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.psv__value {
+    color: var(--playback-text);
+    font: 700 40px/1 var(--font-ui);
+}
+
+.psv__caption {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 4px 0 14px;
+}
+
+.psv__presets {
+    display: flex;
+    gap: 8px;
+}
+
+.psv__preset {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 1;
+    font: 600 15px/1.45 var(--font-ui);
+    gap: 4px;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 0;
+}
+
+.psv__preset:hover {
+    background: var(--playback-state-hover);
+}
+
+.psv__preset:active {
+    background: var(--playback-state-pressed);
+}
+
+.psv__preset.is-selected,
+.psv__preset.is-selected:hover {
+    background: var(--playback-accent);
+    border-color: var(--playback-accent);
+    color: var(--tl-text-on-accent);
+}
+
+.psv__preset:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.psv__tick {
+    --playback-glyph-size: 16px;
+    --playback-glyph-stroke: 2.4;
+    display: inline-flex;
+}
+
+.psv__slider {
+    margin-top: 22px;
+}
+
+.psv__range {
+    color: var(--playback-text-secondary);
+    display: flex;
+    font: 400 12px/1.45 var(--font-ui);
+    justify-content: space-between;
+    padding: 0 4px;
+}
+
+.psv__note {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 8px 0 0;
+    text-align: center;
+}

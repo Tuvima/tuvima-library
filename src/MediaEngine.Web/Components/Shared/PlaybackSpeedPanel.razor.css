@@ -1,0 +1,2 @@
+.playback-speed-panel { display:inline-flex; align-items:center; height:44px; }
+.playback-speed-panel ::deep .playback-popover-trigger { display:grid; place-items:center; min-width:44px; height:44px; padding:0; }

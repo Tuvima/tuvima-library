@@ -11,7 +11,7 @@
    stroke glyph and a 16 / 500 label, separated into groups by hairlines. Add to playlist, Mark as listened / unlistened, history, the "Go to"
    rows and Playback settings change with the media (PlaybackItemMenuCatalog); Favorite and ratings are not repeated here. The More button shows
    selected while the menu is open, and opening it closes any other panel (the panel system allows one at a time). *@
-<PlaybackPanel Kind="menu" Title="@MoreLabel" ToolId="@_toolId" ItemKey="@ItemKey" Surface="@Surface" ShowHeading="false" HeaderLine="@Item?.Title"
+<PlaybackPanel @ref="_menuPanel" Kind="menu" Title="@MoreLabel" ToolId="@_toolId" ItemKey="@ItemKey" Surface="@Surface" ShowHeading="false" HeaderLine="@Item?.Title"
                TriggerClass="playback-item-more" OpenChanged="HandleOpenChangedAsync">
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
     <ChildContent>
@@ -33,6 +33,11 @@
         </div>
     </ChildContent>
 </PlaybackPanel>
+@* Playback settings (music and audiobooks): the host's panel, opened from this menu's row and anchored to the "..." button. *@
+@if (SettingsPanel is not null)
+{
+    @SettingsPanel(new PlaybackAnchoredPanel(_settingsOpen, EventCallback.Factory.Create<bool>(this, SettingsOpenChanged), _menuPanel?.TriggerElement))
+}
 
 @code {
     [Parameter, EditorRequired] public PlaybackBarMedia Media { get; set; }
@@ -50,13 +55,18 @@
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
 
-    /// <summary>Opens the Playback settings of this player. Without a handler the row opens Settings, Playback.</summary>
+    /// <summary>Opens the Playback settings of this player. Without a panel or a handler the row opens Settings, Playback.</summary>
     [Parameter] public EventCallback OnPlaybackSettings { get; set; }
+
+    /// <summary>The Playback settings panel the host draws (unified player v2 D14). The row opens it in place of the Settings page.</summary>
+    [Parameter] public RenderFragment<PlaybackAnchoredPanel>? SettingsPanel { get; set; }
 
     /// <summary>Extra rows the host adds at the end of the menu (the hook packet 15 uses for "Play on another device...").</summary>
     [Parameter] public RenderFragment? ExtraRows { get; set; }
 
     private readonly string _toolId = $"item-actions-{Guid.NewGuid():N}";
+    private PlaybackPanel? _menuPanel;
+    private bool _settingsOpen;
     private PersonalStatusInfo? _status;
     private (DetailEntityType Type, Guid Id)? _statusSubject;
     private string MoreLabel => Media == PlaybackBarMedia.Music ? "More song actions" : "More actions";
@@ -180,8 +190,21 @@
         }
     }
 
+    private void SettingsOpenChanged(bool open) => _settingsOpen = open;
+
+    // The "..." button exists only after the first draw; the settings panel needs it to open from, so draw once more.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && SettingsPanel is not null) StateHasChanged();
+    }
+
     private async Task OpenPlaybackSettingsAsync()
     {
+        if (SettingsPanel is not null)
+        {
+            _settingsOpen = true;
+            return;
+        }
         if (OnPlaybackSettings.HasDelegate)
         {
             await OnPlaybackSettings.InvokeAsync();

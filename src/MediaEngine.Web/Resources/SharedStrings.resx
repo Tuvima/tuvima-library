@@ -6225,12 +6225,6 @@
   <data name="PlaybackSettingsPage_UpToWhereIAm" xml:space="preserve">
     <value>Up to where I am keeps characters you haven't met yet out of Universe pages. Everything shows them all.</value>
   </data>
-  <data name="PlaybackSettingsPage_TheRainHadStoppedBy" xml:space="preserve">
-    <value>The rain had stopped by the time we reached the station.</value>
-  </data>
-  <data name="PlaybackSettingsPage_HowLargeSubtitlesAreIn" xml:space="preserve">
-    <value>How large subtitles are in the player.</value>
-  </data>
   <data name="PlaybackSettingsPage_LoadingPlaybackPreferences" xml:space="preserve">
     <value>Loading playback preferences</value>
   </data>
@@ -6246,9 +6240,6 @@
   <data name="PlaybackSettingsPage_WhereAMovieOrEpisode" xml:space="preserve">
     <value>Where a movie or episode starts when you come back.</value>
   </data>
-  <data name="PlaybackSettingsPage_HowFarThePlayerSkip" xml:space="preserve">
-    <value>How far the player skip buttons jump.</value>
-  </data>
   <data name="PlaybackSettingsPage_HowMuchOfAStory" xml:space="preserve">
     <value>How much of a story the Universe page tells you.</value>
   </data>
@@ -6257,15 +6248,6 @@
   </data>
   <data name="PlaybackSettingsPage_WhichLanguagePlaysFirstAnd" xml:space="preserve">
     <value>Which language plays first, and when subtitles appear.</value>
-  </data>
-  <data name="PlaybackSettingsPage_SubtitleAppearance" xml:space="preserve">
-    <value>Subtitle appearance</value>
-  </data>
-  <data name="PlaybackSettingsPage_HowSubtitlesLookOverThe" xml:space="preserve">
-    <value>How subtitles look over the picture.</value>
-  </data>
-  <data name="PlaybackSettingsPage_SampleOfTheSubtitleStyle" xml:space="preserve">
-    <value>Sample of the subtitle style</value>
   </data>
   <data name="PlaybackToolsStatusCard_ConfiguredProfiles" xml:space="preserve">
     <value>Configured profiles</value>
@@ -7298,15 +7280,6 @@
   </data>
   <data name="PlaybackSeekRail_Bookmark" xml:space="preserve">
     <value>Bookmark</value>
-  </data>
-  <data name="PlaybackSpeedControl_ResetTo1" xml:space="preserve">
-    <value>Reset to 1×</value>
-  </data>
-  <data name="PlaybackSpeedControl_PlaybackSpeed" xml:space="preserve">
-    <value>Playback speed</value>
-  </data>
-  <data name="PlaybackSpeedControl_ResetPlaybackSpeedTo1" xml:space="preserve">
-    <value>Reset playback speed to 1×</value>
   </data>
   <data name="ProviderOnboardingDialog_OpenTroubleshootingHelp" xml:space="preserve">
     <value>Open troubleshooting help</value>
@@ -9528,9 +9501,6 @@
   <data name="PlayerSettings_Title" xml:space="preserve">
     <value>Settings</value>
   </data>
-  <data name="PlayerSettings_PlaybackSpeed" xml:space="preserve">
-    <value>Playback speed</value>
-  </data>
   <data name="PlayerSettings_SleepTimer" xml:space="preserve">
     <value>Sleep timer</value>
   </data>
@@ -9629,12 +9599,6 @@
   </data>
   <data name="PlaybackSettingsPage_ChapterMarksHint" xml:space="preserve">
     <value>Off for video and on for audiobooks until you choose.</value>
-  </data>
-  <data name="PlaybackSettingsPage_BookmarkMarks" xml:space="preserve">
-    <value>Show bookmarks on the bar</value>
-  </data>
-  <data name="PlaybackSettingsPage_BookmarkMarksHint" xml:space="preserve">
-    <value>Little dots where bookmarks were added. The bookmark list works either way.</value>
   </data>
   <data name="VideoBookmarkPane_AddHere" xml:space="preserve">
     <value>+ Bookmark at {0}</value>
@@ -11228,5 +11192,131 @@
   </data>
   <data name="AudioSubtitles_NameForced" xml:space="preserve">
     <value>{0} · Forced</value>
+  </data>
+  <data name="PlaybackSpeed_Title" xml:space="preserve">
+    <value>Playback speed</value>
+  </data>
+  <data name="PlaybackSpeed_Current" xml:space="preserve">
+    <value>Current speed</value>
+  </data>
+  <data name="PlaybackSpeed_Presets" xml:space="preserve">
+    <value>Speed presets</value>
+  </data>
+  <data name="PlaybackSpeed_Slider" xml:space="preserve">
+    <value>Playback speed</value>
+  </data>
+  <data name="PlaybackSpeed_Step" xml:space="preserve">
+    <value>Adjust in steps of 0.05×</value>
+  </data>
+  <data name="PlaybackSpeed_Reset" xml:space="preserve">
+    <value>Reset to 1×</value>
+  </data>
+  <data name="PlaybackSpeed_TriggerLabel" xml:space="preserve">
+    <value>Playback speed {0}</value>
+  </data>
+  <data name="PlaybackSettings_Title" xml:space="preserve">
+    <value>Playback settings</value>
+  </data>
+  <data name="PlaybackSettings_Speed" xml:space="preserve">
+    <value>Playback speed</value>
+  </data>
+  <data name="PlaybackSettings_SpeedNormal" xml:space="preserve">
+    <value>1× · Normal</value>
+  </data>
+  <data name="PlaybackSettings_SkipBack" xml:space="preserve">
+    <value>Skip back</value>
+  </data>
+  <data name="PlaybackSettings_SkipForward" xml:space="preserve">
+    <value>Skip forward</value>
+  </data>
+  <data name="PlaybackSettings_Seconds" xml:space="preserve">
+    <value>{0} seconds</value>
+  </data>
+  <data name="PlaybackSettings_PictureInPicture" xml:space="preserve">
+    <value>Picture-in-picture</value>
+  </data>
+  <data name="PlaybackSettings_Information" xml:space="preserve">
+    <value>Playback information</value>
+  </data>
+  <data name="PlaybackSettings_InformationHelper" xml:space="preserve">
+    <value>Video, audio and connection details</value>
+  </data>
+  <data name="PlaybackSettings_Reset" xml:space="preserve">
+    <value>Reset playback preferences</value>
+  </data>
+  <data name="PlaybackSettings_NotSaved" xml:space="preserve">
+    <value>Your playback preferences could not be saved. Try again.</value>
+  </data>
+  <data name="PlaybackInformation_None" xml:space="preserve">
+    <value>No technical details are available for this file yet.</value>
+  </data>
+  <data name="PlaybackInformation_Video" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="PlaybackInformation_FrameRate" xml:space="preserve">
+    <value>Frame rate</value>
+  </data>
+  <data name="PlaybackInformation_FramesPerSecond" xml:space="preserve">
+    <value>{0} fps</value>
+  </data>
+  <data name="PlaybackInformation_Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="PlaybackInformation_Subtitles" xml:space="preserve">
+    <value>Subtitles</value>
+  </data>
+  <data name="PlaybackInformation_Quality" xml:space="preserve">
+    <value>Audio quality</value>
+  </data>
+  <data name="PlaybackInformation_Container" xml:space="preserve">
+    <value>Container</value>
+  </data>
+  <data name="PlaybackInformation_Delivery" xml:space="preserve">
+    <value>Delivery</value>
+  </data>
+  <data name="PlaybackInformation_ConversionReason" xml:space="preserve">
+    <value>Why it is converted</value>
+  </data>
+  <data name="PlaybackInformation_Connection" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="PlaybackInformation_Bandwidth" xml:space="preserve">
+    <value>Bandwidth</value>
+  </data>
+  <data name="PlaybackInformation_FileBitrate" xml:space="preserve">
+    <value>File bitrate</value>
+  </data>
+  <data name="PlaybackInformation_MegabitsPerSecond" xml:space="preserve">
+    <value>{0} Mbps</value>
+  </data>
+  <data name="PlaybackInformation_KilobitsPerSecond" xml:space="preserve">
+    <value>{0} kbps</value>
+  </data>
+  <data name="PlaybackInformation_Kilohertz" xml:space="preserve">
+    <value>{0} kHz</value>
+  </data>
+  <data name="PlaybackInformation_BitDepth" xml:space="preserve">
+    <value>{0}-bit</value>
+  </data>
+  <data name="PlaybackInformation_Channels" xml:space="preserve">
+    <value>{0} channels</value>
+  </data>
+  <data name="PlaybackInformation_DeliveryConverted" xml:space="preserve">
+    <value>Converted while playing</value>
+  </data>
+  <data name="PlaybackInformation_DeliveryDirect" xml:space="preserve">
+    <value>Played as stored</value>
+  </data>
+  <data name="PlaybackInformation_DeliveryDownloaded" xml:space="preserve">
+    <value>Downloaded copy</value>
+  </data>
+  <data name="PlaybackInformation_ConnectionLocal" xml:space="preserve">
+    <value>On your home network</value>
+  </data>
+  <data name="PlaybackInformation_ConnectionRemote" xml:space="preserve">
+    <value>Away from home</value>
+  </data>
+  <data name="PlaybackSpeed_Unavailable" xml:space="preserve">
+    <value>Playback speed unavailable</value>
   </data>
 </root>

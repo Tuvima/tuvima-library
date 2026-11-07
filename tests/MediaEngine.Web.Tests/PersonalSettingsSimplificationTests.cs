@@ -27,8 +27,10 @@ public sealed class PersonalSettingsSimplificationTests
 
         Assert.Contains("Autoplay next episode", source, StringComparison.Ordinal);
         Assert.Contains("Resume where you left off", source, StringComparison.Ordinal);
-        Assert.Contains("Skip back", source, StringComparison.Ordinal);
-        Assert.Contains("Skip forward", source, StringComparison.Ordinal);
+        // Unified player v2 D14: the skip lengths and the subtitle look live in the player's Playback settings, not here.
+        Assert.DoesNotContain("Skip back", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Skip forward", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SubtitleSize", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Audiobook default speed", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Resume rewind", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Default playback speed", source, StringComparison.Ordinal);

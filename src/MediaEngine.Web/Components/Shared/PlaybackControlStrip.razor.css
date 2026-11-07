@@ -26,14 +26,14 @@
 .playback-control-strip--surface-phone,
 .playback-control-strip--surface-expanded { align-items:start; justify-items:center; }
 .playback-control-strip--appearance-bare.playback-control-strip--surface-dock { display:flex; flex-flow:row nowrap; gap:4px; width:max-content; }
-.playback-control-strip--appearance-bare.playback-control-strip--surface-dock ::deep .playback-speed-control { flex:0 0 var(--playback-control-target); width:var(--playback-control-target); }
+.playback-control-strip--appearance-bare.playback-control-strip--surface-dock ::deep .playback-speed-panel { flex:0 0 var(--playback-control-target); width:var(--playback-control-target); }
 .playback-control-strip ::deep .playback-sleep-timer { flex:0 0 var(--playback-control-target); width:var(--playback-control-target); }
 
 /* Dock tools retain a horizontal intrinsic width beside volume/window controls. */
 
-.playback-control-strip--surface-phone ::deep .playback-speed-control,
+.playback-control-strip--surface-phone ::deep .playback-speed-panel,
 .playback-control-strip--surface-phone ::deep .playback-sleep-timer,
-.playback-control-strip--surface-expanded ::deep .playback-speed-control,
+.playback-control-strip--surface-expanded ::deep .playback-speed-panel,
 .playback-control-strip--surface-expanded ::deep .playback-sleep-timer {
     justify-self: center;
 }

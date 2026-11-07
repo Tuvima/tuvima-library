@@ -269,17 +269,6 @@ public sealed class SubtitleAppearanceTests : AsyncBunitContext
             cut.FindAll(".player-settings-menu__group--slider")[0].QuerySelectorAll(".playback-range-slider__label").Select(label => label.TextContent.Trim()));
     }
 
-    [Fact]
-    public void TheSettingsPreview_FollowsTheShadowSwitchLikeThePlayerDoes()
-    {
-        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/wwwroot/app.css"));
-        var page = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Settings/PlaybackSettingsPage.razor"));
-
-        Assert.Contains(".subtitle-preview[data-subtitle-shadow=\"true\"] { --subtitle-preview-shadow: 0 1px 3px black, 0 0 6px black; }", css, StringComparison.Ordinal);
-        Assert.Contains("data-subtitle-shadow=\"@(Subtitles.SubtitleShadow", page, StringComparison.Ordinal);
-        Assert.DoesNotContain("subtitle-preview[data-subtitle-background=\"false\"] { --subtitle-preview-bg: transparent; --subtitle-preview-shadow", css, StringComparison.Ordinal);
-    }
-
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

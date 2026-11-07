@@ -1064,8 +1064,7 @@ public sealed class UnifiedDetailComponentTests
         var playbackSkipButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css");
         var playbackPrimaryButton = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor");
         var playbackPrimaryButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css");
-        var playbackSpeedControl = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor");
-        var playbackSpeedControlStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
+        var playbackSpeedView = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
         var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor");
         var playbackSleepTimerControlStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css");
         var playbackRangeSlider = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor");
@@ -1204,10 +1203,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("TimerRow(", popupPlayer);
         Assert.DoesNotContain("SleepTimerDisplay", popupPlayer);
         Assert.DoesNotContain("listen-popup-sheet__row--timer", popupPlayer + popupPlayerStyles);
-        Assert.Contains("<AppRangeSlider", playbackSpeedControl);
+        Assert.Contains("<AppRangeSlider", playbackSpeedView);
         Assert.DoesNotContain("<AppRangeSlider", playbackSleepTimerControl);
-        Assert.Contains("Open=\"Open\"", playbackSpeedControl);
-        Assert.Contains("OpenChanged=\"MenuOpenChanged\"", playbackSpeedControl);
         Assert.Contains("type=\"range\"", playbackRangeSlider);
         Assert.Contains("@oninput=\"HandleInputAsync\"", playbackRangeSlider);
         Assert.Contains("_interactiveValue = snapped", playbackRangeSlider);
@@ -1223,10 +1220,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("playback-range-slider__fill", playbackRangeSlider);
         Assert.Contains("playback-range-slider__thumb", playbackRangeSlider);
         Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\" role=", playbackRangeSlider);
-        Assert.Contains("Step=\"0.05\"", playbackSpeedControl);
-        Assert.Contains("PlaybackRateOptions.FormatLabel", playbackSpeedControl);
-        Assert.DoesNotContain("Quick presets", playbackSpeedControl);
-        Assert.DoesNotContain("ResetValue", playbackSpeedControl);
+        Assert.Contains("Step=\"@PlaybackSpeedChoices.Step\"", playbackSpeedView);
+        Assert.Contains("ValueFormatter=\"PlaybackSpeedChoices.Format\"", playbackSpeedView);
+        Assert.DoesNotContain("Quick presets", playbackSpeedView);
+        Assert.DoesNotContain("ResetValue", playbackSpeedView);
         var playbackSleepTimerChoices = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs");
         Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerChoices);
         Assert.Contains("AudiobookSleepTimerModes.EndNext", playbackSleepTimerChoices);
@@ -1235,10 +1232,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", playbackSleepTimerControl);
         Assert.DoesNotContain("AppRangeSlider", playbackSleepTimerControl);
         Assert.DoesNotContain("System.Threading.Timer", playbackSleepTimerControl);
-        Assert.Contains("playback-speed-control__slider", playbackSpeedControl);
-        Assert.DoesNotContain("_pendingValue", playbackSpeedControl);
+        Assert.Contains("AppRangeSlider", playbackSpeedView);
+        Assert.DoesNotContain("_pendingValue", playbackSpeedView);
         Assert.Contains(".app-select__trigger-content", playbackSleepTimerControlStyles);
-        Assert.Contains(".app-select--playback-flat.app-field", playbackSpeedControlStyles);
         Assert.Contains("playback-range-slider__input", playbackRangeSliderStyles);
         Assert.Contains("--playback-range-percent", playbackRangeSliderStyles);
         Assert.Contains("--playback-range-track-inset", playbackRangeSliderStyles);
@@ -1353,7 +1349,7 @@ public sealed class UnifiedDetailComponentTests
         var controls = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor");
         var transport = ReadSource("src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor");
         var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor");
-        var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor");
+        var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
         var sleep = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor");
 
         var full = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
@@ -1367,7 +1363,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("SleepTimerChanged=", full);
         Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full);
         Assert.Contains("<PlaybackSleepTimerControl", controls);
-        Assert.Contains("<PlaybackSpeedControl", controls);
+        Assert.DoesNotContain("PlaybackSpeedControl", controls);
         Assert.Contains("<AppRangeSlider", speed);
         Assert.Contains("availability.CanEndCurrent", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
         Assert.Contains("availability.CanEndNext", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
@@ -1381,7 +1377,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<PlaybackRelativeSkipButton Seconds=\"@SkipForwardSeconds\" Direction=\"forward\"", transport);
         Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", host);
         Assert.DoesNotContain("<PlaybackSleepTimerControl", popup);
-        Assert.DoesNotContain("<PlaybackSpeedControl", popup);
+        Assert.DoesNotContain("<PlaybackSpeedPanel", popup);
         Assert.DoesNotContain("add-audiobook-bookmark", popup);
         Assert.DoesNotContain("TimerRow(", popup);
         Assert.DoesNotContain("SleepTimerDisplay", popup);

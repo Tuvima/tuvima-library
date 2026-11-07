@@ -99,7 +99,7 @@
                            Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))"
                            CommitVolumeOnChange="false" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync"
                            OnTransport="HandleBarTransportAsync" OnTool="HandleBarToolAsync"
-                           HostedTools="@HostedBarTools" OmittedTools="@OmittedBarTools">
+                           HostedTools="@HostedBarTools">
                 <LinkContent Context="link">
                     <MediaEngine.Web.Components.Listen.PlaybackIdentityLink Href="@PlaybackItemRoutes.ForVideoLink(link.Kind, link.Id, BarShowWorkId, Playback.CurrentItem)" Text="@link.Text" />
                 </LinkContent>
@@ -159,6 +159,13 @@
                                          NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" SearchLoading="@_textTrackLoading" SearchStatus="@_textTrackStatus"
                                          CanSetPreferred="@(_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)"
                                          OnSearch="RefreshSubtitlesAsync" OnSetPreferred="SetPreferredSubtitleAsync" />
+                            break;
+                        case PlaybackControlKey.Settings:
+                            <PlaybackSettingsPanel Media="@BarMedia" Surface="video" ToolId="video-settings" ItemKey="@VideoInstanceKey"
+                                                   Rate="@Playback.PlaybackRate" RateChanged="SelectPlaybackRateAsync"
+                                                   SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
+                                                   CanPictureInPicture="@_canPictureInPicture" OnPictureInPicture="EnterPictureInPictureAsync"
+                                                   Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />
                             break;
                     }
                 </ToolContent>
@@ -429,14 +436,11 @@
         CanFullscreen: true,
         IsFullscreen: _isFullscreen,
         Disabled: Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error,
-        ActiveSheet: Tools.OpenToolId switch { "video-context" => "episodes", "video-bookmarks" => "bookmarks", "video-captions" => "audio-subtitles", _ => null });
+        ActiveSheet: Tools.OpenToolId switch { "video-context" => "episodes", "video-bookmarks" => "bookmarks", "video-captions" => "audio-subtitles", "video-settings" => "playback-settings", _ => null });
     private static readonly IReadOnlySet<PlaybackControlKey> HostedBarTools = new HashSet<PlaybackControlKey>
     {
-        PlaybackControlKey.Episodes, PlaybackControlKey.Bookmarks, PlaybackControlKey.AudioSubtitles,
+        PlaybackControlKey.Episodes, PlaybackControlKey.Bookmarks, PlaybackControlKey.AudioSubtitles, PlaybackControlKey.Settings,
     };
-    // The Playback settings gear (speed, skip lengths, picture-in-picture, playback information) is built by a later packet; until then the bar
-    // leaves it out rather than draw a button that does nothing.
-    private static readonly IReadOnlySet<PlaybackControlKey> OmittedBarTools = new HashSet<PlaybackControlKey> { PlaybackControlKey.Settings };
 
     private Task HandleBarTransportAsync(PlaybackControlDefinition control) => control.Command switch
     {
@@ -1299,6 +1303,21 @@
 
     private Task SelectPlaybackRateAsync(double value) =>
         Playback.SetPlaybackRateAsync(value);
+
+    // Playback settings (unified player v2 D14): a new skip length is saved on the profile and the bar's skip buttons take it at once.
+    private async Task ChangeSkipLengthAsync(PlaybackSkipChange change)
+    {
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.SetSkipLengthAsync(change, _lifetimeCancellation.Token)) return;
+        Services.GetService<IAppToastService>()?.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
+
+    // "Reset playback preferences": the skip lengths go back to the defaults and the picture plays at normal speed.
+    private async Task ResetPlaybackPreferencesAsync()
+    {
+        await Playback.SetPlaybackRateAsync(PlaybackSpeedChoices.Normal);
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.ResetSkipLengthsAsync(_lifetimeCancellation.Token)) return;
+        Services.GetService<IAppToastService>()?.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
 
     private async Task ApplyPlaybackRateAsync(double value)
     {

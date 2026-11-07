@@ -2913,17 +2913,6 @@ button.app-menu-item {
     display: none !important;
 }
 
-.playback-speed-control .tl-select-input[tabindex]:not(input),
-.playback-speed-control .tl-input-slot[tabindex]:not(input) {
-    text-align: center !important;
-    justify-content: center !important;
-    color: inherit !important;
-    font-size: var(--tl-font-size-sm) !important;
-    font-weight: 500 !important;
-    font-variant-numeric: tabular-nums;
-    line-height: 1 !important;
-}
-
 .app-select--playback-flat .app-select__selected-check {
     display: none;
 }
@@ -4553,14 +4542,6 @@ input[type="reset"],
 @container playback-settings (min-width: 521px) {
     :root .settings-playback-page .playback-preference-row__select--wide { width: 260px; min-width: 260px; }
 }
-/* The live preview: a dark still frame with one sample line, using the same size and background choices as the player. */
-.subtitle-preview { --subtitle-preview-size: 18px; --subtitle-preview-bg: rgb(0 0 0 / 60%); --subtitle-preview-shadow: none; display: flex; align-items: flex-end; justify-content: center; min-height: 140px; margin-bottom: 14px; padding: 16px 20px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); background: radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--tl-reader-dark-fg) 18%, var(--tl-reader-dark-bg)), var(--tl-reader-dark-bg)); }
-.subtitle-preview[data-subtitle-size="Small"] { --subtitle-preview-size: 14px; }
-.subtitle-preview[data-subtitle-size="Large"] { --subtitle-preview-size: 23px; }
-.subtitle-preview[data-subtitle-background="false"] { --subtitle-preview-bg: transparent; }
-.subtitle-preview[data-subtitle-shadow="true"] { --subtitle-preview-shadow: 0 1px 3px black, 0 0 6px black; }
-.subtitle-preview__line { margin: 0; text-align: center; }
-.subtitle-preview__text { padding: 0.1em 0.4em; background: var(--subtitle-preview-bg); color: white; font-size: var(--subtitle-preview-size); line-height: 1.4; text-shadow: var(--subtitle-preview-shadow); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 
 /* Player subtitles (unified player v2 D13: Background None / Shadow / Box; the soft shadow follows data-subtitle-shadow, so a look with no backing and no shadow is plain text). ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and
    data-subtitle-background from the profile; they become --tl-subtitle-size and --tl-subtitle-bg, which the cues read. */
@@ -4636,11 +4617,6 @@ input[type="reset"],
 .player-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
 .player-settings-menu .player-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
-
-/* Unified player D10: the Playback speed page inside Settings (slider with the current value above it and a Reset to 1x button). */
-.player-settings-menu__speed { display: grid; gap: 12px; padding: 16px 20px 20px; }
-.player-settings-menu__speed output { text-align: center; font-size: var(--tl-control-font-size-md); font-weight: var(--tl-font-weight-semibold); }
-.player-settings-menu__speed button { min-height: 44px; border: 1px solid var(--playback-border); border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }
 
 /* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
 @media (pointer: coarse) { .player-settings-menu .player-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .player-settings-menu .player-settings-menu__choice, .player-settings-menu .player-settings-menu__row { min-height: 48px; } .player-settings-menu__group { flex-wrap: wrap; } }

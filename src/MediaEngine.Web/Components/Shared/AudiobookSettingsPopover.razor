@@ -5,9 +5,9 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The audiobook player's gear (unified player D10): one Settings button in the dock, the More menu and the phone and pop-out full player, in
-   place of the separate Speed and Sleep buttons. It opens the shared PlayerSettingsMenu (Playback speed, Sleep timer, Show bookmarks on the bar)
-   in the shared popover, so it draws in the top layer like the video player's Settings. The gear is underlined while the speed is not 1x or a
-   sleep timer is running. *@
+   place of the separate Speed and Sleep buttons. It opens the shared PlayerSettingsMenu (Sleep timer, Show bookmarks on the bar) in the shared
+   popover, so it draws in the top layer like the video player's Settings. Speed has its own panel (unified player v2 D15). The gear is underlined
+   while a sleep timer is running. *@
 <span class="audiobook-settings @Class" data-audiobook-settings>
     <PlaybackPanel @ref="_popover" Title="@(Title ?? L["PlayerSettings_Title"].Value)" ToolId="@_id" Kind="settings" Surface="@Surface" ShowHeading="false"
                      Open="@Open" OpenChanged="HandleOpenChangedAsync" TriggerClass="@TriggerClassValue">
@@ -17,7 +17,6 @@
         </TriggerContent>
         <ChildContent>
             <PlayerSettingsMenu Experience="PlaybackExperience.Audiobook" OnClose="CloseAsync"
-                                PlaybackRate="@PlaybackRate" PlaybackRateChanged="@PlaybackRateChanged"
                                 SleepTimerState="@SleepTimerState" SleepTimerAvailability="@SleepTimerAvailability" SleepTimerOptionsMinutes="@SleepTimerOptionsMinutes"
                                 SleepTimerDefaultMinutes="@SleepTimerDefaultMinutes" SleepTimerOffersEndOfChapter="@SleepTimerOffersEndOfChapter" SleepTimerChanged="@SleepTimerChanged"
                                 ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="@ShowBookmarksOnBarChanged" />
@@ -48,16 +47,13 @@
 
     private string? TriggerClassValue => string.Join(" ", new[] { IsOn ? "is-on" : null, TriggerClass }.Where(value => !string.IsNullOrWhiteSpace(value))) is { Length: > 0 } value ? value : null;
 
-    /// <summary>True draws the accent underline: the speed is not 1x or a sleep timer is running.</summary>
+    /// <summary>True draws the accent underline: a sleep timer is running.</summary>
     [Parameter] public bool IsOn { get; set; }
 
     /// <summary>Lets the host open or close the menu (for example when the book changes).</summary>
     [Parameter] public bool? Open { get; set; }
 
-    [Parameter] public EventCallback<PlaybackSpeedMenuState> OpenChanged { get; set; }
-
-    [Parameter] public double PlaybackRate { get; set; } = 1d;
-    [Parameter] public EventCallback<double> PlaybackRateChanged { get; set; }
+    [Parameter] public EventCallback<PlaybackToolOpenState> OpenChanged { get; set; }
 
     [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
     [Parameter] public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability { get; set; } = new();
@@ -69,7 +65,7 @@
     [Parameter] public bool ShowBookmarksOnBar { get; set; }
     [Parameter] public EventCallback<bool> ShowBookmarksOnBarChanged { get; set; }
 
-    private Task HandleOpenChangedAsync(bool open) => OpenChanged.InvokeAsync(new PlaybackSpeedMenuState(Surface, open));
+    private Task HandleOpenChangedAsync(bool open) => OpenChanged.InvokeAsync(new PlaybackToolOpenState(Surface, open));
 
     private async Task CloseAsync()
     {
