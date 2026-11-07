@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Playback;
 using Microsoft.Data.Sqlite;
 
@@ -208,7 +209,7 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AnImport_AddsTheChosenBookmarksToEveryones_AndAReplacedOneStepsOutButStaysWithItsOwner()
+    public async Task AnImport_ThatNamesABookmarkItReplaces_TakesItOutOfEveryones_ButItStaysWithItsOwner()
     {
         var chase = await SaveAsync(_ben, 2400, "The chase");
         await CommitAsync(Op(EditorBookmarkOpKinds.Add, chase.Id));
@@ -224,6 +225,66 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
         Assert.Equal(["Titles", "The big chase"], everyone.Select(row => row.Name));
         Assert.DoesNotContain(everyone, row => row.Id == chase.Id);
         Assert.Contains(await _bookmarks.GetByWorkAsync(_ben, _workId), row => row.Id == chase.Id && !row.IsGlobal);
+    }
+
+    [Fact]
+    public async Task AnImport_AtTheSameSpotAsABookmarkInEveryones_MergesIt_WithoutBeingToldToReplaceIt()
+    {
+        // Within three seconds is the same spot: the imported bookmark takes the place of the one already in Everyone's, which stays with its
+        // owner, and of another profile's personal one, which is deleted.
+        var standing = await SaveAsync(_ada, 724, "Opening");
+        await CommitAsync(Op(EditorBookmarkOpKinds.Add, standing.Id));
+        var personal = await SaveAsync(_ben, 729, "Mine");
+
+        var outcome = await CommitAsync(Op(EditorBookmarkOpKinds.Import, items: [new EditorBookmarkImportItem { PositionSeconds = 726, Name = "Cold open" }]));
+
+        var everyone = await EveryoneAsync();
+        Assert.Equal(["Cold open"], everyone.Select(row => row.Name));
+        Assert.Contains(await _bookmarks.GetByWorkAsync(_ada, _workId), row => row.Id == standing.Id && !row.IsGlobal);
+        Assert.DoesNotContain(await _bookmarks.GetByWorkAsync(_ben, _workId), row => row.Id == personal.Id);
+        Assert.Contains(outcome.DeletedIds, deleted => deleted.Id == personal.Id);
+    }
+
+    [Fact]
+    public async Task AnImport_JustPastTheSameSpot_KeepsBothBookmarks()
+    {
+        var standing = await SaveAsync(_ada, 724, "Opening");
+        await CommitAsync(Op(EditorBookmarkOpKinds.Add, standing.Id));
+
+        await CommitAsync(Op(EditorBookmarkOpKinds.Import, items: [new EditorBookmarkImportItem { PositionSeconds = 727.5, Name = "Later" }]));
+
+        Assert.Equal(["Opening", "Later"], (await EveryoneAsync()).Select(row => row.Name));
+    }
+
+    [Fact]
+    public async Task AnImportedBookFromAFile_KeepsItsLocationAndChapter_AndAnotherAtTheSameLocationIsMerged()
+    {
+        const string place = "epubcfi(/6/8!/4/2/6/1:0)";
+        var outcome = await CommitAsync(Op(EditorBookmarkOpKinds.Import, items:
+        [
+            new EditorBookmarkImportItem { PositionSeconds = 0, Locator = place, ChapterIndex = 3, Name = "The turn", ChapterTitle = "Chapter 4" },
+            new EditorBookmarkImportItem { PositionSeconds = 0, Locator = place, ChapterIndex = 3, Name = "The same turn" },
+        ]));
+
+        var everyone = await EveryoneAsync();
+        var kept = Assert.Single(everyone);
+        Assert.Equal("The same turn", kept.Name);
+        Assert.Equal(BookmarkPooling.TextKind, kept.PositionKind);
+        Assert.Equal(place, kept.Locator);
+        Assert.Equal(3, kept.ChapterIndex);
+        // A bookmark in a book has no picture to make.
+        Assert.Empty(outcome.AddedIds);
+    }
+
+    [Fact]
+    public async Task AnImportedBookmark_WithALocationTheReaderCannotRead_RefusesTheWholeSave()
+    {
+        await Assert.ThrowsAsync<EditorBookmarkCommitException>(() => CommitAsync(Op(EditorBookmarkOpKinds.Import, items:
+        [
+            new EditorBookmarkImportItem { PositionSeconds = 0, Locator = "not a location", Name = "Broken" },
+        ])));
+
+        Assert.Empty(await _editor.GetDefinitiveAsync([_workId]));
     }
 
     [Fact]

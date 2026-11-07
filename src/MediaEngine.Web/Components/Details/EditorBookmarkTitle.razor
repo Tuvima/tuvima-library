@@ -47,11 +47,7 @@
                 }
             </div>
             <div class="tl-bookmarks__actions">
-                @if (view.State == EditorBookmarkStates.Definitive && !StartOverStaged)
-                {
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="StartOverAsync">@L["EditorBookmarks_StartOver"]</AppButton>
-                }
-                @if (!HasFamily && _loaded.HasTimes)
+                @if (!HasFamily && _loaded.CanExchange)
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_busy || _loaded.Everyone.Count == 0)" StartIcon="@AppMaterialIcons.Outlined.Download" OnClick="ExportAsync">@L["EditorBookmarks_Export"]</AppButton>
                     <AppFileUpload T="IBrowserFile" Accept=".zip,.json" FilesChanged="ImportFileChosenAsync" Disabled="@_busy">
@@ -60,8 +56,17 @@
                         </CustomContent>
                     </AppFileUpload>
                 }
+                @if (view.State == EditorBookmarkStates.Definitive && !StartOverStaged)
+                {
+                    <AppRowMenu AriaLabel="@L["EditorBookmarks_MoreFor", L["EditorBookmarks_EveryoneHeading"].Value].Value" Items="@HeaderMenu()" />
+                }
             </div>
         </header>
+
+        @if (StartOverStaged)
+        {
+            <p class="tl-bookmarks__hint">@L["EditorBookmarks_StartOverHint"]</p>
+        }
 
         @if (_notice is not null)
         {
@@ -227,6 +232,19 @@
         EditorBookmarkRowMark.Moved => L["EditorBookmarks_MarkMoved"].Value,
         _ => L["EditorBookmarks_MarkImported"].Value,
     };
+
+    // The "..." menu of the Everyone's list: Start over from profiles lives here, away from the everyday actions (mockup Q).
+    private IReadOnlyList<AppRowMenuItem> HeaderMenu() =>
+    [
+        new()
+        {
+            Label = L["EditorBookmarks_StartOver"].Value,
+            Icon = AppMaterialIcons.Outlined.Close,
+            Destructive = true,
+            Disabled = _busy,
+            OnClick = EventCallback.Factory.Create(this, StartOverAsync),
+        },
+    ];
 
     private IReadOnlyList<AppRowMenuItem> MenuFor(EditorBookmarkRowDto row)
     {

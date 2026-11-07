@@ -265,9 +265,10 @@ public static class EditorBookmarkProjection
                             {
                                 Id = ImportedId(op.Id, index),
                                 AssetId = loaded.AssetId ?? Guid.Empty,
-                                PositionKind = "time",
-                                PositionSeconds = item.PositionSeconds,
+                                PositionKind = string.IsNullOrWhiteSpace(item.Locator) ? "time" : "text",
+                                PositionSeconds = string.IsNullOrWhiteSpace(item.Locator) ? item.PositionSeconds : 0,
                                 EndSeconds = item.EndSeconds,
+                                ChapterIndex = item.ChapterIndex,
                                 ChapterTitle = item.ChapterTitle,
                                 Name = item.Name ?? string.Empty,
                                 InEveryone = true,

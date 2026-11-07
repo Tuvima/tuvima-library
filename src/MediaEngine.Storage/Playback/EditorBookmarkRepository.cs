@@ -42,7 +42,11 @@ public sealed record EditorBookmarkCommitOutcome(
     EditorBookmarkSnapshot Snapshot,
     IReadOnlyList<(Guid Id, Guid AssetId)> DeletedIds,
     IReadOnlyList<(Guid Id, Guid AssetId, double PositionSeconds)> AddedIds,
-    IReadOnlyList<(Guid Id, Guid AssetId, double PositionSeconds)> TimeChanged);
+    IReadOnlyList<(Guid Id, Guid AssetId, double PositionSeconds)> TimeChanged)
+{
+    /// <summary>The pictures a bookmark file carried for the bookmarks it added (base64 JPEG text, unchecked: the caller validates it).</summary>
+    public IReadOnlyList<(Guid Id, string FrameBase64)> ImportedFrames { get; init; } = [];
+}
 
 /// <summary>A title's bookmarks as they were before a commit.</summary>
 public sealed record EditorBookmarkSnapshot(Guid WorkId, bool WasDefinitive, DateTimeOffset? MadeAt, Guid? MadeBy, IReadOnlyList<EditorBookmarkRow> Rows);
@@ -196,6 +200,7 @@ public sealed class EditorBookmarkRepository
             var deleted = new List<(Guid Id, Guid AssetId)>();
             var added = new List<(Guid Id, Guid AssetId, double PositionSeconds)>();
             var timeChanged = new List<(Guid Id, Guid AssetId, double PositionSeconds)>();
+            var importedFrames = new List<(Guid Id, string FrameBase64)>();
 
             void SetFlag(Guid id, bool flag)
             {
@@ -357,8 +362,13 @@ public sealed class EditorBookmarkRepository
                             EnsureDefinitive();
                             foreach (var item in op.Items)
                             {
+                                // A book bookmark carries a reader location; anything else is a time.
+                                var isText = !string.IsNullOrWhiteSpace(item.Locator);
+                                var locator = isText ? item.Locator!.Trim() : null;
+                                var spot = locator is null ? null : ReaderLocation.TryParse(locator);
                                 if (!double.IsFinite(item.PositionSeconds) || item.PositionSeconds < 0
-                                    || item.EndSeconds is { } itemEnd && (!double.IsFinite(itemEnd) || itemEnd <= item.PositionSeconds)
+                                    || isText && (spot is null || locator!.Length > 4096)
+                                    || !isText && item.EndSeconds is { } itemEnd && (!double.IsFinite(itemEnd) || itemEnd <= item.PositionSeconds)
                                     || !AudiobookBookmarkNotePolicy.TryNormalize(item.Name, out var itemName)
                                     || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(item.Description, out var itemDescription))
                                 {
@@ -376,28 +386,38 @@ public sealed class EditorBookmarkRepository
                                     ProfileId = actingProfileId,
                                     WorkId = workId,
                                     AssetId = assetId,
-                                    PositionKind = BookmarkPooling.TimeKind,
-                                    PositionSeconds = item.PositionSeconds,
-                                    EndSeconds = item.EndSeconds,
+                                    PositionKind = isText ? BookmarkPooling.TextKind : BookmarkPooling.TimeKind,
+                                    PositionSeconds = isText ? 0 : item.PositionSeconds,
+                                    EndSeconds = isText ? null : item.EndSeconds,
+                                    ChapterIndex = isText ? item.ChapterIndex ?? spot!.Chapter : null,
                                     ChapterTitle = string.IsNullOrWhiteSpace(item.ChapterTitle) ? null : item.ChapterTitle.Trim(),
                                     Label = itemName,
                                     Description = itemDescription,
+                                    Locator = locator,
                                     IsGlobal = true,
                                     CreatedAt = DateTimeOffset.UtcNow,
                                 };
                                 conn.Execute(
                                     """
-                                INSERT INTO audiobook_bookmarks
-                                    (id, profile_id, work_id, asset_id, chapter_index, chapter_title, position_seconds, duration_seconds, end_seconds,
-                                     label, note, description, is_global, created_at, position_kind, locator)
-                                VALUES
-                                    (@Id, @ProfileId, @WorkId, @AssetId, NULL, @ChapterTitle, @PositionSeconds, NULL, @EndSeconds,
-                                     @Label, NULL, @Description, 1, @CreatedAt, 'time', NULL);
-                                """,
+                                    INSERT INTO audiobook_bookmarks
+                                        (id, profile_id, work_id, asset_id, chapter_index, chapter_title, position_seconds, duration_seconds, end_seconds,
+                                         label, note, description, is_global, created_at, position_kind, locator)
+                                    VALUES
+                                        (@Id, @ProfileId, @WorkId, @AssetId, @ChapterIndex, @ChapterTitle, @PositionSeconds, NULL, @EndSeconds,
+                                         @Label, NULL, @Description, 1, @CreatedAt, @PositionKind, @Locator);
+                                    """,
                                     created,
                                     tx);
                                 rows[created.Id] = created;
-                                added.Add((created.Id, created.AssetId, created.PositionSeconds));
+                                if (!isText)
+                                {
+                                    added.Add((created.Id, created.AssetId, created.PositionSeconds));
+                                    if (!string.IsNullOrEmpty(item.FrameBase64))
+                                    {
+                                        importedFrames.Add((created.Id, item.FrameBase64));
+                                    }
+                                }
+
                                 MergeSameSpot(created);
                             }
 
@@ -422,7 +442,10 @@ public sealed class EditorBookmarkRepository
             // A bookmark the same commit added and then merged away has no picture to make or remove.
             var addedIds = added.Where(item => rows.ContainsKey(item.Id)).ToList();
             var deletedIds = deleted.Where(item => loaded.Any(row => row.Id == item.Id)).ToList();
-            return new EditorBookmarkCommitOutcome(snapshot, deletedIds, addedIds, timeChanged.Where(item => rows.ContainsKey(item.Id)).ToList());
+            return new EditorBookmarkCommitOutcome(snapshot, deletedIds, addedIds, timeChanged.Where(item => rows.ContainsKey(item.Id)).ToList())
+            {
+                ImportedFrames = importedFrames.Where(item => rows.ContainsKey(item.Id)).ToList(),
+            };
         }, ct);
     }
 

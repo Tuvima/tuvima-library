@@ -35,38 +35,20 @@ public sealed class BookBookmarkStorageTests : IDisposable
     }
 
     [Fact]
-    public async Task Promote_MakesItGlobal_ReplacesPersonalBookmarksInTheSameParagraph_AndKeepsOthers()
+    public async Task AGlobalBookmark_ShowsForEveryProfile_AndAPersonalOneShowsOnlyForItsOwner()
     {
         var maya = AddProfile("Maya");
         var theo = AddProfile("Theo");
-        var mine = await AddAsync(maya, Here);
-        var sameParagraph = await AddAsync(theo, "epubcfi(/6/14!/4/2/6/1:250)");
-        var elsewhere = await AddAsync(theo, "epubcfi(/6/20!/4/2/6/1:0)");
-
-        var promoted = await _repository.PromoteAsync(mine.Id, "The reveal");
-
-        Assert.True(promoted!.IsGlobal);
-        Assert.Equal("The reveal", promoted.Label);
-        Assert.Null(await _repository.FindByIdAsync(sameParagraph.Id));
-        Assert.NotNull(await _repository.FindByIdAsync(elsewhere.Id));
-        Assert.Null(await _repository.PromoteAsync(mine.Id, null)); // already Global
-    }
-
-    [Fact]
-    public async Task AGlobalBookmark_ShowsForEveryProfile_AndEveryonesListsPersonalOnesWithTheirOwner()
-    {
-        var maya = AddProfile("Maya");
-        var theo = AddProfile("Theo");
-        var global = await AddAsync(maya, Here);
-        await _repository.PromoteAsync(global.Id, null);
-        await AddAsync(theo, "epubcfi(/6/20!/4/2/6/1:0)");
+        var global = await AddAsync(maya, Here, global: true);
+        var personal = await AddAsync(theo, "epubcfi(/6/20!/4/2/6/1:0)");
 
         var theoSees = await _repository.ListByAssetAsync(theo.ToString("D"), _asset);
-        var everyones = await _repository.ListEveryonesByAssetAsync(_asset);
+        var mayaSees = await _repository.ListByAssetAsync(maya.ToString("D"), _asset);
 
         Assert.Contains(theoSees, bookmark => bookmark.Id == global.Id && bookmark.IsGlobal);
-        var personal = Assert.Single(everyones);
-        Assert.Equal("Theo", personal.OwnerName);
+        Assert.Contains(theoSees, bookmark => bookmark.Id == personal.Id);
+        Assert.Contains(mayaSees, bookmark => bookmark.Id == global.Id && bookmark.IsGlobal);
+        Assert.DoesNotContain(mayaSees, bookmark => bookmark.Id == personal.Id);
     }
 
     [Fact]
@@ -79,62 +61,6 @@ public sealed class BookBookmarkStorageTests : IDisposable
         using var conn = _db.CreateConnection();
         var workId = conn.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks LIMIT 1;");
         Assert.Empty(await film.GetByWorkAsync(maya, workId));
-        Assert.Empty(await film.GetEveryonesByWorkAsync(workId));
-    }
-
-    [Fact]
-    public async Task ApplySet_AsAdministrator_AddsGlobal_ReplacingPersonalBookmarksInTheSameParagraph_InOneWrite()
-    {
-        var maya = AddProfile("Maya");
-        var theo = AddProfile("Theo");
-        var mine = await AddAsync(maya, Here);
-        var theirs = await AddAsync(theo, "epubcfi(/6/14!/4/2/6/1:250)");
-        var elsewhere = await AddAsync(maya, "epubcfi(/6/20!/4/2/6/1:0)");
-        var oldGlobal = await AddAsync(maya, "epubcfi(/6/30!/4/2/6/1:0)", global: true);
-
-        var outcome = await _repository.ApplySetAsync(maya, _asset,
-            [new ReaderSetBookmark("epubcfi(/6/14!/4/2/6/1:90)", 6, "From the file")],
-            new[] { oldGlobal.Id }, addAsGlobal: true, replaceGlobalSet: false);
-
-        Assert.Equal(1, outcome.Added);
-        var list = await _repository.ListByAssetAsync(maya.ToString("D"), _asset);
-        Assert.Contains(list, item => item.IsGlobal && item.CfiPosition == "epubcfi(/6/14!/4/2/6/1:90)");
-        Assert.DoesNotContain(list, item => item.Id == mine.Id || item.Id == oldGlobal.Id);
-        Assert.Null(await _repository.FindByIdAsync(theirs.Id));
-        Assert.NotNull(await _repository.FindByIdAsync(elsewhere.Id));
-    }
-
-    [Fact]
-    public async Task ApplySet_ReplaceWholeGlobalSet_RemovesOldGlobal_ButNeverPersonalBookmarks()
-    {
-        var maya = AddProfile("Maya");
-        var personal = await AddAsync(maya, "epubcfi(/6/20!/4/2/6/1:0)");
-        var oldGlobal = await AddAsync(maya, "epubcfi(/6/30!/4/2/6/1:0)", global: true);
-
-        await _repository.ApplySetAsync(maya, _asset,
-            [new ReaderSetBookmark("epubcfi(/6/40!/4/2/6/1:0)", 19, null)],
-            [], addAsGlobal: true, replaceGlobalSet: true);
-
-        Assert.Null(await _repository.FindByIdAsync(oldGlobal.Id));
-        Assert.NotNull(await _repository.FindByIdAsync(personal.Id));
-    }
-
-    [Fact]
-    public async Task ApplySet_ForAPerson_AddsOnlyToTheirOwn_AndCannotDeleteGlobalOrOthersBookmarks()
-    {
-        var maya = AddProfile("Maya");
-        var theo = AddProfile("Theo");
-        var global = await AddAsync(maya, "epubcfi(/6/30!/4/2/6/1:0)", global: true);
-        var others = await AddAsync(theo, "epubcfi(/6/20!/4/2/6/1:0)");
-
-        await _repository.ApplySetAsync(theo, _asset,
-            [new ReaderSetBookmark("epubcfi(/6/40!/4/2/6/1:0)", 19, "Mine")],
-            new[] { global.Id, others.Id }, addAsGlobal: false, replaceGlobalSet: false);
-
-        Assert.NotNull(await _repository.FindByIdAsync(global.Id));
-        Assert.Null(await _repository.FindByIdAsync(others.Id)); // Theo's own bookmark may be replaced
-        var mine = await _repository.ListByAssetAsync(theo.ToString("D"), _asset);
-        Assert.Contains(mine, item => !item.IsGlobal && item.Label == "Mine");
     }
 
     private async Task<ReaderBookmark> AddAsync(Guid profile, string cfi, bool global = false)

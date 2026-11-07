@@ -30,13 +30,13 @@
             var take = ChoiceOf(row) == BookmarkRowChoices.Incoming;
             <li class="tl-bookmarks__row" data-closeness="@row.Closeness.ToLowerInvariant()">
                 <AppCheckbox Value="@take" ValueChanged="@(value => Set(row, value))" Disabled="@(!CanTake)" Label="@L["EditorBookmarks_Take"].Value" HideLabel="true" />
-                <span class="tl-bookmarks__place">@EditorBookmarkWording.Time(row.Incoming.PositionSeconds)</span>
+                <span class="tl-bookmarks__place">@EditorBookmarkWording.IncomingPlace(row.Incoming)</span>
                 <span class="tl-bookmarks__copy">
                     <span class="tl-bookmarks__name">@(string.IsNullOrWhiteSpace(row.Incoming.Note) ? row.Incoming.ChapterTitle : row.Incoming.Note)</span>
                     <span class="tl-bookmarks__from">
                         @if (row.Yours is { } near)
                         {
-                            @L["EditorBookmarks_Nearest", EditorBookmarkWording.Time(near.PositionSeconds), near.Name ?? near.Note ?? string.Empty]
+                            @L["EditorBookmarks_Nearest", EditorBookmarkWording.NearestPlace(near), near.Name ?? near.Note ?? string.Empty]
                         }
                         else
                         {
@@ -87,14 +87,5 @@
         _ => L["EditorBookmarks_New"].Value,
     };
 
-    private Task TakeAsync() => OnTake.InvokeAsync(
-        [.. Chosen.Select(row => new EditorBookmarkImportItem
-        {
-            PositionSeconds = row.Incoming.PositionSeconds,
-            EndSeconds = row.Incoming.EndSeconds,
-            ChapterTitle = row.Incoming.ChapterTitle,
-            Name = row.Incoming.Note,
-            Description = row.Incoming.Description,
-            ReplacesBookmarkId = row.Yours?.Id,
-        })]);
+    private Task TakeAsync() => OnTake.InvokeAsync([.. Chosen.Select(row => EditorBookmarkWording.ImportItem(row, replaceNearest: true))]);
 }

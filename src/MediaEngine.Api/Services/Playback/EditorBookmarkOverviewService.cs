@@ -21,7 +21,8 @@ public sealed class EditorBookmarkOverviewService(
     IEditorFamilySource header,
     BookmarkSetService sets,
     IVaultLibraryRepository vault,
-    TimeProvider? time = null)
+    TimeProvider? time = null,
+    BookmarkFrameService? frames = null)
 {
     public const string ExportedShowFileName = "everyone-bookmarks-show.zip";
 
@@ -125,6 +126,7 @@ public sealed class EditorBookmarkOverviewService(
     {
         var loaded = await LoadAsync(workId, ct);
         var episodes = new List<BookmarkShowPackEpisode>();
+        var framesBytes = 0L;
         foreach (var member in loaded.Members)
         {
             if (member.Entry.Number is not { } episodeNumber)
@@ -132,7 +134,8 @@ public sealed class EditorBookmarkOverviewService(
                 continue;
             }
 
-            var everyone = bookmarks.EveryoneOf(RowsOf(loaded, member.Entry.WorkId), loaded.Definitive.Contains(member.Entry.WorkId))
+            var definitive = loaded.Definitive.Contains(member.Entry.WorkId);
+            var everyone = bookmarks.EveryoneOf(RowsOf(loaded, member.Entry.WorkId), definitive)
                 .Where(row => row.PositionKind == BookmarkPooling.TimeKind)
                 .OrderBy(row => row.PositionSeconds)
                 .Take(BookmarkPackLimits.MaximumBookmarks)
@@ -147,9 +150,24 @@ public sealed class EditorBookmarkOverviewService(
                 episodeNumber,
                 member.Entry.Title,
                 Seconds(member.Asset),
-                [.. everyone.Select(row => new BookmarkPackBookmark(
-                    row.PositionSeconds, row.EndSeconds, string.IsNullOrWhiteSpace(row.ChapterTitle) ? null : row.ChapterTitle.Trim(), null,
-                    string.IsNullOrWhiteSpace(row.Label) ? row.Note : row.Label, row.Description))]));
+                [.. everyone.Select(row =>
+                {
+                    // A video bookmark carries the small picture of its moment while the file's picture budget lasts (D37).
+                    byte[]? frame = null;
+                    if (frames?.ReadFrameBytes(row.AssetId, row.Id) is { } bytes && framesBytes + bytes.Length <= EditorBookmarkLimits.MaximumShowFramesBytes)
+                    {
+                        frame = bytes;
+                        framesBytes += bytes.Length;
+                    }
+
+                    // A definitive set is the administrator's own list, so its names and notes go out. A pooled list is every profile's private
+                    // bookmarks merged: only the time and the name go out, never a note or description somebody wrote for themselves.
+                    return new BookmarkPackBookmark(
+                        row.PositionSeconds, row.EndSeconds, string.IsNullOrWhiteSpace(row.ChapterTitle) ? null : row.ChapterTitle.Trim(), null,
+                        definitive ? (string.IsNullOrWhiteSpace(row.Label) ? row.Note : row.Label) : row.Label,
+                        definitive ? row.Description : null,
+                        Frame: frame);
+                })]));
         }
 
         if (episodes.Count == 0)
@@ -173,6 +191,7 @@ public sealed class EditorBookmarkOverviewService(
     public async Task<EditorBookmarkShowCompareDto> CompareAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default)
     {
         var loaded = await LoadAsync(workId, ct);
+        EditorBookmarksService.RequireFileWithinLimit(request.ContentBase64, EditorBookmarkLimits.MaximumShowFileBytes);
         byte[] bytes;
         try
         {

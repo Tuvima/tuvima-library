@@ -109,3 +109,24 @@ h3 {
     padding: var(--tl-space-3);
     color: var(--tl-text-muted);
 }
+
+.tl-bookmarks__cols {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    padding: 0 var(--tl-space-3);
+    font-size: var(--tl-font-size-sm);
+    color: var(--tl-text-muted);
+}
+
+.tl-bookmarks__num {
+    flex: none;
+    width: 6rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.tl-bookmarks__set {
+    flex: none;
+    width: 13rem;
+}

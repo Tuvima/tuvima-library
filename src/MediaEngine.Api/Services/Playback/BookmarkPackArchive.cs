@@ -23,13 +23,16 @@ public sealed record BookmarkPackContent(
 /// The bookmark pack file (Videos spec D46). It follows the library backup's conventions: a ZIP archive with a <c>manifest.json</c>
 /// (schema version, creation time, <c>includes_secrets: false</c>) beside the payload, the same safe-entry-path and compression-ratio
 /// checks on the way in, and no password, because a pack, like a backup, never holds anything secret. A pack holds only how to
-/// recognise the title and, per bookmark, its time, optional end, chapter name, note and description: never a file path, a profile
+/// recognise the title and, per bookmark, its time, optional end, chapter name, note and description, and for a video bookmark a small
+/// picture of the moment (<c>pack/frames/{n}.jpg</c>, a JPEG checked for size and type on the way in): never a file path, a profile
 /// name or what anyone watched.
 /// </summary>
 public static class BookmarkPackArchive
 {
     public const string ManifestEntry = "manifest.json";
     public const string PayloadEntry = "pack/bookmarks.json";
+    public const string FramePrefix = "pack/frames/";
+    public const string FrameSuffix = ".jpg";
     public const string Kind = "bookmark-pack";
     public const string SchemaVersion = "1.0";
     private const int PayloadFormatVersion = 1;
@@ -52,8 +55,22 @@ public static class BookmarkPackArchive
                     created_at = createdAt,
                     kind = Kind,
                     includes_secrets = false,
-                    note = "Bookmark pack: how to recognise one title and some saved positions. It holds no file paths, profile names or watch history.",
+                    note = "Bookmark pack: how to recognise one title and some saved positions, with a small picture of each video moment. It holds no file paths, profile names or watch history.",
                 });
+            }
+
+            // A picture is already compressed; it is stored as it is. Pictures beyond the file's picture budget are left out.
+            var framesBytes = 0L;
+            for (var index = 0; index < content.Bookmarks.Count; index++)
+            {
+                if (content.Bookmarks[index].Frame is not { } frame || !BookmarkFrameImage.IsValid(frame) || framesBytes + frame.Length > BookmarkPackLimits.MaximumFramesBytes)
+                {
+                    continue;
+                }
+
+                framesBytes += frame.Length;
+                using var stream = archive.CreateEntry(FramePrefix + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + FrameSuffix, CompressionLevel.NoCompression).Open();
+                stream.Write(frame, 0, frame.Length);
             }
 
             var payload = archive.CreateEntry(PayloadEntry, CompressionLevel.SmallestSize);
@@ -99,14 +116,34 @@ public static class BookmarkPackArchive
         try
         {
             using var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
-            if (archive.Entries.Count != 2)
+            if (archive.Entries.Count < 2 || archive.Entries.Count > 2 + BookmarkPackLimits.MaximumBookmarks)
             {
                 throw new BookmarkPackInvalidException("This is not a bookmark pack.");
             }
 
+            var frameEntries = new Dictionary<int, ZipArchiveEntry>();
+            var seenNames = new HashSet<string>(StringComparer.Ordinal);
+            var frameBytes = 0L;
             foreach (var entry in archive.Entries)
             {
                 var normalized = entry.FullName.Replace('\\', '/');
+                if (!seenNames.Add(normalized))
+                {
+                    throw new BookmarkPackInvalidException("This is not a bookmark pack.");
+                }
+
+                if (TryFrameIndex(normalized, out var frameIndex))
+                {
+                    frameBytes += entry.Length;
+                    if (entry.Length > BookmarkPackLimits.MaximumFrameBytes || frameBytes > BookmarkPackLimits.MaximumFramesBytes)
+                    {
+                        throw new BookmarkPackInvalidException("This bookmark pack is not safe to open.");
+                    }
+
+                    frameEntries[frameIndex] = entry;
+                    continue;
+                }
+
                 if (normalized is not (ManifestEntry or PayloadEntry))
                 {
                     throw new BookmarkPackInvalidException("This is not a bookmark pack.");
@@ -138,7 +175,23 @@ public static class BookmarkPackArchive
 
             var payload = JsonSerializer.Deserialize<PackPayload>(ReadEntry(archive.GetEntry(PayloadEntry)!))
                 ?? throw new BookmarkPackInvalidException("This is not a bookmark pack.");
-            return Validate(payload);
+            var content = Validate(payload);
+            if (frameEntries.Count == 0)
+            {
+                return content;
+            }
+
+            // A picture that is not a valid JPEG is ignored (the Engine makes one); it never fails the file.
+            var withFrames = content.Bookmarks.ToList();
+            foreach (var (index, entry) in frameEntries)
+            {
+                if (index < withFrames.Count && ReadFrame(entry) is { } frame)
+                {
+                    withFrames[index] = withFrames[index] with { Frame = frame };
+                }
+            }
+
+            return content with { Bookmarks = withFrames };
         }
         catch (InvalidDataException)
         {
@@ -226,6 +279,39 @@ public static class BookmarkPackArchive
         }
 
         return new BookmarkPackContent(name, author, new BookmarkPackTitle(ids, runningTime, edition), bookmarks, Fingerprint(name, author, bookmarks));
+    }
+
+    private static bool TryFrameIndex(string normalizedName, out int index)
+    {
+        index = -1;
+        return normalizedName.StartsWith(FramePrefix, StringComparison.Ordinal) && normalizedName.EndsWith(FrameSuffix, StringComparison.Ordinal)
+            && int.TryParse(normalizedName.AsSpan(FramePrefix.Length, normalizedName.Length - FramePrefix.Length - FrameSuffix.Length),
+                System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out index)
+            && index < BookmarkPackLimits.MaximumBookmarks;
+    }
+
+    private static byte[]? ReadFrame(ZipArchiveEntry entry)
+    {
+        if (entry.Length is <= 0 or > BookmarkPackLimits.MaximumFrameBytes)
+        {
+            return null;
+        }
+
+        using var stream = entry.Open();
+        var buffer = new byte[(int)entry.Length];
+        var read = 0;
+        while (read < buffer.Length)
+        {
+            var count = stream.Read(buffer, read, buffer.Length - read);
+            if (count == 0)
+            {
+                return null;
+            }
+
+            read += count;
+        }
+
+        return BookmarkFrameImage.IsValid(buffer) ? buffer : null;
     }
 
     private static byte[] ReadEntry(ZipArchiveEntry entry)

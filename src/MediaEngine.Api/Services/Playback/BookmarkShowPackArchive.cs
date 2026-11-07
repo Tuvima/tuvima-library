@@ -18,12 +18,15 @@ public sealed record BookmarkShowPackContent(string Name, IReadOnlyList<Bookmark
 /// episode named by its season and episode number, so it can be read by any library that has the show whatever its files are called. It follows
 /// the single-title bookmark file's conventions (<see cref="BookmarkPackArchive"/>): a ZIP with <c>manifest.json</c> (schema version, creation
 /// time, <c>includes_secrets: false</c>) beside the payload, the same safe-entry-path and compression-ratio checks on the way in, and nothing
-/// personal: no file path, no profile name, no watch history.
+/// personal: no file path, no profile name, no watch history. A video bookmark may carry a small picture of its moment
+/// (<c>pack/frames/{season}-{episode}-{n}.jpg</c>, a JPEG checked for size and type; one that fails the check is ignored).
 /// </summary>
 public static class BookmarkShowPackArchive
 {
     public const string ManifestEntry = "manifest.json";
     public const string PayloadEntry = "pack/episodes.json";
+    public const string FramePrefix = "pack/frames/";
+    public const string FrameSuffix = ".jpg";
     public const string Kind = "bookmark-show-pack";
     public const string SchemaVersion = "1.0";
     private const int PayloadFormatVersion = 1;
@@ -75,9 +78,75 @@ public static class BookmarkShowPackArchive
                     }).ToList(),
                 }, WriteOptions);
             }
+
+            // A picture is already compressed; it is stored as it is. Pictures beyond the file's picture budget are left out.
+            var framesBytes = 0L;
+            foreach (var episode in content.Episodes)
+            {
+                for (var index = 0; index < episode.Bookmarks.Count; index++)
+                {
+                    if (episode.Bookmarks[index].Frame is not { } frame || !BookmarkFrameImage.IsValid(frame)
+                        || framesBytes + frame.Length > EditorBookmarkLimits.MaximumShowFramesBytes)
+                    {
+                        continue;
+                    }
+
+                    framesBytes += frame.Length;
+                    using var stream = archive.CreateEntry(FrameName(episode.SeasonNumber, episode.EpisodeNumber, index), CompressionLevel.NoCompression).Open();
+                    stream.Write(frame, 0, frame.Length);
+                }
+            }
         }
 
         return buffer.ToArray();
+    }
+
+    private static string FrameName(int season, int episode, int index) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{FramePrefix}{season}-{episode}-{index}{FrameSuffix}");
+
+    private static bool TryFrameKey(string normalizedName, out (int Season, int Episode, int Index) key)
+    {
+        key = default;
+        if (!normalizedName.StartsWith(FramePrefix, StringComparison.Ordinal) || !normalizedName.EndsWith(FrameSuffix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var parts = normalizedName[FramePrefix.Length..^FrameSuffix.Length].Split('-');
+        if (parts.Length != 3
+            || !int.TryParse(parts[0], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var season)
+            || !int.TryParse(parts[1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var episode)
+            || !int.TryParse(parts[2], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var index))
+        {
+            return false;
+        }
+
+        key = (season, episode, index);
+        return true;
+    }
+
+    private static byte[]? ReadFrame(ZipArchiveEntry entry)
+    {
+        if (entry.Length is <= 0 or > BookmarkPackLimits.MaximumFrameBytes)
+        {
+            return null;
+        }
+
+        using var stream = entry.Open();
+        var buffer = new byte[(int)entry.Length];
+        var read = 0;
+        while (read < buffer.Length)
+        {
+            var count = stream.Read(buffer, read, buffer.Length - read);
+            if (count == 0)
+            {
+                return null;
+            }
+
+            read += count;
+        }
+
+        return BookmarkFrameImage.IsValid(buffer) ? buffer : null;
     }
 
     /// <summary>Reads and checks a show file. Throws <see cref="BookmarkPackInvalidException"/> with a safe message when it is not one.</summary>
@@ -91,14 +160,34 @@ public static class BookmarkShowPackArchive
         try
         {
             using var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
-            if (archive.Entries.Count != 2)
+            if (archive.Entries.Count < 2 || archive.Entries.Count > 2 + EditorBookmarkLimits.MaximumShowBookmarks)
             {
                 throw new BookmarkPackInvalidException("This is not a show bookmark file.");
             }
 
+            var frameEntries = new Dictionary<(int Season, int Episode, int Index), ZipArchiveEntry>();
+            var seenNames = new HashSet<string>(StringComparer.Ordinal);
+            var frameBytes = 0L;
             foreach (var entry in archive.Entries)
             {
                 var normalized = entry.FullName.Replace('\\', '/');
+                if (!seenNames.Add(normalized))
+                {
+                    throw new BookmarkPackInvalidException("This is not a show bookmark file.");
+                }
+
+                if (TryFrameKey(normalized, out var frameKey))
+                {
+                    frameBytes += entry.Length;
+                    if (entry.Length > BookmarkPackLimits.MaximumFrameBytes || frameBytes > EditorBookmarkLimits.MaximumShowFramesBytes)
+                    {
+                        throw new BookmarkPackInvalidException("This show bookmark file is not safe to open.");
+                    }
+
+                    frameEntries[frameKey] = entry;
+                    continue;
+                }
+
                 if (normalized is not (ManifestEntry or PayloadEntry))
                 {
                     throw new BookmarkPackInvalidException("This is not a show bookmark file.");
@@ -130,7 +219,29 @@ public static class BookmarkShowPackArchive
 
             var payload = JsonSerializer.Deserialize<Payload>(ReadEntry(archive.GetEntry(PayloadEntry)!))
                 ?? throw new BookmarkPackInvalidException("This is not a show bookmark file.");
-            return Validate(payload);
+            var content = Validate(payload);
+            if (frameEntries.Count == 0)
+            {
+                return content;
+            }
+
+            // A picture that is not a valid JPEG is ignored (the Engine makes one); it never fails the file.
+            var episodes = new List<BookmarkShowPackEpisode>(content.Episodes.Count);
+            foreach (var episode in content.Episodes)
+            {
+                var bookmarks = episode.Bookmarks.ToList();
+                for (var index = 0; index < bookmarks.Count; index++)
+                {
+                    if (frameEntries.TryGetValue((episode.SeasonNumber, episode.EpisodeNumber, index), out var entry) && ReadFrame(entry) is { } frame)
+                    {
+                        bookmarks[index] = bookmarks[index] with { Frame = frame };
+                    }
+                }
+
+                episodes.Add(episode with { Bookmarks = bookmarks });
+            }
+
+            return content with { Episodes = episodes };
         }
         catch (InvalidDataException)
         {
