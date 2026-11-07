@@ -164,7 +164,15 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
     public bool Loading { get; private set; }
     public bool Refreshing { get; private set; }
     public string? Status { get; private set; }
+
+    /// <summary>True when the lyrics could not be loaded (the panel's error state); cleared when a load starts again.</summary>
+    public bool LoadFailed { get; private set; }
+
+    /// <summary>True when the lyrics showing carry times, so the panel follows the song (the Synced chip); plain text is Unsynced.</summary>
+    public bool IsSynced => Lines.Any(line => line.StartSeconds.HasValue);
     public event Action? Changed;
+
+    private void Fail(string message) { Status = message; LoadFailed = true; }
 
     public void Observe(ListenPlaybackSnapshot snapshot, IPlaybackCommandSink commands)
     {
@@ -180,7 +188,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
         _identity = identity; _generation++; _selectionGeneration++;
         _reads.Cancel(); _reads.Dispose(); _reads = new();
         Tracks = []; Lines = []; SelectedTrackId = null; Loading = false; Refreshing = false;
-        Status = null; _tracksLoaded = false; _contentLoaded = false;
+        Status = null; LoadFailed = false; _tracksLoaded = false; _contentLoaded = false;
         ResetLookup();
     }
 
@@ -217,7 +225,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
             {
                 return;
             }
-            Loading = true; Changed?.Invoke();
+            Loading = true; LoadFailed = false; Changed?.Invoke();
             try
             {
                 var tracks = await api.GetTextTracksAsync(identity.AssetId, _reads.Token);
@@ -230,7 +238,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
                 _lyricsLanguage = await ReadLyricsLanguageAsync();
                 _tracksLoaded = true;
             }
-            catch (Exception) { if (Current(identity, generation)) { Status = "Lyrics could not be loaded."; _tracksLoaded = true; } }
+            catch (Exception) { if (Current(identity, generation)) { Fail("Lyrics could not be loaded."); _tracksLoaded = true; } }
             finally
             {
                 if (Current(identity, generation))
@@ -277,14 +285,14 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
                 }
                 if (reply?.BooleanResult != true)
                 {
-                    Lines = []; Loading = false; Status = "That lyrics version is unavailable.";
+                    Lines = []; Loading = false; Fail("That lyrics version is unavailable.");
                     Changed?.Invoke(); return;
                 }
             }
             catch (Exception)
             {
                 if (Current(identity, generation) && selection == _selectionGeneration)
-                { Loading = false; Status = "Lyrics could not be loaded."; Changed?.Invoke(); }
+                { Loading = false; Fail("Lyrics could not be loaded."); Changed?.Invoke(); }
                 return;
             }
         }
@@ -298,7 +306,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
     private async Task LoadContentAsync(PlaybackLyricsIdentity identity, long generation, Guid selected)
     {
         SelectedTrackId = selected; var selection = ++_selectionGeneration;
-        Lines = []; Loading = true; _contentLoaded = false; Status = null; Changed?.Invoke();
+        Lines = []; Loading = true; _contentLoaded = false; Status = null; LoadFailed = false; Changed?.Invoke();
         bool Fresh() => Current(identity, generation) && selection == _selectionGeneration && SelectedTrackId == selected;
         try
         {
@@ -310,7 +318,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
             Lines = PlaybackLyricsParser.Parse(content);
             if (content is null)
             {
-                Status = "That lyrics version is unavailable.";
+                Fail("That lyrics version is unavailable.");
             }
             _contentLoaded = true;
         }
@@ -318,7 +326,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
         {
             if (Fresh())
             {
-                Status = "That lyrics version is unavailable.";
+                Fail("That lyrics version is unavailable.");
             }
         }
         finally { if (Fresh()) { Loading = false; Changed?.Invoke(); } }
@@ -333,7 +341,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
         }
         var generation = _generation; var selection = ++_selectionGeneration;
         _projectedChoice = trackId;
-        SelectedTrackId = trackId; Lines = []; Loading = true; _contentLoaded = false;
+        SelectedTrackId = trackId; Lines = []; Loading = true; _contentLoaded = false; LoadFailed = false;
         Changed?.Invoke();
         try
         {
@@ -343,14 +351,25 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
                 return;
             }
             if (reply?.BooleanResult != true)
-            { Loading = false; Status = "Playback changed before the lyrics choice arrived."; Changed?.Invoke(); return; }
+            { Loading = false; Fail("Playback changed before the lyrics choice arrived."); Changed?.Invoke(); return; }
             await LoadContentAsync(identity, generation, trackId);
         }
         catch (Exception)
         {
             if (Current(identity, generation) && selection == _selectionGeneration)
-            { Loading = false; Status = "That lyrics version is unavailable."; Changed?.Invoke(); }
+            { Loading = false; Fail("That lyrics version is unavailable."); Changed?.Invoke(); }
         }
+    }
+
+    /// <summary>"Try again" after the lyrics could not be loaded: asks the Engine for this song's lyrics again from the start.</summary>
+    public async Task RetryAsync()
+    {
+        if (_identity is null || _commands is null || Loading)
+        {
+            return;
+        }
+        Status = null; LoadFailed = false; _tracksLoaded = false; _contentLoaded = false; Changed?.Invoke();
+        await EnsureAsync(_snapshot, _commands);
     }
 
     public async Task PreferAsync()

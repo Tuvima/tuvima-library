@@ -1,0 +1,88 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject PlaybackLyricsPresenter Presenter
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Find another" (unified player v2 D17): what the lyrics sources offer for this song, shown in place of the lyrics until the person chooses one or goes
+   back. It is a choice list, so one Tab stop and the arrow keys move between the offers (roving-focus.js). *@
+<div class="playback-lyrics-alternatives" data-lyrics-state="alternatives">
+    <div class="playback-lyrics-alternatives__list" @ref="_list">
+        @if (Presenter.AlternativesLoading)
+        {
+            <p class="playback-lyrics-alternatives__message" role="status">@L["PlaybackLyrics_LookingForOtherLyrics"]</p>
+        }
+        else if (Presenter.Alternatives is { items.Count: > 0 } found)
+        {
+            @foreach (var alternative in found.items)
+            {
+                var offer = alternative;
+                <AppNativeButton Type="button" Class="playback-lyrics-alternatives__offer" data-lyrics-offer Disabled="@(offer.is_current || Presenter.Choosing)"
+                                 tabindex="@(ReferenceEquals(offer, TabStop(found.items)) ? 0 : -1)" OnClick="@(() => Presenter.ChooseAsync(offer))">
+                    <strong>@offer.provider_name</strong>
+                    <span>@(offer.is_timed ? L["PlaybackLyrics_TimedToTheSong"] : L["PlaybackLyrics_WordsOnly"])@(offer.is_current ? $" · {L["PlaybackLyrics_InUse"]}" : null)</span>
+                    @if (!string.IsNullOrWhiteSpace(offer.preview)) { <small>@offer.preview</small> }
+                </AppNativeButton>
+            }
+        }
+        else
+        {
+            <p class="playback-lyrics-alternatives__message">@(Presenter.Alternatives?.message is { Length: > 0 } message ? message : L["PlaybackLyrics_NoOtherLyrics"].Value)</p>
+        }
+    </div>
+    <AppNativeButton Type="button" Class="playback-lyrics-alternatives__back" OnClick="Presenter.CloseAlternatives">@L["Common_GoBack"]</AppNativeButton>
+</div>
+
+@code {
+    private ElementReference _list;
+    private IJSObjectReference? _roving;
+    private bool _disposed;
+
+    // The first offer that can be chosen holds the one Tab stop; the arrow keys reach the rest.
+    private static MediaEngine.Contracts.Playback.TextTrackAlternativeDto? TabStop(IReadOnlyList<MediaEngine.Contracts.Playback.TextTrackAlternativeDto> offers) =>
+        offers.FirstOrDefault(offer => !offer.is_current);
+
+    protected override void OnInitialized() => Presenter.Changed += Changed;
+
+    private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || !firstRender) return;
+        try
+        {
+            _roving = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            await _roving.InvokeVoidAsync("attach", _list, "[data-lyrics-offer]:not(:disabled)", new { vertical = true });
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering has no browser yet; the offers are ordinary buttons until the arrow keys attach.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the list was drawing; there is nothing left to attach to.
+        }
+        catch (JSException)
+        {
+            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every offer.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Presenter.Changed -= Changed;
+        if (_roving is null) return;
+        try
+        {
+            await _roving.InvokeVoidAsync("detach", _list);
+            await _roving.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
+}

@@ -1,0 +1,153 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@implements IDisposable
+@inject PlaybackLyricsPresenter Presenter
+@inject IServiceProvider Services
+@inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
+
+@* The lyrics footer (unified player v2 D17; mockup screen 7): where the lyrics came from ("Synced lyrics · Local file", "Unsynced lyrics · LRCLIB") at the
+   left and the "..." menu at the right, with Find another, Add a lyrics file and About lyrics sources. Administrators on a desktop also get Edit lyrics,
+   and a song with lyrics gets "This one is wrong", under a hairline. The lyrics panel puts this in its fixed footer; the Now playing page places it
+   under the lyrics. *@
+<div class="playback-lyrics-footer" data-playback-lyrics-footer>
+    <span class="playback-lyrics-footer__source" data-lyrics-source>@SourceText</span>
+    <PlaybackLyricsFilePicker @ref="_picker" />
+    <AppTooltip Text="@L["PlaybackLyrics_LyricsOptions"].Value" Suppressed="@_menuOpen">
+        <AppNativeButton @ref="_more" Type="button" Class="playback-lyrics-footer__more" AriaLabel="@L["PlaybackLyrics_LyricsOptions"].Value"
+                         aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")">
+            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" />
+        </AppNativeButton>
+    </AppTooltip>
+    <PlaybackPanel Kind="menu" Title="@L["PlaybackLyrics_LyricsOptions"].Value" ToolId="@_menuId" ShowHeading="false" Surface="dock"
+                   Trigger="@_more?.Element" OpenChanged="@(open => { _menuOpen = open; return Task.CompletedTask; })">
+        <ChildContent>
+            <PlaybackLyricsMenu Items="@Items" OnSelected="ActivateAsync" />
+        </ChildContent>
+    </PlaybackPanel>
+</div>
+
+@code {
+    private readonly string _menuId = $"lyrics-options-{Guid.NewGuid():N}";
+    private PlaybackLyricsFilePicker? _picker;
+    private AppNativeButton? _more;
+    private bool _menuOpen, _disposed;
+
+    /// <summary>The playing song, for Edit lyrics. Without it the footer reads the live player.</summary>
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+
+    /// <summary>Raised by "About lyrics sources" when the footer is not inside a panel that can slide the explanation in as its own view.</summary>
+    [Parameter] public EventCallback AboutRequested { get; set; }
+
+    [CascadingParameter] public PlaybackPanelNavigator? Navigator { get; set; }
+
+    private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+
+    private IReadOnlyList<PlaybackLyricsMenuItem> Items
+    {
+        get
+        {
+            var items = new List<PlaybackLyricsMenuItem>();
+            if (Presenter.Offers("find_lyrics"))
+            {
+                items.Add(new(PlaybackLyricsMenuActions.FindAnother, L["PlaybackLyrics_FindAnother"].Value, PlaybackUtilityGlyphKind.Search));
+            }
+            items.Add(new(PlaybackLyricsMenuActions.AddFile, L["PlaybackLyrics_AddFile"].Value, PlaybackUtilityGlyphKind.Add));
+            if (Navigator is not null || AboutRequested.HasDelegate)
+            {
+                items.Add(new(PlaybackLyricsMenuActions.About, L["PlaybackLyrics_AboutSources"].Value, PlaybackUtilityGlyphKind.Info));
+            }
+            var firstExtra = true;
+            if (CanManageLyrics)
+            {
+                items.Add(new(PlaybackLyricsMenuActions.Edit, L["PlaybackLyrics_EditLyrics"].Value, PlaybackUtilityGlyphKind.Lyrics, DividerBefore: firstExtra));
+                firstExtra = false;
+            }
+            if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
+            {
+                items.Add(new(PlaybackLyricsMenuActions.ThisOneIsWrong, L["PlaybackLyrics_ThisOneIsWrong"].Value, PlaybackUtilityGlyphKind.Dislike, DividerBefore: firstExtra));
+            }
+            return items;
+        }
+    }
+
+    private string? SourceText
+    {
+        get
+        {
+            var source = Presenter.Source;
+            if (source == PlaybackLyricsSource.None)
+            {
+                return null;
+            }
+            var name = source switch
+            {
+                PlaybackLyricsSource.SongTags => L["PlaybackLyrics_SourceSongTags"].Value,
+                PlaybackLyricsSource.LocalFile => L["PlaybackLyrics_SourceLocalFile"].Value,
+                PlaybackLyricsSource.Lrclib => L["PlaybackLyrics_SourceLrclib"].Value,
+                _ => Presenter.SourceProvider ?? string.Empty,
+            };
+            return L[Presenter.IsSynced ? "PlaybackLyrics_SourceSynced" : "PlaybackLyrics_SourceUnsynced", name].Value;
+        }
+    }
+
+    protected override void OnInitialized() => Presenter.Changed += Changed;
+
+    private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+
+    // The "..." button exists only after the first draw; the menu needs it to open from, so draw once more.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) StateHasChanged();
+    }
+
+    private async Task ActivateAsync(string key)
+    {
+        Services.GetService<PlaybackTransientToolCoordinator>()?.Close(_menuId);
+        switch (key)
+        {
+            case PlaybackLyricsMenuActions.FindAnother:
+                await Presenter.OpenAlternativesAsync();
+                break;
+            case PlaybackLyricsMenuActions.AddFile:
+                if (_picker is not null) await _picker.OpenAsync();
+                break;
+            case PlaybackLyricsMenuActions.About:
+                if (Navigator is not null) Navigator.Push(L["PlaybackLyrics_AboutSources"].Value, AboutView);
+                else await AboutRequested.InvokeAsync();
+                break;
+            case PlaybackLyricsMenuActions.Edit:
+                await ManageLyricsAsync();
+                break;
+            case PlaybackLyricsMenuActions.ThisOneIsWrong:
+                await Presenter.MarkWrongAsync();
+                break;
+        }
+    }
+
+    private RenderFragment AboutView => @<PlaybackLyricsAbout />;
+
+    // Edit lyrics opens the pop-over editor over the player (universal editor v3 D6, D18) with this song ticked and the Edit panel open;
+    // nothing navigates away and the music keeps playing. The Engine's own answer says whether the song may be edited.
+    private async Task ManageLyricsAsync()
+    {
+        var snapshot = Snapshot ?? Services.GetService<PlaybackSessionController>()?.CreateSnapshot();
+        if (!CanManageLyrics || snapshot is null || PlaybackLyricsIdentity.From(snapshot) is not { } identity
+            || snapshot.CurrentIndex < 0 || snapshot.CurrentIndex >= snapshot.Queue.Count)
+            return;
+        var item = snapshot.Queue[snapshot.CurrentIndex];
+        var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
+        var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
+        if (Services.GetService<ListEditLauncher>() is { } launcher)
+            await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics");
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Presenter.Changed -= Changed;
+    }
+}

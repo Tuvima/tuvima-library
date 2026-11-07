@@ -34,10 +34,10 @@ test('version change restores follow and detach removes every interaction listen
     lyrics.detach(f.root); assert.equal(f.listeners.size, 0);
     f.scroller.scrollTop = 0; lyrics.update(f.root, 2, 'asset:third'); assert.equal(f.scroller.scrollTop, 0);
 });
-test('return action is unnecessary while the manually browsed current line remains visible', () => {
+test('a hand scroll offers Resume following even while the current line is still visible (unified player v2 D17)', () => {
     const f = fixture(); lyrics.update(f.root, 1, 'asset:first');
     f.listeners.get('touchstart')({}); f.listeners.get('scroll')({});
-    assert.equal(f.changes.some(([, needed]) => needed), false);
+    assert.deepEqual(f.changes.at(-1), ['FollowChanged', true]);
 });
 
 test('clock selection supports fractional lines, offsets, duplicate tags and reverse seeks',()=>{

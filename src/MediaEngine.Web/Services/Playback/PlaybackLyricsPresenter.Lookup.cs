@@ -67,28 +67,33 @@ public sealed partial class PlaybackLyricsPresenter
         Changed?.Invoke();
     }
 
-    /// <summary>Where the lyrics showing now came from, in plain words; null when none are showing.</summary>
-    public string? SourceLine
+    /// <summary>Where the lyrics showing now came from (the footer's "Synced lyrics · Local file"); None when none are showing.</summary>
+    public PlaybackLyricsSource Source
     {
         get
         {
             if (Lines.Count == 0 || Tracks.FirstOrDefault(track => track.Id == SelectedTrackId) is not { } track)
             {
-                return null;
+                return PlaybackLyricsSource.None;
             }
             if (string.Equals(track.Provider, "embedded", StringComparison.OrdinalIgnoreCase))
             {
-                return "Lyrics from the song's own tags";
+                return PlaybackLyricsSource.SongTags;
             }
             if (track.IsUserOwned)
             {
-                return "Lyrics from a file next to the song";
+                return PlaybackLyricsSource.LocalFile;
             }
-            return string.Equals(track.Provider, "lrclib", StringComparison.OrdinalIgnoreCase)
-                ? "Lyrics from LRCLIB"
-                : string.IsNullOrWhiteSpace(track.Provider) ? null : $"Lyrics from {track.Provider}";
+            if (string.Equals(track.Provider, "lrclib", StringComparison.OrdinalIgnoreCase))
+            {
+                return PlaybackLyricsSource.Lrclib;
+            }
+            return string.IsNullOrWhiteSpace(track.Provider) ? PlaybackLyricsSource.None : PlaybackLyricsSource.Other;
         }
     }
+
+    /// <summary>The provider's own name, for a source the panel has no word for (<see cref="PlaybackLyricsSource.Other"/>).</summary>
+    public string? SourceProvider => Tracks.FirstOrDefault(track => track.Id == SelectedTrackId)?.Provider;
 
     /// <summary>Shows a short plain-words message in the lyrics panel.</summary>
     public void ShowStatus(string message) { Status = message; Changed?.Invoke(); }
@@ -126,6 +131,31 @@ public sealed partial class PlaybackLyricsPresenter
             }
         }
         finally { if (Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
+    }
+
+    private const long MaxLyricsFileBytes = 5 * 1024 * 1024;
+
+    /// <summary>Adds the lyrics file the person picked in the browser (at most 5 MB), or says in plain words why it could not be used.</summary>
+    public async Task ImportBrowserFileAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
+    {
+        if (file is null)
+        {
+            return;
+        }
+        if (file.Size > MaxLyricsFileBytes)
+        {
+            ShowStatus("That lyrics file is too big. Lyrics files must be 5 MB or smaller.");
+            return;
+        }
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxLyricsFileBytes);
+            await ImportFileAsync(file.Name, file.ContentType, stream);
+        }
+        catch (IOException)
+        {
+            ShowStatus("That lyrics file could not be read.");
+        }
     }
 
     public bool Offers(string kind) => PluginActions.Any(action => string.Equals(action.kind, kind, StringComparison.OrdinalIgnoreCase));

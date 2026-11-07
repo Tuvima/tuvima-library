@@ -29,6 +29,13 @@
     width: var(--playback-panel-wide-width);
 }
 
+/* Mockup screen 7: the Lyrics panel is 460 px wide and runs nearly the height of the page (the panel system still keeps it inside 80% of the player). */
+.playback-panel--lyrics {
+    width: var(--playback-panel-lyrics-width);
+    height: var(--playback-panel-lyrics-height);
+    max-height: var(--playback-panel-lyrics-height);
+}
+
 /* Mockup screen 5: the stand-alone Speed panel is 420 px (Playback settings is 400). */
 .playback-panel--speed {
     width: var(--playback-panel-speed-width);
@@ -92,6 +99,32 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
+    padding: 8px;
+}
+
+.playback-panel__heading {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+}
+
+.playback-panel__heading .playback-panel__title {
+    flex: 0 1 auto;
+}
+
+/* The lyrics fill the body and scroll themselves, so the identity row stays put above them; a nested view (About lyrics sources) scrolls as a whole. */
+.playback-panel--lyrics .playback-panel__body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+}
+
+.playback-panel--lyrics .playback-panel__body--nested {
+    display: block;
+    overflow-y: auto;
     padding: 8px;
 }
 

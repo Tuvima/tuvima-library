@@ -17,6 +17,7 @@ public sealed class MenuMarkupGuardrailTests
         ["Components/Shared/MediaRateControl.razor"] = "Two thumb icons that open on hover, not a text menu.",
         ["Components/Listen/SongActions.razor"] = "The player's song menu, a playback popover (Group E); it uses the shared menu items.",
         ["Components/Shared/PlaybackItemMenu.razor"] = "The persistent bar's item actions menu (unified player v2 D23): rows live inside a PlaybackPanel popover and follow the player mockup, not the app menu look.",
+        ["Components/Listen/PlaybackLyricsMenu.razor"] = "The Lyrics footer's \"...\" menu (unified player v2 D17): rows live inside a PlaybackPanel popover and follow the player mockup, like the item actions menu.",
     };
 
     [Fact]

@@ -1,0 +1,17 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Services.Playback
+@inject PlaybackLyricsPresenter Presenter
+
+@* The one hidden file chooser behind every "Add a lyrics file" (the unavailable state and the footer menu). It stays drawn while the lyrics reload, so the
+   file the person picked can still be read. The picked .lrc or text file goes to the presenter, which sends it to the Engine and shows the result. *@
+<AppFileUpload @ref="_upload" T="Microsoft.AspNetCore.Components.Forms.IBrowserFile" Accept=".lrc,.txt,text/plain" Disabled="@Presenter.Refreshing"
+               FilesChanged="Presenter.ImportBrowserFileAsync" Class="playback-lyrics-file-picker">
+    <CustomContent Context="upload"></CustomContent>
+</AppFileUpload>
+
+@code {
+    private AppFileUpload<Microsoft.AspNetCore.Components.Forms.IBrowserFile>? _upload;
+
+    /// <summary>Opens the browser's file chooser.</summary>
+    public Task OpenAsync() => _upload?.OpenFilePickerAsync() ?? Task.CompletedTask;
+}

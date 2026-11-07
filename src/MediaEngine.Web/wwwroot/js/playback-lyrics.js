@@ -1,9 +1,22 @@
 const states = new WeakMap();
+// Unified player v2 D17: the follow/suspend decision is a small pure function so it can be tested without a browser. The list follows the song
+// until the person scrolls it by hand (wheel, touch, keyboard or the scrollbar); our own scrolling to the current line never suspends it; Resume
+// following, a new song, or selecting a line puts it back.
+export const MANUAL_SCROLL_KEYS = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'];
+export function isManualScrollKey(key, onButton = false) {
+    // Space scrolls a list that has the focus itself, but on a line button it selects that line.
+    return MANUAL_SCROLL_KEYS.includes(key) || (key === ' ' && !onButton);
+}
+export function nextFollowing(following, signal) {
+    switch (signal) {
+        case 'wheel': case 'touch': case 'key': case 'scrollbar': return false;
+        case 'resume': case 'song': case 'select': return true;
+        default: return following; // 'programmatic' scrolls (and anything unknown) leave it as it was
+    }
+}
+export function resumeNeeded(following, hasCurrent) { return !following && hasCurrent; }
 function notify(state) {
-    const current = state.scroller.querySelector('[aria-current="true"]');
-    const box = current?.getBoundingClientRect(), area = state.scroller.getBoundingClientRect();
-    const visible = box && box.bottom > area.top && box.top < area.bottom;
-    const needed = !state.following && !!current && !visible;
+    const needed = resumeNeeded(state.following, !!state.scroller.querySelector('[aria-current="true"]'));
     if (state.needed !== needed) { state.needed = needed; state.owner.invokeMethodAsync('FollowChanged', needed); }
 }
 function center(state) {
@@ -16,17 +29,18 @@ export function attach(root, owner) {
     const scroller = root.querySelector('.playback-lyrics__lines'); if (!scroller) return;
     const state = { reducedMotion: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true, scroller, owner, following:true, needed:false, key:null, index:-1, listeners:[] };
     const listen = (name, handler) => { scroller.addEventListener(name, handler, { passive:true }); state.listeners.push([name, handler]); };
-    const manual = () => { state.following = false; notify(state); };
-    listen('wheel', manual); listen('touchstart', manual); listen('pointerdown', event => { if (event.target === scroller) manual(); });
-    listen('keydown', event => { if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) manual(); });
-    listen('scroll', () => notify(state)); states.set(root, state);
+    const manual = signal => { state.following = nextFollowing(state.following, signal); notify(state); };
+    listen('wheel', () => manual('wheel')); listen('touchstart', () => manual('touch'));
+    listen('pointerdown', event => { if (event.target === scroller) manual('scrollbar'); });
+    listen('keydown', event => { if (isManualScrollKey(event.key, !!event.target?.closest?.('button'))) manual('key'); });
+    listen('scroll', () => manual('programmatic')); states.set(root, state);
 }
 export function update(root, index, key) {
     const state = states.get(root); if (!state) return;
-    if (state.key !== key) { state.key = key; state.index = -1; state.following = true; }
+    if (state.key !== key) { state.key = key; state.index = -1; state.following = nextFollowing(state.following, 'song'); }
     if (state.index !== index) { state.index = index; center(state); } else notify(state);
 }
-export function follow(root) { const state = states.get(root); if (state) { state.following = true; center(state); } }
+export function follow(root) { const state = states.get(root); if (state) { state.following = nextFollowing(state.following, 'resume'); center(state); } }
 export function activeIndexAt(times, time) {
     let index = -1, latest = -Infinity;
     times.forEach((entry, candidate) => { const stamp = typeof entry === "object" && entry !== null ? entry.start : entry; const eligible = !entry?.instrumental || time < entry.end; if (eligible && stamp !== null && Number.isFinite(stamp) && stamp <= time && stamp >= latest) { index = candidate; latest = stamp; } });
@@ -63,7 +77,7 @@ function tick(state) {
 }
 export function setTimes(root, times, key) {
     const state = states.get(root); if (!state) return;
-    if (state.key !== key) { state.key = key; state.following = true; state.index = -1; }
+    if (state.key !== key) { state.key = key; state.following = nextFollowing(state.following, 'song'); state.index = -1; }
     state.times = times;
     if (state.clock) { if (state.frame) cancelAnimationFrame(state.frame); tick(state); }
 }

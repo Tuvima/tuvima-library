@@ -1683,20 +1683,8 @@
   <data name="PlaybackLyrics_NoLyricsFoundForThis" xml:space="preserve">
     <value>No lyrics found for this song.</value>
   </data>
-  <data name="PlaybackLyrics_LookUpLyricsNow" xml:space="preserve">
-    <value>Look up lyrics now</value>
-  </data>
-  <data name="PlaybackLyrics_BackToCurrentLine" xml:space="preserve">
-    <value>Back to current line</value>
-  </data>
   <data name="PlaybackLyrics_LyricsOptions" xml:space="preserve">
     <value>Lyrics options</value>
-  </data>
-  <data name="PlaybackLyrics_LookForLyricsAgain" xml:space="preserve">
-    <value>Look for lyrics again</value>
-  </data>
-  <data name="PlaybackLyrics_NotRightFindAnother" xml:space="preserve">
-    <value>Not right? Find another</value>
   </data>
   <data name="PlaybackLyrics_EditLyrics" xml:space="preserve">
     <value>Edit lyrics</value>
@@ -1709,6 +1697,78 @@
   </data>
   <data name="PlaybackLyrics_Instrumental" xml:space="preserve">
     <value>Instrumental</value>
+  </data>
+  <data name="PlaybackLyrics_Synced" xml:space="preserve">
+    <value>Synced</value>
+  </data>
+  <data name="PlaybackLyrics_Unsynced" xml:space="preserve">
+    <value>Unsynced</value>
+  </data>
+  <data name="PlaybackLyrics_OpenNowPlaying" xml:space="preserve">
+    <value>Open Now playing</value>
+  </data>
+  <data name="PlaybackLyrics_ResumeFollowing" xml:space="preserve">
+    <value>Resume following</value>
+  </data>
+  <data name="PlaybackLyrics_SelectALine" xml:space="preserve">
+    <value>Select a line to jump to that moment.</value>
+  </data>
+  <data name="PlaybackLyrics_SeekToLine" xml:space="preserve">
+    <value>Seek to {0}</value>
+  </data>
+  <data name="PlaybackLyrics_SwitchOneOn" xml:space="preserve">
+    <value>Switch one on in Plugins and lyrics will appear here.</value>
+  </data>
+  <data name="PlaybackLyrics_AskAnAdministrator" xml:space="preserve">
+    <value>Ask an administrator to switch one on.</value>
+  </data>
+  <data name="PlaybackLyrics_FindLyrics" xml:space="preserve">
+    <value>Find lyrics</value>
+  </data>
+  <data name="PlaybackLyrics_AddFile" xml:space="preserve">
+    <value>Add a lyrics file</value>
+  </data>
+  <data name="PlaybackLyrics_FindAnother" xml:space="preserve">
+    <value>Find another</value>
+  </data>
+  <data name="PlaybackLyrics_AboutSources" xml:space="preserve">
+    <value>About lyrics sources</value>
+  </data>
+  <data name="PlaybackLyrics_SourceSynced" xml:space="preserve">
+    <value>Synced lyrics · {0}</value>
+  </data>
+  <data name="PlaybackLyrics_SourceUnsynced" xml:space="preserve">
+    <value>Unsynced lyrics · {0}</value>
+  </data>
+  <data name="PlaybackLyrics_SourceLocalFile" xml:space="preserve">
+    <value>Local file</value>
+  </data>
+  <data name="PlaybackLyrics_SourceSongTags" xml:space="preserve">
+    <value>Song tags</value>
+  </data>
+  <data name="PlaybackLyrics_SourceLrclib" xml:space="preserve">
+    <value>LRCLIB</value>
+  </data>
+  <data name="PlaybackLyrics_TimedToTheSong" xml:space="preserve">
+    <value>Timed to the song</value>
+  </data>
+  <data name="PlaybackLyrics_WordsOnly" xml:space="preserve">
+    <value>Words only</value>
+  </data>
+  <data name="PlaybackLyrics_InUse" xml:space="preserve">
+    <value>In use</value>
+  </data>
+  <data name="PlaybackLyrics_NoOtherLyrics" xml:space="preserve">
+    <value>No other lyrics were found.</value>
+  </data>
+  <data name="PlaybackLyrics_AboutOrigin" xml:space="preserve">
+    <value>Lyrics come from a .lrc file next to the song, or from LRCLIB, a free lyrics service. Library looks them up when it adds a song.</value>
+  </data>
+  <data name="PlaybackLyrics_AboutSynced" xml:space="preserve">
+    <value>Synced lyrics carry times, so the list follows the song and you can select a line to jump to it. Unsynced lyrics are plain text.</value>
+  </data>
+  <data name="PlaybackLyrics_AboutYours" xml:space="preserve">
+    <value>To use your own words, add a lyrics file. Choose Find another to see what else is available.</value>
   </data>
   <data name="PlaybackOutputPanel_Output" xml:space="preserve">
     <value>Output</value>

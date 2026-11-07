@@ -33,8 +33,9 @@
                     @if (_mobile)
                     {
                         <div class="playback-panel__backdrop" data-playback-popover-backdrop></div>
-                        <PlaybackToolSheet Title="@CurrentTitle" Surface="@Surface" Presentation="full-overlay" Modal="true" Class="playback-tool-sheet--framed"
-                                           OnClose="CloseAsync" OnBack="@SheetBack" Footer="@CurrentFooter">
+                        <PlaybackToolSheet Title="@CurrentTitle" Surface="@Surface" Presentation="full-overlay" Modal="true" Class="@SheetClass"
+                                           OnClose="CloseAsync" OnBack="@SheetBack" Footer="@CurrentFooter"
+                                           TitleAdornment="@(Navigator.Depth == 0 ? TitleAdornment : null)" HeaderActions="@(Navigator.Depth == 0 ? HeaderActions : null)">
                             @CurrentBody
                         </PlaybackToolSheet>
                     }
@@ -48,7 +49,21 @@
                                     {
                                         @HeaderButton(PlaybackUtilityGlyphKind.Back, L["Common_Back"].Value, "playback-panel__icon-button playback-panel__back", EventCallback.Factory.Create(this, BackAsync))
                                     }
-                                    <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                    @if (TitleAdornment is not null && Navigator.Depth == 0)
+                                    {
+                                        <div class="playback-panel__heading">
+                                            <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                            @TitleAdornment
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                    }
+                                    @if (HeaderActions is not null && Navigator.Depth == 0)
+                                    {
+                                        @HeaderActions
+                                    }
                                     @HeaderButton(PlaybackUtilityGlyphKind.Close, $"Close {Title}", "playback-panel__icon-button playback-panel__close", EventCallback.Factory.Create(this, CloseAsync))
                                 </header>
                             }
@@ -103,6 +118,12 @@
     [Parameter] public RenderFragment? TriggerContent { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>Small content that sits right after the title in the header of the main view (the Lyrics panel's Synced chip).</summary>
+    [Parameter] public RenderFragment? TitleAdornment { get; set; }
+
+    /// <summary>Icon buttons the header draws before Close on the main view (the Lyrics panel's Open Now playing).</summary>
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
+
     /// <summary>The fixed footer actions. Only the body between header and footer scrolls.</summary>
     [Parameter] public RenderFragment? Footer { get; set; }
 
@@ -121,6 +142,7 @@
     private string EffectiveSize => Size is "menu" or "panel" or "wide" ? Size : Kind == "menu" ? "menu" : "panel";
     private string PanelClass => $"playback-panel playback-panel--{EffectiveSize} playback-panel--{(Kind is "lyrics" or "video" or "menu" or "speed" or "settings" ? Kind : "ordinary")}{(_mobile ? " playback-panel--sheet" : "")}";
     private string BodyClass => string.Join(" ", new[] { EffectiveSize == "menu" ? "playback-panel__body--menu" : null, !ShowHeading && EffectiveSize != "menu" && Kind != "settings" ? "playback-panel__body--legacy" : null, Navigator.Depth > 0 ? "playback-panel__body--nested" : null }.Where(value => value is not null));
+    private string SheetClass => Kind == "lyrics" ? "playback-tool-sheet--framed playback-tool-sheet--lyrics" : "playback-tool-sheet--framed";
     private bool ShowHeader => ShowHeading && EffectiveSize != "menu";
     private string CurrentTitle => Navigator.Current?.Title ?? Title;
     private RenderFragment? CurrentBody => Navigator.Current?.Body ?? ChildContent;

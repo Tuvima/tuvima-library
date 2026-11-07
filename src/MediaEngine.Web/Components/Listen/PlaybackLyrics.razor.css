@@ -1,31 +1,286 @@
-.playback-lyrics { position:relative; display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; container-type:inline-size; }
-.playback-lyrics__status { margin:0; padding:6px 16px; font-size:var(--tl-font-size-xs); color:var(--playback-text-secondary); flex:0 0 auto; }
-.playback-lyrics__lines { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:24px 8px 64px; scroll-behavior:auto; }
-.playback-lyrics__lines ::deep .playback-lyrics__line,.playback-lyrics__line--static { display:block; box-sizing:border-box; width:100%; padding:16px 16px; margin:0; min-height:44px; border:0; background:transparent; color:var(--playback-text-secondary); font-family:var(--font-ui); font-size:clamp(20px,6cqw,28px); font-weight:600; line-height:1.3; overflow-wrap:anywhere; text-align:left; white-space:normal; }
-.playback-lyrics__lines ::deep .playback-lyrics__line.is-active { color:var(--playback-text); font-size:clamp(26px,8cqw,38px); font-weight:600; line-height:1.2; text-shadow:0 0 18px var(--playback-accent-soft); }
-.playback-lyrics ::deep .playback-lyrics__return { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); min-height:44px; max-width:calc(100% - 24px); padding:8px 16px; background:var(--playback-surface-elevated); border:1px solid var(--playback-accent-border); border-radius:22px; color:var(--playback-text); white-space:nowrap; }
-.playback-lyrics__empty { color:var(--playback-text-secondary); padding:0 12px; font-size:var(--tl-font-size-sm); }
+/* Unified player v2 D17, mockup screen 7. The lyrics fill whatever holds them (the Lyrics panel body, or the Now playing page) and scroll themselves; the
+   identity row above and the footer below stay put. */
+.playback-lyrics {
+    --playback-glyph-size: 16px;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
 
-.playback-lyrics__attribution { padding: 8px 16px; color: var(--playback-text-secondary); font-size: var(--tl-font-size-caption); }
-.playback-lyrics__lines ::deep .playback-lyrics__word { white-space: pre-wrap; background: linear-gradient(90deg, var(--playback-text) var(--fill, 0%), var(--playback-text-secondary) var(--fill, 0%)); background-clip: text; color: transparent; }
-.playback-lyrics__lines ::deep .playback-lyrics__gap { padding-block: 4px; height: 16px; min-height: 16px; transition: height .2s, padding .2s; }
-.playback-lyrics__lines ::deep .playback-lyrics__gap.is-active { height: 64px; padding-block: 20px; }
-.playback-lyrics__dots { display: flex; gap: 12px; opacity: var(--gap-opacity, 0); }
-.playback-lyrics__dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--playback-accent); opacity: calc(.25 + .75 * var(--dot-1, .15)); transform: scale(calc(.85 + .15 * var(--dot-1, 0))); }
-.playback-lyrics__dots i:nth-child(2) { opacity: calc(.25 + .75 * var(--dot-2, .15)); transform: scale(calc(.85 + .15 * var(--dot-2, 0))); }
-.playback-lyrics__dots i:nth-child(3) { opacity: calc(.25 + .75 * var(--dot-3, .15)); transform: scale(calc(.85 + .15 * var(--dot-3, 0))); }
-.playback-lyrics__gap.is-active .playback-lyrics__dots { animation: lyric-breathe 1.6s ease-in-out infinite; }
-@keyframes lyric-breathe { 50% { transform: scale(.85); } }
-@media (prefers-reduced-motion: reduce) { .playback-lyrics__gap, .playback-lyrics__gap.is-active .playback-lyrics__dots { animation: none; transition: none; } }
-.playback-lyrics__lines ::deep .playback-lyrics__manage { min-height: 44px; border: 0; background: transparent; color: var(--playback-accent); padding: 8px 12px; }
-.playback-lyrics__lines ::deep button:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: -2px; }
-.playback-lyrics__toolbar { display: flex; justify-content: flex-end; padding: 4px 8px 0; flex: 0 0 auto; }
-.playback-lyrics__alternatives ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.playback-lyrics__alternative { display: grid; gap: 2px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 14px; text-align: left; border: 1px solid var(--playback-accent-border); border-radius: 12px; background: var(--playback-surface-elevated); color: var(--playback-text); }
-.playback-lyrics__alternative span, .playback-lyrics__alternative small { color: var(--playback-text-secondary); font-size: var(--tl-font-size-caption); overflow-wrap: anywhere; }
-a.playback-lyrics__manage { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; color: var(--playback-accent); }
-.playback-lyrics__notice { display:flex; align-items:flex-start; gap:12px; margin:16px 8px; padding:14px 16px; border:1px solid var(--playback-accent-border); border-radius:12px; background:var(--playback-surface-elevated); color:var(--playback-text-secondary); font-size:var(--tl-font-size-sm); line-height:1.4; }
-.playback-lyrics__notice-icon { flex:none; display:inline-flex; color:var(--playback-accent); font-size:var(--tl-icon-size-md); }
-.playback-lyrics__notice strong { display:block; color:var(--playback-text); font-weight:600; }
-.playback-lyrics__notice p { margin:4px 0 0; }
-.playback-lyrics__notice a.playback-lyrics__manage { margin-top:4px; margin-inline-start:-12px; }
+/* Identity row: 44 px art, the song at 15 / 600 and the artist at 13, 12 px apart, 10 / 16 padding, a hairline under it. */
+.playback-lyrics__identity {
+    align-items: center;
+    border-bottom: 1px solid var(--playback-hairline);
+    display: flex;
+    flex: none;
+    gap: 12px;
+    padding: 10px 16px;
+}
+
+.playback-lyrics__art {
+    background: var(--playback-state-hover);
+    border-radius: 6px;
+    flex: none;
+    height: 44px;
+    object-fit: cover;
+    width: 44px;
+}
+
+.playback-lyrics__identity-text {
+    min-width: 0;
+}
+
+.playback-lyrics__track,
+.playback-lyrics__artist {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-lyrics__track {
+    color: var(--playback-text);
+    font: 600 15px/1.45 var(--font-ui);
+}
+
+.playback-lyrics__artist {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+}
+
+.playback-lyrics__status {
+    color: var(--playback-text-secondary);
+    flex: none;
+    font: 400 var(--tl-font-size-xs)/1.45 var(--font-ui);
+    margin: 0;
+    padding: 6px 16px;
+}
+
+.playback-lyrics__stage {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+}
+
+/* The lines: 22 / 1.5 in the quiet color, 16 / 20 padding. The bottom padding leaves room under the last line for the Resume following pill. */
+.playback-lyrics__lines {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px 20px 120px;
+    scroll-behavior: auto;
+    scrollbar-width: thin;
+}
+
+/* Each line has a 3 px edge that is purple on the current line; a timed line is a button and keeps a 44 px target. */
+.playback-lyrics__line {
+    background: transparent;
+    border: 0;
+    border-left: 3px solid transparent;
+    box-sizing: border-box;
+    color: var(--playback-text-secondary);
+    display: block;
+    font: 400 22px/1.5 var(--font-ui);
+    margin: 0;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+    padding: 4px 0 4px 14px;
+    text-align: left;
+    white-space: normal;
+    width: 100%;
+}
+
+button.playback-lyrics__line {
+    cursor: pointer;
+}
+
+button.playback-lyrics__line:hover {
+    color: var(--playback-text);
+}
+
+button.playback-lyrics__line:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.playback-lyrics__line.is-active {
+    border-left-color: var(--playback-accent);
+    color: var(--playback-text);
+    font-weight: 600;
+}
+
+.playback-lyrics__word {
+    background: linear-gradient(90deg, var(--playback-text) var(--fill, 0%), var(--playback-text-secondary) var(--fill, 0%));
+    background-clip: text;
+    color: transparent;
+    white-space: pre-wrap;
+}
+
+.playback-lyrics__gap {
+    height: 16px;
+    min-height: 16px;
+    padding-block: 4px;
+    transition: height .2s, padding .2s;
+}
+
+.playback-lyrics__gap.is-active {
+    height: 64px;
+    padding-block: 20px;
+}
+
+.playback-lyrics__dots {
+    display: flex;
+    gap: 12px;
+    opacity: var(--gap-opacity, 0);
+}
+
+.playback-lyrics__dots i {
+    background: var(--playback-accent);
+    border-radius: 50%;
+    height: 9px;
+    opacity: calc(.25 + .75 * var(--dot-1, .15));
+    transform: scale(calc(.85 + .15 * var(--dot-1, 0)));
+    width: 9px;
+}
+
+.playback-lyrics__dots i:nth-child(2) {
+    opacity: calc(.25 + .75 * var(--dot-2, .15));
+    transform: scale(calc(.85 + .15 * var(--dot-2, 0)));
+}
+
+.playback-lyrics__dots i:nth-child(3) {
+    opacity: calc(.25 + .75 * var(--dot-3, .15));
+    transform: scale(calc(.85 + .15 * var(--dot-3, 0)));
+}
+
+.playback-lyrics__gap.is-active .playback-lyrics__dots {
+    animation: lyric-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes lyric-breathe {
+    50% { transform: scale(.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .playback-lyrics__gap,
+    .playback-lyrics__gap.is-active .playback-lyrics__dots {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* Resume following: a selected-look chip (36 px, 14 / 600, a small play glyph) with the 13 px hint under it, centered over the bottom of the list. */
+.playback-lyrics__resume {
+    background: var(--playback-popover-surface);
+    border-radius: 12px;
+    bottom: 12px;
+    box-shadow: var(--playback-panel-shadow);
+    left: 50%;
+    max-width: calc(100% - 24px);
+    padding: 8px 12px;
+    position: absolute;
+    text-align: center;
+    transform: translateX(-50%);
+}
+
+.playback-lyrics__resume-chip {
+    align-items: center;
+    background: var(--playback-state-selected);
+    border: 0;
+    border-radius: 8px;
+    color: var(--tl-accent-primary-hover);
+    cursor: pointer;
+    display: inline-flex;
+    font: 600 14px/1.45 var(--font-ui);
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px;
+}
+
+.playback-lyrics__resume-chip:hover {
+    background: var(--playback-state-pressed);
+}
+
+.playback-lyrics__resume-chip:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-lyrics__resume-hint {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 6px 0 0;
+}
+
+/* Loading, Unavailable and Error: a short line, and the actions under it. */
+.playback-lyrics__state {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px 8px;
+    text-align: center;
+}
+
+.playback-lyrics__message {
+    color: var(--playback-text-secondary);
+    font: 400 15px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 24px 8px 0;
+    text-align: center;
+}
+
+.playback-lyrics__state .playback-lyrics__message {
+    padding: 0;
+}
+
+.playback-lyrics__hint {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 0;
+}
+
+.playback-lyrics__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.playback-lyrics__link {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--tl-accent-primary-hover);
+    cursor: pointer;
+    display: inline-flex;
+    font: 600 14px/1.45 var(--font-ui);
+    min-height: 44px;
+    padding: 8px 12px;
+}
+
+.playback-lyrics__link:hover {
+    background: var(--playback-state-hover);
+}
+
+.playback-lyrics__link:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+/* When the Now playing page (or a pop-out) places the lyrics with their own footer, it sits under a hairline like the panel's. */
+.playback-lyrics__footer {
+    align-items: center;
+    border-top: 1px solid var(--playback-hairline);
+    display: flex;
+    flex: none;
+    padding: 10px 16px;
+}
