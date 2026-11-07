@@ -54,6 +54,10 @@
                         }
                     </div>
                 }
+                @if (RemoteLine is { } remoteLine)
+                {
+                    <div class="playback-full__remote" role="status" data-playback-remote-line data-overflow-tooltip="@remoteLine">@remoteLine</div>
+                }
             </div>
             <div class="playback-full__actions" data-playback-full-actions>
                 <PlaybackIdentityActions Media="@Media" Item="@item" Surface="dock" ShowMore="false" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
@@ -189,6 +193,22 @@
         }
     };
 
+    private PlaybackRemoteController? _remote;
+
+    protected override void OnInitialized()
+    {
+        // Optional: a host with no remote controller draws the player as it always did.
+        _remote = Services.GetService<PlaybackRemoteController>();
+        if (_remote is not null) _remote.Changed += OnRemoteChanged;
+    }
+
+    private void OnRemoteChanged() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+
+    /// <summary>"Playing on Living room TV" under the title while a receiver plays (unified player v2 D28); "another device" when the browser gives no name.</summary>
+    private string? RemoteLine => _remote is { IsRemote: true } remote
+        ? L["PlaybackRemote_PlayingOn", remote.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : null;
+
     protected override void OnParametersSet()
     {
         if (_subject == Subject) return;
@@ -227,6 +247,7 @@
     {
         if (_disposed) return;
         _disposed = true;
+        if (_remote is not null) _remote.Changed -= OnRemoteChanged;
         await _focusLifecycle.WaitAsync();
         try
         {

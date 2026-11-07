@@ -96,6 +96,7 @@
 
 /* The third line while a receiver plays (unified player v2 D28; mockup screen 16): the second line's type in the accent color. */
 .playback-identity__remote {
+    display: block;
     color: var(--playback-accent-hover);
     font-size: var(--tl-font-size-secondary);
     line-height: 1.45;

@@ -18,6 +18,7 @@
 .playback-full__text { flex:1; min-width:0; }
 .playback-full__title { font-size:18px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .playback-full__secondary { font-size:14px; line-height:1.3; color:var(--playback-text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.playback-full__remote { font-size:14px; line-height:1.3; color:var(--playback-accent-hover); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* Favorite, Like and Dislike keep the mockup's 40 px look inside a 44 px hit area (the touch rule): the buttons are 44 px and PlaybackIconButton draws its hover,
    pressed and selected fills 2 px inside through the two fill variables, with the gap closed up by the same 4 px so the line looks as drawn.
    Transfer: they are PlaybackIconButtons sized by --playback-control-target, which this wrapper sets; the gap reaches into PlaybackIdentityActions. */

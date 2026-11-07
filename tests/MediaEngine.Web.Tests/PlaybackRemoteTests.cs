@@ -353,6 +353,62 @@ public sealed class PlaybackRemoteTests : AsyncBunitContext
         Assert.Equal("The Glass Harbor", cut.Find(".playback-identity__title").TextContent.Trim());
     }
 
+    private sealed class IdleSink : IPlaybackCommandSink
+    {
+        public bool Supports(string action, ListenPlaybackSnapshot snapshot) => false;
+
+        public Task<ListenPlaybackCommandReplyDto?> SendAsync(ListenPlaybackSnapshot snapshot, ListenPlaybackCommandDto command, CancellationToken ct = default) =>
+            Task.FromResult<ListenPlaybackCommandReplyDto?>(new());
+    }
+
+    [Fact]
+    public async Task WhileAReceiverPlays_TheCollapsedPhoneBarSaysPlayingOnInPlaceOfTheSecondLineAndKeepsItsHeight()
+    {
+        var remote = Arrange();
+        var cut = Render<PlaybackShell>(p => p
+            .Add(s => s.Media, PlaybackBarMedia.Music)
+            .Add(s => s.Compact, true)
+            .Add(s => s.Identity, PlaybackBarIdentity.Build(PlaybackBarMedia.Music, Item("Music")))
+            .Add(s => s.State, new PlaybackBarState(CanPrevious: true, CanNext: true))
+            .Add(s => s.ArtworkClick, EventCallback.Factory.Create(this, () => { })));
+        Assert.Empty(cut.FindAll("[data-playback-remote-line]"));
+        Assert.Single(cut.FindAll("[data-playback-expand] .playback-identity__secondary"));
+
+        await cut.InvokeAsync(() => remote.OnRemoteStateChanged("remote", "Living room TV"));
+
+        cut.WaitForAssertion(() => Assert.Equal("Playing on Living room TV", cut.Find("[data-playback-expand] [data-playback-remote-line]").TextContent.Trim()));
+        Assert.Empty(cut.FindAll("[data-playback-expand] .playback-identity__secondary"));
+        Assert.Equal("The Glass Harbor", cut.Find("[data-playback-expand] .playback-identity__title").TextContent.Trim());
+
+        await cut.InvokeAsync(() => remote.OnRemoteStateChanged("local", null));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-playback-remote-line]")));
+        Assert.Single(cut.FindAll("[data-playback-expand] .playback-identity__secondary"));
+    }
+
+    [Theory]
+    [InlineData("Living room TV", "Playing on Living room TV")]
+    [InlineData(null, "Playing on another device")]
+    public async Task WhileAReceiverPlays_TheExpandedPhonePlayerSaysPlayingOnUnderTheTitle(string? device, string expected)
+    {
+        var remote = Arrange();
+        var item = Item("Music");
+        var snapshot = new ListenPlaybackSnapshot { ProfileId = Guid.NewGuid(), CurrentIndex = 0, Queue = [item] };
+        var cut = Render<MediaEngine.Web.Components.Listen.PlaybackFullPlayer>(p => p
+            .Add(x => x.Snapshot, snapshot)
+            .Add(x => x.Commands, new IdleSink())
+            .Add(x => x.State, new PlaybackBarState(CanPrevious: true, CanNext: true)));
+        Assert.Empty(cut.FindAll("[data-playback-remote-line]"));
+
+        await cut.InvokeAsync(() => remote.OnRemoteStateChanged("remote", device));
+
+        cut.WaitForAssertion(() => Assert.Equal(expected, cut.Find("[data-playback-full-identity] [data-playback-remote-line]").TextContent.Trim()));
+        var text = cut.Find(".playback-full__text").Children.Select(child => child.ClassList.First()).ToList();
+        Assert.Equal(["playback-full__title", "playback-full__remote"], text.Where(name => name is "playback-full__title" or "playback-full__remote"));
+
+        await cut.InvokeAsync(() => remote.OnRemoteStateChanged("local", null));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-playback-remote-line]")));
+    }
+
     [Fact]
     public async Task WhenTheBrowserDoesNotNameTheReceiver_TheBarSaysPlayingOnAnotherDevice()
     {

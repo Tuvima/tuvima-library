@@ -18,7 +18,12 @@
             }
             <span class="playback-identity__text">
                 <span class="playback-identity__title">@Identity.Title</span>
-                @if (Identity.Secondary.Count > 0)
+                @if (!string.IsNullOrWhiteSpace(RemoteLine))
+                {
+                    @* While a receiver plays, "Playing on ..." takes the second line's place, so the collapsed bar keeps its 56 px height. *@
+                    <span class="playback-identity__remote" data-playback-remote-line>@RemoteLine</span>
+                }
+                else if (Identity.Secondary.Count > 0)
                 {
                     <span class="playback-identity__secondary">@Identity.SecondaryText</span>
                 }
