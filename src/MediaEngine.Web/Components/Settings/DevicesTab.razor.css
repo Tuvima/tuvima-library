@@ -9,17 +9,21 @@
 .devices-tab__filters {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: center;
     gap: var(--tl-space-4, 16px);
 }
 
+/* The filter's name sits beside it on one centre line, not in small type above it (D15.1). */
 .devices-tab__filter {
-    display: grid;
+    display: flex;
     min-width: 180px;
-    gap: var(--tl-space-1, 4px);
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
 }
 
 .devices-tab__filter-label {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    flex: 0 0 auto;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    white-space: nowrap;
 }

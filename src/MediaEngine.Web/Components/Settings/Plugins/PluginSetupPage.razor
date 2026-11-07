@@ -258,7 +258,7 @@ else
                     <AppStatusDot Tick="true" Tone="@StateTone(state)" Sentence="@StateSentence(state)" />
                     <div class="plugin-conn__copy">
                         <strong data-testid="plugin-connection-state">@StateSentence(state)</strong>
-                        <small>@ConnectionDetail(state, label, household)</small>
+                        <small data-overflow-tooltip="@ConnectionDetail(state, label, household)">@ConnectionDetail(state, label, household)</small>
                     </div>
                     <div class="plugin-conn__actions">
                         @if (CanChange)
@@ -353,7 +353,7 @@ else
                 @foreach (var test in tests)
                 {
                     var kind = test.Kind;
-                    <AppButton Label="@(_testing == kind ? "Testing…" : tests.Count == 1 && card.Credentials.Count > 0 ? label : test.Label)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Size="AppControlSize.Compact"
+                    <AppButton Label="@(_testing == kind ? "Testing…" : tests.Count == 1 && card.Credentials.Count > 0 ? label : test.Label)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
                                Disabled="@(_testing is not null || !CanChange)" OnClick="@(() => RunTestAsync(kind))" data-testid="@("plugin-test-" + kind)" />
                 }
             </span>

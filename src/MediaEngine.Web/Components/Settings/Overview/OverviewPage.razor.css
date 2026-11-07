@@ -119,6 +119,11 @@
     list-style: none;
 }
 
+.overview-page__taste-pills > li {
+    min-width: 0;
+    max-width: 100%;
+}
+
 .overview-page__month-line {
     margin: 0 0 var(--tl-space-3, 12px);
     color: var(--tl-text-secondary);

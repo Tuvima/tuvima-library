@@ -1,5 +1,4 @@
 .needs-review-page { display: grid; gap: 1rem; }
-.needs-review-page__filters { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; }
 .needs-review-page__search { flex: 1 1 12rem; max-width: 20rem; }
 /* Try again for all / Keep all as they are: two plain text links at the right end of the filter row (the approved mock). */
 .needs-review-page__bulk { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-1); margin-inline-start: auto; color: var(--tl-text-secondary); }
@@ -30,6 +29,8 @@
 .needs-review-page .needs-review-table__tried { white-space: nowrap; }
 .needs-review-page .needs-review-table__actions-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--tl-space-2); }
 .needs-review-page .needs-review-table__suggestion td { padding-top: 0; }
+/* Rows hold a 44 px picture, so they sit on the media step of the row-height ladder (D15.1); every cell shares the row's centre line. */
+html:not([data-form-factor="phone"]) .needs-review-page .needs-review-table tr.needs-review-table__row { height: var(--tl-row-h-media); }
 @media (max-width: 1180px) {
     .needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding-inline: var(--tl-space-3); }
     .needs-review-page .needs-review-table th:nth-child(1) { width: 4rem; }

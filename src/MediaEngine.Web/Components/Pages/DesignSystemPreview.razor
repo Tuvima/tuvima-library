@@ -264,7 +264,7 @@
                     <tr>
                         <th data-card-role="title">Title</th>
                         <th data-card-role="subtitle">Format</th>
-                        <th data-card-role="value">Size</th>
+                        <th class="app-table__num" data-card-role="value">Size</th>
                         <th data-card-role="actions"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
@@ -274,7 +274,7 @@
                         <tr @key="row.Title">
                             <td data-card-role="title">@row.Title</td>
                             <td data-card-role="subtitle">@row.Format</td>
-                            <td data-card-role="value">@row.Size</td>
+                            <td class="app-table__num" data-card-role="value">@row.Size</td>
                             <td data-card-role="actions">
                                 <AppRowMenu AriaLabel="@($"Actions for {row.Title}")" Title="@row.Title" Items="@RowMenuItems" />
                             </td>
@@ -294,6 +294,11 @@
                     <Status><span class="design-system-preview__ok">Connected</span></Status>
                 </AppSettingRow>
             </AppSettingsGroup>
+            <AppFilterRow AriaLabel="Filter example" data-testid="preview-alignment-filterrow">
+                <AppSearchField Label="Search" HideLabel="true" Placeholder="Search" Value="" />
+                <AppSelect T="string" Label="Status" HideLabel="true" AriaLabel="Status" Value="all" Options="@ProviderRowOptions" FullWidth="false" />
+                <AppSelect T="string" Label="Sort" HideLabel="true" AriaLabel="Sort" Value="all" Options="@ProviderRowOptions" FullWidth="false" />
+            </AppFilterRow>
             <div class="design-system-preview__matchrow" data-testid="preview-alignment-matchrow">
                 <div class="design-system-preview__matchrow-start">
                     <AppSelect T="string" Value="tvdb" Options="@ProviderRowOptions" AriaLabel="Search in" FullWidth="false" />
