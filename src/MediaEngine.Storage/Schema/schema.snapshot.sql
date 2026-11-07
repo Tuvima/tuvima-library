@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0083 supporting_files).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0084 bookmark_definitive_sets).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -443,6 +443,12 @@ CREATE TABLE backup_settings (
     setting_key  TEXT NOT NULL PRIMARY KEY,
     value_json   TEXT NOT NULL,
     updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE bookmark_definitive_sets (
+    work_id  BLOB NOT NULL PRIMARY KEY REFERENCES works(id) ON DELETE CASCADE,
+    made_at  TEXT NOT NULL,
+    made_by  BLOB REFERENCES profiles(id) ON DELETE SET NULL
 );
 
 CREATE TABLE bridge_ids (

@@ -76,6 +76,7 @@ public static partial class BackupTableClassification
         Config("collection_list_entries", "Every entry of an imported list and which title in the library it matched.", refs: [Work("matched_work_id")], keepWhere: InPersonBuiltCollection),
         Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
         Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
+        Config("bookmark_definitive_sets", "Which titles have a definitive set of Everyone's bookmarks an administrator made (the bookmarks themselves are the shared ones in each person's bookmark list).", refs: [Work("work_id")], excluded: ["made_by"]),
         Config("folder_first_checks", "The first check of each newly added folder: a pause waiting for an administrator's choice, and which folders have already passed, so a restore neither releases a paused folder nor starts the check again."),
         Config("backup_restores", "Which backups were restored and when, with counts of what was put back and what is still waiting."),
         Config("waiting_personal_state", "State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period."),

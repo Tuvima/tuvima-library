@@ -105,6 +105,10 @@ public sealed class BookmarkFrameService(
         }
     }
 
+    /// <summary>True when the file is a video, so its bookmarks carry a picture of the moment (the editor shows a picture column only then).</summary>
+    public async Task<bool> IsVideoAssetAsync(Guid assetId, CancellationToken ct) =>
+        await assets.FindByIdAsync(assetId, ct).ConfigureAwait(false) is { } asset && IsVideo(asset.FilePathRoot);
+
     /// <summary>Fills in <see cref="AudiobookBookmarkDto.FrameUrl"/> for the bookmarks whose picture exists.</summary>
     public IReadOnlyList<AudiobookBookmarkDto> Decorate(IReadOnlyList<AudiobookBookmarkDto> list) =>
         list.Count == 0 ? list : list.Select(Decorate).ToList();

@@ -21,49 +21,49 @@
       "match_fields": []
     },
     "tv_show": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["year", "season_count", "episode_count", "match_state"],
       "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
       "match_fields": ["show", "year"]
     },
     "tv_season": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["season_number", "episode_count", "year", "match_state"],
       "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
       "match_fields": ["show", "year"]
     },
     "tv_episode": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["episode_number", "runtime", "air_date", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
       "match_fields": ["show", "year"]
     },
     "movie": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["year", "runtime", "rating", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
       "match_fields": ["title", "year", "provider_id"]
     },
     "album": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["artist", "year", "track_count", "match_state"],
       "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
       "match_fields": ["artist", "album", "song"]
     },
     "song": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["track_number", "runtime", "artist", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
       "match_fields": ["artist", "album", "song"]
     },
     "book": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["author", "year", "page_count", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
       "match_fields": ["title", "author", "isbn"]
     },
     "audiobook": {
-      "tabs": ["details", "artwork", "match", "history"],
+      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
       "facts_line": ["author", "narrator", "runtime", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
       "match_fields": ["title", "author_or_narrator"]
@@ -93,7 +93,7 @@
       "match_fields": []
     },
     "video": {
-      "tabs": ["details", "artwork", "history"],
+      "tabs": ["details", "artwork", "bookmarks", "history"],
       "facts_line": ["number", "runtime", "watched"],
       "quick_facts": ["file_quality", "container", "size", "folder", "supporting_file_count"],
       "match_fields": []

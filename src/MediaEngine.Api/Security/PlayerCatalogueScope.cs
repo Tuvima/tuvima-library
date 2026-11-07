@@ -135,5 +135,9 @@ internal sealed class PlayerResourceFailureFilter : IEndpointFilter
         {
             return ApiErrors.Forbidden("Only a server administrator can do that with bookmarks.");
         }
+        catch (MediaEngine.Api.Services.Playback.EditorBookmarkVaultException)
+        {
+            return ApiErrors.Forbidden(MediaEngine.Api.Services.Playback.EditorBookmarksService.InTheVault);
+        }
     }
 }

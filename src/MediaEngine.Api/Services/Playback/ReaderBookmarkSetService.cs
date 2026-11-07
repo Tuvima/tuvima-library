@@ -164,7 +164,7 @@ public sealed class ReaderBookmarkSetService
             items, BookmarkPackArchive.Fingerprint(BookmarkSetService.ExportedSetName, null, items));
         return new BookmarkPackFileDto
         {
-            FileName = "global-bookmarks.zip",
+            FileName = BookmarkSetService.ExportedFileName,
             ContentBase64 = Convert.ToBase64String(BookmarkPackArchive.Write(content, _time.GetUtcNow())),
             BookmarkCount = items.Count,
         };

@@ -14,6 +14,22 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Services.EditSession;
 
+/// <summary>One member (an episode, a track) of a family, with its number.</summary>
+public sealed record EditorFamilyMember(Guid WorkId, string Title, int? Number);
+
+/// <summary>A season (or, for an album, all the tracks with no group id) and its members.</summary>
+public sealed record EditorFamilyGroup(Guid? GroupId, string Title, int? Number, IReadOnlyList<EditorFamilyMember> Members);
+
+/// <summary>The owned members of the family around an item (see <see cref="EditorHeaderReadService.GetFamilyMembersAsync"/>).</summary>
+public sealed record EditorFamilyMembers(Guid RootId, string RootTitle, string MediaType, IReadOnlyList<EditorFamilyGroup> Groups);
+
+/// <summary>Where the editor's Bookmarks overview learns the family of a show, season or album (the header read service; a test can stand in).</summary>
+public interface IEditorFamilySource
+{
+    /// <summary>The owned members of the family around an item, grouped by season; null when the item is not in the Library.</summary>
+    Task<EditorFamilyMembers?> GetFamilyMembersAsync(Guid workId, CancellationToken ct = default);
+}
+
 /// <summary>
 /// The editor's header (universal editor v5, 3a): the way around a family (home, Season or Section, item), the cover's stored colours, the
 /// supporting files that belong to each level, the file facts Quick facts shows now the Files tab is gone, and the numbers and per-kind
@@ -30,7 +46,7 @@ public sealed class EditorHeaderReadService(
     ItemQuickFactsService quickFacts,
     MediaEditorWorkVersionReadRepository versions,
     IExtrasConfigurationSource? extrasRules = null,
-    ILogger<EditorHeaderReadService>? logger = null)
+    ILogger<EditorHeaderReadService>? logger = null) : IEditorFamilySource
 {
     // The same threshold the collection rules and the Watch rows use for "watched".
     private const double WatchedProgressPercent = 99.5;
@@ -170,6 +186,63 @@ public sealed class EditorHeaderReadService(
     /// </summary>
     public EditorHeaderConfigDto? GetKindConfig(string kind) =>
         EditorKinds.All.Contains(kind, StringComparer.Ordinal) ? BuildConfig(editorConfig.Current, kind) : null;
+
+    /// <summary>
+    /// The owned members of the family around an item, grouped the way the editor's dropdowns group them (a show's seasons, an album's
+    /// tracks), each with its season, episode or track number. For the Bookmarks overview of a show, season or album; null when the item
+    /// is not in the Library. When the item is a season, only that season is listed.
+    /// </summary>
+    public async Task<EditorFamilyMembers?> GetFamilyMembersAsync(Guid workId, CancellationToken ct = default)
+    {
+        var family = await ReadFamilyAsync(workId, ct).ConfigureAwait(false);
+        if (family is null)
+        {
+            return null;
+        }
+
+        var leaves = family.Leaves.Where(node => node.IsOwned).ToList();
+        var groups = new List<EditorFamilyGroup>();
+        if (family.HasSecondLevel)
+        {
+            var mids = family.Mids.Where(mid => family.Current.IsRoot || mid.EntityId == family.Current.EntityId || family.Current.ParentId == mid.EntityId);
+            foreach (var mid in mids)
+            {
+                var members = leaves.Where(node => node.ParentNodeId == mid.EntityId).Select(ToMember).OrderBy(member => member.Number ?? int.MaxValue).ThenBy(member => member.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+                groups.Add(new EditorFamilyGroup(mid.EntityId, mid.Title, FirstNumber(mid.OrdinalLabel), members));
+            }
+        }
+        else
+        {
+            var members = leaves.Select(ToMember).OrderBy(member => member.Number ?? int.MaxValue).ThenBy(member => member.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+            groups.Add(new EditorFamilyGroup(null, string.Empty, null, members));
+        }
+
+        return new EditorFamilyMembers(family.Root.EntityId, family.Root.Title, family.MediaType, groups);
+
+        static EditorFamilyMember ToMember(MediaEditorNavigatorNodeEnvelope node) => new(node.EntityId, node.Title, FirstNumber(node.OrdinalLabel));
+    }
+
+    private static int? FirstNumber(string? label)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return null;
+        }
+
+        var start = label.IndexOfAny("0123456789".ToCharArray());
+        if (start < 0)
+        {
+            return null;
+        }
+
+        var end = start;
+        while (end < label.Length && char.IsAsciiDigit(label[end]))
+        {
+            end++;
+        }
+
+        return int.TryParse(label.AsSpan(start, end - start), NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : null;
+    }
 
     // -- Family ---------------------------------------------------------------------------------------------------------------------
 
