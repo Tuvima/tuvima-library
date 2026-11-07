@@ -570,16 +570,20 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     [Fact]
     public void ApplicationTable_ShowsTheSoonestKeyExpiryInTheCredentialsCell()
     {
-        _handler.AddCredential("Later", DateTimeOffset.UtcNow.AddDays(60), null);
-        _handler.AddCredential("Sooner", DateTimeOffset.UtcNow.AddDays(10), null);
+        // Fix both expiry moments once, up front: the label shows them to the minute, so re-reading the clock
+        // inside the wait would miss on a slow run that crosses a minute boundary.
+        var later = DateTimeOffset.UtcNow.AddDays(60);
+        var sooner = DateTimeOffset.UtcNow.AddDays(10);
+        _handler.AddCredential("Later", later, null);
+        _handler.AddCredential("Sooner", sooner, null);
         var cut = RenderApplications();
         OpenEdit(cut);
 
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("2 active", cut.Markup);
-            Assert.Contains($"Next expiry {DateTimeOffset.UtcNow.AddDays(10).ToLocalTime():g}", cut.Markup);
-            Assert.DoesNotContain($"Next expiry {DateTimeOffset.UtcNow.AddDays(60).ToLocalTime():g}", cut.Markup);
+            Assert.Contains($"Next expiry {sooner.ToLocalTime():g}", cut.Markup);
+            Assert.DoesNotContain($"Next expiry {later.ToLocalTime():g}", cut.Markup);
         });
     }
 
