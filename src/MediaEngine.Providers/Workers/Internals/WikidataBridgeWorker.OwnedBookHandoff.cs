@@ -1,5 +1,6 @@
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,43 @@ public sealed partial class WikidataBridgeWorker
         }
 
         return job.ResolvedQid.Trim();
+    }
+
+    /// <summary>
+    /// The Wikidata item a person linked to the Work this job would write its Wikidata identity to (universal editor v5, Match tab), or
+    /// <c>null</c> when the Work has none that is a person's. The automatic alignment that follows a retail match keeps such a link and looks
+    /// nothing up, so it only ever runs for an item with no Wikidata identity yet and never replaces one a person set. For media whose Wikidata
+    /// item belongs to the parent (a show, an album) the parent Work is read; for every other media the item's own Work.
+    /// </summary>
+    internal async Task<string?> FindPersonLinkedQidAsync(MediaType mediaType, WorkLineage? lineage, CancellationToken ct)
+    {
+        if (_itemCanonical is null || lineage is null)
+        {
+            return null;
+        }
+
+        var target = ClaimScopeCatalog.IsParentScoped(BridgeIdKeys.WikidataQid, mediaType)
+            ? lineage.TargetForParentScope
+            : lineage.TargetForSelfScope;
+        var state = await _itemCanonical.LoadWorkWikidataStateAsync(target, ct).ConfigureAwait(false);
+        return state is not null
+               && !string.IsNullOrWhiteSpace(state.Qid)
+               && !WorkWikidataStatus.IsAutomationOwned(state.Status, state.Source, state.Locked)
+            ? state.Qid.Trim()
+            : null;
+    }
+
+    /// <summary>Finalises the job with the Wikidata item a person linked, as the owned-book hand-off does for its own: no lookup runs.</summary>
+    private void ApplyPersonLinked(JobContext ctx, string qid)
+    {
+        ctx.ResolvedQid = qid;
+        ctx.MatchedBy = QidResolutionMethods.PersonLinked;
+        ctx.PrimaryBridgeIdType = null;
+        AddDistinctAdditionalClaim(ctx, BridgeIdKeys.WikidataQid, qid, 0.93);
+
+        _logger.LogInformation(
+            "Wikidata: '{Title}' keeps the QID {Qid} a person linked; no outside lookup [entity {EntityId}]",
+            ctx.TitleHint, qid, ctx.Job.EntityId);
     }
 
     /// <summary>

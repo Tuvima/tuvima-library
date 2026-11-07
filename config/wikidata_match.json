@@ -1,0 +1,106 @@
+{
+  "$schema": "./schemas/wikidata_match.schema.json",
+  "_comment": "How the Match tab's Wikidata side works (universal editor v5, 3c). 'kinds' says, for each kind of item, which Wikidata classes are the item itself ('direct') and which are the thing it belongs to ('parent': the show for an episode, the album for a song, the book series for a book). A parent is listed for context and can never be applied. Edit and save: no rebuild is needed, the Engine reads the file again when it changes.",
+  "version": "1",
+
+  "search_limit": 8,
+  "year_tolerance": 1,
+
+  "kinds": {
+    "tv_episode": {
+      "direct": ["Q21191270", "Q1983062"],
+      "parent": ["Q5398426", "Q15416", "Q1259759", "Q117467246", "Q63952888", "Q3464665"]
+    },
+    "tv_season": {
+      "direct": ["Q3464665"],
+      "parent": ["Q5398426", "Q15416", "Q1259759", "Q117467246", "Q63952888"]
+    },
+    "tv_show": {
+      "direct": ["Q5398426", "Q15416", "Q1259759", "Q117467246", "Q63952888"],
+      "parent": []
+    },
+    "movie": {
+      "direct": ["Q11424", "Q202866", "Q24862", "Q506240", "Q226730", "Q24869"],
+      "parent": ["Q24856"]
+    },
+    "song": {
+      "direct": ["Q7366", "Q134556", "Q105543609"],
+      "parent": ["Q482994", "Q208569", "Q169930", "Q209939", "Q222910"]
+    },
+    "album": {
+      "direct": ["Q482994", "Q208569", "Q169930", "Q209939", "Q222910"],
+      "parent": []
+    },
+    "book": {
+      "direct": ["Q571", "Q8261", "Q7725634", "Q47461344", "Q49084"],
+      "parent": ["Q277759", "Q1667921"]
+    },
+    "audiobook": {
+      "direct": ["Q106833", "Q571", "Q8261", "Q7725634", "Q47461344"],
+      "parent": ["Q277759", "Q1667921"]
+    },
+    "comic": {
+      "direct": ["Q1760610", "Q725377"],
+      "parent": ["Q14406742", "Q21198342"]
+    }
+  },
+
+  "type_words": {
+    "Q21191270": "television episode",
+    "Q1983062": "episode",
+    "Q5398426": "television series",
+    "Q15416": "television program",
+    "Q1259759": "miniseries",
+    "Q117467246": "animated television series",
+    "Q63952888": "anime television series",
+    "Q3464665": "television season",
+    "Q11424": "film",
+    "Q202866": "animated film",
+    "Q24862": "short film",
+    "Q506240": "television film",
+    "Q226730": "silent film",
+    "Q24869": "feature film",
+    "Q24856": "film series",
+    "Q7366": "song",
+    "Q134556": "single",
+    "Q105543609": "musical work",
+    "Q482994": "album",
+    "Q208569": "studio album",
+    "Q169930": "EP",
+    "Q209939": "live album",
+    "Q222910": "compilation album",
+    "Q571": "book",
+    "Q8261": "novel",
+    "Q7725634": "literary work",
+    "Q47461344": "written work",
+    "Q49084": "short story",
+    "Q277759": "book series",
+    "Q1667921": "novel series",
+    "Q106833": "audiobook",
+    "Q1760610": "comic book",
+    "Q725377": "graphic novel",
+    "Q14406742": "comic book series",
+    "Q21198342": "manga series",
+    "Q5": "human"
+  },
+
+  "identifiers": [
+    { "key": "imdb_id", "label": "IMDb", "properties": ["P345"] },
+    { "key": "tmdb_id", "label": "TMDB", "properties": ["P4947", "P4983"], "provider": "tmdb" },
+    { "key": "tvdb_id", "label": "TheTVDB", "properties": ["P4835"], "provider": "tvdb" },
+    { "key": "musicbrainz_release_group_id", "label": "MusicBrainz release group", "properties": ["P436"], "provider": "musicbrainz" },
+    { "key": "musicbrainz_release_id", "label": "MusicBrainz release", "properties": ["P5813"], "provider": "musicbrainz" },
+    { "key": "musicbrainz_recording_id", "label": "MusicBrainz recording", "properties": ["P4404"], "provider": "musicbrainz" },
+    { "key": "musicbrainz_work_id", "label": "MusicBrainz work", "properties": ["P435"], "provider": "musicbrainz" },
+    { "key": "isbn_13", "label": "ISBN", "properties": ["P212"] },
+    { "key": "isbn_10", "label": "ISBN", "properties": ["P957"] },
+    { "key": "open_library_id", "label": "Open Library", "properties": ["P648"], "provider": "openlibrary" },
+    { "key": "comic_vine_id", "label": "Comic Vine", "properties": ["P5905"], "provider": "comicvine" },
+    { "key": "goodreads_id", "label": "Goodreads", "properties": ["P2969"], "provider": "goodreads" }
+  ],
+
+  "year_properties": ["P577", "P580", "P571"],
+  "creator_properties": ["P50", "P57", "P175", "P170", "P86"],
+  "series_properties": ["P179", "P361"],
+  "type_property": "P31"
+}

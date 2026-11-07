@@ -34,4 +34,13 @@ public sealed partial class EngineApiClient
     public async Task<EditorGroupMatchDto?> LineUpEditorGroupMatchAsync(Guid entityId, EditorGroupMatchRequestDto request, CancellationToken ct = default) =>
         await PostAsync<EditorGroupMatchRequestDto, EditorGroupMatchDto>(
             "Editor group match", $"/metadata/{entityId}/match-group", request, ct: ct);
+
+    public async Task<EditorWikidataIdentityDto?> GetEditorCurrentWikidataAsync(Guid entityId, CancellationToken ct = default) =>
+        await GetAsync<EditorWikidataIdentityDto>("Editor current Wikidata", $"/metadata/{entityId}/current-wikidata", ct: ct);
+
+    public async Task<EditorWikidataSearchResultDto?> SearchEditorWikidataAsync(Guid entityId, EditorWikidataSearchRequestDto request, CancellationToken ct = default) =>
+        await PostAsync<EditorWikidataSearchRequestDto, EditorWikidataSearchResultDto>("Editor Wikidata search", $"/metadata/{entityId}/wikidata-search", request, ct: ct);
+
+    public async Task<EditorWikidataConflictDto?> CompareEditorWikidataAsync(Guid entityId, EditorWikidataConflictRequestDto request, CancellationToken ct = default) =>
+        await PostAsync<EditorWikidataConflictRequestDto, EditorWikidataConflictDto>("Editor Wikidata conflict", $"/metadata/{entityId}/wikidata-conflict", request, ct: ct);
 }

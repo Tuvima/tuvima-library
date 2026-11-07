@@ -4059,6 +4059,73 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorUniverseThings
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
   Things: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorUniverseThingDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictDto
+  Conflict: System.Boolean | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  WikidataLabel: System.String | nullability=nullable | accessors=get,init
+  WikidataYear: System.String | nullability=nullable | accessors=get,init
+  WikidataType: System.String | nullability=nullable | accessors=get,init
+  ProviderName: System.String | nullability=nullable | accessors=get,init
+  ProviderYear: System.String | nullability=nullable | accessors=get,init
+  ProviderTitle: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictReasons
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictRequestDto
+  Qid: System.String | nullability=nullable | accessors=get,set
+  ProviderName: System.String | nullability=nullable | accessors=get,set
+  ProviderItemId: System.String | nullability=nullable | accessors=get,set
+  ProviderTitle: System.String | nullability=nullable | accessors=get,set
+  ProviderYear: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto
+  Fact: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Yours: System.String | nullability=nullable | accessors=get,init
+  Wikidata: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataEvidenceFacts
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataEvidenceStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataIdentityDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Qid: System.String | nullability=nullable | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Type: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Url: System.String | nullability=nullable | accessors=get,init
+  Offline: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataMessageCodes
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataRelations
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataResultDto
+  Qid: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Type: System.String | nullability=nullable | accessors=get,init
+  Fact: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Relation: System.String | nullability=not-null | accessors=get,init
+  CanApply: System.Boolean | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  Url: System.String | nullability=nullable | accessors=get,init
+  Evidence: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataSearchRequestDto
+  Query: System.String | nullability=nullable | accessors=get,set
+  Paste: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataSearchResultDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorWikidataResultDto> | nullability=not-null | accessors=get,init
+  FromPaste: System.Boolean | nullability=not-null | accessors=get,init
+  MessageCode: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchPreviewDto
   EntityId: System.Guid | nullability=not-null | accessors=get,set
   SeriesId: System.String | nullability=not-null | accessors=get,set
@@ -6272,7 +6339,6 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ReplaceRetailMatch
   RequiredFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   SuggestedFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   BridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
-  ClearAutoAlignedWikidata: System.Boolean | nullability=not-null | accessors=get,set
   ReviewItemId: System.Guid? | nullability=nullable | accessors=get,set
   ExpectedIdentityRevision: System.String | nullability=nullable | accessors=get,set
 

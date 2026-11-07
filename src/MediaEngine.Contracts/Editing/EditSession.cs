@@ -87,6 +87,19 @@ public static class EditSessionChangeKinds
     public const string MatchRemoval = "match_removal";
 
     /// <summary>
+    /// The item is linked to a Wikidata item (universal editor v5, Match tab, Wikidata side). <see cref="EditSessionChange.EntityId"/> is the item and
+    /// <see cref="EditSessionChange.TargetId"/> the Wikidata item (<c>Q123</c>). Only the Wikidata identity changes: the provider match is never
+    /// touched. The Engine refuses an item that is the item's parent (the show for an episode), whatever the Dashboard sent.
+    /// </summary>
+    public const string WikidataLink = "wikidata_link";
+
+    /// <summary>
+    /// The item's Wikidata link is taken away (universal editor v5, Match tab, Wikidata side "Remove match"). <see cref="EditSessionChange.EntityId"/>
+    /// is the item. Only the Wikidata identity goes; the provider match, details and pictures stay.
+    /// </summary>
+    public const string WikidataRemoval = "wikidata_removal";
+
+    /// <summary>
     /// Changes to a title's Everyone's bookmarks (universal editor v5 D37, WP15): adding a profile's bookmark, removing, renaming and moving one,
     /// an applied import, and "Start over from profiles". <see cref="EditSessionChange.EntityId"/> is the title (its work);
     /// <see cref="EditSessionChange.Bookmarks"/> lists the operations in order. Administrators only, never in the Vault. Library's own data only,
@@ -94,7 +107,7 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string Bookmarks = "bookmarks";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles, MatchRemoval, Bookmarks];
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles, MatchRemoval, WikidataLink, WikidataRemoval, Bookmarks];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 

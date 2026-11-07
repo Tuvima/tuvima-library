@@ -206,6 +206,11 @@ public sealed partial class WikidataBridgeWorker
                 {
                     ApplyOwnedBookHandoff(context, ownedBookQid);
                 }
+                else if (await FindPersonLinkedQidAsync(mediaType, lineage, ct).ConfigureAwait(false) is { } personLinkedQid)
+                {
+                    // A Wikidata item a person linked is never replaced by the automatic alignment.
+                    ApplyPersonLinked(context, personLinkedQid);
+                }
 
                 contexts.Add(context);
             }

@@ -421,9 +421,6 @@ public sealed class ReplaceRetailMatchRequestDto
     [JsonPropertyName("bridge_ids")]
     public Dictionary<string, string> BridgeIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    [JsonPropertyName("clear_auto_aligned_wikidata")]
-    public bool ClearAutoAlignedWikidata { get; set; } = true;
-
     [JsonPropertyName("review_item_id")]
     public Guid? ReviewItemId { get; set; }
 

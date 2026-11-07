@@ -16,6 +16,11 @@ public static class EditSessionReasons
 
     public const string MatchUnreadable = "The match you chose could not be read. Pick it again.";
     public const string NoMatchToRemove = "This item has no match to remove.";
+    public const string NoWikidataLinkToRemove = "This item has no Wikidata link to remove.";
+    public const string WikidataItemUnreadable = "That Wikidata item could not be found. Pick it again.";
+    public const string WikidataDidNotAnswer = "Wikidata did not answer, so the link could not be checked. Try again.";
+    public const string WikidataParentNotAllowed = "That Wikidata item is the thing this item belongs to (its show, album or series), not the item itself. Pick the item's own record.";
+    public const string WikidataLookupsOff = "This item's library never looks anything up, so it cannot be linked to Wikidata. Change what this folder is to look it up.";
     public const string SessionUnavailable = "The editing session is unavailable. Sign in again and retry.";
     public const string NoDestination = "The album, season or series to move to is missing.";
     public const string NoFiles = "This item has no files to move.";

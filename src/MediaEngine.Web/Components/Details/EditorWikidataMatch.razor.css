@@ -1,0 +1,86 @@
+/* The Match tab's Wikidata side (editor v5, 3c): the identity card, the one amber conflict line and the text-only results. */
+.tl-wikidata {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    min-width: 0;
+}
+
+.tl-wikidata__field {
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.tl-wikidata__card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md, 8px);
+}
+
+.tl-wikidata__name {
+    min-width: 0;
+}
+
+.tl-wikidata__actions,
+.tl-wikidata__resultactions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-2);
+}
+
+.tl-wikidata__results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tl-wikidata__result {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md, 8px);
+}
+
+.tl-wikidata__result[data-relation="parent"] {
+    border-style: dashed;
+}
+
+.tl-wikidata__resulttext {
+    display: flex;
+    flex: 1 1 18rem;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-wikidata__evidence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-1) var(--tl-space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-wikidata__evidence li[data-state="differs"] {
+    color: var(--tl-status-warning, #b26a00);
+}
+
+.tl-wikidata__reason {
+    color: var(--tl-status-warning, #b26a00);
+    font-size: var(--tl-font-size-sm);
+}

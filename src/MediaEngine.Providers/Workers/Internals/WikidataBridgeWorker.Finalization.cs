@@ -66,6 +66,7 @@ public sealed partial class WikidataBridgeWorker
                 "comic_series_rollup" => (0.90, true),
                 "sibling_variant" => (0.93, true),
                 QidResolutionMethods.OwnedBookNoRetail => (0.93, true),
+                QidResolutionMethods.PersonLinked => (1.0, true),
                 _ => (0.75, false)
             };
 

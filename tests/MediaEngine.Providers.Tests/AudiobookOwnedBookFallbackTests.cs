@@ -325,6 +325,40 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         Assert.DoesNotContain(candidates, c => c.MatchedBy == QidResolutionMethods.OwnedBookNoRetail);
     }
 
+    // A Wikidata link a person set in the editor (Match tab, Wikidata side) is theirs: the automatic alignment that follows keeps it,
+    // looks nothing up for the item, and never replaces it with a search result.
+    [Fact]
+    public async Task Audiobook_WhoseWikidataLinkAPersonSet_KeepsItInAutomaticAlignment_WithoutSearchingForAnother()
+    {
+        const string PersonQid = "Q4242";
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert", queued: false);
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                "UPDATE works SET wikidata_qid = @qid, wikidata_status = @status, wikidata_match_source = @source, wikidata_match_locked = 1 WHERE id = @workId",
+                new { qid = PersonQid, status = WorkWikidataStatus.UserConfirmed, source = WorkWikidataMatchSource.User, workId = audiobook.WorkId });
+        }
+
+        await _bridgeIds.UpsertBatchAsync(
+        [
+            new BridgeIdEntry { EntityId = audiobook.AssetId, IdType = BridgeIdKeys.Isbn13, IdValue = "9780441172719" },
+        ]);
+
+        await RunBridgeAsync();
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(PersonQid, job!.ResolvedQid);
+        var candidate = Assert.Single(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId));
+        Assert.Equal(PersonQid, candidate.Qid);
+        Assert.Equal(QidResolutionMethods.PersonLinked, candidate.MatchedBy);
+        Assert.NotEmpty(_http.Urls);
+        Assert.All(_http.Urls, url =>
+        {
+            Assert.Contains("action=wbgetentities", url, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains($"ids={PersonQid}", url, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
     private async Task SeedIsbnAndRetailCandidateAsync(SeededAudiobook audiobook)
     {
         await _bridgeIds.UpsertBatchAsync(
@@ -440,7 +474,8 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
             postPipeline,
             CoverArtWorkerTestFactory.Create(_canonicals, _works),
             NullLogger<WikidataBridgeWorker>.Instance,
-            arrayRepo: _arrays);
+            arrayRepo: _arrays,
+            itemCanonical: new ItemCanonicalRepository(_db, NullLogger<ItemCanonicalRepository>.Instance));
     }
 
     private sealed record SeededBook(Guid WorkId, Guid AssetId, Guid? JobId);

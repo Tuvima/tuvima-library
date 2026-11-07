@@ -11444,9 +11444,6 @@
   <data name="EditorMatchPanel_KindItem" xml:space="preserve">
     <value>item</value>
   </data>
-  <data name="EditorMatchPanel_MatchedToNow" xml:space="preserve">
-    <value>Matched to now</value>
-  </data>
   <data name="EditorMatchPanel_Universe" xml:space="preserve">
     <value>Universe</value>
   </data>
@@ -12016,5 +12013,122 @@
   </data>
   <data name="EditorMusicMatchFlow_MoveKeepsOne" xml:space="preserve">
     <value> album keeps 1 track.</value>
+  </data>
+  <data name="EditorWikidata_SearchLabel" xml:space="preserve">
+    <value>Search Wikidata</value>
+  </data>
+  <data name="EditorWikidata_PasteLabel" xml:space="preserve">
+    <value>Paste a Wikidata link or QID</value>
+  </data>
+  <data name="EditorWikidata_CurrentLink" xml:space="preserve">
+    <value>Linked to on Wikidata</value>
+  </data>
+  <data name="EditorWikidata_NoLink" xml:space="preserve">
+    <value>No Wikidata link</value>
+  </data>
+  <data name="EditorWikidata_NotSavedYet" xml:space="preserve">
+    <value>Not saved yet</value>
+  </data>
+  <data name="EditorWikidata_Offline" xml:space="preserve">
+    <value>Wikidata did not answer, so only the saved link is shown.</value>
+  </data>
+  <data name="EditorWikidata_StagedLink" xml:space="preserve">
+    <value>Wikidata link staged: {0}. Save changes writes it.</value>
+  </data>
+  <data name="EditorWikidata_StagedRemoval" xml:space="preserve">
+    <value>Wikidata link removal staged. Save changes writes it.</value>
+  </data>
+  <data name="EditorWikidata_Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="EditorWikidata_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="EditorWikidata_Searching" xml:space="preserve">
+    <value>Searching Wikidata</value>
+  </data>
+  <data name="EditorWikidata_SearchHint" xml:space="preserve">
+    <value>Search Wikidata or paste a link above to choose another item.</value>
+  </data>
+  <data name="EditorWikidata_NotChecked" xml:space="preserve">
+    <value>not checked</value>
+  </data>
+  <data name="EditorWikidata_FactIdentifier" xml:space="preserve">
+    <value>Identifier</value>
+  </data>
+  <data name="EditorWikidata_FactCreator" xml:space="preserve">
+    <value>Creator</value>
+  </data>
+  <data name="EditorWikidata_ParentChip" xml:space="preserve">
+    <value>Parent: {0}, not this {1}</value>
+  </data>
+  <data name="EditorWikidata_ParentReason" xml:space="preserve">
+    <value>This is {0}, not this {1}, so it cannot be its Wikidata link. Choose the {1} itself.</value>
+  </data>
+  <data name="EditorWikidata_CannotApply" xml:space="preserve">
+    <value>This item cannot be applied.</value>
+  </data>
+  <data name="EditorWikidata_LookupsOff" xml:space="preserve">
+    <value>This library does not look anything up on Wikidata.</value>
+  </data>
+  <data name="EditorWikidata_EnterWords" xml:space="preserve">
+    <value>Type what to search for, or paste a Wikidata link or QID.</value>
+  </data>
+  <data name="EditorWikidata_NotAnItem" xml:space="preserve">
+    <value>That is not a Wikidata link or QID.</value>
+  </data>
+  <data name="EditorWikidata_ItemNotFound" xml:space="preserve">
+    <value>That item is not on Wikidata.</value>
+  </data>
+  <data name="EditorWikidata_ProviderSilent" xml:space="preserve">
+    <value>Wikidata did not answer. Try again in a moment.</value>
+  </data>
+  <data name="EditorWikidata_NothingFound" xml:space="preserve">
+    <value>Nothing found on Wikidata.</value>
+  </data>
+  <data name="EditorWikidata_CouldNotRead" xml:space="preserve">
+    <value>That item could not be read.</value>
+  </data>
+  <data name="EditorWikidata_ConflictYear" xml:space="preserve">
+    <value>The Wikidata link ({0}, {1}) and the provider match ({2}, {3}) disagree on the year. Neither was changed.</value>
+  </data>
+  <data name="EditorWikidata_ConflictIdentifier" xml:space="preserve">
+    <value>The Wikidata item points to a different {0} record than the one matched. Neither was changed.</value>
+  </data>
+  <data name="EditorWikidata_ConflictTitle" xml:space="preserve">
+    <value>The Wikidata item ({0}) and the provider match ({1}) share no words in their titles. Neither was changed.</value>
+  </data>
+  <data name="EditorWikidata_ItemEpisode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="EditorWikidata_ItemSeason" xml:space="preserve">
+    <value>season</value>
+  </data>
+  <data name="EditorWikidata_ItemSong" xml:space="preserve">
+    <value>song</value>
+  </data>
+  <data name="EditorWikidata_ItemAlbum" xml:space="preserve">
+    <value>album</value>
+  </data>
+  <data name="EditorWikidata_ItemBook" xml:space="preserve">
+    <value>book</value>
+  </data>
+  <data name="EditorWikidata_ItemFilm" xml:space="preserve">
+    <value>film</value>
+  </data>
+  <data name="EditorWikidata_ItemGeneric" xml:space="preserve">
+    <value>item</value>
+  </data>
+  <data name="EditorWikidata_ParentShow" xml:space="preserve">
+    <value>the show</value>
+  </data>
+  <data name="EditorWikidata_ParentAlbum" xml:space="preserve">
+    <value>the album</value>
+  </data>
+  <data name="EditorWikidata_ParentSeries" xml:space="preserve">
+    <value>the series</value>
+  </data>
+  <data name="EditorWikidata_ParentGeneric" xml:space="preserve">
+    <value>the parent</value>
   </data>
 </root>

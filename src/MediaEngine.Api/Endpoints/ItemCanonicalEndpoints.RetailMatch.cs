@@ -477,8 +477,13 @@ public static partial class ItemCanonicalEndpoints
         }
 
         var currentState = await itemCanonicalData.LoadWorkWikidataStateAsync(postAlignmentWorkId, ct);
-        if (request.ClearAutoAlignedWikidata
-            && !string.IsNullOrWhiteSpace(currentState?.Qid)
+        if (!string.IsNullOrWhiteSpace(currentState?.Qid)
+            && !IsAutomationOwnedWikidataState(currentState.Status, currentState.Source, currentState.Locked))
+        {
+            // A Wikidata link the person set is theirs (universal editor v5, 3c "Independence"): a retail match changes the provider side only,
+            // and the automatic alignment that follows it neither clears this link's state nor looks for another item.
+        }
+        else if (!string.IsNullOrWhiteSpace(currentState?.Qid)
             && IsAutomationOwnedWikidataState(currentState.Status, currentState.Source, currentState.Locked))
         {
             await collectionRepo.UpdateWorkWikidataMatchStateAsync(postAlignmentWorkId, WorkWikidataStatus.Pending, WorkWikidataMatchSource.Retail, false, "", ct: ct);

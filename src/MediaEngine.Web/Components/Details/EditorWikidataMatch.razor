@@ -1,0 +1,586 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tab's Wikidata side (universal editor v5, 3c, mockup G5). The first row is the same row the provider side uses: "Search Wikidata", "Paste
+   a Wikidata link or QID" and an icon-only Search, with the source switch at the end. Nothing is searched when the tab opens; a search runs when a
+   person types or pastes or presses Search. Results are text only. A pasted link or QID resolves straight to its item. The Engine says whether a
+   result is the item itself or its parent; a parent is shown for context and cannot be applied. The identity card shows what the item is linked to
+   now (read by its stored QID). Apply, Change match and Remove match only stage a change; Save changes writes it. The link and the provider match
+   never change each other: when they disagree the tab shows one amber line and changes neither. *@
+<div class="tl-wikidata" data-testid="wikidata-match">
+    <EditorMatchRow>
+        <Start>
+            <div class="tl-wikidata__field">
+                <AppTextField Label="@L["EditorWikidata_SearchLabel"].Value" Value="@_query" ValueChanged="OnQueryChangedAsync" Immediate="false"
+                              aria-label="@L["EditorWikidata_SearchLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-query" />
+            </div>
+            <div class="tl-wikidata__field">
+                <AppTextField Label="@L["EditorWikidata_PasteLabel"].Value" Value="@_paste" ValueChanged="OnPasteChangedAsync" Immediate="false"
+                              aria-label="@L["EditorWikidata_PasteLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-paste" />
+            </div>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(!CanSearch || _searching)" OnClick="SearchAsync" data-testid="wikidata-search-button" />
+        </Start>
+        <End>@RowEnd</End>
+    </EditorMatchRow>
+
+    @if (_loading)
+    {
+        <div aria-busy="true" aria-label="@L["EditorMatchPanel_ReadingMatch"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+    }
+    else
+    {
+        @StagedNote()
+        @IdentityCard()
+        @ConflictLine()
+        @ResultsSection()
+    }
+
+    @ChildContent
+</div>
+
+@code {
+    private CancellationTokenSource? _cts;
+    private PendingEditList? _watched;
+    private Guid _startedFor;
+    private string _conflictKey = string.Empty;
+    private bool _hadStaged;
+    private bool _loading;
+    private bool _searching;
+    private bool _changing;
+    private string _query = string.Empty;
+    private string _paste = string.Empty;
+    private EditorWikidataIdentityDto? _identity;
+    private EditorWikidataSearchResultDto? _found;
+    private EditorWikidataConflictDto? _conflict;
+    private string? _problem;
+
+    /// <summary>The item being matched; null until the editor's fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>The Engine's kind of item ("tv_episode", "song", "movie"), used for the words only; the Engine decides which Wikidata items are the item's own.</summary>
+    [Parameter] public string? Kind { get; set; }
+
+    /// <summary>The edit session whose pending list the link is staged in.</summary>
+    [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
+
+    /// <summary>False when the person may look but not change (the Engine still decides who may edit).</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>The words the search starts from when the boxes are empty: the item's own title.</summary>
+    [Parameter] public string? SearchStart { get; set; }
+
+    /// <summary>The provider's name for the item's current (or staged) match, so the two sides can be compared; empty when it has none.</summary>
+    [Parameter] public string? ProviderName { get; set; }
+
+    [Parameter] public string? ProviderItemId { get; set; }
+
+    [Parameter] public string? ProviderTitle { get; set; }
+
+    [Parameter] public string? ProviderYear { get; set; }
+
+    /// <summary>The source switch, drawn at the end of the first row by the Match tab.</summary>
+    [Parameter] public RenderFragment? RowEnd { get; set; }
+
+    /// <summary>What follows the Wikidata side (the Universe link).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool CanSearch => CanEdit && Subject is not null;
+
+    private bool CanStage => CanEdit && Session is { IsActive: true } && Subject is not null;
+
+    private EditSessionChange? StagedLink => Staged(EditSessionChangeKinds.WikidataLink);
+
+    private EditSessionChange? StagedRemoval => Staged(EditSessionChangeKinds.WikidataRemoval);
+
+    private EditSessionChange? Staged(string kind) => Session is null || Subject is null
+        ? null
+        : Session.Pending.Changes.FirstOrDefault(change => change.Kind == kind && change.EntityId == Subject.EntityId);
+
+    // What the item is linked to once the staged changes are saved.
+    private string? EffectiveQid => StagedLink?.TargetId ?? (StagedRemoval is not null ? null : _identity?.Qid);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Watch();
+        if (Subject is not null && _startedFor != Subject.EntityId)
+        {
+            _startedFor = Subject.EntityId;
+            await LoadAsync();
+        }
+
+        await CompareAsync();
+    }
+
+    // Opening only reads what the item is linked to, by its stored QID. No search runs.
+    private async Task LoadAsync()
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        var id = Subject.EntityId;
+        _cts?.Cancel();
+        _found = null;
+        _problem = null;
+        _conflict = null;
+        _conflictKey = string.Empty;
+        _changing = false;
+        _searching = false;
+        _query = string.Empty;
+        _paste = string.Empty;
+        _loading = true;
+        _identity = await Api.GetEditorCurrentWikidataAsync(id);
+        if (_startedFor != id)
+        {
+            return;
+        }
+
+        _loading = false;
+    }
+
+    // After Save the staged link has left the pending list: read what the Engine now has.
+    private void Watch()
+    {
+        if (ReferenceEquals(_watched, Session?.Pending))
+        {
+            return;
+        }
+
+        if (_watched is not null)
+        {
+            _watched.Changed -= OnPendingChanged;
+        }
+
+        _watched = Session?.Pending;
+        if (_watched is not null)
+        {
+            _watched.Changed += OnPendingChanged;
+        }
+    }
+
+    private void OnPendingChanged()
+    {
+        var hasStaged = StagedLink is not null || StagedRemoval is not null;
+        var settled = _hadStaged && !hasStaged && !_loading;
+        _hadStaged = hasStaged;
+        if (!settled || Subject is null)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            await CompareAsync();
+            StateHasChanged();
+        });
+    }
+
+    // The two sides are compared whenever either changes. The check is a read; neither side is touched.
+    private async Task CompareAsync()
+    {
+        var qid = EffectiveQid;
+        if (Subject is null || _loading || string.IsNullOrWhiteSpace(qid) || string.IsNullOrWhiteSpace(ProviderItemId))
+        {
+            _conflict = null;
+            _conflictKey = string.Empty;
+            return;
+        }
+
+        var key = string.Join('|', qid, ProviderName, ProviderItemId, ProviderTitle, ProviderYear);
+        if (key == _conflictKey)
+        {
+            return;
+        }
+
+        _conflictKey = key;
+        var id = Subject.EntityId;
+        var compared = await Api.CompareEditorWikidataAsync(id, new EditorWikidataConflictRequestDto
+        {
+            Qid = qid,
+            ProviderName = ProviderName,
+            ProviderItemId = ProviderItemId,
+            ProviderTitle = ProviderTitle,
+            ProviderYear = ProviderYear,
+        });
+        if (_startedFor == id && key == _conflictKey)
+        {
+            _conflict = compared;
+        }
+    }
+
+    private async Task OnQueryChangedAsync(string? value)
+    {
+        _query = value?.Trim() ?? string.Empty;
+        _paste = string.Empty;
+        if (_query.Length > 0)
+        {
+            await SearchAsync();
+        }
+    }
+
+    private async Task OnPasteChangedAsync(string? value)
+    {
+        _paste = value?.Trim() ?? string.Empty;
+        if (_paste.Length > 0)
+        {
+            _query = string.Empty;
+            await SearchAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        if (!CanSearch || Subject is null)
+        {
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var source = _cts = new CancellationTokenSource();
+        _searching = true;
+        _problem = null;
+        _found = null;
+        _changing = true;
+        StateHasChanged();
+        try
+        {
+            var words = _paste.Length > 0 ? null : (_query.Length > 0 ? _query : SearchStart);
+            var found = await Api.SearchEditorWikidataAsync(
+                Subject.EntityId, new EditorWikidataSearchRequestDto { Query = words, Paste = _paste.Length > 0 ? _paste : null }, source.Token);
+            if (source.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _found = found;
+            if (found is null)
+            {
+                _problem = L["EditorMatchPanel_CouldNotReachEngine"].Value;
+            }
+        }
+        finally
+        {
+            if (!source.IsCancellationRequested)
+            {
+                _searching = false;
+            }
+        }
+    }
+
+    // Stages the link: one change in the pending list. The provider match is not touched. Nothing is written until Save changes.
+    private void Apply(EditorWikidataResultDto result)
+    {
+        if (!CanStage || Subject is null || !result.CanApply)
+        {
+            return;
+        }
+
+        var before = _identity?.Qid is { Length: > 0 } stored
+            ? WithLabel(stored, _identity.Label)
+            : L["EditorWikidata_NoLink"].Value;
+        EditorMatchStaging.Unstage(Session!.Pending, EditSessionChangeKinds.WikidataRemoval, Subject.EntityId);
+        if (string.Equals(result.Qid, _identity?.Qid, StringComparison.OrdinalIgnoreCase))
+        {
+            // Back to the link it already has: nothing to save.
+            EditorMatchStaging.Unstage(Session.Pending, EditSessionChangeKinds.WikidataLink, Subject.EntityId);
+        }
+        else
+        {
+            Session.Pending.SetTarget(EditSessionChangeKinds.WikidataLink, Subject.EntityId, result.Qid, label: WithLabel(result.Qid, result.Label), before: before);
+        }
+
+        _hadStaged = StagedLink is not null;
+        _found = null;
+        _changing = false;
+        _query = string.Empty;
+        _paste = string.Empty;
+    }
+
+    // Remove match: clears the Wikidata link only, staged. Details, pictures and the provider match stay.
+    private void Remove()
+    {
+        if (!CanStage || Subject is null)
+        {
+            return;
+        }
+
+        var hadStagedLink = StagedLink is not null;
+        EditorMatchStaging.Unstage(Session!.Pending, EditSessionChangeKinds.WikidataLink, Subject.EntityId);
+        if (_identity?.Qid is { Length: > 0 } stored)
+        {
+            Session.Pending.SetTarget(EditSessionChangeKinds.WikidataRemoval, Subject.EntityId, null,
+                label: L["EditorWikidata_NoLink"].Value, before: WithLabel(stored, _identity.Label));
+        }
+
+        _hadStaged = StagedLink is not null || StagedRemoval is not null || hadStagedLink;
+        _found = null;
+        _changing = false;
+    }
+
+    private void StartChange()
+    {
+        _changing = true;
+        _found = null;
+    }
+
+    private void CancelChange()
+    {
+        _changing = false;
+        _found = null;
+        _problem = null;
+    }
+
+    private static string WithLabel(string qid, string? label) => string.IsNullOrWhiteSpace(label) ? qid : $"{qid} · {label}";
+
+    private string ItemWord => Kind switch
+    {
+        "tv_episode" => L["EditorWikidata_ItemEpisode"].Value,
+        "tv_season" => L["EditorWikidata_ItemSeason"].Value,
+        "song" => L["EditorWikidata_ItemSong"].Value,
+        "album" => L["EditorWikidata_ItemAlbum"].Value,
+        "book" or "audiobook" or "comic" => L["EditorWikidata_ItemBook"].Value,
+        "movie" => L["EditorWikidata_ItemFilm"].Value,
+        _ => L["EditorWikidata_ItemGeneric"].Value,
+    };
+
+    private string ParentWord => Kind switch
+    {
+        "tv_episode" or "tv_season" => L["EditorWikidata_ParentShow"].Value,
+        "song" => L["EditorWikidata_ParentAlbum"].Value,
+        "book" or "audiobook" or "comic" => L["EditorWikidata_ParentSeries"].Value,
+        _ => L["EditorWikidata_ParentGeneric"].Value,
+    };
+
+    private string ReasonText(EditorWikidataResultDto result) => result.Reason switch
+    {
+        EditorWikidataMessageCodes.ParentNotAllowed => L["EditorWikidata_ParentReason", ParentWord, ItemWord].Value,
+        EditorWikidataMessageCodes.LookupsOff => L["EditorWikidata_LookupsOff"].Value,
+        _ => L["EditorWikidata_CannotApply"].Value,
+    };
+
+    private string MessageText(string code) => code switch
+    {
+        EditorWikidataMessageCodes.EnterWords => L["EditorWikidata_EnterWords"].Value,
+        EditorWikidataMessageCodes.NotAnItem => L["EditorWikidata_NotAnItem"].Value,
+        EditorWikidataMessageCodes.ItemNotFound => L["EditorWikidata_ItemNotFound"].Value,
+        EditorWikidataMessageCodes.ProviderSilent => L["EditorWikidata_ProviderSilent"].Value,
+        EditorWikidataMessageCodes.NothingFound => L["EditorWikidata_NothingFound"].Value,
+        EditorWikidataMessageCodes.LookupsOff => L["EditorWikidata_LookupsOff"].Value,
+        EditorWikidataMessageCodes.CouldNotRead => L["EditorWikidata_CouldNotRead"].Value,
+        _ => L["EditorWikidata_NothingFound"].Value,
+    };
+
+    private string EvidenceFact(EditorWikidataEvidenceDto row) => row.Fact switch
+    {
+        EditorWikidataEvidenceFacts.Identifier => string.IsNullOrWhiteSpace(row.Label) ? L["EditorWikidata_FactIdentifier"].Value : row.Label!,
+        EditorWikidataEvidenceFacts.Title => L["EditorMatchPanel_FieldTitle"].Value,
+        EditorWikidataEvidenceFacts.Year => L["EditorMatchPanel_FieldYear"].Value,
+        EditorWikidataEvidenceFacts.Creator => L["EditorWikidata_FactCreator"].Value,
+        _ => row.Fact,
+    };
+
+    private string ConflictText(EditorWikidataConflictDto conflict) => conflict.Reason switch
+    {
+        EditorWikidataConflictReasons.Identifier => L["EditorWikidata_ConflictIdentifier", conflict.ProviderName ?? string.Empty].Value,
+        EditorWikidataConflictReasons.Title => L["EditorWikidata_ConflictTitle", conflict.WikidataLabel ?? string.Empty, conflict.ProviderTitle ?? string.Empty].Value,
+        _ => L["EditorWikidata_ConflictYear", conflict.WikidataLabel ?? string.Empty, conflict.WikidataYear ?? "–", conflict.ProviderName ?? string.Empty, conflict.ProviderYear ?? "–"].Value,
+    };
+
+    private RenderFragment StagedNote() => __builder =>
+    {
+        if (StagedLink is { } link)
+        {
+            <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="wikidata-staged">@L["EditorWikidata_StagedLink", link.TargetId ?? string.Empty]</AppAlert>
+        }
+        else if (StagedRemoval is not null)
+        {
+            <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="wikidata-staged">@L["EditorWikidata_StagedRemoval"]</AppAlert>
+        }
+    };
+
+    private RenderFragment IdentityCard() => __builder =>
+    {
+        var qid = EffectiveQid;
+        var staged = StagedLink is not null;
+        <section class="tl-wikidata__card" aria-label="@L["EditorWikidata_CurrentLink"].Value" data-testid="wikidata-current">
+            <h3 class="tl-match__section-heading">@L["EditorWikidata_CurrentLink"]</h3>
+            @if (string.IsNullOrWhiteSpace(qid))
+            {
+                <div class="tl-match__title"><span>@L["EditorWikidata_NoLink"]</span> <NotMatchedTag /></div>
+            }
+            else
+            {
+                var label = staged ? StagedLabel(StagedLink!) : _identity?.Label;
+                var line = staged ? null : string.Join(" · ", new[] { _identity?.Year, _identity?.Type }.Where(part => !string.IsNullOrWhiteSpace(part)));
+                <div class="tl-match__title">
+                    <span class="tl-wikidata__name" data-testid="wikidata-current-name">@(string.IsNullOrWhiteSpace(label) ? qid : label)</span>
+                    <AppChip Text="@qid" Tone="AppUiTone.Neutral" />
+                    @if (staged)
+                    {
+                        <AppChip Text="@L["EditorWikidata_NotSavedYet"].Value" Tone="AppUiTone.Warning" />
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(line))
+                {
+                    <div class="tl-match__meta" data-testid="wikidata-current-line">@line</div>
+                }
+                @if (!staged && _identity is { Offline: true })
+                {
+                    <div class="tl-match__meta">@L["EditorWikidata_Offline"]</div>
+                }
+                <div class="tl-wikidata__actions">
+                    @if (!staged && !string.IsNullOrWhiteSpace(_identity?.Url))
+                    {
+                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@_identity!.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
+                    }
+                    <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
+                               Disabled="@(!CanStage)" OnClick="Remove" data-testid="wikidata-remove" />
+                    <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               Disabled="@(!CanStage)" OnClick="StartChange" data-testid="wikidata-change" />
+                </div>
+            }
+        </section>
+    };
+
+    // The staged label is "Q… · Name"; the card shows the name.
+    private string? StagedLabel(EditSessionChange change)
+    {
+        var parts = (Session?.Pending.Label(change.Id) ?? string.Empty).Split(" · ", 2);
+        return parts.Length == 2 ? parts[1] : null;
+    }
+
+    // The one amber line when the provider match and the Wikidata item disagree. Neither side is changed by it.
+    private RenderFragment ConflictLine() => __builder =>
+    {
+        if (_conflict is { Conflict: true } conflict)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" data-testid="wikidata-conflict">@ConflictText(conflict)</AppAlert>
+        }
+    };
+
+    private RenderFragment ResultsSection() => __builder =>
+    {
+        if (_searching)
+        {
+            <div aria-busy="true" aria-label="@L["EditorWikidata_Searching"].Value" data-testid="wikidata-searching"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            return;
+        }
+
+        if (_problem is not null)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" data-testid="wikidata-problem">@_problem</AppAlert>
+            return;
+        }
+
+        if (_found is null)
+        {
+            if (_changing)
+            {
+                <p class="tl-match__meta" data-testid="wikidata-hint">@L["EditorWikidata_SearchHint"]</p>
+            }
+
+            return;
+        }
+
+        if (_found.Results.Count == 0)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="wikidata-message">@MessageText(_found.MessageCode ?? EditorWikidataMessageCodes.NothingFound)</AppAlert>
+            return;
+        }
+
+        <ul class="tl-wikidata__results" data-testid="wikidata-results">
+            @foreach (var result in _found.Results)
+            {
+                <li class="tl-wikidata__result" data-relation="@result.Relation" data-qid="@result.Qid" data-testid="wikidata-result">
+                    <div class="tl-wikidata__resulttext">
+                        <div class="tl-match__title">
+                            <span class="tl-wikidata__name">@result.Label</span>
+                            <AppChip Text="@result.Qid" Tone="AppUiTone.Neutral" />
+                            @if (result.Relation == EditorWikidataRelations.Parent)
+                            {
+                                <AppChip Text="@L["EditorWikidata_ParentChip", ParentWord, ItemWord].Value" Tone="AppUiTone.Warning" />
+                            }
+                        </div>
+                        @{
+                            var line = string.Join(" · ", new[] { result.Type, result.Fact }.Where(part => !string.IsNullOrWhiteSpace(part)));
+                        }
+                        @if (line.Length > 0)
+                        {
+                            <div class="tl-match__meta" data-testid="wikidata-result-line">@line</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(result.Description))
+                        {
+                            <div class="tl-match__meta">@result.Description</div>
+                        }
+                        @if (result.Evidence.Count > 0)
+                        {
+                            <ul class="tl-wikidata__evidence" data-testid="wikidata-evidence">
+                                @foreach (var row in result.Evidence)
+                                {
+                                    <li data-state="@row.State">@EvidenceMark(row) @EvidenceFact(row)@EvidenceValues(row)</li>
+                                }
+                            </ul>
+                        }
+                        @if (!result.CanApply)
+                        {
+                            <div class="tl-wikidata__reason" data-testid="wikidata-reason">@ReasonText(result)</div>
+                        }
+                    </div>
+                    <div class="tl-wikidata__resultactions">
+                        @if (!string.IsNullOrWhiteSpace(result.Url))
+                        {
+                            <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@result.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
+                        }
+                        <AppButton Label="@L["EditorWikidata_Apply"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                   Disabled="@(!CanStage || !result.CanApply)" OnClick="@(() => Apply(result))" data-testid="wikidata-apply" />
+                    </div>
+                </li>
+            }
+        </ul>
+        if (_changing)
+        {
+            <div class="tl-wikidata__actions">
+                <AppButton Label="@L["EditorWikidata_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CancelChange" />
+            </div>
+        }
+    };
+
+    private string EvidenceMark(EditorWikidataEvidenceDto row) => row.State switch
+    {
+        EditorWikidataEvidenceStates.Agrees => "✓",
+        EditorWikidataEvidenceStates.Differs => "✕",
+        _ => "–",
+    };
+
+    private RenderFragment EvidenceValues(EditorWikidataEvidenceDto row) => __builder =>
+    {
+        if (row.State == EditorWikidataEvidenceStates.NotChecked)
+        {
+            <text> · @L["EditorWikidata_NotChecked"]</text>
+        }
+        else if (row.State == EditorWikidataEvidenceStates.Differs)
+        {
+            <text> · @(row.Yours ?? "–") / @(row.Wikidata ?? "–")</text>
+        }
+    };
+
+    public void Dispose()
+    {
+        if (_watched is not null)
+        {
+            _watched.Changed -= OnPendingChanged;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

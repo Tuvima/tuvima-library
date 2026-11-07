@@ -28,6 +28,14 @@
         {
             @FlowHost()
         }
+        else if (_wikidata && !_loading)
+        {
+            <EditorWikidataMatch Subject="Subject" Kind="@_kind" Session="Session" CanEdit="CanEdit" SearchStart="@Subject.Title"
+                                 ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year"
+                                 RowEnd="SwitchPart()">
+                @UniverseSection()
+            </EditorWikidataMatch>
+        }
         else
         {
             <EditorMatchRow>
@@ -54,12 +62,6 @@
             @if (_loading)
             {
                 <div aria-busy="true" aria-label="@L["EditorMatchPanel_ReadingMatch"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
-            }
-            else if (_wikidata)
-            {
-                @* The Wikidata match plugs in here (WP9b); until then the Wikidata side keeps the identity card and the Universe link. *@
-                @IdentityCard()
-                @UniverseSection()
             }
             else
             {
@@ -96,6 +98,16 @@
     private string? _staged;
     private string? _stagedMove;
     private bool _staging;
+    private ProviderMatchSide? _stagedSide;
+
+    // The provider match as the Wikidata side compares it: what the person has staged, else what the item is matched to. Only read; the two sides never change each other.
+    private sealed record ProviderMatchSide(string Name, string Id, string? Title, string? Year);
+
+    private ProviderMatchSide? ProviderSide => RemovalStaged
+        ? null
+        : _stagedSide ?? (_current is { State: EditorCurrentMatchStates.Matched, Record: { } record } && !string.IsNullOrWhiteSpace(record.ProviderItemId)
+            ? new ProviderMatchSide(record.ProviderName, record.ProviderItemId, record.Title, record.Year)
+            : null);
 
     /// <summary>The item being matched; null until the editor's fields have loaded.</summary>
     [Parameter] public EditorMatchSubject? Subject { get; set; }
@@ -188,6 +200,7 @@
         _problem = null;
         _staged = null;
         _stagedMove = null;
+        _stagedSide = null;
         _fileName = null;
         _fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _loading = true;
@@ -388,7 +401,6 @@
 
         var id = Subject.EntityId;
         var request = EditorMatchRules.RequestFor(candidate, Subject, Subject.TargetGroup);
-        request.ClearAutoAlignedWikidata = true;
         var facts = EditorMatchRules.FactsOf(candidate);
         _staging = true;
         try
@@ -413,6 +425,7 @@
             _staging = false;
         }
 
+        _stagedSide = new ProviderMatchSide(candidate.ProviderName, candidate.ProviderItemId ?? string.Empty, facts.Title, facts.Year);
         _staged = $"{facts.Title} ({facts.Provider})";
         _changing = false;
         _found = null;
@@ -501,6 +514,7 @@
         }
 
         _staged = L["EditorMatchPanel_RemovalStaged"].Value;
+        _stagedSide = null;
         _stagedMove = null;
         _changing = true;
         _found = null;
@@ -771,32 +785,6 @@
         "song" => L["EditorMatchPanel_KindSong"].Value,
         "video" => L["EditorMatchPanel_KindVideo"].Value,
         _ => L["EditorMatchPanel_KindItem"].Value,
-    };
-
-    // The Wikidata side keeps what the tab always showed: what the item is matched to now.
-    private RenderFragment IdentityCard() => __builder =>
-    {
-        if (Subject is null)
-        {
-            return;
-        }
-
-        var line = string.Join(" · ", new[] { Subject.Creator, Subject.ParentLabel, Subject.Year }.Where(part => !string.IsNullOrWhiteSpace(part)));
-        <section class="tl-match__now" aria-label="@L["EditorMatchPanel_MatchedToNow"].Value" data-testid="match-now">
-            <h3 class="tl-match__section-heading">@L["EditorMatchPanel_MatchedToNow"]</h3>
-            @if (!IsMatched)
-            {
-                <div class="tl-match__title"><span>@(string.IsNullOrWhiteSpace(_fileName) ? Subject.Title : _fileName)</span> <NotMatchedTag /></div>
-            }
-            else
-            {
-                <div class="tl-match__title"><span>@Subject.Title</span> <AppChip Text="@L["EditorMatchPanel_Matched"].Value" Tone="AppUiTone.Success" /></div>
-                @if (line.Length > 0)
-                {
-                    <div class="tl-match__meta">@line</div>
-                }
-            }
-        </section>
     };
 
     // The Universe the item belongs to. "Open Universe" closes the editor, asking about unsaved changes first.

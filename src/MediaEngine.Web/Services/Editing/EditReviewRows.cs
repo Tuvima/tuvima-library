@@ -72,6 +72,12 @@ public static class EditReviewRows
 
     public const string MatchRemovalNote = "Details you or the provider set, locked fields and pictures stay. The Wikidata match is not touched. Removing a match cannot be undone from here.";
 
+    public const string WikidataRemovalNote = "Only the Wikidata link goes. The provider match, details, locked fields and pictures stay.";
+
+    public const string WikidataLinkNote = "Only the Wikidata link changes. The provider match stays as it is.";
+
+    public const string NoWikidataLink = "No Wikidata link";
+
     public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
 
     /// <summary>The Before of a row whose old value was not recorded when it was staged (a list holds no loaded values); never blank, so every row can be compared.</summary>
@@ -187,6 +193,14 @@ public static class EditReviewRows
                 case EditSessionChangeKinds.MatchRemoval:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
                         "Match removed", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, "No match", MatchRemovalNote));
+                    break;
+                case EditSessionChangeKinds.WikidataLink:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Wikidata link changed", pending.Before(change.Id) ?? NoWikidataLink, label ?? change.TargetId ?? AsItIsNow, WikidataLinkNote));
+                    break;
+                case EditSessionChangeKinds.WikidataRemoval:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Wikidata link removed", pending.Before(change.Id) ?? AsItIsNow, NoWikidataLink, WikidataRemovalNote));
                     break;
                 case EditSessionChangeKinds.SiblingMatch:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
