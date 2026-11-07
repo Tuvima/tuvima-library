@@ -163,6 +163,49 @@ public sealed class SupportingFilesEditSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task WhatOneSaveSets_SurvivesTheFoldersBeingReadAgain_AndIsWrittenToTheFilesHistory()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
+
+        var result = await Service().RunAsync(
+            Request(Files("files", [guide.Id], new SupportingFileBulkChangesDto
+            {
+                Title = "Viewer's guide",
+                Description = "Read before the pilot.",
+                GroupName = "Guides",
+                Role = ExtraRoles.Guide,
+                AddTags = ["week 1"],
+            })),
+            NoRefusals);
+
+        Assert.True(result.DataSaved);
+
+        // The folders are read again and know nothing of what the person chose.
+        await _world.Extras.SyncItemFolderAsync(_world.Show, [_world.Row(guide.FilePath, ItemExtraKinds.Document, "guide", ExtraScope.Root)], []);
+
+        var after = (await _world.Extras.GetAsync(guide.Id))!;
+        Assert.Equal("Viewer's guide", after.DisplayTitle);
+        Assert.Equal("Read before the pilot.", after.Description);
+        Assert.Equal("Guides", after.GroupName);
+        Assert.Equal(ExtraRoles.Guide, after.EffectiveRole);
+        Assert.Equal(["week 1"], after.TagList);
+        var history = await SupportingFileHistory.Read(_world.Timeline, guide.Id, default);
+        Assert.Equal(5, history.Count);
+    }
+
+    [Fact]
+    public async Task ASave_ThatFindsNothingToChange_WritesNoHistory()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
+        var change = new SupportingFileBulkChangesDto { Title = "Viewer's guide" };
+
+        await Service().RunAsync(Request(Files("files", [guide.Id], change)), NoRefusals);
+        await Service().RunAsync(Request(Files("files", [guide.Id], change)), NoRefusals);
+
+        Assert.Single(await SupportingFileHistory.Read(_world.Timeline, guide.Id, default));
+    }
+
+    [Fact]
     public async Task Preview_OfASave_ReportsTheMoves_AndWritesNothing()
     {
         var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");

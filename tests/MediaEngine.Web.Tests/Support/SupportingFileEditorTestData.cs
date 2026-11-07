@@ -33,7 +33,9 @@ internal static class SupportingFileEditorTestData
         string typeLabel = "PDF",
         string? ownTitle = null,
         string? description = null,
-        IReadOnlyList<string>? tags = null)
+        IReadOnlyList<string>? tags = null,
+        string mediaType = "TV",
+        int descriptionMaxCharacters = 500)
     {
         var fileId = id ?? FileId;
         var title = ownTitle ?? "Workbook";
@@ -66,7 +68,8 @@ internal static class SupportingFileEditorTestData
             TypeLabel = typeLabel,
             Badge = "PDF",
             MimeType = "application/pdf",
-            Folder = "Season 02/Documents",
+            Folder = "Season 02 / Documents",
+            DescriptionMaxCharacters = descriptionMaxCharacters,
             ReadOnly = readOnly,
             Roles =
             [
@@ -89,7 +92,7 @@ internal static class SupportingFileEditorTestData
             Header = new EditorHeaderDto
             {
                 Kind = "video",
-                Root = new EditorHeaderRootDto { Id = TitleId, Title = TitleName, MediaType = "Videos" },
+                Root = new EditorHeaderRootDto { Id = TitleId, Title = TitleName, MediaType = mediaType },
                 CurrentId = TitleId,
                 Label = "Course",
                 LabelIsKind = true,

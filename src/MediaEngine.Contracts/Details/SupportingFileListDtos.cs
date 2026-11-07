@@ -171,6 +171,13 @@ public sealed class SupportingFileBulkChangesDto
     [JsonPropertyName("clearGroup")]
     public bool ClearGroup { get; init; }
 
+    /// <summary>
+    /// Put the files in no group at all, even where their folder names one. A rescan keeps it. (<see cref="ClearGroup"/> goes back to the
+    /// group the folder names; this says "none".)
+    /// </summary>
+    [JsonPropertyName("noGroup")]
+    public bool NoGroup { get; init; }
+
     /// <summary>The role to give (a role id from the list for the files' kind in <c>config/extras.json</c>).</summary>
     [JsonPropertyName("role")]
     public string? Role { get; init; }

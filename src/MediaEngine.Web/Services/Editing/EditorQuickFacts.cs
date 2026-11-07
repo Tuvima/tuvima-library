@@ -332,7 +332,7 @@ public static class EditorQuickFactsBuilder
         }
         else if (file.ReadOnly && wanted.Contains("read_only", StringComparer.Ordinal))
         {
-            notes.Add(ReadOnlyFolderNote);
+            notes.Add(SupportingFileReadOnlyNote);
         }
 
         var preview = wanted.Contains("preview", StringComparer.Ordinal) && !file.File.IsMissing;
@@ -347,6 +347,9 @@ public static class EditorQuickFactsBuilder
 
     /// <summary>The note under the facts for a file in a folder the library only reads.</summary>
     public const string ReadOnlyFolderNote = "Read-only folder";
+
+    /// <summary>The note under a supporting file's facts when its folder is only read: it is never moved or deleted.</summary>
+    public const string SupportingFileReadOnlyNote = "Read-only folder. The file is read where it is.";
 
     /// <summary>The note for a file the Engine knows but can no longer find; the last known folder follows it.</summary>
     public const string FileNotFoundNote = "File not found";

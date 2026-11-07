@@ -3455,6 +3455,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   GroupName: System.String | json=groupName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ClearGroup: System.Boolean | json=clearGroup | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NoGroup: System.Boolean | json=noGroup | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Role: System.String | json=role | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ClearRole: System.Boolean | json=clearRole | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ScopeKey: System.String | json=scopeKey | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -3468,7 +3469,7 @@
   AlongsideKey: System.String | json=alongsideKey | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NoAlongside: System.Boolean | json=noAlongside | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UseGuessedAlongside: System.Boolean | json=useGuessedAlongside | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"groupName":"sample","clearGroup":true,"role":"sample","clearRole":true,"scopeKey":"sample","useFolderLocation":true,"addTags":[],"removeTags":[],"title":"sample","clearTitle":true,"description":"sample","clearDescription":true,"alongsideKey":"sample","noAlongside":true,"useGuessedAlongside":true}
+  sample={"groupName":"sample","clearGroup":true,"noGroup":true,"role":"sample","clearRole":true,"scopeKey":"sample","useFolderLocation":true,"addTags":[],"removeTags":[],"title":"sample","clearTitle":true,"description":"sample","clearDescription":true,"alongsideKey":"sample","noAlongside":true,"useGuessedAlongside":true}
 
 [contracts] MediaEngine.Contracts.Details.SupportingFileBulkDeleteRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4652,9 +4653,10 @@
   ScopeLabel: System.String | json=scope_label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FolderScopeLabel: System.String | json=folder_scope_label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AlongsideLabel: System.String | json=alongside_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  DescriptionMaxCharacters: System.Int32 | json=description_max_characters | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Header: MediaEngine.Contracts.Editing.EditorHeaderDto | json=header | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | json=config | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"title_id":"11111111-2222-3333-4444-555555555555","file":null,"type":"sample","type_label":"sample","badge":"sample","mime_type":"sample","folder":"sample","read_only":true,"roles":[],"groups":[],"places":[],"scope_label":"sample","folder_scope_label":"sample","alongside_label":"sample","config":null}
+  sample={"title_id":"11111111-2222-3333-4444-555555555555","file":null,"type":"sample","type_label":"sample","badge":"sample","mime_type":"sample","folder":"sample","read_only":true,"roles":[],"groups":[],"places":[],"scope_label":"sample","folder_scope_label":"sample","alongside_label":"sample","description_max_characters":7,"config":null}
 
 [contracts] MediaEngine.Contracts.Editing.EditorSupportingFilePlaceDto
   kind=class | converter=default | number-handling=default | unmapped=default

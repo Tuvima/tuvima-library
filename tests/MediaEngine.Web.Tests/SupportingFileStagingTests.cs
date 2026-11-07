@@ -105,14 +105,45 @@ public sealed class SupportingFileStagingTests
     }
 
     [Fact]
-    public void AGroupThePersonChose_CanBeCleared_ButOneReadFromAFolderCannot()
+    public void AGroupThePersonChose_AndOneReadFromAFolder_CanBothBeTakenOff()
     {
         var chosen = SupportingFileEditorTestData.File(group: "Documents", groupSource: "you");
         var cleared = SupportingFileStaging.SetGroup(chosen, Fresh(chosen), "");
-        Assert.True(cleared.ToRequest().Changes.ClearGroup);
+        Assert.True(cleared.ToRequest().Changes.NoGroup);
 
         var fromFolder = SupportingFileEditorTestData.File(group: "Documents", groupSource: "folder");
-        Assert.True(SupportingFileStaging.SetGroup(fromFolder, Fresh(fromFolder), "").IsEmpty);
+        var none = SupportingFileStaging.SetGroup(fromFolder, Fresh(fromFolder), "");
+        var request = none.ToRequest().Changes;
+        Assert.True(request.NoGroup);
+        Assert.Null(request.GroupName);
+        Assert.False(request.ClearGroup);
+        Assert.Equal(string.Empty, SupportingFileStaging.GroupOf(fromFolder, none));
+        var row = Assert.Single(none.Rows);
+        Assert.Equal(("Documents", SupportingFileStaging.NoGroup), (row.Before, row.After));
+    }
+
+    [Fact]
+    public void ANoGroupChoice_IsTakenBackByPickingTheGroupItHad_AndAFileWithNoGroupHasNothingToTakeOff()
+    {
+        var fromFolder = SupportingFileEditorTestData.File(group: "Documents", groupSource: "folder");
+        var none = SupportingFileStaging.SetGroup(fromFolder, Fresh(fromFolder), "");
+
+        Assert.True(SupportingFileStaging.SetGroup(fromFolder, none, "Documents").IsEmpty);
+
+        var ungrouped = SupportingFileEditorTestData.File();
+        Assert.True(SupportingFileStaging.SetGroup(ungrouped, Fresh(ungrouped), "").IsEmpty);
+    }
+
+    [Fact]
+    public void PickingAnotherGroup_NeverMovesAFile_SoItStagesOnlyTheGroupRow()
+    {
+        var file = SupportingFileEditorTestData.File(group: "Documents", groupSource: "folder");
+
+        var staged = SupportingFileStaging.SetGroup(file, Fresh(file), "Transcripts");
+
+        Assert.Equal([SupportingFileFields.Group], staged.Rows.Select(row => row.Key));
+        Assert.False(staged.HasMove);
+        Assert.Null(staged.ToRequest().Changes.ScopeKey);
     }
 
     // -- Belongs to ----------------------------------------------------------------------------------------------------------------
@@ -211,6 +242,62 @@ public sealed class SupportingFileStagingTests
         Assert.True(none.NoAlongside);
         Assert.Equal(string.Empty, SupportingFileStaging.AlongsideOf(file, none));
     }
+
+    [Fact]
+    public void MovingBelongsToAnEpisode_ClearsAStaleShownAlongside_AndMovingBackTakesTheClearingOut()
+    {
+        var file = SupportingFileEditorTestData.File(scopeKey: "season:2", alongsideKey: "episode:s2e1");
+
+        var onEpisode = SupportingFileStaging.SetScope(file, Fresh(file), "episode:s2e3");
+        Assert.Equal([SupportingFileFields.Scope, SupportingFileFields.Alongside], onEpisode.Rows.Select(row => row.Key));
+        Assert.Equal(string.Empty, SupportingFileStaging.AlongsideOf(file, onEpisode));
+        var request = onEpisode.ToRequest().Changes;
+        Assert.True(request.UseGuessedAlongside);
+        Assert.Null(request.AlongsideKey);
+
+        var back = SupportingFileStaging.SetScope(file, onEpisode, "season:1");
+        Assert.Equal([SupportingFileFields.Scope], back.Rows.Select(row => row.Key));
+        Assert.Equal("episode:s2e1", SupportingFileStaging.AlongsideOf(file, back));
+    }
+
+    [Fact]
+    public void MovingBelongsToAnEpisode_OverridesAGuessedShownAlongside_WithNone()
+    {
+        var file = SupportingFileEditorTestData.File(scopeKey: "season:2", inferredAlongsideKey: "episode:s2e3", alongsideKey: "episode:s2e3");
+
+        var staged = SupportingFileStaging.SetScope(file, Fresh(file), "episode:s2e1");
+
+        Assert.True(staged.ToRequest().Changes.NoAlongside);
+    }
+
+    [Fact]
+    public void MovingBelongsToAnEpisode_LeavesAlone_AFileThatIsShownAlongsideNothing()
+    {
+        var file = SupportingFileEditorTestData.File(scopeKey: "season:2");
+
+        var staged = SupportingFileStaging.SetScope(file, Fresh(file), "episode:s2e1");
+
+        Assert.Equal([SupportingFileFields.Scope], staged.Rows.Select(row => row.Key));
+    }
+
+    [Fact]
+    public void AValueTheFormChoosesAfterwards_IsNotUndoneByMovingAway()
+    {
+        var file = SupportingFileEditorTestData.File(scopeKey: "season:2", alongsideKey: "episode:s2e1");
+        var cleared = SupportingFileStaging.SetScope(file, Fresh(file), "episode:s2e3");
+        var chosen = SupportingFileStaging.SetAlongside(file, cleared, "episode:s2e3");
+
+        var back = SupportingFileStaging.SetScope(file, chosen, "season:2");
+
+        Assert.Equal("episode:s2e3", SupportingFileStaging.AlongsideOf(file, back));
+    }
+
+    [Theory]
+    [InlineData("TV", "episode")]
+    [InlineData("Videos", "lesson")]
+    [InlineData("Music", "track")]
+    public void TheItemsShownAlongsideAreCalledWhatTheTitleKindCallsThem(string mediaType, string noun) =>
+        Assert.Equal(noun, SupportingFileStaging.AlongsideNoun(SupportingFileEditorTestData.File(mediaType: mediaType)));
 
     [Fact]
     public void TheSavedRequest_CarriesOnlyTheFileAndWhatWasStaged()
@@ -348,7 +435,7 @@ public sealed class SupportingFileStagingTests
         Assert.Equal("18 pages · 2.4 MB", type.Label);
         var name = model.Facts.Single(fact => fact.Key == "file_name");
         Assert.Equal("Workbook.pdf", name.Value);
-        Assert.Equal("Season 02/Documents", name.Label);
+        Assert.Equal("Season 02 / Documents", name.Label);
         Assert.Empty(model.Notes);
         Assert.True(model.OffersPreview);
         Assert.Equal("Preview PDF", model.PreviewLabel);
@@ -359,7 +446,7 @@ public sealed class SupportingFileStagingTests
     {
         var model = EditorQuickFactsBuilder.ForSupportingFile(SupportingFileEditorTestData.File(readOnly: true));
 
-        Assert.Equal([EditorQuickFactsBuilder.ReadOnlyFolderNote], model.Notes);
+        Assert.Equal([EditorQuickFactsBuilder.SupportingFileReadOnlyNote], model.Notes);
     }
 
     [Fact]

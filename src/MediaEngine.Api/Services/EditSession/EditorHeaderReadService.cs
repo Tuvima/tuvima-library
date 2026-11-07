@@ -163,6 +163,9 @@ public sealed class EditorHeaderReadService(
             && string.Equals(Path.GetFullPath(extra.ItemFolder), Path.GetFullPath(itemFolder), StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>The most characters a description may hold, from <c>config/editor.json</c> (<c>suggest_details.description_max_characters</c>).</summary>
+    public int DescriptionMaxCharacters => editorConfig.Current.SuggestDetails.DescriptionMaxCharacters;
+
     /// <summary>
     /// The rules of one kind of item, for the editors that do not open on a work (a person, a Universe, a supporting file, a View photo
     /// or gallery, several items at once), so the Dashboard never writes their tabs, facts or search fields itself. Null for a kind

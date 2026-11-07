@@ -2,8 +2,10 @@ using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Extras;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Extras;
 
@@ -31,12 +33,15 @@ public sealed record SupportingFileBulkOutcome<T>(T? Value, SupportingFileBulkPr
 /// file to what it already reads as changes nothing, a file already gone is reported as gone, and a repeat of a saved Belongs to change
 /// plans no second move. All data changes of one call are written in one transaction; file moves come last and cannot be undone, so a move
 /// that fails leaves the data saved and says which file stayed. A picture folder is one item, so an action on it applies to every picture in it.
+/// Each saved change is written to the file's History (<see cref="SupportingFileHistory"/>): one row per changed field, per move and per delete.
 /// </summary>
 public sealed class SupportingFileBulkService(
     IItemExtraRepository extras,
     ISupportingFileTitleResolver resolver,
     SupportingFileDiskService disk,
-    IExtrasConfigurationSource? rules = null)
+    IExtrasConfigurationSource? rules = null,
+    IEntityTimelineRepository? timeline = null,
+    ILogger<SupportingFileBulkService>? logger = null)
 {
     public const int MaxFilesPerCall = 2000;
     public const string NothingPicked = "Pick at least one file.";
@@ -218,6 +223,13 @@ public sealed class SupportingFileBulkService(
                 SupportingFileBulkProblem.Invalid, RoleNotAvailable(config, ex.FileKind, ex.Role));
         }
 
+        var history = new List<EntityEvent>();
+        foreach (var target in load.Targets)
+        {
+            history.AddRange(SupportingFileHistory.Describe(target, update, config)
+                .Select(words => SupportingFileHistory.Row(target.Id, SupportingFileHistory.FieldEvent, words)));
+        }
+
         var moves = new List<SupportingFilePlannedMoveDto>();
         var moved = new List<(ItemExtra Row, SupportingFileMovePlan Plan)>();
         foreach (var (id, plan) in plans.Where(pair => pair.Value.Moves))
@@ -231,6 +243,7 @@ public sealed class SupportingFileBulkService(
                 var nowSitsIn = update.Scope.IsSet ? update.Scope.Value : row.InferredScope;
                 await extras.RelocateFileAsync(id, plan.To!, nowSitsIn, ct).ConfigureAwait(false);
                 moved.Add((row, plan));
+                history.Add(SupportingFileHistory.Row(id, SupportingFileHistory.MoveEvent, SupportingFileHistory.MoveWords(row, plan.From!, plan.To!)));
             }
 
             moves.Add(ToMove(id, plan, failure is null ? SupportingFileMoveStatuses.Moved : SupportingFileMoveStatuses.Failed, failure));
@@ -241,6 +254,8 @@ public sealed class SupportingFileBulkService(
             undoBox.Undo = _ => RestoreAsync(load.Targets, moved);
         }
 
+        await RecordAsync(history, ct).ConfigureAwait(false);
+
         return SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto
         {
             Preview = false,
@@ -248,6 +263,24 @@ public sealed class SupportingFileBulkService(
             Changed = results.Count(result => result.Status == SupportingFileBulkStatuses.Changed),
             Moves = moves,
         });
+    }
+
+    // The data is already saved, so a History row that cannot be written is logged and never fails the change.
+    private async Task RecordAsync(IReadOnlyList<EntityEvent> events, CancellationToken ct)
+    {
+        if (timeline is null || events.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await timeline.InsertEventsAsync(events, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogWarning(ex, "The History of {Count} supporting file change(s) could not be written.", events.Count);
+        }
     }
 
     // Puts every row back as it was before the change. A file that moved goes back first; one that cannot go back keeps its new path,
@@ -295,6 +328,10 @@ public sealed class SupportingFileBulkService(
         }
 
         var removed = await extras.RemoveManyAsync([.. load.Targets.Select(target => target.Id)], ct).ConfigureAwait(false);
+        await RecordAsync(
+            [.. load.Targets.Select(target => SupportingFileHistory.Row(
+                target.Id, SupportingFileHistory.DeleteEvent, SupportingFileHistory.DeleteWords(disks[target.Id].Outcome, disks[target.Id].Reason)))],
+            ct).ConfigureAwait(false);
 
         var results = new List<SupportingFileDeleteItemResultDto>(request.Ids.Count);
         foreach (var requested in load.Requested)
@@ -453,6 +490,10 @@ public sealed class SupportingFileBulkService(
         {
             update = update with { GroupName = ExtraValue<string>.Set(changes.GroupName.Trim()) };
         }
+        else if (changes.NoGroup)
+        {
+            update = update with { NoGroup = true };
+        }
         else if (changes.ClearGroup)
         {
             update = update with { GroupName = ExtraValue<string>.Clear };
@@ -501,6 +542,12 @@ public sealed class SupportingFileBulkService(
         }
 
         if (update.GroupName is { State: ExtraValueState.Cleared } && file.GroupSource == ExtraGroupSources.You)
+        {
+            return true;
+        }
+
+        // "No group" is a decision of its own: a file already told to have none (source "you", nothing in it) stays as it is.
+        if (update.NoGroup && (file.GroupName is not null || file.GroupSource != ExtraGroupSources.You))
         {
             return true;
         }

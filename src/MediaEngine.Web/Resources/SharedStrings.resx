@@ -11522,9 +11522,6 @@
   <data name="EditorSupportingFile_SuggestDetails" xml:space="preserve">
     <value>Suggest details from the document</value>
   </data>
-  <data name="EditorSupportingFile_CharacterCount" xml:space="preserve">
-    <value>{0} of {1} characters</value>
-  </data>
   <data name="EditorSupportingFile_TitleCleared" xml:space="preserve">
     <value>Goes back to the name read from the file when you save.</value>
   </data>
@@ -11544,7 +11541,7 @@
     <value>New group. It is created when you save.</value>
   </data>
   <data name="EditorSupportingFile_GroupFromFolder" xml:space="preserve">
-    <value>From its folder. Pick another group to move it.</value>
+    <value>From its folder. Pick another group to change it.</value>
   </data>
   <data name="EditorSupportingFile_Role" xml:space="preserve">
     <value>Role</value>
@@ -11571,16 +11568,13 @@
     <value>Could not check whether the file moves. It is checked again when you save.</value>
   </data>
   <data name="EditorSupportingFile_ShownAlongside" xml:space="preserve">
-    <value>Shown alongside</value>
+    <value>Shown alongside · optional</value>
   </data>
   <data name="EditorSupportingFile_AlongsideNone" xml:space="preserve">
     <value>Pick an episode, lesson or track to list this file with it.</value>
   </data>
   <data name="EditorSupportingFile_AlongsideGuessed" xml:space="preserve">
     <value>Guessed from the file name. It is listed with that item.</value>
-  </data>
-  <data name="EditorSupportingFile_AlongsideChosen" xml:space="preserve">
-    <value>Also listed on that item's Extras.</value>
   </data>
   <data name="EditorSupportingFile_TagsHelp" xml:space="preserve">
     <value>Tags are private to your Library. They are never written into the file.</value>
@@ -11602,9 +11596,6 @@
   </data>
   <data name="EditorSupportingFile_Chip" xml:space="preserve">
     <value>Supporting file</value>
-  </data>
-  <data name="EditorSupportingFile_HistoryNote" xml:space="preserve">
-    <value>Changes to a supporting file are not kept in the history yet. Its title's history lists the rest.</value>
   </data>
   <data name="EditorBookmarks_Add" xml:space="preserve">
     <value>Add to Everyone's</value>
@@ -11776,5 +11767,23 @@
   </data>
   <data name="EditorBookmarks_UnmatchedEpisodes" xml:space="preserve">
     <value>{0} episodes in the file are not in this show and will be skipped.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosenEpisode" xml:space="preserve">
+    <value>Also listed on that episode's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosenLesson" xml:space="preserve">
+    <value>Also listed on that lesson's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosenTrack" xml:space="preserve">
+    <value>Also listed on that track's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_ChooseEpisode" xml:space="preserve">
+    <value>Choose an episode</value>
+  </data>
+  <data name="EditorSupportingFile_ChooseLesson" xml:space="preserve">
+    <value>Choose a lesson</value>
+  </data>
+  <data name="EditorSupportingFile_ChooseTrack" xml:space="preserve">
+    <value>Choose a track</value>
   </data>
 </root>

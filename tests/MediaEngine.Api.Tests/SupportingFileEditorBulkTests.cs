@@ -184,4 +184,125 @@ public sealed class SupportingFileEditorBulkTests : IDisposable
         Assert.Equal(ExtraScope.ForSeason(3), saved.EffectiveScope);
         Assert.Equal("Season 3 guide", saved.DisplayTitle);
     }
+
+    // -- No group ---------------------------------------------------------------------------------------------------------------
+
+    private async Task<ItemExtra> SeedInFolderGroupAsync(string fileName, string group)
+    {
+        var path = Path.Combine(_world.Show, fileName);
+        await File.WriteAllTextAsync(path, "content");
+        await _world.Extras.SyncItemFolderAsync(_world.Show, [_world.Row(path, ItemExtraKinds.Document, "bonus", ExtraScope.Root, inferredGroup: group)], []);
+        return (await _world.Extras.GetByPathAsync(path))!;
+    }
+
+    [Fact]
+    public async Task AGroupReadFromAFolder_CanBeTakenOff_AndARescanKeepsTheFileOutOfIt()
+    {
+        var bonus = await SeedInFolderGroupAsync("bonus.pdf", "Bonus");
+        Assert.Equal("Bonus", bonus.GroupName);
+        Assert.Equal(ExtraGroupSources.Folder, bonus.GroupSource);
+
+        var outcome = await SaveAsync(One(bonus, new SupportingFileBulkChangesDto { NoGroup = true }));
+
+        Assert.Equal(1, outcome.Value!.Changed);
+        var none = (await _world.Extras.GetAsync(bonus.Id))!;
+        Assert.Null(none.GroupName);
+        Assert.Equal(ExtraGroupSources.You, none.GroupSource);
+
+        // The folders are read again and still name the group; the person's "No group" stands.
+        await _world.Extras.SyncItemFolderAsync(_world.Show, [_world.Row(bonus.FilePath, ItemExtraKinds.Document, "bonus", ExtraScope.Root, inferredGroup: "Bonus")], []);
+        var rescanned = (await _world.Extras.GetAsync(bonus.Id))!;
+        Assert.Null(rescanned.GroupName);
+        Assert.Equal(ExtraGroupSources.You, rescanned.GroupSource);
+
+        // Saying it again changes nothing; going back to the folder's group is a separate, explicit choice.
+        Assert.Equal(0, (await SaveAsync(One(bonus, new SupportingFileBulkChangesDto { NoGroup = true }))).Value!.Changed);
+        await SaveAsync(One(bonus, new SupportingFileBulkChangesDto { ClearGroup = true }));
+        Assert.Equal("Bonus", (await _world.Extras.GetAsync(bonus.Id))!.GroupName);
+    }
+
+    // -- History ----------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ASavedEdit_AddsOneHistoryRowPerChangedField_KeyedOnTheFile()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+
+        await SaveAsync(One(guide, new SupportingFileBulkChangesDto
+        {
+            Title = "Viewer's guide",
+            GroupName = "Guides",
+            Role = ExtraRoles.Guide,
+            AddTags = ["week 1"],
+        }));
+
+        var rows = await SupportingFileHistory.Read(_world.Timeline, guide.Id, default);
+        Assert.Equal(4, rows.Count);
+        Assert.All(rows, row => Assert.Equal(guide.Id, row.EntityId));
+        Assert.All(rows, row => Assert.Equal("Details changed", row.Label));
+        Assert.Contains(rows, row => row.Detail == "Title changed to \"Viewer's guide\".");
+        Assert.Contains(rows, row => row.Detail == "Group set to \"Guides\".");
+        Assert.Contains(rows, row => row.Detail!.StartsWith("Type set to", StringComparison.Ordinal));
+        Assert.Contains(rows, row => row.Detail == "Tags added: week 1.");
+    }
+
+    [Fact]
+    public async Task ARepeatedEdit_AddsNoSecondHistoryRow()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+        var change = new SupportingFileBulkChangesDto { Title = "Viewer's guide" };
+
+        await SaveAsync(One(guide, change));
+        await SaveAsync(One(guide, change));
+
+        Assert.Single(await SupportingFileHistory.Read(_world.Timeline, guide.Id, default));
+    }
+
+    [Fact]
+    public async Task APreview_WritesNoHistory()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+
+        await _world.Bulk.PreviewAsync(_title, One(guide, new SupportingFileBulkChangesDto { Title = "Viewer's guide" }));
+
+        Assert.Empty(await SupportingFileHistory.Read(_world.Timeline, guide.Id, default));
+    }
+
+    [Fact]
+    public async Task AMoveOfTheFile_AddsAHistoryRowOfItsOwn_NamingFromAndTo()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+
+        await SaveAsync(One(guide, new SupportingFileBulkChangesDto { ScopeKey = "season:2" }));
+
+        var rows = await SupportingFileHistory.Read(_world.Timeline, guide.Id, default);
+        var moved = Assert.Single(rows, row => row.EventType == SupportingFileHistory.MoveEvent);
+        Assert.Equal("File moved", moved.Label);
+        Assert.Equal("Moved from \"guide.pdf\" to \"Season 02/guide.pdf\".", moved.Detail);
+        Assert.Contains(rows, row => row.Detail == "Belongs to Season 2.");
+    }
+
+    [Fact]
+    public async Task ADelete_AddsOneHistoryRow_SayingWhatHappenedToTheFile()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+
+        await _world.Bulk.DeleteAsync(_title, new SupportingFileBulkDeleteRequest { Ids = [guide.Id.ToString("D")] }, null, null);
+
+        var row = Assert.Single(await SupportingFileHistory.Read(_world.Timeline, guide.Id, default));
+        Assert.Equal(SupportingFileHistory.DeleteEvent, row.EventType);
+        Assert.Equal("Removed from the Library", row.Label);
+        Assert.StartsWith("Removed from the Library.", row.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheHistoryOfOneFile_NeverListsAnotherFilesRows()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+        var other = await _world.SeedDiskFileAsync("other.pdf", "other");
+
+        await SaveAsync(One(guide, new SupportingFileBulkChangesDto { Title = "Viewer's guide" }));
+
+        Assert.Empty(await SupportingFileHistory.Read(_world.Timeline, other.Id, default));
+    }
 }

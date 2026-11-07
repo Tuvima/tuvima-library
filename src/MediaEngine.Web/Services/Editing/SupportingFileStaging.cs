@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -67,10 +68,10 @@ public static class SupportingFileStaging
         var saved = file.File.Group ?? string.Empty;
         if (typed.Length == 0)
         {
-            // A group read from a sub-folder cannot be taken off here: only a group a person chose can be cleared.
-            return saved.Length == 0 || file.File.GroupSource != "you"
+            // "No group": a group a person chose and a group read from a sub-folder can both be taken off. Group never moves a file (D30).
+            return saved.Length == 0
                 ? stage.Without(SupportingFileFields.Group)
-                : Replace(stage with { GroupName = null, ClearGroup = true, CreatesGroup = false }, SupportingFileFields.Group, "Group", saved, NoGroup);
+                : Replace(stage with { GroupName = null, NoGroup = true, CreatesGroup = false }, SupportingFileFields.Group, "Group", saved, NoGroup);
         }
 
         if (string.Equals(typed, saved, StringComparison.OrdinalIgnoreCase))
@@ -80,7 +81,7 @@ public static class SupportingFileStaging
 
         var existing = file.Groups.FirstOrDefault(name => string.Equals(name, typed, StringComparison.OrdinalIgnoreCase));
         return Replace(
-            stage with { GroupName = existing ?? typed, ClearGroup = false, CreatesGroup = existing is null },
+            stage with { GroupName = existing ?? typed, NoGroup = false, CreatesGroup = existing is null },
             SupportingFileFields.Group, "Group", saved.Length == 0 ? NoGroup : saved, existing ?? typed);
     }
 
@@ -101,7 +102,10 @@ public static class SupportingFileStaging
     /// Belongs to. Picking the place read from the folder when the person had set another one is the same as "Use folder location". Any other
     /// place is the person's own; picking the place it already is changes nothing.
     /// </summary>
-    public static SupportingFileStage SetScope(EditorSupportingFileDto file, SupportingFileStage stage, string? key)
+    public static SupportingFileStage SetScope(EditorSupportingFileDto file, SupportingFileStage stage, string? key) =>
+        FollowScope(file, ChooseScope(file, stage, key));
+
+    private static SupportingFileStage ChooseScope(EditorSupportingFileDto file, SupportingFileStage stage, string? key)
     {
         var typed = Clean(key);
         var setByYou = file.File.ScopeSource == "you";
@@ -117,8 +121,25 @@ public static class SupportingFileStaging
                 SupportingFileFields.Scope, "Belongs to", file.ScopeLabel, PlaceLabel(file, typed));
     }
 
+    // A file that belongs to an episode, lesson or track is not also shown alongside one (D14), so a value left from the place it had is
+    // cleared with the move; moving back to a place that shows the field takes that clearing out again.
+    private static SupportingFileStage FollowScope(EditorSupportingFileDto file, SupportingFileStage stage)
+    {
+        if (!ShowsAlongside(ScopeOf(file, stage)))
+        {
+            return AlongsideOf(file, stage).Length == 0
+                ? stage
+                : SetAlongside(file, stage, null) with { ClearedByScope = true };
+        }
+
+        return stage.ClearedByScope ? stage.Without(SupportingFileFields.Alongside) : stage;
+    }
+
     /// <summary>"Use folder location": the file belongs to the place its folder says again.</summary>
-    public static SupportingFileStage UseFolderLocation(EditorSupportingFileDto file, SupportingFileStage stage)
+    public static SupportingFileStage UseFolderLocation(EditorSupportingFileDto file, SupportingFileStage stage) =>
+        FollowScope(file, ReturnToFolder(file, stage));
+
+    private static SupportingFileStage ReturnToFolder(EditorSupportingFileDto file, SupportingFileStage stage)
     {
         if (file.File.ScopeSource != "you")
         {
@@ -137,6 +158,7 @@ public static class SupportingFileStaging
     /// <summary>Shown alongside: an episode, lesson or track, or nothing. Picking the guessed one when it was set to another is the same as going back to the guess.</summary>
     public static SupportingFileStage SetAlongside(EditorSupportingFileDto file, SupportingFileStage stage, string? key)
     {
+        stage = stage with { ClearedByScope = false };
         var typed = Clean(key);
         var saved = file.File.AlongsideKey;
         var guessed = file.File.InferredAlongsideKey;
@@ -188,7 +210,7 @@ public static class SupportingFileStaging
         stage is { ClearDescription: true } ? string.Empty : stage?.Description ?? file.File.Description ?? string.Empty;
 
     public static string GroupOf(EditorSupportingFileDto file, SupportingFileStage? stage) =>
-        stage is { ClearGroup: true } ? string.Empty : stage?.GroupName ?? file.File.Group ?? string.Empty;
+        stage is { NoGroup: true } ? string.Empty : stage?.GroupName ?? file.File.Group ?? string.Empty;
 
     public static string RoleOf(EditorSupportingFileDto file, SupportingFileStage? stage) => stage?.Role ?? file.File.Role;
 
@@ -248,6 +270,19 @@ public static class SupportingFileStaging
         }
 
         return [.. items.Where(place => string.Equals(place.ParentKey, scopeKey, StringComparison.Ordinal))];
+    }
+
+    /// <summary>
+    /// What the title calls the items Shown alongside lists: "episode" for a show, "lesson" for a course (a folder of videos), "track" for an
+    /// album. It follows the title's media type, the same rule the header uses for "with lesson 02", and the places the Engine offers.
+    /// </summary>
+    public static string AlongsideNoun(EditorSupportingFileDto file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var mediaType = file.Header?.Root.MediaType;
+        return VideoFolderWording.IsVideoFolderMediaType(mediaType) || file.Places.Any(place => place.Level == "file") ? "lesson"
+            : string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase) || file.Places.Any(place => place.Level == "track") ? "track"
+            : "episode";
     }
 
     /// <summary>Shown alongside is hidden when the file already belongs to an episode, lesson or track (D14): it would only repeat it.</summary>

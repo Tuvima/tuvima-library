@@ -71,6 +71,17 @@ public sealed class SupportingFileEditorReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TheDescriptionLimit_IsTheOneInTheEditorsConfiguration()
+    {
+        var tv = SeedExpanse();
+        var id = await _world.SupportingFileAsync("Season 02/guide.pdf", ExtraScope.ForSeason(2));
+
+        var read = await Service().GetAsync(tv.Episode3, id, null);
+
+        Assert.True(read!.DescriptionMaxCharacters >= 50);
+    }
+
+    [Fact]
     public async Task ThePlaces_StartWithTheTitle_ThenSeasonsWithTheirEpisodes_ThenSectionsWithTheirLessons()
     {
         var tv = SeedExpanse();

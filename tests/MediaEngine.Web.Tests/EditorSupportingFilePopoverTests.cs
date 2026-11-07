@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
@@ -24,6 +25,12 @@ public sealed class EditorSupportingFilePopoverTests : AsyncBunitContext
     private readonly DashboardSessionAccessor _session = new();
     private readonly EditorSupportingFileDto _file = SupportingFileEditorTestData.File();
     private readonly IRenderedComponent<EditorPopover> _popover;
+    private readonly List<(Guid Title, Guid File)> _historyReads = [];
+    private List<LibraryItemHistoryDto> _history =
+    [
+        new() { Id = "1", EntityId = FileId, OccurredAt = DateTimeOffset.UtcNow, EventType = "supporting_file_edit", Label = "Details changed", Detail = "Title changed to \"Shooting workbook\".", Category = "manual", ActorLabel = "You" },
+        new() { Id = "2", EntityId = FileId, OccurredAt = DateTimeOffset.UtcNow.AddMinutes(-5), EventType = "supporting_file_moved", Label = "File moved", Detail = "Moved from \"Season 02/Workbook.pdf\" to \"Season 01/Workbook.pdf\".", Category = "file", ActorLabel = "You" },
+    ];
 
     public EditorSupportingFilePopoverTests()
     {
@@ -33,6 +40,11 @@ public sealed class EditorSupportingFilePopoverTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetSupportingFileEditorAsync), _ => Task.FromResult<EditorSupportingFileDto?>(_file));
+            stub.SetHandler(nameof(IEngineApiClient.GetSupportingFileHistoryAsync), args =>
+            {
+                _historyReads.Add(((Guid)args![0]!, (Guid)args[1]!));
+                return Task.FromResult<(List<LibraryItemHistoryDto> Items, string? Error)>((_history, null));
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetExtraAsync), _ => Task.FromResult<ExtraViewDto?>(new ExtraViewDto
             {
                 Id = FileId.ToString("D"),
@@ -102,13 +114,29 @@ public sealed class EditorSupportingFilePopoverTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheHistoryTab_SaysAFilesChangesAreNotKeptYet_InsteadOfListingNothing()
+    public async Task TheHistoryTab_ListsWhatWasChangedOnTheFile_ReadFromTheFilesOwnHistory()
     {
         var host = await OpenFileAsync(administrator: true);
 
         await _popover.InvokeAsync(() => host.Flow.SelectToolAsync(EditTool.History));
 
-        _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll("[data-supporting-file-history]")));
+        _popover.WaitForAssertion(() => Assert.Equal(2, _popover.FindAll("[data-supporting-file-history] .tl-history__row").Count));
+        Assert.Equal((TitleId, FileId), Assert.Single(_historyReads));
+        var text = _popover.Find("[data-supporting-file-history]").TextContent;
+        Assert.Contains("Title changed to \"Shooting workbook\".", text, StringComparison.Ordinal);
+        Assert.Contains("Moved from", text, StringComparison.Ordinal);
+        Assert.Empty(_popover.FindAll("[data-supporting-file-history] [role=alert]"));
+    }
+
+    [Fact]
+    public async Task TheHistoryTab_OfAFileWithNoChanges_SaysNothingHasHappenedYet()
+    {
+        _history = [];
+        var host = await OpenFileAsync(administrator: true);
+
+        await _popover.InvokeAsync(() => host.Flow.SelectToolAsync(EditTool.History));
+
+        _popover.WaitForAssertion(() => Assert.Contains("Nothing has happened to this item yet.", _popover.Find("[data-supporting-file-history]").TextContent, StringComparison.Ordinal));
     }
 
     [Fact]

@@ -35,6 +35,8 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
     private Func<SupportingFileBulkUpdateRequest, LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>> _check = _ =>
         LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto { Preview = true });
     private ExtraViewDto? _view;
+    private Func<SupportingFileBulkUpdateRequest, Task<LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>>>? _checkAsync;
+    private readonly List<(Guid Title, Guid File)> _reads = [];
 
     public EditorSupportingFilePanelTests()
     {
@@ -47,6 +49,7 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetSupportingFileEditorAsync), args =>
             {
                 var requested = (Guid)args![1]!;
+                _reads.Add(((Guid)args[0]!, requested));
                 return Task.FromResult<EditorSupportingFileDto?>(requested == OtherFileId
                     ? SupportingFileEditorTestData.File(OtherFileId, ownTitle: "Transcript")
                     : _file);
@@ -56,7 +59,7 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
             {
                 var request = (SupportingFileBulkUpdateRequest)args![1]!;
                 _checks.Add(request);
-                return Task.FromResult(_check(request));
+                return _checkAsync?.Invoke(request) ?? Task.FromResult(_check(request));
             });
             stub.SetHandler(nameof(IEngineApiClient.DeleteSupportingFilesAsync), args =>
             {
@@ -106,6 +109,8 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
 
     private static Task Pick(IRenderedComponent<EditorSupportingFilePanel> cut, string ariaLabel, string value) =>
         cut.InvokeAsync(() => Select(cut, ariaLabel).ValueChanged.InvokeAsync(value));
+
+    private const string AlongsideLabel = "Shown alongside · optional";
 
     private IReadOnlyList<string> ToastLines => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
 
@@ -244,7 +249,7 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
         Assert.Empty(_checks);
         Assert.False(host.Session.Pending.FindSupportingFile(FileId)!.HasMove);
         Assert.Equal("Set by you. The file stays where it is.", cut.Find("[data-hint=scope]").TextContent.Trim());
-        Assert.Contains(EditorQuickFactsBuilder.ReadOnlyFolderNote, cut.Find("aside").TextContent, StringComparison.Ordinal);
+        Assert.Contains(EditorQuickFactsBuilder.SupportingFileReadOnlyNote, cut.Find("aside").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -269,13 +274,146 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
         var host = await OpenFileAsync();
         var cut = Panel(host);
 
-        var options = Select(cut, "Shown alongside").Options!.Select(option => option.Label).ToList();
+        var options = Select(cut, AlongsideLabel).Options!.Select(option => option.Label).ToList();
         Assert.Equal(["None", "S02E01 Warm-up", "S02E03 Footwork"], options);
         Assert.Equal("Guessed from the file name. It is listed with that item.", cut.Find("[data-hint=alongside]").TextContent.Trim());
 
         await Pick(cut, "Belongs to", "episode:s2e3");
 
         Assert.Empty(cut.FindAll("[data-field-key=alongside]"));
+    }
+
+    [Fact]
+    public async Task ShownAlongside_ReadsAsOptional_WithAPlaceholderAndHintThatNameWhatTheTitleCallsItsItems()
+    {
+        _file = SupportingFileEditorTestData.File(scopeKey: "season:2");
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        Assert.Equal("Choose an episode", Select(cut, AlongsideLabel).Placeholder);
+        Assert.Contains("Choose an episode", cut.Find("[data-field-key=alongside] .tl-select-value").TextContent, StringComparison.Ordinal);
+        Assert.Equal(AlongsideLabel, cut.Find("[data-field-key=alongside] .tl-editor-field__label").TextContent.Trim());
+
+        await Pick(cut, AlongsideLabel, "episode:s2e1");
+
+        Assert.Equal("Also listed on that episode's Extras.", cut.Find("[data-hint=alongside]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task ShownAlongside_OnACourse_TalksOfLessons()
+    {
+        _file = SupportingFileEditorTestData.File(scopeKey: "season:2", alongsideKey: "episode:s2e1", mediaType: "Videos");
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        Assert.Equal("Choose a lesson", Select(cut, AlongsideLabel).Placeholder);
+        Assert.Equal("Also listed on that lesson's Extras.", cut.Find("[data-hint=alongside]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task MovingBelongsToAnEpisode_ClearsTheStaleShownAlongside_AndMovingBackKeepsIt()
+    {
+        _file = SupportingFileEditorTestData.File(scopeKey: "season:2", alongsideKey: "episode:s2e3");
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        await Pick(cut, "Belongs to", "episode:s2e1");
+
+        Assert.Empty(cut.FindAll("[data-field-key=alongside]"));
+        var stage = host.Session.Pending.FindSupportingFile(FileId)!;
+        Assert.NotNull(stage.Row(SupportingFileFields.Alongside));
+        Assert.True(stage.ToRequest().Changes.UseGuessedAlongside);
+
+        await Pick(cut, "Belongs to", "season:2");
+
+        Assert.NotNull(cut.Find("[data-field-key=alongside]"));
+        Assert.True(host.Session.Pending.IsEmpty);
+    }
+
+    [Fact]
+    public async Task TheDescription_StopsAtTheLimitFromTheEditorsConfiguration_WithNoCounter()
+    {
+        _file = SupportingFileEditorTestData.File(descriptionMaxCharacters: 120);
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        Assert.Equal("120", cut.Find("[data-field-key=description] textarea").GetAttribute("maxlength"));
+        Assert.Empty(cut.FindAll(".tl-editor-field__count"));
+    }
+
+    [Fact]
+    public async Task AGroupReadFromAFolder_CanBeTakenOff_ThroughANoGroupChoice()
+    {
+        _file = SupportingFileEditorTestData.File(group: "Documents", groupSource: "folder");
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+        var group = cut.FindComponent<AppAutocomplete<string>>().Instance;
+
+        var offered = (await group.SearchFunc!("", CancellationToken.None)).ToList();
+        Assert.Equal("\u0001none", offered[0]);
+        await cut.InvokeAsync(() => group.ValueChanged.InvokeAsync(offered[0]));
+
+        var stage = host.Session.Pending.FindSupportingFile(FileId)!;
+        Assert.True(stage.NoGroup);
+        Assert.True(stage.ToRequest().Changes.NoGroup);
+        Assert.Equal("No group", stage.Row(SupportingFileFields.Group)!.After);
+    }
+
+    [Fact]
+    public async Task TheGroupHint_ForAFolderGroup_SaysPickingAnotherChangesIt_NotThatItMovesTheFile()
+    {
+        _file = SupportingFileEditorTestData.File(group: "Documents", groupSource: "folder");
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        Assert.Equal("From its folder. Pick another group to change it.", cut.Find("[data-field-key=group] [data-hint=group]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task AnAnswerForAnEarlierBelongsTo_ArrivingLate_DoesNotChangeTheMoveOfTheChoiceStagedNow()
+    {
+        var first = new TaskCompletionSource<LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>>();
+        _checkAsync = request => request.Changes.ScopeKey == "season:1"
+            ? first.Task
+            : Task.FromResult(LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto
+            {
+                Preview = true,
+                Moves = [new SupportingFilePlannedMoveDto { Id = FileId.ToString("D"), From = "Season 02/Workbook.pdf", To = "Season 03/Workbook.pdf" }],
+            }));
+        _file = SupportingFileEditorTestData.File(scopeKey: "season:2", scopeSource: "you");
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        var slow = Pick(cut, "Belongs to", "season:1");
+        await Pick(cut, "Belongs to", "root");
+        first.SetResult(LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto
+        {
+            Preview = true,
+            Moves = [new SupportingFilePlannedMoveDto { Id = FileId.ToString("D"), From = "Season 02/Workbook.pdf", To = "Season 01/Workbook.pdf" }],
+        }));
+        await slow;
+
+        var stage = host.Session.Pending.FindSupportingFile(FileId)!;
+        Assert.Equal("root", stage.ScopeKey);
+        Assert.Equal("Season 03/Workbook.pdf", stage.MoveTo);
+    }
+
+    [Fact]
+    public async Task AFailedAnswerForAnEarlierBelongsTo_ArrivingLate_DoesNotPutAWarningOnTheChoiceStagedNow()
+    {
+        var first = new TaskCompletionSource<LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>>();
+        _checkAsync = request => request.Changes.ScopeKey == "season:1"
+            ? first.Task
+            : Task.FromResult(LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto { Preview = true }));
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+
+        var slow = Pick(cut, "Belongs to", "season:1");
+        await Pick(cut, "Belongs to", "season:3");
+        first.SetResult(LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>.Failed(LibraryBatchEditOutcomeStatus.Unavailable, "not now"));
+        await slow;
+
+        Assert.Empty(cut.FindAll("[data-hint=move]"));
     }
 
     [Fact]
@@ -306,6 +444,40 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
         Assert.Equal(1, host.Session.Pending.ChangeCount);
         // The form now shows the other file, not the one that was left.
         cut.WaitForAssertion(() => Assert.Equal("Transcript", cut.Find("[data-field-key=title] input").GetAttribute("value")));
+    }
+
+    [Fact]
+    public async Task Discard_ThrowsAwayWhatWasStagedOnAFile()
+    {
+        var host = await OpenFileAsync();
+        host.ConfirmDiscard = () => Task.FromResult(true);
+        var cut = Panel(host);
+        cut.Find("[data-field-key=title] input").Input("Shooting workbook");
+        Assert.NotNull(host.Session.Pending.FindSupportingFile(FileId));
+
+        var left = await host.Flow.LeaveAsync();
+
+        Assert.True(left);
+        Assert.Null(host.Session.Pending.FindSupportingFile(FileId));
+        Assert.True(host.Session.Pending.IsEmpty);
+    }
+
+    [Fact]
+    public async Task ReviewsEditOnAFileOfAnotherTitle_OpensTheFileUnderItsOwnTitle()
+    {
+        var host = await OpenFileAsync();
+        var cut = Panel(host);
+        cut.Find("[data-field-key=title] input").Input("Shooting workbook");
+        var otherTitle = Guid.NewGuid();
+        host.Session.SwitchItem([new EditTrailItem(otherTitle, "Another course", EditTrailKinds.Show)]);
+        var row = EditReviewRows.Build(host.Session.Pending, host.Session, host.Mode.Fields).Single();
+        _reads.Clear();
+
+        await host.Flow.JumpToAsync(row);
+
+        Assert.Equal(FileId, host.Session.ActiveItem!.EntityId);
+        Assert.Contains((TitleId, FileId), _reads);
+        Assert.DoesNotContain(_reads, read => read.Title == otherTitle);
     }
 
     [Fact]
@@ -364,6 +536,9 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=extra-download-only]")));
         Assert.Contains("Guidebook.epub", cut.Find(".tl-extra-viewer__download").TextContent, StringComparison.Ordinal);
+        // The viewer already carries the Download, so the bar above it does not add a second one.
+        Assert.Empty(cut.FindAll("[data-preview-download]"));
+        Assert.Single(cut.FindAll("a[download]"));
     }
 
     [Fact]

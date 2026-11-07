@@ -134,7 +134,7 @@ else
     private static string ThumbnailHref(string id) => $"/engine-extra/{Uri.EscapeDataString(id)}/thumbnail";
 
     // PDFs and plain text open in the browser's own reader. EPUB (and anything else) is download-only: Library's book reader is for books in the Library.
-    private static bool IsReadableInBrowser(ExtraViewItemDto item) =>
+    public static bool IsReadableInBrowser(ExtraViewItemDto item) =>
         item.MimeType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase)
         || item.MimeType.StartsWith("text/", StringComparison.OrdinalIgnoreCase);
 

@@ -199,7 +199,8 @@ public sealed class EditorHost : IDisposable
             return false;
         }
 
-        var owner = OwnerOfActive();
+        // A file staged under another title (Review's Edit on its row) opens under that title, not the one the editor happens to be on.
+        var owner = StagedOwnerOf(fileId) ?? OwnerOfActive();
         if (owner is null)
         {
             return false;
@@ -210,6 +211,17 @@ public sealed class EditorHost : IDisposable
                    ?? "Supporting file";
         _fileOwner = owner.Value.Id;
         return await Flow.SwitchToAsync([.. owner.Value.Trail, new EditTrailItem(fileId, name, EditTrailKinds.SupportingFile)]);
+    }
+
+    // The title a file with staged changes belongs to and the trail that leads to it, when that is not the title the editor is on.
+    private (Guid Id, IReadOnlyList<EditTrailItem> Trail)? StagedOwnerOf(Guid fileId)
+    {
+        if (Session.Pending.FindSupportingFile(fileId)?.TitleId is not { } titleId || titleId == Guid.Empty || OwnerOfActive()?.Id == titleId)
+        {
+            return null;
+        }
+
+        return (titleId, Session.TrailTo(titleId) ?? [new EditTrailItem(titleId, Session.ItemName(titleId) ?? "Item", "Item")]);
     }
 
     // The title the editor is on, or the title of the supporting file it is on, with the trail that leads to it.
