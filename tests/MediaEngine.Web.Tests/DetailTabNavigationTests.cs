@@ -16,11 +16,10 @@ public sealed class DetailTabNavigationTests
 
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.HasRequestedTab);
-        Assert.False(resolution.ShouldRedirect);
     }
 
     [Fact]
-    public void Resolve_RequestedTab_IsCaseInsensitiveAndRedirectsToCanonicalSlug()
+    public void Resolve_RequestedTab_IsCaseInsensitive()
     {
         var model = CreateModel(["overview", "cast", "details"], withCast: true);
 
@@ -28,11 +27,10 @@ public sealed class DetailTabNavigationTests
 
         Assert.Equal("cast", resolution.ActiveTab);
         Assert.True(resolution.IsRequestedTabValid);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
-    public void Resolve_InvalidTab_RedirectsToFirstVisibleTab()
+    public void Resolve_InvalidTab_ShowsTheFirstVisibleTabAndKeepsTheAddress()
     {
         var model = CreateModel("overview", "details");
 
@@ -40,7 +38,6 @@ public sealed class DetailTabNavigationTests
 
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.IsRequestedTabValid);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -52,7 +49,6 @@ public sealed class DetailTabNavigationTests
 
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.IsRequestedTabValid);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -80,9 +76,7 @@ public sealed class DetailTabNavigationTests
         var requestedSeries = DetailTabNavigation.Resolve(model, "series");
 
         Assert.Equal("overview", resolution.ActiveTab);
-        Assert.False(resolution.ShouldRedirect);
         Assert.Equal("overview", requestedSeries.ActiveTab);
-        Assert.True(requestedSeries.ShouldRedirect);
     }
 
     [Fact]
@@ -220,7 +214,7 @@ public sealed class DetailTabNavigationTests
     }
 
     [Fact]
-    public void Resolve_RequestedUniverseOrRelatedTabRedirectsToTheFirstTab()
+    public void Resolve_RequestedUniverseOrRelatedTabShowsTheFirstTab()
     {
         var model = CreateModel(["overview", "cast", "details"], withCast: true);
 
@@ -230,7 +224,6 @@ public sealed class DetailTabNavigationTests
 
             Assert.Equal("overview", resolution.ActiveTab);
             Assert.False(resolution.IsRequestedTabValid);
-            Assert.True(resolution.ShouldRedirect);
         }
     }
 
@@ -238,7 +231,7 @@ public sealed class DetailTabNavigationTests
     [InlineData("characters")]
     [InlineData("portrayals")]
     [InlineData("relationships")]
-    public void Resolve_RequestedCharacterTabRedirectsToTheFirstTab(string requested)
+    public void Resolve_RequestedCharacterTabShowsTheFirstTab(string requested)
     {
         var model = CreateModel(["overview", "cast", "details"], withCast: true);
 
@@ -246,11 +239,10 @@ public sealed class DetailTabNavigationTests
 
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.IsRequestedTabValid);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
-    public void Resolve_RequestedRegistryTabRedirectsToTheFirstTab()
+    public void Resolve_RequestedRegistryTabShowsTheFirstTab()
     {
         var model = CreateModel("overview", "details");
 
@@ -258,7 +250,6 @@ public sealed class DetailTabNavigationTests
 
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.IsRequestedTabValid);
-        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]

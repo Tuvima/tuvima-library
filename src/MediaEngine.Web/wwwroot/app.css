@@ -83,8 +83,6 @@ body {
     box-shadow: none !important;
 }
 
-
-
 /* -- Logo colour -------------------------------------------------------- */
 
 /* -- Typography utilities ----------------------------------------------- */
@@ -128,40 +126,21 @@ body {
 
 /* -- Shared primary CTA button (no current Dashboard consumer) ----------------- */
 
-
-
-
-
-
-
-
-
-
 /* -- Page ambient background - dominant colour radiates from hero across full viewport -- */
 /* Fixed behind all content, uses the hero collection's dominant hex colour as a soft top glow.  */
 
-
 /* -- Blazor error boundary --------------------------------------------- */
-
-
-
 
 /* -- Shared fixed-hero detail page layers ----------------------------------
    Used by CollectionDetail and reusable for any future detail page. ---------------- */
 
 /* The hero image that sits fixed in the background while content scrolls. */
 
-
-
-
 /* When no hero.jpg exists - CSS-blur the cover art as fallback. */
-
 
 /* Gradient fade: transparent top ? solid page background at 65vh. */
 
-
 /* Content scrolls on top of the fixed hero. */
-
 
 /* -- Mobile overflow safety net ------------------------------------------- */
 @media (max-width: 840px){
@@ -171,8 +150,7 @@ body {
 }
 
 /* High-priority legacy surface alignment for provider/settings panels and playback sheets. */
-.provider-card,
-.drawer-panel{
+.provider-card {
     background: var(--tl-bg-surface) !important;
     border-color: var(--tl-border-default) !important;
     border-radius: var(--tl-radius-lg) !important;
@@ -181,21 +159,9 @@ body {
     -webkit-backdrop-filter: none !important;
 }
 
-.drawer-header {
-    border-color: var(--tl-border-default) !important;
-}
-
-
-
-
-.drawer-stat,
 .provider-chip {
     color: var(--tl-text-muted) !important;
     font-family: var(--font-ui) !important;
-}
-
-.drawer-backdrop {
-    background: rgba(0, 0, 0, 0.56) !important;
 }
 
 .category-item.active {
@@ -217,15 +183,10 @@ body {
     color: var(--tl-text-primary) !important;
 }
 
-
 .provider-card:hover {
     border-color: var(--tl-accent-primary) !important;
     box-shadow: var(--tl-shadow-sm) !important;
 }
-
-
-
-
 
 .health-online { background: var(--tl-status-success) !important; box-shadow: none !important; }
 .health-degraded { background: var(--tl-status-warning) !important; box-shadow: none !important; }
@@ -278,14 +239,6 @@ body {
 .app-table-shell{
     padding: var(--tl-card-padding);
 }
-
-
-
-
-
-
-
-
 
 /* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
    no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
@@ -665,27 +618,10 @@ body {
     background: rgba(39, 40, 50, 0.36);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 .app-timeline {
     display: flex;
     flex-direction: column;
 }
-
-
-
-
-
-
 
 code{
     color: var(--tl-status-info) !important;
@@ -758,17 +694,6 @@ code{
 
 .app-media-card { --app-media-card-width: 180px; display: flex; flex: 0 0 auto; flex-direction: column; gap: 8px; width: var(--app-media-card-width); min-width: 0; padding: 0; color: var(--tl-text-primary); background: transparent; border: 0; text-align: left; cursor: pointer; scroll-snap-align: start; }
 
-
-
-
-
-
-
-
-
-
-
-
 .tl-card-hover--quiet,
 .tl-card-hover--standard,
 .tl-card-hover--media {
@@ -819,11 +744,6 @@ code{
     transform: scale(var(--tl-hover-artwork-scale)) translateY(var(--tl-hover-artwork-pan-y));
     filter: saturate(1.08) contrast(1.04);
 }
-
-
-
-
-
 
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
@@ -926,17 +846,11 @@ body,
     box-shadow: none !important;
 }
 
-
-
 .app-media-card.is-selected,
 .tl-table-row.selected {
     background: var(--tl-accent-primary-soft) !important;
     border-color: var(--tl-accent-primary-border) !important;
 }
-
-
-
-
 
 :where(.tl-button.app-button--filled).app-tone--primary {
     color: var(--tl-text-on-accent) !important;
@@ -1027,39 +941,6 @@ body,
     box-shadow: var(--tl-shadow-lg) !important;
 }
 
-
-
-
-
-.search-result-row {
-    display: flex;
-    gap: var(--tl-control-gap);
-    padding: var(--tl-space-3) var(--tl-space-4);
-    cursor: pointer;
-    border-bottom: 1px solid var(--tl-divider);
-    border-left: 3px solid transparent;
-    transition: background var(--tl-control-transition), border-color var(--tl-control-transition);
-}
-
-.search-result-row:hover {
-    background: var(--tl-bg-surface-hover);
-}
-
-.search-result-row.search-result-selected {
-    background: var(--tl-accent-primary-soft);
-    border-left-color: var(--tl-accent-primary);
-}
-
-
-
-
-
-
-
-
-
-
-
 /* ---------------------------------------------------------------------------
    Control and form foundation
    Migration-safe primitives for new UI work. Legacy settings/dialog classes
@@ -1072,20 +953,14 @@ body,
     gap: var(--tl-page-gap);
 }
 
-
 .app-page-header {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-2);
 }
 
-
-
-
-
 .tl-card,
 .provider-card,
-.drawer-panel,
 .app-dialog-shell,
 .tl-card {
     padding: var(--tl-card-padding);
@@ -1095,8 +970,6 @@ body,
     border-radius: var(--tl-radius-lg) !important;
     box-shadow: none !important;
 }
-
-
 
 .tl-card--compact {
     padding: var(--tl-space-3) !important;
@@ -1113,10 +986,6 @@ body,
     gap: var(--tl-form-row-gap);
 }
 
-
-
-
-
 .tl-field-label {
     color: var(--tl-text-secondary) !important;
     font-size: var(--tl-font-size-xs) !important;
@@ -1128,7 +997,6 @@ body,
     color: var(--tl-status-danger) !important;
 }
 
-
 .app-dialog-field input,
 .app-dialog-field textarea,
 .app-dialog-select input,
@@ -1139,8 +1007,6 @@ body,
     background: var(--tl-bg-surface-raised) !important;
     border-radius: var(--tl-control-radius) !important;
 }
-
-
 
 .app-dialog-textarea textarea,
 .sme-textarea textarea {
@@ -1251,10 +1117,6 @@ body,
     width: 100% !important;
 }
 
-
-
-
-
 @media (max-width: 1100px){
     .layout-shell__appbar .tl-toolbar {
         --shell-topbar-gap: 0.9rem;
@@ -1304,10 +1166,6 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     box-shadow: 0 0.35rem 1.1rem color-mix(in srgb, var(--tl-accent-primary) 72%, transparent);
 }
 
-.layout-shell__review-badge {
-    overflow: visible !important;
-}
-
 .tl-button {
     min-height: var(--tl-control-height-md) !important;
     border-radius: var(--tl-control-radius) !important;
@@ -1326,44 +1184,11 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     opacity: 0.72 !important;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .activity-entry {
     position: relative;
     display: flex;
     align-items: flex-start;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .tl-card--compact {
   background: var(--tl-bg-surface-raised);
@@ -1413,8 +1238,6 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     background: transparent !important;
 }
 
-
-
 .top-nav-account-menu__popover.tl-popover {
     color: var(--tl-text-primary, #e5edf5) !important;
     background: #0d0f14 !important;
@@ -1447,30 +1270,6 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     border: 0;
     box-shadow: none;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* ---------------------------------------------------------------------------
    Canonical App Component Primitives
@@ -1622,7 +1421,6 @@ input.app-control.tl-input-slot,
 
 }
 
-
 .browse-multi-select__popover.tl-popover {
     color: var(--tl-text-primary) !important;
     background: #0c1525 !important;
@@ -1632,7 +1430,6 @@ input.app-control.tl-input-slot,
     padding: 0 !important;
     overflow: hidden !important;
 }
-
 
 .browse-multi-select__popover .tl-list {
     margin: 0 !important;
@@ -2048,10 +1845,6 @@ input.app-control.tl-input-slot,
     }
 }
 
-
-
-
-
 .app-chip,
 .app-status-badge {
     display: inline-flex;
@@ -2437,8 +2230,6 @@ input.app-control.tl-input-slot,
 .tl-u-color-hex-f97316 { color: #F97316 !important; }
 .tl-u-color-inherit { color: inherit !important; }
 
-
-
 .tl-u-color-rgba-248-248-248-0-40 { color: rgba(248,248,248,0.40) !important; }
 .tl-u-color-rgba-248-248-248-0-65 { color: rgba(248,248,248,0.65) !important; }
 .tl-u-color-rgba-248-248-248-0-70 { color: rgba(248,248,248,0.70) !important; }
@@ -2475,8 +2266,6 @@ input.app-control.tl-input-slot,
 .tl-u-font-size-0-9rem { font-size: var(--tl-font-size-sm) !important; }
 
 .tl-u-font-size-12px { font-size: var(--tl-font-size-xs) !important; }
-
-
 
 .tl-u-font-size-14px { font-size: var(--tl-font-size-sm) !important; }
 
@@ -2530,12 +2319,10 @@ input.app-control.tl-input-slot,
 
 .tl-u-margin-left-4px { margin-left: 4px !important; }
 
-
 .tl-u-margin-top-2px { margin-top: 2px !important; }
 .tl-u-margin-top-4px { margin-top: 4px !important; }
 .tl-u-margin-top-8px { margin-top: 8px !important; }
 .tl-u-max-height-500px { max-height: 500px !important; }
-
 
 .tl-u-max-width-100px { max-width: 100px !important; }
 .tl-u-max-width-160px { max-width: 160px !important; }
@@ -2561,8 +2348,6 @@ input.app-control.tl-input-slot,
 .tl-u-overflow-hidden { overflow: hidden !important; }
 
 .tl-u-overflow-y-auto { overflow-y: auto !important; }
-
-
 
 .tl-u-padding-32px-0 { padding: 32px 0 !important; }
 .tl-u-padding-left-75px { padding-left: 75px !important; }
@@ -3343,9 +3128,7 @@ button.app-menu-item {
     :root:root .listen-song-table-cards__more-button,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
-    :root:root .sme-match-search-modes .sme-match-search-mode,
     :root:root .sme-close,
-    :root:root .sme-artwork-gallery-check,
     :root:root .media-viewer__icon-action,
     :root:root .tl-embedded-audio__row-play,
     :root:root .tl-select-trigger,
@@ -3455,7 +3238,6 @@ button.app-menu-item {
        variable is raised by that border. Phones keep the browse search's own 44px input rule above, so only the
        Universe explorer field and the browse field on tablets and desktops take this variable. */
     :root:root .chronicle-explorer-search,
-    :root:root:not([data-form-factor="phone"]) .recently-added-filters__search,
     :root:root:not([data-form-factor="phone"]) .browse-shell__search {
         --app-control-height: calc(var(--tl-tap-target-min) + 2px);
     }
@@ -3791,8 +3573,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     }
 }
 
-
-
 /* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
 .listen-playlist-track-row__art-play {
     position: absolute;
@@ -3885,7 +3665,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 /* The browse search box sits in a 44px outlined container whose text input is 2px shorter (the border). On phones the
    input itself covers the full 44px, so the whole box is the tap target. */
 :root:root[data-form-factor="phone"] .browse-shell__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
-:root:root[data-form-factor="phone"] .recently-added-filters__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
 :root:root[data-form-factor="phone"] .chronicle-explorer-search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
 :root:root[data-form-factor="phone"] .search-page__input .tl-input-container.tl-input-container.tl-input-container > input.tl-input {
     height: 44px !important;
@@ -3975,7 +3754,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 
 /* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */
 .sme-close,
-.sme-artwork-gallery-check,
 .listen-icon-button,
 .tl-embedded-audio__row-play {
     min-width: 36px;
@@ -3985,7 +3763,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 /* Touch floor (Look pass v2 A9): on touch screens small icon buttons and chips never drop below 44px. */
 @media (hover: none), (pointer: coarse) {
     .sme-close,
-    .sme-artwork-gallery-check,
     .listen-icon-button,
     .tl-embedded-audio__row-play,
     .settings-notice__dismiss,
@@ -4187,16 +3964,6 @@ input[type="reset"],
     background: var(--tl-secondary-action-bg-hover) !important;
 }
 
-.app-dismissible-surface__dismiss {
-    position: fixed !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
 .tl-detail-overflow-popover--compact {
     width: max-content !important;
     min-width: 9.75rem !important;
@@ -4244,8 +4011,6 @@ input[type="reset"],
 
 /* Temporary drawers are rendered outside component CSS isolation. */
 
-
-
 /* The picker host is fit-content by default, which squeezed the picker; give it a real width. */
 .tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1100px) !important; }
 .tl-dialog.server-folder-picker-host .app-dialog-shell { width: 100%; height: min(680px, calc(100dvh - 32px)); max-height: none; }
@@ -4273,19 +4038,6 @@ input[type="reset"],
 }
 
 /* Rich editor menus are portalled: sizing and option layout belong here. */
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* Universe hierarchy inside the shared artwork workspace. */
 .artwork-workspace-core__hierarchy { display:flex; gap:.45rem; padding:0 1.5rem .8rem; overflow-x:auto; }
@@ -4315,38 +4067,6 @@ input[type="reset"],
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__intent-dock {
         display: none !important;
     }
-}
-/* Popout roots are emitted by child components, outside the page CSS scope. */
-.playback-popout-shell.listen-popup {
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-    position: relative;
-    padding: 8px;
-    border: 1px solid var(--playback-border);
-    border-radius: 20px;
-    color: var(--playback-text);
-    background: linear-gradient(180deg, var(--playback-surface-elevated), var(--playback-bg));
-}
-
-.playback-popout-shell.listen-popup::before {
-    content: "";
-    position: absolute;
-    inset: -28px;
-    background-image: var(--listen-popup-cover);
-    background-position: center;
-    background-size: cover;
-    filter: blur(30px) saturate(1.08) brightness(.55);
-    opacity: 0.24;
-    pointer-events: none;
-}
-
-.playback-popout-shell.listen-popup > * {
-    position: relative;
-    z-index: 1;
 }
 
 .app-menu-item__check { margin-left:auto; }
@@ -4474,8 +4194,6 @@ input[type="reset"],
 @media (min-width: 641px) { .settings-sheet-backdrop { align-items: center; padding: 24px; } .settings-sheet { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } }
 @media (min-width: 1600px) { .settings-sheet { width: min(640px, 100%); gap: 22px; } }
 .settings-sheet.settings-sheet--card { display: block; width: min(560px, 100%); padding: 0; gap: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
-
-
 
 @media (prefers-reduced-motion: reduce) { .settings-sheet-backdrop, .settings-sheet { animation: none; } }
 .invitation-qr {
@@ -4706,19 +4424,6 @@ input[type="reset"],
     border-radius: var(--tl-kids-radius);
 }
 
-.kids-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 10px;
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-kids-accent, var(--tl-accent-primary, #8852FC));
-    color: #fff;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
-    line-height: 1.4;
-    letter-spacing: .04em;
-}
-
 @media (max-width: 640px) {
     .layout-kids {
         --tl-kids-tile-scale: 1.06;
@@ -4836,30 +4541,6 @@ input[type="reset"],
 }
 
 /* Editor "This file covers" picker (global so it stays out of the scoped-CSS bundle ceiling). */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* Settings list rows (SettingsNavRow): a link, a button or a disabled row, 56 px tall, shared by Profile detail and Security. */
 .settings-nav-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: var(--tl-text-primary); border: 0; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
@@ -5473,10 +5154,6 @@ html[data-form-factor="tv"] :is(a.media-tile-shelf-link, a.recent-view-all) {
     justify-content: center;
 }
 
-html[data-form-factor="tv"] .media-tile-caption__title {
-    font-size: var(--tl-font-size-sm);
-}
-
 html[data-form-factor="tv"] .tl-detail-hero__subtitle,
 html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     max-width: 60ch;
@@ -5662,7 +5339,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 
 /* A Kids profile's Profile pages sit outside Settings, so the section-card headings they reuse get their layout here. */
 
-
 /* Media pills: the design-system media colours as a soft pill (spec plugins-and-integrations-screens-v3 D23). */
 .app-media-pill {
     color: var(--tl-media-unknown);
@@ -5678,12 +5354,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .app-media-pill--music { --app-media-pill-colour: var(--tl-media-music); }
 .app-media-pill--videos { --app-media-pill-colour: var(--tl-media-video); }
 .app-media-pill--photos { --app-media-pill-colour: var(--tl-media-document); }
-
-/* Summary counts carry colour by meaning (spec plugins-and-integrations-screens-v3 D22). */
-.app-summary-strip__item--accent .app-summary-strip__value { color: var(--tl-accent-primary); }
-.app-summary-strip__item--ok .app-summary-strip__value { color: var(--tl-status-success, #34d399); }
-.app-summary-strip__item--warn .app-summary-strip__value { color: var(--tl-status-warning, #fbbf24); }
-.app-summary-strip__item--mute .app-summary-strip__value { color: var(--tl-text-muted); }
 
 .app-official-pill__icon { display: block; flex: 0 0 auto; }
 
@@ -6027,10 +5697,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-deta
     min-width: 0;
 }
 
-
-
-
-
 html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump {
     flex-direction: column;
     align-items: stretch;
@@ -6305,4 +5971,3 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
-

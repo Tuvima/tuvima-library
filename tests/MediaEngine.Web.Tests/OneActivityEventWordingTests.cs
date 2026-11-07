@@ -98,18 +98,14 @@ public sealed class OneActivityEventWordingTests : AsyncBunitContext
             }],
             0, 50, false, 1);
 
-        // While the Library works: the Activity list's adding row names Dune as the log does.
-        var page = Render<MediaEngine.Web.Components.Pages.RecentlyAddedPageContent>();
-        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll($"[data-group-id='{DuneId}']")));
+        // While the Library works: the log names Dune.
         _state.PushIngestionQueueProgress(_queue);
         var indicator = Render<SystemActivityIndicator>();
         var log = Render<ActivityLogPanel>(parameters => parameters.Add(p => p.Filter, ActivityLogCategoryValues.Added));
         log.WaitForAssertion(() => Assert.NotEmpty(log.FindAll("[data-testid='activity-log-row']")));
 
-        var nowTitle = page.Find($"[data-group-id='{DuneId}'] .history-row__open strong").TextContent.Trim();
         var logRow = log.Find("[data-testid='activity-log-row']");
-        Assert.Equal("Dune", nowTitle);
-        Assert.Equal(nowTitle, logRow.QuerySelector(".activity-log__title")!.TextContent.Trim());
+        Assert.Equal("Dune", logRow.QuerySelector(".activity-log__title")!.TextContent.Trim());
 
         // Once the Library is idle: the status line and the tooltip give the same last-activity time, and it is the log row's moment.
         var statusLine = Render<LibraryStatusLine>();

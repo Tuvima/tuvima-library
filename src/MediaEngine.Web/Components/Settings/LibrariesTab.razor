@@ -20,7 +20,7 @@
 
 @* Libraries has these addresses, so Back and a reload keep the level: the overview (/settings/libraries, with ?area=watch|listen|read|view),
    one library's page (/settings/libraries/{libraryId}, with ?tab=), and each View kind's
-   settings (/settings/libraries/view/{kind}: photos, personal_videos, documents). The older group and type addresses redirect. *@
+   settings (/settings/libraries/view/{kind}: photos, personal_videos, documents). An older group or type address is not found. *@
 <div class="libraries">
     @if (unavailable)
     {
@@ -163,7 +163,6 @@
         // before stays if the Engine cannot answer.
         await LibraryKinds.RefreshAsync();
         await LoadAsync();
-        if (RedirectSavedLink()) return;
         await InvokeAsync(StateHasChanged);
         await LoadSummaryAsync();
     }
@@ -184,7 +183,6 @@
         var routeKey = $"{Subsection}/{Detail}";
         if (_routeKey is null || string.Equals(_routeKey, routeKey, StringComparison.OrdinalIgnoreCase)) return;
         _routeKey = routeKey;
-        if (_configuration is not null && RedirectSavedLink()) return;
         if (_configuration is not null && CurrentLevel.Kind is LevelKind.Overview or LevelKind.Library)
         {
             await RefreshConfigurationAsync();
@@ -192,63 +190,9 @@
         }
     }
 
-    // Type pages whose key changed with the kinds list: a bookmark to the old address lands on the page that replaced it.
-    private static readonly Dictionary<string, string> RenamedTypeKeys = new(StringComparer.OrdinalIgnoreCase) { ["videos"] = "other_videos" };
-
-    // The earlier addresses (a group, a type, an "other" library, ?type=) land on what replaced them: the overview on that area's tab,
-    // or the page of the library that held the type.
-    private string? LegacyAddress()
-    {
-        var subsection = Subsection?.Trim();
-        var detail = Detail?.Trim();
-        if (string.IsNullOrEmpty(subsection))
-        {
-            return Kinds.Find(Query.String("type")) is { } type && LibraryOfKind(type.Key) is { } library ? LibraryListing.AddressOf(library.Id) : null;
-        }
-
-        if (string.Equals(subsection, "other", StringComparison.OrdinalIgnoreCase))
-        {
-            var id = detail is not null && detail.StartsWith("other-", StringComparison.OrdinalIgnoreCase) ? detail["other-".Length..] : null;
-            return id is not null && FindLibrary(id) is { } other ? LibraryListing.AddressOf(other.Id) : LibraryListing.OverviewAddress(null);
-        }
-
-        if (Kinds.TryGetGroup(subsection) is not { } group)
-        {
-            return null;
-        }
-
-        if (group.Key == LibraryTypeCatalog.ViewArea)
-        {
-            return string.IsNullOrEmpty(detail) ? LibraryListing.OverviewAddress(group.Key) : null;
-        }
-
-        if (string.IsNullOrEmpty(detail) || group.Key == LibraryGroupCatalog.VaultKey)
-        {
-            return LibraryListing.OverviewAddress(group.Key == LibraryGroupCatalog.VaultKey ? null : group.Key);
-        }
-
-        var typeKey = RenamedTypeKeys.TryGetValue(detail, out var current) ? current : detail;
-        return LibraryOfKind(typeKey) is { } held ? LibraryListing.AddressOf(held.Id) : LibraryListing.OverviewAddress(group.Key);
-    }
-
-    private LibraryFolderDto? LibraryOfKind(string kindKey) => _configuration?.Libraries
-        .FirstOrDefault(library => LibraryRollup.IsCatalogued(library) && string.Equals(library.KindKey, kindKey, StringComparison.OrdinalIgnoreCase));
-
     private LibraryFolderDto? FindLibrary(string? id) => string.IsNullOrWhiteSpace(id)
         ? null
         : _configuration?.Libraries.FirstOrDefault(library => LibraryRollup.IsCatalogued(library) && string.Equals(library.Id, id.Trim(), StringComparison.OrdinalIgnoreCase));
-
-    private bool RedirectSavedLink()
-    {
-        var address = LegacyAddress();
-        if (address is null)
-        {
-            return false;
-        }
-
-        Navigation.NavigateTo(address, replace: true);
-        return true;
-    }
 
     private async Task LoadAsync()
     {

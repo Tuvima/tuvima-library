@@ -108,44 +108,57 @@ public sealed class LookRatchetGuardrailTests
         Assert.True(aliases.Count == 0, "Token aliases are retired; use the --tl-* token directly: " + string.Join(", ", aliases));
     }
 
-    [Fact]
-    public void EveryComponentIsUsedSomewhere()
+    // A page nobody links to that is kept on purpose, with the reason. Components reached only by their type name in a string
+    // (the three developer tabs, drawn by Settings.razor for a development build) are found by the string in the app's own code.
+    private static readonly Dictionary<string, string> NeverRenderedAllowlist = new(StringComparer.Ordinal)
     {
-        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components");
-        var all = Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src"), "*.*", SearchOption.AllDirectories)
-            .Concat(Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "tests"), "*.cs", SearchOption.AllDirectories))
-            .Where(p => (p.EndsWith(".razor") || p.EndsWith(".cs")) && !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
-            .Select(p => (Path: p, Text: File.ReadAllText(p)))
-            .ToList();
-        var unused = new List<string>();
-        foreach (var path in Directory.EnumerateFiles(web, "*.razor", SearchOption.AllDirectories).Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
+        ["DesignSystemPreview"] = "The proof page for the Look rules: a page with its own address that nothing links to by design (it is a page, so it is skipped below).",
+    };
+
+    [Fact]
+    public void EveryComponentIsRenderedByTheAppSomewhere()
+    {
+        // A part counts as rendered only when the app's own code (not a test, and not a comment) names it: a test that renders a
+        // part nothing else draws keeps dead code alive, which is how thirty such parts built up.
+        var root = Path.Combine(FindRepoRoot(), "src");
+        var sep = Path.DirectorySeparatorChar;
+        var ownWords = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var file in Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+                     .Where(p => (p.EndsWith(".razor") || p.EndsWith(".cs") || p.EndsWith(".cshtml")) && !p.Contains($"{sep}obj{sep}") && !p.Contains($"{sep}bin{sep}")))
         {
-            var text = File.ReadAllText(path);
-            if (Regex.IsMatch(text, @"^@page\b", RegexOptions.Multiline))
+            var text = Regex.Replace(File.ReadAllText(file), @"@\*.*?\*@|<!--.*?-->|/\*.*?\*/|(?<!:)//[^\n]*", string.Empty, RegexOptions.Singleline);
+            var words = new HashSet<string>(Regex.Matches(text, @"[A-Za-z0-9_]+").Select(m => m.Value), StringComparer.Ordinal);
+            ownWords[file] = words;
+        }
+
+        var unused = new List<string>();
+        foreach (var path in ownWords.Keys.Where(p => p.EndsWith(".razor") && p.Contains($"{sep}MediaEngine.Web{sep}")).OrderBy(p => p, StringComparer.Ordinal))
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            if (name == "_Imports" || NeverRenderedAllowlist.ContainsKey(name) || Regex.IsMatch(File.ReadAllText(path), @"^@page\b", RegexOptions.Multiline))
             {
                 continue;
             }
 
-            var name = Path.GetFileNameWithoutExtension(path);
-            var pattern = new Regex(@"(?<![A-Za-z0-9_])" + Regex.Escape(name) + @"(?![A-Za-z0-9_])");
-            if (!all.Any(f => f.Path != path && pattern.IsMatch(f.Text)))
+            var own = path[..^".razor".Length];
+            if (!ownWords.Any(other => !other.Key.StartsWith(own, StringComparison.Ordinal) && other.Value.Contains(name)))
             {
                 unused.Add(name);
             }
         }
 
-        Assert.True(unused.Count == 0, "Components nothing uses (delete them): " + string.Join(", ", unused));
+        Assert.True(unused.Count == 0, "Components nothing renders (delete them): " + string.Join(", ", unused));
+        Assert.All(NeverRenderedAllowlist.Values, reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
     }
 
     [Fact]
     public void NoStyleRuleTargetsAClassNothingUses()
     {
         var root = FindRepoRoot();
-        var blob = string.Join("\n", new[] { "src", "tests", "clients" }
-            .Select(d => Path.Combine(root, d)).Where(Directory.Exists)
-            .SelectMany(d => Directory.EnumerateFiles(d, "*.*", SearchOption.AllDirectories))
-            .Where(p => !p.EndsWith(".css") && !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !p.Contains("node_modules"))
-            .Where(p => new[] { ".razor", ".cs", ".js", ".cshtml", ".html", ".json", ".md", ".mjs", ".ts", ".kt", ".swift", ".xml" }.Any(p.EndsWith))
+        // Only the app's own code counts as a use: a test, a document or a data file that spells a class name does not keep its rule alive.
+        var blob = string.Join("\n", Directory.EnumerateFiles(Path.Combine(root, "src"), "*.*", SearchOption.AllDirectories)
+            .Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !p.Contains("node_modules"))
+            .Where(p => new[] { ".razor", ".cs", ".js", ".cshtml", ".html", ".mjs", ".ts" }.Any(p.EndsWith))
             .Select(File.ReadAllText));
         var known = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match word in Regex.Matches(blob, @"[A-Za-z_][\w-]*"))
@@ -169,7 +182,7 @@ public sealed class LookRatchetGuardrailTests
             foreach (Match m in Regex.Matches(selectors, @"\.([a-zA-Z_][\w-]*)"))
             {
                 var name = m.Groups[1].Value;
-                if (known.Contains(name))
+                if (known.Contains(name) || BuiltAtRuntime.Contains(name))
                 {
                     continue;
                 }

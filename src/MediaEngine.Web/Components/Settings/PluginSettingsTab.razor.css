@@ -12,13 +12,6 @@
     width: 100%;
 }
 
-.settings-plugin-detail-header__description {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-}
-
-
-
 /* The card a /settings/plugins?plugin={id} link points at: scrolled into view and ringed in the accent colour. */
 .settings-plugin-card-focus {
     scroll-margin-top: 96px;
@@ -48,29 +41,6 @@
     display: flex;
     align-items: center;
     gap: 14px;
-}
-
-.settings-plugin-detail-header__icon {
-    display: grid;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 auto;
-    place-items: center;
-    color: var(--tl-accent-primary);
-    border-radius: 12px;
-    background: var(--tl-accent-primary-soft);
-}
-
-.settings-plugin-detail-header__copy {
-    display: grid;
-    min-width: 0;
-    flex: 1;
-    gap: 3px;
-}
-
-.settings-plugin-detail-header__title {
-    color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
 }
 .settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; }
 

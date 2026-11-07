@@ -539,34 +539,6 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".my-library-header__action-skeleton")), TimeSpan.FromSeconds(10));
     }
 
-    [Theory]
-    [InlineData("/for-me?view=my-list", "/my-library")]
-    [InlineData("/for-me?view=my-list&area=all", "/all/personal/my-list")]
-    [InlineData("/for-me?view=my-list&area=all&sort=title", "/all/personal/my-list")]
-    [InlineData("/for-me?view=liked", "/all/personal/liked")]
-    [InlineData("/for-me?view=liked&area=all", "/all/personal/liked")]
-    [InlineData("/for-me?view=my-list&area=listen", null)]
-    [InlineData("/for-me?view=my-list&area=read", null)]
-    [InlineData("/for-me?view=liked&area=watch", null)]
-    public void TheOldForMeMyListAndLikedLinksLandOnThePageOrTheGridButAreaLinksStayOnTheForMeGrid(string url, string? landsOn)
-    {
-        UseData(new Data());
-        Services.AddSupplyValueFromQueryProvider();
-        var nav = Services.GetRequiredService<NavigationManager>();
-        nav.NavigateTo(url);
-
-        Render<ForMe>();
-
-        if (landsOn is not null)
-        {
-            Assert.EndsWith(landsOn, nav.Uri);
-        }
-        else
-        {
-            Assert.EndsWith(url, nav.Uri);
-        }
-    }
-
     [Fact]
     public void AnAreaMyListLinkStillRendersTheForMeGrid()
     {

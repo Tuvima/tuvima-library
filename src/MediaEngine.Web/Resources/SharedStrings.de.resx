@@ -358,9 +358,6 @@
   <data name="Ingestion_StatusPending" xml:space="preserve">
     <value>Pending</value>
   </data>
-  <data name="Ingestion_ActivityReview" xml:space="preserve">
-    <value>Needs review</value>
-  </data>
   <data name="PluginPage_NotFoundTitle" xml:space="preserve">
     <value>Diese Seite ist nicht verfügbar</value>
   </data>

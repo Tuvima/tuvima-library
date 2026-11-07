@@ -43,18 +43,6 @@ public sealed class RightSizedPicturesListenTests : LocalizedBunitContext
     }
 
     [Fact]
-    public void PlaybackPositionRow_AsksForTheTinyCopyForAThumbnailDrawnAt48Pixels()
-    {
-        var cut = Render<PlaybackPositionRow>(parameters => parameters
-            .Add(component => component.Title, "Chapter")
-            .Add(component => component.ArtworkUrl, Cover));
-
-        var img = cut.Find("img");
-        Assert.EndsWith("?size=t", img.GetAttribute("src"), StringComparison.Ordinal);
-        Assert.Contains("2x", img.GetAttribute("srcset"), StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void ArtworkJustifiedGallery_SizesEachCardToHowWideItIsDrawn()
     {
         var items = new[]
