@@ -5,6 +5,11 @@
     padding: 0 16px;
 }
 
+.plt--flush {
+    border-bottom: 0;
+    padding: 0;
+}
+
 .plt ::deep .plt__tab {
     background: transparent;
     border: 0;

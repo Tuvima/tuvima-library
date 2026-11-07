@@ -5,7 +5,7 @@
 
 @* The two tabs of the Queue panel (unified player v2 D18; mockup screen 8): 15 / 600 labels 20 px apart under a hairline, the chosen one in the primary text color with
    a 2 px accent underline. One Tab stop for the group: the arrow keys, Home and End move between the tabs (roving-focus.js) and Enter or Space chooses. *@
-<div class="plt" role="tablist" aria-label="@AriaLabel" @ref="_group">
+<div class="@($"plt{(Flush ? " plt--flush" : null)}")" role="tablist" aria-label="@AriaLabel" @ref="_group">
     @foreach (var tab in Tabs)
     {
         var chosen = tab.Key == Active;
@@ -22,6 +22,9 @@
     [Parameter] public string? Active { get; set; }
     [Parameter] public EventCallback<string> ActiveChanged { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Drops the strip's own side padding and hairline, for a row that owns them (the Now playing page, mockup 13).</summary>
+    [Parameter] public bool Flush { get; set; }
 
     /// <summary>Makes the tab and panel ids unique to this panel.</summary>
     [Parameter, EditorRequired] public string IdPrefix { get; set; } = string.Empty;

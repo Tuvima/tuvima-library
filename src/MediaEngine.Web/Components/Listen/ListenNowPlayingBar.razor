@@ -77,7 +77,7 @@
                        State="@BarState" Identity="@BarIdentity" ErrorText="@Playback.CurrentError"
                        ArtworkSrc="@BarArtwork.Src" ArtworkSrcSet="@BarArtwork.SrcSet"
                        ArtworkAlt="@Playback.CurrentItem.Title" ArtworkDisplay="audio-dock-thumbnail"
-                       ArtworkClick="OpenNowPlaying" ArtworkLabel="@(IsDesktopNowPlaying ? "Close Now Playing" : "Open Now Playing")"
+                       ArtworkClick="OpenNowPlaying" ArtworkLabel="@(IsNowPlayingPage ? L["ListenNowPlayingBar_CloseNowPlaying"].Value : L["ListenNowPlayingBar_OpenNowPlaying"].Value)"
                        PlayButtonAttributes="@PlayButtonAttributes"
                        Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))"
                        VolumeSupported="@Playback.SoftwareVolumeSupported" VolumeStep="@VolumeStep"
@@ -133,7 +133,7 @@
                         {
                             @* On the Now playing page the lyrics are a tab of the page, so this tool only selects it. *@
                             <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
-                                            Inline="true" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" />
+                                            Inline="true" IsSelected="@(PressedInlineKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" />
                         }
                         else
                         {
@@ -143,14 +143,14 @@
                         break;
                     case PlaybackControlKey.Queue:
                         <ListenDockTool PanelKey="queue" Title="@L["Common_Queue"].Value" ListPanel="true" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
-                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
+                                        Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
                             <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" />
                         </ListenDockTool>
                         break;
                     case PlaybackControlKey.Chapters:
                         <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? L["Common_Chapters"].Value : "History")" ListPanel="@HasUsableChapters"
                                         Glyph="@(HasUsableChapters ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.History)"
-                                        ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
+                                        ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
                             <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" />
                         </ListenDockTool>
                         break;
@@ -177,35 +177,21 @@
                                  ShowTabs="@(_compactPanelKey is "queue" || _compactPanelKey == "history" && Playback.IsMusicMode)" />
         </PlaybackPanel>
 
-        @if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)
+        @* On a phone, Now playing is the expanded player over the page. On a desktop it is the Now playing page (route /listen/now-playing), which
+           the bar sits under; the bar and the page share this one audio element (unified player v2 D24). *@
+        @if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && IsPhonePresentation)
         {
-            @if (!IsPhonePresentation)
-            {
-                <PlaybackDesktopScene Snapshot="@dockSnapshot" Commands="@PanelCommands" PanelKey="@InlinePanelKey"
-                                      PanelChanged="SelectInlinePanelAsync" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
-                                      OverallProgress="@DesktopOverallProgress" OnCollapse="CloseNowPlaying">
-                    <ActionsContent>
-                        <PlaybackPanel Title="@(Playback.IsAudiobookMode ? "More audiobook actions" : "More song actions")" ToolId="now-playing-more" ItemKey="@DockItemKey">
-                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
-                            <ChildContent><PersonalStatusMenuItems WorkId="@Playback.CurrentItem.WorkId" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></ChildContent>
-                        </PlaybackPanel>
-                    </ActionsContent>
-                </PlaybackDesktopScene>
-            }
-            else
-            {
-                <PlaybackFullPlayer @ref="_phoneFullPlayer" Snapshot="@dockSnapshot" Commands="@PanelCommands"
-                                    OnCollapse="CloseNowPlaying" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
-                                    BookmarkRequested="OpenBookmarkDialogAsync" SelectedPanelKey="@InlinePanelKey"
-                                    PanelChanged="SelectDockTabAsync" ModeChanged="FullModeChangedAsync" ToolVisibilityChanged="HandleFullPlayerToolsAsync">
-                    <BookmarksContent>
-                        @if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null) {
-                            <AudiobookBookmarkDialog Context="_bookmarkDialogContext" Actions="BookmarkActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
-                                WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")" Embedded="true" Trigger="_bookmarkTrigger" OnClose="DismissEmbeddedBookmarksAsync" />
-                        } else { <p role="status">@L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"]</p> }
-                    </BookmarksContent>
-                </PlaybackFullPlayer>
-            }
+            <PlaybackFullPlayer @ref="_phoneFullPlayer" Snapshot="@dockSnapshot" Commands="@PanelCommands"
+                                OnCollapse="CloseNowPlaying" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
+                                BookmarkRequested="OpenBookmarkDialogAsync" SelectedPanelKey="@InlinePanelKey"
+                                PanelChanged="SelectDockTabAsync" ModeChanged="FullModeChangedAsync" ToolVisibilityChanged="HandleFullPlayerToolsAsync">
+                <BookmarksContent>
+                    @if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null) {
+                        <AudiobookBookmarkDialog Context="_bookmarkDialogContext" Actions="BookmarkActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
+                            WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")" Embedded="true" Trigger="_bookmarkTrigger" OnClose="DismissEmbeddedBookmarksAsync" />
+                    } else { <p role="status">@L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"]</p> }
+                </BookmarksContent>
+            </PlaybackFullPlayer>
         }
     </div>
 }
@@ -273,10 +259,13 @@
     private string DockItemKey => $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}";
     private PlaybackTransientToolCoordinator? Tools => Services.GetService<PlaybackTransientToolCoordinator>();
     private IPlaybackCommandSink PanelCommands => Services.GetRequiredService<IPlaybackCommandSink>();
-    private bool IsDesktopNowPlaying => Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && !IsPhonePresentation;
+    // Now playing on a desktop is the routed page (unified player v2 D24); its tabs are chosen by the bar's Lyrics, Queue and Chapters tools too.
+    private bool IsNowPlayingPage => NowPlayingRoute.IsNowPlaying(RoutedPageAddress.AbsoluteFor(Nav, Overlay));
+    private bool IsDesktopNowPlaying => IsNowPlayingPage && !IsPhonePresentation;
+    // While the Now playing page is open the bar follows the page's tab: a tool is pressed only for the tab the page shows, and none is pressed when the
+    // page opens on its default tab or shows About (mockup screen 13 presses only Now playing).
+    private string? PressedInlineKey => IsDesktopNowPlaying ? AudioSidebar.NowPlayingTab : InlinePanelKey;
     private string InlinePanelKey => Playback.IsAudiobookMode && !HasUsableChapters ? "history" : AudioSidebar.For(Playback).ActivePanelKey ?? (Playback.IsAudiobookMode ? "chapters" : "queue");
-    private string? DesktopOverallProgress => OverallBookProgress is { } progress
-        ? $"{progress.Label} · {(progress.Total > 0 ? progress.Position / progress.Total * 100 : 0).ToString("0", CultureInfo.InvariantCulture)}% · {FormatTimestamp(progress.Position)} of {FormatTimestamp(progress.Total)}" : null;
     private void ObserveLyricsPresentation()
     {
         if (Services.GetService<PlaybackLyricsPresenter>() is { } presenter)
@@ -305,7 +294,6 @@
         _openCompactToolPending = _compactToolTrigger is not null;
         await InvokeAsync(StateHasChanged);
     }
-    private const string PopupRoute = "/listen/player-popup";
     private readonly JsonSerializerOptions _jsonOptions = MediaEngineJson.Web;
     private PlaybackShell? _shell;
     private ElementReference _audioRef;
@@ -354,7 +342,7 @@
                 ? "listen-player-shell listen-player-shell--listen-route"
                 : "listen-player-shell";
 
-            if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)
+            if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && IsPhonePresentation)
             {
                 classes += " listen-player-shell--expanded";
             }
@@ -380,10 +368,6 @@
         NativeSleepTimerBindingRequest Request,
         long Version,
         TaskCompletionSource<bool> Completion);
-    private AudiobookPlaybackProjection? OverallBookProgress => Playback.IsAudiobookMode
-        ? AudiobookPlaybackProjection.Create(Playback.CurrentItem?.Chapters, Playback.CurrentItem?.AssetId,
-            Playback.CurrentTimeSeconds, Playback.DurationSeconds)
-        : null;
     private Guid? _favoriteSongId, _favoriteProfileId;
     private long _favoriteLoadGeneration;
     private bool _isFavorite;
@@ -415,7 +399,7 @@
         CanBookmark: Playback.IsAudiobookMode && Playback.CurrentItem?.AssetId is not null,
         IsSleepTimerActive: Playback.SleepTimerState.Mode != AudiobookSleepTimerModes.Off,
         HasQueue: Playback.HasQueue,
-        ActiveSheet: IsDesktopNowPlaying ? "now-playing" : _bookmarkDialogContext is not null ? "bookmarks" : null);
+        ActiveSheet: IsNowPlayingPage ? "now-playing" : _bookmarkDialogContext is not null ? "bookmarks" : null);
     private static readonly IReadOnlySet<PlaybackControlKey> HostedBarTools = new HashSet<PlaybackControlKey>
     {
         PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer,
@@ -620,6 +604,8 @@
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;
+        _launcher = Services.GetService<NowPlayingLauncher>();
+        if (_launcher is not null) _launcher.Requested += HandleNowPlayingRequested;
         Playback.TransportCommandRequested += HandleTransportCommandAsync;
         Playback.SleepTimerNativeArmRequested += BindNativeSleepTimerAsync;
         Playback.SleepTimerPauseRequested += PauseNativeSleepTimerAsync;
@@ -1631,12 +1617,37 @@
             && Tools?.IsPinnedFor("audio-queue") != true && Tools?.IsPinnedFor("audio-chapters") != true) Tools?.Close();
     }
 
+    private NowPlayingLauncher? _launcher;
+
+    // The navbar icon asks the bar, which alone knows whether it is drawn for a phone: a phone toggles its expanded player, a desktop opens or leaves the page.
+    private void HandleNowPlayingRequested() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || !Playback.HasQueue || Playback.IsVideoMode) return;
+        if (IsPhonePresentation && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying) await CloseNowPlaying();
+        else await OpenNowPlaying();
+    });
+
     private async Task OpenNowPlaying()
     {
         Tools?.Close(); CloseSettingsMenu();
-        if (IsDesktopNowPlaying) { await CloseNowPlaying(); return; }
+        if (IsNowPlayingPage) { await CloseNowPlaying(); return; }
+        if (!IsPhonePresentation)
+        {
+            // A desktop opens the Now playing page and remembers where the person was, so Back to library and Close return there.
+            OpenNowPlayingPage(returnTo: null);
+            await LoadFavoriteAsync();
+            return;
+        }
         Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
         await LoadFavoriteAsync();
+    }
+
+    private void OpenNowPlayingPage(string? returnTo)
+    {
+        // A stale phone overlay (the window was widened while it was open) must not stay behind the page.
+        if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying) Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        var from = returnTo ?? DetailsOverlayState.ToAppPath(Nav, RoutedPageAddress.AbsoluteFor(Nav, Overlay));
+        Nav.NavigateTo(NowPlayingRoute.Build(from));
     }
 
     private async Task LoadFavoriteAsync()
@@ -1696,6 +1707,12 @@
         _lastAudiobookRequestVersion = version;
         if (DetailsOverlay is not { IsOpen: true } overlay || overlay.Current.OverlayUri is not { } detailsUri) return;
         if (!await overlay.DismissAsync()) return;
+        if (!IsPhonePresentation)
+        {
+            // The page remembers the details window as the place to come back to.
+            OpenNowPlayingPage(returnTo: detailsUri);
+            return;
+        }
         _returnToDetailsUri = detailsUri;
         Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
     }
@@ -1711,6 +1728,8 @@
     {
         Tools?.Close(); CloseSettingsMenu();
         Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        // Leaving the page is going back to where the person came from; playback keeps going.
+        if (IsNowPlayingPage) Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav, Overlay));
         ReturnToDetailsAfterNowPlaying();
         if (_shell?.ArtworkElement is { } artwork) await artwork.FocusAsync();
     }
@@ -1895,17 +1914,6 @@
         {
             Logger.LogInformation(exception, "The audiobook sleep timer selection no longer matched the active playback session.");
             Snackbar.Add(exception.Message, AppSeverity.Info);
-        }
-    }
-
-    private async Task OpenPopupAsync()
-    {
-        var opened = await JS.InvokeAsync<bool>("listenPlayback.openPopup", PopupRoute);
-        Playback.SetPopupOpen(opened);
-        if (!opened)
-        {
-            await OpenNowPlaying();
-            Snackbar.Add(L["ListenNowPlayingBar_TheSeparatePlayerWindowWas"].Value, AppSeverity.Info);
         }
     }
 
@@ -2114,6 +2122,7 @@
         Playback.SetTransportHostNotReady();
         Playback.Changed -= HandlePlaybackChanged;
         AudioSidebar.Changed -= HandleAudioPanelChanged;
+        if (_launcher is not null) _launcher.Requested -= HandleNowPlayingRequested;
         Playback.TransportCommandRequested -= HandleTransportCommandAsync;
         Playback.SleepTimerNativeArmRequested -= BindNativeSleepTimerAsync;
         Playback.SleepTimerPauseRequested -= PauseNativeSleepTimerAsync;

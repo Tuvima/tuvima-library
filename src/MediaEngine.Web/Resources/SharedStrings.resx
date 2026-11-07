@@ -368,9 +368,6 @@
   <data name="TopBar_ServiceDegradedBanner" xml:space="preserve">
     <value>Some Library services are temporarily unavailable.</value>
   </data>
-  <data name="Listen_MiniPlayerTitle" xml:space="preserve">
-    <value>Mini Player</value>
-  </data>
   <data name="Listen_NothingPlaying" xml:space="preserve">
     <value>Nothing is playing right now.</value>
   </data>
@@ -1538,24 +1535,6 @@
   <data name="PlaybackContextPanel_PlaybackContextPanel" xml:space="preserve">
     <value>Playback context panel</value>
   </data>
-  <data name="PlaybackDesktopScene_PlayingFrom" xml:space="preserve">
-    <value>Playing from</value>
-  </data>
-  <data name="PlaybackDesktopScene_NowPlaying" xml:space="preserve">
-    <value>Now Playing</value>
-  </data>
-  <data name="PlaybackDesktopScene_CollapseNowPlaying" xml:space="preserve">
-    <value>Collapse Now Playing</value>
-  </data>
-  <data name="PlaybackDesktopScene_OpenAudiobook" xml:space="preserve">
-    <value>Open audiobook</value>
-  </data>
-  <data name="PlaybackDesktopScene_PlaybackTools" xml:space="preserve">
-    <value>Playback tools</value>
-  </data>
-  <data name="PlaybackDesktopScene_NowPlayingPanels" xml:space="preserve">
-    <value>Now Playing panels</value>
-  </data>
   <data name="PlaybackFullPlayer_Of" xml:space="preserve">
     <value>{0} · {1} of {2}</value>
   </data>
@@ -2329,24 +2308,6 @@
   </data>
   <data name="ListenPage_AudiobookLayout" xml:space="preserve">
     <value>Audiobook layout</value>
-  </data>
-  <data name="ListenPlayerPopupPage_VideoIsPlayingInThe" xml:space="preserve">
-    <value>Video is playing in the main window</value>
-  </data>
-  <data name="ListenPlayerPopupPage_YourVideoRemainsInIts" xml:space="preserve">
-    <value>Your video remains in its original player.</value>
-  </data>
-  <data name="ListenPlayerPopupPage_ReturnToMainWindow" xml:space="preserve">
-    <value>Return to main window</value>
-  </data>
-  <data name="ListenPlayerPopupPage_OpeningSavedBookmarks" xml:space="preserve">
-    <value>Opening saved bookmarks…</value>
-  </data>
-  <data name="ListenPlayerPopupPage_ReturnToVideoPlayer" xml:space="preserve">
-    <value>Return to video player</value>
-  </data>
-  <data name="ListenPlayerPopupPage_RetryPlaybackStateSync" xml:space="preserve">
-    <value>Retry playback state sync</value>
   </data>
   <data name="Common_Library" xml:space="preserve">
     <value>{0} - Library</value>
@@ -7859,9 +7820,6 @@
   <data name="ListenNowPlayingBar_TheAudiobookPositionCouldNot" xml:space="preserve">
     <value>The audiobook position could not be captured. Try again when playback is ready.</value>
   </data>
-  <data name="ListenNowPlayingBar_TheSeparatePlayerWindowWas" xml:space="preserve">
-    <value>The separate player window was blocked. Now Playing is open here.</value>
-  </data>
   <data name="ListenNowPlayingBar_FinishOrCloseTheAudiobook" xml:space="preserve">
     <value>Finish or close the audiobook before adding music to its queue.</value>
   </data>
@@ -7921,18 +7879,6 @@
   </data>
   <data name="ListenBrowsePage_ManualAndSmartPlaylistsFrom" xml:space="preserve">
     <value>Manual and smart playlists from your library</value>
-  </data>
-  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
-    <value>Favorites could not be updated. Try again when the Engine reconnects.</value>
-  </data>
-  <data name="ListenPlayerPopupPage_PlaybackStateCouldNotBe" xml:space="preserve">
-    <value>Playback state could not be loaded. Retry to reconnect.</value>
-  </data>
-  <data name="ListenPlayerPopupPage_PlaybackStateCouldNotBe2" xml:space="preserve">
-    <value>Playback state could not be read. Your current player state is still shown.</value>
-  </data>
-  <data name="ListenPlayerPopupPage_BookmarksAreUnavailableForThis" xml:space="preserve">
-    <value>Bookmarks are unavailable for this playback session.</value>
   </data>
   <data name="ProfilePickerPage_YourHouseholdCouldnTBe" xml:space="preserve">
     <value>Your household couldn't be found. Try again.</value>
@@ -11461,6 +11407,57 @@
   </data>
   <data name="SleepTimer_Cancel" xml:space="preserve">
     <value>Cancel timer</value>
+  </data>
+  <data name="NowPlayingPage_Title" xml:space="preserve">
+    <value>Now playing</value>
+  </data>
+  <data name="NowPlayingPage_BackToLibrary" xml:space="preserve">
+    <value>Back to library</value>
+  </data>
+  <data name="NowPlayingPage_Sections" xml:space="preserve">
+    <value>Now playing sections</value>
+  </data>
+  <data name="NowPlayingPage_History" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="NowPlayingPage_About" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="NowPlayingPage_By" xml:space="preserve">
+    <value>By {0}</value>
+  </data>
+  <data name="NowPlayingPage_NarratedBy" xml:space="preserve">
+    <value>Narrated by {0}</value>
+  </data>
+  <data name="ListenNowPlayingBar_OpenNowPlaying" xml:space="preserve">
+    <value>Open Now Playing</value>
+  </data>
+  <data name="ListenNowPlayingBar_CloseNowPlaying" xml:space="preserve">
+    <value>Close Now Playing</value>
+  </data>
+  <data name="NowPlayingPage_ChapterOf" xml:space="preserve">
+    <value>Chapter {0} of {1}</value>
+  </data>
+  <data name="NowPlayingPage_ChapterOfTitled" xml:space="preserve">
+    <value>Chapter {0} of {1} · {2}</value>
+  </data>
+  <data name="NowPlayingPage_NoDescription" xml:space="preserve">
+    <value>There is no description for this audiobook.</value>
+  </data>
+  <data name="NowPlayingPage_Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="NowPlayingPage_Narrator" xml:space="preserve">
+    <value>Narrator</value>
+  </data>
+  <data name="NowPlayingPage_Year" xml:space="preserve">
+    <value>Year</value>
+  </data>
+  <data name="NowPlayingPage_Length" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="NowPlayingPage_Quality" xml:space="preserve">
+    <value>Quality</value>
   </data>
   <data name="EditorMatchPanel_MediaProviders" xml:space="preserve">
     <value>Media providers</value>

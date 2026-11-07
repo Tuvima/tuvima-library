@@ -24,7 +24,7 @@
   },
   "totals": {
     "important": 1762,
-    "deep": 2832
+    "deep": 2824
   },
   "initialFiles": {
     "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
@@ -1129,10 +1129,6 @@
       "important": 0,
       "deep": 6
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css": {
-      "important": 0,
-      "deep": 11
-    },
     "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css": {
       "important": 0,
       "deep": 9
@@ -1309,9 +1305,9 @@
       "important": 0,
       "deep": 75
     },
-    "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css": {
+    "src/MediaEngine.Web/Components/Pages/NowPlayingPage.razor.css": {
       "important": 0,
-      "deep": 2
+      "deep": 5
     },
     "src/MediaEngine.Web/Components/Pages/RecentlyAddedPage.razor.css": {
       "important": 0,
@@ -3938,17 +3934,6 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css",
-      "important": 0,
-      "deep": 2,
-      "selectors": [
-        ".playback-desktop-owner ::deep .playback-desktop--book .playback-desktop__stack",
-        ".playback-desktop-owner ::deep .playback-desktop--book .playback-desktop__stack"
-      ],
-      "reason": "The book layout of the Now playing scene is a class on the scene root, which is drawn by AppCssElement, so its stack width rule needs one deep rule to reach it. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
-    },
-    {
-      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
       "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsAlternatives.razor.css",
       "important": 0,
       "deep": 10,
@@ -4295,6 +4280,20 @@
         ".sfv ::deep .sfv__preferred:focus-visible"
       ],
       "reason": "The Find subtitles buttons are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Pages/NowPlayingPage.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".np__top ::deep button",
+        ".np__top ::deep button:hover",
+        ".np__top ::deep button:active",
+        ".np__top ::deep button:focus-visible",
+        ".np__top ::deep .np__back"
+      ],
+      "reason": "The Now playing page replaces the desktop Now playing scene (unified player v2 WP10). Its Back to library and Close are AppNativeButtons inside the top row, so their look is reached with deep rules from that row (scoped styles never reach a class passed to a child component); the deleted scene gave up the same number."
     }
   ],
   "finalBundleBytes": 1283347,

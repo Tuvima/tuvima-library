@@ -2,11 +2,12 @@
 @implements IDisposable
 @inject PlaybackSessionController Playback
 @inject NavigationManager Nav
+@inject NowPlayingLauncher Launcher
 @inject IStringLocalizer<SharedStrings> L
 @using MediaEngine.Web.Services.Playback
 
 @* Unified player D7a: while something is playing, a small animated sound-bars mark sits in the top bar. For audio it opens or
-   closes the Now Playing page over the current page; for video it returns to the player page. Playback never stops either way. *@
+   closes the Now playing page (route /listen/now-playing); for video it returns to the player page. Playback never stops either way. *@
 @if (Playback.HasQueue && Playback.CurrentItem is not null && !Playback.IsDismissed)
 {
     <span class="now-playing-nav-button" data-now-playing-nav>
@@ -37,9 +38,8 @@
                 Nav.NavigateTo($"/watch/player/{workId:D}");
             return;
         }
-        Playback.SetPresentationSurface(Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying
-            ? PlaybackPresentationSurface.Docked
-            : PlaybackPresentationSurface.NowPlaying);
+        // The bar decides (phone overlay or desktop page, and where to come back to), so the icon behaves exactly like the bar's own Now playing tool (unified player v2 D24).
+        Launcher.Request();
     }
 
     private Task OpenAsync() { Open(); return Task.CompletedTask; }

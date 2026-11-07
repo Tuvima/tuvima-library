@@ -336,9 +336,6 @@
   <data name="TopBar_ServiceDegradedBanner" xml:space="preserve">
     <value>Certains services Library sont temporairement indisponibles.</value>
   </data>
-  <data name="Listen_MiniPlayerTitle" xml:space="preserve">
-    <value>Mini Player</value>
-  </data>
   <data name="Listen_NothingPlaying" xml:space="preserve">
     <value>Nothing is playing right now.</value>
   </data>

@@ -29,6 +29,24 @@ public sealed class ListenContextSidebarState : IDisposable
 
     public ContextSidebarLayoutDto For(PlaybackSessionController playback) => Layout(Context(playback));
 
+    /// <summary>
+    /// The tab the Now playing page shows once a person has chosen one (on the page or with the bar's Lyrics, Queue or Chapters tool); null while the page
+    /// shows its first tab by default, when it is closed, or on a tab with no bar tool (About). The bar presses a tool only for this tab (unified player v2 D24).
+    /// </summary>
+    public string? NowPlayingTab { get; private set; }
+
+    /// <summary>Tells the bar which tab the Now playing page shows (null for none). It is not a saved choice.</summary>
+    public void SetNowPlayingTab(string? key)
+    {
+        if (string.Equals(NowPlayingTab, key, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        NowPlayingTab = key;
+        Changed?.Invoke();
+    }
+
     public async Task ReloadAsync(CancellationToken ct = default)
     {
         var generation = Interlocked.Increment(ref _profileGeneration);
