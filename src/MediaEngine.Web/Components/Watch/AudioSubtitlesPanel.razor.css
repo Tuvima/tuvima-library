@@ -1,0 +1,49 @@
+/* The footer shared by the two appearance views (mockup screen 4, .pf): "Reset to default" at the left and "Changes saved automatically" (13 px, secondary)
+   at the right, in the 14 px footer row. */
+.asp-footer {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    min-width: 0;
+}
+
+.asp-footer__spacer {
+    flex: 1;
+}
+
+.asp-footer__reset {
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--playback-text);
+    cursor: pointer;
+    font: 400 14px/1.45 var(--font-ui);
+    margin-left: -8px;
+    min-height: 36px;
+    padding: 4px 8px;
+}
+
+.asp-footer__reset:hover {
+    background: var(--playback-state-hover);
+}
+
+.asp-footer__reset:active {
+    background: var(--playback-state-pressed);
+}
+
+.asp-footer__reset:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.asp-footer__note {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+}
+
+@media (pointer: coarse) {
+    .asp-footer__reset {
+        min-height: var(--playback-control-target);
+    }
+}

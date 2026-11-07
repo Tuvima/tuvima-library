@@ -82,17 +82,16 @@ public sealed class PlayerSettingsMenuTests : AsyncBunitContext
         var host = LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
 
         Assert.DoesNotContain("<PlaybackSpeedControl", host, StringComparison.Ordinal);
-        Assert.Contains("PlaybackRateChanged=\"SelectPlaybackRateAsync\"", host, StringComparison.Ordinal);
-        // The gear shows its on-state when speed is not 1x or captions are on.
-        Assert.Contains("Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? \"is-on\"", host, StringComparison.Ordinal);
+        // Unified player v2 D12: the Audio & subtitles button shows its on-state only while subtitles are on (speed belongs to Playback settings).
+        Assert.Contains("TriggerClass=\"@(_captionTracks.Any(track => track.Selected) ? \"is-on\" : null)\"", host, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void VideoMenu_ListsAudioSubtitlesPlaybackSpeedAndStylingButNoSleepTimerOrBookmarkSwitch()
+    public void VideoMenu_ListsOnlyPlaybackSpeed_AudioSubtitlesAndStylingMovedToTheirOwnPanel()
     {
         var cut = RenderMenu(1d);
 
-        Assert.Equal(["audio", "subtitles", "speed", "styling"], cut.FindAll("[data-settings-row]").Select(row => row.GetAttribute("data-settings-row")));
+        Assert.Equal(["speed"], cut.FindAll("[data-settings-row]").Select(row => row.GetAttribute("data-settings-row")));
         Assert.Empty(cut.FindAll(".player-settings-menu__switch"));
     }
 

@@ -206,6 +206,15 @@
     --playback-state-disabled-opacity: 0.38;
     --playback-state-selected: rgba(136, 82, 252, 0.22);
     --playback-hairline: rgba(255, 255, 255, 0.10);
+    /* The one slider style for the timeline, volume, speed and subtitle opacity (unified player v2 D9): a 4 px neutral rail, a 12 px white handle, no glow. */
+    --playback-rail: rgba(255, 255, 255, 0.22);
+    --playback-handle: #FFFFFF;
+    --playback-slider-rail-height: 4px;
+    --playback-slider-handle: 12px;
+    --playback-slider-hit: 24px;
+    --playback-volume-slider-width: 96px;
+    --playback-marker: var(--tl-accent-primary-hover);
+    --playback-marker-shared: #FFFFFF;
     --playback-focus-ring-width: 2px;
     --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);

@@ -7797,41 +7797,14 @@
   <data name="VideoPlaybackHost_NextEpisode" xml:space="preserve">
     <value>Next episode</value>
   </data>
-  <data name="ListenNowPlayingBar_Chapter" xml:space="preserve">
-    <value>Chapter</value>
-  </data>
-  <data name="ListenNowPlayingBar_Book" xml:space="preserve">
-    <value>Book</value>
-  </data>
-  <data name="ListenNowPlayingBar_ChapterTimes" xml:space="preserve">
-    <value> · {0} in chapter · {1} left in book</value>
-  </data>
   <data name="NowPlayingNavButton_NowPlaying" xml:space="preserve">
     <value>Now playing</value>
-  </data>
-  <data name="ListenNowPlayingBar_BarShows" xml:space="preserve">
-    <value>The bar shows the chapter or the whole book</value>
   </data>
   <data name="VideoPlaybackHost_Rated" xml:space="preserve">
     <value>RATED {0}</value>
   </data>
   <data name="VideoPlaybackHost_SeasonN" xml:space="preserve">
     <value>Season {0}</value>
-  </data>
-  <data name="PlayerSettings_PreviewLine" xml:space="preserve">
-    <value>Subtitles will appear like this</value>
-  </data>
-  <data name="PlayerSettings_Reset" xml:space="preserve">
-    <value>Reset</value>
-  </data>
-  <data name="VideoPlaybackHost_TurnSubtitlesOff" xml:space="preserve">
-    <value>Turn subtitles off</value>
-  </data>
-  <data name="VideoPlaybackHost_SetSelectedSubtitlesAsPreferred" xml:space="preserve">
-    <value>Set selected subtitles as preferred</value>
-  </data>
-  <data name="VideoPlaybackHost_FindBetterSubtitles2" xml:space="preserve">
-    <value>Find better subtitles</value>
   </data>
   <data name="VideoPlaybackHost_DismissHint" xml:space="preserve">
     <value>Dismiss hint</value>
@@ -9552,9 +9525,6 @@
   <data name="PlayerSettings_Title" xml:space="preserve">
     <value>Settings</value>
   </data>
-  <data name="PlayerSettings_Audio" xml:space="preserve">
-    <value>Audio</value>
-  </data>
   <data name="PlayerSettings_PlaybackSpeed" xml:space="preserve">
     <value>Playback speed</value>
   </data>
@@ -9564,20 +9534,11 @@
   <data name="PlayerSettings_ShowBookmarksOnBar" xml:space="preserve">
     <value>Show bookmarks on the bar</value>
   </data>
-  <data name="PlayerSettings_Styling" xml:space="preserve">
-    <value>Styling…</value>
-  </data>
-  <data name="PlayerSettings_StylingTitle" xml:space="preserve">
-    <value>Subtitle styling</value>
-  </data>
   <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
     <value>No subtitle source is switched on</value>
   </data>
   <data name="PlayerSettings_Plugins" xml:space="preserve">
     <value>Plugins</value>
-  </data>
-  <data name="PlayerSettings_Size" xml:space="preserve">
-    <value>Size</value>
   </data>
   <data name="PlayerSettings_Font" xml:space="preserve">
     <value>Font</value>
@@ -9586,7 +9547,7 @@
     <value>Shadow</value>
   </data>
   <data name="PlayerSettings_Colour" xml:space="preserve">
-    <value>Text colour</value>
+    <value>Text color</value>
   </data>
   <data name="PlayerSettings_Small" xml:space="preserve">
     <value>Small</value>
@@ -9634,7 +9595,7 @@
     <value>Text opacity</value>
   </data>
   <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
-    <value>Background colour</value>
+    <value>Background color</value>
   </data>
   <data name="PlayerSettings_BackgroundOpacity" xml:space="preserve">
     <value>Background opacity</value>
@@ -9644,9 +9605,6 @@
   </data>
   <data name="PlayerSettings_Searching" xml:space="preserve">
     <value>Searching…</value>
-  </data>
-  <data name="PlayerSettings_OnlyAudioTrack" xml:space="preserve">
-    <value>{0} (the only audio track)</value>
   </data>
   <data name="PlayerContext_UpNext" xml:space="preserve">
     <value>Up Next</value>
@@ -11138,5 +11096,134 @@
   </data>
   <data name="ScrubPreviewSettingsCard_CouldNotChange" xml:space="preserve">
     <value>Scrub previews could not be changed. Try again.</value>
+  </data>
+  <data name="AudioSubtitles_Title" xml:space="preserve">
+    <value>Audio &amp; subtitles</value>
+  </data>
+  <data name="AudioSubtitles_Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="AudioSubtitles_NotSwitchable" xml:space="preserve">
+    <value>Not switchable in this browser</value>
+  </data>
+  <data name="AudioSubtitles_SubtitleAppearance" xml:space="preserve">
+    <value>Subtitle appearance</value>
+  </data>
+  <data name="AudioSubtitles_FindSubtitles" xml:space="preserve">
+    <value>Find subtitles…</value>
+  </data>
+  <data name="AudioSubtitles_FindTitle" xml:space="preserve">
+    <value>Find subtitles</value>
+  </data>
+  <data name="SubtitleAppearance_PreviewLine" xml:space="preserve">
+    <value>This is how your subtitles will look</value>
+  </data>
+  <data name="SubtitleAppearance_Sample" xml:space="preserve">
+    <value>Aa</value>
+  </data>
+  <data name="SubtitleAppearance_Style" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="SubtitleAppearance_Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="SubtitleAppearance_LargeText" xml:space="preserve">
+    <value>Large text</value>
+  </data>
+  <data name="SubtitleAppearance_HighContrast" xml:space="preserve">
+    <value>High contrast</value>
+  </data>
+  <data name="SubtitleAppearance_Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="SubtitleAppearance_BackgroundNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="SubtitleAppearance_BackgroundShadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
+  <data name="SubtitleAppearance_BackgroundBox" xml:space="preserve">
+    <value>Box</value>
+  </data>
+  <data name="SubtitleAppearance_Custom" xml:space="preserve">
+    <value>Custom appearance</value>
+  </data>
+  <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
+    <value>Font, colors and opacity</value>
+  </data>
+  <data name="SubtitleAppearance_Reset" xml:space="preserve">
+    <value>Reset to default</value>
+  </data>
+  <data name="SubtitleAppearance_Saved" xml:space="preserve">
+    <value>Changes saved automatically</value>
+  </data>
+  <data name="SubtitleFind_Intro" xml:space="preserve">
+    <value>Looks in the subtitle sources you have switched on for other versions of this title’s subtitles.</value>
+  </data>
+  <data name="PlaybackTimeline_Chapter" xml:space="preserve">
+    <value>Chapter {0}</value>
+  </data>
+  <data name="PlaybackTimeline_Book" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="PlaybackTimeline_TimeLeftHours" xml:space="preserve">
+    <value>{0}h {1}m left</value>
+  </data>
+  <data name="PlaybackTimeline_TimeLeftMinutes" xml:space="preserve">
+    <value>{0}m left</value>
+  </data>
+  <data name="PlaybackTimeline_TimeLeftUnderMinute" xml:space="preserve">
+    <value>Less than a minute left</value>
+  </data>
+  <data name="PlaybackSeekRail_ElapsedTime" xml:space="preserve">
+    <value>Elapsed time {0}</value>
+  </data>
+  <data name="PlaybackSeekRail_RemainingTime" xml:space="preserve">
+    <value>Remaining time {0}</value>
+  </data>
+  <data name="PlaybackSeekRail_RemainingUnknown" xml:space="preserve">
+    <value>Remaining time unknown</value>
+  </data>
+  <data name="PlaybackSeekRail_SwitchChapterOrBook" xml:space="preserve">
+    <value>Switch between the chapter and the whole book</value>
+  </data>
+  <data name="ListenNowPlayingBar_ShowWholeBook" xml:space="preserve">
+    <value>Show the whole book</value>
+  </data>
+  <data name="ListenNowPlayingBar_ShowThisChapter" xml:space="preserve">
+    <value>Show this chapter</value>
+  </data>
+  <data name="AudioSubtitles_DirectorCommentary" xml:space="preserve">
+    <value>Director commentary</value>
+  </data>
+  <data name="AudioSubtitles_Commentary" xml:space="preserve">
+    <value>Commentary</value>
+  </data>
+  <data name="AudioSubtitles_AudioDescription" xml:space="preserve">
+    <value>Audio description</value>
+  </data>
+  <data name="AudioSubtitles_LanguageAudioDescription" xml:space="preserve">
+    <value>{0} · Audio description</value>
+  </data>
+  <data name="AudioSubtitles_AudioNumber" xml:space="preserve">
+    <value>Audio {0}</value>
+  </data>
+  <data name="AudioSubtitles_ChannelsMono" xml:space="preserve">
+    <value>Mono · 1.0</value>
+  </data>
+  <data name="AudioSubtitles_ChannelsStereo" xml:space="preserve">
+    <value>Stereo · 2.0</value>
+  </data>
+  <data name="AudioSubtitles_ChannelCount" xml:space="preserve">
+    <value>{0} channels</value>
+  </data>
+  <data name="AudioSubtitles_Subtitles" xml:space="preserve">
+    <value>Subtitles</value>
+  </data>
+  <data name="AudioSubtitles_NameSdh" xml:space="preserve">
+    <value>{0} · SDH</value>
+  </data>
+  <data name="AudioSubtitles_NameForced" xml:space="preserve">
+    <value>{0} · Forced</value>
   </data>
 </root>

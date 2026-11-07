@@ -10,6 +10,7 @@
 @* Unified player v2 D11: the one panel system. A trigger button plus a panel drawn in the browser top layer (playback-popover.js moves it into the
    fullscreen element when there is one, places it above the bar, right-aligned to the tools zone, and keeps it 12 px inside the viewport).
    Menu (272 wide) and Panel (360 to 420 wide, at most 80% of the player's height) are the two sizes; Wide (560) is Panel for Audio & subtitles.
+   Content learns it is drawn as a phone bottom sheet from the cascading value "PlaybackPanelSheet" (Audio & subtitles becomes two tabs there).
    Header (back, title, close) and footer are fixed; only the body scrolls. There is no arrow and nothing opens on hover. The open state has one
    owner, PlaybackTransientToolCoordinator, so exactly one top-level panel is open at a time. Phones draw the same panel as a bottom sheet. *@
 <span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-chrome-hold>
@@ -28,6 +29,7 @@
              data-playback-owned-menu="@ParentPanel" data-chrome-hold tabindex="-1">
             <CascadingValue Name="PlaybackPopoverOwner" Value="@PanelId">
                 <CascadingValue Value="@Navigator" IsFixed="true">
+                <CascadingValue Name="PlaybackPanelSheet" Value="@_mobile">
                     @if (_mobile)
                     {
                         <div class="playback-panel__backdrop" data-playback-popover-backdrop></div>
@@ -65,6 +67,7 @@
                             }
                         </AppPopout>
                     }
+                </CascadingValue>
                 </CascadingValue>
             </CascadingValue>
         </div>
