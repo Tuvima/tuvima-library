@@ -101,7 +101,9 @@ internal static class TvMatchBrowserMapper
                 OutsideLinks.TvdbEpisode(id) ?? "https://thetvdb.com",
                 string.Equals(id, currentEpisodeId, StringComparison.Ordinal),
                 filesByEpisodeId.ContainsKey(id),
-                filesByEpisodeId.ContainsKey(id) ? fileId : null));
+                filesByEpisodeId.ContainsKey(id) ? fileId : null,
+                WholeNumber(node, "runtime"),
+                WholeNumber(node, "absoluteNumber")));
         }
 
         return rows.OrderBy(row => row.EpisodeNumber).ToList();
@@ -130,6 +132,39 @@ internal static class TvMatchBrowserMapper
 
         var digits = raw.StartsWith("series-", StringComparison.OrdinalIgnoreCase) ? raw["series-".Length..] : raw;
         return digits.Length > 0 && digits.All(char.IsAsciiDigit) ? digits : null;
+    }
+
+    // A count TheTVDB sends as a number or as text (a runtime in minutes, an absolute episode number); null when it is missing or not above zero.
+    private static int? WholeNumber(JsonNode? node, string key) =>
+        int.TryParse(Text(node, key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0 ? value : null;
+
+    /// <summary>The genre names of a TheTVDB show record, joined for a card ("Drama, Science fiction"); null when it lists none.</summary>
+    public static string? GenreText(JsonNode? show)
+    {
+        if (show?["genres"] is not JsonArray genres)
+        {
+            return null;
+        }
+
+        var names = genres.Select(genre => Text(genre, "name")).Where(name => name is not null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return names.Count == 0 ? null : string.Join(", ", names);
+    }
+
+    /// <summary>The one episode of the ordered list that carries this absolute number, mapped like any season row; null when none does.</summary>
+    public static TvMatchBrowserEpisodeDto? FindByAbsoluteNumber(
+        IEnumerable<JsonNode> orderedEpisodes, string seriesId, string showName, IReadOnlyList<TvMatchBrowserSeasonDto> seasons, int absolute)
+    {
+        foreach (var season in seasons)
+        {
+            var found = MapEpisodes(SelectSeasonEpisodes(orderedEpisodes, season), seriesId, showName, season, null, new Dictionary<string, Guid>())
+                .FirstOrDefault(episode => episode.AbsoluteNumber == absolute);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private static string? Text(JsonNode? node, string key) => Text(node?[key]);

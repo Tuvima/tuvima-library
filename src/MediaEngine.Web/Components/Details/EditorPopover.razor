@@ -76,7 +76,7 @@
                 }
                 else if (tool == EditTool.Details)
                 {
-                    <EditorDetailsPanel Mode="mode" Session="flow.Session">@binding?.DetailsExtra</EditorDetailsPanel>
+                    <EditorDetailsPanel Mode="mode" Session="flow.Session" Flow="flow">@binding?.DetailsExtra</EditorDetailsPanel>
                 }
                 else if (tool == EditTool.Match && EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind))
                 {

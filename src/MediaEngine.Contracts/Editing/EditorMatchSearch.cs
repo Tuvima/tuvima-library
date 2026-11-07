@@ -106,6 +106,21 @@ public sealed class EditorMatchLocalEvidenceDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Number { get; init; }
 
+    /// <summary>For a TV episode, the season the file name carries; null when it says none (or the item is not an episode).</summary>
+    [JsonPropertyName("season")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Season { get; init; }
+
+    /// <summary>For a TV episode, the title the file name carries after its season and episode ("Echoes in the Dark"); null when it says none.</summary>
+    [JsonPropertyName("episode_title")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EpisodeTitle { get; init; }
+
+    /// <summary>For a song, the disc the file name or tags name; null when they say none.</summary>
+    [JsonPropertyName("disc")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Disc { get; init; }
+
     /// <summary>The creator the tags name: the author, the artist or the director.</summary>
     [JsonPropertyName("creator")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -340,6 +355,13 @@ public sealed class EditorMatchPlacementRequestDto
     public ItemCanonicalRetailCandidateDto Candidate { get; init; } = new();
 }
 
+/// <summary>A record picked outside the result list (an episode, a track), sent to ask how well it fits the item's file.</summary>
+public sealed class EditorMatchVerdictRequestDto
+{
+    [JsonPropertyName("candidate")]
+    public ItemCanonicalRetailCandidateDto Candidate { get; init; } = new();
+}
+
 /// <summary>
 /// Where applying a match would put the item and its file (universal editor v5, D8). A read: nothing is moved. The Dashboard stages a
 /// Relationship change when <see cref="DestinationId"/> is set, and a file move when <see cref="Managed"/> is true, so Review and the
@@ -361,6 +383,21 @@ public sealed class EditorMatchPlacementDto
     [JsonPropertyName("current_parent_label")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CurrentParentLabel { get; init; }
+
+    /// <summary>The id of the place it sits in now; the Dashboard compares places by id, never by their labels.</summary>
+    [JsonPropertyName("current_parent_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? CurrentParentId { get; init; }
+
+    /// <summary>How many items the place it leaves still holds once the item has gone; null when it stays or the count is not known.</summary>
+    [JsonPropertyName("current_parent_keeps")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CurrentParentKeeps { get; init; }
+
+    /// <summary>For a song moving to another album: the track number it takes there (the chosen track's); null when the number is not part of the move.</summary>
+    [JsonPropertyName("position")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Position { get; init; }
 
     /// <summary>True when the item's file is in a Managed folder, so applying the match renames or moves it by itself. False for a Read-only or As-is folder.</summary>
     [JsonPropertyName("managed")]

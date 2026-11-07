@@ -472,7 +472,7 @@ public sealed class CollectionReadServicesTests : IDisposable
     }
 
     [Fact]
-    public async Task SeriesOverrides_PreserveMembershipAndRestoreOrderedAutomaticArtwork()
+    public async Task ASeriesShelfTile_KeepsItsMembership_AndNeverServesAStoredSeriesCoverOverTheAutomaticStack()
     {
         var first = await SeedBookSeriesMemberAsync("First Book", "1", 1649, "override-first", 1997);
         var second = await SeedBookSeriesMemberAsync("Second Book", "2", 1800, "override-second", 2024);
@@ -491,8 +491,9 @@ public sealed class CollectionReadServicesTests : IDisposable
         Assert.Equal(rootId, group.RootWorkId);
         Assert.Equal("My shelf title", group.DisplayName);
         Assert.Equal("My shelf description", group.Description);
-        Assert.Equal($"/stream/artwork/{artworkId:D}", Assert.Single(group.PreviewItems).ImageUrl);
-        Assert.Equal(group.PreviewItems[0].ImageUrl, group.CoverUrl);
+        // A Series takes no cover of its own (universal editor v5 D24): the stack of its members' covers shows, whatever was stored for it.
+        Assert.Equal(new[] { first.WorkId, second.WorkId }, group.PreviewItems.Select(item => item.WorkId));
+        Assert.DoesNotContain("/stream/artwork/", group.CoverUrl, StringComparison.Ordinal);
         var routeId = SystemViewGroupIdentity.CreateId(group, "Books", "series");
         var members = await _browse.GetSystemViewDetailWorksAsync(
             "series", group.DisplayName, "Books", null, CancellationToken.None, rootId);

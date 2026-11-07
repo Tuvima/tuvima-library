@@ -16,6 +16,9 @@ public interface IEditSubject
     /// <summary>The artwork owner kind the Artwork tool stores pictures under (<c>Person</c>, <c>Collection</c>).</summary>
     string ArtworkEntityType { get; }
 
+    /// <summary>True for a kind nothing can be written to (a Series, spec D7 and D24): every field and picture change is refused with a plain reason.</summary>
+    bool ReadOnly => false;
+
     /// <summary>Whether <paramref name="id"/> names a subject of this kind.</summary>
     Task<bool> OwnsAsync(Guid id, CancellationToken ct = default);
 

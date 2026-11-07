@@ -607,6 +607,7 @@ public static partial class ItemCanonicalEndpoints
             ItemDisplayOverridesRequest request,
             ISystemActivityRepository activityRepo,
             IItemCanonicalRepository itemCanonicalData,
+            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             if (request.Fields.Count == 0)
@@ -636,6 +637,12 @@ public static partial class ItemCanonicalEndpoints
             if (!displayOverrideState.WorkExists)
             {
                 return ApiErrors.NotFound($"No work found for {entityId}.");
+            }
+
+            // A Series is a grouping that comes from its members' matches and is never edited (universal editor v5 D7).
+            if (await seriesGuard.IsSeriesAsync(entityId, ct))
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesIsReadOnly);
             }
 
             var current = displayOverrideState.Values;

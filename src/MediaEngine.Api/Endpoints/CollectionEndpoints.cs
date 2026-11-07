@@ -77,6 +77,11 @@ public static class CollectionEndpoints
             {
                 return ApiErrors.Forbidden("The active profile cannot access this collection.");
             }
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                // A Series is a grouping that comes from its members' matches and is never edited (universal editor v5 D7).
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesIsReadOnly);
+            }
             if (body.Fields.Count == 0 || body.Fields.Keys.Any(key => key is not ("title" or "description")))
             {
                 return ApiErrors.BadRequest("Collection overrides support title and description only.");
@@ -1790,6 +1795,12 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
+            // A Series takes no picture of its own: its tile is the automatic stack of its members' covers (universal editor v5 D24).
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
+            }
+
             if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
@@ -1875,6 +1886,12 @@ public static class CollectionEndpoints
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
+            }
+
+            // A Series takes no picture of its own: its tile is the automatic stack of its members' covers (universal editor v5 D24).
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
             }
 
             if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))

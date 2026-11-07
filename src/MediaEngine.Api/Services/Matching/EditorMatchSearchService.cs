@@ -50,6 +50,27 @@ public sealed class EditorMatchSearchService(
         return kind is null ? null : await SearchForKindAsync(entityId, kind, request, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Judges one record the person picked outside the result list (a TheTVDB episode, a MusicBrainz track) against the item's file, with
+    /// the same facts, tolerances and bands a search result is judged by. Null when no such item is in the Library or its kind has no provider.
+    /// </summary>
+    public async Task<EditorMatchResultDto?> JudgeCandidateAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        var kind = await kinds.ResolveAsync(entityId, ct).ConfigureAwait(false);
+        if (kind is null || EditorMatchKinds.For(kind) is null)
+        {
+            return null;
+        }
+
+        var read = await reader.ReadAsync(entityId, kind, ct).ConfigureAwait(false);
+        return read is null ? null : JudgeRead(kind, candidate, read);
+    }
+
+    /// <summary>Judges a record against an item whose file has already been read (the group Match reads every ticked file once).</summary>
+    internal EditorMatchResultDto JudgeRead(string kindId, ItemCanonicalRetailCandidateDto candidate, EditorMatchLocalRead read) =>
+        Judge(kindId, candidate, read, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), kindId == EditorKinds.TvEpisode ? (true, read.Evidence.EpisodeTitle) : (false, null));
+
     /// <summary>As <see cref="SetupAsync(Guid, CancellationToken)"/> for a kind already decided.</summary>
     public async Task<EditorMatchSetupDto?> SetupForKindAsync(Guid entityId, string kind, CancellationToken ct = default)
     {
@@ -571,7 +592,8 @@ public sealed class EditorMatchSearchService(
     };
 
     private EditorMatchResultDto Judge(
-        string kindId, ItemCanonicalRetailCandidateDto candidate, EditorMatchLocalRead read, IReadOnlyDictionary<string, string> fields)
+        string kindId, ItemCanonicalRetailCandidateDto candidate, EditorMatchLocalRead read, IReadOnlyDictionary<string, string> fields,
+        (bool Use, string? Title) yourTitle = default)
     {
         var extra = candidate.ExtraFields;
         var evidence = read.Evidence;
@@ -584,7 +606,7 @@ public sealed class EditorMatchSearchService(
         {
             checks.Add(fact switch
             {
-                MatchFactNames.Title => calculator.Title(YourTitle(kindId, fields, evidence), candidate.Title),
+                MatchFactNames.Title => calculator.Title(yourTitle.Use ? yourTitle.Title : YourTitle(kindId, fields, evidence), candidate.Title),
                 MatchFactNames.Year => calculator.Year(fields.GetValueOrDefault(EditorMatchFieldIds.Year) ?? evidence.Year, candidate.Year),
                 MatchFactNames.Number => calculator.Number(
                     kindId == EditorKinds.Comic && int.TryParse(fields.GetValueOrDefault(EditorMatchFieldIds.Issue), NumberStyles.Integer, CultureInfo.InvariantCulture, out var issue)

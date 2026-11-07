@@ -42,6 +42,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IEditSubject, CuratedCollectionEditSubject>();
         services.AddSingleton<IEditSubject, FictionalEntityEditSubject>();
         services.AddSingleton<EditSubjectDirectory>();
+        services.AddSingleton<EditorSeriesGuard>();
         services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ThingAddEditSessionChangeHandler>();
         services.AddScoped<EditorUniverseThingsService>();
@@ -109,12 +110,14 @@ public static class ApiReadServiceCollectionExtensions
         // The Match tab's search: the providers and boxes for an item, and results judged against the file (config/scoring.json match_verdict).
         services.AddScoped(sp => new MediaEngine.Api.Services.Matching.EditorMatchVerdictCalculator(
             sp.GetRequiredService<MediaEngine.Domain.Contracts.IConfigurationLoader>().LoadScoring().MatchVerdict));
+        services.AddScoped(sp => sp.GetRequiredService<MediaEngine.Domain.Contracts.IConfigurationLoader>().LoadScoring().MusicMatch);
         services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchLocalEvidenceReader>();
         services.AddScoped<MediaEngine.Api.Services.Matching.IVideoIdentifyWriter, MediaEngine.Api.Services.Matching.VideoIdentifyWriter>();
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchKindResolver, MediaEngine.Api.Services.Matching.HeaderEditorMatchKindResolver>();
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchProviderCatalog, MediaEngine.Api.Services.Matching.RetailEditorMatchProviderCatalog>();
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchCandidateSearch, MediaEngine.Api.Services.Matching.CanonicalEditorMatchCandidateSearch>();
         services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchSearchService>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMusicMatchService>();
         services.AddScoped<EditorSuggestDetailsService>();
         services.AddScoped<MediaEngine.Api.Services.Extras.SupportingFileEditorReadService>();
         services.AddScoped<EditorFolderTreeService>();

@@ -434,6 +434,43 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Fields = new Dictionary<string, string> { ["title"] = title, ["year"] = year },
     };
 
+    // ── Judging a pick made in the TV or music flow ──────────────────────────
+
+    private static EditorMatchLocalRead EpisodeRead(string? episodeTitle, int number, double? measuredSeconds) => new(
+        Guid.NewGuid(), Guid.NewGuid(), "TV", "/tv/The Last Signal/Season 02/The.Last.Signal.S02E03.mkv", "The.Last.Signal.S02E03.mkv",
+        new EditorMatchLocalEvidenceDto { FileTitle = "The Last Signal", EpisodeTitle = episodeTitle, Number = number, MeasuredSeconds = measuredSeconds, MeasuredText = "45:52" },
+        new Dictionary<string, (string Value, string From)>());
+
+    [Fact]
+    public void AnEpisodePick_IsJudgedByTheEpisodeTitleTheFileNameCarries_NotTheShowName()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, 2752);
+        var right = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 46);
+        var wrong = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e24", 2, 4, "Dead Air", "2021-01-25", null, null, 52);
+
+        var good = Service().JudgeRead(EditorKinds.TvEpisode, right, read);
+        var bad = Service().JudgeRead(EditorKinds.TvEpisode, wrong, read);
+
+        Assert.Equal(EditorMatchVerdicts.Strong, good.Verdict);
+        var runtime = Assert.Single(good.Reasons, reason => reason.Fact == "runtime");
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, runtime.State);
+        Assert.Equal("45:52 measured · 46 min (rounded)", runtime.Note);
+        Assert.Equal(EditorMatchVerdicts.Check, bad.Verdict);
+        Assert.Equal(right, good.Candidate);
+    }
+
+    [Fact]
+    public void AnEpisodePickWithADifferentLength_IsFlaggedOnTheRuntimeRow_AndKeepsItsCandidateToApply()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, 2752);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 90);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "runtime").State);
+        Assert.Equal("e23", judged.Candidate.ProviderItemId);
+    }
+
     private EditorMatchSearchService Service(IEditorMatchCandidateSearch? candidates = null, IVideoIdentifyWriter? videos = null)
     {
         var reader = new EditorMatchLocalEvidenceReader(
