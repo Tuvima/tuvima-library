@@ -41,36 +41,20 @@ public sealed class PlayerBookmarkVisibility(
         ];
     }
 
-    /// <summary>True when the profile may see this bookmark in the player: its own, or one in the title's Everyone list.</summary>
-    public async Task<bool> MaySeeAsync(
-        Guid profileId, Guid workId, Guid bookmarkId, IReadOnlySet<Guid>? authorizedAssetIds, CancellationToken ct = default) =>
-        (await ReadAsync(profileId, workId, authorizedAssetIds, ct).ConfigureAwait(false)).Any(entry => entry.Bookmark.Id == bookmarkId);
-
     private async Task<IReadOnlyList<EditorBookmarkRow>> EveryoneAsync(Guid workId, IReadOnlyList<EditorBookmarkRow> rows, CancellationToken ct)
     {
         // A Vault file has no pooled view: what other profiles bookmarked there is not shown to anyone else (a work can hold both kinds of file).
-        var pooled = new List<EditorBookmarkRow>(rows.Count);
-        var vaultAssets = new Dictionary<Guid, bool>();
-        foreach (var row in rows)
+        var vaultAssets = new HashSet<Guid>();
+        foreach (var assetId in rows.Select(row => row.AssetId).Distinct())
         {
-            if (!vaultAssets.TryGetValue(row.AssetId, out var inVault))
+            if (await vault.IsInVaultAsync(assetId, ct).ConfigureAwait(false))
             {
-                inVault = await vault.IsInVaultAsync(row.AssetId, ct).ConfigureAwait(false);
-                vaultAssets[row.AssetId] = inVault;
+                vaultAssets.Add(assetId);
             }
-
-            if (!inVault)
-            {
-                pooled.Add(row);
-            }
-        }
-
-        if (pooled.Count == 0)
-        {
-            return [];
         }
 
         var definitive = (await repository.GetDefinitiveAsync([workId], ct).ConfigureAwait(false)).Contains(workId);
-        return EditorBookmarkRepository.Everyone(pooled, definitive, _ => closeness.Current.Time.SameSpot);
+        // The same function the editor uses, so the two cannot disagree about what Everyone holds.
+        return EditorBookmarkRepository.Everyone(rows, definitive, _ => closeness.Current.Time.SameSpot, vaultAssets.Contains);
     }
 }

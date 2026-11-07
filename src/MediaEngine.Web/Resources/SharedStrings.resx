@@ -7028,6 +7028,9 @@
   <data name="PlaybackSeekRail_PlaybackPosition" xml:space="preserve">
     <value>Playback position</value>
   </data>
+  <data name="PlaybackSeekRail_BookmarkAt" xml:space="preserve">
+    <value>Bookmark at {0}</value>
+  </data>
   <data name="PlaybackSeekRail_Bookmark" xml:space="preserve">
     <value>Bookmark</value>
   </data>
@@ -9295,6 +9298,9 @@
   </data>
   <data name="BookmarksPanel_SaveFailed" xml:space="preserve">
     <value>Couldn’t save · Try again</value>
+  </data>
+  <data name="BookmarksPanel_DeleteFailed" xml:space="preserve">
+    <value>Couldn’t delete · Try again</value>
   </data>
   <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
     <value>No bookmarks for this title yet</value>

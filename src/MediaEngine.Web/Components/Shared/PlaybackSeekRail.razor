@@ -91,7 +91,7 @@
         return fraction < .25 ? "left:-6px;transform:none" : fraction > .75 ? "right:-6px;left:auto;transform:none" : string.Empty;
     }
     private string BookmarkLabel(PlaybackRailBookmark bookmark) =>
-        $"Bookmark at {Time(bookmark.Seconds)}";
+        L["PlaybackSeekRail_BookmarkAt", Time(bookmark.Seconds)].Value;
     private void HoverBookmark(Guid id) { if (_pinnedId is null) { _quickLookId = id; _moreId = null; } }
     private void LeaveBookmark(Guid id) { if (_pinnedId is null && _quickLookId == id) { _quickLookId = null; _moreId = null; } }
     private void ToggleBookmark(Guid id)

@@ -275,7 +275,8 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                                 snapshot: await SnapshotAsync(context, ct), message: "The captured bookmark lease did not match this dialog.");
                         }
 
-                        var result = await actions.SaveAsync(context, draft.DraftGeneration, assets, draft.Note, ct).ConfigureAwait(false);
+                        var result = await actions.SaveWithFieldsAsync(context, draft.DraftGeneration, assets,
+                            new AudiobookBookmarkSaveFields(draft.Note, null, draft.PositionSeconds), ct).ConfigureAwait(false);
                         return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
                             bookmark: result.Value, message: result.Message);
                     }
@@ -641,9 +642,15 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
         return ParseResult(reply, reply?.Bookmarks ?? (IReadOnlyList<AudiobookBookmarkDto>)[], "Saved bookmarks could not be loaded.");
     }
 
-    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveAsync(
+    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveAsync(
         AudiobookBookmarkActionContext context, long draftGeneration, IReadOnlySet<Guid> authorizedAssetIds,
-        string? note, CancellationToken ct = default)
+        string? note, CancellationToken ct = default) =>
+        SaveWithFieldsAsync(context, draftGeneration, authorizedAssetIds, new AudiobookBookmarkSaveFields(note), ct);
+
+    /// <summary>Saves the captured draft, at the pressed moment when the fields carry one; the owner re-checks that moment against its capture.</summary>
+    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveWithFieldsAsync(
+        AudiobookBookmarkActionContext context, long draftGeneration, IReadOnlySet<Guid> authorizedAssetIds,
+        AudiobookBookmarkSaveFields fields, CancellationToken ct = default)
     {
         _ = authorizedAssetIds;
         var current = await GetSnapshotAsync(context, ct).ConfigureAwait(false);
@@ -652,7 +659,7 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
             return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed("The captured draft changed before it could be saved.");
         }
         var reply = await SendAsync(context, ListenPlaybackCommandActions.SaveBookmarkDraft, ct,
-            draft: ToPayload(current.Draft, note));
+            draft: ToPayload(current.Draft, fields.Note) with { PositionSeconds = fields.PositionSeconds ?? current.Draft.PositionSeconds });
         UpdateFromReply(context, reply);
         return ParseResult<AudiobookBookmarkDto>(reply, reply?.Bookmark, "The save result was not returned by the playback owner.");
     }

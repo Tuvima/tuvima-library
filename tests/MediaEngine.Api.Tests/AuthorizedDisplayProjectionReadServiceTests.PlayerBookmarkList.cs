@@ -208,7 +208,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (player, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
 
         await Assert.ThrowsAsync<ArgumentException>(() => player.UpdateOwnAudiobookBookmarkAsync(
-            null, mine.Id, new UpdateAudiobookBookmarkRequestDto { Label = new string('a', PlayerService.MaximumBookmarkLabelLength + 1) }));
+            null, mine.Id, new UpdateAudiobookBookmarkRequestDto { Label = new string('a', AudiobookBookmarkNotePolicy.MaximumLength + 1) }));
         await Assert.ThrowsAsync<ArgumentException>(() => player.UpdateOwnAudiobookBookmarkAsync(
             null, mine.Id, new UpdateAudiobookBookmarkRequestDto { Note = new string('a', AudiobookBookmarkNotePolicy.MaximumLength + 1) }));
         Assert.Null((await StoredBookmarksAsync(shape.Normal.WorkId)).Single().Label);

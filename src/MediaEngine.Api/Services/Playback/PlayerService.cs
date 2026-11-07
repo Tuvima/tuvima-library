@@ -1109,7 +1109,8 @@ public sealed class PlayerService
     private static AudiobookBookmarkDto ToPlayerBookmark(PlayerBookmarkVisibility.Entry entry) => new()
     {
         Id = entry.Bookmark.Id,
-        ProfileId = entry.Bookmark.ProfileId,
+        // Another profile's id never leaves the Engine: the panel needs only IsYours and the maker's name.
+        ProfileId = entry.IsYours ? entry.Bookmark.ProfileId : Guid.Empty,
         WorkId = entry.Bookmark.WorkId,
         AssetId = entry.Bookmark.AssetId,
         ChapterIndex = entry.Bookmark.ChapterIndex,
@@ -1128,30 +1129,48 @@ public sealed class PlayerService
     };
 
     /// <summary>
+    /// Checks a rename and note change by the same rules the panel shows: the name and the note are trimmed, empty means none, and neither is
+    /// longer than <see cref="AudiobookBookmarkNotePolicy.MaximumLength"/>.
+    /// </summary>
+    public static bool TryNormalizeAudiobookBookmarkUpdate(
+        UpdateAudiobookBookmarkRequestDto request,
+        out UpdateAudiobookBookmarkRequestDto? normalizedRequest,
+        out string? validationError)
+    {
+        normalizedRequest = null;
+        validationError = null;
+        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Label, out var label))
+        {
+            validationError = $"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.";
+            return false;
+        }
+
+        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
+        {
+            validationError = $"A bookmark note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.";
+            return false;
+        }
+
+        normalizedRequest = request with { Label = label, Note = note };
+        return true;
+    }
+
+    /// <summary>
     /// Renames the profile's own bookmark and changes its note. Returns null (the endpoint answers not found) for anyone else's bookmark, one in
     /// the administrator's set (changed only in the editor) and one on a file the profile cannot see.
     /// </summary>
-    /// <summary>The longest name a person can give their own bookmark.</summary>
-    public const int MaximumBookmarkLabelLength = 120;
-
     public async Task<AudiobookBookmarkDto?> UpdateOwnAudiobookBookmarkAsync(
         Guid? profileId, Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
+        if (!TryNormalizeAudiobookBookmarkUpdate(request, out var normalized, out var validationError))
         {
-            throw new ArgumentException($"A bookmark note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
-        }
-
-        var label = string.IsNullOrWhiteSpace(request.Label) ? null : request.Label.Trim();
-        if (label is { Length: > MaximumBookmarkLabelLength })
-        {
-            throw new ArgumentException($"A bookmark name cannot exceed {MaximumBookmarkLabelLength} characters.", nameof(request));
+            throw new ArgumentException(validationError, nameof(request));
         }
 
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
         var allowed = await _scope.AssetIdsAsync(ct);
-        if (!await _bookmarks.UpdateOwnAsync(normalizedProfile, bookmarkId, label, note, ct, allowed))
+        if (!await _bookmarks.UpdateOwnAsync(normalizedProfile, bookmarkId, normalized!.Label, normalized.Note, ct, allowed))
         {
             return null;
         }
@@ -1179,11 +1198,6 @@ public sealed class PlayerService
 
         var normalizedProfile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
         await _scope.RequireAssetAsync(normalizedRequest!.AssetId, ct, workId);
-        if (normalizedRequest.IsGlobal && !await _scope.IsServerAdministratorAsync(ct))
-        {
-            throw new PlayerBookmarkSharingDeniedException();
-        }
-
         var created = await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
         if (_frames is not null)
         {
@@ -1196,8 +1210,10 @@ public sealed class PlayerService
 
     /// <summary>
     /// The file of a video bookmark's frame, only for a profile that may see the bookmark by exactly the rule of the bookmark list (its
-    /// own, one in the title's Everyone list, or any profile's for a server administrator), on a file it may play (Vault and Kid limits included). Anything
-    /// else, and a frame not made yet, is null, which the endpoint answers as not found.
+    /// own, or one in the title's Everyone list; a server administrator, who works on every profile's bookmarks in the editor, sees any), on a
+    /// file it may play (Vault and Kid limits included). A row flagged global is not enough by itself: a Vault file's and a merged-away
+    /// duplicate are not in the list, so they have no frame either. Anything else, and a frame not made yet, is null, which the endpoint
+    /// answers as not found.
     /// </summary>
     public async Task<BookmarkFrameFile?> GetBookmarkFramePathAsync(Guid? profileId, Guid bookmarkId, CancellationToken ct = default)
     {
@@ -1210,7 +1226,8 @@ public sealed class PlayerService
         var allowed = await _scope.AssetIdsAsync(ct);
         var bookmark = await _bookmarks.GetVisibleAsync(normalizedProfile, bookmarkId, await _scope.IsServerAdministratorAsync(ct), allowed, ct);
         if (bookmark is null && await _bookmarks.GetByIdAsync(bookmarkId, ct) is { } other
-            && await VisibleBookmarks.MaySeeAsync(normalizedProfile, other.WorkId, bookmarkId, allowed, ct))
+            && allowed.Contains(other.AssetId)
+            && (await VisibleBookmarks.ReadAsync(normalizedProfile, other.WorkId, allowed, ct)).Any(entry => entry.Bookmark.Id == bookmarkId))
         {
             // Another profile's bookmark in the title's Everyone list: seen by exactly the rule of the list.
             bookmark = other;
@@ -1229,6 +1246,13 @@ public sealed class PlayerService
         if (request.AssetId == Guid.Empty)
         {
             validationError = "An asset id is required for a bookmark.";
+            return false;
+        }
+
+        if (request.IsGlobal)
+        {
+            // The player only reads Everyone's list (unified player v2 D22); an administrator makes it in the editor's Bookmarks tab.
+            validationError = "A bookmark made in the player is always your own. Everyone's bookmarks are made in the editor's Bookmarks tab.";
             return false;
         }
 
@@ -1283,8 +1307,8 @@ public sealed class PlayerService
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
         // The picture goes with the bookmark; its file is found through the bookmark, so read that before the row is gone.
         var before = _frames is null ? null : await _bookmarks.GetByIdAsync(bookmarkId, ct);
-        var deleted = await _bookmarks.DeleteAsync(normalizedProfile, bookmarkId, ct, await _scope.AssetIdsAsync(ct),
-            canChangeGlobal: await _scope.IsServerAdministratorAsync(ct));
+        // The player removes only the profile's own bookmarks; a row in the administrator's set is removed in the editor, which shows Review first.
+        var deleted = await _bookmarks.DeleteAsync(normalizedProfile, bookmarkId, ct, await _scope.AssetIdsAsync(ct), canChangeGlobal: false);
         if (deleted && before is not null)
         {
             _frames!.RemoveFrame(before.AssetId, before.Id);

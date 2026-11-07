@@ -59,6 +59,52 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Save_AtThePressedMoment_SendsThePressedSeconds_NotTheCapturedOnes()
+    {
+        CreateAudiobookBookmarkRequestDto? sent = null;
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.CreateAudiobookBookmarkWithOutcomeAsync), args =>
+        {
+            sent = (CreateAudiobookBookmarkRequestDto)args![1]!;
+            return Task.FromResult(AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(
+                Dto(Guid.NewGuid(), Me, sent.PositionSeconds)));
+        }));
+        var service = new AudiobookBookmarkActionService(api);
+        var context = Context();
+        service.Open(context);
+        Assert.True(service.TryCapture(context, AssetId, new HashSet<Guid> { AssetId }, 750.4, 7200, null, out _));
+        var generation = service.GetSnapshot(context.DialogId).Draft!.Generation;
+
+        var saved = await service.SaveWithFieldsAsync(context, generation, new HashSet<Guid> { AssetId },
+            new AudiobookBookmarkSaveFields("The reveal", null, 750));
+
+        Assert.Equal(AudiobookBookmarkOperationOutcome.Success, saved.Outcome);
+        Assert.Equal(750, sent!.PositionSeconds);
+        Assert.Equal(750, saved.Value!.PositionSeconds);
+    }
+
+    [Fact]
+    public async Task Save_AtAPressedMomentFarFromTheCapture_SavesNothing()
+    {
+        var calls = 0;
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.CreateAudiobookBookmarkWithOutcomeAsync), _ =>
+        {
+            calls++;
+            return Task.FromResult(AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(Dto(Guid.NewGuid(), Me, 10)));
+        }));
+        var service = new AudiobookBookmarkActionService(api);
+        var context = Context();
+        service.Open(context);
+        Assert.True(service.TryCapture(context, AssetId, new HashSet<Guid> { AssetId }, 750, 7200, null, out _));
+        var generation = service.GetSnapshot(context.DialogId).Draft!.Generation;
+
+        var saved = await service.SaveWithFieldsAsync(context, generation, new HashSet<Guid> { AssetId },
+            new AudiobookBookmarkSaveFields(null, null, 10));
+
+        Assert.Equal(AudiobookBookmarkOperationOutcome.DefiniteFailure, saved.Outcome);
+        Assert.Equal(0, calls);
+    }
+
+    [Fact]
     public async Task Save_WithoutTheShareSwitch_IsPersonal_AndTheNoteOnlyOverloadStillWorks()
     {
         CreateAudiobookBookmarkRequestDto? sent = null;

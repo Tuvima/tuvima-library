@@ -265,7 +265,7 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public string? Note { get; init; }
     /// <summary>The optional longer description, up to 4,000 characters.</summary>
     public string? Description { get; init; }
-    /// <summary>Share the bookmark with everybody who can see the title. Refused unless the caller is a server administrator.</summary>
+    /// <summary>Refused by the player (<c>400</c>) for everyone: a bookmark made while playing is always the person's own, and Everyone's set is made in the editor's Bookmarks tab.</summary>
     public bool IsGlobal { get; init; }
 }
 

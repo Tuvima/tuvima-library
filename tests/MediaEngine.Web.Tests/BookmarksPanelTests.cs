@@ -164,6 +164,113 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-bookmark-edit-form]"));
     }
 
+    // bUnit gives an element a new reference on every render, so the focus calls are counted rather than matched to one element; the note box is
+    // the only other focus target and none of these flows opens it.
+    private int FocusCalls() => JSInterop.Invocations.Count(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus");
+
+    [Fact]
+    public async Task AFailedDelete_SaysSoOnThatRow_AndKeepsIt()
+    {
+        var mine = Mine(300, "Mine");
+        var cut = RenderPanel([mine], p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine)
+            .Add(x => x.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(false))));
+
+        await cut.Find("[data-bookmark-delete]").ClickAsync();
+        await cut.Find("[data-bookmark-delete-confirm]").ClickAsync();
+
+        Assert.Contains("Couldn’t delete", cut.Find("[data-bookmark-delete-failed]").TextContent);
+        Assert.Single(cut.FindAll("[data-bookmark-id]"));
+    }
+
+    [Fact]
+    public async Task ADeleteThatThrows_IsLogged_AndShownAsFailed()
+    {
+        var mine = Mine(300, "Mine");
+        var cut = RenderPanel([mine], p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine)
+            .Add(x => x.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => throw new HttpRequestException("down"))));
+
+        await cut.Find("[data-bookmark-delete]").ClickAsync();
+        await cut.Find("[data-bookmark-delete-confirm]").ClickAsync();
+
+        Assert.Single(cut.FindAll("[data-bookmark-delete-failed]"));
+    }
+
+    [Fact]
+    public async Task AnAddThatThrows_IsShownAsFailed_InsteadOfLeavingTheButtonSilent()
+    {
+        var cut = RenderPanel([], p => p.Add(x => x.Add, (Func<double, string?, Task<bool>>)((_, _) => throw new HttpRequestException("down"))));
+
+        await cut.Find("[data-bookmarks-add]").ClickAsync();
+
+        Assert.Contains("Couldn’t", cut.Find("[data-bookmarks-add]").TextContent);
+        Assert.False(cut.Find("[data-bookmarks-add]").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AfterADeleteIsConfirmed_FocusMovesToTheNextRowsEditButton()
+    {
+        var first = Mine(100, "First");
+        var second = Mine(200, "Second");
+        var bookmarks = new List<PlaybackRailBookmark> { first, second };
+        var cut = RenderPanel(bookmarks, p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine)
+            .Add(x => x.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true))));
+
+        Assert.Equal(0, FocusCalls());
+        await cut.FindAll("[data-bookmark-delete]")[0].ClickAsync();
+        await cut.Find("[data-bookmark-delete-confirm]").ClickAsync();
+
+        Assert.Equal(1, FocusCalls());
+        Assert.Equal(2, cut.FindAll("[data-bookmark-edit]").Count); // the next row's Edit button is still there to receive it
+    }
+
+    [Fact]
+    public async Task AfterTheLastRowIsDeleted_FocusMovesToTheList()
+    {
+        var only = Mine(100, "Only");
+        var cut = RenderPanel([only], p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine)
+            .Add(x => x.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true))));
+
+        await cut.Find("[data-bookmark-delete]").ClickAsync();
+        await cut.Find("[data-bookmark-delete-confirm]").ClickAsync();
+        Assert.Equal(0, FocusCalls()); // the row is still listed until the host refreshes the list
+        cut.Render(parameters => parameters.Add(p => p.Bookmarks, (IReadOnlyList<PlaybackRailBookmark>)[]));
+
+        Assert.Equal(1, FocusCalls());
+        Assert.Single(cut.FindAll("[data-bookmarks-empty]"));
+    }
+
+    [Fact]
+    public async Task AfterEditSaveOrCancel_FocusReturnsToThatRowsEditButton()
+    {
+        var mine = Mine(300, "Old note");
+        var cut = RenderPanel([mine], p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine)
+            .Add(x => x.Edit, (Func<PlaybackRailBookmark, string?, string?, Task<bool>>)((_, _, _) => Task.FromResult(true))));
+        var edit = $"[data-bookmark-id='{mine.Id}'] [data-bookmark-edit]";
+
+        await cut.Find(edit).ClickAsync();
+        Assert.Equal(0, FocusCalls());
+        await cut.Find("[data-bookmark-edit-form] .bmk__action").ClickAsync(); // Cancel
+        Assert.Equal(1, FocusCalls());
+
+        await cut.Find(edit).ClickAsync();
+        await cut.Find("[data-bookmark-edit-save]").ClickAsync();
+        Assert.Equal(2, FocusCalls());
+    }
+
+    [Fact]
+    public void TheNameFieldAllowsTheSameLengthAsTheNote()
+    {
+        var mine = Mine(300, "Mine");
+        var cut = RenderPanel([mine], p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine)
+            .Add(x => x.Edit, (Func<PlaybackRailBookmark, string?, string?, Task<bool>>)((_, _, _) => Task.FromResult(true))));
+
+        cut.Find("[data-bookmark-edit]").Click();
+
+        var limit = MediaEngine.Domain.Services.AudiobookBookmarkNotePolicy.MaximumLength.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(limit, cut.Find("[data-bookmark-edit-form] input[type=text]").GetAttribute("maxlength"));
+        Assert.Equal(limit, cut.Find("[data-bookmark-edit-form] textarea").GetAttribute("maxlength"));
+    }
+
     [Fact]
     public void AnOwnRowThatIsGlobal_OffersNoEditOrDeleteInThePlayer()
     {

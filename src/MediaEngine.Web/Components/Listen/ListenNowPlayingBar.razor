@@ -335,7 +335,6 @@
     private PendingNativeSleepTimerBinding? _pendingNativeSleepTimerBinding;
     private NativeSleepTimerBindingRequest? _nativeSleepTimerBinding;
     private bool _shortcutsRegistered;
-    private bool _scrollActiveChapterPending;
 
     private string PlayerShellClass
     {
@@ -713,12 +712,6 @@
             await PrepareAudioSourceAsync();
             await SyncNativeSleepTimerAsync();
             await SyncAudioAsync();
-        }
-
-        if (_scrollActiveChapterPending)
-        {
-            _scrollActiveChapterPending = false;
-            await JS.InvokeVoidAsync("playbackTools.scrollActiveChapter");
         }
 
         var vaultLocked = Services.GetService<NsfwModeState>() is not { Unlocked: true };
@@ -1755,22 +1748,6 @@
         if (_shell?.ArtworkElement is { } artwork) await artwork.FocusAsync();
     }
 
-    private async Task HandleAudiobookPanelControl(PlaybackControlDefinition control)
-    {
-        if (control.IsDisabled || string.IsNullOrWhiteSpace(control.Sheet))
-        {
-            return;
-        }
-
-        if (control.Sheet is "chapters" or "history")
-        {
-            await OpenDockPanelAsync(control.Sheet);
-            return;
-        }
-
-        _scrollActiveChapterPending = string.Equals(control.Sheet, "chapters", StringComparison.Ordinal);
-    }
-
     private async Task SetAudiobookSpeedAsync(double rate)
     {
         await Playback.SetPlaybackRateAsync(rate);
@@ -1853,21 +1830,22 @@
                 return false;
             }
 
-            var result = await BookmarkActions.SaveAsync(context, draft.Generation, authorized, note);
+            var result = await BookmarkActions.SaveWithFieldsAsync(context, draft.Generation, authorized,
+                new AudiobookBookmarkSaveFields(note, null, seconds));
             await RefreshBarMarkersAsync(force: true);
             return result.Outcome == AudiobookBookmarkOperationOutcome.Success;
         }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
+        catch (Exception ex)
         {
-            Logger.LogInformation(ex, "The audiobook position could not be bookmarked by the active playback owner.");
+            Logger.LogWarning(ex, "The audiobook position could not be bookmarked by the active playback owner.");
             return false;
         }
         finally
         {
             try { await BookmarkActions.CloseAsync(context); }
-            catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException)
+            catch (Exception ex)
             {
-                Logger.LogDebug(ex, "The bookmark lease was already released.");
+                Logger.LogDebug(ex, "The bookmark lease could not be released; it was probably released already.");
             }
         }
     }

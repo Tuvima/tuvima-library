@@ -132,6 +132,24 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Empty(await locked.GetAudiobookBookmarksAsync(null, shape.Secret.WorkId));
     }
 
+    [Fact]
+    public async Task BookmarkFrames_AnotherProfilesGlobalRow_OnAVaultVideo_IsNotFound_EvenToAnUnlockedStandardProfile()
+    {
+        // A row flagged global is not enough: a Vault file has no pooled Everyone view, so only the maker (or an administrator) may fetch its frame.
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Secret.AssetId);
+        var theirs = await BookmarkOf(AddOtherProfile(), shape.Secret.WorkId, shape.Secret.AssetId, 360, global: true);
+        var mine = await BookmarkOf(VaultProfile, shape.Secret.WorkId, shape.Secret.AssetId, 90);
+        FrameCache().Write(shape.Secret.AssetId, theirs.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+        FrameCache().Write(shape.Secret.AssetId, mine.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var (player, _) = FramePlayer(shape.Account, session);
+
+        Assert.True((await player.GetBookmarkFramePathAsync(null, mine.Id))!.InVault); // unlocked: the profile's own is served
+        Assert.Null(await player.GetBookmarkFramePathAsync(null, theirs.Id));
+    }
+
     [Theory]
     [InlineData("R", false)]
     [InlineData("PG", true)]

@@ -3,6 +3,7 @@
 @using MediaEngine.Domain.Services
 @using Microsoft.AspNetCore.Components.Web
 @inject IStringLocalizer<SharedStrings> L
+@inject ILogger<BookmarksPanel> Logger
 
 @* The Bookmarks panel for every medium with bookmarks (unified player v2 D21, D21a, D22; mockup screen 11), drawn inside a PlaybackPanel (heading "Bookmarks").
    One full-width purple "Bookmark at 34:12" button that saves at the moment it is pressed, with no note unless the optional "Add a note…" field was opened and
@@ -50,7 +51,7 @@
         @{ var rows = Rows; }
         @if (rows.Count == 0)
         {
-            <p class="bmk__empty" data-bookmarks-empty>@EmptyText</p>
+            <p class="bmk__empty" tabindex="-1" @ref="_emptyNote" data-bookmarks-empty>@EmptyText</p>
         }
         @foreach (var bookmark in rows)
         {
@@ -70,7 +71,7 @@
                             }
                             else
                             {
-                                <button type="button" class="bmk__action" @onclick="@(() => BeginEdit(bookmark))" data-bookmark-edit
+                                <button type="button" class="bmk__action" @ref="_editButtons[bookmark.Id]" @onclick="@(() => BeginEdit(bookmark))" data-bookmark-edit
                                                  aria-label="@L["BookmarksPanel_EditAt", PlaybackSeekRail.Time(bookmark.Seconds)].Value">@L["Common_Edit"]</button>
                                 <button type="button" class="bmk__action" @onclick="@(() => AskDelete(bookmark))" data-bookmark-delete
                                                  aria-label="@L["BookmarksPanel_DeleteAt", PlaybackSeekRail.Time(bookmark.Seconds)].Value">@L["Common_Delete"]</button>
@@ -78,6 +79,10 @@
                         }
                     </Trailing>
                 </PlaybackListRow>
+                @if (_deleteFailedId == bookmark.Id)
+                {
+                    <p class="bmk__edit-failed" role="status" data-bookmark-delete-failed>@L["BookmarksPanel_DeleteFailed"]</p>
+                }
                 @if (_editId == bookmark.Id)
                 {
                     <div class="bmk__edit" data-bookmark-edit-form @onkeydown:stopPropagation="true">
@@ -118,7 +123,7 @@
 
     /// <summary>More rows than this in the shown list brings the search box.</summary>
     public const int SearchThreshold = 8;
-    private const int MaximumNameLength = 120;
+    private const int MaximumNameLength = AudiobookBookmarkNotePolicy.MaximumLength;
 
     /// <summary>Every bookmark the Engine lets this profile see on the title, in time order.</summary>
     [Parameter] public IReadOnlyList<PlaybackRailBookmark> Bookmarks { get; set; } = [];
@@ -156,8 +161,10 @@
 
     private string? _note, _search, _editName, _editNote;
     private bool _noteOpen, _focusNote, _saving, _failed, _editSaving, _editFailed;
-    private Guid? _confirmId, _editId;
-    private ElementReference _noteField;
+    private Guid? _confirmId, _editId, _deleteFailedId, _focusEditId;
+    private bool _focusList;
+    private ElementReference _noteField, _emptyNote;
+    private readonly Dictionary<Guid, ElementReference> _editButtons = [];
     private IReadOnlyList<AppSelectOption>? _choiceOptions;
     private string? _choiceLabelKey;
 
@@ -232,9 +239,21 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_focusNote) return;
-        _focusNote = false;
-        await _noteField.FocusAsync();
+        if (_focusNote)
+        {
+            _focusNote = false;
+            await _noteField.FocusAsync();
+        }
+        else if (_focusEditId is Guid id && _editButtons.TryGetValue(id, out var button) && Rows.Any(row => row.Id == id))
+        {
+            _focusEditId = null;
+            await button.FocusAsync();
+        }
+        else if (_focusList && Rows.Count == 0)
+        {
+            _focusList = false;
+            await _emptyNote.FocusAsync();
+        }
     }
 
     private void OpenNote()
@@ -255,6 +274,9 @@
         _search = null;
         _confirmId = null;
         _editId = null;
+        _deleteFailedId = null;
+        _focusEditId = null;
+        _focusList = false;
         await ChoiceChanged.InvokeAsync(value);
     }
 
@@ -272,24 +294,58 @@
                 _noteOpen = false;
             }
         }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "A bookmark could not be added from the Bookmarks panel.");
+            _failed = true;
+        }
         finally { _saving = false; }
     }
 
     private void AskDelete(PlaybackRailBookmark bookmark)
     {
         _editId = null;
+        _deleteFailedId = null;
         _confirmId = bookmark.Id;
     }
 
+    /// <summary>
+    /// Removes the row after the second click. A refusal says so on that row. When it is gone, focus moves to the next row's Edit button (or the
+    /// one before it), and to the list itself when nothing is left, so a keyboard user is not dropped back at the top of the page.
+    /// </summary>
     private async Task DeleteAsync(PlaybackRailBookmark bookmark)
     {
         _confirmId = null;
-        if (Delete is not null) await Delete(bookmark);
+        _deleteFailedId = null;
+        if (Delete is null) return;
+        var rows = Rows;
+        var index = rows.ToList().FindIndex(row => row.Id == bookmark.Id);
+        var neighbour = rows.Skip(index + 1).Concat(rows.Take(Math.Max(index, 0)).Reverse()).FirstOrDefault(CanChange);
+        bool removed;
+        try
+        {
+            removed = await Delete(bookmark);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "A bookmark could not be deleted from the Bookmarks panel.");
+            removed = false;
+        }
+
+        if (!removed)
+        {
+            _deleteFailedId = bookmark.Id;
+            return;
+        }
+
+        _focusEditId = neighbour?.Id;
+        _focusList = neighbour is null;
     }
 
     private void BeginEdit(PlaybackRailBookmark bookmark)
     {
         _confirmId = null;
+        _deleteFailedId = null;
         _editId = bookmark.Id;
         _editName = bookmark.Label;
         _editNote = bookmark.Note;
@@ -298,6 +354,7 @@
 
     private void CancelEdit()
     {
+        _focusEditId = _editId;
         _editId = null;
         _editFailed = false;
     }
@@ -309,7 +366,16 @@
         try
         {
             _editFailed = !await Edit(bookmark, _editName, _editNote);
-            if (!_editFailed) _editId = null;
+            if (!_editFailed)
+            {
+                _editId = null;
+                _focusEditId = bookmark.Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "A bookmark could not be changed from the Bookmarks panel.");
+            _editFailed = true;
         }
         finally { _editSaving = false; }
     }

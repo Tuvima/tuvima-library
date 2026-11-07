@@ -177,7 +177,7 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
                 Note = "Remember this passage.",
             });
 
-        var bookmarks = await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId);
+        var bookmarks = await BookmarksOfAsync(ids.ProfileId, ids.WorkId);
 
         var listed = Assert.Single(bookmarks);
         Assert.Equal(bookmark.Id, listed.Id);
@@ -204,11 +204,11 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
         Assert.Equal("blob", keyTypes.WorkType);
         Assert.Equal("blob", keyTypes.AssetType);
 
-        Assert.Empty(await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId, default, new HashSet<Guid>()));
+        Assert.Empty(await BookmarksOfAsync(ids.ProfileId, ids.WorkId, new HashSet<Guid>()));
         Assert.False(await repository.DeleteAsync(ids.ProfileId, bookmark.Id, default, new HashSet<Guid>()));
-        Assert.Single(await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId, default, new HashSet<Guid> { ids.AssetId }));
+        Assert.Single(await BookmarksOfAsync(ids.ProfileId, ids.WorkId, new HashSet<Guid> { ids.AssetId }));
         Assert.True(await repository.DeleteAsync(ids.ProfileId, bookmark.Id));
-        Assert.Empty(await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId));
+        Assert.Empty(await BookmarksOfAsync(ids.ProfileId, ids.WorkId));
     }
 
     [Fact]
@@ -281,6 +281,10 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
             });
         return (profileId, workId, assetId);
     }
+
+    /// <summary>The profile's own timed bookmarks on the title, read through the editor's repository, limited to the given files when any.</summary>
+    private async Task<IReadOnlyList<EditorBookmarkRow>> BookmarksOfAsync(Guid profileId, Guid workId, IReadOnlySet<Guid>? allowed = null) =>
+        [.. (await new EditorBookmarkRepository(_db).GetByWorksAsync([workId], allowed)).Where(row => row.ProfileId == profileId)];
 
     public void Dispose()
     {

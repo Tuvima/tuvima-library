@@ -216,7 +216,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<BookmarksPanel", bar, StringComparison.Ordinal);
         Assert.DoesNotContain("AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
         Assert.Contains("data-bookmark-delete-confirm", bookmark, StringComparison.Ordinal);
-        Assert.Contains("OpenDockPanelAsync(control.Sheet)", bar, StringComparison.Ordinal);
+        Assert.Contains("OpenDockPanelAsync(\"history\")", bar, StringComparison.Ordinal);
         var chaptersPanel = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor"));
         var chaptersRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanelRow.razor"));
         Assert.Contains("<ChaptersPanelRow @key=\"chapter.Index\"", chaptersPanel, StringComparison.Ordinal);
