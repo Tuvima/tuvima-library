@@ -1503,14 +1503,8 @@
   <data name="MovieAsTvSuggestionCard_KeepAsUnmatchedFilm" xml:space="preserve">
     <value>Keep as unmatched film</value>
   </data>
-  <data name="ListenNowPlayingBar_PlayingNextAndHistory" xml:space="preserve">
-    <value>Playing next and history</value>
-  </data>
   <data name="Common_Lyrics" xml:space="preserve">
     <value>Lyrics</value>
-  </data>
-  <data name="ListenNowPlayingBar_Repeat" xml:space="preserve">
-    <value>Repeat · {0}</value>
   </data>
   <data name="ListenNowPlayingBar_BookmarksAreUnavailableUntilThe" xml:space="preserve">
     <value>Bookmarks are unavailable until the current audiobook session is ready.</value>
@@ -1521,29 +1515,11 @@
   <data name="ListenNowPlayingBar_NowPlayingMiniPlayer" xml:space="preserve">
     <value>Now playing mini player</value>
   </data>
-  <data name="ListenNowPlayingBar_OpenFullPlayer" xml:space="preserve">
-    <value>Open full player</value>
-  </data>
-  <data name="ListenNowPlayingBar_AudiobookPlaybackTools" xml:space="preserve">
-    <value>Audiobook playback tools</value>
-  </data>
   <data name="ListenNowPlayingBar_QueueAndHistory" xml:space="preserve">
     <value>Queue and history</value>
   </data>
   <data name="Common_Volume" xml:space="preserve">
     <value>Volume</value>
-  </data>
-  <data name="ListenNowPlayingBar_MorePlaybackControls" xml:space="preserve">
-    <value>More playback controls</value>
-  </data>
-  <data name="ListenNowPlayingBar_Queue" xml:space="preserve">
-    <value>Queue</value>
-  </data>
-  <data name="ListenNowPlayingBar_OpenSeparatePlayerWindow" xml:space="preserve">
-    <value>Open separate player window</value>
-  </data>
-  <data name="ListenNowPlayingBar_ClosePlayer" xml:space="preserve">
-    <value>Close player</value>
   </data>
   <data name="Common_Song" xml:space="preserve">
     <value>Song</value>
@@ -7896,14 +7872,8 @@
   <data name="VideoPlaybackHost_StartsInSeconds" xml:space="preserve">
     <value>Starts in {0} seconds</value>
   </data>
-  <data name="VideoPlaybackHost_CloseVideo" xml:space="preserve">
-    <value>Close video</value>
-  </data>
   <data name="VideoPlaybackHost_NextEpisode" xml:space="preserve">
     <value>Next episode</value>
-  </data>
-  <data name="VideoPlaybackHost_PreviousEpisode" xml:space="preserve">
-    <value>Previous episode</value>
   </data>
   <data name="ListenNowPlayingBar_Chapter" xml:space="preserve">
     <value>Chapter</value>
@@ -7928,9 +7898,6 @@
   </data>
   <data name="PlayerSettings_PreviewLine" xml:space="preserve">
     <value>Subtitles will appear like this</value>
-  </data>
-  <data name="PlayerSettings_AaGlyph" xml:space="preserve">
-    <value>Aa</value>
   </data>
   <data name="PlayerSettings_Reset" xml:space="preserve">
     <value>Reset</value>

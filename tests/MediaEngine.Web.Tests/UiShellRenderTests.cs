@@ -1653,9 +1653,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("listen-player-shell--listen-route", hostSource, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell--listen-route {", hostCss, StringComparison.Ordinal);
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns:minmax(0,1fr) 300px minmax(0,1fr)", hostCss, StringComparison.Ordinal);
-        Assert.Contains("height:calc(104px", hostCss, StringComparison.Ordinal);
-        Assert.Contains("border-radius:0", hostCss, StringComparison.Ordinal);
+        var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css"));
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellCss, StringComparison.Ordinal);
+        Assert.Contains("min-height: 60px;", shellCss, StringComparison.Ordinal);
     }
 
     [Fact]

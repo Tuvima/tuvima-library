@@ -1,0 +1,296 @@
+/* The persistent bar (unified player v2 D1 to D6; mockup screens 1 and 2). One component tree for music, audiobooks, TV and movies.
+   Three zones in a grid whose outer columns are equal, so Play is at the exact centre whatever the title or the tools take. */
+.playback-shell {
+    background: var(--tl-bg-shell);
+    border-top: 1px solid var(--playback-hairline);
+    box-sizing: border-box;
+    color: var(--playback-text);
+    font-family: var(--font-ui);
+    padding: 0 16px calc(10px + var(--tl-safe-area-bottom, 0px));
+    pointer-events: auto;
+    position: relative;
+    width: 100%;
+}
+
+/* Over the picture the bar has no fill of its own (the video chrome draws the gradient) and hover is 12% white. */
+.playback-shell--surface-video {
+    --playback-state-hover: var(--playback-state-hover-video);
+    background: transparent;
+    border-top: 0;
+    padding: 0;
+}
+
+/* The seek rail is absolutely positioned by its own style; this keeps its 28 px row in the flow and centres the track in it (mockup: elapsed, rail, remaining). */
+.playback-shell__timeline {
+    height: 28px;
+    min-width: 0;
+    position: relative;
+}
+
+.playback-shell__timeline ::deep .playback-seek-rail--dock {
+    inset: -12px 0 auto 0;
+}
+
+.playback-shell__row {
+    align-items: center;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    min-height: 60px;
+}
+
+/* Identity: artwork slot, title and second line, then the song actions. The title takes what is left and ends in an ellipsis. */
+.playback-shell__identity {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    min-width: 0;
+}
+
+.playback-shell__art {
+    background: var(--tl-bg-surface-elevated);
+    border: 0;
+    border-radius: 6px;
+    color: inherit;
+    flex: none;
+    height: 56px;
+    overflow: hidden;
+    padding: 0;
+    position: relative;
+    width: 56px;
+}
+
+.playback-shell__art--wide {
+    width: 100px;
+}
+
+.playback-shell__art--button {
+    cursor: pointer;
+}
+
+.playback-shell__art--button:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-shell__art img,
+.playback-shell__art-placeholder {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+.playback-shell__art img {
+    object-fit: contain;
+}
+
+.playback-shell__text {
+    min-width: 0;
+}
+
+.playback-shell__title,
+.playback-shell__secondary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-shell__title {
+    color: var(--playback-text);
+    font-size: var(--playback-title-size);
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.playback-shell__secondary {
+    color: var(--playback-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    line-height: 1.45;
+}
+
+.playback-shell__error {
+    color: var(--tl-status-danger);
+    font-size: var(--tl-font-size-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-shell__text ::deep a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.playback-shell__text ::deep a:hover {
+    text-decoration: underline;
+}
+
+.playback-shell__actions {
+    align-items: center;
+    display: flex;
+    flex: none;
+    gap: 6px;
+    margin-left: 2px;
+}
+
+/* Transport: always centred in the bar. Buttons sit 2 px apart; Play is 48 px, the rest 44 px. */
+.playback-shell__transport {
+    align-items: center;
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+}
+
+/* Tools: right-aligned, one row, never wrapping on a desktop. */
+.playback-shell__tools {
+    align-items: center;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 2px;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+/* Tools whose panel the host owns draw their own trigger button (inside the panel component); it takes the same size and states as every
+   other bar button. The audiobook speed value is the same button as a text chip. */
+.playback-shell ::deep .playback-popover-trigger {
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    display: grid;
+    height: var(--playback-control-target);
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: 0;
+    place-items: center;
+    transition: background-color 120ms ease, color 120ms ease;
+    width: var(--playback-control-target);
+}
+
+.playback-shell ::deep .playback-popover-trigger.playback-shell__chip {
+    display: inline-flex;
+    font: 600 var(--tl-font-size-sm)/1 var(--font-ui);
+    gap: 8px;
+    height: 36px;
+    min-height: 36px;
+    min-width: 0;
+    padding: 0 12px;
+    width: auto;
+}
+
+.playback-shell ::deep .playback-popover-trigger:not(:disabled):hover {
+    background: var(--playback-state-hover);
+}
+
+.playback-shell ::deep .playback-popover-trigger:not(:disabled):active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-shell ::deep .playback-popover-trigger:not(:disabled):is([aria-expanded="true"], [aria-pressed="true"], .is-on) {
+    background: var(--playback-state-selected);
+    border-color: transparent;
+    color: var(--tl-accent-primary-hover);
+}
+
+.playback-shell ::deep .playback-popover-trigger:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-shell ::deep .playback-popover-trigger:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-shell ::deep .playback-utility-glyph {
+    flex-basis: var(--playback-control-glyph);
+    height: var(--playback-control-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
+}
+
+/* The bar's own song actions (Favorite, Like, Dislike, More) are square 44 px buttons, 6 px apart. */
+.playback-shell ::deep .playback-song-actions {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+}
+
+.playback-shell ::deep .playback-song-actions button {
+    border-radius: 8px;
+    height: var(--playback-control-target);
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    width: var(--playback-control-target);
+}
+
+/* The volume control keeps the width of its speaker button; its slider is drawn by PlaybackVolumeControl. */
+.playback-shell ::deep .playback-volume {
+    flex: none;
+}
+
+/* Identity keeps at least 240 px (the phone's compact form lets it shrink). Up to 1180 px, which includes the tablet widths the tablet packet
+   finishes, the tools never wrap or push Play off centre: the zone scrolls sideways instead of hiding a tool. */
+.playback-shell__identity { min-width: 240px; }
+
+@media (max-width: 1180px) {
+    /* The inner padding keeps the 2 px focus ring (2 px offset) inside the scroll box, which clips both axes. */
+    .playback-shell__tools { overflow-x: auto; scrollbar-width: none; padding: 4px; margin: -4px; }
+    .playback-shell__tools::-webkit-scrollbar { display: none; }
+}
+
+/* The phone's collapsed bar (D26, finished by the phone packet): art, text, then Play and Next, no Favorite. */
+.playback-shell--compact {
+    padding-bottom: calc(6px + var(--tl-safe-area-bottom, 0px));
+}
+
+.playback-shell--compact .playback-shell__row {
+    gap: 4px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    min-height: 56px;
+}
+
+.playback-shell--compact .playback-shell__identity {
+    min-width: 0;
+}
+
+.playback-shell--compact .playback-shell__title {
+    font-size: var(--tl-font-size-sm);
+}
+
+/* Over the picture the timeline is the video rail itself, in the flow. */
+.playback-shell--surface-video .playback-shell__timeline {
+    height: auto;
+    position: static;
+}
+
+/* Phone: the collapsed bar has no timeline row of its own beyond a thin rail; the safe area keeps it clear of the home indicator. */
+.playback-shell--compact .playback-shell__timeline {
+    height: 12px;
+}
+
+.playback-shell--compact .playback-shell__timeline ::deep .playback-seek-rail--dock {
+    inset: -20px 0 auto 0;
+}
+
+/* Phones watching a video: one column, so Play stays reachable; the dedicated phone layout belongs to the phone packet. */
+@media (max-width: 600px) {
+    .playback-shell--surface-video .playback-shell__row {
+        gap: 4px;
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 0;
+    }
+
+    .playback-shell--surface-video .playback-shell__art,
+    .playback-shell--surface-video .playback-shell__actions {
+        display: none;
+    }
+
+    .playback-shell--surface-video .playback-shell__tools {
+        justify-content: center;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+}

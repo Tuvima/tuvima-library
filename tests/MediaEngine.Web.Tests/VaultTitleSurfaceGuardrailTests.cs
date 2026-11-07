@@ -73,7 +73,7 @@ public sealed class VaultTitleSurfaceGuardrailTests
         Assert.Contains("<PageTitle>@PageTitleText - Library</PageTitle>", page);
 
         var vault = Create(isVault: true);
-        var metadata = VideoMediaSessionMetadata.Create(vault, "Secret Show", new Uri("http://localhost/"));
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Movie, vault, new Uri("http://localhost/"), ShowTitle: "Secret Show"))!;
         Assert.Equal(VaultPrivacy.GenericTitle, metadata.Title);
         Assert.Empty(metadata.Artwork);
         Assert.DoesNotContain("Secret", $"{metadata.Title}{metadata.Artist}{metadata.Album}", StringComparison.OrdinalIgnoreCase);

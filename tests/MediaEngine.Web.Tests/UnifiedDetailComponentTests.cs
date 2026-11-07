@@ -1319,7 +1319,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("listenPendingStartPosition", playerScript);
         Assert.Contains("document.addEventListener('click'", playerScript);
         Assert.Contains("openPopupFromImmediateAction", playerScript);
-        Assert.Contains("data-listen-popup-route", playerBar);
         Assert.Contains("AudiobookActionAttributes", detailPage);
         Assert.Contains("ActionAttributes=\"@(IsAudiobook ? AudiobookActionAttributes : null)\"", detailPage);
         Assert.Contains("window.detailOrigin.initialize();", playerScript);

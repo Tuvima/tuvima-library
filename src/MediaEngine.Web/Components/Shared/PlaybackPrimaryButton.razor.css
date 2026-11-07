@@ -134,3 +134,52 @@
     color: #fff !important;
     fill: #fff !important;
 }
+
+/* The persistent bar's Play (unified player v2 D6): a 32 px stroke glyph in a 48 px target. No ring, no glow, no lift; the shared hover,
+   pressed, disabled and focus states of the other bar buttons. The button is this component's own child, so these rules need no deep selector. */
+.playback-primary-button-shell--bar {
+    --playback-primary-size: var(--playback-play-target);
+    --playback-primary-icon-size: var(--playback-play-glyph);
+    height: var(--playback-play-target);
+    width: var(--playback-play-target);
+}
+
+.playback-bar-play {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    height: var(--playback-play-target);
+    justify-content: center;
+    padding: 0;
+    transition: background-color 120ms ease;
+    width: var(--playback-play-target);
+}
+
+.playback-bar-play:not(:disabled):hover {
+    background: var(--playback-state-hover);
+}
+
+.playback-bar-play:not(:disabled):active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-bar-play:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-bar-play:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-bar-play .playback-utility-glyph {
+    flex-basis: var(--playback-play-glyph);
+    height: var(--playback-play-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-play-glyph);
+}

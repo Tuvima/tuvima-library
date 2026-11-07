@@ -38,6 +38,12 @@ public enum PlaybackControlKey
     Resume,
     SkipIntro,
     SkipCredits,
+    /// <summary>Unified player v2 D4: the video tool that opens Audio and Subtitles together.</summary>
+    AudioSubtitles,
+    /// <summary>Unified player v2 D4: the TV episode list tool.</summary>
+    Episodes,
+    /// <summary>Unified player v2 D4: the icon-only Now playing tool of music and audiobooks.</summary>
+    NowPlaying,
 }
 
 public enum PlaybackControlSurface
@@ -85,8 +91,8 @@ public sealed record PlaybackControlState(
     bool IsRepeatEnabled = false,
     bool IsSleepTimerActive = false,
     string? SleepTimerValueText = null,
-    int SkipBackSeconds = 15,
-    int SkipForwardSeconds = 15,
+    int SkipBackSeconds = 10,
+    int SkipForwardSeconds = 30,
     int HistoryCount = 0,
     string? RepeatMode = null,
     bool CanBookmark = false,
@@ -107,7 +113,7 @@ public sealed record PlaybackControlDefinition(
     bool IsDisabled = false,
     bool IsSelected = false);
 
-public static class PlaybackControlCatalog
+public static partial class PlaybackControlCatalog
 {
     public static IReadOnlyList<PlaybackControlDefinition> Build(
         PlaybackExperience experience,

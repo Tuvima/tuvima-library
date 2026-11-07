@@ -43,7 +43,7 @@
                             <div class="playback-video-controls__right">
                             @if (_videoTextTracks.Count > 0)
                             {
-                                <PlaybackPopover Title="@L["Common_Subtitles"].Value" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
+                                <PlaybackPanel Title="@L["Common_Subtitles"].Value" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
                                     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
                                     <ChildContent><PlaybackSheetList>
                                         <PlaybackSheetRow IsActive="@(!_videoTextTracks.Any(track => track.Selected))" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = "-1" }))" AriaLabel="@L["MediaViewerShell_SubtitlesOff"].Value"><strong>@L["Common_Off"]</strong></PlaybackSheetRow>
@@ -52,7 +52,7 @@
                                             <PlaybackSheetRow IsActive="@track.Selected" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = track.Index.ToString() }))" AriaLabel="@($"Select {track.Label} subtitles")"><strong>@track.Label</strong></PlaybackSheetRow>
                                         }
                                     </PlaybackSheetList></ChildContent>
-                                </PlaybackPopover>
+                                </PlaybackPanel>
                             }
                             <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
                             @if (_videoAudioTracks.Count > 1)

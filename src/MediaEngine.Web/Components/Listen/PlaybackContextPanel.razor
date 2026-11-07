@@ -57,14 +57,14 @@
                                 @onkeydown="@(args => ReorderKeyAsync(args, rowSnapshot, occurrenceId, upcomingIndex))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragHandle" /></AppNativeButton>
                         </Handle>
                         <Actions>
-                            <PlaybackPopover Title="@($"Queue actions for {item.Title}")" Kind="menu" ShowHeading="false">
+                            <PlaybackPanel Title="@($"Queue actions for {item.Title}")" Kind="menu" ShowHeading="false">
                                 <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
                                 <ChildContent>
                                     <AppNativeButton Type="button" Disabled="@(upcomingIndex == 0)" OnClick="@(() => MoveAsync(rowSnapshot, occurrenceId, upcomingIndex - 1))">@L["PlaybackContextPanel_MoveEarlier"]</AppNativeButton>
                                     <AppNativeButton Type="button" Disabled="@(upcomingIndex == Upcoming.Count - 1)" OnClick="@(() => MoveAsync(rowSnapshot, occurrenceId, upcomingIndex + 1))">@L["PlaybackContextPanel_MoveLater"]</AppNativeButton>
                                     <AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(() => RemoveOccurrenceAsync(rowSnapshot, occurrenceId))">@L["Common_Remove"]</AppNativeButton>
                                 </ChildContent>
-                            </PlaybackPopover>
+                            </PlaybackPanel>
                         </Actions>
                     </PlaybackContextRow>
                     </div>
@@ -133,10 +133,10 @@
                     <PlaybackContextRow Variant="history" LeadingWidth="56px" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")"
                                        Title="@item.Title" Subtitle="@HistorySubtitle(item)"
                                        OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))" AriaLabel="@($"Play {item.Title}")">
-                        <Actions><PlaybackPopover Title="@($"History actions for {item.Title}")" Kind="menu" ShowHeading="false">
+                        <Actions><PlaybackPanel Title="@($"History actions for {item.Title}")" Kind="menu" ShowHeading="false">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
                             <ChildContent><AppNativeButton Type="button" AriaLabel="@($"Play {item.Title}")" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))">@L["PlaybackContextPanel_PlayAgain"]</AppNativeButton></ChildContent>
-                        </PlaybackPopover></Actions>
+                        </PlaybackPanel></Actions>
                     </PlaybackContextRow>
                 }
             }

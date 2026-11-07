@@ -18,11 +18,13 @@ public sealed class PlayerLayoutRulesTests
     [Fact]
     public void DesktopVideoBar_KeepsPlayInTheTrueCentreWithTheTitleOnTheLeft()
     {
-        var css = RepoFile("src", "MediaEngine.Web", "wwwroot", "app.css");
+        // Unified player v2 D2: one shell draws the bar for every media, with equal outer columns so Play is at the true centre.
+        var css = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css");
 
-        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; }", css, StringComparison.Ordinal);
-        Assert.DoesNotContain("grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; }", css, StringComparison.Ordinal);
-        Assert.Contains(".playback-video-controls__identity { text-align: left;", css, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("grid-template-columns: auto minmax(0, 1fr) auto;", css, StringComparison.Ordinal);
+        Assert.Contains(".playback-shell__title,", css, StringComparison.Ordinal);
+        Assert.Contains("text-overflow: ellipsis;", css, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -31,6 +33,6 @@ public sealed class PlayerLayoutRulesTests
         var css = RepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor.css");
 
         Assert.Contains(".listen-player__scope { position:absolute;", css, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook { height:calc(132px", css, StringComparison.Ordinal);
+        Assert.Contains(".listen-player--audiobook .playback-shell__timeline { height:56px; }", css, StringComparison.Ordinal);
     }
 }
