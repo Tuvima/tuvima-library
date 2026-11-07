@@ -539,6 +539,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
         cut.WaitForAssertion(() => Assert.NotEmpty(phoneFull.FindAll("[data-playback-speed-view]")));
         await cut.InvokeAsync(() => speed.Instance.CloseAsync());
+        // Closing re-renders the full player once more (focus return); wait for it so the Chapters click hits the current render tree.
+        cut.WaitForAssertion(() => Assert.Empty(phoneFull.FindAll("[data-playback-speed-view]")));
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
         var chapters = phoneFull.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters");

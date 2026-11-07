@@ -881,6 +881,10 @@
     }
   },
   "files": {
+    "src/MediaEngine.Web/Components/Shared/PlaybackListRow.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
     "src/MediaEngine.Web/Shared/MainLayout.razor.css": {
       "important": 10,
       "deep": 37
@@ -1135,7 +1139,7 @@
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
       "important": 0,
-      "deep": 3
+      "deep": 11
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
       "important": 0,
@@ -1671,7 +1675,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css": {
       "important": 0,
-      "deep": 6
+      "deep": 14
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css": {
       "important": 0,
@@ -4268,6 +4272,54 @@
         ".sfv ::deep .sfv__preferred:focus-visible"
       ],
       "reason": "The Find subtitles buttons are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "important": 0,
+      "deep": 8,
+      "selectors": [
+        ".psp ::deep .psp__row",
+        ".psp ::deep .psp__row:hover",
+        ".psp ::deep .psp__row:active",
+        ".psp ::deep .psp__row:focus-visible",
+        ".psp ::deep .psp__row:disabled",
+        ".psp ::deep .psp__row:disabled:hover",
+        ".psp ::deep .psp__row:disabled .playback-utility-glyph",
+        ".psp ::deep .psp__row:disabled .psp__label"
+      ],
+      "reason": "The Play on another device row and the other panel rows are App* buttons, so their rules go through the panel root (.psp ::deep .psp__row); until now they targeted the button inside AppNativeButton and never applied. (unified player v2 WP15 review fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
+      "important": 0,
+      "deep": 8,
+      "selectors": [
+        ".playback-lyrics ::deep .playback-lyrics__line",
+        ".playback-lyrics ::deep button.playback-lyrics__line",
+        ".playback-lyrics ::deep button.playback-lyrics__line:hover",
+        ".playback-lyrics ::deep button.playback-lyrics__line:focus-visible",
+        ".playback-lyrics ::deep .playback-lyrics__line.is-active",
+        ".playback-lyrics ::deep .playback-lyrics__link",
+        ".playback-lyrics ::deep .playback-lyrics__link:hover",
+        ".playback-lyrics ::deep .playback-lyrics__link:focus-visible"
+      ],
+      "reason": "The timed lyric lines and the About links are App* buttons, so each rule gets a twin through the lyrics root; the plain rule only reached the untimed paragraph. (unified player v2 WP15 review fix.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackListRow.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".plr ::deep .plr__main",
+        ".plr ::deep button.plr__main",
+        ".plr ::deep button.plr__main::after",
+        ".plr ::deep button.plr__main:focus-visible",
+        ".plr ::deep button.plr__main:focus-visible::after"
+      ],
+      "reason": "The row body is an AppNativeButton when the row is actionable, so its rules get a twin through the row root. (unified player v2 WP15 review fix.)"
     },
     {
       "source": "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css",

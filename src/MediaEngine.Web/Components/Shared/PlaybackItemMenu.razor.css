@@ -14,8 +14,9 @@
     color: var(--playback-text);
     cursor: pointer;
     display: flex;
+    flex-wrap: wrap;
     font: 500 16px/1.25 var(--font-ui);
-    gap: 12px;
+    gap: 2px 12px;
     min-height: var(--playback-panel-row-height);
     padding: 4px 10px;
     text-align: left;
@@ -41,6 +42,29 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Play on another device... (unified player v2 D28): the row may wrap, so its helper line (the reason it cannot be used) sits under the label,
+   indented past the glyph, in the secondary color (mockup screen 5's "sub" line). A row that cannot be used dims its glyph and label, not the reason. */
+.playback-item-menu__main {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    min-width: 0;
+}
+
+.playback-item-menu__main--dim {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-item-menu__sub {
+    color: var(--playback-text-secondary);
+    flex-basis: 100%;
+    font: 400 13px/1.45 var(--font-ui);
+    margin-left: 36px;
+    order: 10;
 }
 
 .playback-item-menu__divider {

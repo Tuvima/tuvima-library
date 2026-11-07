@@ -12,10 +12,12 @@ using MediaEngine.Processors.Contracts;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Casting to a home-network TV. A paired phone asks for a cast session (<c>POST /api/v1/playback/{assetId}/cast</c>); the TV
-/// then loads the returned paths under <c>/cast/v1/{grant}/</c> with no sign-in. The grant is a short-lived secret for ONE
-/// title (see <see cref="CastAccessGrantService"/>); the receiver routes are anonymous on purpose, check the whole grant on
-/// every request, and serve GET, HEAD and OPTIONS only. The Dashboard relays them for home-network clients and nobody else.
+/// Casting to a TV or speaker, or to a browser's own device picker. A paired phone, or a signed-in Dashboard session, asks for a cast
+/// session (<c>POST /api/v1/playback/{assetId}/cast</c>); the receiver then loads the returned paths under <c>/cast/v1/{grant}/</c>
+/// with no sign-in. The grant is a short-lived secret for ONE title (see <see cref="CastAccessGrantService"/>); the receiver routes
+/// are anonymous on purpose, check the whole grant on every request, and serve GET, HEAD and OPTIONS only. The grant is a short-lived
+/// secret for one title, bound to the live session or device that made it, and it works wherever the server is reachable: there is
+/// no location check (ADR 0009). A Vault item never casts.
 /// </summary>
 public static class CastEndpoints
 {
@@ -26,7 +28,7 @@ public static class CastEndpoints
         app.MapPost("/api/v1/playback/{assetId:guid}/cast", CreateSessionAsync)
             .WithName("CreateCastSession")
             .WithTags("Playback")
-            .WithSummary("Start a cast session for one video: a short-lived, single-title link a home-network TV can play with no sign-in.")
+            .WithSummary("Start a cast session for one video, song or audiobook: a short-lived, single-title link, bound to the live session or device, that a receiver can play with no sign-in.")
             .Produces<CastSessionDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -74,20 +76,30 @@ public static class CastEndpoints
         CastSessionService sessions,
         CancellationToken ct)
     {
-        if (request is null || !string.Equals(request.Receiver, CastReceivers.GoogleCastDefault, StringComparison.Ordinal))
+        var receiver = request?.Receiver;
+        var pairedReceiver = string.Equals(receiver, CastReceivers.GoogleCastDefault, StringComparison.Ordinal);
+        var browserReceiver = string.Equals(receiver, CastReceivers.BrowserRemotePlayback, StringComparison.Ordinal);
+        if (!pairedReceiver && !browserReceiver)
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Unsupported receiver",
-                detail: $"Only '{CastReceivers.GoogleCastDefault}' is supported.");
+                detail: $"Only '{CastReceivers.GoogleCastDefault}' and '{CastReceivers.BrowserRemotePlayback}' are supported.");
         }
 
         var authority = await authorities.ResolveAsync(context, ct).ConfigureAwait(false);
-        if (authority.PrincipalKind != PrincipalKind.DelegatedUserClient)
+
+        // Exactly two callers may start a cast session, each for its own receiver value and no other:
+        //  - a paired device (DelegatedUserClient) asking for 'google-cast-default', which gets a device grant bound to its token family;
+        //  - a signed-in Dashboard session (Human with a managed session id) asking for 'browser-remote-playback', which gets a session
+        //    grant bound to that session, so signing out or revoking it ends the cast.
+        // An Application, Setup, HostRecovery or anonymous caller, or either caller with the other's receiver value, is refused.
+        var allowed = (pairedReceiver && authority.PrincipalKind == PrincipalKind.DelegatedUserClient) ||
+                      (browserReceiver && authority.PrincipalKind == PrincipalKind.Human && authority.SessionId is not null);
+        if (!allowed)
         {
-            // A signed-in Dashboard session (or an Application) never starts a cast session: only a paired device does.
-            return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Paired device required",
-                detail: "Casting can be started from a paired app only.");
+            return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Casting not allowed",
+                detail: "Casting can be started from a paired app or a signed-in Dashboard session only.");
         }
 
         var tokenId = Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.TokenId), out var parsed) && parsed != Guid.Empty ? parsed : (Guid?)null;
@@ -144,9 +156,11 @@ public static class CastEndpoints
             return;
         }
 
-        var contentType = string.Equals(Path.GetExtension(asset.FilePathRoot), ".webm", StringComparison.OrdinalIgnoreCase)
-            ? CastSessionService.ContentTypeWebm
-            : CastSessionService.ContentTypeMp4;
+        var extension = Path.GetExtension(asset.FilePathRoot);
+        var contentType = CastSessionService.AudioContentTypeOf(extension)
+            ?? (string.Equals(extension, ".webm", StringComparison.OrdinalIgnoreCase)
+                ? CastSessionService.ContentTypeWebm
+                : CastSessionService.ContentTypeMp4);
         await ByteRangeResponder.WriteFileAsync(context, streamer, asset.FilePathRoot, contentType,
             HttpMethods.IsHead(context.Request.Method), ct).ConfigureAwait(false);
     }

@@ -80,7 +80,7 @@
 }
 
 /* Each line has a 3 px edge that is purple on the current line; a timed line is a button and keeps a 44 px target. */
-.playback-lyrics__line {
+.playback-lyrics__line, .playback-lyrics ::deep .playback-lyrics__line {
     background: transparent;
     border: 0;
     border-left: 3px solid transparent;
@@ -96,21 +96,21 @@
     width: 100%;
 }
 
-button.playback-lyrics__line {
+button.playback-lyrics__line, .playback-lyrics ::deep button.playback-lyrics__line {
     cursor: pointer;
     min-height: 44px;
 }
 
-button.playback-lyrics__line:hover {
+button.playback-lyrics__line:hover, .playback-lyrics ::deep button.playback-lyrics__line:hover {
     color: var(--playback-text);
 }
 
-button.playback-lyrics__line:focus-visible {
+button.playback-lyrics__line:focus-visible, .playback-lyrics ::deep button.playback-lyrics__line:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
 
-.playback-lyrics__line.is-active {
+.playback-lyrics__line.is-active, .playback-lyrics ::deep .playback-lyrics__line.is-active {
     border-left-color: var(--playback-accent);
     color: var(--playback-text);
     font-weight: 600;
@@ -255,7 +255,7 @@ button.playback-lyrics__line:focus-visible {
     justify-content: center;
 }
 
-.playback-lyrics__link {
+.playback-lyrics__link, .playback-lyrics ::deep .playback-lyrics__link {
     align-items: center;
     background: transparent;
     border: 0;
@@ -268,11 +268,11 @@ button.playback-lyrics__line:focus-visible {
     padding: 8px 12px;
 }
 
-.playback-lyrics__link:hover {
+.playback-lyrics__link:hover, .playback-lyrics ::deep .playback-lyrics__link:hover {
     background: var(--playback-state-hover);
 }
 
-.playback-lyrics__link:focus-visible {
+.playback-lyrics__link:focus-visible, .playback-lyrics ::deep .playback-lyrics__link:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }

@@ -9,10 +9,15 @@ public interface ICastAssetAuthorizer
     ValueTask<bool> AllowsPlaybackAsync(RequestAuthority authority, Guid assetId, CancellationToken ct = default);
 }
 
-/// <summary>The real check: <c>playback.read</c> on the asset through the catalogue authorization service, evaluated live.</summary>
+/// <summary>
+/// The real check, evaluated live on every receiver request: a Vault item never casts (the receiver holds no Vault unlock, so the Vault's lock
+/// cannot protect it), and everything else needs <c>playback.read</c> on the asset
+/// through the catalogue authorization service, including a Kids content limit.
+/// </summary>
 internal sealed class CatalogueCastAssetAuthorizer(CatalogueResourceAuthorizationService catalogue) : ICastAssetAuthorizer
 {
     public async ValueTask<bool> AllowsPlaybackAsync(RequestAuthority authority, Guid assetId, CancellationToken ct = default) =>
+        !await catalogue.IsVaultItemAsync(assetId, ct).ConfigureAwait(false) &&
         await catalogue.EvaluateAssetAsync(authority, assetId, ApplicationPermissionIds.PlaybackRead, ct).ConfigureAwait(false)
         == CatalogueResourceAccess.Allowed;
 }

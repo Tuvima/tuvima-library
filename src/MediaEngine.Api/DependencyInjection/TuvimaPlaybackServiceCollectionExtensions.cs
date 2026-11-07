@@ -7,6 +7,7 @@ using MediaEngine.Processors.Contracts;
 using MediaEngine.Processors.Extractors;
 using MediaEngine.Processors.Processors;
 using MediaEngine.Storage.Playback;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace MediaEngine.Api.DependencyInjection;
 
@@ -35,7 +36,16 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<BookmarkFrameService>();
         services.AddSingleton<HlsAccessGrantService>();
         // Casting: a separate grant kind (its own Data Protection purpose) so HLS and cast grants can never be swapped.
-        services.AddSingleton<CastAccessGrantService>();
+        // Built by hand so the identity store (which a signed-in Dashboard session's grant is checked against on every request) can
+        // never be silently left out; a missing registration fails here, at first use, rather than quietly refusing every session grant.
+        services.AddSingleton(provider => new CastAccessGrantService(
+            provider.GetRequiredService<IDataProtectionProvider>(),
+            provider.GetRequiredService<IAccountRepository>(),
+            provider.GetRequiredService<IApplicationRepository>(),
+            provider.GetRequiredService<IClientAuthorizationRepository>(),
+            provider.GetRequiredService<IPermissionRegistry>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetRequiredService<IIdentityRepository>()));
         services.AddSingleton<CastSessionService>();
         services.AddScoped<ICastAssetAuthorizer, CatalogueCastAssetAuthorizer>();
         services.AddSingleton<AdaptiveHlsCleanupService>();

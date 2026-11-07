@@ -331,12 +331,6 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        // A temporary password that has run out takes its sessions with it.
-        if (account.IsTemporaryPasswordExpired(now))
-        {
-            return null;
-        }
-
         // An account that has no password yet works only on this computer, not even from the home network.
         // Callers that do not say where the request came from count as outside for this kind of account.
         var effectiveIngress = currentIngress ?? (account.IsThisComputerOnly ? ClientIngress.Remote : null);
@@ -345,18 +339,10 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        if (session.AuthenticationMethod.Equals("Password", StringComparison.OrdinalIgnoreCase))
+        // One shared list (SessionIntegrity): a temporary password that has run out, a retired sign-in method, or a password
+        // changed since the session started takes the session with it. Signed-in cast grants use the same check.
+        if (!await SessionIntegrity.HoldsAsync(identities, session, account, now, ct).ConfigureAwait(false))
         {
-            var credential = await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false);
-            if (!StampMatches(credential?.SecurityStamp, session.SecurityStamp))
-            {
-                return null;
-            }
-        }
-        else if (session.AuthenticationMethod is "ProfilePin" or "ProfileEntry")
-        {
-            // Retired sign-in methods: a profile PIN only switches profiles inside a session that an account
-            // sign-in already made, so a session that claims to have started from one is never accepted.
             return null;
         }
 

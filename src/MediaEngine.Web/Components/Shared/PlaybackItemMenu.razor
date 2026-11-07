@@ -2,10 +2,12 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Progress
 @using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Playback
 @using Microsoft.Extensions.DependencyInjection
 @implements IDisposable
 @inject IServiceProvider Services
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 @* The "..." beside the title (unified player v2 D23; mockup screen 12): a 272 px PlaybackPanel menu with the item's name above 44 px rows, each a 24 px
    stroke glyph and a 16 / 500 label, separated into groups by hairlines. Add to playlist, Mark as listened / unlistened, history, the "Go to"
@@ -29,8 +31,25 @@
                     <span class="playback-item-menu__label">@row.Label</span>
                 </AppNativeButton>
             }
-            @* The hook for "Play on another device..." (unified player v2 D15, packet 15): rows the host adds after the item's own. *@
+            @* Rows the host adds after the item's own. *@
             @ExtraRows
+            @if (ShowsRemoteRow)
+            {
+                @* Play on another device... (unified player v2 D28; mockup screen 16): the browser's own AirPlay or Google Cast picker. Music and audiobooks
+                   have it here; TV and movies have it in Playback settings. It is never a bar tool. A disabled row says why under its label. *@
+                <AppNativeButton Type="button" Class="playback-item-menu__row" role="menuitem" data-playback-item-action="play-on-device"
+                                 data-remote-state="@RemoteState.ToString().ToLowerInvariant()" Disabled="@(!PlaybackRemoteRules.IsEnabled(RemoteState))"
+                                 OnClick="ActivateRemoteAsync">
+                    <span class="@(PlaybackRemoteRules.IsEnabled(RemoteState) ? "playback-item-menu__main" : "playback-item-menu__main playback-item-menu__main--dim")">
+                        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PlayOnDevice" />
+                        <span class="playback-item-menu__label">@RemoteLabel</span>
+                    </span>
+                    @if (RemoteHelper is { } reason)
+                    {
+                        <span class="playback-item-menu__sub" data-playback-remote-helper>@reason</span>
+                    }
+                </AppNativeButton>
+            }
         </div>
     </ChildContent>
 </PlaybackPanel>
@@ -66,6 +85,7 @@
     [Parameter] public RenderFragment? ExtraRows { get; set; }
 
     private readonly string _toolId = $"item-actions-{Guid.NewGuid():N}";
+    private PlaybackRemoteController? _remote;
     private PlaybackPanel? _menuPanel;
 
     /// <summary>The "..." button, so a row added through <see cref="ExtraRows"/> can hand focus back to it once the menu has closed.</summary>
@@ -97,6 +117,43 @@
         CanMark: _status is null || _status.OwnedCount > 0,
         ShowWorkId: ShowWorkId, SeasonId: SeasonId));
 
+    protected override void OnInitialized()
+    {
+        // Optional: a page without a remote controller simply has no Play on another device row.
+        _remote = Services.GetService<PlaybackRemoteController>();
+        if (_remote is not null)
+        {
+            _remote.Changed += OnRemoteChanged;
+        }
+    }
+
+    private void OnRemoteChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private bool ShowsRemoteRow => _remote is not null && Media is PlaybackBarMedia.Music or PlaybackBarMedia.Audiobook;
+
+    private PlaybackRemoteRowState RemoteState => _remote is null ? PlaybackRemoteRowState.NotInBrowser : PlaybackRemoteRules.Evaluate(
+        _remote.Support, _remote.Mode, Item?.AssetId is { } asset && asset != Guid.Empty, Item?.IsVault == true, _remote.LastAttemptFailed);
+
+    private string RemoteLabel => RemoteState == PlaybackRemoteRowState.Stop
+        ? L["PlaybackRemote_Stop", _remote?.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : L["PlaybackRemote_Row"].Value;
+
+    private string? RemoteHelper => RemoteState switch
+    {
+        PlaybackRemoteRowState.NotInBrowser => L["PlaybackRemote_NotInBrowser"].Value,
+        PlaybackRemoteRowState.NothingPlaying => L["PlaybackRemote_NothingPlaying"].Value,
+        PlaybackRemoteRowState.Vault => L["PlaybackRemote_Vault"].Value,
+        PlaybackRemoteRowState.CannotYet => L["PlaybackRemote_NotYet"].Value,
+        _ => null,
+    };
+
+    private async Task ActivateRemoteAsync()
+    {
+        if (_remote is null || !Current()) return;
+        CloseMenu();
+        await _remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Item?.AssetId, Item?.IsVault == true);
+    }
+
     protected override void OnParametersSet()
     {
         if (_statusSubject != StatusSubject)
@@ -108,7 +165,12 @@
 
     private async Task HandleOpenChangedAsync(bool open)
     {
-        if (open) await LoadStatusAsync();
+        if (open)
+        {
+            // The cast link is fetched while the menu is open, so choosing the row can open the browser's picker inside the click (Safari).
+            if (ShowsRemoteRow && _remote is not null) _ = _remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Item?.AssetId, Item?.IsVault == true);
+            await LoadStatusAsync();
+        }
     }
 
     private async Task LoadStatusAsync()
@@ -202,6 +264,12 @@
         if (firstRender && SettingsPanel is not null) StateHasChanged();
     }
 
+    // The browser is asked once, after the first draw, whether it has the Remote Playback API, so the row is right the first time it is opened.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && ShowsRemoteRow && _remote is not null) await _remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+    }
+
     private async Task OpenPlaybackSettingsAsync()
     {
         if (SettingsPanel is not null)
@@ -247,5 +315,9 @@
         Nav.NavigateTo(route);
     }
 
-    public void Dispose() => CloseMenu();
+    public void Dispose()
+    {
+        if (_remote is not null) _remote.Changed -= OnRemoteChanged;
+        CloseMenu();
+    }
 }

@@ -4,6 +4,8 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Playback
 @inject IStringLocalizer<SharedStrings> L
+@inject IServiceProvider Services
+@implements IDisposable
 
 @* Playback settings (unified player v2 D14; mockup screen 5, right panel): the gear of TV and movies, and the row the "..." menu opens for music and
    audiobooks. A 400 px panel with the fixed header "Playback settings" and rows for Playback speed (the Speed view opens inside this panel), Skip back,
@@ -11,7 +13,7 @@
    facts). The footer is "Reset playback preferences". Audio and subtitles are not here; they have their own panel (D12). Skip lengths are the same
    per-profile preferences Settings, Playback used to hold. A row shows only when the media and the app support it. *@
 <PlaybackPanel @ref="_panel" Title="@L["PlaybackSettings_Title"].Value" ToolId="@EffectiveToolId" Kind="settings" Surface="@Surface" ItemKey="@ItemKey"
-               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="OpenChanged" Footer="@(ShowsReset ? MainFooter : null)"
+               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="HandlePanelOpenChangedAsync" Footer="@(ShowsReset ? MainFooter : null)"
                TriggerContent="@(ShowTrigger ? GearGlyph : null)">
     <ChildContent>
         <div class="psp" data-playback-settings>
@@ -42,7 +44,20 @@
                 <span class="psp__value"><span class="psp__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronRight" /></span></span>
                 <span class="psp__sub">@L["PlaybackSettings_InformationHelper"]</span>
             </AppNativeButton>
-            @* The hook packet 15 uses for "Play on another device...". *@
+            @if (ShowsRemoteRow)
+            {
+                @* Play on another device... (unified player v2 D28; mockup screen 16): TV and movies have it here, music and audiobooks in the "..." menu. It is
+                   never a bar tool. A disabled row says why under its label. *@
+                <AppNativeButton Type="button" Class="psp__row" data-psp-row="play-on-device" data-remote-state="@RemoteState.ToString().ToLowerInvariant()"
+                                 Disabled="@(!PlaybackRemoteRules.IsEnabled(RemoteState))" OnClick="ActivateRemoteAsync">
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PlayOnDevice" />
+                    <span class="psp__label">@RemoteLabel</span>
+                    @if (RemoteHelper is { } reason)
+                    {
+                        <span class="psp__sub" data-psp-remote-helper>@reason</span>
+                    }
+                </AppNativeButton>
+            }
             @ExtraRows
         </div>
     </ChildContent>
@@ -74,7 +89,7 @@
     /// <summary>"Reset playback preferences": the host puts the skip lengths and the speed back to the defaults.</summary>
     [Parameter] public EventCallback OnReset { get; set; }
 
-    /// <summary>Rows the host adds after Playback information (packet 15: "Play on another device...").</summary>
+    /// <summary>Rows the host adds after Playback information.</summary>
     [Parameter] public RenderFragment? ExtraRows { get; set; }
 
     /// <summary>True draws the gear that opens the panel (the bar's Playback settings tool); false leaves opening to the host (the "..." menu's row).</summary>
@@ -89,6 +104,67 @@
     [Parameter] public string? ItemKey { get; set; }
     [Parameter] public bool? Open { get; set; }
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    private PlaybackRemoteController? _remote;
+
+    protected override void OnInitialized()
+    {
+        // Optional: a page without a remote controller simply has no Play on another device row.
+        _remote = Services.GetService<PlaybackRemoteController>();
+        if (_remote is not null)
+        {
+            _remote.Changed += OnRemoteChanged;
+        }
+    }
+
+    private void OnRemoteChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // The browser is asked once, after the first draw, whether it has the Remote Playback API, so the row is right the first time it is opened.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && ShowsRemoteRow && _remote is not null) await _remote.ProbeAsync(PlaybackRemoteController.VideoElementId);
+    }
+
+    public void Dispose()
+    {
+        if (_remote is not null) _remote.Changed -= OnRemoteChanged;
+    }
+
+    private bool ShowsRemoteRow => _remote is not null && IsVideo;
+    private Guid? RemoteAssetId => Manifest?.AssetId is { } asset && asset != Guid.Empty ? asset : null;
+    private bool RemoteIsVault => Manifest?.IsVault == true;
+
+    private PlaybackRemoteRowState RemoteState => _remote is null ? PlaybackRemoteRowState.NotInBrowser
+        : PlaybackRemoteRules.Evaluate(_remote.Support, _remote.Mode, RemoteAssetId is not null, RemoteIsVault, _remote.LastAttemptFailed);
+
+    private string RemoteLabel => RemoteState == PlaybackRemoteRowState.Stop
+        ? L["PlaybackRemote_Stop", _remote?.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : L["PlaybackRemote_Row"].Value;
+
+    private string? RemoteHelper => RemoteState switch
+    {
+        PlaybackRemoteRowState.NotInBrowser => L["PlaybackRemote_NotInBrowser"].Value,
+        PlaybackRemoteRowState.NothingPlaying => L["PlaybackRemote_NothingPlaying"].Value,
+        PlaybackRemoteRowState.Vault => L["PlaybackRemote_Vault"].Value,
+        PlaybackRemoteRowState.CannotYet => L["PlaybackRemote_NotYet"].Value,
+        _ => null,
+    };
+
+    // The cast link is fetched while the panel is open, so choosing the row can open the browser's picker inside the click (Safari).
+    private async Task HandlePanelOpenChangedAsync(bool open)
+    {
+        if (open && ShowsRemoteRow && _remote is not null) _ = _remote.PrefetchAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
+        await OpenChanged.InvokeAsync(open);
+    }
+
+    private async Task ActivateRemoteAsync()
+    {
+        if (_remote is null) return;
+        // The picker is asked for first (with a link fetched ahead of time that is at once), then the panel closes.
+        var activation = _remote.ActivateAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
+        if (_panel is not null) await _panel.CloseAsync();
+        await activation;
+    }
 
     private string EffectiveToolId => ToolId ?? _generatedId;
     private bool IsVideo => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;

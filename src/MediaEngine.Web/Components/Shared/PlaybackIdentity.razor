@@ -55,6 +55,10 @@
                 }
             </div>
         }
+        @if (!string.IsNullOrWhiteSpace(RemoteLine))
+        {
+            <div class="playback-identity__remote" role="status" data-playback-remote-line>@RemoteLine</div>
+        }
         @if (!string.IsNullOrWhiteSpace(ErrorText))
         {
             <div class="playback-identity__error" role="status">@ErrorText</div>
@@ -94,6 +98,9 @@
 
     /// <summary>Favorite, Like, Dislike and More, drawn beside the text.</summary>
     [Parameter] public RenderFragment? Actions { get; set; }
+
+    /// <summary>Shown under the second line in the accent color while a receiver plays: "Playing on Living room TV" (unified player v2 D28).</summary>
+    [Parameter] public string? RemoteLine { get; set; }
 
     /// <summary>Shown under the second line in the error color when playback failed.</summary>
     [Parameter] public string? ErrorText { get; set; }
