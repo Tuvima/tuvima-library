@@ -76,7 +76,7 @@
 .app-timeline__year-heading h3 {
     margin: 0;
     color: rgba(248, 250, 252, 0.98);
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
     font-size: clamp(1.35rem, 2vw, 1.7rem);
     line-height: 1;
 }

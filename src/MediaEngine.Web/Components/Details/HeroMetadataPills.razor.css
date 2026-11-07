@@ -2,7 +2,7 @@
    crosses an existing C# renderer or shared/third-party control boundary. */
 :where(.tl-detail-page) .tl-detail-metadata-item--lane-count .tl-detail-metadata-item__value {
     color: #c4a7ff;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-metadata-stack {
@@ -32,7 +32,7 @@
 
 :where(.tl-detail-page) .tl-detail-metadata-item__value {
     font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
 }
 

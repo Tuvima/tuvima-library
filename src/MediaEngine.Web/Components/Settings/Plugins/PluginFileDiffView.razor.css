@@ -6,7 +6,7 @@
 .plugin-file-diff__row--removed { background: color-mix(in srgb, var(--tl-status-error) 14%, transparent); }
 .plugin-file-diff__row--skipped { color: var(--tl-text-muted); }
 .plugin-file-diff__number { text-align: end; color: var(--tl-text-muted); user-select: none; }
-.plugin-file-diff__mark { font-weight: 700; user-select: none; }
+.plugin-file-diff__mark { font-weight: 600; user-select: none; }
 .plugin-file-diff__row--added .plugin-file-diff__mark { color: var(--tl-status-success); }
 .plugin-file-diff__row--removed .plugin-file-diff__mark { color: var(--tl-status-error); }
 .plugin-file-diff__code { white-space: pre; color: var(--tl-text-primary); }

@@ -73,7 +73,7 @@
     background: rgba(5, 7, 12, 0.46);
     color: rgba(248, 250, 252, 0.82);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.11em;
     backdrop-filter: blur(0.8rem);
 }
@@ -284,7 +284,7 @@
     justify-content: space-between;
     color: rgba(248, 250, 252, 0.9);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 ::deep .cinematic-hero__track-preview-heading small {

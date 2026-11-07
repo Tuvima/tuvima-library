@@ -25,7 +25,7 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-dialog-title);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 @media (max-width: 600px) {

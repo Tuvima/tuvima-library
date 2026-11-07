@@ -60,16 +60,14 @@
 
 .browse-shell__title-eyebrow {
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-weight: 600;
     color: var(--tl-text-muted);
 }
 
 .browse-shell__title-text {
     margin: 0;
     font-size: clamp(1.55rem, 1.2vw + 1rem, 2rem);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
     line-height: 1;
     color: var(--tl-text-primary);
@@ -237,7 +235,7 @@
 .browse-shell__control-label {
     color: rgba(215, 224, 240, 0.72);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
     line-height: 1;
 }
@@ -461,7 +459,7 @@
     color: rgba(215, 224, 240, 0.78);
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
     line-height: 1;
 }
@@ -491,7 +489,7 @@
 .browse-shell__result-summary h2 {
     margin: 0;
     color: var(--tl-text-primary);
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
     font-size: clamp(1.35rem, 2vw, 1.8rem);
 }
 

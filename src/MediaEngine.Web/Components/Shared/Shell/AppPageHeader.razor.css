@@ -1,6 +1,6 @@
 .app-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
 .app-page-header__copy { min-width: 0; }
-.app-page-header__eyebrow { color: var(--tl-accent-primary); font-size: var(--tl-font-size-xs); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.app-page-header__eyebrow { color: var(--tl-accent-primary); font-size: var(--tl-font-size-xs); font-weight: 600; }
 .app-page-header__title { margin: 0; color: var(--tl-text-primary); font-size: clamp(1.6rem, 2.2vw, 2.2rem); line-height: 1.18; }
 .app-page-header p { max-width: 56rem; margin: 8px 0 0; color: var(--tl-text-secondary); line-height: 1.6; }
 .app-page-header__metadata { margin-top: 8px; color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); line-height: 1.4; }

@@ -11,6 +11,6 @@
 
     .media-quarantine-timer {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         color: rgba(226, 75, 74, 0.7);
     }

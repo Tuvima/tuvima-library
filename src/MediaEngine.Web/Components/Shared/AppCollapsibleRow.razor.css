@@ -28,7 +28,7 @@
     padding: 0 var(--tl-space-3) 0 var(--tl-space-1);
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .app-collapsible-row__title {

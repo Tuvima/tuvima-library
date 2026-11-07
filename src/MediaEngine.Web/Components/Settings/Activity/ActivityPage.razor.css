@@ -57,7 +57,7 @@
     background: var(--tl-accent-primary);
     color: #fff;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
 }
 
@@ -78,7 +78,7 @@
     padding: 0;
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
     line-height: 1;
 }
@@ -140,7 +140,7 @@
     border-bottom: 1px solid var(--tl-border-subtle);
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
 }
 

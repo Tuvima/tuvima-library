@@ -60,7 +60,7 @@
     margin: 0;
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.13em;
 }
 
@@ -317,7 +317,7 @@
     border: 0;
     color: var(--tl-text-on-accent);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .media-section-shell__swipe-actions ::deep .is-rename { background: var(--tl-bg-surface-elevated); }
@@ -336,7 +336,7 @@
     border-radius: inherit;
     background: var(--tl-status-danger-soft);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .media-section-shell__delete-confirm ::deep button {
@@ -588,7 +588,7 @@
         min-width: 0;
         align-items: center;
         gap: 0.65rem;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .media-section-shell__mobile-nav details[open] > summary > .tl-icon-root {
@@ -613,7 +613,7 @@
         padding: 0.45rem 0.7rem 0.25rem;
         color: var(--tl-text-muted);
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.12em;
     }
 

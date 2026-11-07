@@ -22,7 +22,7 @@
 
 .shelf-grid-page__title {
     margin: 0;
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
     font-size: clamp(1.35rem, 2vw, 1.8rem);
     font-weight: var(--tl-font-weight-bold);
     line-height: var(--tl-line-height-tight);

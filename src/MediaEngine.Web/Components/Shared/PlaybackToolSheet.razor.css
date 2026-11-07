@@ -40,7 +40,7 @@
 
 .playback-tool-sheet__header h2 {
     font-size: clamp(1.18rem, 2.4vw, 1.72rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.1;
     margin: 0;
 }

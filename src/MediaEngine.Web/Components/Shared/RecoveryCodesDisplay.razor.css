@@ -6,7 +6,7 @@
 
 .recovery-codes-display__label {
     color: var(--tl-text-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .recovery-codes-display__field {

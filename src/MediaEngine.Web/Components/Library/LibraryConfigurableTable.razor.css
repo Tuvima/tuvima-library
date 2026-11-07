@@ -50,7 +50,7 @@
     .vmt-th {
         padding: 8px 16px;
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         color: rgba(255, 255, 255, 0.60);
         letter-spacing: 0.1em;
     }
@@ -213,7 +213,7 @@
 
     .vmt-title {
         font-size: var(--tl-font-size-sm);
-        font-weight: 700;
+        font-weight: 600;
         color: var(--tl-text-primary);
         line-height: 1.3;
         white-space: nowrap;
@@ -238,7 +238,7 @@
 
     .vmt-subtitle {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         color: var(--tl-text-muted);
         letter-spacing: 0.02em;
         margin: 0;
@@ -247,7 +247,7 @@
     .vmt-show-badge {
         display: inline-block;
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         color: var(--tl-accent-primary);
         background: rgba(201, 146, 46, 0.12);
         border: 1px solid rgba(201, 146, 46, 0.25);
@@ -260,7 +260,7 @@
 
     .vmt-creator-link {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.05em;
         color: var(--tl-text-muted);
         margin-top: 2px;
@@ -306,14 +306,14 @@
 
     .vmt-universe-linked {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.05em;
         color: #A78BFA;
     }
 
     .vmt-universe-standalone {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.05em;
         color: var(--tl-text-muted);
     }
@@ -356,7 +356,7 @@
 
     .vmt-group-label {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         color: var(--tl-text-muted);
         letter-spacing: 0.15em;
         white-space: nowrap;
@@ -391,7 +391,7 @@
         border: none;
         color: var(--tl-text-muted);
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.08em;
         cursor: pointer;
         padding: 0;
@@ -538,7 +538,7 @@
 
     .media-type-badge {
         font-size: var(--tl-font-size-xs);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.15em;
         padding: 2px 8px;
         border-radius: 4px;

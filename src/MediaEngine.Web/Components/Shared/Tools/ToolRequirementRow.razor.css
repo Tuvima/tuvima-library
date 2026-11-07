@@ -24,7 +24,7 @@
 
 .tool-row__title strong {
     color: var(--tl-text-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .tool-row__version,

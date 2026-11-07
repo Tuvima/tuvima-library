@@ -199,9 +199,9 @@ public static class EpubBuilder
         // so we build it separately as a non-interpolated string.
         const string styleBlock = """
                 <style>
-                  .title  { font: bold 40px 'Montserrat', 'Segoe UI', sans-serif; fill: #fff; text-anchor: middle; }
-                  .author { font: 300 24px 'Montserrat', 'Segoe UI', sans-serif; fill: rgba(255,255,255,0.75); text-anchor: middle; }
-                  .year   { font: 500 20px 'Montserrat', 'Segoe UI', sans-serif; fill: rgba(255,255,255,0.50); text-anchor: middle; }
+                  .title  { font: bold 40px 'Inter', system-ui, sans-serif; fill: #fff; text-anchor: middle; }
+                  .author { font: 300 24px 'Inter', system-ui, sans-serif; fill: rgba(255,255,255,0.75); text-anchor: middle; }
+                  .year   { font: 500 20px 'Inter', system-ui, sans-serif; fill: rgba(255,255,255,0.50); text-anchor: middle; }
                 </style>
         """;
 

@@ -62,12 +62,12 @@ public sealed class LibraryActivityLookCssTests
     }
 
     [Fact]
-    public void TheMonthHeading_IsBoldWithAMutedBatchCountAfterIt()
+    public void TheMonthHeading_IsSemiboldWithAMutedBatchCountAfterIt()
     {
         var css = Read(Folder + "LibraryActivityHistory.razor.css");
         var razor = Read(Folder + "LibraryActivityHistory.razor");
 
-        Assert.Contains("font-weight: var(--tl-font-weight-bold);", Rule(css, ".lact-group__toggle strong"), StringComparison.Ordinal);
+        Assert.Contains("font-weight: var(--tl-font-weight-semibold);", Rule(css, ".lact-group__toggle strong"), StringComparison.Ordinal);
         Assert.Contains("color: var(--tl-text-muted);", Rule(css, ".lact-group__count"), StringComparison.Ordinal);
         Assert.Contains("<span class=\"lact-group__count\">· @LibraryActivityText.BatchCount(month.Count)</span>", razor, StringComparison.Ordinal);
     }

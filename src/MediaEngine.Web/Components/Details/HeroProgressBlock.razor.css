@@ -17,7 +17,7 @@
 :where(.tl-detail-page) .tl-detail-hero-progress__summary {
     color: rgba(var(--hero-text-rgb), 0.92);
     font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-hero-progress__context {
@@ -36,7 +36,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero-progress__percent {
     color: rgba(var(--hero-accent-rgb), 0.98);
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 

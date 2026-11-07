@@ -1,17 +1,32 @@
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Labels (Look pass v2 A3): sentence case everywhere except a short list of overline styles for section labels, so the
-/// number of uppercase rules stays below 20 and the faint text token stays retired.
+/// Labels (Look pass v3 D7): sentence case everywhere. The wordmark is the one brand exemption and the only style that
+/// sets uppercase; the faint text token stays retired.
 /// </summary>
 public sealed class LabelStyleGuardrailTests
 {
     [Fact]
-    public void FewerThanTwentyStylesSetUppercase()
+    public void ExactlyOneStyleSetsUppercase_TheWordmark()
     {
-        var count = StyleFiles().Sum(path => System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(path), @"text-transform:\s*uppercase").Count);
+        var offenders = StyleFiles()
+            .Where(path => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(path), @"text-transform:\s*uppercase"))
+            .Select(path => Path.GetFileName(path))
+            .ToList();
 
-        Assert.True(count < 20, $"Found {count} uppercase rules; labels use sentence case except overline styles (limit 19).");
+        Assert.True(offenders.SequenceEqual(["MainLayout.razor.css"]), "Labels use sentence case; only the wordmark is uppercase. Found: " + string.Join(", ", offenders));
+        var count = StyleFiles().Sum(path => System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(path), @"text-transform:\s*uppercase").Count);
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void TheWordmarkIsUppercase()
+    {
+        var css = File.ReadAllText(Path.Combine(StyleFiles().First(path => path.EndsWith("MainLayout.razor.css", StringComparison.Ordinal))));
+        var rule = System.Text.RegularExpressions.Regex.Match(css, @"\.layout-shell__brand-wordmark\s*\{[^}]*\}").Value;
+
+        Assert.Contains("text-transform: uppercase;", rule, StringComparison.Ordinal);
+        Assert.Contains("var(--font-brand)", rule, StringComparison.Ordinal);
     }
 
     [Fact]

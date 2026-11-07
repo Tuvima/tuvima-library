@@ -21,14 +21,14 @@
 .media-hub__header span {
     color: color-mix(in srgb, var(--tl-accent-primary) 68%, white);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.13em;
 }
 
 .media-hub__header h1 {
     margin: 5px 0 0;
     color: rgba(248, 250, 252, 0.98);
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
     font-size: clamp(2rem, 3.5vw, 3.2rem);
     line-height: 1;
 }

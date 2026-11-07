@@ -31,6 +31,6 @@
 :where(.app-switch-row__label) {
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-sm);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
 }

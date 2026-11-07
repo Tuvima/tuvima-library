@@ -5,7 +5,7 @@
 .profile-detail__header { display: flex; align-items: center; gap: 16px; }
 .profile-detail__avatar { flex: none; width: 80px; height: 80px; }
 .profile-detail__who { flex: 1; min-width: 0; }
-.profile-detail__name { margin: 0; font-size: var(--tl-font-size-xl); font-weight: 700; overflow-wrap: anywhere; }
+.profile-detail__name { margin: 0; font-size: var(--tl-font-size-xl); font-weight: 600; overflow-wrap: anywhere; }
 .profile-detail__role { margin: 2px 0 0; color: var(--tl-text-muted); }
 .profile-detail__badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
 .profile-detail__badge { padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-xs); }

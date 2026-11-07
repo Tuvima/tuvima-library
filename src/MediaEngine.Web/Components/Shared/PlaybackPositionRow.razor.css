@@ -117,7 +117,7 @@
 .playback-position-row__title {
     color: var(--playback-text);
     font-size: var(--tl-font-size-lg);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.15;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -167,7 +167,7 @@
     flex-direction: column;
     flex-shrink: 0;
     font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
+    font-weight: 600;
     gap: 6px;
     justify-content: center;
     min-width: 58px;
