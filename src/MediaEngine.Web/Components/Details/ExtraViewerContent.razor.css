@@ -70,7 +70,12 @@
     object-fit: cover;
 }
 
-.tl-extra-viewer__lightbox {
+/* Wraps the AppViewer so this file's rules reach the element it renders; it adds no box of its own. */
+.tl-extra-viewer__lightbox-host {
+    display: contents;
+}
+
+.tl-extra-viewer__lightbox-host ::deep .tl-extra-viewer__lightbox {
     position: fixed;
     inset: 0;
     z-index: 60;
@@ -80,7 +85,7 @@
     outline: none;
 }
 
-.tl-extra-viewer__lightbox > img {
+.tl-extra-viewer__lightbox-host ::deep .tl-extra-viewer__lightbox > img {
     max-width: 94vw;
     max-height: 88vh;
     object-fit: contain;

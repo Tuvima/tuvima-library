@@ -1207,7 +1207,7 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
       "important": 15,
-      "deep": 103
+      "deep": 90
     },
     "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
       "important": 0,
@@ -1872,6 +1872,18 @@
     "src/MediaEngine.Web/Components/Watch/SubtitleFindView.razor.css": {
       "important": 0,
       "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor.css": {
+      "important": 0,
+      "deep": 2
     }
   },
   "lineExceptions": {},
@@ -4294,6 +4306,44 @@
         ".np__top ::deep .np__back"
       ],
       "reason": "The Now playing page replaces the desktop Now playing scene (unified player v2 WP10). Its Back to library and Close are AppNativeButtons inside the top row, so their look is reached with deep rules from that row (scoped styles never reach a class passed to a child component); the deleted scene gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        "::deep .tl-hnav__trigger",
+        "::deep .tl-hnav__trigger--item",
+        "::deep .tl-hnav__trigger:hover",
+        "::deep .tl-hnav__trigger.is-open",
+        "::deep .tl-hnav__img"
+      ],
+      "reason": "The editor header's Season and item dropdown buttons and their stills are App* controls, so their rules go through the nav root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        "::deep .tl-editor-header__wash",
+        "::deep .tl-editor-header__img",
+        "::deep .tl-editor-header__link",
+        "::deep .tl-editor-header__link:hover"
+      ],
+      "reason": "The editor header's cover gradient, cover picture and provider links are App* components, so their rules go through the header root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        "::deep .tl-extra-viewer__lightbox",
+        "::deep .tl-extra-viewer__lightbox > img"
+      ],
+      "reason": "The picture lightbox is an AppViewer, so its rules go through a wrapper of the viewer's own (Editor v5 WP7 moved the viewer out of the Extra page). The budget comes from the deleted old editor shell."
     }
   ],
   "finalBundleBytes": 1283347,

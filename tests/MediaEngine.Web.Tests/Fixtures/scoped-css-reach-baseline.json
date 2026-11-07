@@ -65,17 +65,6 @@
       "tl-art-picker__action",
       "tl-art-picker__prefer"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor": [
-      "is-open",
-      "tl-hnav__img",
-      "tl-hnav__trigger",
-      "tl-hnav__trigger--item"
-    ],
-    "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor": [
-      "tl-editor-header__img",
-      "tl-editor-header__link",
-      "tl-editor-header__wash"
-    ],
     "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
       "is-current",
       "is-selected",
@@ -148,9 +137,6 @@
       "design-system-preview__rowbar",
       "design-system-preview__space",
       "design-system-preview__swatch"
-    ],
-    "src/MediaEngine.Web/Components/Pages/ExtraViewerPage.razor": [
-      "tl-extra-viewer__lightbox"
     ],
     "src/MediaEngine.Web/Components/Pages/ForMe.razor": [
       "for-me-page__navigation"

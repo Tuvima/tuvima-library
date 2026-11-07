@@ -57,23 +57,25 @@ else if (View.Kind == DetailExtraCardKinds.Pictures)
     @if (_lightboxIndex is int open && open >= 0 && open < View.Items.Count)
     {
         var picture = View.Items[open];
-        <AppViewer @ref="_viewer" Class="tl-extra-viewer__lightbox" Label="@picture.Title" tabindex="0" OnKeyDown="OnLightboxKey"
-                   OnClose="CloseLightbox" CloseLabel="@L["Common_Close"].Value">
-            @if (open > 0)
-            {
-                <div class="tl-extra-viewer__lightbox-prev">
-                    <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["Home_CarouselPrevious"].Value" OnClick="() => Step(-1)" />
-                </div>
-            }
-            <img src="@FileHref(picture.Id)" alt="@picture.Title" />
-            @if (open < View.Items.Count - 1)
-            {
-                <div class="tl-extra-viewer__lightbox-next">
-                    <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["Home_CarouselNext"].Value" OnClick="() => Step(1)" />
-                </div>
-            }
-            <span class="tl-extra-viewer__lightbox-count">@(open + 1) of @View.Items.Count</span>
-        </AppViewer>
+        <div class="tl-extra-viewer__lightbox-host">
+            <AppViewer @ref="_viewer" Class="tl-extra-viewer__lightbox" Label="@picture.Title" tabindex="0" OnKeyDown="OnLightboxKey"
+                       OnClose="CloseLightbox" CloseLabel="@L["Common_Close"].Value">
+                @if (open > 0)
+                {
+                    <div class="tl-extra-viewer__lightbox-prev">
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["Home_CarouselPrevious"].Value" OnClick="() => Step(-1)" />
+                    </div>
+                }
+                <img src="@FileHref(picture.Id)" alt="@picture.Title" />
+                @if (open < View.Items.Count - 1)
+                {
+                    <div class="tl-extra-viewer__lightbox-next">
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["Home_CarouselNext"].Value" OnClick="() => Step(1)" />
+                    </div>
+                }
+                <span class="tl-extra-viewer__lightbox-count">@(open + 1) of @View.Items.Count</span>
+            </AppViewer>
+        </div>
     }
 }
 else if (IsReadableInBrowser(Current!))
