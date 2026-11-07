@@ -117,11 +117,12 @@
                         case PlaybackControlKey.Episodes:
                             if (ContextKind is not null)
                             {
-                        <PlaybackPanel Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
+                        <PlaybackPanel Title="@ContextTitle" Subtitle="@(IsTvEpisode ? _presentationContext?.ShowTitle : null)" ToolId="video-context" Kind="episodes" Surface="video" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Episodes" /></TriggerContent>
-                            <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
+                            <ChildContent><EpisodesPanel Episodes="@(_presentationContext?.Episodes ?? [])"
                                 Lessons="@(!IsTvEpisode)" FolderVideos="@IsFolderVideoNow" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
-                                Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
+                                Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" IsPlaying="@VideoIsPlaying" FallbackArtUrl="@Playback.CurrentItem.CoverUrl"
+                                AutoplayNextEpisode="@Playback.AutoplayNextEpisode" AutoplayChanged="ChangeAutoplayNextEpisodeAsync"
                                 EpisodeSelected="PlayOwnedEpisodeAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
                         </PlaybackPanel>
                             }
@@ -185,7 +186,7 @@
             <aside class="video-playback-host__end-card" aria-label="@NextLabel" data-playback-chrome data-chrome-hold>
                 <strong>@L["VideoPlaybackHost_UpNext"]</strong>
                 <div class="video-playback-host__end-card-content">
-                    @if (nextEpisode.StillUrl is { } _nextEpisodeStill && MediaTileArtworkUrl.SupportsRenditions(_nextEpisodeStill)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(nextEpisode.StillUrl, 112)" srcset="@(VideoContextPanel.EpisodeArtworkSrcSet(nextEpisode) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(nextEpisode.StillUrl, 112))" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
+                    @if (nextEpisode.StillUrl is { } _nextEpisodeStill && MediaTileArtworkUrl.SupportsRenditions(_nextEpisodeStill)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(nextEpisode.StillUrl, 112)" srcset="@(EpisodesPanel.EpisodeArtworkSrcSet(nextEpisode) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(nextEpisode.StillUrl, 112))" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
                     else { <span class="video-playback-host__end-card-placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
                     <span><strong>@nextEpisode.Title</strong>@if (_endCard.AutoAdvance) { <span role="status">@L["VideoPlaybackHost_StartsInSeconds", (int)Math.Ceiling(_endCard.RemainingSeconds)]</span> }</span>
                 </div>
@@ -294,7 +295,8 @@
         _presentationContext?.Episodes.Count ?? 0, UpcomingVideo.Count);
     private bool IsMovie => Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true;
     private bool IsTvEpisode => VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
-    private string ContextTitle => ContextKind == "episodes" ? (IsFolderVideoNow ? VideoPlayerWording.ListTitle : L["PlayerContext_Episodes"].Value) : IsTvEpisode ? L["PlayerContext_UpNext"].Value : L["PlayerContext_Lessons"].Value;
+    // The list is "Episodes" for a TV show and "Lessons" for a course or a folder of videos (unified player v2 D19).
+    private string ContextTitle => EpisodesPanel.Title(L, IsTvEpisode);
     private string ChapterTickLabel(double seconds) => VideoChapters.Where(chapter => chapter.StartSeconds <= seconds).OrderByDescending(chapter => chapter.StartSeconds).FirstOrDefault() is { } chapter
         ? $"Chapter {chapter.Index + 1:00} · {chapter.Title} · {FormatTimestamp(chapter.StartSeconds)}" : FormatTimestamp(seconds);
     /// <summary>Chapter ticks follow the profile's setting: off by default for video (player-controls-v3 D8).</summary>
@@ -1303,6 +1305,13 @@
 
     private Task SelectPlaybackRateAsync(double value) =>
         Playback.SetPlaybackRateAsync(value);
+
+    // The Episodes panel's footer switch (unified player v2 D19): saved on the profile, and the end card follows it at once.
+    private async Task ChangeAutoplayNextEpisodeAsync(bool autoplay)
+    {
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.SetAutoplayNextEpisodeAsync(autoplay, _lifetimeCancellation.Token)) return;
+        Services.GetService<IAppToastService>()?.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
 
     // Playback settings (unified player v2 D14): a new skip length is saved on the profile and the bar's skip buttons take it at once.
     private async Task ChangeSkipLengthAsync(PlaybackSkipChange change)

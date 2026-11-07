@@ -103,33 +103,6 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
     }
 
     [Fact]
-    public void UpNextForAFolderVideoUsesTheVideosNumberAndTitle()
-    {
-        using var ctx = new LocalizedBunitContext();
-        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        var next = new VideoOwnedEpisode(Guid.NewGuid(), "Ball handling", null, null, "9:00", "section-1", "Week 1 – Basics", 1, 3);
-        var cut = ctx.Render<VideoContextPanel>(parameters => parameters
-            .Add(p => p.Episodes, [next]).Add(p => p.NextEpisode, next).Add(p => p.CurrentWorkId, Guid.NewGuid()).Add(p => p.FolderVideos, true));
-
-        Assert.Equal("3 · Ball handling", cut.Find(".video-context-panel__featured strong").TextContent);
-        Assert.False(VideoFolderWording.UsesTvWording(cut.Markup));
-    }
-
-    [Fact]
-    public void TheVideosTabOfTheContextPanelIsCalledVideosWithNumbersAndNoEpisodeCodes()
-    {
-        using var ctx = new LocalizedBunitContext();
-        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        var video = new VideoOwnedEpisode(Guid.NewGuid(), "Ball handling", null, null, "9:00", "section-1", "Week 1 – Basics", 1, 3);
-        var cut = ctx.Render<VideoContextPanel>(parameters => parameters
-            .Add(p => p.Episodes, [video]).Add(p => p.CurrentWorkId, video.WorkId).Add(p => p.FolderVideos, true));
-
-        Assert.Contains(cut.FindAll("button[role='tab']"), tab => tab.TextContent == "Videos · 1");
-        Assert.Equal("3", cut.Find(".playback-sheet-row__copy > span").TextContent);
-        Assert.DoesNotContain("Episode", cut.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void AVideoTileHeadingIsItsNumberAndTitle_WhileATvTileKeepsItsSeasonAndEpisode()
     {
         var episode = new DisplayEpisodeContextDto(Folder, Guid.NewGuid(), Guid.NewGuid(), "Basketball course", "Ball handling", 1, 3,

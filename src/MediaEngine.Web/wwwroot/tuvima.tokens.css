@@ -245,6 +245,12 @@
     --playback-panel-width: 400px;
     --playback-panel-wide-width: 560px;
     --playback-panel-speed-width: 420px;
+    --playback-panel-queue-width: 440px;
+    --playback-panel-queue-height: 440px;
+    --playback-panel-episodes-width: 520px;
+    --playback-panel-episodes-height: 534px;
+    --playback-panel-chapters-width: 600px;
+    --playback-panel-chapters-height: 470px;
     --playback-panel-radius: 8px;
     --playback-panel-row-height: 44px;
     --playback-panel-edge: 12px;

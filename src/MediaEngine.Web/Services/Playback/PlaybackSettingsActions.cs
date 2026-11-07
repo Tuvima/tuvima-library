@@ -36,6 +36,21 @@ public sealed class PlaybackSettingsActions
     /// <summary>Puts the skip lengths of what is playing (video or audio) back to the app's defaults. False when they could not be saved.</summary>
     public Task<bool> ResetSkipLengthsAsync(CancellationToken ct = default) => SaveAsync(PlaybackSkipChoices.ResetLengths(_playback.IsVideoMode), ct);
 
+    /// <summary>
+    /// Saves "Autoplay next episode" on the profile (the Episodes panel's footer switch; Settings, Playback no longer has this row) and the running
+    /// player takes it at once. False when it could not be saved.
+    /// </summary>
+    public async Task<bool> SetAutoplayNextEpisodeAsync(bool autoplay, CancellationToken ct = default)
+    {
+        if (!await SaveAsync(settings => settings.Watching.AutoplayNextEpisode = autoplay, ct))
+        {
+            return false;
+        }
+
+        _playback.ApplyAutoplayNextEpisode(autoplay);
+        return true;
+    }
+
     private async Task<bool> SaveAsync(Action<UserPlaybackSettingsDto> change, CancellationToken ct)
     {
         try

@@ -135,16 +135,16 @@
                         </ListenDockTool>
                         break;
                     case PlaybackControlKey.Queue:
-                        <ListenDockTool PanelKey="queue" Title="@L["ListenNowPlayingBar_QueueAndHistory"].Value" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
+                        <ListenDockTool PanelKey="queue" Title="@L["Common_Queue"].Value" ListPanel="true" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
                                         Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
-                            <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" OnTabChanged="SelectDockTabAsync" />
+                            <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" />
                         </ListenDockTool>
                         break;
                     case PlaybackControlKey.Chapters:
-                        <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? "Chapters and history" : "History")"
+                        <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? L["Common_Chapters"].Value : "History")" ListPanel="@HasUsableChapters"
                                         Glyph="@(HasUsableChapters ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.History)"
                                         ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
-                            <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" ShowTabs="@HasUsableChapters" OnTabChanged="SelectDockTabAsync" />
+                            <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" />
                         </ListenDockTool>
                         break;
                     case PlaybackControlKey.Speed:
@@ -165,10 +165,10 @@
             </ToolContent>
         </PlaybackShell>
         <PlaybackPanel @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
-                         Kind="@(_compactPanelKey == "lyrics" ? "lyrics" : "ordinary")" Trigger="@_compactToolTrigger" ShowHeading="false"
+                         Kind="@(_compactPanelKey == "lyrics" ? "lyrics" : CompactIsList ? _compactPanelKey : "ordinary")" Trigger="@_compactToolTrigger" ShowHeading="@CompactIsList"
                          OpenChanged="@(open => DockToolChangedAsync(_compactPanelKey, open))">
             <ListenContextSidebar @key="_compactPanelKey" ActivePanelKey="@_compactPanelKey"
-                                 ShowTabs="@(_compactPanelKey is "queue" or "chapters" || _compactPanelKey == "history" && (Playback.IsMusicMode || HasUsableChapters))" OnTabChanged="SelectDockTabAsync" />
+                                 ShowTabs="@(_compactPanelKey is "queue" || _compactPanelKey == "history" && Playback.IsMusicMode)" />
         </PlaybackPanel>
 
         @if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)
@@ -245,7 +245,8 @@
     private ElementReference? _compactToolTrigger;
     private string _compactPanelKey = "queue";
     private bool _openCompactToolPending;
-    private string ContextToolTitle => _compactPanelKey switch { "lyrics" => "Lyrics", "chapters" => "Chapters and history", "history" => "History", _ => "Queue" };
+    private string ContextToolTitle => _compactPanelKey switch { "lyrics" => "Lyrics", "chapters" => L["Common_Chapters"].Value, "history" => Playback.IsMusicMode ? L["Common_Queue"].Value : "History", _ => L["Common_Queue"].Value };
+    private bool CompactIsList => _compactPanelKey is "queue" or "chapters" || _compactPanelKey == "history" && Playback.IsMusicMode;
     private bool HasUsableChapters => CurrentChapters.Count > 1;
     private bool IsCurrentDockSnapshot(ListenPlaybackSnapshot snapshot) => !_disposed && snapshot.ProfileId == Playback.ActiveProfileId
         && snapshot.PlaybackRequestVersion == Playback.PlaybackRequestVersion && snapshot.CurrentIndex >= 0 && snapshot.CurrentIndex < snapshot.Queue.Count
@@ -524,12 +525,14 @@
 
     // Unified player D5: an audiobook's bar never draws chapter ticks (ticks are for bookmarks). It shows the current chapter by default,
     // or the whole book when the person picks "Book"; the Chapters list is the way to jump around.
-    private bool _bookView;
+    // The choice is a profile preference shared with the Chapters panel's footer control (PlaybackTimelineScope), so a change in either place shows in both.
+    private PlaybackTimelineScope? _ownTimelineScope;
+    private PlaybackTimelineScope TimelineScope => Services.GetService<PlaybackTimelineScope>() ?? (_ownTimelineScope ??= new PlaybackTimelineScope(JS, Playback));
+    private bool _bookView => TimelineScope.WholeBook;
     private AudiobookChapterWindow? AudiobookWindow => Playback.IsAudiobookMode
         ? AudiobookChapterWindow.Find(CurrentChapters, Playback.CurrentTimeSeconds, Playback.DurationSeconds)
         : null;
     private AudiobookChapterWindow? ChapterScope => _bookView ? null : AudiobookWindow;
-    private string BookViewStorageKey => $"tuvima.player.bookView.{Playback.ActiveProfileId:D}";
 
     // Unified player D10: "Show bookmarks on the bar" in the audiobook Settings menu is the profile's own setting, the same one the video player's
     // bookmark pane and Settings > Playback use. Off by default; while it is on the bar draws the book file's bookmarks (this chapter's, in the chapter view).
@@ -603,37 +606,18 @@
     }
 
     /// <summary>
-    /// Whether the audiobook bar shows the whole book (true) or the current chapter (false). The choice is remembered per profile in this browser.
+    /// Switches the audiobook bar between the current chapter and the whole book and remembers the choice for this profile. The label on the timeline
+    /// and the Chapters panel's footer control (Chapter | Whole book) both call it, through the one shared preference.
     /// </summary>
-    public bool BarShowsWholeBook => _bookView;
+    public Task SetBarScopeAsync(bool wholeBook) => TimelineScope.SetWholeBookAsync(wholeBook);
 
-    /// <summary>
-    /// Switches the audiobook bar between the current chapter and the whole book and remembers the choice for this profile. The Chapters panel's footer
-    /// switch (Chapter | Whole book) calls this; until then the label on the timeline calls it.
-    /// </summary>
-    public async Task SetBarScopeAsync(bool wholeBook)
-    {
-        _bookView = wholeBook;
-        await InvokeAsync(StateHasChanged);
-        try { await JS.InvokeVoidAsync("localStorage.setItem", BookViewStorageKey, wholeBook ? "book" : "chapter"); }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { Logger.LogDebug(ex, "The Chapter or Book choice could not be remembered."); }
-    }
-
-    private async Task LoadBookViewAsync()
-    {
-        try
-        {
-            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", BookViewStorageKey);
-            var book = string.Equals(stored, "book", StringComparison.Ordinal);
-            if (book != _bookView) { _bookView = book; await InvokeAsync(StateHasChanged); }
-        }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { Logger.LogDebug(ex, "The Chapter or Book choice could not be read; the bar shows the chapter."); }
-    }
+    private void TimelineScopeChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override void OnInitialized()
     {
         Reactions.Changed += ReactionChanged;
-        _ = LoadBookViewAsync();
+        TimelineScope.Changed += TimelineScopeChanged;
+        _ = TimelineScope.EnsureLoadedAsync();
         _ = RefreshBarMarkersAsync();
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
@@ -811,6 +795,7 @@
                 CloseSettingsMenu();
             }
             StateHasChanged();
+            _ = TimelineScope.EnsureLoadedAsync(); // a different profile has its own Chapter or Book choice
             _ = RefreshBarMarkersAsync();
 
             var snapshotJson = Playback.HasQueue
@@ -2118,6 +2103,7 @@
     public async ValueTask DisposeAsync()
     {
         Reactions.Changed -= ReactionChanged;
+        TimelineScope.Changed -= TimelineScopeChanged;
         _disposed = true;
         var bookmarkContext = _bookmarkDialogContext;
         _bookmarkDialogContext = null;

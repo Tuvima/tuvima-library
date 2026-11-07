@@ -229,7 +229,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("OpenDockPanelAsync(control.Sheet)", bar, StringComparison.Ordinal);
-        Assert.Contains("PlaybackContextRow Variant=\"chapter\"", sidebar, StringComparison.Ordinal);
+        var chaptersPanel = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor"));
+        Assert.Contains("PlaybackListRow @key=\"chapter.Index\" Variant=\"chapter\"", chaptersPanel, StringComparison.Ordinal);
         Assert.Contains("PlaybackContextRow Variant=\"history\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("Subtitle=\"@AudiobookHistorySubtitle(entry)\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", sidebar, StringComparison.Ordinal);

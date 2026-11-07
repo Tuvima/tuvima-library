@@ -1657,6 +1657,20 @@ public sealed partial class PlaybackSessionController
         NotifyChanged();
     }
 
+    /// <summary>
+    /// A new "Autoplay next episode" choice (made in the Episodes panel) takes effect for what is playing at once, instead of at the next start.
+    /// </summary>
+    public void ApplyAutoplayNextEpisode(bool autoplay)
+    {
+        if (AutoplayNextEpisode == autoplay)
+        {
+            return;
+        }
+
+        AutoplayNextEpisode = autoplay;
+        NotifyChanged();
+    }
+
     public async Task SeekRelativeAsync(double deltaSeconds, CancellationToken ct = default)
     {
         var max = DurationSeconds > 0 ? DurationSeconds : double.MaxValue;
