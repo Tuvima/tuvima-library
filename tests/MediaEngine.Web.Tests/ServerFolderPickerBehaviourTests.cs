@@ -27,6 +27,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     private bool _hasWrite = true;
     private readonly List<string> _browsed = [];
     private bool _rootsDown;
+    private bool _missingBrowse;
     private bool _rootsEmpty;
     private int _rootsCalls;
     private int _validateCalls;
@@ -55,7 +56,8 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
                 var request = (BrowseServerFoldersRequest)args![0]!;
                 var relative = request.RelativePath ?? string.Empty;
                 _browsed.Add(relative);
-                return Task.FromResult<BrowseServerFoldersResultDto?>(Browse(relative));
+                // A folder that does not exist yet cannot be listed.
+                return Task.FromResult<BrowseServerFoldersResultDto?>(_missingBrowse && relative.Contains("Not", StringComparison.Ordinal) ? null : Browse(relative));
             });
             stub.SetHandler(nameof(IEngineApiClient.ValidateServerFolderAsync), args =>
             {
@@ -392,12 +394,12 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     {
         var host = await OpenPickerAsync();
         var list = host.Find("table[role=grid]");
-        Assert.Equal("server-folder-picker-folder-0", list.GetAttribute("aria-activedescendant"));
+        Assert.Equal("server-folder-picker-folder-0-name", list.GetAttribute("aria-activedescendant"));
 
         list.KeyDown(new KeyboardEventArgs { Key = "ArrowDown" });
-        host.WaitForAssertion(() => Assert.Equal("server-folder-picker-folder-1", host.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
+        host.WaitForAssertion(() => Assert.Equal("server-folder-picker-folder-1-name", host.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
         host.Find("table[role=grid]").KeyDown(new KeyboardEventArgs { Key = "ArrowUp" });
-        host.WaitForAssertion(() => Assert.Equal("server-folder-picker-folder-0", host.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
+        host.WaitForAssertion(() => Assert.Equal("server-folder-picker-folder-0-name", host.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
 
         host.Find("table[role=grid]").KeyDown(new KeyboardEventArgs { Key = "Enter" });
         host.WaitForAssertion(() => Assert.Equal("Action", host.Find(FolderRows + " .app-browser-folder__text").TextContent));
@@ -418,5 +420,53 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         Assert.Single(host.FindAll("[data-frame-toolbar]"));
         Assert.Equal(2, host.FindAll(".app-browser-folder").Count);
         Assert.Empty(host.FindAll("[role=listbox]"));
+    }
+
+    [Fact]
+    public async Task EscapeInTheTypeAPathBoxIsOwnedByTheBoxSoItClosesTheBoxAndLeavesTheWindowOpen()
+    {
+        var host = await OpenPickerAsync();
+        host.Find("[data-picker-type-path]").Click();
+
+        Assert.Equal("field", host.Find("[data-picker-typed]").GetAttribute("data-app-escape-owner"));
+        host.Find("input[aria-label='Folder path']").KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+        host.WaitForAssertion(() => Assert.Empty(host.FindAll("[data-picker-typed]")));
+        Assert.NotEmpty(host.FindAll("[data-testid=browser-frame]"));
+    }
+
+    [Fact]
+    public async Task TheHighlightedRowIsNamedByItsNameCellWhichSpeaksOpenFolder()
+    {
+        var host = await OpenPickerAsync();
+
+        var cell = host.Find("#server-folder-picker-folder-0-name");
+        Assert.Equal("gridcell", cell.GetAttribute("role"));
+        Assert.Equal("Open folder Movies", cell.GetAttribute("aria-label"));
+        Assert.Equal("server-folder-picker-folder-0-name", host.Find("table[role=grid]").GetAttribute("aria-activedescendant"));
+    }
+
+    [Fact]
+    public async Task TheFolderCountIsShownOnlyWhenTheListIsTheSelectedFolder()
+    {
+        _root = WindowsDrive;
+        var host = Render<AppDialogHost>();
+        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.InitialPath, "C:\\srv\\Not\\Yet" } };
+        _missingBrowse = true;
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+        host.WaitForElement(FolderRows);
+
+        var line = host.Find("[data-picker-selected]").TextContent;
+        Assert.Contains("C:\\srv\\Not\\Yet", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("folders inside", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheFolderPickerHidesTheModifiedCellAndItsHeadingTogether()
+    {
+        var host = await OpenPickerAsync();
+
+        Assert.Single(host.FindAll("th.is-wide-only"));
+        Assert.Equal(2, host.FindAll("td.is-wide-only").Count);
     }
 }

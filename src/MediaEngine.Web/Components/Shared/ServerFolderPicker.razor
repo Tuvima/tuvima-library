@@ -109,7 +109,7 @@ else
                             </AppBrowserSideSection>
                             @if (_typingPath)
                             {
-                                <div class="server-folder-picker__typed" data-picker-typed>
+                                <div class="server-folder-picker__typed" data-picker-typed data-app-escape-owner="field">
                                     <input type="text"
                                            class="server-folder-picker__typed-input"
                                            aria-label="Folder path"
@@ -144,7 +144,7 @@ else
                             else
                             {
                                 <b class="server-folder-picker__selected">@_selectedPathText</b>
-                                @if (_browse is not null && !_loadingBrowse)
+                                @if (_browse is not null && !_loadingBrowse && _browse.RelativePath == _selectedRelativePath)
                                 {
                                     <span> &middot; @InsideText</span>
                                 }
@@ -168,6 +168,7 @@ else
                                                  Id="@FolderId(position)"
                                                  Name="@folder.Name"
                                                  Modified="@FormatModified(folder.ModifiedAt)"
+                                                 WideOnlyMiddle="true"
                                                  Highlighted="@(position == _highlight)"
                                                  OnOpen="@(() => OpenFolderAsync(folder))" />
                         }
@@ -427,7 +428,7 @@ else
         ? string.Empty
         : string.IsNullOrWhiteSpace(_search)
             ? (_browse.Directories.Count == 1 ? L["FolderPicker_OneFolderInside"].Value : string.Format(L["FolderPicker_FoldersInside"].Value, _browse.Directories.Count))
-            : string.Format(L["FolderPicker_FoldersMatch"].Value, _browse.Directories.Count);
+            : _browse.Directories.Count == 1 ? L["FolderPicker_OneFolderMatches"].Value : string.Format(L["FolderPicker_FoldersMatch"].Value, _browse.Directories.Count);
 
     protected override Task OnInitializedAsync()
     {
@@ -809,7 +810,7 @@ else
     private string ConfirmButtonLabel => _headsUpShown ? "Add anyway" : ConfirmLabel;
 
     private string SafetyLine => EffectiveMode == ServerFolderSelectionModes.ManagedLibrary
-        ? "Library keeps this folder organised."
+        ? "Library keeps this folder organized."
         : "Your files are never changed.";
 
     private static string ResultKind(ServerFolderValidationResultDto result)

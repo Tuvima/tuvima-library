@@ -10,13 +10,13 @@
     class="@RootClass"
     @onclick="OpenAsync"
     @attributes="AdditionalAttributes">
-    <td role="gridcell" class="app-browser-folder__namecell">
+    <td role="gridcell" id="@NameCellId" aria-label="@(IsFile ? Name : OpenLabelText)" class="app-browser-folder__namecell">
         <div class="app-browser-folder__name">
             <span class="app-browser-folder__icon" aria-hidden="true"><AppMaterialIcon Icon="@(IsFile ? AppMaterialIcons.Outlined.Description : AppMaterialIcons.Filled.Folder)" Size="AppIconSize.Control20" /></span>
             <span class="app-browser-folder__text" data-overflow-tooltip="@Name">@Name</span>
         </div>
     </td>
-    <td role="gridcell" class="@(Middle is null ? "app-browser-folder__middle is-wide-only" : "app-browser-folder__middle")">
+    <td role="gridcell" class="@(WideOnlyMiddle ? "app-browser-folder__middle is-wide-only" : "app-browser-folder__middle")">
         @if (Middle is not null)
         {
             @Middle
@@ -58,6 +58,9 @@
 
     [Parameter] public EventCallback OnOpen { get; set; }
 
+    /// <summary>Hides the middle cell under 840 px; true only where its column heading is wide-only too (the folder picker's modified date).</summary>
+    [Parameter] public bool WideOnlyMiddle { get; set; }
+
     /// <summary>The name the open button speaks; "Open folder {Name}" when empty.</summary>
     [Parameter] public string? OpenLabel { get; set; }
 
@@ -68,6 +71,8 @@
     [Parameter] public RenderFragment? End { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? NameCellId => string.IsNullOrEmpty(Id) ? null : $"{Id}-name";
 
     private string OpenLabelText => OpenLabel ?? string.Format(L["AppBrowser_OpenFolder"].Value, Name);
 

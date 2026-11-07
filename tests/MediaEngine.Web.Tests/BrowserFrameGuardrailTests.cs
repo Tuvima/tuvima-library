@@ -11,7 +11,17 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class BrowserFrameGuardrailTests
 {
-    private static readonly string[] FramePartPrefixes = ["AppBrowser"];
+    // The frame's own parts, by exact file name: only these may draw a folder row, a list or the retired class names.
+    private static readonly string[] FrameParts =
+    [
+        "AppBrowserFrame.razor",
+        "AppBrowserColumn.razor",
+        "AppBrowserFolderRow.razor",
+        "AppBrowserItemRow.razor",
+        "AppBrowserRowDetail.razor",
+        "AppBrowserSideItem.razor",
+        "AppBrowserSideSection.razor",
+    ];
 
     // The class names the two old folder lists drew their rows and lists with; a new list must not bring them back.
     private static readonly string[] RetiredFolderListMarkup =
@@ -93,6 +103,9 @@ public sealed class BrowserFrameGuardrailTests
         Assert.True(DrawsAFolderList(ownList));
         Assert.True(DrawsAFolderList(walksWithoutTheRow));
         Assert.False(DrawsAFolderList(usesTheFrame));
+        Assert.False(IsFramePart("Components/Settings/AppBrowserLookalike.razor"));
+        Assert.False(IsFramePart("Components/Shared/AppBrowserSomethingElse.razor"));
+        Assert.True(IsFramePart("Components/Shared/AppBrowserFolderRow.razor"));
         Assert.False(DrawsAFolderList(unrelatedListbox));
     }
 
@@ -120,7 +133,7 @@ public sealed class BrowserFrameGuardrailTests
     }
 
     private static bool IsFramePart(string relative) =>
-        FramePartPrefixes.Any(prefix => Path.GetFileName(relative).StartsWith(prefix, StringComparison.Ordinal));
+        relative.StartsWith("Components/Shared/", StringComparison.Ordinal) && FrameParts.Contains(Path.GetFileName(relative), StringComparer.Ordinal);
 
     private static IEnumerable<(string Relative, string Source)> Razor()
     {

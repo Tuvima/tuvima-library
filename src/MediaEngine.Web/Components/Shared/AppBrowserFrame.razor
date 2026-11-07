@@ -160,6 +160,9 @@
     /// <summary>The id a row of this list carries at this position.</summary>
     public string RowId(int index) => $"{IdPrefix}-{index}";
 
+    /// <summary>The id of the name cell of the row at this position (<c>{row id}-name</c>).</summary>
+    public string NameCellId(int index) => $"{RowId(index)}-name";
+
     /// <summary>Puts keyboard focus on the list, for the host to call after it opens a folder.</summary>
     public async ValueTask FocusListAsync()
     {
@@ -183,7 +186,8 @@
 
     private string RootClass => Inline ? "app-browser app-browser--inline" : "app-browser";
 
-    private string? ActiveDescendant => RowCount > 0 && Highlight >= 0 && Highlight < RowCount ? RowId(Highlight) : null;
+    // Screen readers are pointed at the highlighted row's name cell, which carries the row's accessible name.
+    private string? ActiveDescendant => RowCount > 0 && Highlight >= 0 && Highlight < RowCount ? NameCellId(Highlight) : null;
 
     private RenderFragment Toolbar => @<text>
         @if (ShowToolbar && HasToolbar)
@@ -257,6 +261,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (ShowList)
+        {
+            await WireKeysAsync();
+        }
+
         // A new list (another folder, another page) has a different count, so the highlighted first row is brought back into view too.
         if ((Highlight == _scrolledTo && RowCount == _scrolledCount) || ActiveDescendant is not { } id)
         {
@@ -284,6 +293,30 @@
         }
     }
 
+    // The browser would scroll the list with the arrow keys, Home, End and Space as well as the frame moving the highlight; the script stops that.
+    private async Task WireKeysAsync()
+    {
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-browser-frame.js");
+            await _module.InvokeVoidAsync("attachListKeys", _table);
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering or a test host with no script runtime: the list keeps the browser's own scrolling.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the list was wiring; nothing to restore.
+        }
+        catch (JSException)
+        {
+            // The keys are a convenience; the list element may have gone away between the render and this call.
+        }
+    }
+
+    private bool ShowList => !(ShowState && StateContent is not null) && Rows is not null;
+
     public async ValueTask DisposeAsync()
     {
         if (_module is null)
@@ -293,6 +326,7 @@
 
         try
         {
+            await _module.InvokeVoidAsync("detachListKeys", _table);
             await _module.DisposeAsync();
         }
         catch (JSDisconnectedException)

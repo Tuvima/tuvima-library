@@ -395,10 +395,10 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
     {
         var (state, cut) = await OpenAsync();
         var grid = cut.Find("table[role=grid]");
-        Assert.Equal("efb-row-0", grid.GetAttribute("aria-activedescendant"));
+        Assert.Equal("efb-row-0-name", grid.GetAttribute("aria-activedescendant"));
 
         grid.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "ArrowDown" });
-        cut.WaitForAssertion(() => Assert.Equal("efb-row-1", cut.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
+        cut.WaitForAssertion(() => Assert.Equal("efb-row-1-name", cut.Find("table[role=grid]").GetAttribute("aria-activedescendant")));
 
         cut.Find("table[role=grid]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = " " });
         cut.WaitForAssertion(() => Assert.Single(state.Ticked));
@@ -497,5 +497,33 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
             {
             }
         }
+    }
+
+    [Fact]
+    public async Task TheFoldersAndFilesView_KeepsItsDetailsColumnAtEveryWidth_SoHeadingsAndCellsStayAligned()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Show",
+            Total = 2,
+            Entries =
+            [
+                new EditorFolderEntryDto { Name = "Season 02", Path = "Season 02", IsFolder = true },
+                new EditorFolderEntryDto { Name = "Workbook.pdf", Path = "Workbook.pdf", State = EditorFolderEntryStates.Supporting, SupportingFileId = FileIds[0] },
+            ],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.Empty(cut.FindAll(".is-wide-only"));
+    }
+
+    [Fact]
+    public async Task EachSupportingFileRow_IsNamedByItsNameCell_ForTheScreenReaderCursor()
+    {
+        var (_, cut) = await OpenAsync();
+
+        var cell = cut.Find("#efb-row-0-name");
+        Assert.Equal("gridcell", cell.GetAttribute("role"));
+        Assert.Equal("Workbook", cell.GetAttribute("aria-label"));
     }
 }

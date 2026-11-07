@@ -12398,4 +12398,7 @@
   <data name="FolderPicker_Open" xml:space="preserve">
     <value>Open</value>
   </data>
+  <data name="FolderPicker_OneFolderMatches" xml:space="preserve">
+    <value>1 folder matches</value>
+  </data>
 </root>

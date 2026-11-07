@@ -7,6 +7,7 @@ namespace MediaEngine.Web.Tests;
 public sealed class FolderPickerDialogClipCssTests
 {
     private const string PickerCss = "src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css";
+    private const string FrameCss = "src/MediaEngine.Web/Components/Shared/AppBrowserFrame.razor.css";
     private const string CreateDialogCss = "src/MediaEngine.Web/Components/Settings/Libraries/CreateLibraryDialog.razor.css";
 
     [Fact]
@@ -43,6 +44,15 @@ public sealed class FolderPickerDialogClipCssTests
         Assert.True(
             rule.Contains("min-width: 0;", StringComparison.Ordinal),
             $"{selector} must be able to shrink (min-width: 0) so its right padding is never lost.");
+    }
+
+    [Theory]
+    [InlineData(FrameCss, ".app-browser")]
+    [InlineData(FrameCss, ".app-browser__main")]
+    [InlineData(FrameCss, ".app-browser__list")]
+    public void BrowserFrameColumns_CanShrinkToTheWindow(string file, string selector)
+    {
+        Assert.Contains("min-width: 0;", Rule(Read(file), selector), StringComparison.Ordinal);
     }
 
     [Theory]

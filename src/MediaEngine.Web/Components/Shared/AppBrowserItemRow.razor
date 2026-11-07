@@ -11,7 +11,7 @@
     <td role="gridcell" class="app-browser-item__tick" @onkeydown:stopPropagation="true">
         <AppCheckbox Value="Ticked" ValueChanged="TickChanged" HideLabel="true" Label="@TickLabel" />
     </td>
-    <td role="gridcell" class="app-browser-item__namecell">
+    <td role="gridcell" id="@NameCellId" aria-label="@Title" class="app-browser-item__namecell">
         <div class="app-browser-item__name">
             <span class="app-browser-item__badge" data-type="@BadgeType" aria-hidden="true">@Badge</span>
             <span class="app-browser-item__text">
@@ -64,6 +64,8 @@
     [Parameter] public RenderFragment? Menu { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? NameCellId => string.IsNullOrEmpty(Id) ? null : $"{Id}-name";
 
     private string RootClass => $"app-browser-item{(Ticked ? " is-ticked" : string.Empty)}{(Highlighted ? " is-highlighted" : string.Empty)}";
 }
