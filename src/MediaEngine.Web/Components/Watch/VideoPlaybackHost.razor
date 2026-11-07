@@ -100,7 +100,8 @@
                 </div>
             }
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
-                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
+                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice"
+                               PreviewIndexUrl="@PlaybackSeekRail.PreviewIndexAddress(Playback.CurrentManifest?.ScrubPreviewIndexUrl)" />
             <div class="playback-video-controls">
                 <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
                 <div class="playback-video-controls__centre">

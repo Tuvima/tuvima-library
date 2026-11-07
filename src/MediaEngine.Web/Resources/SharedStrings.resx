@@ -11256,4 +11256,28 @@
   <data name="ViewDrop_AddedToGallery" xml:space="preserve">
     <value>Added {0} to {1}.</value>
   </data>
+  <data name="ScrubPreviewSettingsCard_ScrubPreviews" xml:space="preserve">
+    <value>Scrub previews</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_PicturesMadeAheadOfTime" xml:space="preserve">
+    <value>Pictures made ahead of time so the timeline can show where you are while you drag it.</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_Unavailable" xml:space="preserve">
+    <value>Scrub preview settings are unavailable</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_EngineDidNotAnswer" xml:space="preserve">
+    <value>The Engine did not answer. Start the Engine or retry.</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_GenerateScrubPreviews" xml:space="preserve">
+    <value>Generate scrub previews</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_UsesSpace" xml:space="preserve">
+    <value>Uses {0}.</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_FfmpegMissing" xml:space="preserve">
+    <value>FFmpeg is not available, so none can be made yet.</value>
+  </data>
+  <data name="ScrubPreviewSettingsCard_CouldNotChange" xml:space="preserve">
+    <value>Scrub previews could not be changed. Try again.</value>
+  </data>
 </root>

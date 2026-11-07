@@ -4,6 +4,8 @@
 .playback-seek-rail ::deep .playback-seek-rail__end { display:grid; place-items:center; height:44px; min-width:44px; padding:0 8px; border:0; border-radius:var(--tl-radius-sm); background:transparent; color:inherit; font:inherit; cursor:pointer; }
 .playback-seek-rail__bubble { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); display:none; max-width:min(320px,80vw); padding:6px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm); background:var(--playback-surface); color:var(--playback-text); white-space:nowrap; pointer-events:none; z-index:5; }
 .playback-seek-rail__bubble.is-visible { display:block; }
+.playback-seek-rail__tile { position:absolute; bottom:calc(100% + 38px); left:50%; transform:translateX(-50%); display:none; overflow:hidden; box-sizing:content-box; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm); background-color:var(--playback-surface); background-repeat:no-repeat; box-shadow:var(--tl-shadow-md); pointer-events:none; z-index:5; }
+.playback-seek-rail__tile.is-visible { display:block; }
 .playback-seek-rail--dock { position:absolute; inset:0 16px auto; gap:8px; height:44px; }
 .playback-seek-rail--dock ::deep .playback-range-slider { --playback-range-track-height:4px; --playback-range-thumb-size:14px; --playback-range-track-y:calc(26px - (var(--playback-range-track-height) / 2)); }
 .playback-seek-rail--dock ::deep .playback-range-slider__thumb { opacity:0; }

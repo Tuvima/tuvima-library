@@ -70,6 +70,45 @@ public sealed class TranscodingSettings
     /// <summary>Adaptive HTTP Live Streaming package and access policy.</summary>
     [JsonPropertyName("adaptive_hls")]
     public AdaptiveHlsSettings AdaptiveHls { get; set; } = new();
+
+    /// <summary>Scrub previews: frames made ahead of time so the player can show a picture while the timeline is dragged.</summary>
+    [JsonPropertyName("scrub_previews")]
+    public ScrubPreviewSettings ScrubPreviews { get; set; } = new();
+}
+
+/// <summary>
+/// The Engine's ahead-of-time scrub previews (Unified player v2 D9a): one frame every <see cref="IntervalSeconds"/>, tiled into
+/// sprite sheets of <see cref="Columns"/> by <see cref="Rows"/>. <see cref="Enabled"/> is the Settings switch "Generate scrub previews".
+/// </summary>
+public sealed class ScrubPreviewSettings
+{
+    /// <summary>On by default. Turning it off stops the job and removes every preview from the Library's cache.</summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Seconds between two frames.</summary>
+    [JsonPropertyName("interval_seconds")]
+    public int IntervalSeconds { get; set; } = 10;
+
+    /// <summary>Width of one frame in pixels.</summary>
+    [JsonPropertyName("tile_width")]
+    public int TileWidth { get; set; } = 320;
+
+    /// <summary>Frames across one sprite sheet.</summary>
+    [JsonPropertyName("columns")]
+    public int Columns { get; set; } = 10;
+
+    /// <summary>Frames down one sprite sheet.</summary>
+    [JsonPropertyName("rows")]
+    public int Rows { get; set; } = 10;
+
+    /// <summary>How many files with no previews the gradual pass over the existing library queues each time it runs.</summary>
+    [JsonPropertyName("backfill_per_pass")]
+    public int BackfillPerPass { get; set; } = 5;
+
+    /// <summary>Minutes between two passes that look for videos with no previews.</summary>
+    [JsonPropertyName("backfill_interval_minutes")]
+    public int BackfillIntervalMinutes { get; set; } = 2;
 }
 
 public sealed class AdaptiveHlsSettings

@@ -56,6 +56,8 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetViewItemThumbnail",
         // An Extras card picture is an image, not JSON.
         "GetExtraThumbnail",
+        // A scrub-preview sprite sheet is a JPEG image, not JSON.
+        "GetScrubPreviewSheet",
         // The paired-app Photos routes that return JPEG or the original photo or video file, not JSON.
         "GetViewClientItemThumbnail",
         "GetViewClientItemPreview",

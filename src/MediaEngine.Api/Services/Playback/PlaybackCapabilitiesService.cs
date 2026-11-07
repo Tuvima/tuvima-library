@@ -41,6 +41,7 @@ public sealed class PlaybackCapabilitiesService
     private readonly HlsAccessGrantService _hlsGrants;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<PlaybackCapabilitiesService> _logger;
+    private readonly ScrubPreviewCache? _scrubPreviews;
 
     public PlaybackCapabilitiesService(
         IMediaAssetRepository assets,
@@ -55,8 +56,10 @@ public sealed class PlaybackCapabilitiesService
         AdaptiveHlsService adaptiveHls,
         HlsAccessGrantService hlsGrants,
         IHttpContextAccessor httpContextAccessor,
-        ILogger<PlaybackCapabilitiesService> logger)
+        ILogger<PlaybackCapabilitiesService> logger,
+        ScrubPreviewCache? scrubPreviews = null)
     {
+        _scrubPreviews = scrubPreviews;
         _assets = assets;
         _ffmpeg = ffmpeg;
         _db = db;
@@ -221,8 +224,18 @@ public sealed class PlaybackCapabilitiesService
             ConversionReason = conversionReason,
             SourceBitrateKbps = sourceBitrateKbps,
             Connection = connection,
+            ScrubPreviewIndexUrl = ScrubPreviewIndexUrlFor(assetId, extension),
         };
     }
+
+    /// <summary>The address of the file's scrub-preview index, only for a video that has a complete set and while the switch is on.</summary>
+    private string? ScrubPreviewIndexUrlFor(Guid assetId, string extension) =>
+        _scrubPreviews is not null
+        && VideoExtensions.Contains(extension)
+        && _configuration.LoadTranscoding().ScrubPreviews.Enabled
+        && _scrubPreviews.TryReadComplete(assetId) is not null
+            ? $"/stream/{assetId:D}/scrub/{ScrubPreviewCache.IndexFileName}"
+            : null;
 
     private static Guid? ClaimGuid(ClaimsPrincipal principal, string claimType) =>
         Guid.TryParse(principal.FindFirstValue(claimType), out var value) && value != Guid.Empty

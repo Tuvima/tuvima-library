@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 
 @* Playback. It opens on Quality; Advanced holds hardware acceleration, optimized copies and diagnostics (until the Playback packet
-   regroups them). The playback tools and services status shows once, under diagnostics. *@
+   regroups them); the scrub-preview switch sits with them. The playback tools and services status shows once, under diagnostics. *@
 <section class="tl-page playback-delivery"
          data-delivery-section="@ActiveSection"
          aria-label="@ActiveSectionLabel">
@@ -10,6 +10,7 @@
         case "advanced":
             <EncodeSettingsTab Section="hardware" />
             <EncodeSettingsTab Section="optimized-copies" />
+            <ScrubPreviewSettingsCard />
             <EncodeSettingsTab Section="diagnostics" />
             <PlaybackToolsStatusCard />
             break;

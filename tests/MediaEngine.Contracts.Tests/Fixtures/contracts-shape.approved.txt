@@ -7490,6 +7490,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDt
   ConversionReason: System.String | nullability=nullable | accessors=get,init
   SourceBitrateKbps: System.Int32? | nullability=nullable | accessors=get,init
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | nullability=not-null | accessors=get,init
+  ScrubPreviewIndexUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPreferenceValues
 
@@ -7833,6 +7834,22 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.RefreshTextTracksR
   track_id: System.Guid? | nullability=nullable | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ScrubPreviewIndexDto
+  Version: System.Int32 | nullability=not-null | accessors=get,init
+  IntervalSeconds: System.Double | nullability=not-null | accessors=get,init
+  TileWidth: System.Int32 | nullability=not-null | accessors=get,init
+  TileHeight: System.Int32 | nullability=not-null | accessors=get,init
+  Columns: System.Int32 | nullability=not-null | accessors=get,init
+  Rows: System.Int32 | nullability=not-null | accessors=get,init
+  FrameCount: System.Int32 | nullability=not-null | accessors=get,init
+  DurationSeconds: System.Double | nullability=not-null | accessors=get,init
+  Sheets: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ScrubPreviewStatusDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  BytesUsed: System.Int64 | nullability=not-null | accessors=get,init
+  FfmpegAvailable: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   DefaultSubtitleLanguage: System.String | nullability=not-null | accessors=get,set
   AlternateSubtitleLanguages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -7904,6 +7921,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegm
   Source: System.String | nullability=nullable | accessors=get,init
   IsSkippable: System.Boolean? | nullability=nullable | accessors=get,init
   ReviewStatus: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateScrubPreviewSettingRequestDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpsertAudiobookChapterTitleOverrideRequestDto
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
@@ -10286,6 +10306,15 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SaveSeriesMissingI
   ContainerKey: System.String | nullability=not-null | accessors=get,init
   ShowMissing: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ScrubPreviewSettings
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  IntervalSeconds: System.Int32 | nullability=not-null | accessors=get,set
+  TileWidth: System.Int32 | nullability=not-null | accessors=get,set
+  Columns: System.Int32 | nullability=not-null | accessors=get,set
+  Rows: System.Int32 | nullability=not-null | accessors=get,set
+  BackfillPerPass: System.Int32 | nullability=not-null | accessors=get,set
+  BackfillIntervalMinutes: System.Int32 | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SeriesMissingItemPreferenceDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
@@ -10487,6 +10516,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TranscodingSetting
   CleanupLruEnabled: System.Boolean | nullability=not-null | accessors=get,set
   DefaultMobileProfile: System.String | nullability=not-null | accessors=get,set
   AdaptiveHls: MediaEngine.Contracts.Settings.AdaptiveHlsSettings | nullability=not-null | accessors=get,set
+  ScrubPreviews: MediaEngine.Contracts.Settings.ScrubPreviewSettings | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIAppStoreLinksContract
   AppStore: System.String | nullability=not-null | accessors=get,set

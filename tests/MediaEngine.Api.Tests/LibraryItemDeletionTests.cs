@@ -560,6 +560,29 @@ public sealed class LibraryItemDeletionTests : IDisposable
     }
 
     [Fact]
+    public async Task ScrubPreviews_AreRemovedWithTheirFile_AndOtherFilesKeepTheirs()
+    {
+        var media = _world.WriteFile(_world.Managed, "Dune.mkv");
+        var other = _world.WriteFile(_world.Managed, "Arrival.mkv");
+        var (duneId, duneAssets) = _world.AddWork("Dune", [media]);
+        var (_, arrivalAssets) = _world.AddWork("Arrival", [other]);
+        var store = new MediaEngine.Api.Services.Playback.ScrubPreviewCache(_world.AssetPaths);
+        foreach (var assetId in new[] { duneAssets[0], arrivalAssets[0] })
+        {
+            var staging = store.NewStagingFolder(assetId);
+            Directory.CreateDirectory(staging);
+            File.WriteAllBytes(Path.Combine(staging, "sheet-000.jpg"), new byte[100]);
+            store.Publish(assetId, staging, new MediaEngine.Contracts.Playback.ScrubPreviewIndexDto { IntervalSeconds = 10, TileWidth = 320, TileHeight = 180, Columns = 10, Rows = 10, FrameCount = 1, Sheets = ["sheet-000.jpg"] });
+        }
+
+        await DeleteAsync(duneId);
+
+        Assert.Null(store.TryReadComplete(duneAssets[0]));
+        Assert.False(Directory.Exists(store.FolderFor(duneAssets[0])));
+        Assert.NotNull(store.TryReadComplete(arrivalAssets[0]));
+    }
+
+    [Fact]
     public async Task ARunningJob_DelaysTheDeleteUntilItLetsGo()
     {
         using var world = new LibraryItemDeletionTestWorld(leaseWaitLimit: TimeSpan.FromSeconds(20));
