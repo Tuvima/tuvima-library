@@ -6,7 +6,8 @@ namespace MediaEngine.Web.Services.Integration;
 /// only for a group it cannot find by id, and still checks each one.
 /// </summary>
 /// <param name="IsVideoFolder">The group is a folder of Other videos (it is called a folder in menus and dialogs, never a show or Series).</param>
-public sealed record LibraryGroupTarget(Guid GroupId, string Kind, string Title, IReadOnlyList<Guid> WorkIds, bool IsVideoFolder = false);
+/// <param name="SupportingFileCount">How many supporting files go with the group, when the editor's header knew (universal editor v5 D29); 0 says nothing.</param>
+public sealed record LibraryGroupTarget(Guid GroupId, string Kind, string Title, IReadOnlyList<Guid> WorkIds, bool IsVideoFolder = false, int SupportingFileCount = 0);
 
 /// <summary>The four kinds of group Delete reaches (spec Delete a show, season, album or Series).</summary>
 public static class LibraryGroupKinds

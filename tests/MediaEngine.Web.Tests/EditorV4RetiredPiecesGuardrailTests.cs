@@ -54,9 +54,20 @@ public sealed partial class EditorV4RetiredPiecesGuardrailTests
     public void TheV4EditorPiecesThatReplacedThemStillExist()
     {
         var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details");
-        foreach (var name in new[] { "EditorFamilyRail", "EditorUniverseRail", "EditorItemHeader", "EditorQuickFacts", "EditorArtworkTool", "EditorMatchPanel", "EditorContentsTab", "EditorFilesTab" })
+        foreach (var name in new[] { "EditorHeaderNav", "EditorUniverseRail", "EditorItemHeader", "EditorQuickFacts", "EditorArtworkTool", "EditorMatchPanel" })
         {
-            Assert.True(File.Exists(Path.Combine(details, name + ".razor")), name + " is part of the v4 editor and must stay.");
+            Assert.True(File.Exists(Path.Combine(details, name + ".razor")), name + " is part of the editor and must stay.");
+        }
+    }
+
+    /// <summary>Universal editor v5 D1 and D3: the family rail and the Contents and Files tabs went with the new header; they must not come back.</summary>
+    [Fact]
+    public void TheV5EditorDoesNotBringBackTheFamilyRailOrTheContentsAndFilesTabs()
+    {
+        var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details");
+        foreach (var name in new[] { "EditorFamilyRail", "EditorContentsTab", "EditorFilesTab" })
+        {
+            Assert.False(File.Exists(Path.Combine(details, name + ".razor")), name + " went with editor v5 and must not return.");
         }
     }
 

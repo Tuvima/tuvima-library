@@ -214,7 +214,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         host.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
         Assert.Single(_editor.FindAll(".tl-editor-window"));
         Assert.Equal("Dune", _editor.Find("input[aria-label='Title']").GetAttribute("value"));
-        Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
+        Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
     }
 
     [Fact]
@@ -244,7 +244,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.True(await esc);
         Assert.NotEmpty(_editor.FindAll(".tl-editor-panel"));
         Assert.Single(_editor.FindAll(".tl-editor-window"));
-        Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
+        Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
         Assert.Empty(_steps);
     }
 
@@ -290,7 +290,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         Assert.Empty(_steps);
         Assert.True(State.IsOpen);
         Assert.Single(_editor.FindAll(".tl-editor-window"));
-        Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
+        Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim());
         Assert.Empty(_saves);
     }
 
@@ -394,7 +394,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
 
         TypeIntoTheTitle(cut, "Dune Messiah");
 
-        _editor.WaitForAssertion(() => Assert.Contains("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent));
+        _editor.WaitForAssertion(() => Assert.Contains("Save changes", _editor.Find("button.tl-editor-window__save").TextContent));
         Assert.DoesNotContain("Dune Messiah", cut.Find(".tl-detail-stage").TextContent);
         Assert.Empty(_saves);
         Assert.Empty(_sessionCalls);
@@ -439,7 +439,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     public async Task ThePencilsTheOldBannerAndTheSectionBelowTheHeroStayGoneWhileThePopOverIsOpen()
     {
         var cut = await StartEditingAsync();
-        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match & Identity").Click();
+        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match").Click();
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-panel")));
 
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));

@@ -10092,8 +10092,65 @@
   <data name="EditorRail_NothingMatches" xml:space="preserve">
     <value>Nothing matches that.</value>
   </data>
-  <data name="EditorRail_ShowMore" xml:space="preserve">
-    <value>Show more ({0} left)</value>
+  <data name="EditorNav_Label" xml:space="preserve">
+    <value>Move around this title</value>
+  </data>
+  <data name="EditorNav_Home" xml:space="preserve">
+    <value>Go to {0}</value>
+  </data>
+  <data name="EditorNav_Choose" xml:space="preserve">
+    <value>Choose {0}</value>
+  </data>
+  <data name="EditorNav_Find" xml:space="preserve">
+    <value>Find {0}</value>
+  </data>
+  <data name="EditorNav_Watched" xml:space="preserve">
+    <value>Watched</value>
+  </data>
+  <data name="EditorNav_PickFirst" xml:space="preserve">
+    <value>Choose a {0} first.</value>
+  </data>
+  <data name="EditorNav_ShowingOf" xml:space="preserve">
+    <value>Showing {0} of {1}</value>
+  </data>
+  <data name="EditorNav_SupportingFiles" xml:space="preserve">
+    <value>Supporting files</value>
+  </data>
+  <data name="EditorNav_FileMissing" xml:space="preserve">
+    <value>File not found</value>
+  </data>
+  <data name="EditorNav_AllFiles" xml:space="preserve">
+    <value>All supporting files ({0})</value>
+  </data>
+  <data name="EditorNav_Browse" xml:space="preserve">
+    <value>Browse files and folders</value>
+  </data>
+  <data name="EditorFooter_WriteBackOffTitle" xml:space="preserve">
+    <value>File write-back off</value>
+  </data>
+  <data name="EditorFooter_WriteBackOffDetail" xml:space="preserve">
+    <value>Edits save in Library. Original files stay unchanged.</value>
+  </data>
+  <data name="EditorFooter_WriteBackOnTitle" xml:space="preserve">
+    <value>File write-back on</value>
+  </data>
+  <data name="EditorFooter_WriteBackOnDetail" xml:space="preserve">
+    <value>Edits save in Library and are written into the file's own tags.</value>
+  </data>
+  <data name="EditorFooter_SavesInTuvima" xml:space="preserve">
+    <value>Edits save in Library.</value>
+  </data>
+  <data name="EditorFooter_MoveTitle" xml:space="preserve">
+    <value>This file will move when you save</value>
+  </data>
+  <data name="EditorFooter_NoChanges" xml:space="preserve">
+    <value>No changes yet</value>
+  </data>
+  <data name="EditorFooter_OneUnsaved" xml:space="preserve">
+    <value>1 unsaved change</value>
+  </data>
+  <data name="EditorFooter_ManyUnsaved" xml:space="preserve">
+    <value>{0} unsaved changes</value>
   </data>
   <data name="EditorHeader_OpenAt" xml:space="preserve">
     <value>Open at {0}</value>
@@ -10104,122 +10161,14 @@
   <data name="EditorFooter_Discard" xml:space="preserve">
     <value>Discard</value>
   </data>
-  <data name="EditorFooter_SavesToLibrary" xml:space="preserve">
-    <value>Changes save to Library</value>
-  </data>
-  <data name="EditorFooter_WriteBack" xml:space="preserve">
-    <value>File write-back {0}</value>
-  </data>
-  <data name="EditorContents_TickedRows" xml:space="preserve">
-    <value>Ticked rows</value>
-  </data>
-  <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
-    <value>Choose what to change</value>
-  </data>
   <data name="EditorLineUp_ApplyTo" xml:space="preserve">
     <value>Apply to</value>
   </data>
   <data name="EditorLineUp_ReadOnly" xml:space="preserve">
     <value>You can look at these matches, but you can't change them.</value>
   </data>
-  <data name="EditorContents_MatchN" xml:space="preserve">
-    <value>Match these {0} {1}</value>
-  </data>
-  <data name="EditorContents_Loading" xml:space="preserve">
-    <value>Loading the contents</value>
-  </data>
-  <data name="EditorContents_LoadingMore" xml:space="preserve">
-    <value>Loading more</value>
-  </data>
-  <data name="EditorContents_CouldNotRead" xml:space="preserve">
-    <value>These could not be read.</value>
-  </data>
-  <data name="EditorContents_RestCouldNotRead" xml:space="preserve">
-    <value>The rest could not be read.</value>
-  </data>
-  <data name="EditorContents_Empty" xml:space="preserve">
-    <value>There is nothing in your library under this yet.</value>
-  </data>
-  <data name="EditorContents_Select" xml:space="preserve">
-    <value>Select</value>
-  </data>
-  <data name="EditorContents_Picture" xml:space="preserve">
-    <value>Picture</value>
-  </data>
-  <data name="EditorContents_Title" xml:space="preserve">
-    <value>Title</value>
-  </data>
-  <data name="EditorContents_Status" xml:space="preserve">
-    <value>Status</value>
-  </data>
-  <data name="EditorContents_Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="EditorContents_Matched" xml:space="preserve">
-    <value>Matched</value>
-  </data>
-  <data name="EditorContents_NotMatched" xml:space="preserve">
-    <value>Not matched</value>
-  </data>
-  <data name="EditorContents_HeadingShow" xml:space="preserve">
-    <value>Seasons and episodes</value>
-  </data>
-  <data name="EditorContents_HeadingAlbum" xml:space="preserve">
-    <value>Songs</value>
-  </data>
-  <data name="EditorContents_HeadingSeries" xml:space="preserve">
-    <value>Books and issues</value>
-  </data>
-  <data name="EditorContents_Back" xml:space="preserve">
-    <value>Back to Contents</value>
-  </data>
-  <data name="EditorFiles_Loading" xml:space="preserve">
-    <value>Loading the files</value>
-  </data>
-  <data name="EditorFiles_CouldNotRead" xml:space="preserve">
-    <value>The files could not be read.</value>
-  </data>
-  <data name="EditorFiles_EmptyGrouping" xml:space="preserve">
-    <value>The files are on the episodes, songs and books inside. Open one from Contents to see its file.</value>
-  </data>
-  <data name="EditorFiles_Empty" xml:space="preserve">
-    <value>No files are stored for this item.</value>
-  </data>
-  <data name="EditorFiles_Name" xml:space="preserve">
-    <value>Name</value>
-  </data>
-  <data name="EditorFiles_Folder" xml:space="preserve">
-    <value>Folder</value>
-  </data>
-  <data name="EditorFiles_Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="EditorFiles_Quality" xml:space="preserve">
-    <value>Quality</value>
-  </data>
-  <data name="EditorFiles_Access" xml:space="preserve">
-    <value>Access</value>
-  </data>
-  <data name="EditorFiles_ReadOnly" xml:space="preserve">
-    <value>Read-only</value>
-  </data>
-  <data name="EditorFiles_ReadOnlyTip" xml:space="preserve">
-    <value>Library only reads this file and never changes or deletes it.</value>
-  </data>
-  <data name="EditorFiles_OnlyFirst" xml:space="preserve">
-    <value>Only the first files are listed.</value>
-  </data>
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>
-  </data>
-  <data name="EditorFiles_Actions" xml:space="preserve">
-    <value>Actions</value>
-  </data>
-  <data name="EditorFiles_DeleteFile" xml:space="preserve">
-    <value>Delete {0}…</value>
-  </data>
-  <data name="EditorHeader_MoreActions" xml:space="preserve">
-    <value>More actions for this item</value>
   </data>
   <data name="EditorFileSort_Heading" xml:space="preserve">
     <value>What is this file?</value>

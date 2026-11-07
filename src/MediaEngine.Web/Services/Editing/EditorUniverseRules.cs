@@ -15,8 +15,8 @@ public static class EditorUniverseRules
     /// <summary>The name of the pictures tab: "Pictures" for a Universe and its things, "Artwork" everywhere else.</summary>
     public static string ArtworkTabLabel(string? subjectKind) => IsUniverseSubject(subjectKind) ? "Pictures" : "Artwork";
 
-    /// <summary>The name of the match tab: a Universe's is read-only and says so, other items keep "Match &amp; Identity".</summary>
-    public static string MatchTabLabel(string? subjectKind) => IsUniverseSubject(subjectKind) ? "Match" : "Match & Identity";
+    /// <summary>The name of the match tab (universal editor v5 D3): "Match" for every item; a Universe's is read-only and says so inside.</summary>
+    public static string MatchTabLabel(string? subjectKind) => "Match";
 
     /// <summary>True when the text is a Wikidata item id ("Q42").</summary>
     public static bool LooksLikeQid(string? text)

@@ -50,13 +50,6 @@ public static class EditorHeaderRules
         };
     }
 
-    /// <summary>
-    /// The Contents tab belongs to an item that has children to list: a show, season, album or series (spec section 3a). It follows the
-    /// family: an item the Engine reports no family for (a film, a standalone book) never gets it.
-    /// </summary>
-    public static bool HasContents(string? scopeId, bool hasFamily) =>
-        hasFamily && scopeId is not null && scopeId.ToLowerInvariant() is "series" or "season" or "album";
-
     /// <summary>The links to the item's provider records that can be built from what the Engine reports; empty when none are known.</summary>
     public static IReadOnlyList<EditorProviderLink> Links(MediaEditorIdentitySummaryDto? identity, string? mediaType, string? scopeId)
     {

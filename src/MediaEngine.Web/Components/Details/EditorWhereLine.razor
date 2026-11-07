@@ -1,27 +1,57 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject ILogger<EditorWhereLine> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-@* The footer's first words (universal editor v4 D3, section 1a): where changes go and whether the files are updated too, for example
-   "Changes save to Library - File write-back off". The setting is only read here (it is changed in Settings); when it cannot be read the
-   second part is left out, so the footer never claims something it does not know. *@
-<div class="tl-editor-window__where">
-    <strong>@L["EditorFooter_SavesToLibrary"]</strong>
-    @if (_setting.Text is { } state)
-    {
-        <small data-write-back="@(_setting.IsOn ? "on" : "off")">@string.Format(L["EditorFooter_WriteBack"].Value, state.ToLowerInvariant())</small>
-    }
+@* The footer's status text (universal editor v5 D10, screen J), between Delete and the unsaved count: whether edits also reach the files, as
+   "File write-back off - Edits save in Tuvima. Original files stay unchanged." or "File write-back on - Edits save in Tuvima and are written into
+   the file's own tags.". When a staged change will move a file in a Managed folder, an amber warning with where it goes replaces that sentence
+   until Save or Discard. The setting is only read here (it is changed in Settings); when it cannot be read nothing is claimed about the files. *@
+@{
+    var state = EditorFooterRules.For(_setting, Source is EditSessionFlow flow ? flow.Session.Pending : null);
+}
+<div class="@(state.Status == EditorFooterStatus.WillMove ? "tl-editor-window__where tl-editor-window__where--warn" : "tl-editor-window__where")"
+     data-footer-status="@state.Status.ToString().ToLowerInvariant()"
+     role="status">
+    <AppMaterialIcon Icon="@Icon(state.Status)" Size="AppIconSize.Control20" Class="tl-editor-window__where-icon" />
+    <div class="tl-editor-window__where-text">
+        @switch (state.Status)
+        {
+            case EditorFooterStatus.WillMove:
+                <strong>@L["EditorFooter_MoveTitle"]</strong>
+                <small>@state.MoveDetail</small>
+                break;
+            case EditorFooterStatus.WriteBackOn:
+                <strong>@L["EditorFooter_WriteBackOnTitle"]</strong>
+                <small>@L["EditorFooter_WriteBackOnDetail"]</small>
+                break;
+            case EditorFooterStatus.WriteBackOff:
+                <strong>@L["EditorFooter_WriteBackOffTitle"]</strong>
+                <small>@L["EditorFooter_WriteBackOffDetail"]</small>
+                break;
+            default:
+                <strong>@L["EditorFooter_SavesInTuvima"]</strong>
+                break;
+        }
+    </div>
 </div>
 
 @code {
     private FileWriteSetting _setting = FileWriteSetting.Unknown;
     private string _read = string.Empty;
 
-    /// <summary>The pending list's holder: its media types say which library applies.</summary>
+    /// <summary>The pending list's holder: its media types say which library applies, and its pending list says whether a file will move.</summary>
     [Parameter, EditorRequired] public IReviewSource Source { get; set; } = default!;
+
+    private static string Icon(EditorFooterStatus status) => status switch
+    {
+        EditorFooterStatus.WillMove => AppMaterialIcons.Outlined.Warning,
+        EditorFooterStatus.WriteBackOn => AppMaterialIcons.Outlined.LockOpen,
+        _ => AppMaterialIcons.Outlined.Lock,
+    };
 
     protected override async Task OnParametersSetAsync()
     {
