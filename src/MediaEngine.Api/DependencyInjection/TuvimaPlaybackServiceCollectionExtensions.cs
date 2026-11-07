@@ -30,6 +30,9 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<ScrubPreviewSettingsService>();
         services.AddSingleton<MediaEngine.Storage.ScrubPreviewCandidateRepository>();
         services.AddSingleton<ITranscodeActivitySignal, TranscodeActivitySignal>();
+        // Bookmark frames (Unified player v2 D21a): one still per video bookmark, made right after the save, in the same cache family.
+        services.AddSingleton<BookmarkFrameCache>();
+        services.AddSingleton<BookmarkFrameService>();
         services.AddSingleton<HlsAccessGrantService>();
         // Casting: a separate grant kind (its own Data Protection purpose) so HLS and cast grants can never be swapped.
         services.AddSingleton<CastAccessGrantService>();

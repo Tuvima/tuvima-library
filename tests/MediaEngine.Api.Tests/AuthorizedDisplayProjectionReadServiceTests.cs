@@ -1893,6 +1893,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch { }
+        DisposeBookmarkFrameFolder();
     }
 
     private sealed class RecentAdditionRow

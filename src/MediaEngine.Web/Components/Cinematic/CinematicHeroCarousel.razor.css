@@ -58,7 +58,7 @@
 }
 
 .cinematic-hero-carousel__detail-link:focus-visible {
-    outline: 3px solid var(--tl-accent-primary, #8852FC);
+    outline: 3px solid var(--tl-accent-primary);
     outline-offset: -6px;
 }
 
@@ -167,14 +167,14 @@
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item.is-active .cinematic-hero-carousel__dash {
     width: 3rem;
     height: 0.38rem;
-    background: var(--tl-accent-primary, #8852FC);
+    background: var(--tl-accent-primary);
 }
 
 .cinematic-hero-carousel__dash-fill {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 65%, white);
+    background: color-mix(in srgb, var(--tl-accent-primary) 65%, white);
     transform: scaleX(0);
     transform-origin: left center;
     animation: cinematic-hero-dash-fill var(--cinematic-hero-rotation-duration, 8000ms) linear forwards;
@@ -242,7 +242,7 @@
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__control:focus-visible {
     border-color: rgba(255, 255, 255, 0.42);
     background: rgba(20, 23, 31, 0.84);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 ::deep .cinematic-hero__track-preview {
     order: 7;
@@ -294,7 +294,7 @@
 
 ::deep .cinematic-hero__track-preview a:hover,
 ::deep .cinematic-hero__track-preview a:focus-visible {
-    color: #fff;
+    color: var(--tl-text-on-accent);
     text-decoration: underline;
 }
 

@@ -98,3 +98,61 @@ The app has 42 pages and about 660 building blocks. Thirty of those blocks are n
 | `Components/Shared/AppSelectItem.razor:21` | "Legacy child-content options have no text parameter" | Delete if no call site still passes child content; otherwise reword to "child-content options". |
 | `Components/Details/DetailPage.razor.css:611` | "replaces its legacy…" navigation logic | Delete the word; the replacement is built. |
 | `Components/Details/DetailPage.razor.css:844` | "Keep after every legacy density rule" | Delete with the density rules in WP7/WP14. |
+
+## 4. Page walk (WP14), part A
+
+Read-and-test walk (no screenshots; the Local check list covers those). Rules judged: D1 to D15.
+
+- **Settings, Libraries** (`/settings/libraries`): Fixed: status filter is full height like the search box (was compact beside a normal search); Titles column right-aligned with tabular numerals (D15.4).
+- **Settings, Playback / Reading and Listening** (`/settings/playback`, `/settings/reading`, `/settings/listening`): Pass (built on AppSettingsGroup and AppSettingRow in WP12).
+- **Settings, Providers and plugins** (`/settings/plugins`): Pass (list uses the shared filter row); the Plugin file tab is owned by the Editor v5 build only where it embeds the editor panels.
+- **Plugin page** (`/settings/plugins/{id}`, Set up): Fixed (#711): Test and Test again buttons are 44 px like the mock (were 36); "What it provides" tiles use the mock's neutral card with a coloured icon only (230 px columns, 10 px gap, 12 px muted sentence); the connection detail line is one line with an ellipsis and the cut-off tooltip (D15.6). Left: the "Official" pill beside the name and the Version row in the side column (data the page model does not give yet); the page title is 24 px, the mock 22 px (off the type ladder, so not hand-typed).
+- **Plugin page, plugin-provided pages** (`/plugin/{id}/{key}`): Pass (no local colour, size or alignment rule).
+- **Settings, Security / Access / Household** (`/settings/security`, `/settings/users`): Fixed (D15.6): the "Saved" line in the Kid settings and the household library ceiling is always present, on the same line, never wraps or moves a control. Left: none.
+- **Settings, Needs Review** (`/settings/needs-review`, #694, #695): Fixed: rows sit on the 64 px media step of the row ladder on desktop; the page's own filter-row flex rule is removed (the shared AppFilterRow owns it). The filter row is already one line with hidden labels. Left: "Last tried" stays left-aligned text (relative words, not a number).
+- **Settings, Recently Added** (`/settings/recently-added`) and **Recently added** (`/recently-added`): Fixed (#695): the type pills are the shared AppToggleChip (hand-typed white and purple rgba and glow removed), one centre line.
+- **Settings, Activity** (`/settings/activity`) and **My activity** (`/my-activity`): Fixed (#695): From and To no longer draw labels above while the search box has none; the dates sit on the search row's centre line with the words From and To beside them and a "Dates" group name.
+- **Settings, Recycle bin** (`/settings/recycle-bin`) and **Recycle bin** (`/recycle-bin`): Pass ("Showing: X" with its toggle is one line on one centre line).
+- **Settings, Vault settings / System / Devices**: Fixed (Devices): the Household and Profile filter names sit beside their selects, not in small type above (D15.1, #695). Other panels Pass. Left: Local AI usage table now right-aligns Requests and Busy time (Fixed, D15.4).
+- **Setup** (`/setup`): Fixed: the intro lead sentence is left-aligned (D15.4). Left: the animated intro stays centred as in the approved first-run mock.
+- **Profile picker** (`/who`): Pass (centred choice tiles are the allowed exception).
+- **My profile, Overview** (`/my-profile`): Fixed (#712): genre chips are capped at the card width with an ellipsis and a tooltip (shared AppChip rule in app.css, so every chip in the app now behaves the same).
+- **My profile, Taste** (`/my-profile/taste`): Fixed (#712, #695): the legend label wraps to at most two lines with the tooltip; the legend column can no longer widen past its card; Key tastes chips are capped with an ellipsis; percentages right-aligned; the Scope filter name sits beside its select. Left: comma-joined provider genre strings are still one long label (splitting them is Engine logic, not done here).
+- **My profile, Activity** (`/my-profile/activity`): Fixed (same page as My activity above).
+- **For me** (`/for-me`): Pass (area buttons and Sort sit on one centre line; the Sort name is beside its select).
+- **Downloads** (`/downloads`), **Companion** (`/companion`), **Vault** (`/vault`), **Vault scene** (`/vault/scene/{id}`), **Error** (`/Error`), **Not found** (`/not-found`): Pass (no local colour, size, icon or alignment rule found; the Companion position picker's centred cell labels are tile text).
+- **Collections** (`/collections`): Pass (filter bar is the browse-shell surface, every select labelled, shared with part B). Left: the browse-shell filter surface is part B's; the editor window is the Editor v5 build's.
+- **Search** (`/search`): Fixed: seven hand-typed colours in the page sheet moved to tokens. Left: the empty-state blocks stay centred (the shared empty-state pattern).
+- **Design preview** (`/design-system/components`): Pass: shows the four window kinds, the settings row with the status slot, the Match row, the footer order, the number field and now a filter row; its tables use the numeric column class.
+- **Window kind, Window (S/M/L) and Sheet**: Pass (Setup, Household and Needs Review dialogs use AppDialogOptions.Size).
+- **Window kind, Pop-out Menu / Panel**: Pass (Activity filters use AppPopover).
+- **Window kind, Viewer**: Pass (not touched).
+- **Shared parts touched**: `.app-table__num` and `.app-numeric-field` (right-aligned, tabular numerals, D15.4); `.app-chip` (max width and ellipsis); `Common_Dates` string. Ratchets lowered: hand-typed hex 853 to 852, forced overrides 1301 to 1293, centred text 12 to 11 (eight dead `!important` rules in Settings.razor.css removed with the unused danger-card and reading-preview rules).
+
+## 4. Page walk (WP14), part B
+
+Read against D1 to D15 from the code, the page styles and the guardrail tests (no Engine run; screenshots are a Local check).
+
+- **Home / Library browse** (`/`): Fixed: breakpoint 720 moved to the 640 step, hand-typed hex in tile, shelf and hero styles moved to tokens, hero Play already the shared HeroActionRow | Left: the first-run empty state is centered (a lone empty state, not body copy); phone hero card keeps a local layout block.
+- **Watch browse** (`/watch`): Fixed: the shared browse shell's filter row is one line on one centre line, "Browse as", "Filter by", "Sort" and "Display" names are hidden (screen reader only) and shown only in the phone filter sheet (bug 695), sort select named for screen readers, 18 hex colors to tokens | Left: the shell still has 20 `!important` and about 30 rgba values (shared with Read and Listen).
+- **Read** (`/read`): Fixed: same shell fixes as Watch | Left: same as Watch.
+- **Listen browse** (`/listen`): Fixed: same shell fixes | Left: same as Watch.
+- **Listen** (`/listen/{Tab}`, playlists: albums, artists, songs, audiobooks): Fixed: album and audiobook filter rows are one line on one centre line with no small names above the selects (bug 695), Play / Shuffle / Back / Save buttons are AppButton, row Queue / Edit / Remove are AppIconButton (Plain, Remove in the error tone), all page-local `listen-button` and `listen-icon-button` rules deleted (and their dead touch-floor entries in app.css), 15 hex colors to tokens | Left: about 90 rgba values and the rail, tracks table and audiobook cards keep page-local styling (needs a second pass, no mock to compare).
+- **My library** (`/my-library`): Pass (no filter row, no hand-typed colors, sizes or icon rules).
+- **Shelf grid** (`/all/{Lane}/{ShelfKey}`): Fixed: the Sort and filter selects sit on one centre line and carry no label above them (labels return inside the phone sheet) (bug 695).
+- **Unified detail: movie, show, season, episode, book, album, person** (`/details/{EntityType}/{Id}`): Fixed: hero and tab styles, primary module, credits, Extras and Contents use tokens instead of 90 hand-typed hex colors (gold maps to the collection accent, purple to the accent tokens), album and audiobook track rows use AppIconButton (Like is Filled + Soft), page-local `tl-audio-item-table__icon-button` rules deleted | Left: DetailHero and DetailPage keep 43 `!important` and about 70 rgba values; the editor window and its tabs are owned by Editor v5.
+- **Universe** (`/universe/{qid}`): Pass (tokens only in the page style); Fixed in its parts: tree and cast comparison hex colors to tokens, five off-ladder font sizes to the ladder.
+- **Universe thing** (`/universe/{Qid}/things/{ThingId}`): Fixed: seven off-ladder font sizes to the ladder, grey hex colors in the tree, path finder and family views to tokens.
+- **Chronicle explorer** (`/universe/{Qid}/explore`): Fixed: empty-state panel and muted text use tokens | Left: empty state is centered (empty state, not body copy).
+- **View** (`/view`): Fixed: 8 hex colors to tokens; the filter bar is the shared AppDiscoveryFilterBar (one line, no labels).
+- **View artwork**, **View contributions**: Fixed: hex to tokens, 720 breakpoint to 640 | Left: none.
+- **View document rules**, **View documents**: Pass for filter rows (the document filter rail is a vertical form rail: a label above each field is the D15.2 shape, every group has one) | Left: the rail's styles live in app.css and still use `--app-control-*` variables (WP7 count).
+- **View galleries**, **View gallery detail**, **View people**: Fixed: hex to tokens where present; people search is a single labelled-by-placeholder field.
+- **View places**: Pass for filter row (search, time, type and Filters on one grid row, centre-aligned, no labels); the map and places styles are on the colour allowlist (colour is data) | Left: two icon font sizes typed by hand (1.2rem, 1.05rem).
+- **View photo timeline / immersive viewer / selection toolbar** (parts of View): Fixed: 21 hex colors to tokens, one off-ladder font size.
+- **EPUB reader** (`/read/{AssetId}`): Pass (page is a thin host for the foliate reader; no local rules in the page).
+- **Extra viewer** (`/extras/{ExtraId}`): Fixed: white document backdrop, video backdrop and focus ring use tokens | Left: centered "state" block (empty/loading state).
+- **Watch player** (`/watch/player/{WorkId}`): owned by Player v2, consumes Look v3; not edited. The page style is 5 lines and clean. Rules its parts break: VideoPlaybackHost keeps 5 hand-typed hex colors and 7 rgba values, and still has page-local button rules (on the LookV3IconButtonTests pending list), as does PlaybackControlStrip.
+- **Listen pop-up player** (`/listen/player-popup`): owned by Player v2, consumes Look v3; not edited. The page style is 4 lines and clean. Rules its parts break: ListenNowPlayingBar keeps page-local icon-button rules (on the pending list) and two 720/640 px breakpoints.
+
+Window kinds touched: none changed. The Browse filter sheet (phone bottom sheet) keeps its group names visible as section headings; its shared layout block in app.css is part A's.

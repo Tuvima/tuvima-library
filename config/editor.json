@@ -1,0 +1,138 @@
+{
+  "$schema": "./schemas/editor.schema.json",
+  "version": "1",
+
+  "inline_supporting_files": 8,
+  "cards_per_group": 12,
+  "rows_per_page": 25,
+  "item_list_page_size": 50,
+  "folder_tree_page_size": 100,
+
+  "suggest_details": {
+    "first_lines": 6,
+    "description_max_characters": 500
+  },
+
+  "kinds": {
+    "item": {
+      "tabs": ["details", "artwork", "history"],
+      "facts_line": ["year", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
+      "match_fields": []
+    },
+    "tv_show": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["year", "season_count", "episode_count", "match_state"],
+      "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
+      "match_fields": ["show", "year"]
+    },
+    "tv_season": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["season_number", "episode_count", "year", "match_state"],
+      "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
+      "match_fields": ["show", "year"]
+    },
+    "tv_episode": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["episode_number", "runtime", "air_date", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
+      "match_fields": ["show", "year"]
+    },
+    "movie": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["year", "runtime", "rating", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
+      "match_fields": ["title", "year"]
+    },
+    "album": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["artist", "year", "track_count", "match_state"],
+      "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
+      "match_fields": ["artist", "album", "song"]
+    },
+    "song": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["track_number", "runtime", "artist", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
+      "match_fields": ["artist", "album", "song"]
+    },
+    "book": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["author", "year", "page_count", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
+      "match_fields": ["title", "author", "isbn"]
+    },
+    "audiobook": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["author", "narrator", "runtime", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
+      "match_fields": ["title", "author_or_narrator"]
+    },
+    "comic": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["series", "issue_number", "year", "match_state"],
+      "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
+      "match_fields": ["series", "issue", "year"]
+    },
+    "series": {
+      "tabs": ["details", "history"],
+      "facts_line": ["member_count", "match_state"],
+      "quick_facts": ["member_count", "file_count", "total_size", "supporting_file_count"],
+      "match_fields": []
+    },
+    "course": {
+      "tabs": ["details", "artwork", "history"],
+      "facts_line": ["section_count", "video_count", "total_runtime"],
+      "quick_facts": ["file_count", "total_size", "total_runtime", "folder", "supporting_file_count"],
+      "match_fields": []
+    },
+    "course_section": {
+      "tabs": ["details", "artwork", "history"],
+      "facts_line": ["video_count", "total_runtime"],
+      "quick_facts": ["file_count", "total_size", "total_runtime", "folder", "supporting_file_count"],
+      "match_fields": []
+    },
+    "video": {
+      "tabs": ["details", "artwork", "history"],
+      "facts_line": ["number", "runtime", "watched"],
+      "quick_facts": ["file_quality", "container", "size", "folder", "supporting_file_count"],
+      "match_fields": []
+    },
+    "person": {
+      "tabs": ["details", "artwork", "match", "history"],
+      "facts_line": ["roles", "match_state"],
+      "quick_facts": ["match_state", "item_count", "roles"],
+      "match_fields": ["title"]
+    },
+    "supporting_file": {
+      "tabs": ["details", "preview", "history"],
+      "facts_line": ["file_type", "pages_or_length", "size", "supporting_file_chip"],
+      "quick_facts": ["file_type", "file_name", "folder", "read_only", "preview"],
+      "match_fields": []
+    },
+    "universe": {
+      "tabs": ["details", "pictures", "match", "history"],
+      "facts_line": ["counts_by_kind"],
+      "quick_facts": ["match_state", "counts_by_kind"],
+      "match_fields": ["title"]
+    },
+    "view_item": {
+      "tabs": ["details", "history"],
+      "facts_line": ["file_type", "date_taken", "size"],
+      "quick_facts": ["file_type", "file_name", "folder", "read_only", "size"],
+      "match_fields": []
+    },
+    "view_gallery": {
+      "tabs": ["details", "artwork", "history"],
+      "facts_line": ["item_count", "date_range"],
+      "quick_facts": ["item_count", "file_count", "total_size", "folder"],
+      "match_fields": []
+    },
+    "multiple": {
+      "tabs": ["details", "history"],
+      "facts_line": ["selected_count", "total_runtime", "total_size"],
+      "quick_facts": ["selected_count", "total_runtime", "total_size", "folder", "match_state"],
+      "match_fields": []
+    }
+  }
+}

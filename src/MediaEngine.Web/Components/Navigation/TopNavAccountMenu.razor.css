@@ -36,7 +36,7 @@
 
 .top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger:hover,
 .top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger:focus-visible {
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055)) !important;
+    background: var(--tl-bg-surface-hover) !important;
 }
 
 .top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger:focus-visible {
@@ -194,7 +194,7 @@
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout:hover,
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout:focus-visible {
     color: #fff;
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
+    background: var(--tl-bg-surface-hover);
 }
 
 /* Phones, tablets and narrow desktop windows: the trigger is the avatar alone (its aria-label still names the profile),

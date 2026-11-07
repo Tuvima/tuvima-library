@@ -5,10 +5,10 @@
     background:
         radial-gradient(circle at 80% 8%, rgba(71, 53, 122, 0.26), transparent 30rem),
         radial-gradient(circle at 12% 20%, rgba(194, 135, 48, 0.18), transparent 24rem),
-        #101115;
+        var(--tl-bg-root);
     background-repeat: no-repeat;
     background-size: 100% 100%;
-    color: #f6f0e8;
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
 }
 
@@ -100,7 +100,7 @@
     background:
         radial-gradient(circle at 30% 20%, hsla(calc(var(--person-avatar-hue) + 32), 72%, 72%, 0.42), transparent 58%),
         linear-gradient(145deg, hsl(var(--person-avatar-hue), 48%, 30%), hsl(calc(var(--person-avatar-hue) + 72), 46%, 18%));
-    color: #fff8eb;
+    color: var(--tl-text-primary);
     font-weight: 600;
     letter-spacing: 0;
 }
@@ -162,25 +162,25 @@
     margin: 0 0 1rem;
     font-size: var(--tl-font-size-md);
     font-weight: 600;
-    color: #fff8eb;
+    color: var(--tl-text-primary);
 }
 
 ::deep .tl-detail-metadata-item--lane-count {
-    color: var(--tl-accent-primary, #8852FC);
+    color: var(--tl-accent-primary);
 }
 
 ::deep .tl-detail-watch-metadata-item--lane-count {
     gap: 0.35rem;
-    color: #c4a7ff;
+    color: var(--tl-accent-primary-hover);
     font-weight: 600;
 }
 
 ::deep .tl-detail-watch-metadata-item--lane-count .tl-icon-root {
-    color: var(--tl-accent-primary, #8852FC);
+    color: var(--tl-accent-primary);
 }
 
 ::deep .tl-detail-watch-metadata-item__lane-label {
-    color: #c4a7ff;
+    color: var(--tl-accent-primary-hover);
     font-size: 0.92em;
     font-weight: 600;
 }
@@ -200,7 +200,7 @@
     border-radius: 0.85rem;
     background: rgba(246, 240, 232, 0.055);
     overflow: hidden;
-    color: #f6f0e8;
+    color: var(--tl-text-primary);
 }
 
 ::deep .tl-credit-card img,
@@ -280,7 +280,7 @@
 }
 
 ::deep .tl-detail-body {
-    background: #090c12;
+    background: var(--tl-bg-root);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.055), 0 -1.5rem 3.5rem rgba(4, 7, 12, 0.44);
 }
 
@@ -354,7 +354,7 @@
 }
 
 ::deep .tl-detail-watch-metadata-item--rating .tl-icon-root {
-    color: #f6b94b;
+    color: var(--tl-accent-collection-hover);
     font-size: var(--tl-icon-size-xs);
 }
 
@@ -374,11 +374,11 @@
 }
 
 ::deep .tl-detail-metadata-item .tl-icon-root {
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 78%, var(--tl-text-on-accent));
 }
 
 ::deep .tl-detail-metadata-item--rating .tl-icon-root {
-    color: #f7bf4f;
+    color: var(--tl-accent-collection-hover);
 }
 
 @media (width < 840px) {
@@ -545,7 +545,7 @@
 
 ::deep .tl-detail-watch-metadata-item[href]:hover,
 ::deep .tl-detail-watch-metadata-item[href]:focus-visible {
-    color: #fff;
+    color: var(--tl-text-on-accent);
     text-decoration: underline;
     text-underline-offset: 0.2em;
 }
@@ -575,7 +575,7 @@
 }
 
 ::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .tl-icon-root {
-    color: #f6c64f;
+    color: var(--tl-accent-collection-hover);
 }
 
 /* Every detail page uses one viewport-sized cinematic stage. Audio lists and
@@ -593,8 +593,8 @@
     overflow: hidden;
     isolation: isolate;
     background:
-        radial-gradient(circle at 76% 34%, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 18%, transparent), transparent 38rem),
-        #080c12;
+        radial-gradient(circle at 76% 34%, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 18%, transparent), transparent 38rem),
+        var(--tl-bg-root);
 }
 
 .tl-detail-page__primary-content {
@@ -603,8 +603,8 @@
     padding: clamp(1rem, 2vw, 1.75rem) 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     background:
-        radial-gradient(circle at 72% 8%, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 10%, transparent), transparent 38rem),
-        #090d14;
+        radial-gradient(circle at 72% 8%, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 10%, transparent), transparent 38rem),
+        var(--tl-bg-root);
 }
 
 /* Detail-series presentation. This intentionally shares sequence state and
@@ -700,7 +700,7 @@
    tabs without inheriting the earlier compact-in-hero sequence treatment. */
 
 ::deep .tl-overview-section__heading > span {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 72%, var(--tl-text-on-accent));
     font-size: var(--tl-font-size-xs);
     font-weight: 600;
     letter-spacing: 0.13em;
@@ -759,7 +759,7 @@
     max-width: none;
     padding: 0;
     background:
-        linear-gradient(180deg, #080d14, #070b11 40rem);
+        linear-gradient(180deg, var(--tl-bg-root), var(--tl-bg-root) 40rem);
 }
 
 @media (width < 840px), (max-height: 620px) {
@@ -825,8 +825,8 @@
         width: 100%;
         padding: clamp(1rem, 1.5vw, 1.5rem) 0 clamp(1.25rem, 2vw, 2rem);
         background:
-            radial-gradient(circle at 72% 5%, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 9%, transparent), transparent 44rem),
-            #08101a;
+            radial-gradient(circle at 72% 5%, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 9%, transparent), transparent 44rem),
+            var(--tl-bg-root);
     }
 
 .tl-detail-page__primary-content ::deep .tl-detail-primary-module--below-hero {

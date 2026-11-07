@@ -49,14 +49,20 @@ public static class PlaybackSkipChoices
         }
     };
 
-    /// <summary>Puts both pairs back to the app's defaults (the "Reset playback preferences" footer).</summary>
-    public static void ResetLengths(UserPlaybackSettingsDto settings)
+    /// <summary>Puts the pair for what is playing back to the app's defaults (the "Reset playback preferences" footer); the other media's pair is left alone.</summary>
+    public static Action<UserPlaybackSettingsDto> ResetLengths(bool video) => settings =>
     {
-        var watching = new WatchingSettingsDto();
-        var listening = new ListeningSettingsDto();
-        settings.Watching.SkipBackSeconds = watching.SkipBackSeconds;
-        settings.Watching.SkipForwardSeconds = watching.SkipForwardSeconds;
-        settings.Listening.SkipBackSeconds = listening.SkipBackSeconds;
-        settings.Listening.SkipForwardSeconds = listening.SkipForwardSeconds;
-    }
+        if (video)
+        {
+            var watching = new WatchingSettingsDto();
+            settings.Watching.SkipBackSeconds = watching.SkipBackSeconds;
+            settings.Watching.SkipForwardSeconds = watching.SkipForwardSeconds;
+        }
+        else
+        {
+            var listening = new ListeningSettingsDto();
+            settings.Listening.SkipBackSeconds = listening.SkipBackSeconds;
+            settings.Listening.SkipForwardSeconds = listening.SkipForwardSeconds;
+        }
+    };
 }

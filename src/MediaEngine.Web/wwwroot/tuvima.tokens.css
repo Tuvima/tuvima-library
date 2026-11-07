@@ -2,7 +2,7 @@
    Tuvima Library design tokens
    Canonical source for app colors, spacing, radius, shadows, surfaces, and
    semantic status colors. Component styles should consume these variables
-   directly, or via the legacy --app-* aliases in app.css.
+   directly, or through the --app-* aliases in app.css where one still exists.
    -------------------------------------------------------------------------- */
 
 :root {
@@ -88,13 +88,13 @@
     --tl-reader-dark-bg: #101319;
     --tl-reader-dark-fg: #E8E2D9;
     --tl-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-    --tl-font-size-xs: 0.75rem;
-    --tl-font-size-sm: 0.875rem;
-    --tl-font-size-md: 1rem;
-    --tl-font-size-lg: 1.125rem;
-    --tl-font-size-xl: 1.5rem;
-    --tl-font-size-dialog-title: 1.25rem;
-    --tl-font-size-hero: 2rem;
+    --tl-font-size-xs: 12px;
+    --tl-font-size-sm: 14px;
+    --tl-font-size-md: 16px;
+    --tl-font-size-lg: 18px;
+    --tl-font-size-xl: 24px;
+    --tl-font-size-dialog-title: 20px;
+    --tl-font-size-hero: 32px;
     --tl-icon-size-xs: 16px;
     --tl-icon-size-sm: 20px;
     --tl-icon-size-md: 24px;
@@ -104,12 +104,12 @@
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-touch-min: 44px;
-    --tl-font-size-title: 1.5rem;
-    --tl-font-size-shelf-title: 1.25rem;
+    --tl-font-size-title: 24px;
+    --tl-font-size-shelf-title: 20px;
     --tl-line-height-title: 1.25;
     --tl-line-height-heading: 1.3;
     --tl-font-size-caption: var(--tl-font-size-xs);
-    --tl-font-size-secondary: 0.8125rem;
+    --tl-font-size-secondary: 13px;
     --tl-font-size-body: var(--tl-font-size-sm);
     --tl-font-weight-regular: 400;
     --tl-font-weight-medium: 500;
@@ -119,9 +119,9 @@
     --tl-line-height-body: 1.5;
     --tl-line-height-relaxed: 1.625;
     --tl-letter-spacing-label: 0.08em;
-    --tl-control-font-size-sm: 0.8125rem;
-    --tl-control-font-size-md: 0.875rem;
-    --tl-control-font-weight: var(--tl-font-weight-semibold);
+    --tl-control-font-size-sm: 13px;
+    --tl-control-font-size-md: 14px;
+    --tl-control-font-weight: var(--tl-font-weight-medium);
     --tl-control-line-height: 1.25;
     --tl-control-letter-spacing: 0;
     --media-identity-font-family: var(--font-ui);
@@ -174,7 +174,7 @@
     --tl-tooltip-border: var(--tl-border-default);
     --tl-tooltip-text: var(--tl-text-primary);
     --tl-tooltip-radius: 6px;
-    --tl-tooltip-font-size: 0.8125rem;
+    --tl-tooltip-font-size: 13px;
     --tl-tooltip-max-width: 280px;
     --tl-status-danger-soft: rgba(239, 68, 68, 0.14);
     --tl-status-danger-border: rgba(239, 68, 68, 0.34);
@@ -280,7 +280,7 @@
     --tl-tone-wash: 14%;
 
     /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
-    --tl-dialog-title-size: 1.25rem;
+    --tl-dialog-title-size: var(--tl-font-size-dialog-title);
     /* Hero height on desktop (Look pass 4.5): one token; confirm the value on the real app. */
     --tl-hero-height: 70svh;
     /* One tile size everywhere (One tile design D1, D2): posters 214 x 321, squares the same height as posters in mixed rows (321 x 321)

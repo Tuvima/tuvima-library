@@ -10,7 +10,7 @@
    same value, so they always agree, and a choice applies at once. The "Reset to 1×" footer is PlaybackSpeedFooter. *@
 <div class="psv" data-playback-speed-view>
     <div class="psv__current">
-        <output class="psv__value" aria-live="polite" data-speed-value>@PlaybackSpeedChoices.Format(Rate)</output>
+        <output class="psv__value" data-speed-value>@PlaybackSpeedChoices.Format(Rate)</output>
         <span class="psv__caption">@L["PlaybackSpeed_Current"]</span>
     </div>
     <div class="psv__presets" role="radiogroup" aria-label="@L["PlaybackSpeed_Presets"].Value" @ref="_presets">

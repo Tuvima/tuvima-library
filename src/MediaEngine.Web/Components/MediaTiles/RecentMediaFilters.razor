@@ -3,11 +3,11 @@
 @if (Visible.Count > 0)
 {
     <div class="recent-filters" role="group" aria-label="@L["Common_RecentlyAddedMedia"].Value">
-        <AppNativeButton Type="button" Class="@($"recent-filter {(RecentFilterLogic.IsAll(Selected) ? "is-active" : null)}")" aria-pressed="@(RecentFilterLogic.IsAll(Selected) ? "true" : "false")" OnClick="SelectAllAsync">@L["ApiKeys_AllKeysRevoked"]</AppNativeButton>
+        <AppToggleChip Class="recent-filter" Pressed="@RecentFilterLogic.IsAll(Selected)" OnClick="SelectAllAsync">@L["ApiKeys_AllKeysRevoked"]</AppToggleChip>
         @foreach (var type in Visible)
         {
             var on = RecentFilterLogic.Selected(Selected).Contains(type);
-            <AppNativeButton Type="button" Class="@($"recent-filter {(on ? "is-active" : null)}")" aria-pressed="@(on ? "true" : "false")" OnClick="() => SelectedChanged.InvokeAsync(RecentFilterLogic.Toggle(Selected, type, Visible))">@RecentFilterLogic.Label(type)</AppNativeButton>
+            <AppToggleChip Class="recent-filter" Pressed="@on" OnClick="() => SelectedChanged.InvokeAsync(RecentFilterLogic.Toggle(Selected, type, Visible))">@RecentFilterLogic.Label(type)</AppToggleChip>
         }
     </div>
 }

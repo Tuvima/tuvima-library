@@ -112,10 +112,10 @@ public sealed partial class UiConsistencyGuardrailTests
     public void SharedActionControls_UseTheSemanticTypographyContract()
     {
         var tokens = Read("src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
-        Assert.Contains("--tl-control-font-size-sm: 0.8125rem;", tokens, StringComparison.Ordinal);
-        Assert.Contains("--tl-control-font-size-md: 0.875rem;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-font-size-sm: 13px;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-font-size-md: 14px;", tokens, StringComparison.Ordinal);
         Assert.DoesNotContain("--tl-control-font-size-lg", tokens, StringComparison.Ordinal);
-        Assert.Contains("--tl-control-font-weight: var(--tl-font-weight-semibold);", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-font-weight: var(--tl-font-weight-medium);", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-line-height: 1.25;", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-letter-spacing: 0;", tokens, StringComparison.Ordinal);
 

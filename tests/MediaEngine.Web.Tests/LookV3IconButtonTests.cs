@@ -47,6 +47,39 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine([Web, .. parts]));
 
     [Fact]
+    public void AnIconButtonWhoseLabelRepeatsItsTooltip_DoesNotDrawTheTooltip()
+    {
+        var cut = Render<AppIconButton>(p => p
+            .Add(c => c.Icon, AppMaterialIcons.Outlined.MoreVert)
+            .Add(c => c.Tooltip, "Rate")
+            .Add(c => c.Label, "Rate"));
+
+        Assert.Equal("true", cut.Find("[data-playback-tooltip]").GetAttribute("data-playback-tooltip-suppressed"));
+        Assert.Equal("Rate", cut.Find("button").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void AnIconOnlyButton_KeepsItsTooltip()
+    {
+        var cut = Render<AppIconButton>(p => p
+            .Add(c => c.Icon, AppMaterialIcons.Outlined.MoreVert)
+            .Add(c => c.Tooltip, "More"));
+
+        Assert.Equal("false", cut.Find("[data-playback-tooltip]").GetAttribute("data-playback-tooltip-suppressed"));
+    }
+
+    [Fact]
+    public void AnIconButtonWhoseLabelSaysSomethingElse_KeepsItsTooltip()
+    {
+        var cut = Render<AppIconButton>(p => p
+            .Add(c => c.Icon, AppMaterialIcons.Outlined.MoreVert)
+            .Add(c => c.Tooltip, "Add to My List")
+            .Add(c => c.Label, "My List"));
+
+        Assert.Equal("false", cut.Find("[data-playback-tooltip]").GetAttribute("data-playback-tooltip-suppressed"));
+    }
+
+    [Fact]
     public void ThePlainVariantOverArtworkHasAScrimAndNoBorder()
     {
         var button = Render<AppIconButton>(p => p
@@ -143,15 +176,17 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
         Assert.Equal("Open folder", open.GetAttribute("aria-label"));
         Assert.Equal("/details/tvshow/folder?context=watch", open.GetAttribute("href"));
         Assert.Contains("M10 4H4c-1.1 0-1.99.9-1.99 2L2 18", open.InnerHtml);
-        Assert.Equal("Open", open.Closest(".app-icon-button-stack")!.QuerySelector(".app-icon-button__label")!.TextContent.Trim());
+        // On Home the companions are icon-only: no label under the button, so the tooltip stays and names the action.
+        Assert.Null(open.Closest(".app-icon-button-stack"));
+        Assert.Equal("Open folder", open.Closest("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
         Assert.Empty(home.FindAll("a.cinematic-hero-carousel__folder-link:not(.app-icon-button)"));
     }
 
     [Fact]
     public void NoStyleSheetOutsideTheSharedPartsDefinesAnIconButtonOrHeroButtonRule()
     {
-        // The shared parts own these rules. The Listen, audio-table and phone-hero lists are older page-local buttons
-        // that move onto the shared button in the page-by-page walk; this list only goes down.
+        // The shared parts own these rules. The player files are the only older page-local buttons left; they move onto the
+        // shared button with the Player v2 build, and this list only goes down.
         string[] shared =
         [
             "Components/Shared/PlaybackIconButton.razor.css",
@@ -159,9 +194,6 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
         ];
         string[] pending =
         [
-            "Components/Pages/ListenPage.razor.css",
-            "Components/Listen/ListenSongTable.razor.css",
-            "Components/Details/AudioItemTable.razor.css",
             "Components/Watch/VideoPlaybackHost.razor.css",
             "Components/Shared/PlaybackControlStrip.razor.css",
             "Components/Listen/ListenNowPlayingBar.razor.css",

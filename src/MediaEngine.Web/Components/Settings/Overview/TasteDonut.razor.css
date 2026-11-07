@@ -31,7 +31,9 @@
 
 .taste-donut__legend {
     display: grid;
-    min-width: 10rem;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: min(10rem, 100%);
+    max-width: 100%;
     margin: 0;
     padding: 0;
     flex: 1 1 10rem;
@@ -41,6 +43,7 @@
 
 .taste-donut__item {
     display: flex;
+    min-width: 0;
     align-items: center;
     gap: var(--tl-space-2, 8px);
 }
@@ -55,13 +58,18 @@
 .taste-donut__label {
     min-width: 0;
     flex: 1 1 auto;
+    display: -webkit-box;
     overflow: hidden;
     color: var(--tl-text-primary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
 }
 
 .taste-donut__percent {
+    flex: 0 0 auto;
+    text-align: right;
     color: var(--tl-text-secondary);
     font-variant-numeric: tabular-nums;
 }

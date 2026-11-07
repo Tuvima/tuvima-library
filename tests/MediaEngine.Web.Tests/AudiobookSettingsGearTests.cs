@@ -22,7 +22,7 @@ public sealed class AudiobookSettingsGearTests : AsyncBunitContext
     [Fact]
     public void ControlStrip_DrawsTheSettingsGearBetweenChaptersAndBookmarksWithNoSpeedOrSleepButton()
     {
-        var controls = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1.5d));
+        var controls = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1.5d, IsSleepTimerActive: true, SleepTimerValueText: "12m"));
 
         var cut = Render<PlaybackControlStrip>(parameters => parameters
             .Add(component => component.Controls, controls)
@@ -41,7 +41,7 @@ public sealed class AudiobookSettingsGearTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Gear_UnderlinesOnlyWhileTheSpeedIsNotNormalOrASleepTimerIsRunning()
+    public void Gear_UnderlinesOnlyWhileASleepTimerIsRunning()
     {
         var normal = RenderGear(sleep: new AudiobookSleepTimerStateDto(), isOn: false);
         var faster = RenderGear(sleep: new AudiobookSleepTimerStateDto(), isOn: true);

@@ -30,7 +30,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    color: #c4b5fd;
+    color: var(--tl-accent-primary);
     font-size: var(--tl-font-size-xs);
 }
 
@@ -60,7 +60,7 @@
 
 .search-page__year-filter > span {
     margin-left: 2px;
-    color: rgba(215, 224, 240, 0.78);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-xs);
     font-weight: 600;
 }
@@ -72,9 +72,9 @@
     align-items: center;
     gap: 4px;
     padding: 0 8px;
-    border: 1px solid rgba(128, 146, 180, 0.24);
+    border: 1px solid var(--tl-border-default);
     border-radius: 9px;
-    background: rgba(8, 16, 31, 0.64);
+    background: var(--tl-bg-surface);
 }
 
 .search-page__year-filter ::deep input {
@@ -87,14 +87,14 @@
 }
 
 .search-page__year-filter ::deep input::placeholder {
-    color: rgba(181, 193, 214, 0.58);
+    color: var(--tl-text-disabled);
 }
 
 .search-page__body {
     position: relative;
     min-height: 420px;
     padding-top: 16px;
-    border-top: 1px solid rgba(128, 146, 180, 0.14);
+    border-top: 1px solid var(--tl-border-subtle);
 }
 
 .search-page__empty {
@@ -108,7 +108,7 @@
 
 .search-page__empty > .tl-icon-root {
     font-size: var(--tl-icon-size-2xl);
-    color: rgba(167, 139, 250, 0.38);
+    color: var(--tl-text-disabled);
 }
 
 .search-page__empty h2 {

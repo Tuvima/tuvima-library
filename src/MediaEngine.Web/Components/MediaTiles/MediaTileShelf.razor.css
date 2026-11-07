@@ -139,7 +139,7 @@
 }
 
 .media-tile-shelf-view-all:focus-visible {
-    outline: 3px solid var(--tl-focus-ring, #a78bfa);
+    outline: 3px solid var(--tl-focus-ring, var(--tl-accent-primary-hover));
     outline-offset: 3px;
 }
 

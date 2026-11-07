@@ -27,17 +27,17 @@
         {
             @if (action.Key == "reaction-menu")
             {
-                <MediaRateControl OverArtwork="true" TriggerSize="AppControlSize.Large" Label="@RateLabel" UseUtilityGlyph="true" Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
+                <MediaRateControl OverArtwork="true" TriggerSize="AppControlSize.Large" Label="@(ShowLabels ? RateLabel : null)" UseUtilityGlyph="true" Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
             }
             else
             {
-                <AppIconButton Class="hero-icon-circle" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Tooltip="@TooltipFor(action)" Label="@PhoneLabelFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppIconButton>
+                <AppIconButton Class="hero-icon-circle" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Tooltip="@TooltipFor(action)" Label="@(ShowLabels ? PhoneLabelFor(action) : null)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppIconButton>
             }
         }
         @* A folder of videos gets an Open companion with a folder icon, never a text link (Look v3 D12). *@
         @if (!string.IsNullOrWhiteSpace(FolderHref))
         {
-            <AppIconButton Class="hero-icon-circle hero-open-folder cinematic-hero-carousel__folder-link" Href="@FolderHref" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Icon="@AppMaterialIcons.Outlined.Folder" Tooltip="@VideoFolderWording.OpenLabel" AriaLabel="@VideoFolderWording.OpenLabel" Label="@L["HeroActionRow_Open"].Value" />
+            <AppIconButton Class="hero-icon-circle hero-open-folder cinematic-hero-carousel__folder-link" Href="@FolderHref" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Icon="@AppMaterialIcons.Outlined.Folder" Tooltip="@VideoFolderWording.OpenLabel" AriaLabel="@VideoFolderWording.OpenLabel" Label="@(ShowLabels ? L["HeroActionRow_Open"].Value : null)" />
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle app-icon-button app-icon-button--plain app-icon-button--over-artwork app-control--large" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
     </div>
@@ -48,6 +48,9 @@
     [Parameter] public IReadOnlyList<DetailAction> OverflowActions { get; set; } = [];
     [Parameter] public ProgressViewModel? Progress { get; set; }
     [Parameter] public bool UsePrimaryHeroChrome { get; set; }
+
+    /// <summary>False on the Home hero and the phone card, where the companions are icon-only and keep their tooltip; true names each one underneath.</summary>
+    [Parameter] public bool ShowLabels { get; set; } = true;
     [Parameter] public bool IsMusicAlbum { get; set; }
 
     /// <summary>Set for a folder of videos: the hero then shows an Open companion button (folder icon) that goes to the folder.</summary>

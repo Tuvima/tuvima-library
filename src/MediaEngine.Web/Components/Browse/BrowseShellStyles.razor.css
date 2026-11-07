@@ -3,9 +3,7 @@
     min-height: calc(100vh - 84px);
     min-height: calc(100dvh - 84px);
     padding: clamp(22px, 2.2vw, 36px) clamp(28px, 2.4vw, 48px) 56px;
-    background:
-        radial-gradient(circle at 45% 0%, rgba(59, 130, 246, 0.09) 0%, transparent 34%),
-        linear-gradient(180deg, rgba(4, 9, 22, 0.24) 0%, rgba(4, 9, 22, 0) 260px);
+    background: var(--tl-bg-root);
 }
 
 .browse-shell__toolbar-anchor {
@@ -130,7 +128,7 @@
 
 .browse-shell__tabs-frame .tl-tab.tl-tab-active {
     border-radius: var(--tl-radius-pill) !important;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary) 62%, #ffffff 8%) 0%, color-mix(in srgb, var(--tl-accent-primary) 46%, #020617 26%) 100%) !important;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary) 62%, var(--tl-text-on-accent) 8%) 0%, color-mix(in srgb, var(--tl-accent-primary) 46%, var(--tl-bg-root) 26%) 100%) !important;
     color: var(--tl-text-primary) !important;
     box-shadow: 0 10px 28px color-mix(in srgb, var(--tl-accent-primary) 26%, transparent), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }

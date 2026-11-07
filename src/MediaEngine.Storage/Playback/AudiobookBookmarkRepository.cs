@@ -63,6 +63,129 @@ public sealed class AudiobookBookmarkRepository
         return Task.FromResult<IReadOnlyList<AudiobookBookmarkDto>>(rows.Select(ToDto).ToList());
     }
 
+    /// <summary>
+    /// One timed bookmark by id with no visibility check, for the Engine's own housekeeping (bookmark frames). Never hand the result to a
+    /// caller without the checks of <see cref="GetVisibleAsync"/>.
+    /// </summary>
+    public Task<AudiobookBookmarkDto?> GetByIdAsync(Guid bookmarkId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var row = conn.QuerySingleOrDefault<BookmarkRow>(
+            """
+            SELECT id AS Id, profile_id AS ProfileId, work_id AS WorkId, asset_id AS AssetId, chapter_index AS ChapterIndex,
+                   chapter_title AS ChapterTitle, position_seconds AS PositionSeconds, duration_seconds AS DurationSeconds,
+                   end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
+                   is_global AS IsGlobal, created_at AS CreatedAt
+            FROM audiobook_bookmarks
+            WHERE id = @bookmarkId AND position_kind = 'time';
+            """,
+            new { bookmarkId });
+        return Task.FromResult(row is null ? null : ToDto(row));
+    }
+
+    /// <summary>
+    /// One timed bookmark, only if the caller may see it, by exactly the rule of the bookmark list: the profile's own or a Global one, on
+    /// a file the caller may see (<paramref name="authorizedAssetIds"/>; null means no limit). With <paramref name="seesEveryones"/>
+    /// (a server administrator) every profile's personal bookmark on such a file is also visible, as in the Everyone's view.
+    /// </summary>
+    public Task<AudiobookBookmarkDto?> GetVisibleAsync(
+        Guid profileId,
+        Guid bookmarkId,
+        bool seesEveryones,
+        IReadOnlySet<Guid>? authorizedAssetIds,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var row = conn.QuerySingleOrDefault<BookmarkRow>(
+            """
+            SELECT id AS Id, profile_id AS ProfileId, work_id AS WorkId, asset_id AS AssetId, chapter_index AS ChapterIndex,
+                   chapter_title AS ChapterTitle, position_seconds AS PositionSeconds, duration_seconds AS DurationSeconds,
+                   end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
+                   is_global AS IsGlobal, created_at AS CreatedAt
+            FROM audiobook_bookmarks
+            WHERE id = @bookmarkId AND position_kind = 'time'
+              AND (profile_id = @profileId OR is_global = 1 OR @seesEveryones = 1)
+              AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
+            """,
+            new
+            {
+                bookmarkId,
+                profileId,
+                seesEveryones = seesEveryones ? 1 : 0,
+                unrestricted = authorizedAssetIds is null ? 1 : 0,
+                allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+            });
+        return Task.FromResult(row is null ? null : ToDto(row));
+    }
+
+    /// <summary>Which of these bookmark ids still exist (the orphan sweep of bookmark frames).</summary>
+    public Task<IReadOnlySet<Guid>> ExistingIdsAsync(IReadOnlyCollection<Guid> bookmarkIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var found = new HashSet<Guid>();
+        using var conn = _db.CreateConnection();
+        foreach (var chunk in bookmarkIds.Chunk(400))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var id in conn.Query<Guid>(
+                "SELECT id FROM audiobook_bookmarks WHERE id IN @ids;",
+                new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }))
+            {
+                found.Add(id);
+            }
+        }
+
+        return Task.FromResult<IReadOnlySet<Guid>>(found);
+    }
+
+    /// <summary>A timed bookmark on a video file, as the frame back-fill needs to see it.</summary>
+    public sealed record VideoBookmarkRef(Guid Id, Guid AssetId, double PositionSeconds);
+
+    /// <summary>
+    /// A page of timed bookmarks whose file is a video (<paramref name="videoExtensions"/> are lower-case with the dot), oldest first, so
+    /// the gradual pass that gives older bookmarks a frame visits each once per round.
+    /// </summary>
+    public Task<IReadOnlyList<VideoBookmarkRef>> ListVideoBookmarksAsync(
+        IReadOnlyCollection<string> videoExtensions,
+        int offset,
+        int limit,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (videoExtensions.Count == 0 || limit <= 0)
+        {
+            return Task.FromResult<IReadOnlyList<VideoBookmarkRef>>([]);
+        }
+
+        var clauses = new List<string>();
+        var parameters = new DynamicParameters();
+        var index = 0;
+        foreach (var extension in videoExtensions)
+        {
+            var name = $"@ext{index++}";
+            clauses.Add($"LOWER(ma.file_path_root) LIKE {name}");
+            parameters.Add(name, "%" + extension.ToLowerInvariant());
+        }
+
+        parameters.Add("@offset", Math.Max(0, offset));
+        parameters.Add("@limit", Math.Clamp(limit, 1, 1000));
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<VideoBookmarkRef>(
+            $"""
+            SELECT b.id AS Id, b.asset_id AS AssetId, b.position_seconds AS PositionSeconds
+            FROM audiobook_bookmarks b
+            INNER JOIN media_assets ma ON ma.id = b.asset_id
+            WHERE b.position_kind = 'time'
+              AND ({string.Join(" OR ", clauses)})
+            ORDER BY b.created_at ASC, b.id ASC
+            LIMIT @limit OFFSET @offset;
+            """,
+            parameters).ToList();
+        return Task.FromResult<IReadOnlyList<VideoBookmarkRef>>(rows);
+    }
+
     /// <summary>Saves a bookmark. The caller has already checked that a global one may be made (a server administrator).</summary>
     public Task<AudiobookBookmarkDto> CreateAsync(
         Guid profileId,
@@ -203,14 +326,16 @@ public sealed class AudiobookBookmarkRepository
     /// <summary>
     /// Makes a personal bookmark Global at once (the caller has checked that they are a server administrator). Any personal bookmark
     /// of any profile on the same file within <paramref name="mergeWindowSeconds"/> of the spot is treated as the same bookmark and is
-    /// replaced by the Global one, so nobody loses a bookmark. Returns null when there is no such personal bookmark.
+    /// replaced by the Global one, so nobody loses a bookmark. Returns null when there is no such personal bookmark. The ids of the
+    /// bookmarks it replaced are added to <paramref name="replacedIds"/> when given (so their bookmark frames can go too).
     /// </summary>
     public Task<AudiobookBookmarkDto?> PromoteAsync(
         Guid bookmarkId,
         string? name,
         double mergeWindowSeconds,
         CancellationToken ct = default,
-        IReadOnlySet<Guid>? authorizedAssetIds = null)
+        IReadOnlySet<Guid>? authorizedAssetIds = null,
+        ICollection<Guid>? replacedIds = null)
     {
         ct.ThrowIfCancellationRequested();
         return _db.ExecuteWriteAsync<AudiobookBookmarkDto?>((conn, tx, innerCt) =>
@@ -236,14 +361,16 @@ public sealed class AudiobookBookmarkRepository
             }
 
             var label = BlankToNull(name) ?? row.Label;
-            conn.Execute(
-                """
-                DELETE FROM audiobook_bookmarks
-                WHERE is_global = 0 AND position_kind = 'time' AND id <> @bookmarkId AND asset_id = @assetId
-                  AND ABS(position_seconds - @position) <= @window;
-                """,
-                new { bookmarkId, assetId = row.AssetId, position = row.PositionSeconds, window = mergeWindowSeconds },
-                tx);
+            const string duplicates =
+                "FROM audiobook_bookmarks WHERE is_global = 0 AND position_kind = 'time' AND id <> @bookmarkId AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;";
+            var spot = new { bookmarkId, assetId = row.AssetId, position = row.PositionSeconds, window = mergeWindowSeconds };
+            var replaced = conn.Query<Guid>("SELECT id " + duplicates, spot, tx).ToList();
+            conn.Execute("DELETE " + duplicates, spot, tx);
+            foreach (var id in replaced)
+            {
+                replacedIds?.Add(id);
+            }
+
             conn.Execute(
                 "UPDATE audiobook_bookmarks SET is_global = 1, label = @label WHERE id = @bookmarkId;",
                 new { bookmarkId, label },
@@ -305,8 +432,12 @@ public sealed class AudiobookBookmarkRepository
     public sealed record SetBookmark(
         double PositionSeconds, double? EndSeconds, string? ChapterTitle, string? Note, string? Description);
 
-    /// <summary>What happened when a bookmark set was applied.</summary>
-    public sealed record SetApplyOutcome(int Added, int Replaced);
+    /// <summary>
+    /// What happened when a bookmark set was applied. <paramref name="AddedIds"/> are the new bookmarks, in the order they were added;
+    /// <paramref name="DeletedIds"/> are the bookmarks that were removed (so their bookmark frames can go too).
+    /// </summary>
+    public sealed record SetApplyOutcome(
+        int Added, int Replaced, IReadOnlyList<(Guid Id, double PositionSeconds)> AddedIds, IReadOnlyList<Guid> DeletedIds);
 
     /// <summary>
     /// Applies a bookmark set in one write (Global bookmarks spec D8): the bookmarks in <paramref name="deleteIds"/> go, every
@@ -332,8 +463,13 @@ public sealed class AudiobookBookmarkRepository
         {
             innerCt.ThrowIfCancellationRequested();
             var replaced = 0;
+            var deletedIds = new List<Guid>();
             if (replaceGlobalSet && addAsGlobal)
             {
+                deletedIds.AddRange(conn.Query<Guid>(
+                    "SELECT id FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'time' AND asset_id = @assetId;",
+                    new { assetId },
+                    tx));
                 replaced += conn.Execute(
                     "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'time' AND asset_id = @assetId;",
                     new { assetId },
@@ -342,7 +478,7 @@ public sealed class AudiobookBookmarkRepository
 
             foreach (var id in deleteIds)
             {
-                replaced += conn.Execute(
+                var removed = conn.Execute(
                     """
                     DELETE FROM audiobook_bookmarks
                     WHERE id = @id AND asset_id = @assetId
@@ -350,22 +486,28 @@ public sealed class AudiobookBookmarkRepository
                     """,
                     new { id, assetId, profileId, addAsGlobal = addAsGlobal ? 1 : 0 },
                     tx);
+                replaced += removed;
+                if (removed > 0)
+                {
+                    deletedIds.Add(id);
+                }
             }
 
             var now = DateTimeOffset.UtcNow;
+            var addedIds = new List<(Guid Id, double PositionSeconds)>(adds.Count);
             foreach (var add in adds)
             {
                 if (addAsGlobal)
                 {
-                    replaced += conn.Execute(
-                        """
-                        DELETE FROM audiobook_bookmarks
-                        WHERE is_global = 0 AND position_kind = 'time' AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;
-                        """,
-                        new { assetId, position = add.PositionSeconds, window = sameSpotSeconds },
-                        tx);
+                    const string sameSpot =
+                        "FROM audiobook_bookmarks WHERE is_global = 0 AND position_kind = 'time' AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;";
+                    var spot = new { assetId, position = add.PositionSeconds, window = sameSpotSeconds };
+                    deletedIds.AddRange(conn.Query<Guid>("SELECT id " + sameSpot, spot, tx));
+                    replaced += conn.Execute("DELETE " + sameSpot, spot, tx);
                 }
 
+                var newId = Guid.NewGuid();
+                addedIds.Add((newId, add.PositionSeconds));
                 conn.Execute(
                     """
                     INSERT INTO audiobook_bookmarks
@@ -377,7 +519,7 @@ public sealed class AudiobookBookmarkRepository
                     """,
                     new
                     {
-                        Id = Guid.NewGuid(),
+                        Id = newId,
                         profileId,
                         workId,
                         assetId,
@@ -393,7 +535,7 @@ public sealed class AudiobookBookmarkRepository
                     tx);
             }
 
-            return new SetApplyOutcome(adds.Count, replaced);
+            return new SetApplyOutcome(adds.Count, replaced, addedIds, deletedIds);
         }, ct);
     }
 

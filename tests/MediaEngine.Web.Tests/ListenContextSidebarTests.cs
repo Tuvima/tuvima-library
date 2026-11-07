@@ -1,14 +1,17 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -755,6 +758,164 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(api);
         AddPanelServices(playback, api);
         Services.AddSingleton<ListenContextSidebarState>(new ListenContextSidebarState(new MemorySidebarPreferences()));
+    }
+
+    // ---- Playback settings and Speed on the real bar (unified player v2 D14, D15) ----
+
+    private sealed class SavedPreferences(UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
+    {
+        private UserPlaybackSettingsDto _current = settings;
+        public Guid? ActiveProfileId { get; } = settings.ProfileId;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(_current);
+        public void UpdateCache(UserPlaybackSettingsDto next) => _current = next;
+        public void Invalidate() { }
+    }
+
+    private sealed class ProfileAuthentication(Guid profileId) : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
+            new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id", profileId.ToString("D"))], "test"))));
+    }
+
+    private IRenderedComponent<ListenNowPlayingBar> RenderBarWithSavedPreferences(PlaybackSessionController playback, List<UserPlaybackSettingsDto> saved)
+    {
+        var profile = playback.ActiveProfileId ?? Guid.NewGuid();
+        var preferences = new SavedPreferences(UserPlaybackSettingsDto.CreateDefaults(profile));
+        var api = EngineApiClientStub.CreateDefault();
+        var stub = (EngineApiClientStub)(object)api;
+        stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
+            { new(profile, "Listener", "#000000", "RestrictedProfile", DateTimeOffset.UtcNow) }));
+        stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), _ => Task.FromResult<UserPlaybackSettingsDto?>(saved.Count > 0 ? saved[^1] : UserPlaybackSettingsDto.CreateDefaults(profile)));
+        stub.SetHandler(nameof(IEngineApiClient.UpdatePlaybackSettingsAsync), args =>
+        {
+            saved.Add((UserPlaybackSettingsDto)args![1]!);
+            return Task.FromResult<UserPlaybackSettingsDto?>((UserPlaybackSettingsDto)args[1]!);
+        });
+        var profiles = new ActiveProfileSessionService(null!, api, authenticationStateProvider: new ProfileAuthentication(profile));
+        var orchestrator = new UIOrchestratorService(api, new UniverseStateContainer(), profiles, new ConfigurationBuilder().Build(), NullLogger<UIOrchestratorService>.Instance);
+        var preferenceService = new PlayerPreferenceService(preferences, orchestrator);
+        var workspace = new ListenContextSidebarState(new MemorySidebarPreferences());
+        Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
+        Services.AddSingleton<IEngineApiClient>(api);
+        Services.AddSingleton(playback);
+        Services.AddSingleton(workspace);
+        Services.AddSingleton(preferenceService);
+        Services.AddSingleton(new PlaybackSettingsActions(preferenceService, playback));
+        Services.AddSingleton(new PlaybackLyricsPresenter(api));
+        Services.AddSingleton(new PlaybackLyricsSelectionOwner(playback, api));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Services.AddSingleton<IPlaybackCommandSink>(provider => new DirectPlaybackCommandSink(new ListenPlaybackCommandOwner(provider, playback)));
+        Services.AddSingleton(new DeviceContextService(api));
+        Services.AddSingleton<ListenAudioDragService>();
+        Services.AddSingleton(new MediaReactionService(api));
+        var actions = new AudiobookBookmarkActionService(api);
+        Services.AddSingleton(actions);
+        Services.AddSingleton<IAudiobookBookmarkActions>(actions);
+        Services.AddSingleton<IAudiobookBookmarkLeaseInvalidator>(actions);
+        Services.AddSingleton(profiles);
+        Services.AddSingleton(orchestrator);
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Render<AppPopoverHost>();
+        return Render<ListenNowPlayingBar>();
+    }
+
+    private static PlaybackSessionController CreateAudiobookPlayback(string experience)
+    {
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
+        var item = CreateItem(experience == PlayerExperienceModes.Audiobook ? "Test audiobook" : "Test song", "Narrator") with
+        {
+            MediaType = experience == PlayerExperienceModes.Audiobook ? "Audiobook" : "Music",
+            Chapters = experience == PlayerExperienceModes.Audiobook
+                ? [new PlaybackChapterDto { Index = 0, Title = "Chapter one", StartSeconds = 0, EndSeconds = 3600 }]
+                : [],
+        };
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item], CurrentIndex = 0, Experience = experience, DurationSeconds = 3600, CurrentTimeSeconds = 120, IsPlaying = true });
+        return playback;
+    }
+
+    private async Task OpenItemMenuRowAsync(IRenderedComponent<ListenNowPlayingBar> bar)
+    {
+        var menu = bar.FindComponent<PlaybackItemMenu>().FindComponent<PlaybackPanel>();
+        await bar.InvokeAsync(() => menu.Instance.OpenAsync(true));
+        bar.WaitForElement("[data-playback-item-action='PlaybackSettings']");
+        await bar.Find("[data-playback-item-action='PlaybackSettings']").ClickAsync();
+        bar.WaitForElement("[data-playback-settings]");
+    }
+
+    [Fact]
+    public async Task AudiobookBar_TheSpeedChipOpensTheSpeedViewDirectlyWithNoSettingsRows()
+    {
+        var bar = RenderBarWithSavedPreferences(CreateAudiobookPlayback(PlayerExperienceModes.Audiobook), []);
+        var chip = bar.Find("[data-playback-zone='tools'] button[aria-label^='Playback speed']");
+        Assert.Equal("1×", chip.TextContent.Trim());
+
+        await bar.InvokeAsync(() => bar.FindComponent<PlaybackSpeedPanel>().FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+
+        bar.WaitForElement("[data-playback-speed-view]");
+        Assert.Empty(bar.FindAll("[data-psp-row]"));
+        Assert.DoesNotContain("Custom speed", bar.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AudiobookBar_TheItemMenusPlaybackSettingsRowOpensThePanelWithSpeedAndSkipsAndDoesNotNavigate()
+    {
+        var bar = RenderBarWithSavedPreferences(CreateAudiobookPlayback(PlayerExperienceModes.Audiobook), []);
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+
+        await OpenItemMenuRowAsync(bar);
+
+        Assert.Equal(["speed", "skip-back", "skip-forward", "information"], bar.FindAll("[data-psp-row]").Select(row => row.GetAttribute("data-psp-row")));
+        Assert.DoesNotContain("/settings/playback", navigation.Uri, StringComparison.Ordinal);
+        Assert.Equal(before, navigation.Uri);
+    }
+
+    [Fact]
+    public async Task MusicBar_TheItemMenusPlaybackSettingsRowOpensThePanelWithPlaybackInformationOnlyAndNoResetFooter()
+    {
+        var bar = RenderBarWithSavedPreferences(CreateAudiobookPlayback(PlayerExperienceModes.Music), []);
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+
+        await OpenItemMenuRowAsync(bar);
+
+        Assert.Equal(["information"], bar.FindAll("[data-psp-row]").Select(row => row.GetAttribute("data-psp-row")));
+        Assert.Empty(bar.FindAll("[data-psp-reset]"));
+        Assert.Equal(before, navigation.Uri);
+    }
+
+    [Fact]
+    public async Task AudiobookBar_ChoosingASkipLengthWritesTheListeningPairAndTheControllerTakesItAtOnce()
+    {
+        var saved = new List<UserPlaybackSettingsDto>();
+        var playback = CreateAudiobookPlayback(PlayerExperienceModes.Audiobook);
+        var bar = RenderBarWithSavedPreferences(playback, saved);
+        await OpenItemMenuRowAsync(bar);
+
+        await bar.Find("[data-psp-row='skip-forward'] select").ChangeAsync(new ChangeEventArgs { Value = "60" });
+
+        bar.WaitForAssertion(() => Assert.NotEmpty(saved));
+        Assert.Equal(60, saved[^1].Listening.SkipForwardSeconds);
+        Assert.Equal(30, saved[^1].Watching.SkipForwardSeconds);
+        Assert.Equal(60, playback.SkipForwardSeconds);
+    }
+
+    [Fact]
+    public async Task AudiobookBar_ResetPlaybackPreferencesResetsOnlyTheListeningPairAndSpeed()
+    {
+        var saved = new List<UserPlaybackSettingsDto>();
+        var playback = CreateAudiobookPlayback(PlayerExperienceModes.Audiobook);
+        var bar = RenderBarWithSavedPreferences(playback, saved);
+        await OpenItemMenuRowAsync(bar);
+        await bar.Find("[data-psp-row='skip-back'] select").ChangeAsync(new ChangeEventArgs { Value = "30" });
+        bar.WaitForAssertion(() => Assert.Single(saved));
+        saved[0].Watching.SkipBackSeconds = 5;
+
+        await bar.Find("[data-psp-reset]").ClickAsync();
+
+        bar.WaitForAssertion(() => Assert.Equal(2, saved.Count));
+        Assert.Equal(10, saved[^1].Listening.SkipBackSeconds);
+        Assert.Equal(5, saved[^1].Watching.SkipBackSeconds);
     }
 
     private void AddBookmarkBarServices(IEngineApiClient api, IUserPlaybackPreferencesAccessor? preferences = null)

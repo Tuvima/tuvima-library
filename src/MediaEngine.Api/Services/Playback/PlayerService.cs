@@ -26,6 +26,7 @@ public sealed class PlayerService
     private readonly AudiobookListenHistoryRepository _history;
     private readonly AudiobookBookmarkRepository _bookmarks;
     private readonly BookmarkClosenessProvider? _closeness;
+    private readonly BookmarkFrameService? _frames;
     private readonly MusicPlayStatsRepository _musicStats;
     private readonly PlayerCatalogueScope _scope;
     private readonly PlaybackTelemetryLifecycleService _telemetry;
@@ -45,9 +46,11 @@ public sealed class PlayerService
         PlayerCatalogueScope scope,
         PlaybackTelemetryLifecycleService telemetry,
         PlayerDeviceStateRepository deviceStates,
-        BookmarkClosenessProvider? closeness = null)
+        BookmarkClosenessProvider? closeness = null,
+        BookmarkFrameService? frames = null)
     {
         _closeness = closeness;
+        _frames = frames;
         _sessions = sessions;
         _playback = playback;
         _db = db;
@@ -1094,7 +1097,8 @@ public sealed class PlayerService
         CancellationToken ct = default)
     {
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
-        return await _bookmarks.GetByWorkAsync(normalizedProfile, workId, ct, await _scope.AssetIdsAsync(ct));
+        var saved = await _bookmarks.GetByWorkAsync(normalizedProfile, workId, ct, await _scope.AssetIdsAsync(ct));
+        return _frames?.Decorate(saved) ?? saved;
     }
 
     public async Task<AudiobookBookmarkDto> CreateAudiobookBookmarkAsync(
@@ -1115,7 +1119,14 @@ public sealed class PlayerService
             throw new PlayerBookmarkSharingDeniedException();
         }
 
-        return await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
+        var created = await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
+        if (_frames is not null)
+        {
+            // The picture is made in the background right after the save (Unified player v2 D21a); the save itself does not wait for it.
+            await _frames.TryEnqueueAsync(created, ct);
+        }
+
+        return created;
     }
 
     /// <summary>Every profile's personal bookmarks on a title, with the owner's name. Administrators only (the Everyone's filter).</summary>
@@ -1126,7 +1137,26 @@ public sealed class PlayerService
     {
         await _scope.RequireProfileAsync(profileId, ct);
         await RequireBookmarkAdministratorAsync(ct);
-        return await _bookmarks.GetEveryonesByWorkAsync(workId, ct, await _scope.AssetIdsAsync(ct));
+        var everyones = await _bookmarks.GetEveryonesByWorkAsync(workId, ct, await _scope.AssetIdsAsync(ct));
+        return _frames?.Decorate(everyones) ?? everyones;
+    }
+
+    /// <summary>
+    /// The file of a video bookmark's frame, only for a profile that may see the bookmark by exactly the rule of the bookmark list (its
+    /// own, a Global one, or any profile's for a server administrator), on a file it may play (Vault and Kid limits included). Anything
+    /// else, and a frame not made yet, is null, which the endpoint answers as not found.
+    /// </summary>
+    public async Task<BookmarkFrameFile?> GetBookmarkFramePathAsync(Guid? profileId, Guid bookmarkId, CancellationToken ct = default)
+    {
+        var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
+        if (_frames is null)
+        {
+            return null;
+        }
+
+        var bookmark = await _bookmarks.GetVisibleAsync(
+            normalizedProfile, bookmarkId, await _scope.IsServerAdministratorAsync(ct), await _scope.AssetIdsAsync(ct), ct);
+        return bookmark is null ? null : await _frames.ResolveFrameAsync(bookmark, ct);
     }
 
     /// <summary>
@@ -1146,7 +1176,18 @@ public sealed class PlayerService
             throw new ArgumentException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
         }
 
-        return await _bookmarks.PromoteAsync(bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct));
+        var replaced = new List<Guid>();
+        var promoted = await _bookmarks.PromoteAsync(
+            bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct), replaced);
+        if (promoted is not null && _frames is not null)
+        {
+            // Bookmarks it replaced are gone, so their pictures go; the promoted one gets its picture if it has none yet.
+            _frames.RemoveFrames(promoted.AssetId, replaced);
+            await _frames.TryEnqueueAsync(promoted, ct);
+            return _frames.Decorate(promoted);
+        }
+
+        return promoted;
     }
 
     /// <summary>Changes a Global bookmark's name, note and description. Administrators only. Returns null when it does not exist.</summary>
@@ -1169,7 +1210,8 @@ public sealed class PlayerService
             throw new ArgumentException($"A bookmark description cannot exceed {AudiobookBookmarkNotePolicy.MaximumDescriptionLength} characters.", nameof(request));
         }
 
-        return await _bookmarks.UpdateGlobalAsync(bookmarkId, label, note, description, ct, await _scope.AssetIdsAsync(ct));
+        var updated = await _bookmarks.UpdateGlobalAsync(bookmarkId, label, note, description, ct, await _scope.AssetIdsAsync(ct));
+        return updated is null || _frames is null ? updated : _frames.Decorate(updated);
     }
 
     /// <summary>
@@ -1248,8 +1290,16 @@ public sealed class PlayerService
         CancellationToken ct = default)
     {
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
-        return await _bookmarks.DeleteAsync(normalizedProfile, bookmarkId, ct, await _scope.AssetIdsAsync(ct),
+        // The picture goes with the bookmark; its file is found through the bookmark, so read that before the row is gone.
+        var before = _frames is null ? null : await _bookmarks.GetByIdAsync(bookmarkId, ct);
+        var deleted = await _bookmarks.DeleteAsync(normalizedProfile, bookmarkId, ct, await _scope.AssetIdsAsync(ct),
             canChangeGlobal: await _scope.IsServerAdministratorAsync(ct));
+        if (deleted && before is not null)
+        {
+            _frames!.RemoveFrame(before.AssetId, before.Id);
+        }
+
+        return deleted;
     }
 
     private static string NormalizeDeviceId(string? deviceId) =>

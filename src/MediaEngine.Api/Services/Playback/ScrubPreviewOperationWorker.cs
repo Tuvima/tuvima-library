@@ -176,7 +176,9 @@ public sealed class ScrubPreviewOperationWorker(
 
     private async Task<TimeSpan> FailAsync(MediaOperation operation, string error, CancellationToken ct)
     {
-        if (operation.AttemptCount >= GiveUpAfterAttempts)
+        // The queue counts a lease and a retry as two attempts each, and a wait for FFmpeg as one too. The poison count only grows when
+        // FFmpeg really ran and failed, so this gives up after GiveUpAfterAttempts real tries.
+        if (operation.PoisonAttemptCount + 1 >= GiveUpAfterAttempts)
         {
             await operations.MarkFailedTerminalAsync(operation.Id, error, ct).ConfigureAwait(false);
         }

@@ -32,9 +32,11 @@
                               data-activity-search="true" />
             </div>
 
-            <div class="activity-toolbar__dates">
-                <AppTextField Label="@L["Common_From"].Value" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
-                <AppTextField Label="@L["Common_To"].Value" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
+            <div class="activity-toolbar__dates" role="group" aria-label="@L["Common_Dates"].Value">
+                <span class="activity-toolbar__date-word" aria-hidden="true">@L["Common_From"]</span>
+                <AppTextField Label="@L["Common_From"].Value" HideLabel="true" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
+                <span class="activity-toolbar__date-word" aria-hidden="true">@L["Common_To"]</span>
+                <AppTextField Label="@L["Common_To"].Value" HideLabel="true" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
             </div>
 
             <BrowseFilterSheet ActiveCount="@FilterCount" OnClear="ClearFiltersAsync">

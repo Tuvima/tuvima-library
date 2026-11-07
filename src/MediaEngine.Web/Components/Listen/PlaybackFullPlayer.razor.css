@@ -28,7 +28,7 @@
 .playback-full__modes ::deep .playback-full__mode.is-selected { border-color:var(--playback-accent); background:var(--tl-accent-primary-soft); }
 .playback-full__volume { display:flex; align-items:center; justify-content:center; }
 .playback-full__volume ::deep button,.playback-full__header ::deep button { display:grid; place-items:center; min-width:44px; min-height:44px; border:0; background:transparent; color:inherit; padding:0; }
-.playback-full__book-tools { position:absolute; top:max(8px,env(safe-area-inset-top,0px)); right:12px; }
+.playback-full__book-tools { position:absolute; top:max(8px,env(safe-area-inset-top,0px)); right:12px; display:flex; align-items:center; gap:4px; }
 .playback-full__status { margin:0; font-size:var(--tl-font-size-secondary); color:var(--playback-text-secondary); }
 @media(max-width:360px) { ::deep .playback-full { padding-inline:12px; } .playback-full__content { gap:8px; } .playback-full__song-actions { gap:0; } .playback-full__modes { gap:4px; } .playback-full__modes ::deep .playback-full__mode { gap:4px; padding:6px; } }
 @media(max-height:600px) { .playback-full__content { gap:6px; padding-top:6px; } .playback-full__title h1 { font-size:var(--tl-font-size-dialog-title); } .playback-full__secondary,.playback-full__source { display:none; } .playback-full__book-progress,.playback-full__chapter { font-size:var(--tl-font-size-xs); } }

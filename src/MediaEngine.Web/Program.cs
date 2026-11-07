@@ -571,6 +571,19 @@ app.MapGet("/engine-scrub/{assetId:guid}/{file:regex(^(index\\.json|sheet-\\d{{3
   .WithSummary("Proxies one scrub-preview index or sprite sheet through the Dashboard origin.")
   .RequireAuthorization();
 
+// Video bookmark frames (Unified player v2 D21a): the still taken at a bookmark's time, through the Dashboard origin. The Engine shows it
+// only to a profile that may see the bookmark and answers 404 otherwise. The bookmark id is the only thing the route accepts.
+app.MapGet("/engine-bookmark-frame/{bookmarkId:guid}", async (Guid bookmarkId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/player/bookmarks/{bookmarkId:D}/frame");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).WithName("ProxyEngineBookmarkFrame")
+  .WithSummary("Proxies one video bookmark frame through the Dashboard origin.")
+  .RequireAuthorization();
+
 app.MapGet("/engine-text-track/{assetId:guid}/{trackId:guid}", async (Guid assetId, Guid trackId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
 {
     using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/text-tracks/{trackId:D}");

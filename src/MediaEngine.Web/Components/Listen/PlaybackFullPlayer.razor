@@ -103,7 +103,7 @@
             @if (IsBook)
             {
                 <div class="playback-full__book-tools">
-                    <PlaybackSpeedPanel Surface="phone" Rate="@Snapshot.PlaybackRate" ItemKey="@Subject" TriggerText="@PlaybackSpeedChoices.Format(Snapshot.PlaybackRate)" TriggerClass="playback-shell__chip"
+                    <PlaybackSpeedPanel Surface="phone" Rate="@Snapshot.PlaybackRate" ItemKey="@Subject" TriggerText="@(PlaybackRateOptions.IsValid(Snapshot.PlaybackRate) ? PlaybackSpeedChoices.Format(Snapshot.PlaybackRate) : null)" TriggerClass="playback-shell__chip"
                                         IsOn="@(!PlaybackSpeedChoices.IsNormal(Snapshot.PlaybackRate))"
                                         RateChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
                                         OpenChanged="@(state => ToolVisibilityChanged.InvokeAsync(state.IsOpen))" />

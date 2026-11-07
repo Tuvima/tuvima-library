@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Extras;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
@@ -61,6 +62,11 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DetailComposerService>();
         services.AddSingleton<DetailUnmatchedStateService>();
         services.AddSingleton<DetailExtrasService>();
+        services.AddSingleton<ISupportingFileTitleResolver, SupportingFileTitleResolver>();
+        services.AddSingleton<SupportingFileListService>();
+        services.AddSingleton<SupportingFileDiskService>();
+        services.AddSingleton<SupportingFileBulkService>();
+        services.AddSingleton<SupportingFileSearchService>();
         services.AddSingleton<ContributorReadiness>();
         return services;
     }

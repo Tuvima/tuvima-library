@@ -763,10 +763,6 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
-      "important": 0,
-      "deep": 2
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css": {
       "important": 4,
       "deep": 2

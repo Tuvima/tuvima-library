@@ -7,11 +7,11 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackPrimitiveTests
 {
     [Theory]
-    [InlineData(1d, "1.0x")]
-    [InlineData(1.25d, "1.25x")]
-    [InlineData(1.75d, "1.75x")]
-    [InlineData(1.2345d, "1.2345x")]
-    public void SpeedToolValuePreservesQuarterStepPrecision(double rate, string expected)
+    [InlineData(1d, "1×")]
+    [InlineData(1.25d, "1.25×")]
+    [InlineData(1.75d, "1.75×")]
+    [InlineData(1.2345d, "1.23×")]
+    public void SpeedToolValueIsWrittenWithTheTimesSignAndAtMostTwoDecimals(double rate, string expected)
     {
         Assert.Equal(expected, DisplayFormat.FormatSpeedControl(rate));
     }
@@ -108,7 +108,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.False(atNormalSpeed.IsActive);
         var fasterOnly = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1.5d))
             .Single(control => control.Key == PlaybackControlKey.Settings);
-        Assert.True(fasterOnly.IsActive);
+        // Speed has its own chip on the bar, so a faster speed alone does not light the gear (unified player v2 WP6).
+        Assert.False(fasterOnly.IsActive);
         Assert.Equal("Settings", fasterOnly.AriaLabel);
 
         var noChapters = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState());
