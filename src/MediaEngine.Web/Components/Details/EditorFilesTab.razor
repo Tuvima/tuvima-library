@@ -70,8 +70,8 @@
                                     <td class="tl-files__num">@(index + 1)</td>
                                 }
 
-                                <td class="tl-files__name" title="@asset.FileName">@asset.FileName</td>
-                                <td class="tl-files__folder" title="@asset.Folder">@asset.Folder</td>
+                                <td class="tl-files__name" data-overflow-tooltip="@asset.FileName">@asset.FileName</td>
+                                <td class="tl-files__folder" data-overflow-tooltip="@asset.Folder">@asset.Folder</td>
                                 <td class="tl-files__size">@(asset.FileSizeBytes is > 0 ? DisplayFormat.FormatFileSize(asset.FileSizeBytes.Value) : string.Empty)</td>
                                 <td class="tl-files__quality">@asset.TechnicalLabel</td>
                                 <td>

@@ -34,16 +34,18 @@
             <tr @key="source.Id" class="@RowClass(source)" data-source="@source.Id" data-highlighted="@(IsHighlighted(source) ? "true" : null)">
                 <td data-card-role="title">
                     <div class="folder-grid__folder">
-                        <span class="@HandlingIconClass(source)" role="img" aria-label="@HandlingTitle(source)" title="@HandlingTitle(source)">
+                        <AppTooltip Text="@HandlingTitle(source)">
+                        <span class="@HandlingIconClass(source)" role="img" aria-label="@HandlingTitle(source)">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                             @if (!managed)
                             {
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Lock" Class="folder-grid__lock" />
                             }
                         </span>
+                        </AppTooltip>
                         <div class="folder-grid__text">
                             <strong>@name</strong>
-                            <span class="folder-grid__path" title="@source.Path">@source.Path</span>
+                            <span class="folder-grid__path" data-overflow-tooltip="@source.Path">@source.Path</span>
                             @if (IsScanning(source))
                             {
                                 <span class="folder-grid__status" data-scanning="true"><AppSpinner Indeterminate="true" Size="AppSize.Small" />@L["Ingestion_StageScanning"]</span>

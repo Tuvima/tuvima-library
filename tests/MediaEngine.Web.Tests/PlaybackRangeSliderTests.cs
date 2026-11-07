@@ -142,6 +142,7 @@ public sealed class AppRangeSliderTests : LocalizedBunitContext
     [Fact]
     public void InlinePlaybackSheetUsesRegionSemantics()
     {
+        JSInterop.SetupModule("./js/playback-tooltip.js").Mode = JSRuntimeMode.Loose;
         var cut = Render<PlaybackToolSheet>(parameters => parameters
             .Add(component => component.Title, "Queue")
             .Add(component => component.Modal, false));

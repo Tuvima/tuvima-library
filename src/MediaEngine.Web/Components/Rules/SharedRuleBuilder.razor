@@ -43,10 +43,12 @@
                          @ondragover:preventDefault @ondrop="@(() => DropGroupAsync(group.Id))">
                     <header class="collection-rule-builder__group-header">
                         <div class="collection-rule-builder__group-identity">
-                            <span class="collection-rule-builder__drag" draggable="true" title="@L["SharedRuleBuilder_DragToReorderGroup"].Value"
-                                  @ondragstart="@(() => BeginGroupDrag(group.Id))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
-                            </span>
+                            <AppTooltip Text="@L["SharedRuleBuilder_DragToReorderGroup"].Value">
+                                <span class="collection-rule-builder__drag" draggable="true"
+                                      @ondragstart="@(() => BeginGroupDrag(group.Id))">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                                </span>
+                            </AppTooltip>
                             <strong>@L["SharedRuleBuilder_Group", groupIndex + 1]</strong>
                         </div>
                         <div class="collection-rule-builder__group-mode" role="group" aria-label="@L["SharedRuleBuilder_GroupMatchMode"].Value">

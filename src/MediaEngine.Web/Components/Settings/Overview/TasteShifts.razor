@@ -8,7 +8,7 @@
     <div class="taste-shifts__chart" aria-hidden="true">
         @foreach (var bar in Bars)
         {
-            <div class="taste-shifts__column" data-taste-shift-month="@bar.Month" title="@Title(bar)">
+            <div class="taste-shifts__column" data-taste-shift-month="@bar.Month">
                 <svg class="taste-shifts__stack" height="@Height(bar)" viewBox="0 0 1 100" preserveAspectRatio="none">
                     @foreach (var segment in Rects(bar))
                     {

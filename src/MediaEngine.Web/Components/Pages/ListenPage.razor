@@ -204,7 +204,8 @@ else
             else if (IsMusicTimelineView)
             {
                 <section class="listen-section">
-                    <AppTimelineResults Items="@MusicTimelineTiles"
+                    <AppTimelineResults Items="@MusicTimelineTiles"
+
                                         YearSemantic="Original album release year" />
                 </section>
             }
@@ -564,7 +565,7 @@ else
                                             <td data-card-role="subtitle">@PlaylistCardSubtitle(track)</td>
                                             <td data-card-role="value">@GetTrackDuration(track)</td>
                                             <td data-card-role="actions" class="listen-playlist-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
-                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {track.Title}")" Title="@L["Common_ToggleFavorite"].Value" aria-pressed="@(_favoriteWorkIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {track.Title}")" Tooltip="@L["Common_ToggleFavorite"].Value" aria-pressed="@(_favoriteWorkIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
                                                     <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                                 <AppRowMenu AriaLabel="@($"Actions for {track.Title}")" Title="@track.Title" Items="@PlaylistRowMenuItems(row)" />
@@ -660,7 +661,7 @@ else
                                                 {
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
                                                 }
-                                                <AppNativeButton Type="button" Class="listen-playlist-track-row__art-play" Title="@L["Common_PlaySong"].Value" AriaLabel="@($" Play {track.Title}")" StopPropagation="true" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))">
+                                                <AppNativeButton Type="button" Class="listen-playlist-track-row__art-play" Tooltip="@L["Common_PlaySong"].Value" AriaLabel="@($" Play {track.Title}")" StopPropagation="true" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))">
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </div>
@@ -669,7 +670,7 @@ else
                                         @if (IsPlaylistColumnVisible("favorite"))
                                         {
                                             <div class="listen-playlist-track-row__favorite" role="cell">
-                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@L["Common_ToggleFavorite"].Value" Title="@L["Common_ToggleFavorite"].Value" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@L["Common_ToggleFavorite"].Value" Tooltip="@L["Common_ToggleFavorite"].Value" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
                                                     <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </div>
@@ -687,12 +688,12 @@ else
                                             <span class="listen-playlist-track-row__time" role="cell">@GetTrackDuration(track)</span>
                                         }
                                         <div class="listen-playlist-track-row__actions" role="cell">
-                                            <AppNativeButton Type="button" Class="listen-icon-button" Title="@L["Common_AddToQueue"].Value" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
+                                            <AppNativeButton Type="button" Class="listen-icon-button" Tooltip="@L["Common_AddToQueue"].Value" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
                                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                             </AppNativeButton>
                                             @if (!DeviceContext.IsPhone)
                                             {
-                                                <AppNativeButton Type="button" Class="listen-icon-button" Title="@L["ListenPage_EditSong"].Value" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
+                                                <AppNativeButton Type="button" Class="listen-icon-button" Tooltip="@L["ListenPage_EditSong"].Value" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             }
@@ -700,7 +701,7 @@ else
                                             {
                                                 <AppRowMenu AriaLabel="@($"Actions for {track.Title}")" Title="@track.Title" Items="@PlaylistRowMenuItems(row)" />
                                             }
-                                            <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Title="@L["ListenPage_RemoveFromPlaylist"].Value" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
+                                            <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Tooltip="@L["ListenPage_RemoveFromPlaylist"].Value" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
                                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
                                             </AppNativeButton>
                                         </div>
@@ -911,7 +912,8 @@ else
                         }
                         else if (_audiobookView == "timeline")
                         {
-                            <AppTimelineResults Items="@AudiobookBrowseTiles"
+                            <AppTimelineResults Items="@AudiobookBrowseTiles"
+
                                                 YearSemantic="Original work publication year" />
                         }
                         else if (AudiobookBrowseItems.Count == 0)

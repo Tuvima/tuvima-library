@@ -44,10 +44,12 @@
                 @* A Series row carries no checkmarks: an owned item needs no marker and a missing one is dimmed and labeled. Episodes keep their watched check. *@
                 @if (Item.ProgressState == LibraryProgressState.Completed && IsSeasonContainer)
                 {
-                    <span class="tl-series-item__completed-badge" title="@L["SequenceEntryContent_Completed"].Value">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" />
-                        <span class="sr-only">@L["SequenceEntryContent_Completed"]</span>
-                    </span>
+                    <AppTooltip Text="@L["SequenceEntryContent_Completed"].Value">
+                        <span class="tl-series-item__completed-badge">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" />
+                            <span class="sr-only">@L["SequenceEntryContent_Completed"]</span>
+                        </span>
+                    </AppTooltip>
                 }
 
             </div>

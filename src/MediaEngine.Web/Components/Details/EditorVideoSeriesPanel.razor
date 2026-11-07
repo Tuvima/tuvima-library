@@ -24,7 +24,7 @@
                 @if (_series is { InSeries: false } && ChoiceValue == None)
                 {
                     @* The same amber "not matched" mark the tree gives a video that is in no series (universal editor v3.1, D8). *@
-                    <span class="tl-vseries__tag" data-testid="video-not-matched" title="@L["EditorVideoSeries_NotInASeriesTip"].Value">@L["EditorVideoSeries_NotMatched"]</span>
+                    <span class="tl-vseries__tag" data-testid="video-not-matched">@L["EditorVideoSeries_NotMatched"]</span>
                 }
             </h3>
             <AppSelect T="string"
@@ -81,9 +81,11 @@
                             var row = list.Current[rowIndex];
                             var ri = rowIndex;
                             <li class="tl-vseries__row" data-vo-list="@li" data-vo-row="@ri" data-vo-title="@row.Title" @key="row.Id">
-                                <span class="tl-vseries__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" title="@L["EditorVideoSeries_DragToReorder", row.Title].Value" aria-hidden="true">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
-                                </span>
+                                <AppTooltip Text="@L["EditorVideoSeries_DragToReorder", row.Title].Value">
+                                    <span class="tl-vseries__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" aria-hidden="true">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                                    </span>
+                                </AppTooltip>
                                 <span class="tl-vseries__position" aria-label="@L["EditorVideoSeries_Position", ri + 1].Value">@(ri + 1)</span>
                                 <span class="tl-vseries__title">@row.Title</span>
                                 <span class="tl-vseries__arrows">

@@ -329,7 +329,7 @@
                 <span>@field.Label</span>
                 @if (staged)
                 {
-                    <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} will change")" title="Will change when you save"></span>
+                    <AppTooltip Text="Will change when you save"><span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} will change")"></span></AppTooltip>
                 }
             </div>
             <span class="@(shown.IsMixed ? "tl-editor-field__note tl-bulk__mixed" : "tl-editor-field__note")">@CurrentText(shown)</span>

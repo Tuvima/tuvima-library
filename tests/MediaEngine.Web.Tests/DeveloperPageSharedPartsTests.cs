@@ -56,7 +56,7 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
         Assert.Contains("Media processing", row.TextContent);
         Assert.Empty(cut.FindAll(".app-list-card__aside"));
         Assert.NotNull(row.QuerySelector(".app-list-card__warning .app-warning-strip"));
-        Assert.Equal("Commercial Skip", cut.Find(".app-list-card__title").GetAttribute("title"));
+        Assert.Equal("Commercial Skip", cut.Find(".app-list-card__title").GetAttribute("data-overflow-tooltip"));
     }
 
     [Fact]
