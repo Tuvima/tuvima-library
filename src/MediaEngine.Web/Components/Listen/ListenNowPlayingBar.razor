@@ -94,27 +94,27 @@
                                          Snapshot="@dockSnapshot" Commands="@PanelCommands" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" />
             </IdentityActions>
             <TimelineContent>
+                @* The timeline above the row (unified player v2 D9): elapsed, the rail, the time left. An audiobook with chapters adds its label between the
+                   elapsed time and the rail, "Chapter 8" or "Book · 32%", and the time left reads "−18:32" or "6h 12m left". *@
                 @if (ChapterScope is { } scope)
                 {
                     <PlaybackSeekRail Position="@scope.Elapsed(Playback.CurrentTimeSeconds)" Duration="@scope.Length" ValueChanged="@(seconds => SeekOnHostAsync(scope.ToAbsolute(seconds)))" Surface="dock"
-                                      Bookmarks="@BarMarkers(scope)" BookmarkJump="@(marker => SeekOnHostAsync(AudiobookBarMarkers.ToAbsolute(marker, scope)))"
-                                      ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
+                                      Label="@PlaybackTimelineMetaRow.ChapterLabel(scope.Number)" LabelClick="@(() => SetBarScopeAsync(true))" LabelActionText="Show the whole book"
+                                      Summary="@PlaybackTimelineMetaRow.ChapterSummary(scope.Number, scope.Elapsed(Playback.CurrentTimeSeconds), Math.Max(0, scope.Length - scope.Elapsed(Playback.CurrentTimeSeconds)))"
+                                      Bookmarks="@BarMarkers(scope)" BookmarkJump="@(marker => SeekOnHostAsync(AudiobookBarMarkers.ToAbsolute(marker, scope)))" />
+                }
+                else if (Playback.IsAudiobookMode && AudiobookWindow is not null)
+                {
+                    <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                                      Label="@PlaybackTimelineMetaRow.BookLabel(Playback.CurrentTimeSeconds, Playback.DurationSeconds)" LabelClick="@(() => SetBarScopeAsync(false))" LabelActionText="Show this chapter"
+                                      EndText="@PlaybackTimelineMetaRow.TimeLeft(Playback.DurationSeconds - Playback.CurrentTimeSeconds)"
+                                      Summary="@PlaybackTimelineMetaRow.BookSummary(Playback.CurrentTimeSeconds, Playback.DurationSeconds)"
+                                      Bookmarks="@BarMarkers(null)" BookmarkJump="@(marker => SeekOnHostAsync(marker.Seconds))" />
                 }
                 else
                 {
                     <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
-                                      Bookmarks="@BarMarkers(null)" BookmarkJump="@(marker => SeekOnHostAsync(marker.Seconds))"
-                                      ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
-                }
-                @if (Playback.IsAudiobookMode && AudiobookWindow is { } window)
-                {
-                    <div class="listen-player__scope" role="group" aria-label="@L["ListenNowPlayingBar_BarShows"].Value">
-                        <span class="listen-player__scope-label">@window.Label<small>@L["ListenNowPlayingBar_ChapterTimes", PlaybackSeekRail.Time(window.Elapsed(Playback.CurrentTimeSeconds)), PlaybackSeekRail.Time(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))]</small></span>
-                        <span class="listen-player__scope-switch">
-                            <AppButton Size="AppControlSize.Compact" ButtonStyle="@(!_bookView ? AppButtonStyle.Filled : AppButtonStyle.Text)" Tone="@(!_bookView ? AppUiTone.Primary : AppUiTone.Neutral)" Label="@L["ListenNowPlayingBar_Chapter"].Value" OnClick="@(() => SetBookViewAsync(false))" />
-                            <AppButton Size="AppControlSize.Compact" ButtonStyle="@(_bookView ? AppButtonStyle.Filled : AppButtonStyle.Text)" Tone="@(_bookView ? AppUiTone.Primary : AppUiTone.Neutral)" Label="@L["ListenNowPlayingBar_Book"].Value" OnClick="@(() => SetBookViewAsync(true))" />
-                        </span>
-                    </div>
+                                      Bookmarks="@BarMarkers(null)" BookmarkJump="@(marker => SeekOnHostAsync(marker.Seconds))" />
                 }
             </TimelineContent>
             <ToolContent Context="tool">
@@ -362,12 +362,6 @@
     private long _favoriteLoadGeneration;
     private bool _isFavorite;
     private double VolumeStep => Playback.ClientSettings.VolumeStep;
-    private bool _showRemainingTime;
-    private string EndTimeToggleLabel => _showRemainingTime ? "Show total duration" : "Show remaining time";
-    private string EndTimeText => Playback.DurationSeconds <= 0 ? "—"
-        : _showRemainingTime ? $"-{FormatTimestamp(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))}"
-        : FormatTimestamp(Playback.DurationSeconds);
-    private string EndTimeAriaLabel => $"{(_showRemainingTime ? "Remaining time" : "Total duration")} {EndTimeText}. {EndTimeToggleLabel}";
     private string ProgressValueText => $"{FormatTimestamp(Playback.CurrentTimeSeconds)} of {FormatTimestamp(ProgressMax)}";
     private static string FormatVolumeValue(double value) => $"{Math.Clamp((int)Math.Round(value * 100d), 0, 100)}%";
     private Task ToggleShuffleFromDockAsync() => Playback.ToggleShuffleAsync();
@@ -602,10 +596,20 @@
         await reload;
     }
 
-    private async Task SetBookViewAsync(bool book)
+    /// <summary>
+    /// Whether the audiobook bar shows the whole book (true) or the current chapter (false). The choice is remembered per profile in this browser.
+    /// </summary>
+    public bool BarShowsWholeBook => _bookView;
+
+    /// <summary>
+    /// Switches the audiobook bar between the current chapter and the whole book and remembers the choice for this profile. The Chapters panel's footer
+    /// switch (Chapter | Whole book) calls this; until then the label on the timeline calls it.
+    /// </summary>
+    public async Task SetBarScopeAsync(bool wholeBook)
     {
-        _bookView = book;
-        try { await JS.InvokeVoidAsync("localStorage.setItem", BookViewStorageKey, book ? "book" : "chapter"); }
+        _bookView = wholeBook;
+        await InvokeAsync(StateHasChanged);
+        try { await JS.InvokeVoidAsync("localStorage.setItem", BookViewStorageKey, wholeBook ? "book" : "chapter"); }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { Logger.LogDebug(ex, "The Chapter or Book choice could not be remembered."); }
     }
 

@@ -1,0 +1,24 @@
+/* The volume control (unified player v2 D10; mockup screen 2). The speaker is an ordinary bar button; beside it sits a slot that is always in the
+   markup and has no width until the slider opens (playback-volume.js sets data-open on hover or keyboard focus, and clears it 400 ms after both
+   have left). The tools zone is right-aligned, so opening the slot moves nothing but the tools to its left, and the identity zone absorbs the rest. */
+.playback-volume { position:relative; display:inline-flex; align-items:center; flex:none; }
+.playback-volume__button { display:inline-flex; }
+
+.playback-volume__slot {
+    box-sizing:border-box; display:flex; align-items:center; flex:none; overflow:hidden; width:0; visibility:hidden;
+    transition:width 120ms ease, visibility 0s linear 120ms;
+}
+.playback-volume[data-open="true"] .playback-volume__slot {
+    width:calc(var(--playback-volume-slider-width) + 20px); visibility:visible; transition:width 120ms ease, visibility 0s;
+}
+/* 8 px between the speaker and the rail (as the mockup), plus the 6 px the handle overhangs at either end of the rail. */
+.playback-volume__panel { display:block; flex:1; min-width:0; padding:0 6px 0 14px; }
+
+/* Touch: the speaker opens the Volume panel (Menu size). A 44 px row: mute, the rail, the level. */
+.playback-volume-panel { display:flex; align-items:center; gap:8px; min-height:var(--playback-panel-row-height); padding:0 8px 0 4px; color:var(--playback-text); }
+.playback-volume-panel__slider { display:block; flex:1; min-width:0; padding:0 6px; }
+.playback-volume-panel__value { flex:none; min-width:3ch; color:var(--playback-text-secondary); font-size:14px; font-variant-numeric:tabular-nums; text-align:right; }
+
+@media (prefers-reduced-motion: reduce) {
+    .playback-volume__slot,.playback-volume[data-open="true"] .playback-volume__slot { transition:none; }
+}

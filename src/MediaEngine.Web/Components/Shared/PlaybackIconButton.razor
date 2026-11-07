@@ -16,7 +16,7 @@
             @if (PlaybackUtilityGlyphMap.TryFromControlKey(Control.Key, out var glyph))
             {
                 @* The speaker shows its loud form until the sound is muted (unified player v2 D10); the crossed form means muted. *@
-                <PlaybackUtilityGlyph Glyph="@(Control.Key == PlaybackControlKey.Mute && !Control.IsActive ? PlaybackUtilityGlyphKind.Volume : glyph)" />
+                <PlaybackUtilityGlyph Glyph="@(GlyphOverride ?? (Control.Key == PlaybackControlKey.Mute && !Control.IsActive ? PlaybackUtilityGlyphKind.Volume : glyph))" />
             }
             else
             {
@@ -46,6 +46,10 @@
 
     [Parameter]
     public string? Class { get; set; }
+
+    /// <summary>Draws this glyph instead of the one the control's key maps to (the speaker's quiet form, unified player v2 D10).</summary>
+    [Parameter]
+    public PlaybackUtilityGlyphKind? GlyphOverride { get; set; }
 
     [Parameter]
     public EventCallback OnClick { get; set; }

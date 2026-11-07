@@ -22,13 +22,13 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PopupHasTheVerticalVolumeSliderAndMusicModeControls()
+    public void PopupHasTheHorizontalVolumeSliderAndMusicModeControls()
     {
         var cut = Render<PlaybackFullPlayer>(p => p.Add(c => c.Snapshot, Snapshot()).Add(c => c.Commands, new Sink()).Add(c => c.IsPopup, true));
-        Assert.Single(cut.FindAll(".playback-full__volume input[aria-orientation='vertical']"));
+        Assert.Single(cut.FindAll(".playback-full__volume input[aria-orientation='horizontal'][aria-label='Volume']"));
+        Assert.Empty(cut.FindAll("input[aria-orientation='vertical']"));
         Assert.Equal("0:37", cut.Find(".playback-full__timeline .playback-seek-rail__start").TextContent);
-        Assert.Equal("3:00", cut.Find(".playback-full__timeline .playback-seek-rail__end").TextContent);
-        Assert.Empty(cut.FindAll("input[aria-orientation='horizontal'][aria-label='Volume']"));
+        Assert.Equal("\u22122:23", cut.Find(".playback-full__timeline .playback-seek-rail__end").TextContent);
         Assert.Single(cut.FindAll("button[aria-label='Turn shuffle on']"));
         foreach (var label in new[] { "Lyrics", "Queue" })
         {

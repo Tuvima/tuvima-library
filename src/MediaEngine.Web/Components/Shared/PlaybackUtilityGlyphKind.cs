@@ -12,6 +12,7 @@ public enum PlaybackUtilityGlyphKind
     Speed,
     Mute,
     Volume,
+    VolumeLow,
     Shuffle,
     Repeat,
     Captions,

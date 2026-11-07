@@ -338,7 +338,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("playback-full__book-progress", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
         Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
-        Assert.Contains(".playback-seek-rail--dock { position:absolute", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
+        Assert.Contains(".playback-seek-rail { display:flex; align-items:center; gap:10px; height:28px;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
         Assert.Contains("border-top: 1px solid var(--playback-hairline);", shellStyles, StringComparison.Ordinal);
         Assert.Contains(".video-playback-restore {", videoStyles, StringComparison.Ordinal);
         Assert.Contains("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
@@ -357,7 +357,7 @@ public sealed class PlaybackPrimitiveTests
 
         Assert.DoesNotContain("min-height: 116px !important", globalStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellStyles, StringComparison.Ordinal);
-        Assert.Contains(".playback-seek-rail--dock { position:absolute", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
+        Assert.Contains(".playback-seek-rail { display:flex; align-items:center; gap:10px; height:28px;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
         // The phone's collapsed bar is the shell's compact form: art and text, then Play and Next, with the rail in its own thin row.
         Assert.Contains(".playback-shell--compact .playback-shell__row", shellStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto auto;", shellStyles, StringComparison.Ordinal);
