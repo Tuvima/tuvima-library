@@ -1,7 +1,7 @@
 .household-ceiling { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex-basis: 100%; margin-top: 4px; }
 .household-ceiling__head { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; max-width: 100%; min-width: 0; }
 .household-ceiling__head > :first-child { min-width: 0; }
-.household-ceiling__saved { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--tl-status-success); font-size: var(--tl-font-size-sm); }
+.household-ceiling__saved { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tl-status-success); font-size: var(--tl-font-size-sm); } /* Always present, so the text appears without moving a control (D15.6). */
 .household-ceiling__body { flex-basis: 100%; display: grid; gap: 12px; padding: 4px 8px 8px; box-sizing: border-box; }
 .household-ceiling__empty { margin: 0; color: var(--tl-text-muted); }
 .household-ceiling__error { margin: 0; color: var(--tl-status-error, var(--tl-text-primary)); font-size: var(--tl-font-size-sm); }

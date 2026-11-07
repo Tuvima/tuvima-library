@@ -326,7 +326,6 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var source = File.ReadAllText(path);
 
         Assert.Contains("<SetupLibrariesTable", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("<SetupAreaCards", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<LibrariesOverview", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AddFolderWizard", source, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryFoldersPanel", source, StringComparison.Ordinal);
@@ -391,14 +390,13 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
         Assert.Contains("AppDialogParameters<AddViewFolderDialog>", createDialog, StringComparison.Ordinal);
         Assert.Contains("<ServerFolderPicker", viewDialog, StringComparison.Ordinal);
-        Assert.DoesNotContain("<SetupAreaCards", vaultStep, StringComparison.Ordinal);
         Assert.Contains("EffectiveAdministrator != true", eligibility, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTable", vaultStep, StringComparison.Ordinal);
         Assert.DoesNotContain("<CreateLibraryDialog", vaultStep, StringComparison.Ordinal);
         Assert.DoesNotContain("<LibrariesOverview", vaultStep, StringComparison.Ordinal);
 
         var others = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
-            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupStepper.razor" or "SetupAreaCards.razor" or "SetupLibrariesStage.razor" or "SetupLibrariesTable.razor"));
+            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupStepper.razor" or "SetupLibrariesStage.razor" or "SetupLibrariesTable.razor"));
         Assert.All(others, file => Assert.DoesNotContain("Vault", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase));
     }
 

@@ -173,6 +173,28 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheMatchRow_IsOneLine_WithTheProviderAndIconSearchAtTheStart_AndTheSegmentedControlAtTheEnd()
+    {
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+
+        // One row container holds all three controls, so they share one centre line (Look v3 D15.5).
+        var row = Assert.Single(cut.FindAll("[data-testid='match-row']"));
+        Assert.Single(cut.FindAll(".tl-match__matchrow"));
+        var start = row.QuerySelector(".tl-match__matchrow-start")!;
+        Assert.NotNull(start.QuerySelector(".app-select"));
+        var search = start.QuerySelector("button[aria-label='Search']")!;
+        Assert.Equal(string.Empty, search.TextContent.Trim());
+        var segmented = row.QuerySelector(".app-segmented-control")!;
+        Assert.Equal("tl-match__matchrow-end", segmented.ParentElement!.ClassName);
+        Assert.Same(row, segmented.ParentElement.ParentElement);
+        // The search button is no longer a separate text button beside the query box.
+        Assert.Empty(cut.FindAll(".tl-match__searchrow button[aria-label='Search']"));
+        // A label never wraps inside a cell: the segmented labels carry the shortening hook, and the row is a single non-wrapping flex line.
+        Assert.All(segmented.QuerySelectorAll(".app-segmented-control__item > span"), span => Assert.False(string.IsNullOrEmpty(span.GetAttribute("data-overflow-tooltip"))));
+    }
+
+    [Fact]
     public void StepTwo_ShowsTheItemBesideTheMatch_WithTheParentAndFileSwitchesOff()
     {
         var cut = RenderPanel();
@@ -446,7 +468,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.InvokeAsync(() => by.Instance.ValueChanged.InvokeAsync(EditorMatchFacts.SearchYear));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Year']")));
         cut.Find("input[aria-label='Year']").Input("1998");
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Search").Click();
+        cut.Find("button[aria-label=\"Search\"]").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
         Assert.Equal("1998", _searches[^1].DraftFields["year"]);
@@ -462,7 +484,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         var by = cut.FindComponents<AppSelect>().Single(select => select.Instance.AriaLabel == "Search by");
         cut.InvokeAsync(() => by.Instance.ValueChanged.InvokeAsync(EditorMatchFacts.SearchProviderId));
         cut.Find("input[aria-label='Search for a match']").Input("https://musicbrainz.org/recording/6f5f3f29-4a2b-4a53-8a8d-3d5a8e5b0c11");
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Search").Click();
+        cut.Find("button[aria-label=\"Search\"]").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
         Assert.Equal("6f5f3f29-4a2b-4a53-8a8d-3d5a8e5b0c11", _searches[^1].QueryOverride);

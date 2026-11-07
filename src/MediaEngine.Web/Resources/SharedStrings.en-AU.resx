@@ -185,4 +185,13 @@
   <data name="ViewPage_FavoriteRemoved" xml:space="preserve">
     <value>Removed from Favourites.</value>
   </data>
+  <data name="PlayerSettings_Colour" xml:space="preserve">
+    <value>Text colour</value>
+  </data>
+  <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
+    <value>Background colour</value>
+  </data>
+  <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
+    <value>Font, colours and opacity</value>
+  </data>
 </root>

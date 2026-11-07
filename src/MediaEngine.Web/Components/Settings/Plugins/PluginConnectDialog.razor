@@ -38,9 +38,12 @@
                            Disabled="@(!CanTest)"
                            OnClick="TestAsync"
                            data-testid="plugin-connect-test" />
+            </div>
+            @* The result goes on its own full-width line under the Test row, and the line keeps its height, so the button never moves (Look v3 D15.6). *@
+            <div class="plugin-connect__status" role="status" data-testid="plugin-connect-status">
                 @if (_result is { } result)
                 {
-                    <span class="@("plugin-connect__result plugin-connect__result--" + (result.Ok ? "ok" : "bad"))" role="status" data-testid="plugin-connect-result">
+                    <span class="@("plugin-connect__result plugin-connect__result--" + (result.Ok ? "ok" : "bad"))" data-testid="plugin-connect-result">
                         <AppMaterialIcon Icon="@(result.Ok ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.ErrorOutline)" />
                         @result.Message
                     </span>

@@ -2857,11 +2857,12 @@ public sealed partial class PlaybackSessionController
     private readonly HashSet<Guid> _adaptiveAudioAssets = [];
 
     /// <summary>
-    /// Restarts the playing video on the Engine's adaptive stream, which carries every audio track, and resumes from the same second.
+    /// Restarts the playing video on the Engine's adaptive stream, which carries every audio track, and resumes from the same second
+    /// (<paramref name="resumeSeconds"/>, the second the choice was made at, or the player's current second when none is given).
     /// A browser cannot switch the audio of a direct-play file itself (video-player-controls-and-bookmarks D10). False when the Engine
     /// could not provide the stream; the video keeps playing as it was.
     /// </summary>
-    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default)
+    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default, double? resumeSeconds = null)
     {
         if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType))
         {
@@ -2890,7 +2891,7 @@ public sealed partial class PlaybackSessionController
         }
 
         _adaptiveAudioAssets.Add(assetId);
-        _queue[index] = _queue[index] with { Manifest = manifest, StreamUrl = null, InitialPositionSeconds = CurrentTimeSeconds, StartAtExactPosition = true };
+        _queue[index] = _queue[index] with { Manifest = manifest, StreamUrl = null, InitialPositionSeconds = resumeSeconds is { } at && double.IsFinite(at) && at >= 0 ? at : CurrentTimeSeconds, StartAtExactPosition = true };
         await EnsurePlayableAsync(index, ct);
         if (index >= _queue.Count || string.IsNullOrWhiteSpace(_queue[index].StreamUrl))
         {

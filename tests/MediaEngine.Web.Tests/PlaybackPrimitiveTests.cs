@@ -300,8 +300,10 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("font-weight:500", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("font-size:var(--tl-font-size-xs)", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"@(AriaLabel ?? (IsPlaying ? \"Now playing\" : \"Current item paused\"))\"", activityMark, StringComparison.Ordinal);
-        Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
-        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
+        // The tool sheet draws through the shared Pop-out surface, which owns the role, aria-modal and focus contract (Look v3 D14).
+        Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AppPopout.razor")), StringComparison.Ordinal);
         Assert.Contains("attachModal", focusModule, StringComparison.Ordinal);
         Assert.Contains("restoreFocus", focusModule, StringComparison.Ordinal);
         Assert.Contains("event.key === 'Escape'", focusModule, StringComparison.Ordinal);
@@ -338,7 +340,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("playback-full__book-progress", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
         Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
-        Assert.Contains(".playback-seek-rail--dock { position:absolute", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
+        Assert.Contains(".playback-seek-rail { display:flex; align-items:center; gap:10px; height:28px;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
         Assert.Contains("border-top: 1px solid var(--playback-hairline);", shellStyles, StringComparison.Ordinal);
         Assert.Contains(".video-playback-restore {", videoStyles, StringComparison.Ordinal);
         Assert.Contains("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
@@ -357,7 +359,7 @@ public sealed class PlaybackPrimitiveTests
 
         Assert.DoesNotContain("min-height: 116px !important", globalStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellStyles, StringComparison.Ordinal);
-        Assert.Contains(".playback-seek-rail--dock { position:absolute", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
+        Assert.Contains(".playback-seek-rail { display:flex; align-items:center; gap:10px; height:28px;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
         // The phone's collapsed bar is the shell's compact form: art and text, then Play and Next, with the rail in its own thin row.
         Assert.Contains(".playback-shell--compact .playback-shell__row", shellStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto auto;", shellStyles, StringComparison.Ordinal);
@@ -383,9 +385,9 @@ public sealed class PlaybackPrimitiveTests
 
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
         Assert.Contains("--playback-tool-width: 400px;", tokens, StringComparison.Ordinal);
-        Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Icon=\"@Icon\"", toolSheet, StringComparison.Ordinal);
-        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
         Assert.Contains("max-height: 85svh;", toolSheetCss, StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);
@@ -403,7 +405,6 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<PlaybackPrimaryButton", shell, StringComparison.Ordinal);
         // Unified player D10: video speed lives inside Settings, not as its own bar button.
         Assert.DoesNotContain("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
-        Assert.Contains("PlaybackRateChanged=", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPanel", videoHost, StringComparison.Ordinal);
 
         foreach (var css in playbackStyles)

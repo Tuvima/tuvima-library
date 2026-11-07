@@ -16,12 +16,6 @@
     overflow-x: auto;
 }
 
-
-
-
-
-
-
 .view-artwork-tabs ::deep .view-artwork-tab {
     display: inline-flex;
     align-items: center;
@@ -38,7 +32,7 @@
 .view-artwork-tabs ::deep .view-artwork-tab.is-active {
     border-color: rgba(155, 101, 255, .62);
     background: rgba(117, 65, 210, .2);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 .view-artwork-filters {
@@ -69,7 +63,7 @@
     border: 0;
     outline: 0;
     background: transparent;
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font: inherit;
 }
 
@@ -87,10 +81,6 @@
     grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 1.15rem;
 }
-
-
-
-
 
 .view-artwork-grid ::deep .view-artwork-card {
     display: grid;
@@ -115,55 +105,7 @@
     box-shadow: 0 12px 30px rgba(0, 0, 0, .28), 0 0 0 3px rgba(126, 76, 219, .14);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@media (max-width: 720px) {
+@media (max-width: 640px) {
     .view-artwork-filters {
         grid-template-columns: 1fr;
     }

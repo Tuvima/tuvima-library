@@ -12,6 +12,7 @@ public enum PlaybackUtilityGlyphKind
     Speed,
     Mute,
     Volume,
+    VolumeLow,
     Shuffle,
     Repeat,
     Captions,
@@ -47,6 +48,9 @@ public enum PlaybackUtilityGlyphKind
     Reset,
     Book,
     Film,
+    SubtitleAppearance,
+    Search,
+    ChevronRight,
 }
 
 public static class PlaybackUtilityGlyphMap

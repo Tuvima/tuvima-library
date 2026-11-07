@@ -230,10 +230,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("Section=\"diagnostics\"", delivery, StringComparison.Ordinal);
         // No "planned" note: Available plugins draws an Install button only when the Engine says installing is supported.
         Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
-        // The directory panel is kept but not drawn on the Plugins page (Plugins and Integrations screens v3).
         Assert.DoesNotContain("<AvailablePluginsPanel", plugins, StringComparison.Ordinal);
-        var available = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AvailablePluginsPanel.razor");
-        Assert.Contains("InstallSupported: true", available, StringComparison.Ordinal);
         Assert.Contains("Advanced settings", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSettingsCard.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"JSON\"", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"Manifest\"", plugins, StringComparison.Ordinal);

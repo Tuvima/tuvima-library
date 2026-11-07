@@ -24,7 +24,7 @@
     background:
         radial-gradient(circle at top left, rgba(136, 82, 252, 0.12), transparent 30%),
         radial-gradient(circle at 60% 0%, rgba(14, 165, 233, 0.09), transparent 28%),
-        linear-gradient(180deg, #08101d 0%, #050912 100%);
+        linear-gradient(180deg, var(--tl-bg-shell) 0%, var(--tl-bg-root) 100%);
 }
 
 .listen-rail-shell {
@@ -111,9 +111,7 @@
     cursor: pointer;
 }
 
-.listen-rail__item,
-.listen-button,
-.listen-icon-button {
+.listen-rail__item {
     transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
@@ -196,11 +194,9 @@
     cursor: pointer;
 }
 
-.listen-rail__delete-confirm ::deep .is-confirm { background: #15803d; }
-.listen-rail__delete-confirm ::deep .is-cancel { background: #b91c1c; }
+.listen-rail__delete-confirm ::deep .is-confirm { background: var(--tl-status-success); }
+.listen-rail__delete-confirm ::deep .is-cancel { background: var(--tl-status-danger); }
 .listen-rail__delete-confirm ::deep .tl-icon-root { font-size: var(--tl-icon-size-xs); }
-
-
 
 .listen-rail__drag,
 .listen-rail__more,
@@ -292,8 +288,6 @@
     cursor: pointer;
 }
 
-
-
 ::deep .listen-rail__drag,
 ::deep .listen-rail__more,
 ::deep .listen-rail__add {
@@ -323,48 +317,6 @@
 .listen-rail__playlist-row:hover ::deep .listen-rail__more,
 .listen-rail__playlist-row:focus-within ::deep .listen-rail__more {
     opacity: 1;
-}
-
-::deep .listen-button,
-::deep .listen-icon-button {
-    transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
-}
-
-::deep .listen-button,
-::deep .listen-icon-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 42px;
-    padding: 0 18px;
-    border-radius: var(--tl-radius-md);
-    border: 1px solid transparent;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-::deep .listen-button:disabled,
-::deep .listen-icon-button:disabled {
-    cursor: default;
-    opacity: 0.44;
-    transform: none;
-}
-
-::deep .listen-button:hover{
-    transform: translateY(-1px);
-}
-
-::deep .listen-button--primary {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary) 92%, white 4%), color-mix(in srgb, var(--tl-accent-primary) 70%, rgba(5, 8, 16, 0.18)));
-    color: #10151f;
-}
-
-::deep .listen-button--secondary,
-::deep .listen-icon-button {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--tl-border-subtle);
-    color: rgba(255, 255, 255, 0.84);
 }
 
 ::deep .listen-filter-input,
@@ -403,43 +355,6 @@
     min-width: 0;
 }
 
-.listen-button,
-.listen-icon-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 42px;
-    padding: 0 18px;
-    border-radius: var(--tl-radius-md);
-    border: 1px solid transparent;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.listen-button:disabled,
-.listen-icon-button:disabled {
-    cursor: default;
-    opacity: 0.44;
-    transform: none;
-}
-
-.listen-button:hover{
-    transform: translateY(-1px);
-}
-
-.listen-button--primary {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary) 92%, white 4%), color-mix(in srgb, var(--tl-accent-primary) 70%, rgba(5, 8, 16, 0.18)));
-    color: #10151f;
-}
-
-.listen-button--secondary,
-.listen-icon-button {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--tl-border-subtle);
-    color: rgba(255, 255, 255, 0.84);
-}
-
 .listen-detail,
 .listen-empty {
     border-radius: var(--tl-radius-md);
@@ -472,7 +387,7 @@
 
 .listen-filter-bar {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     flex-wrap: wrap;
     gap: 10px;
     margin: 0 0 16px;
@@ -542,8 +457,8 @@
     display: grid;
     min-width: 155px;
     max-width: 205px;
-    grid-template-rows: auto 1fr;
-    gap: 5px;
+    grid-template-rows: 1fr;
+    gap: 0;
     color: rgba(215, 224, 240, 0.78);
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-sm);
@@ -576,7 +491,7 @@
 .listen-filter-toggle-stack {
     display: flex;
     min-height: 56px;
-    align-items: end;
+    align-items: center;
     gap: 8px;
     flex-wrap: wrap;
     padding: 0 8px;
@@ -585,20 +500,13 @@
 .listen-display-group {
     display: grid;
     grid-template-columns: minmax(145px, 180px) minmax(150px, 205px);
-    align-items: end;
+    align-items: center;
     gap: 8px;
     margin-left: auto;
     padding: 8px 10px;
     border-left: 1px solid rgba(128, 146, 180, 0.18);
     border-radius: 8px;
     background: rgba(4, 10, 21, 0.34);
-}
-
-.listen-display-group__eyebrow {
-    grid-column: 1 / -1;
-    color: rgba(215, 224, 240, 0.72);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
 }
 
 .listen-display-group .listen-filter-field {
@@ -619,10 +527,6 @@
     height: 100%;
     object-fit: cover;
 }
-
-
-
-
 
 .listen-detail {
     align-items: flex-start;
@@ -722,14 +626,6 @@
     gap: 22px;
     align-items: start;
 }
-
-
-
-
-
-
-
-
 
 .listen-empty {
     min-height: 320px;
@@ -909,29 +805,6 @@
     color: var(--tl-status-warning);
 }
 
-.listen-playlist-track-row .listen-icon-button {
-    width: 30px;
-    min-width: 30px;
-    min-height: 30px;
-    height: 30px;
-    padding: 0;
-    border-radius: var(--tl-radius-sm);
-    background: transparent;
-    color: var(--tl-text-muted);
-}
-
-.listen-playlist-track-row .listen-icon-button:hover:not(:disabled) {
-    background: var(--tl-bg-surface-raised);
-    border-color: var(--tl-border-default);
-    color: var(--tl-text-primary);
-}
-
-.listen-playlist-track-row .listen-icon-button--danger:hover:not(:disabled) {
-    color: var(--tl-status-danger);
-    border-color: var(--tl-status-danger-border);
-    background: var(--tl-status-danger-soft);
-}
-
 .listen-playlist-track-end-zone {
     height: 12px;
     border-top: 2px solid transparent;
@@ -1025,7 +898,7 @@
 
 .audiobooks-segmented {
     display: grid;
-    gap: 6px;
+    gap: 0;
     min-width: min(100%, 520px);
     flex: 1 1 520px;
 }
@@ -1048,38 +921,26 @@
 .audiobooks-toolbar__controls {
     display: flex;
     min-width: 0;
-    align-items: end;
+    align-items: center;
     gap: 12px;
     flex-wrap: wrap;
 }
 
 .audiobooks-filter-group {
     display: grid;
-    gap: 6px;
+    gap: 0;
     flex: 1 1 330px;
-}
-
-.audiobooks-segmented > span,
-.audiobooks-filter-group > span,
-.audiobooks-toolbar__eyebrow {
-    color: rgba(215, 224, 240, 0.72);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
 }
 
 .audiobooks-toolbar__display {
     display: grid;
     grid-template-columns: minmax(128px, 0.8fr) minmax(180px, 1.2fr);
-    align-items: end;
+    align-items: center;
     gap: 8px;
     padding: 10px;
     border-left: 1px solid rgba(128, 146, 180, 0.18);
     border-radius: 8px;
     background: rgba(4, 10, 21, 0.34);
-}
-
-.audiobooks-toolbar__eyebrow {
-    grid-column: 1 / -1;
 }
 
 .audiobooks-view-controls {
@@ -1116,7 +977,7 @@
 .audiobooks-segmented ::deep .audiobooks-tab.is-active,
 .audiobooks-layout-toggle ::deep .audiobooks-layout-toggle__button.is-active {
     background: linear-gradient(135deg, rgba(124, 92, 255, 0.72), rgba(91, 67, 190, 0.82));
-    color: #fff;
+    color: var(--tl-text-on-accent);
     box-shadow: 0 10px 22px rgba(64, 38, 160, 0.28);
 }
 
@@ -1148,7 +1009,7 @@
 .audiobooks-filters ::deep .audiobooks-filter.is-active {
     border-color: rgba(147, 119, 255, 0.70);
     background: rgba(124, 92, 255, 0.18);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 ::deep .audiobooks-select {
@@ -1158,7 +1019,7 @@
 
 .audiobooks-sort {
     display: grid;
-    gap: 5px;
+    gap: 0;
     min-width: 145px;
     max-width: 190px;
     color: rgba(215, 224, 240, 0.78);
@@ -1187,7 +1048,7 @@
     border-radius: 6px;
     padding: 0 10px;
     background: rgba(124, 92, 255, 0.22);
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font-weight: 600;
 }
 
@@ -1217,10 +1078,6 @@
     margin: 4px 0 0;
     color: rgba(203, 213, 225, 0.62);
 }
-
-
-
-
 
 .audiobooks-empty {
     min-height: 108px;
@@ -1310,7 +1167,7 @@
 }
 
 .audiobooks-card-title:hover {
-    color: #fff;
+    color: var(--tl-text-on-accent);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
@@ -1334,12 +1191,12 @@
 
 .audiobooks-progress::-webkit-progress-value {
     border-radius: inherit;
-    background: linear-gradient(90deg, #8852FC, #a78bfa);
+    background: linear-gradient(90deg, var(--tl-accent-primary), var(--tl-accent-primary-hover));
 }
 
 .audiobooks-progress::-moz-progress-bar {
     border-radius: inherit;
-    background: linear-gradient(90deg, #8852FC, #a78bfa);
+    background: linear-gradient(90deg, var(--tl-accent-primary), var(--tl-accent-primary-hover));
 }
 
 .audiobooks-continue-card__meta,
@@ -1365,7 +1222,7 @@
     border: 1px solid rgba(147, 119, 255, 0.46);
     border-radius: 50%;
     background: radial-gradient(circle at 35% 25%, rgba(147, 119, 255, 0.62), rgba(42, 53, 87, 0.92));
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 .audiobooks-books,
@@ -1446,7 +1303,7 @@
 
 ::deep .audiobooks-card-menu:hover {
     background: rgba(148, 163, 184, 0.14);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 .audiobooks-series-grid {
@@ -1518,16 +1375,8 @@
     padding: 0 16px;
     border-color: rgba(147, 119, 255, 0.56);
     background: rgba(124, 92, 255, 0.13);
-    color: #d8ccff;
+    color: var(--tl-accent-primary-hover);
 }
-
-
-
-
-
-
-
-
 
 @media (max-width: 1180px) {
 .listen-page {
@@ -1618,10 +1467,6 @@
         flex-direction: column;
         display: flex;
     }
-
-    
-
-    
 
     .listen-detail__art,
     .listen-detail__collage,
@@ -1770,15 +1615,13 @@
     ::deep .listen-rail__section-toggle,
     ::deep .listen-rail__drag,
     ::deep .listen-rail__more,
-    ::deep .listen-rail__add,
-    ::deep .listen-icon-button {
+    ::deep .listen-rail__add {
         min-height: var(--tl-touch-target-min, 48px);
     }
 
     ::deep .listen-rail__drag,
     ::deep .listen-rail__more,
-    ::deep .listen-rail__add,
-    ::deep .listen-icon-button {
+    ::deep .listen-rail__add {
         width: var(--tl-touch-target-min, 48px);
         min-width: var(--tl-touch-target-min, 48px);
     }

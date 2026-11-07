@@ -1,0 +1,80 @@
+/* Mockup screen 3 footer: .pf is a row with a 10 px gap, 14 px text and 20 px glyphs; the two actions sit at either end. Screen 15 (phone sheet) stacks
+   them as 52 px rows with 24 px glyphs and 16 / 500 labels under a hairline. */
+.asa {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    min-width: 0;
+}
+
+.asa__spacer {
+    flex: 1;
+}
+
+.asa__action {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    font: 400 14px/1.45 var(--font-ui);
+    gap: 10px;
+    min-height: 36px;
+    padding: 4px 8px;
+}
+
+/* The first action's text lines up with the panel's 16 px edge, as the mockup footer does. */
+.asa[data-layout="bar"] .asa__action:first-child {
+    margin-left: -8px;
+}
+
+.asa__action:hover {
+    background: var(--playback-state-hover);
+}
+
+.asa__action:active {
+    background: var(--playback-state-pressed);
+}
+
+.asa__action:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.asa__action ::deep .playback-utility-glyph {
+    flex-basis: 20px;
+    height: 20px;
+    stroke-width: 1.8;
+    width: 20px;
+}
+
+.asa[data-layout="rows"] {
+    border-top: 1px solid var(--playback-hairline);
+    flex-direction: column;
+    gap: 0;
+    padding-top: 6px;
+}
+
+.asa[data-layout="rows"] .asa__action {
+    font: 500 16px/1.25 var(--font-ui);
+    gap: 12px;
+    min-height: 52px;
+    padding: 4px 10px;
+    width: 100%;
+}
+
+.asa[data-layout="rows"] .asa__action ::deep .playback-utility-glyph {
+    flex-basis: var(--playback-control-glyph);
+    height: var(--playback-control-glyph);
+    width: var(--playback-control-glyph);
+}
+
+@media (pointer: coarse) {
+    .asa__action {
+        min-height: var(--playback-control-target);
+    }
+}

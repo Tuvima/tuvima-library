@@ -64,3 +64,21 @@ test('detach removes the key handler', () => {
     detach(container);
     assert.equal(handlers.keydown, undefined);
 });
+
+test('a vertical list also moves with Up and Down, and a horizontal row ignores them', () => {
+    const column = row(3);
+    attach(column.container, '.item', { vertical: true });
+    column.items[0].focus();
+    assert.equal(column.press('ArrowDown').defaultPrevented, true);
+    assert.equal(document.activeElement, column.items[1]);
+    column.press('ArrowRight');
+    assert.equal(document.activeElement, column.items[2]);
+    column.press('ArrowUp');
+    assert.equal(document.activeElement, column.items[1]);
+
+    const strip = row(3);
+    attach(strip.container, '.item');
+    strip.items[0].focus();
+    assert.equal(strip.press('ArrowDown').defaultPrevented, false);
+    assert.equal(document.activeElement, strip.items[0]);
+});

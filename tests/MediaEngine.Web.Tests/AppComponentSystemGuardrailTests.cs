@@ -202,8 +202,6 @@ public sealed class AppComponentSystemGuardrailTests
         Assert.Contains("background-image: url(\"data:image/svg+xml", appCss, StringComparison.Ordinal);
         Assert.DoesNotContain(".provider-strategy-select .tl-paper", appCss, StringComparison.Ordinal);
         Assert.DoesNotContain("settings-select-menu .tl-paper", appCss, StringComparison.Ordinal);
-        Assert.Contains("width: clamp(10.5rem, 14vw, 12rem) !important;",
-            ReadRepoFile("src/MediaEngine.Web/Components/Pages/Settings.razor.css"), StringComparison.Ordinal);
     }
 
     private static string ReadRepoFile(string relativePath)

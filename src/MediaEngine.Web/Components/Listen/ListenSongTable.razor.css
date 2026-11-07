@@ -224,8 +224,7 @@
     gap: 6px;
 }
 
-.listen-song-table__favorite-button,
-.listen-song-table__icon-button {
+.listen-song-table__favorite-button {
     width: 28px;
     height: 28px;
     display: inline-flex;
@@ -239,8 +238,7 @@
     cursor: pointer;
 }
 
-.listen-song-table__favorite-button:hover,
-.listen-song-table__icon-button:hover {
+.listen-song-table__favorite-button:hover {
     color: var(--tl-text-primary);
     background: var(--tl-bg-surface-raised);
 }
@@ -354,8 +352,7 @@
     background: var(--tl-accent-primary-soft);
 }
 
-::deep .listen-song-table__favorite-button,
-::deep .listen-song-table__icon-button {
+::deep .listen-song-table__favorite-button {
     width: 28px;
     height: 28px;
     display: inline-flex;
@@ -369,8 +366,7 @@
     cursor: pointer;
 }
 
-::deep .listen-song-table__favorite-button:hover,
-::deep .listen-song-table__icon-button:hover {
+::deep .listen-song-table__favorite-button:hover {
     color: var(--tl-text-primary);
     background: var(--tl-bg-surface-raised);
 }

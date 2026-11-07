@@ -4,13 +4,28 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
-<div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson" data-scrub-index-url="@(HasPreview ? PreviewIndexUrl : null)" data-scrub-index="@PreviewJson">
-    <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
+<div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson" data-scrub-index-url="@(HasPreview ? PreviewIndexUrl : null)" data-scrub-index="@PreviewJson"
+     role="@(string.IsNullOrWhiteSpace(Summary) ? null : "group")" aria-label="@(string.IsNullOrWhiteSpace(Summary) ? null : Summary)">
+    <output class="playback-seek-rail__start" aria-live="off" aria-label="@L["PlaybackSeekRail_ElapsedTime", Time(Position)].Value">@Time(Position)</output>
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        @* The audiobook's chapter or whole-book label sits between the elapsed time and the rail (mockup screen 1). Until the Chapters panel
+           carries the Chapter | Whole book choice, the label itself switches it when the host listens. *@
+        @if (LabelClick.HasDelegate)
+        {
+            <AppNativeButton Type="button" Class="playback-seek-rail__label playback-seek-rail__label--action" OnClick="@(() => LabelClick.InvokeAsync())" AriaLabel="@($"{Label}. {LabelAction}")"
+                             data-overflow-tooltip="@Label">@Label</AppNativeButton>
+        }
+        else
+        {
+            <span class="playback-seek-rail__label" data-overflow-tooltip="@Label">@Label</span>
+        }
+    }
     <div class="playback-seek-rail__track">
         @if (!string.IsNullOrWhiteSpace(Notice)) { <output class="playback-seek-rail__notice" role="status">@Notice</output> }
         <AppRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
-                             ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
-                             AriaLabel="@L["PlaybackSeekRail_PlaybackPosition"].Value" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
+                             ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="player"
+                             AriaLabel="@L["PlaybackSeekRail_PlaybackPosition"].Value" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="SeekAsync" disabled="@(Duration <= 0)" />
         <output class="playback-seek-rail__bubble" data-seek-time aria-hidden="true"></output>
         @if (HasPreview) { <div class="playback-seek-rail__tile" data-scrub-tile aria-hidden="true"></div> }
         @if (Bookmarks is { Count: > 0 } && Duration > 0)
@@ -26,7 +41,7 @@
                                 @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
                         @if (open)
                         {
-                            <div class="playback-seek-rail__quicklook" role="dialog" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
+                            <div class="playback-seek-rail__quicklook" role="group" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
                                 <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> @L["Common_Everyone"]</span> }</strong>
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Label)) { <p><b>@bookmark.Label</b></p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
@@ -51,8 +66,7 @@
             </div>
         }
     </div>
-    <AppNativeButton Type="button" Class="playback-seek-rail__end" Disabled="@(Duration <= 0)" OnClick="ToggleAsync"
-                     AriaLabel="@($"{(Remaining ? "Remaining time" : "Total duration")} {EndTime}. Show {(Remaining ? "total duration" : "remaining time")}")">@EndTime</AppNativeButton>
+    <output class="playback-seek-rail__end" aria-live="off" aria-label="@EndAriaLabel">@EndTime</output>
 </div>
 @code {
     [Parameter] public double Position { get; set; }
@@ -107,15 +121,31 @@
             ? $"/engine-scrub/{id:D}/{file}"
             : null;
     }
-    [Parameter] public bool? ShowRemaining { get; set; }
-    [Parameter] public EventCallback<bool> ShowRemainingChanged { get; set; }
-    private bool _remaining;
-    private bool Remaining => ShowRemaining ?? _remaining;
-    private string EndTime => Duration <= 0 ? "—" : Remaining ? $"-{Time(Math.Max(0, Duration - Position))}" : Time(Duration);
+    /// <summary>What the right end shows: the time left with a real minus sign ("−1:49"), unless the host passes its own text (the whole-book "6h 12m left").</summary>
+    [Parameter] public string? EndText { get; set; }
+    private string EndTime => !string.IsNullOrWhiteSpace(EndText) ? EndText : Duration <= 0 ? "—" : RemainingTime(Math.Max(0, Duration - Position));
+    private string EndAriaLabel => !string.IsNullOrWhiteSpace(EndText) ? EndText : Duration <= 0 ? L["PlaybackSeekRail_RemainingUnknown"].Value : L["PlaybackSeekRail_RemainingTime", Time(Math.Max(0, Duration - Position))].Value;
+
+    /// <summary>The audiobook label between the elapsed time and the rail: "Chapter 8", or "Book · 32%" in whole-book mode (see <see cref="PlaybackTimelineLabels"/>).</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>The whole line as one sentence for assistive technology: "Chapter 8 · 12:08 · −18:32".</summary>
+    [Parameter] public string? Summary { get; set; }
+
+    /// <summary>Raised when the label is pressed (switches the audiobook between the chapter and the whole book).</summary>
+    [Parameter] public EventCallback LabelClick { get; set; }
+    /// <summary>What the label does when pressed, for assistive technology. Left unset, it reads "Switch between the chapter and the whole book".</summary>
+    [Parameter] public string? LabelActionText { get; set; }
+    private string LabelAction => string.IsNullOrWhiteSpace(LabelActionText) ? L["PlaybackSeekRail_SwitchChapterOrBook"].Value : LabelActionText;
+
+    /// <summary>A seek never goes outside the loaded duration (unified player v2 D9).</summary>
+    public static double ClampSeek(double seconds, double duration) =>
+        double.IsFinite(seconds) ? Math.Clamp(seconds, 0d, double.IsFinite(duration) ? Math.Max(0d, duration) : 0d) : 0d;
+
+    private Task SeekAsync(double seconds) => ValueChanged.InvokeAsync(ClampSeek(seconds, Duration));
     private string ChapterJson => System.Text.Json.JsonSerializer.Serialize(ChapterTicks?.Select(time => new { time, title = ChapterLabel?.Invoke(time) }) ?? []);
     private ElementReference _root;
     private IJSObjectReference? _module;
-    private async Task ToggleAsync() { _remaining = !Remaining; await ShowRemainingChanged.InvokeAsync(_remaining); }
     protected override async Task OnAfterRenderAsync(bool firstRender) {
         try { _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-seek-rail.js"); if (_module is not null) await _module.InvokeVoidAsync("attach", _root); }
         catch (InvalidOperationException) { } catch (JSDisconnectedException) { }
@@ -124,5 +154,7 @@
         if (_module is null) return;
         try { await _module.InvokeVoidAsync("detach", _root); await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
     }
+    /// <summary>The time left, with the real minus sign: "−1:49".</summary>
+    public static string RemainingTime(double seconds) => $"\u2212{Time(seconds)}";
     public static string Time(double value) { var seconds = (int)Math.Max(0, double.IsFinite(value) ? value : 0); return seconds >= 3600 ? $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}" : $"{seconds / 60}:{seconds % 60:00}"; }
 }

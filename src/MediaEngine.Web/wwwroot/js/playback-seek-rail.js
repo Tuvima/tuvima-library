@@ -26,6 +26,21 @@ export function loadIndex(url, fetchImpl) {
     return indexReads.get(url);
 }
 export function resetIndexes() { indexReads.clear(); }
+/**
+ * How far an arrow key moves the timeline (Unified player v2 D9): 5 seconds, 30 with Shift. Left and Down go back, Right and Up go forward.
+ * Null for any other key, so the browser keeps Home, End and the rest.
+ */
+export function keySeekDelta(key, shiftKey) {
+    const step = shiftKey ? 30 : 5;
+    if (key === 'ArrowLeft' || key === 'ArrowDown') return -step;
+    if (key === 'ArrowRight' || key === 'ArrowUp') return step;
+    return null;
+}
+/** A seek never goes outside the loaded duration. */
+export function clampSeek(seconds, duration) {
+    const limit = Number.isFinite(duration) && duration > 0 ? duration : 0;
+    return Math.max(0, Math.min(limit, Number.isFinite(seconds) ? seconds : 0));
+}
 export function pointerSeconds(x, rect, duration) { return rect.width > 0 ? Math.max(0, Math.min(1, (x - rect.left) / rect.width)) * Math.max(0, duration) : 0; }
 export function attach(root) {
     if (!root || states.has(root)) return;
@@ -77,12 +92,29 @@ export function attach(root) {
         const duration = Number(root.dataset.duration); if (!(duration > 0)) return;
         const seconds = pointerSeconds(e.clientX, input.getBoundingClientRect(), duration); paint(seconds, seconds / duration);
     });
-    listen(input, 'pointerdown', () => { dragging = true; keyboard = false; thumb(); });
+    // While the handle is dragged the bookmark ticks hide (CSS reads data-dragging on the rail).
+    const setDragging = value => { dragging = value; if (value) root.dataset.dragging = 'true'; else delete root.dataset.dragging; };
+    listen(input, 'pointerdown', () => { setDragging(true); keyboard = false; thumb(); });
     listen(input, 'input', thumb);
-    listen(window, 'pointerup', () => { if (!dragging) return; dragging = false; if (!keyboard) hide(); });
-    listen(window, 'pointercancel', () => { dragging = false; hide(); });
+    listen(window, 'pointerup', () => { if (!dragging) return; setDragging(false); if (!keyboard) hide(); });
+    listen(window, 'pointercancel', () => { setDragging(false); hide(); });
     listen(track, 'pointerleave', () => { if (!dragging && !keyboard) hide(); });
-    listen(input, 'keydown', () => { keyboard = true; thumb(); });
+    // Arrow keys seek 5 seconds, Shift+arrow 30, clamped to the loaded duration. The value is set and the same input and change events a drag
+    // raises are sent, so the page seeks exactly as it does for the pointer.
+    listen(input, 'keydown', e => {
+        keyboard = true;
+        const delta = keySeekDelta(e.key, e.shiftKey);
+        if (delta !== null && !e.altKey && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            const duration = Number(root.dataset.duration);
+            if (duration > 0) {
+                input.value = String(clampSeek(Number(input.value) + delta, duration));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        thumb();
+    });
     listen(input, 'focus', () => { if (input.matches(':focus-visible')) { keyboard = true; thumb(); } });
     listen(input, 'blur', () => { keyboard = false; if (!dragging) hide(); });
     states.set(root, listeners);

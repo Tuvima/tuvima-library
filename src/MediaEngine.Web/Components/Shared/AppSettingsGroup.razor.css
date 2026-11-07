@@ -1,6 +1,8 @@
 /* A settings group sits on the page background: no border, no fill, no card padding. Danger is the one outlined exception. */
 .app-settings-group {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     min-width: 0;
     margin: 0 0 32px;
 }
@@ -29,18 +31,18 @@
 }
 
 .app-settings-group__helper {
-    margin: 4px 0 0;
+    margin: 0;
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-secondary);
     line-height: 1.4;
 }
 
 .app-settings-group__rows {
-    margin-top: 8px;
+    padding-top: 4px;
 }
 
 .app-settings-group__rows:first-child {
-    margin-top: 0;
+    padding-top: 0;
 }
 
 /* Hairline between any two rows of a group, whichever row part they are. */

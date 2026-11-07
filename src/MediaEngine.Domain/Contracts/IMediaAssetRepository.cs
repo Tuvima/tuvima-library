@@ -134,6 +134,25 @@ public interface IMediaAssetRepository
         => Task.FromResult<IReadOnlyList<MediaAssetFileRef>>([]);
 
     /// <summary>
+    /// The same as <see cref="ListFilesUnderAsync"/> for several folders at once, in one pass over the data store. A file is listed once,
+    /// whichever of the folders it sits under; the caller matches files to folders by path.
+    /// </summary>
+    async Task<IReadOnlyList<MediaAssetFileRef>> ListFilesUnderFoldersAsync(IReadOnlyCollection<string> folderPaths, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(folderPaths);
+        var files = new Dictionary<Guid, MediaAssetFileRef>();
+        foreach (var folder in folderPaths)
+        {
+            foreach (var file in await ListFilesUnderAsync(folder, ct).ConfigureAwait(false))
+            {
+                files.TryAdd(file.AssetId, file);
+            }
+        }
+
+        return [.. files.Values];
+    }
+
+    /// <summary>
     /// Returns assets whose <c>writeback_fields_hash</c> does not match the
     /// expected hash for their media type — these are the assets the auto
     /// re-tag sweep needs to process. Skips assets whose

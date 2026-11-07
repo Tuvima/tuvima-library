@@ -1,0 +1,26 @@
+@namespace MediaEngine.Web.Components.Shared
+@* The Pop-out surface (Look v3 D14): a small panel drawn over a control, no scrim. The anchoring and dismissal come from AppPopover
+   (app-popover.js) or the player's PlaybackPanel; this part is the surface itself, so every pop-out and the player's tool sheet carry one
+   role, one label and one size vocabulary. On phones the same surface is a Sheet. *@
+<section @ref="_root" id="@Id" class="@RootClass" role="@Role" aria-label="@AriaLabel" aria-modal="@(Modal ? "true" : null)" tabindex="@(Modal ? "-1" : null)" data-popout-size="@SizeName" style="@Css" @attributes="AdditionalAttributes">
+    @ChildContent
+</section>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Menu 272 px or Panel 400 px; None keeps the caller's own width (the player styles its panels itself until Player v2).</summary>
+    [Parameter] public AppPopoutSize Size { get; set; } = AppPopoutSize.None;
+    /// <summary>"dialog" for a tool panel, "region" for one drawn inline, "menu" for a list of actions.</summary>
+    [Parameter] public string? Role { get; set; } = "dialog";
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Id { get; set; }
+    /// <summary>The Sheet form on phones: takes focus, announces itself as modal.</summary>
+    [Parameter] public bool Modal { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Css { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private ElementReference _root;
+    /// <summary>The surface element, for the parts that attach focus handling to it.</summary>
+    public ElementReference Root => _root;
+    private string? SizeName => Size == AppPopoutSize.None ? null : Size.ToString().ToLowerInvariant();
+    private string RootClass => Size == AppPopoutSize.None ? $"app-popout {Class}" : $"app-popout app-popout--{SizeName} {Class}";
+}

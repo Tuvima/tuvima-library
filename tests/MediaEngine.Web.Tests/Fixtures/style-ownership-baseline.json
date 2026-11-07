@@ -1659,7 +1659,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
       "important": 1,
-      "deep": 31
+      "deep": 22
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
@@ -1816,6 +1816,18 @@
     "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css": {
       "important": 0,
       "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": {
+      "important": 0,
+      "deep": 6
     }
   },
   "lineExceptions": {},
@@ -3819,6 +3831,42 @@
       "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
       "reason": "The item actions menu rows ask the shared glyph for the mockup's 24 px size; the identity zone's own text and action rules left the bar shell, which keeps two fewer deep rules than it was budgeted.",
       "important": 0
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".asv__check ::deep .playback-utility-glyph"
+      ],
+      "reason": "The Audio & subtitles choice rows draw their selected check glyph (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".asa__action ::deep .playback-utility-glyph",
+        ".asa[data-layout=\"rows\"] .asa__action ::deep .playback-utility-glyph"
+      ],
+      "reason": "The Audio & subtitles footer actions size their leading glyphs (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        ".sav__preview ::deep .sav__preview-line",
+        ".sav__tick ::deep .playback-utility-glyph",
+        ".sav__row ::deep .app-segmented-control",
+        ".sav__row ::deep .app-segmented-control__item",
+        ".sav__row ::deep .app-segmented-control__item.is-selected",
+        ".sav__custom-chevron ::deep .playback-utility-glyph"
+      ],
+      "reason": "The Subtitle appearance view styles the preview line, preset ticks, segmented controls and chevron (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
     }
   ],
   "finalBundleBytes": 1283347,

@@ -736,30 +736,21 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Contains("This library page does not exist", cut.Markup);
     }
 
-    // 12. The earlier group and type addresses land on what replaced them.
+    // 12. The earlier group and type addresses are not found; nothing forwards them (look-pass-v3 D17).
     [Theory]
-    [InlineData("watch", null, "/settings/libraries?area=watch")]
-    [InlineData("listen", null, "/settings/libraries?area=listen")]
-    [InlineData("view", null, "/settings/libraries?area=view")]
-    [InlineData("vault", null, "/settings/libraries")]
-    [InlineData("watch", "movies", $"/settings/libraries/{MoviesId}")]
-    [InlineData("listen", "audiobooks", $"/settings/libraries/{AudiobooksId}")]
-    [InlineData("read", "books", "/settings/libraries?area=read")]
-    public void AnEarlierGroupOrTypeAddressRedirects(string subsection, string? detail, string expected)
+    [InlineData("watch", null)]
+    [InlineData("watch", "movies")]
+    [InlineData("listen", "audiobooks")]
+    [InlineData("vault", null)]
+    [InlineData("watch", "videos")]
+    public void AnEarlierGroupOrTypeAddressIsNotFoundAndIsNotForwarded(string subsection, string? detail)
     {
-        Open(subsection, detail);
+        var before = CurrentUri;
 
-        Assert.EndsWith(expected, CurrentUri, StringComparison.Ordinal);
-    }
+        var cut = Open(subsection, detail);
 
-    [Fact]
-    public void AnEarlierVideosBookmarkLandsOnTheOtherVideosLibrary()
-    {
-        _configuration!.Libraries.Add(new() { Id = OtherVideosId, Name = "Other videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [new() { Id = "o", Path = "E:\\Other" }] });
-
-        Open("watch", "videos");
-
-        Assert.EndsWith($"/settings/libraries/{OtherVideosId}", CurrentUri, StringComparison.Ordinal);
+        Assert.Equal(before, CurrentUri);
+        Assert.Contains("This library page does not exist", cut.Markup);
     }
 
     // 13. The pure rules behind the rows.

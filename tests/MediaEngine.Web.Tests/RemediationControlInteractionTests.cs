@@ -21,19 +21,17 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
     [InlineData("dock")]
     [InlineData("phone")]
     [InlineData("video")]
-    public async Task SeekEndToggleChangesOnlyItsTimeDisplayAndSeekCommitsOnRelease(string surface)
+    public async Task SeekRailShowsTheTimeLeftWithARealMinusSignAndSeekCommitsOnRelease(string surface)
     {
         var changes = new List<double>();
         var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30).Add(c => c.Surface, surface)
             .Add(c => c.ChapterTicks, new double[] { 0, 60, 120 }).Add(c => c.ChapterLabel, t => $"Chapter {t / 60 + 1}")
             .Add(c => c.ValueChanged, value => changes.Add(value)));
-        Assert.Equal("3:00", cut.Find(".playback-seek-rail__end").TextContent);
+        Assert.Equal("\u22122:30", cut.Find(".playback-seek-rail__end").TextContent);
         Assert.Equal("0:30", cut.Find(".playback-seek-rail__start").TextContent);
         Assert.Equal("0:30 of 3:00", cut.Find("input").GetAttribute("aria-valuetext"));
         Assert.Empty(cut.FindAll(".playback-range-slider__labels"));
-        await cut.Find(".playback-seek-rail__end").ClickAsync();
-        Assert.Equal("-2:30", cut.Find(".playback-seek-rail__end").TextContent);
-        Assert.Equal("0:30", cut.Find(".playback-seek-rail__start").TextContent);
+        Assert.Empty(cut.FindAll("button.playback-seek-rail__end"));
         Assert.Empty(changes);
         await cut.Find("input").InputAsync(new ChangeEventArgs { Value = "65" });
         Assert.Empty(changes);
@@ -41,7 +39,7 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
         Assert.Equal(new double[] { 65 }, changes);
         cut.Render(p => p.Add(c => c.Position, 65));
         Assert.Equal("1:05", cut.Find(".playback-seek-rail__start").TextContent);
-        Assert.Equal("-1:55", cut.Find(".playback-seek-rail__end").TextContent);
+        Assert.Equal("\u22121:55", cut.Find(".playback-seek-rail__end").TextContent);
     }
 
     [Fact]

@@ -97,7 +97,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("grid-template-columns: auto minmax(0, 1fr)", dialogStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-wrap: anywhere", dialogStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("network-test-dialog__check", settingsStyles, StringComparison.Ordinal);
-        Assert.Contains("width: min(100%, 640px)", shellStyles, StringComparison.Ordinal);
+        Assert.Contains("width: min(100%, var(--tl-window-m, 640px))", shellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-x: hidden", shellStyles, StringComparison.Ordinal);
         Assert.Contains("app-dialog-host", dialogHost, StringComparison.Ordinal);
         Assert.Contains(".tl-dialog.app-dialog-host > .tl-dialog-content", appStyles, StringComparison.Ordinal);

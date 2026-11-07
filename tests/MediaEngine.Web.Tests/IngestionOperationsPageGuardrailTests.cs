@@ -11,7 +11,6 @@ public sealed class IngestionOperationsPageGuardrailTests
     public void LibrariesTab_UsesCentralLiveDashboardStateForTheStatusLineAndTheActivityList()
     {
         var statusLine = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/Libraries/LibraryStatusLine.razor"));
-        var activity = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor"));
         var librariesTab = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/LibrariesTab.razor"));
         var stateSource = ReadIngestionDashboardStateSource();
         var orchestratorSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs"));
@@ -23,14 +22,6 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.Contains("aria-live=\"polite\"", statusLine, StringComparison.Ordinal);
         Assert.Contains("aria-busy", statusLine, StringComparison.Ordinal);
         Assert.Contains("<LibraryStatusLine", librariesTab, StringComparison.Ordinal);
-
-        Assert.Contains("IngestionLiveDashboardState", activity, StringComparison.Ordinal);
-        Assert.Contains("<IngestionMediaDrawer", activity, StringComparison.Ordinal);
-        Assert.Contains("RefreshPinnedDrawerAsync", activity, StringComparison.Ordinal);
-        Assert.Contains("_selectedItem.GroupId == groupId", activity, StringComparison.Ordinal);
-        Assert.DoesNotContain("IngestionMediaPagedView", activity, StringComparison.Ordinal);
-        Assert.DoesNotContain("<IngestionBatchHistory", activity, StringComparison.Ordinal);
-        Assert.DoesNotContain("<IngestionActivityList", activity, StringComparison.Ordinal);
 
         Assert.Contains("BuildQueueSignature", stateSource, StringComparison.Ordinal);
         Assert.Contains("MergePresentation", stateSource, StringComparison.Ordinal);

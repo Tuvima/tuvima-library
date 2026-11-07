@@ -78,11 +78,8 @@
         @if (_lightboxIndex is int open && open >= 0 && open < _view.Items.Count)
         {
             var picture = _view.Items[open];
-            <div class="tl-extra-viewer__lightbox" role="dialog" aria-modal="true" aria-label="@picture.Title" tabindex="0"
-                 @onkeydown="OnLightboxKey" @ref="_lightbox">
-                <div class="tl-extra-viewer__lightbox-close">
-                    <AppIconButton Icon="@AppMaterialIcons.Filled.Close" Tooltip="@L["Common_Close"].Value" AriaLabel="@L["Common_Close"].Value" OnClick="CloseLightbox" />
-                </div>
+            <AppViewer @ref="_viewer" Class="tl-extra-viewer__lightbox" Label="@picture.Title" tabindex="0" OnKeyDown="OnLightboxKey"
+                       OnClose="CloseLightbox" CloseLabel="@L["Common_Close"].Value">
                 @if (open > 0)
                 {
                     <div class="tl-extra-viewer__lightbox-prev">
@@ -97,7 +94,7 @@
                     </div>
                 }
                 <span class="tl-extra-viewer__lightbox-count">@(open + 1) of @_view.Items.Count</span>
-            </div>
+            </AppViewer>
         }
     }
     else if (IsReadableInBrowser(Current!))
@@ -121,7 +118,8 @@
     private bool _loading = true;
     private int? _lightboxIndex;
     private string? _loadedId;
-    private ElementReference _lightbox;
+    private AppViewer? _viewer;
+    private ElementReference _lightbox => _viewer?.Root ?? default;
     private bool _focusLightbox;
 
     private string State => _loading ? "loading" : _view is null ? "unavailable" : "ready";

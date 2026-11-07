@@ -427,6 +427,52 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         return Task.FromResult(files);
     }
 
+    public Task<IReadOnlyList<MediaAssetFileRef>> ListFilesUnderFoldersAsync(IReadOnlyCollection<string> folderPaths, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(folderPaths);
+
+        var prefixes = folderPaths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path.Replace((char)92, '/').TrimEnd('/') + "/")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var files = new Dictionary<Guid, MediaAssetFileRef>();
+        using var conn = _db.CreateConnection();
+
+        // One query for each handful of folders (the number of OR terms in a statement stays small), not one per folder.
+        foreach (var chunk in prefixes.Chunk(50))
+        {
+            var parameters = new DynamicParameters();
+            var terms = new List<string>(chunk.Length);
+            for (var index = 0; index < chunk.Length; index++)
+            {
+                var name = "p" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                parameters.Add(name, chunk[index]);
+                terms.Add($"substr(lower(replace(file_path_root, char(92), '/')), 1, length(@{name})) = lower(@{name})");
+            }
+
+            var rows = conn.Query<FileRefRow>($"""
+                SELECT id             AS AssetId,
+                       file_path_root AS FilePath,
+                       content_hash   AS ContentHash,
+                       library_id     AS LibraryId
+                FROM   media_assets
+                WHERE  ({string.Join(" OR ", terms)})
+                  AND  rendition_purpose = 'Original'
+                  AND  derived_from_asset_id IS NULL
+                  AND  is_orphaned = 0
+                ORDER  BY file_path_root COLLATE NOCASE;
+                """, parameters);
+            foreach (var row in rows)
+            {
+                files.TryAdd(row.AssetId, new MediaAssetFileRef(row.AssetId, row.FilePath, row.ContentHash, row.LibraryId));
+            }
+        }
+
+        return Task.FromResult<IReadOnlyList<MediaAssetFileRef>>([.. files.Values]);
+    }
+
     private sealed class FileRefRow
     {
         public Guid AssetId { get; set; }
