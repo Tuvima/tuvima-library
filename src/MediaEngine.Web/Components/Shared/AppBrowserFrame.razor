@@ -1,0 +1,303 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* The shared browser frame (universal editor v5 D32, screens E and N): the one layout of the supporting-files browser and the server folder picker.
+   A left list (the sidebar slot), a toolbar (back, up, refresh where the host offers them, and the same search box), the line that names where you
+   are, and the table-style list with its one keyboard model, then whatever the host puts under the list. It sits inside the host's Look v3 dialog
+   Window (size L) and never draws a window of its own, so the footer is the window's footer. The list rows are AppBrowserFolderRow (folders) and
+   AppBrowserItemRow (items); a second folder list drawn anywhere else is refused by BrowserFrameGuardrailTests.
+
+   Keyboard (one model for both lists): the list itself takes focus; Up, Down, Home and End move the highlighted row, Enter opens it, Space ticks it
+   (item lists), Backspace or Alt+Up goes up one level. The host keeps the highlight number and tells each row whether it is the highlighted one. *@
+<div class="@RootClass" data-testid="browser-frame" data-frame="@Kind">
+    @if (TopContent is not null)
+    {
+        <div class="app-browser__top" data-frame-top>@TopContent</div>
+    }
+
+    @if (ToolbarSpansWindow)
+    {
+        @Toolbar
+    }
+
+    <div class="app-browser__body">
+        <nav class="app-browser__side" aria-label="@SidebarLabel" data-frame-sidebar data-testid="@SidebarTestId">@Sidebar</nav>
+        <section class="app-browser__main" aria-busy="@(Busy ? "true" : null)">
+            @if (!ToolbarSpansWindow)
+            {
+                @Toolbar
+            }
+
+            @if (InsideContent is not null)
+            {
+                <div class="app-browser__inside" data-frame-inside>@InsideContent</div>
+            }
+
+            @if (ShowState && StateContent is not null)
+            {
+                <div class="app-browser__state" data-frame-state>@StateContent</div>
+            }
+            else if (Rows is not null)
+            {
+                <div class="app-browser__list" data-testid="@ListTestId" data-frame-list>
+                    <table class="app-browser__table"
+                           role="grid"
+                           tabindex="0"
+                           aria-label="@ListLabel"
+                           aria-activedescendant="@ActiveDescendant"
+                           @ref="_table"
+                           @onkeydown="ListKeyDownAsync">
+                        <thead>
+                            <tr>@Columns</tr>
+                        </thead>
+                        <tbody>@Rows</tbody>
+                    </table>
+                </div>
+            }
+
+            @AfterContent
+        </section>
+    </div>
+</div>
+
+@code {
+    /// <summary>The host class every browser window carries: Look v3's Window at size L with a fixed height, so the list scrolls inside the frame.</summary>
+    public const string HostClass = "app-browser-host";
+
+    private ElementReference _table;
+    private IJSObjectReference? _module;
+    private int _scrolledTo = -1;
+    private int _scrolledCount = -1;
+
+    /// <summary>What the frame is showing, for tests and styling: <c>folders</c> or <c>files</c>.</summary>
+    [Parameter] public string Kind { get; set; } = "folders";
+
+    /// <summary>The left list: <see cref="AppBrowserSideSection"/> groups of <see cref="AppBrowserSideItem"/> rows.</summary>
+    [Parameter] public RenderFragment? Sidebar { get; set; }
+
+    [Parameter] public string? SidebarLabel { get; set; }
+
+    [Parameter] public string? SidebarTestId { get; set; }
+
+    /// <summary>A full-width row above the left list and the table (the folder picker's friendly name).</summary>
+    [Parameter] public RenderFragment? TopContent { get; set; }
+
+    // The toolbar: a button shows only when the host gives it a handler; the search box shows when the host listens to it.
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    [Parameter] public bool CanGoBack { get; set; }
+
+    [Parameter] public EventCallback OnUp { get; set; }
+
+    [Parameter] public bool CanGoUp { get; set; }
+
+    [Parameter] public EventCallback OnRefresh { get; set; }
+
+    [Parameter] public string? Search { get; set; }
+
+    [Parameter] public EventCallback<string?> SearchChanged { get; set; }
+
+    [Parameter] public string? SearchPlaceholder { get; set; }
+
+    /// <summary>Milliseconds after the last keystroke before <see cref="SearchChanged"/> fires.</summary>
+    [Parameter] public double SearchDebounce { get; set; } = 250;
+
+    /// <summary>The host's own controls after the search box (the supporting-files browser's two filters). Each should sit in its own wrapper so it can size itself.</summary>
+    [Parameter] public RenderFragment? ToolbarEnd { get; set; }
+
+    /// <summary>True puts the toolbar across the whole window above the left list (screen E); false puts it in the list's column (screen N).</summary>
+    [Parameter] public bool ToolbarSpansWindow { get; set; }
+
+    /// <summary>False hides the whole toolbar, for a state with nothing to browse (the server could not be reached).</summary>
+    [Parameter] public bool ShowToolbar { get; set; } = true;
+
+    /// <summary>Greys the toolbar's buttons and marks the list busy while the host reads.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>The line above the list that says where you are or how many there are ("Showing 1-25 of 238", or the folder you are inside).</summary>
+    [Parameter] public RenderFragment? InsideContent { get; set; }
+
+    /// <summary>The header cells of the list: <see cref="AppBrowserColumn"/>.</summary>
+    [Parameter] public RenderFragment? Columns { get; set; }
+
+    /// <summary>The list rows: <see cref="AppBrowserFolderRow"/>, <see cref="AppBrowserItemRow"/> and <see cref="AppBrowserRowDetail"/>.</summary>
+    [Parameter] public RenderFragment? Rows { get; set; }
+
+    /// <summary>Replaces the list with a loading, empty or error state while <see cref="ShowState"/> is true.</summary>
+    [Parameter] public RenderFragment? StateContent { get; set; }
+
+    [Parameter] public bool ShowState { get; set; }
+
+    /// <summary>Under the list: notices, the bulk bar, "show more".</summary>
+    [Parameter] public RenderFragment? AfterContent { get; set; }
+
+    [Parameter] public string? ListLabel { get; set; }
+
+    [Parameter] public string? ListTestId { get; set; }
+
+    /// <summary>Prefix for the row ids (<c>{prefix}-{index}</c>), so the list can name its highlighted row; the host gives each row its id with <see cref="RowId"/>.</summary>
+    [Parameter] public string IdPrefix { get; set; } = "browser-row";
+
+    /// <summary>How many selectable rows the list has, for the arrow keys.</summary>
+    [Parameter] public int RowCount { get; set; }
+
+    [Parameter] public int Highlight { get; set; }
+
+    [Parameter] public EventCallback<int> HighlightChanged { get; set; }
+
+    /// <summary>Enter on the highlighted row.</summary>
+    [Parameter] public EventCallback<int> OnOpenRow { get; set; }
+
+    /// <summary>Space on the highlighted row (item lists tick with it).</summary>
+    [Parameter] public EventCallback<int> OnToggleRow { get; set; }
+
+    /// <summary>Set when the frame sits inside a host with no fixed height (Add library's folder step): it then takes a height of its own.</summary>
+    [Parameter] public bool Inline { get; set; }
+
+    /// <summary>The id a row of this list carries at this position.</summary>
+    public string RowId(int index) => $"{IdPrefix}-{index}";
+
+    /// <summary>Puts keyboard focus on the list, for the host to call after it opens a folder.</summary>
+    public async ValueTask FocusListAsync()
+    {
+        try
+        {
+            await _table.FocusAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // The list is not drawn right now (a state replaced it), so there is nothing to focus.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while focus was moving; nothing to restore.
+        }
+        catch (JSException)
+        {
+            // Focus is a convenience; the element may have gone away between the render and this call.
+        }
+    }
+
+    private string RootClass => Inline ? "app-browser app-browser--inline" : "app-browser";
+
+    private string? ActiveDescendant => RowCount > 0 && Highlight >= 0 && Highlight < RowCount ? RowId(Highlight) : null;
+
+    private RenderFragment Toolbar => @<text>
+        @if (ShowToolbar && HasToolbar)
+        {
+            <div class="app-browser__toolbar" role="toolbar" aria-label="@L["AppBrowser_Toolbar"].Value" data-frame-toolbar>
+                @if (OnBack.HasDelegate)
+                {
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="@L["AppBrowser_Back"].Value" AriaLabel="@L["AppBrowser_Back"].Value"
+                                   Disabled="@(!CanGoBack || Busy)" OnClick="OnBack" />
+                }
+                @if (OnUp.HasDelegate)
+                {
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Tooltip="@L["AppBrowser_Up"].Value" AriaLabel="@L["AppBrowser_Up"].Value"
+                                   Disabled="@(!CanGoUp || Busy)" OnClick="OnUp" data-folder-up="true" />
+                }
+                @if (OnRefresh.HasDelegate)
+                {
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Refresh" Tooltip="@L["AppBrowser_Refresh"].Value" AriaLabel="@L["AppBrowser_Refresh"].Value"
+                                   Disabled="@Busy" OnClick="OnRefresh" />
+                }
+                @if (SearchChanged.HasDelegate)
+                {
+                    <div class="app-browser__search">
+                        <AppSearchField Value="@Search" ValueChanged="SearchChanged" DebounceInterval="@SearchDebounce"
+                                        Placeholder="@SearchPlaceholder" Label="@SearchPlaceholder" HideLabel="true" />
+                    </div>
+                }
+                @ToolbarEnd
+            </div>
+        }
+    </text>;
+
+    private bool HasToolbar => OnBack.HasDelegate || OnUp.HasDelegate || OnRefresh.HasDelegate || SearchChanged.HasDelegate || ToolbarEnd is not null;
+
+    // One keyboard model for both lists. A key from a control inside a row (a tick, a menu, a sort heading) never reaches here: those cells stop it.
+    private async Task ListKeyDownAsync(KeyboardEventArgs args)
+    {
+        var last = RowCount - 1;
+        switch (args.Key)
+        {
+            case "ArrowDown" when RowCount > 0:
+                await MoveAsync(Math.Min(last, Highlight + 1));
+                break;
+            case "ArrowUp" when args.AltKey:
+                await GoUpAsync();
+                break;
+            case "ArrowUp" when RowCount > 0:
+                await MoveAsync(Math.Max(0, Highlight - 1));
+                break;
+            case "Home" when RowCount > 0:
+                await MoveAsync(0);
+                break;
+            case "End" when RowCount > 0:
+                await MoveAsync(last);
+                break;
+            case "Enter" when Highlight >= 0 && Highlight < RowCount:
+                await OnOpenRow.InvokeAsync(Highlight);
+                break;
+            case " " when OnToggleRow.HasDelegate && Highlight >= 0 && Highlight < RowCount:
+                await OnToggleRow.InvokeAsync(Highlight);
+                break;
+            case "Backspace":
+                await GoUpAsync();
+                break;
+        }
+    }
+
+    private Task MoveAsync(int index) => index == Highlight ? Task.CompletedTask : HighlightChanged.InvokeAsync(index);
+
+    private Task GoUpAsync() => OnUp.HasDelegate && CanGoUp && !Busy ? OnUp.InvokeAsync() : Task.CompletedTask;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // A new list (another folder, another page) has a different count, so the highlighted first row is brought back into view too.
+        if ((Highlight == _scrolledTo && RowCount == _scrolledCount) || ActiveDescendant is not { } id)
+        {
+            return;
+        }
+
+        _scrolledTo = Highlight;
+        _scrolledCount = RowCount;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-browser-frame.js");
+            await _module.InvokeVoidAsync("scrollRowIntoView", id);
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering or a test host with no script runtime: the row simply is not scrolled.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the row was scrolling; nothing to restore.
+        }
+        catch (JSException)
+        {
+            // Scrolling is a convenience; the row may have gone away between the render and this call.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone.
+        }
+    }
+}

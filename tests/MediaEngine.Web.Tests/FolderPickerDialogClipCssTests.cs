@@ -21,17 +21,19 @@ public sealed class FolderPickerDialogClipCssTests
     }
 
     [Fact]
-    public void FolderPickerWindow_KeepsItsFixedFrame()
+    public void FolderPickerWindow_KeepsItsFixedHeightAndTakesItsWidthFromTheWindowLadder()
     {
         var appCss = Read("src/MediaEngine.Web/wwwroot/app.css");
 
-        Assert.Contains(".tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1100px) !important; }", appCss, StringComparison.Ordinal);
-        Assert.Contains("height: min(680px, calc(100dvh - 32px))", appCss, StringComparison.Ordinal);
+        // Editor v5 D32: the folder picker and the supporting-files browser are Look v3's Window at size L; this file sets only the one fixed height.
+        Assert.Contains(".tl-dialog.app-browser-host .app-dialog-shell { width: 100%; height: min(680px, calc(100dvh - 32px)); max-height: none; }", appCss, StringComparison.Ordinal);
+        Assert.DoesNotContain("server-folder-picker-host", appCss, StringComparison.Ordinal);
+        Assert.DoesNotContain("1100px", Rule(appCss, ".tl-dialog.app-browser-host .app-dialog-shell"), StringComparison.Ordinal);
+        Assert.Equal("app-browser-host", ServerFolderPicker.HostClass);
     }
 
     [Theory]
     [InlineData(PickerCss, ".server-folder-picker__inline")]
-    [InlineData(PickerCss, ".server-folder-picker__list")]
     [InlineData(CreateDialogCss, ".create-library")]
     [InlineData(CreateDialogCss, ".create-library__picker")]
     public void FolderStepContainers_CanShrinkToTheWindow(string file, string selector)
@@ -46,7 +48,6 @@ public sealed class FolderPickerDialogClipCssTests
     [Theory]
     [InlineData(PickerCss, ".server-folder-picker__top")]
     [InlineData(PickerCss, ".server-folder-picker__name")]
-    [InlineData(PickerCss, ".server-folder-picker__pathbar")]
     [InlineData(CreateDialogCss, ".create-library")]
     [InlineData(CreateDialogCss, ".create-library__picker")]
     public void FolderStepGrids_UseAShrinkableSingleColumn(string file, string selector)

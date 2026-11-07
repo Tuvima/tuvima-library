@@ -1,0 +1,26 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* One group of rows in the left list of the shared browser frame: an optional heading ("Where", "This server") over its AppBrowserSideItem rows,
+   with a rule above it when it follows another group. *@
+@if (RuleAbove)
+{
+    <hr class="app-browser-side__rule" />
+}
+<div class="app-browser-side__section" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrWhiteSpace(Heading))
+    {
+        <h5 class="app-browser-side__heading">@Heading</h5>
+    }
+    <ul class="app-browser-side__list">@ChildContent</ul>
+</div>
+
+@code {
+    [Parameter] public string? Heading { get; set; }
+
+    /// <summary>Draws a rule above the group, for every group after the first.</summary>
+    [Parameter] public bool RuleAbove { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

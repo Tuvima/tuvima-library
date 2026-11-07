@@ -1,0 +1,16 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* A row of the shared browser frame that spans the whole list: a panel opened under a row (the "What is this file?" question). The list's keys
+   are not taken from inside it, so typing in a field here never moves the highlighted row. *@
+<tr role="row" class="app-browser-detail" @attributes="AdditionalAttributes">
+    <td role="gridcell" colspan="@Span" @onkeydown:stopPropagation="true" @onclick:stopPropagation="true">@ChildContent</td>
+</tr>
+
+@code {
+    /// <summary>How many columns the list has.</summary>
+    [Parameter] public int Span { get; set; } = 3;
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

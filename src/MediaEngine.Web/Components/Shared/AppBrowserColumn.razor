@@ -1,0 +1,65 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* A header cell of the shared browser frame's list. With OnSort it is a heading that sorts (the arrow shows the direction in use, and aria-sort
+   goes on the cell, not the button); with ChildContent it holds the host's own control (the tick-the-page checkbox); otherwise it is a plain
+   label. Keys typed inside it never reach the list's keyboard model. *@
+<th scope="col" class="@RootClass" style="@WidthStyle" aria-sort="@AriaSort" @attributes="AdditionalAttributes">
+    @if (OnSort.HasDelegate)
+    {
+        <span @onkeydown:stopPropagation="true">
+            <button type="button" class="app-browser-column__sort" @onclick="OnSort">
+                <span>@Label</span>
+                @if (Direction is not null)
+                {
+                    <AppMaterialIcon Icon="@(Direction == "descending" ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward)" Size="AppIconSize.Control20" />
+                }
+            </button>
+        </span>
+    }
+    else if (ChildContent is not null)
+    {
+        <span @onkeydown:stopPropagation="true">@ChildContent</span>
+    }
+    else if (HideLabel)
+    {
+        <span class="sr-only">@Label</span>
+    }
+    else
+    {
+        @Label
+    }
+</th>
+
+@code {
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Keeps <see cref="Label"/> for screen readers without drawing it (the end cell of a row menu).</summary>
+    [Parameter] public bool HideLabel { get; set; }
+
+    /// <summary>A CSS width for the column ("12.5rem"); empty lets the table share the room.</summary>
+    [Parameter] public string? Width { get; set; }
+
+    /// <summary>The narrowest the column may get before the list scrolls sideways (the name column).</summary>
+    [Parameter] public string? MinWidth { get; set; }
+
+    /// <summary>Makes the heading a button that sorts.</summary>
+    [Parameter] public EventCallback OnSort { get; set; }
+
+    /// <summary><c>ascending</c> or <c>descending</c> when this column is the one the list is sorted by; null otherwise.</summary>
+    [Parameter] public string? Direction { get; set; }
+
+    /// <summary>Hidden under 840 px, where the list has no room for it (a modified date).</summary>
+    [Parameter] public bool WideOnly { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass =>
+        $"app-browser-column{(OnSort.HasDelegate ? " app-browser-column--sort" : string.Empty)}{(WideOnly ? " is-wide-only" : string.Empty)}";
+
+    private string? WidthStyle =>
+        string.Join("; ", new[] { string.IsNullOrWhiteSpace(Width) ? null : $"width: {Width}", string.IsNullOrWhiteSpace(MinWidth) ? null : $"min-width: {MinWidth}" }.Where(part => part is not null)) is { Length: > 0 } style ? style : null;
+
+    private string? AriaSort => OnSort.HasDelegate ? Direction ?? "none" : null;
+}
