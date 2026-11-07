@@ -754,6 +754,9 @@ public sealed class EditorHost : IDisposable
 
     // The rail follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
     // (the page's trail, the Engine's scope chain) are opened so the item is in view. Films, standalone items, people and the like get none.
+    // WP12: the rail itself is gone (the header's nav row replaced it), so this only keeps the family tree that the header cover (TrailTo), the
+    // delete flow (ParentOf) and the bulk panel still read. Cut it to those reads, and drop the Universe rail branch, when the family state is
+    // reworked; it was left whole here because the Universe editor and the bulk panel share it and WP9 is changing the Match side of that state.
     private void SyncFamily()
     {
         if (_disposed)

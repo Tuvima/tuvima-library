@@ -1,12 +1,49 @@
 @namespace MediaEngine.Web.Components.Shared
-@* A decorative colour wash behind a block (the editor header's gradient from the cover's colours). The colours are data that differ per item, so the
-   one inline declaration lives here and not in the feature page; the page gives the wash its place and size through Class. It is hidden from
+@using System.Globalization
+@using System.Text.RegularExpressions
+@* A decorative colour wash behind a block (the editor header's gradient from the cover's colours). It takes the two colours and how much of each
+   to keep, and builds the gradient itself, so no page hands it CSS: a colour that is not a plain #rrggbb value draws nothing, and the gradient
+   fades the colours into the surface so text on top stays readable. The page gives the wash its place and size through Class. It is hidden from
    assistive technology and never takes a click. *@
-<div class="app-wash @Class" style="@Background" aria-hidden="true"></div>
+@if (Gradient is { } gradient)
+{
+    <div class="app-wash @Class" style="@gradient" aria-hidden="true"></div>
+}
 
 @code {
-    /// <summary>A complete CSS declaration such as <c>background:linear-gradient(...)</c>; empty draws nothing.</summary>
-    [Parameter] public string? Background { get; set; }
+    private static readonly Regex HexColour = new("^#[0-9a-fA-F]{6}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>The main colour as <c>#rrggbb</c>; with none usable the wash draws nothing.</summary>
+    [Parameter] public string? PrimaryHex { get; set; }
+
+    /// <summary>The second colour as <c>#rrggbb</c>; the main colour stands in for it when missing.</summary>
+    [Parameter] public string? SecondaryHex { get; set; }
+
+    /// <summary>How much of the main colour is kept, 0 (the plain surface) to 100 (the colour as it is).</summary>
+    [Parameter] public int PrimaryPercent { get; set; }
+
+    /// <summary>How much of the second colour is kept, 0 to 100.</summary>
+    [Parameter] public int SecondaryPercent { get; set; }
 
     [Parameter] public string? Class { get; set; }
+
+    private string? Gradient
+    {
+        get
+        {
+            var primary = Valid(PrimaryHex) ?? Valid(SecondaryHex);
+            if (primary is null)
+            {
+                return null;
+            }
+
+            var secondary = Valid(SecondaryHex) ?? primary;
+            var first = Math.Clamp(PrimaryPercent, 0, 100).ToString(CultureInfo.InvariantCulture);
+            var second = Math.Clamp(SecondaryPercent, 0, 100).ToString(CultureInfo.InvariantCulture);
+            return $"background:linear-gradient(100deg,var(--tl-bg-surface) 0%,var(--tl-bg-surface) 30%,"
+                + $"color-mix(in srgb,{primary} {first}%,var(--tl-bg-surface)) 68%,color-mix(in srgb,{secondary} {second}%,var(--tl-bg-surface)) 100%)";
+        }
+    }
+
+    private static string? Valid(string? value) => value is not null && HexColour.IsMatch(value) ? value : null;
 }

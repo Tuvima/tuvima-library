@@ -143,8 +143,8 @@
     background: var(--tl-bg-surface-hover);
 }
 
-/* Under 1280 the window fills the screen and the provider links shrink to their logos (screen K). */
-@container tl-editor (max-width: 1279px) {
+/* Under 1180 the window fills the screen and the provider links shrink to their logos (screen K). */
+@media (max-width: 1180px) {
     .tl-editor-header__link-name {
         position: absolute;
         width: 1px;

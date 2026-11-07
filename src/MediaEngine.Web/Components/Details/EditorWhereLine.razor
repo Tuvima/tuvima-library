@@ -22,7 +22,7 @@
         {
             case EditorFooterStatus.WillMove:
                 <strong>@L["EditorFooter_MoveTitle"]</strong>
-                <small>@state.MoveDetail</small>
+                <small>@(state.MoveFrom is not null && state.MoveTo is not null ? string.Format(L["EditorFooter_MoveDetail"].Value, state.MoveFrom, state.MoveTo) : L["EditorFooter_MoveDetailGeneric"].Value)</small>
                 break;
             case EditorFooterStatus.WriteBackOn:
                 <strong>@L["EditorFooter_WriteBackOnTitle"]</strong>
@@ -33,7 +33,7 @@
                 <small>@L["EditorFooter_WriteBackOffDetail"]</small>
                 break;
             default:
-                <strong>@L["EditorFooter_SavesInTuvima"]</strong>
+                <strong>@L["EditorFooter_EditsSaveHere"]</strong>
                 break;
         }
     </div>

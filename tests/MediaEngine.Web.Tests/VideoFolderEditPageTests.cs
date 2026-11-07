@@ -2,7 +2,6 @@ using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
-using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -134,7 +133,7 @@ public sealed class VideoFolderEditPageTests : AsyncBunitContext
     // What the Engine says about the way around the folder: the folder is home, Section is the second dropdown, and the videos of a section are the items.
     private static EditorHeaderDto HeaderFor(Guid launch)
     {
-        var kind = launch == SeriesId ? EditorKinds.Course : launch == SectionId ? EditorKinds.CourseSection : EditorKinds.Video;
+        var kind = launch == SeriesId ? EditorKindNames.Course : launch == SectionId ? EditorKindNames.CourseSection : EditorKindNames.Video;
         var inSection = launch != SeriesId;
         return new EditorHeaderDto
         {
@@ -167,7 +166,7 @@ public sealed class VideoFolderEditPageTests : AsyncBunitContext
                     : [],
                 SupportingFiles = new EditorHeaderSupportingFilesDto(),
             },
-            Config = EditorHeaderTestData.Config(kind, kind == EditorKinds.Video ? ["details", "artwork", "history"] : ["details", "history"]),
+            Config = EditorHeaderTestData.Config(kind, kind == EditorKindNames.Video ? ["details", "artwork", "history"] : ["details", "history"]),
         };
     }
 

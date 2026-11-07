@@ -10010,7 +10010,13 @@
   <data name="EditorFooter_WriteBackOnDetail" xml:space="preserve">
     <value>Edits save in Library and are written into the file's own tags.</value>
   </data>
-  <data name="EditorFooter_SavesInTuvima" xml:space="preserve">
+  <data name="EditorFooter_MoveDetail" xml:space="preserve">
+    <value>Managed folder · {0} → {1}</value>
+  </data>
+  <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
+    <value>Managed folder · Moved and renamed to match the new details</value>
+  </data>
+  <data name="EditorFooter_EditsSaveHere" xml:space="preserve">
     <value>Edits save in Library.</value>
   </data>
   <data name="EditorFooter_MoveTitle" xml:space="preserve">

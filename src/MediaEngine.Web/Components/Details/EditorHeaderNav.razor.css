@@ -153,8 +153,18 @@
     width: 100%;
     min-height: 2.75rem;
     padding: 0.375rem var(--tl-space-2);
-    border-radius: 7px;
+    border-radius: var(--tl-radius-md);
     color: var(--tl-text-primary);
+}
+
+/* A row with a still is 64 px tall (Look v3 D15); its title is a 16/500 control (D22). */
+.tl-hnav__option:has(.tl-hnav__still) {
+    min-height: 4rem;
+}
+
+.tl-hnav__option .tl-hnav__text > b {
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-medium);
 }
 
 .tl-hnav__option:hover {
@@ -164,7 +174,7 @@
 .tl-hnav__option .tl-hnav__still {
     width: 5.5rem;
     height: 3.125rem;
-    border-radius: 5px;
+    border-radius: var(--tl-radius-sm);
 }
 
 .tl-hnav__option .tl-hnav__still--square {
@@ -218,7 +228,7 @@
     justify-content: center;
     width: 2rem;
     height: 1.75rem;
-    border-radius: 6px;
+    border-radius: var(--tl-radius-sm);
     background: var(--tl-bg-surface-hover);
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-xs);
@@ -263,8 +273,8 @@
     font-size: var(--tl-font-size-xs);
 }
 
-/* Under 1280 the nav row wraps under the title and each dropdown may take the whole row (screen K). */
-@container tl-editor (max-width: 1279px) {
+/* Under 1180 the nav row wraps under the title and each dropdown may take the whole row (screen K). */
+@media (max-width: 1180px) {
     .tl-hnav__trigger--item {
         min-width: 0;
         flex: 1 1 18rem;

@@ -18,8 +18,9 @@ public enum EditorFooterStatus
     WillMove,
 }
 
-/// <param name="MoveDetail">For <see cref="EditorFooterStatus.WillMove"/>: the line under the warning ("Managed folder · from → to").</param>
-public sealed record EditorFooterState(EditorFooterStatus Status, string? MoveDetail = null);
+/// <param name="MoveFrom">For <see cref="EditorFooterStatus.WillMove"/>: where the file is now, when the staged change recorded it.</param>
+/// <param name="MoveTo">For <see cref="EditorFooterStatus.WillMove"/>: where it will go, when the staged change recorded it. With either missing the footer uses its generic line.</param>
+public sealed record EditorFooterState(EditorFooterStatus Status, string? MoveFrom = null, string? MoveTo = null);
 
 /// <summary>
 /// What the footer says about the files (universal editor v5 D10, section 4). Pure: the write-back setting and the pending list go in, the
@@ -27,9 +28,6 @@ public sealed record EditorFooterState(EditorFooterStatus Status, string? MoveDe
 /// </summary>
 public static class EditorFooterRules
 {
-    /// <summary>The line under the move warning when the staged change does not name the paths.</summary>
-    public const string MovedAndRenamed = "Moved and renamed to match the new details";
-
     public static EditorFooterState For(FileWriteSetting setting, PendingEditList? pending)
     {
         var move = pending?.Changes.FirstOrDefault(change => change.Kind == EditSessionChangeKinds.FileMove);
@@ -37,8 +35,9 @@ public static class EditorFooterRules
         {
             var from = pending!.Before(move.Id);
             var to = pending.Label(move.Id);
-            var detail = !string.IsNullOrWhiteSpace(from) && !string.IsNullOrWhiteSpace(to) ? $"{from} → {to}" : MovedAndRenamed;
-            return new EditorFooterState(EditorFooterStatus.WillMove, $"Managed folder · {detail}");
+            return !string.IsNullOrWhiteSpace(from) && !string.IsNullOrWhiteSpace(to)
+                ? new EditorFooterState(EditorFooterStatus.WillMove, from, to)
+                : new EditorFooterState(EditorFooterStatus.WillMove);
         }
 
         return new EditorFooterState(setting.State switch
