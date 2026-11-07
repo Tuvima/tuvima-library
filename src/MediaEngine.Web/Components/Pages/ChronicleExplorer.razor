@@ -36,7 +36,7 @@
 else if (_graph is null)
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppIconSize.Tile32" Color="AppColor.Default" />
         <AppText Typo="AppTypo.h5">@L["ChronicleExplorer_UniverseGraphUnavailable"]</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
             @L["ChronicleExplorer_LibraryHasNotFoundEnough"]
@@ -94,25 +94,19 @@ else
              ApplyEffectsToContainer="false"
              SliderColor="AppColor.Warning"
              Rounded="false">
-        <AppTabPanel Text="@L["Universe_ModeWeb"].Value" Icon="@AppMaterialIcons.Filled.Collections"
-                     ToolTip="Full relationship graph" />
-        <AppTabPanel Text="@L["Universe_ModePaths"].Value" Icon="@AppMaterialIcons.Filled.Route"
-                     ToolTip="Six Degrees pathfinder" />
-        <AppTabPanel Text="@L["Universe_ModeFamily"].Value" Icon="@AppMaterialIcons.Filled.AccountTree"
-                     ToolTip="Family tree view" />
-        <AppTabPanel Text="@L["Universe_ModeCast"].Value" Icon="@AppMaterialIcons.Filled.People"
-                     ToolTip="Character to performer mapping" />
-        <AppTabPanel Text="@L["Universe_ModeAdaptations"].Value" Icon="@AppMaterialIcons.Filled.Merge"
-                     ToolTip="Adaptation chain" />
-        <AppTabPanel Text="@L["Common_Sources"].Value" Icon="@AppMaterialIcons.Filled.FactCheck"
-                     ToolTip="Supplemental lore sources" />
+        <AppTabPanel Text="@L["Universe_ModeWeb"].Value" Icon="@AppMaterialIcons.Filled.Collections" />
+        <AppTabPanel Text="@L["Universe_ModePaths"].Value" Icon="@AppMaterialIcons.Filled.Route" />
+        <AppTabPanel Text="@L["Universe_ModeFamily"].Value" Icon="@AppMaterialIcons.Filled.AccountTree" />
+        <AppTabPanel Text="@L["Universe_ModeCast"].Value" Icon="@AppMaterialIcons.Filled.People" />
+        <AppTabPanel Text="@L["Universe_ModeAdaptations"].Value" Icon="@AppMaterialIcons.Filled.Merge" />
+        <AppTabPanel Text="@L["Common_Sources"].Value" Icon="@AppMaterialIcons.Filled.FactCheck" />
     </AppTabs>
 @if (_activeMode == 0 || _activeMode == 1 || _activeMode == 2)
     {
 @if (!_hasGraphData)
         {
             <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppIconSize.Tile32" Color="AppColor.Default" />
                 <AppText Typo="AppTypo.h5">@L["ChronicleExplorer_UniverseGraphUnavailable"]</AppText>
                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                     @L["ChronicleExplorer_LibraryHasNotFoundEnough"]
@@ -201,7 +195,7 @@ else
                                     <span class="chronicle-node-list__row">
                                         <AppMaterialIcon Icon="@GetEntityIcon(entity.type)"
                                                  Color="@GetEntityColor(entity.type)"
-                                                 Size="AppSize.Small" />
+                                                 Size="AppIconSize.Control20" />
                                         <span class="chronicle-node-list__text">
                                             <span class="chronicle-node-list__label">@entity.label</span>
                                             <span class="chronicle-node-list__meta">@entity.type · @RelationshipText(entry.RelationshipCount)</span>

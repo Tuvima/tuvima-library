@@ -247,9 +247,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("flex-wrap: nowrap", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
         Assert.Contains(".tl-detail-watch-metadata-row--facts", ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css"));
         Assert.Contains("align-items:center", actions);
-        Assert.Contains("height:var(--tl-control-height-lg)", actions);
+        Assert.Contains("height:var(--tl-hero-action-height)", actions);
         Assert.Contains("flex:0 0 auto; width:min(100%, 24rem)", actions);
-        Assert.Contains("var(--tl-font-size-lg)", actions);
+        Assert.Contains("var(--tl-hero-action-label-size)", actions);
         Assert.Contains("@media (max-width: 600px)", actions);
     }
 
@@ -476,7 +476,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".app-menu-item", appStyles);
         Assert.Contains("--tl-secondary-action-border", appStyles);
         var detailStyles = ReadDetailStyles();
-        Assert.Contains("height:var(--tl-control-height-lg)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
+        Assert.Contains("height:var(--tl-hero-action-height)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
     }
 
     [Fact]
@@ -654,7 +654,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("item.PublicationDate", source);
         Assert.DoesNotContain("tl-series-item__owned-badge", source);
         Assert.Contains("tl-series-item__completed-badge", source);
-        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppSize.Small\"", source);
+        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppIconSize.Control20\"", source);
         Assert.Contains("ItemNoun", source);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 6), minmax(5.8rem, 7.3rem))", styles);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 7), minmax(7.2rem, 9.2rem))", styles);

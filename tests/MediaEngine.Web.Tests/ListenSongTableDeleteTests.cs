@@ -320,7 +320,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 
         var cells = cut.FindAll(".listen-song-table__options");
         Assert.Equal(2, cells.Count);
-        Assert.All(cells, cell => Assert.NotNull(cell.QuerySelector(".listen-song-table__queue-hover button[title='Add to queue']")));
+        Assert.All(cells, cell => Assert.NotNull(cell.QuerySelector(".listen-song-table__queue-hover [data-playback-tooltip='Add to queue'] button")));
     }
 
     [Fact]

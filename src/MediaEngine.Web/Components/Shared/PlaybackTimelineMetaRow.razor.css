@@ -44,13 +44,13 @@
 .playback-timeline-meta-row ::deep .playback-timeline-meta-row__icon {
     color: var(--playback-text) !important;
     fill: var(--playback-text) !important;
-    font-size: 20px !important;
+    font-size: var(--tl-icon-size-sm) !important;
     height: 20px;
     width: 20px;
 }
 
 .playback-timeline-meta-row--large ::deep .playback-timeline-meta-row__icon {
-    font-size: 24px !important;
+    font-size: var(--tl-icon-size-md) !important;
     height: 24px;
     width: 24px;
 }

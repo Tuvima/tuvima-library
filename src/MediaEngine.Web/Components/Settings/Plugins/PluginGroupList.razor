@@ -58,7 +58,7 @@
                                 <strong>@item.Title</strong>
                                 @if (item.Locked)
                                 {
-                                    <span title="@L["PluginGroup_BuiltIn"].Value" data-testid="plugin-group-lock"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppSize.Small" /></span>
+                                    <AppTooltip Text="@L["PluginGroup_BuiltIn"].Value"><span data-testid="plugin-group-lock"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" /></span></AppTooltip>
                                 }
                             </span>
                         </td>

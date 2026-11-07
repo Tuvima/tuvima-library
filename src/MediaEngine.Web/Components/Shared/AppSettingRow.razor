@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Shared
+<div class="@RootClass" @attributes="AdditionalAttributes">
+    <div class="app-setting-row__line">
+        <div class="app-setting-row__text">
+            @if (!string.IsNullOrWhiteSpace(LeadingIcon)) { <span class="app-setting-row__icon"><AppMaterialIcon Icon="@LeadingIcon" Size="AppIconSize.Row24" /></span> }
+            <div class="app-setting-row__copy">
+                @if (!string.IsNullOrWhiteSpace(For)) { <label class="app-setting-row__label" for="@For">@Label</label> }
+                else { <span class="app-setting-row__label">@Label</span> }
+                @if (!string.IsNullOrWhiteSpace(Helper)) { <span class="app-setting-row__helper">@Helper</span> }
+            </div>
+        </div>
+        @if (Control is not null) { <div class="app-setting-row__control">@Control</div> }
+    </div>
+    @if (Status is not null) { <div class="app-setting-row__status">@Status</div> }
+</div>
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? Helper { get; set; }
+    [Parameter] public string? LeadingIcon { get; set; }
+    [Parameter] public RenderFragment? Control { get; set; }
+    /// <summary>A reserved full-width line under the row (never inside the control column).</summary>
+    [Parameter] public RenderFragment? Status { get; set; }
+    [Parameter] public AppSettingsGroupTone Tone { get; set; } = AppSettingsGroupTone.Default;
+    /// <summary>The id of the control, so the label is a real label for it.</summary>
+    [Parameter] public string? For { get; set; }
+    /// <summary>Wide controls drop under the label, full width, on phones.</summary>
+    [Parameter] public bool StackOnPhone { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass => string.Join(" ", new[] { "app-setting-row", Tone == AppSettingsGroupTone.Danger ? "app-setting-row--danger" : null, StackOnPhone ? "app-setting-row--stack-on-phone" : null, Class }.Where(v => !string.IsNullOrWhiteSpace(v)));
+}

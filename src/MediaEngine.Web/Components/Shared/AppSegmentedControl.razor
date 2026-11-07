@@ -11,7 +11,7 @@
                 @onclick="@(() => SelectOption(option.Value))">
             @if (!string.IsNullOrWhiteSpace(option.Icon))
             {
-                <AppMaterialIcon Icon="@option.Icon" Size="AppSize.Small" />
+                <AppMaterialIcon Icon="@option.Icon" Size="AppIconSize.Control20" />
             }
             <span>@option.Label</span>
         </button>

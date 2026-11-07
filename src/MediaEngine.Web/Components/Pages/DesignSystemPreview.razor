@@ -17,6 +17,25 @@
     </header>
 
     <div class="design-system-preview__grid">
+        <AppCard Title="Settings group" Description="AppSettingsGroup and AppSettingRow: rows on the page background, hairlines between, control at the right end.">
+            <AppSettingsGroup Heading="Playback" Helper="How this profile plays things.">
+                <AppSettingRow Label="Skip intros" Helper="Jump past title sequences." LeadingIcon="@AppMaterialIcons.Outlined.Settings">
+                    <Control><AppSwitchRow Value="true" AriaLabel="Skip intros" /></Control>
+                </AppSettingRow>
+                <AppSettingRow Label="Language">
+                    <Control><AppSelect T="string" Value="localized" Options="@LanguageOptions" AriaLabel="Language" /></Control>
+                    <Status>Saved just now.</Status>
+                </AppSettingRow>
+                <AppSettingRow Label="Rescan folder" Helper="Looks for new files.">
+                    <Control><AppButton Label="Rescan" Size="AppControlSize.Compact" /></Control>
+                </AppSettingRow>
+            </AppSettingsGroup>
+            <AppSettingsGroup Heading="Danger zone" Tone="AppSettingsGroupTone.Danger">
+                <AppSettingRow Label="Delete library" Helper="This cannot be undone." Tone="AppSettingsGroupTone.Danger">
+                    <Control><AppButton Label="Delete" Size="AppControlSize.Compact" /></Control>
+                </AppSettingRow>
+            </AppSettingsGroup>
+        </AppCard>
         <AppCard Title="Form Controls" Description="Shared field wrappers own first-party UI control sizing and alignment.">
             <div class="design-system-preview__form-grid">
                 @foreach (var size in Sizes)
@@ -48,6 +67,29 @@
             <AppCheckboxRow Label="Include artwork" Description="Checkbox rows share spacing with switches." Value="true" />
             <AppCheckbox Label="Select this row" Value="true" />
             <AppChoiceRow Title="Single choice row" Description="One choice in a list; the selected row shows the accent." Selected="true" />
+        </AppCard>
+
+        <AppCard Title="Icons" Description="One size ladder (16, 20, 24, 32, 48, 64) and two placements: above the text in a choice tile, beside it in a row or button.">
+            <div class="design-system-preview__row" aria-label="Icon size ladder">
+                @foreach (var step in Enum.GetValues<AppIconSize>())
+                {
+                    <span class="design-system-preview__icon-step">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" Size="@step" />
+                        <small>@step</small>
+                    </span>
+                }
+            </div>
+            <div class="design-system-preview__row" aria-label="Icon above text">
+                <AppChoiceTile Icon="@AppMaterialIcons.Outlined.Movie" Label="Watch" Description="Movies, TV, videos" Area="watch" Selected="true" />
+                <AppChoiceTile Icon="@AppMaterialIcons.Outlined.MusicNote" Label="Listen" Description="Music, audiobooks" Area="listen" />
+                <AppChoiceTile Icon="@AppMaterialIcons.Outlined.Folder" Label="Neutral" Description="No area colour" />
+                <AppChoiceTile Empty="true" Icon="@AppMaterialIcons.Outlined.Search" Label="Empty state" Description="64 px icon, no tinted square" />
+            </div>
+            <div class="design-system-preview__row" aria-label="Icon beside text">
+                <AppButton Label="36 px button" StartIcon="@AppMaterialIcons.Outlined.Add" Size="AppControlSize.Compact" />
+                <AppButton Label="44 px button" StartIcon="@AppMaterialIcons.Outlined.Add" />
+                <AppChip Text="Chip" Icon="@AppMaterialIcons.Outlined.Circle" />
+            </div>
         </AppCard>
 
         <AppCard Title="Actions" Description="One visual hierarchy applies everywhere: filled primary, outlined secondary, and text tertiary.">

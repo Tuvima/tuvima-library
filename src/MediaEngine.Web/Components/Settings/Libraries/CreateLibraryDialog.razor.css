@@ -81,7 +81,7 @@
 /* Areas and kinds are square tiles in an auto-fill grid with one fixed tile size; the grid wraps naturally and scrolls inside the fixed window (Libraries v3 D23). */
 .create-library__tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 160px);
+    grid-template-columns: repeat(auto-fill, 132px);
     gap: var(--tl-space-4);
     justify-content: start;
     padding-bottom: 140px;

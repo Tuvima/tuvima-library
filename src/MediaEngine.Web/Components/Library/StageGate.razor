@@ -1,9 +1,10 @@
 ﻿@using MediaEngine.Web.Models.ViewDTOs
 
 <div class="stage-gate">
-    <AppCssElement Tag="div" Class='@($"stage-dot {(Stage.State == LibraryStageState.Running ? "stage-dot--running" : "")}")'
-         Css="@($"background: {DotColor}; box-shadow: {DotShadow};")"
-         title="@Stage.Label"></AppCssElement>
+    <AppTooltip Text="@Stage.Label">
+        <AppCssElement Tag="div" Class='@($"stage-dot {(Stage.State == LibraryStageState.Running ? "stage-dot--running" : "")}")'
+             Css="@($"background: {DotColor}; box-shadow: {DotShadow};")"></AppCssElement>
+    </AppTooltip>
     @if (!IsLast)
     {
         <AppCssElement Tag="div" Class="stage-line" Css="@($"background: {LineColor};")"></AppCssElement>

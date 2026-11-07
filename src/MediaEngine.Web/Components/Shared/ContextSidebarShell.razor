@@ -26,7 +26,7 @@
                     @if (OnClose.HasDelegate)
                     {
                         <AppNativeButton Type="button" Class="context-sidebar-shell__close playback-tool-sheet__close" AriaLabel="@($"Close {AriaLabel}")"
-                                         title="@($"Close {AriaLabel}")" OnClick="@(_ => CloseAsync())">
+                                         Tooltip="@($"Close {AriaLabel}")" OnClick="@(_ => CloseAsync())">
                             @if (IsPlaybackAppearance)
                             {
                                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />

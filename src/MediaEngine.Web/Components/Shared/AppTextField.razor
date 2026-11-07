@@ -7,8 +7,8 @@
     <div class="tl-input-control tl-input-container @(EffectiveError ? "tl-input-error" : null)">
         @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon))
         {
-            @if (OnAdornmentClick.HasDelegate) { <button type="button" class="tl-input-adornment tl-input-adornment-start" disabled="@Disabled" aria-label="@(AdornmentAriaLabel ?? Label ?? "Input action")" @onclick="OnAdornmentClick"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></button> }
-            else { <span class="tl-input-adornment tl-input-adornment-start" aria-hidden="true"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></span> }
+            @if (OnAdornmentClick.HasDelegate) { <button type="button" class="tl-input-adornment tl-input-adornment-start" disabled="@Disabled" aria-label="@(AdornmentAriaLabel ?? Label ?? "Input action")" @onclick="OnAdornmentClick"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /></button> }
+            else { <span class="tl-input-adornment tl-input-adornment-start" aria-hidden="true"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /></span> }
         }
         @if (Lines > 1)
         {
@@ -20,8 +20,8 @@
         }
         @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon))
         {
-            @if (OnAdornmentClick.HasDelegate) { <button type="button" class="tl-input-adornment tl-input-adornment-end" disabled="@Disabled" aria-label="@(AdornmentAriaLabel ?? Label ?? "Input action")" @onclick="OnAdornmentClick"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></button> }
-            else { <span class="tl-input-adornment tl-input-adornment-end" aria-hidden="true"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></span> }
+            @if (OnAdornmentClick.HasDelegate) { <button type="button" class="tl-input-adornment tl-input-adornment-end" disabled="@Disabled" aria-label="@(AdornmentAriaLabel ?? Label ?? "Input action")" @onclick="OnAdornmentClick"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /></button> }
+            else { <span class="tl-input-adornment tl-input-adornment-end" aria-hidden="true"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /></span> }
         }
     </div>
     @if (EffectiveError && !string.IsNullOrWhiteSpace(EffectiveErrorText)) { <div id="@DescriptionId" class="app-field__help tl-field-error" role="alert">@EffectiveErrorText</div> }

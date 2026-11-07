@@ -41,7 +41,7 @@
     border-radius: .55rem;
 }
 .artwork-workspace-core__role-preview { width: 2.5rem; height: 2.5rem; border-radius: .3rem; }
-.artwork-workspace-core__role-preview ::deep .tl-icon-root { font-size: 1.2rem; }
+.artwork-workspace-core__role-preview ::deep .tl-icon-root { font-size: var(--tl-icon-size-sm); }
 .artwork-workspace-core__role-copy { gap: .08rem; }
 .artwork-workspace-core__role-copy strong { font-size: var(--tl-font-size-sm); }
 .artwork-workspace-core__role-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  }

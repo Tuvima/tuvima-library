@@ -85,7 +85,7 @@
     {
     <div class="tl-series-detail__heading">
         <div class="tl-series-detail__identity">
-            <AppMaterialIcon Icon="@ContainerIcon" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@ContainerIcon" Size="AppIconSize.Control20" />
             <div>
                 <span>@ContainerTitleDisplay</span>
                 <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
@@ -219,7 +219,7 @@
 
     <footer class="tl-series-detail__ownership"
             aria-label="@OwnershipSummaryLabel">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" />
         <strong>@OwnedCount owned</strong>
         @if (ShowCoverageBar)
         {
@@ -377,7 +377,7 @@ else
         @if (!IsSeasonContainer && SeriesDateRange is not null)
         {
             <div class="tl-series-date-range">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppSize.Small" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppIconSize.Control20" />
                 <span>@SeriesDateRange</span>
             </div>
         }
@@ -405,7 +405,7 @@ else
         }
 
         <div class="tl-series-owned-summary">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" />
             <span>@OwnedSummary</span>
             @if (ShowCoverageDonut)
             {
@@ -419,7 +419,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                     aria-label="Open @SeriesWikidataQid on Wikidata in a new tab">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     <span>@L["SequencePlacementPanel_Wikidata", SourceKindLabel ?? string.Empty, SeriesWikidataQid ?? string.Empty]</span>
                 </a>
             }
@@ -430,7 +430,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                    aria-label="@L["SequencePlacementPanel_OpenThisComicSeriesOn"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     <span>@L["SequencePlacementPanel_ComicVine", SourceKindLabel ?? string.Empty]</span>
                 </a>
             }
@@ -441,7 +441,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                    aria-label="@L["SequencePlacementPanel_OpenTheSeriesArticleOn"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     <span>@L["SequencePlacementPanel_Wikipedia", SourceKindLabel ?? string.Empty]</span>
                 </a>
             }

@@ -73,7 +73,7 @@ public sealed class AppStateCardTests : AsyncBunitContext
 
         var activity = cut.Find("[data-testid=last-activity]");
         Assert.Equal("3 hours ago", activity.TextContent.Trim());
-        Assert.False(string.IsNullOrWhiteSpace(activity.GetAttribute("title")));
+        Assert.False(string.IsNullOrWhiteSpace(activity.QuerySelector("time")!.GetAttribute("title")));
     }
 
     [Fact]

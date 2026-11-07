@@ -1,19 +1,22 @@
 @namespace MediaEngine.Web.Components.Details
 @using System.Globalization
+@using MediaEngine.Domain.Services
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Companion
 @using MediaEngine.Web.Services.Theming
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 <div class="tl-detail-actions">
     @* No main button when nothing is playable: the primary slot is not rendered at all, so the circles sit flush left. *@
     @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
     {
         <div class="tl-detail-primary-actions">
-            <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@action.Label" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
+            <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@(PrimaryAriaLabel ?? action.Label)" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
                 <AppMaterialIcon Icon="@IconFor(action)" />
                 <span class="tl-detail-action-label">
-                    <span>@action.Label</span>
+                    <span>@(PrimaryLabel ?? action.Label)</span>
                     @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__label">@EmbeddedProgressLabel</span> }
+                    else if (!string.IsNullOrWhiteSpace(PrimaryDetail)) { <span class="tl-detail-action-progress__label">@PrimaryDetail</span> }
                 </span>
                 @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__track" role="progressbar" aria-label="@EmbeddedProgressAriaLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@EmbeddedProgressPercent"><AppCssElement Tag="span" Class="tl-detail-action-progress__fill" Css="@EmbeddedProgressStyle" /></span> }
             </AppNativeButton>
@@ -24,14 +27,19 @@
         {
             @if (action.Key == "reaction-menu")
             {
-                <MediaRateControl Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
+                <MediaRateControl OverArtwork="true" TriggerSize="AppControlSize.Large" Label="@RateLabel" UseUtilityGlyph="true" Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
             }
             else
             {
-                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppNativeButton></AppTooltip>
+                <AppIconButton Class="hero-icon-circle" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Tooltip="@TooltipFor(action)" Label="@PhoneLabelFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppIconButton>
             }
         }
-        <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
+        @* A folder of videos gets an Open companion with a folder icon, never a text link (Look v3 D12). *@
+        @if (!string.IsNullOrWhiteSpace(FolderHref))
+        {
+            <AppIconButton Class="hero-icon-circle hero-open-folder cinematic-hero-carousel__folder-link" Href="@FolderHref" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Icon="@AppMaterialIcons.Outlined.Folder" Tooltip="@VideoFolderWording.OpenLabel" AriaLabel="@VideoFolderWording.OpenLabel" Label="@L["HeroActionRow_Open"].Value" />
+        }
+        <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle app-icon-button app-icon-button--plain app-icon-button--over-artwork app-control--large" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
     </div>
 </div>
 @code {
@@ -41,6 +49,14 @@
     [Parameter] public ProgressViewModel? Progress { get; set; }
     [Parameter] public bool UsePrimaryHeroChrome { get; set; }
     [Parameter] public bool IsMusicAlbum { get; set; }
+
+    /// <summary>Set for a folder of videos: the hero then shows an Open companion button (folder icon) that goes to the folder.</summary>
+    [Parameter] public string? FolderHref { get; set; }
+    /// <summary>The phone hero words its main button itself: a label (instead of the action's), a quiet detail after it ("25 min left") and the full spoken name.</summary>
+    [Parameter] public string? PrimaryLabel { get; set; }
+    [Parameter] public string? PrimaryDetail { get; set; }
+    [Parameter] public string? PrimaryAriaLabel { get; set; }
+    private string RateLabel => L["MediaRateControl_Rate"].Value;
 
     /// <summary>
     /// True when the person may delete this title (the page decides): "Delete from library…" is then the menu's last entry, red,

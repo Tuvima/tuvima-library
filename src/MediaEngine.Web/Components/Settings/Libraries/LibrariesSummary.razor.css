@@ -2,6 +2,6 @@
 .lib-summary__heading { margin: 0; font-size: var(--tl-font-size-md); font-weight: 600; }
 .lib-summary__list { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 0; list-style: none; }
 .lib-summary__item { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--lib-area-colour, var(--tl-text-primary)); }
-.lib-summary__icon { display: inline-flex; font-size: 1.5rem; }
+.lib-summary__icon { display: inline-flex; font-size: var(--tl-icon-size-md); }
 .lib-summary__count { font-size: clamp(0.9rem, 2.2vw, 1.4rem); font-weight: 600; }
 .lib-summary__label { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }

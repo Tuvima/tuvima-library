@@ -6,13 +6,14 @@ namespace MediaEngine.Web.Tests;
 public sealed class SettingsLayoutPolishCssTests
 {
     [Fact]
-    public void SettingsFrame_CentresItsContentColumn_WithinTheSpaceBesideTheMenu()
+    public void SettingsFrame_LeftAlignsItsContentColumn_WithinTheSpaceBesideTheMenu()
     {
         var css = Read("src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
 
         var frame = Rule(css, ".settings-frame");
         Assert.Contains("max-width: var(--settings-frame-max-width);", frame, StringComparison.Ordinal);
-        Assert.Contains("margin: 0 auto;", frame, StringComparison.Ordinal);
+        Assert.Contains("margin: 0;", frame, StringComparison.Ordinal);
+        Assert.DoesNotContain("auto", frame.Substring(frame.IndexOf("margin:", StringComparison.Ordinal), 12), StringComparison.Ordinal);
     }
 
     [Fact]

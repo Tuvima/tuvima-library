@@ -28,7 +28,7 @@ else
     [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.Image;
 
     /// <summary>The stand-in's icon size: medium on a small cover, large on a tile.</summary>
-    [Parameter] public AppSize IconSize { get; set; } = AppSize.Medium;
+    [Parameter] public AppIconSize IconSize { get; set; } = AppIconSize.Row24;
 
     /// <summary>Drawn on the stand-in only, so a tile with no picture still names its title.</summary>
     [Parameter] public string? FallbackText { get; set; }

@@ -55,10 +55,10 @@
                 {
                     <hr class="app-select__option-separator" />
                 }
-                <AppSelectItem T="string" Value="@option.Value" Text="@option.Label" Disabled="@option.Disabled" title="@option.Title" aria-label="@(option.AccessibleLabel ?? option.Label)">
+                <AppSelectItem T="string" Value="@option.Value" Text="@option.Label" Disabled="@option.Disabled" aria-label="@(option.AccessibleLabel ?? option.Label)">
                     @if (!string.IsNullOrWhiteSpace(option.Icon))
                     {
-                        <AppMaterialIcon Icon="@option.Icon" Size="AppSize.Small" Class="app-select__option-icon" />
+                        <AppMaterialIcon Icon="@option.Icon" Size="AppIconSize.Control20" Class="app-select__option-icon" />
                     }
                     @option.Label
                     @if (NormalizedAppearance == "playback-flat")

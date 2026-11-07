@@ -18,7 +18,7 @@
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
         <span class="kid-settings__saved" role="status" data-kid-settings-saved>
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" Color="AppColor.Success" />@_confirmation
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
         </span>
     }
     @if (_open)
@@ -38,7 +38,7 @@
                 {
                     <div class="kid-settings__row" data-kid-level="@area.Key">
                         <span class="kid-settings__label">
-                            <AppMaterialIcon Icon="@area.Icon" Size="AppSize.Small" Color="@area.Color" />@area.Label
+                            <AppMaterialIcon Icon="@area.Icon" Size="AppIconSize.Control20" Color="@area.Color" />@area.Label
                         </span>
                         <AppSelect Native="true" Value="@LevelOf(area.Key)" ValueChanged="@(selected => SetLevel(area.Key, selected))"
                                          Disabled="@Disabled" aria-label="@($"{area.Label} level")">

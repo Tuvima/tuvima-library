@@ -86,7 +86,7 @@
                 @if (Playback.IsAudiobookMode && AudiobookWindow is { } window)
                 {
                     <div class="listen-player__scope" role="group" aria-label="@L["ListenNowPlayingBar_BarShows"].Value">
-                        <span class="listen-player__scope-label" title="@window.Title">@window.Label<small>@L["ListenNowPlayingBar_ChapterTimes", PlaybackSeekRail.Time(window.Elapsed(Playback.CurrentTimeSeconds)), PlaybackSeekRail.Time(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))]</small></span>
+                        <span class="listen-player__scope-label">@window.Label<small>@L["ListenNowPlayingBar_ChapterTimes", PlaybackSeekRail.Time(window.Elapsed(Playback.CurrentTimeSeconds)), PlaybackSeekRail.Time(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))]</small></span>
                         <span class="listen-player__scope-switch">
                             <AppButton Size="AppControlSize.Compact" ButtonStyle="@(!_bookView ? AppButtonStyle.Filled : AppButtonStyle.Text)" Tone="@(!_bookView ? AppUiTone.Primary : AppUiTone.Neutral)" Label="@L["ListenNowPlayingBar_Chapter"].Value" OnClick="@(() => SetBookViewAsync(false))" />
                             <AppButton Size="AppControlSize.Compact" ButtonStyle="@(_bookView ? AppButtonStyle.Filled : AppButtonStyle.Text)" Tone="@(_bookView ? AppUiTone.Primary : AppUiTone.Neutral)" Label="@L["ListenNowPlayingBar_Book"].Value" OnClick="@(() => SetBookViewAsync(true))" />
@@ -179,7 +179,7 @@
                     <span class="listen-player__song-actions"><PlaybackSongActions Item="@Playback.CurrentItem" IsFavorite="_isFavorite"
                         FavoriteChanged="ToggleFavoriteAsync" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></span>
                 }
-                <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" title="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" />
+                <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" Tooltip="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" />
             </div>
 
             <div class="listen-player__transport">
@@ -291,7 +291,7 @@
                     </ListenDockTool>
                 </span>
                 <AppTooltip Text="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" Class="listen-player__expand">
-                <AppNativeButton Type="button" Class="listen-player__icon listen-player__expand" OnClick="OpenNowPlaying" title="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" AriaLabel="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")">
+                <AppNativeButton Type="button" Class="listen-player__icon listen-player__expand" OnClick="OpenNowPlaying" AriaLabel="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")">
                     <PlaybackUtilityGlyph Glyph="@(IsDesktopNowPlaying ? PlaybackUtilityGlyphKind.Collapse : PlaybackUtilityGlyphKind.Expand)" />
                 </AppNativeButton>
                 </AppTooltip>

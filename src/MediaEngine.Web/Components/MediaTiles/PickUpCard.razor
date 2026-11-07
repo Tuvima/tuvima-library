@@ -9,7 +9,7 @@
         }
     </a>
     <div class="pickup-body">
-        <span class="pickup-kind"><AppMaterialIcon Icon="@PhoneContinueLogic.TypeIcon(Item.MediaKind)" Size="AppSize.Small" aria-hidden="true" />@PhoneContinueLogic.ActionWord(Item.MediaKind)</span>
+        <span class="pickup-kind"><AppMaterialIcon Icon="@PhoneContinueLogic.TypeIcon(Item.MediaKind)" Size="AppIconSize.Control20" aria-hidden="true" />@PhoneContinueLogic.ActionWord(Item.MediaKind)</span>
         <a class="pickup-title" href="@(Item.DetailsNavigationUrl ?? Item.NavigationUrl)">@Title</a>
         @if (!string.IsNullOrWhiteSpace(Subtitle))
         {

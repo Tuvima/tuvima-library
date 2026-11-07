@@ -60,45 +60,16 @@
                     }
                 </div>
                 <div class="phone-hero__actions">
+                    @* The same row as the Home and details heroes: the light 56 px main button and Plain companions (Look v3 D12). *@
                     @if (Primary is not null)
                     {
-                        <AppNativeButton Type="button"
-                                         Class="phone-hero__primary"
-                                         AriaLabel="@PrimaryText.Full"
-                                         OnClick="@(_ => OnAction.InvokeAsync(Primary))">
-                            @if (PrimaryIcon is not null)
-                            {
-                                <AppMaterialIcon Icon="@PrimaryIcon" Class="phone-hero__primary-icon" />
-                            }
-                            <span class="phone-hero__primary-label">@PrimaryText.Text</span>
-                            @if (!string.IsNullOrWhiteSpace(PrimaryText.Detail))
-                            {
-                                <span class="phone-hero__primary-detail">@PrimaryText.Detail</span>
-                            }
-                        </AppNativeButton>
-                    }
-                    @if (MyList is not null)
-                    {
-                        <AppNativeButton Type="button"
-                                         Class="phone-hero__icon-button"
-                                         AriaLabel="@MyList.Label"
-                                         Title="@MyList.Label"
-                                         aria-pressed="@(MyList.IsSelected ? "true" : "false")"
-                                         OnClick="@(_ => OnAction.InvokeAsync(MyList))">
-                            <AppMaterialIcon Icon="@(MyList.IsSelected ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" />
-                        </AppNativeButton>
-                    }
-                    @if (MoreActions.Count > 0)
-                    {
-                        <AppNativeButton Type="button"
-                                         Class="phone-hero__icon-button"
-                                         AriaLabel="@L["Common_MoreActions"].Value"
-                                         Title="@L["Common_MoreActions"].Value"
-                                         aria-haspopup="dialog"
-                                         aria-expanded="@(_sheetOpen ? "true" : "false")"
-                                         OnClick="@(_ => OpenSheet())">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" />
-                        </AppNativeButton>
+                        <HeroActionRow PrimaryActions="@(new[] { Primary })"
+                                       SecondaryActions="@(MyList is null ? Array.Empty<DetailAction>() : new[] { MyList })"
+                                       OverflowActions="MoreActions"
+                                       PrimaryLabel="@PrimaryText.Text"
+                                       PrimaryDetail="@PrimaryText.Detail"
+                                       PrimaryAriaLabel="@PrimaryText.Full"
+                                       OnActionSelected="OnAction" />
                     }
                 </div>
             </div>
@@ -122,34 +93,10 @@
                 <span class="sr-only" aria-live="polite">@($"Featured item {ActiveIndex + 1} of {Slides.Count}")</span>
             </div>
         }
-
-        @if (_sheetOpen)
-        {
-            <AppDialogFrame Open="true" Title="@L["Common_More"].Value" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheet">
-                <div class="tl-detail-more-sheet__items" role="menu" aria-label="@L["Common_MoreActions"].Value">
-                    <ManageActionsMenu Actions="MoreActions" OnActionSelected="SelectFromSheetAsync" />
-                </div>
-            </AppDialogFrame>
-        }
     </div>
 }
 
 @code {
-    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
-    private bool _sheetOpen;
-
-    private void OpenSheet() => _sheetOpen = true;
-    private void CloseSheet() => _sheetOpen = false;
-
-    private async Task SelectFromSheetAsync(DetailAction action)
-    {
-        // Close the sheet and let it leave the DOM before the action runs, so an action that opens another dialog is not stacked under it.
-        _sheetOpen = false;
-        await InvokeAsync(StateHasChanged);
-        await Task.Yield();
-        await OnAction.InvokeAsync(action);
-    }
-
     [Parameter] public IReadOnlyList<DiscoveryHeroViewModel> Slides { get; set; } = [];
     [Parameter] public int ActiveIndex { get; set; }
     [Parameter] public string DetailsUrl { get; set; } = "/";
@@ -164,14 +111,6 @@
     private PhoneHeroArtwork Art => Hero is null ? new(PhoneHeroArt.Placeholder, null, null) : PhoneHeroPresentation.ResolveArt(Hero);
     private PhoneHeroPrimaryLabel PrimaryText => Hero is null ? new(Primary?.Label ?? string.Empty, null) : PhoneHeroPresentation.PrimaryLabel(Hero);
     private string CardClass => $"phone-hero__card phone-hero__card--{Art.Mode.ToString().ToLowerInvariant()}";
-
-    private string? PrimaryIcon => Primary?.Icon switch
-    {
-        "play_arrow" => AppMaterialIcons.Filled.PlayArrow,
-        "auto_stories" => AppMaterialIcons.Outlined.AutoStories,
-        "headphones" => AppMaterialIcons.Outlined.Headphones,
-        _ => null,
-    };
 
     private string PlaceholderIcon => (Hero?.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch
     {

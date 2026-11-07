@@ -73,7 +73,7 @@
                             var availability = AvailabilityOf(kind);
                             <LibraryTile Title="@LabelOf(kind)"
                                          Icon="@kind.Icon"
-                                         IconTileClass="@LibraryKindLook.TileClass(kind)"
+                                         AreaKey="@(LibraryKindLook.LooksUp(kind) ? kind.Area.ToLowerInvariant() : null)"
                                          About="@kind.Explainer"
                                          Examples="@kind.Examples"
                                          LibraryDoes="@kind.LibraryDoes"

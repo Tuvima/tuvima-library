@@ -58,9 +58,9 @@
                         <span class="tl-urail__text"><small>@kind.Label</small><span>@(kind.Count + staged.Count)</span></span>
                         @if (waiting > 0)
                         {
-                            <span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value" title="@L["EditorRail_ChangesWaiting"].Value"></span>
+                            <AppTooltip Text="@L["EditorRail_ChangesWaiting"].Value"><span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value"></span></AppTooltip>
                         }
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
                     </AppButton>
                     @if (isOpen)
                     {
@@ -110,7 +110,7 @@
                 <span class="tl-urail__text"><small>@L["EditorUniverse_Universe"]</small><span>@(string.IsNullOrWhiteSpace(State.UniverseName) ? "Universe" : State.UniverseName)</span></span>
                 @if (pending.GetValueOrDefault(State.UniverseId) > 0)
                 {
-                    <span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value" title="@L["EditorRail_ChangesWaiting"].Value"></span>
+                    <AppTooltip Text="@L["EditorRail_ChangesWaiting"].Value"><span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value"></span></AppTooltip>
                 }
             </AppButton>
         </div>

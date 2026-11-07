@@ -351,3 +351,4 @@ Added at the end on purpose: the decisions above are Locked and are not rewritte
 ## Gaps and drift (audit 2026-11-03)
 
 - WP6 sidecars and WP7 thumbnails could not be found in code; needs a closer look. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.
+- Look v3 D12 (WP6): the Home hero "Open folder" link becomes an Open button with a folder icon, in the same Plain style as the hero companions (My List, More). The folder it opens and the "Open folder" wording are unchanged. See [Look pass v3](look-pass-v3.md).

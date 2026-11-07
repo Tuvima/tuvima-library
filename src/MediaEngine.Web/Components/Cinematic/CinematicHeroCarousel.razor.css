@@ -88,38 +88,11 @@
     pointer-events: auto;
 }
 
-/* The button row stays the shared row; it only becomes a wrapper while a folder's quiet "Open folder" link joins it. */
+/* The button row stays the shared row; a folder's Open button is one of its companions (Look v3 D12). */
 .cinematic-hero-carousel__actions {
     display: contents;
 }
 
-.cinematic-hero-carousel__actions--with-link {
-    order: 3;
-    /* Two content-sized columns: the shared row (button and +) keeps its own width and the link sits right after it. */
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-content: start;
-    align-items: center;
-    column-gap: 1rem;
-    width: 100%;
-}
-
-.cinematic-hero-carousel__folder-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tl-touch-target-min, 48px);
-    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.78));
-    font-size: var(--tl-font-size-sm);
-    font-weight: var(--tl-font-weight-semibold);
-    text-decoration: underline;
-    text-underline-offset: 0.25em;
-    pointer-events: auto;
-}
-
-.cinematic-hero-carousel__folder-link:hover,
-.cinematic-hero-carousel__folder-link:focus-visible {
-    color: var(--tl-text-primary);
-}
 
 /* Landing typography fits the shorter stage; shared foreground geometry stays
    with HeroBackdrop for Home and details. */
@@ -454,12 +427,6 @@
 /* The "Recently added music" slide: eight covers in a grid on the right of the hero (Home, detail and tiles spec D4). */
 .cinematic-hero-carousel__collage { position: absolute; top: 50%; right: clamp(1.5rem, 5vw, 4rem); z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(46%, 34rem); transform: translateY(-50%); pointer-events: none; }
 .cinematic-hero-carousel__collage img { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
-
-/* Narrow stages have no room beside the + (the whole hero already opens the folder). */
-@media (max-width: 840px) {
-    .cinematic-hero-carousel__folder-link { display: none; }
-    .cinematic-hero-carousel__actions--with-link { display: contents; }
-}
 
 /* A cover-led book, comic or audiobook hero on a narrow stage: the hero grows to its content, the large cover sits above the text, and the
    text starts below it (issue 709). The cover itself is placed by HeroBackdrop.razor.css from --lc-narrow-h. */

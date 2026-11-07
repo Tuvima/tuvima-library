@@ -246,8 +246,7 @@
                                     @foreach (var (key, val) in result.BridgeIds)
                                     {
                                         <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
-                                                 Class="tl-u-font-size-xs tl-u-height-20px tl-u-color-tl-text-muted tl-u-border-color-rgba-255-255-255-0-1"
-                                                 title="@val">
+                                                 Class="tl-u-font-size-xs tl-u-height-20px tl-u-color-tl-text-muted tl-u-border-color-rgba-255-255-255-0-1">
                                             @LibraryHelpers.FormatClaimKey(key)
                                         </AppChip>
                                     }
@@ -384,8 +383,7 @@
                                 </AppChip>
                                 @if (result.Confidence > 0 && Math.Abs(result.Confidence - result.CompositeScore) > 0.01)
                                 {
-                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs"
-                                             title="Raw provider confidence score">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                         raw: @result.Confidence.ToString("F2")
                                     </AppText>
                                 }
@@ -396,7 +394,7 @@
                                     </AppText>
                                 }
                                 <AppMaterialIcon Icon="@(isExpanded ? AppMaterialIcons.Filled.ExpandLess : AppMaterialIcons.Filled.ExpandMore)"
-                                         Size="AppSize.Small" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px" />
+                                         Size="AppIconSize.Control20" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px" />
                             </div>
                         </div>
 
@@ -496,8 +494,7 @@
                                                 <AppChip T="string"
                                                          Size="AppSize.Small"
                                                          Variant="AppVariant.Outlined"
-                                                         Class="tl-u-font-size-xs tl-u-height-22px tl-u-color-tl-text-secondary tl-u-border-color-tl-border-default"
-                                                         title="@val">
+                                                         Class="tl-u-font-size-xs tl-u-height-22px tl-u-color-tl-text-secondary tl-u-border-color-tl-border-default">
                                                     @label: @(val.Length > 30 ? val[..27] + "..." : val)
                                                 </AppChip>
                                             }

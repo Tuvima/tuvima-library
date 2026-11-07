@@ -66,7 +66,7 @@
                             @foreach (var performer in performers)
                             {
                                 var performerName = performer.name ?? string.Empty;
-                                <div class="performer-chip" title="@PerformerTitle(performer)">
+                                <div class="performer-chip">
                                     @if (!string.IsNullOrWhiteSpace(performer.headshot_url))
                                     {
                                         @* Drawn 36px, the compact avatar (tuvima.tokens.css). *@
@@ -133,18 +133,6 @@
 
     // The Engine names the work by QID; the title comes from the work links on the loaded graph
     // when one of them carries it, otherwise no work is named.
-    private string? PerformerTitle(UniverseCastPerformerDto performer)
-    {
-        if (string.IsNullOrWhiteSpace(performer.work_qid) || string.IsNullOrWhiteSpace(performer.name))
-            return null;
-
-        var workTitle = Graph?.nodes
-            .SelectMany(node => node.works)
-            .FirstOrDefault(work => work.qid == performer.work_qid && !string.IsNullOrWhiteSpace(work.label))
-            ?.label;
-        return string.IsNullOrWhiteSpace(workTitle) ? null : $"{performer.name} in {workTitle}";
-    }
-
     protected override async Task OnParametersSetAsync()
     {
         if (!string.IsNullOrWhiteSpace(UniverseQid) && _castData is null)

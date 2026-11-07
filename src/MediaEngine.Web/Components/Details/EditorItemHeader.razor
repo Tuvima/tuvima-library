@@ -43,13 +43,13 @@
                 }
                 else
                 {
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Large" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Tile32" />
                 }
             </div>
         }
         <div class="tl-editor-header__body">
             <div class="tl-editor-header__kicker">@kicker</div>
-            <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" title="@title">@title</h2>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" data-overflow-tooltip="@title">@title</h2>
             <div class="tl-editor-header__line">
                 @if (fields.Loading && !fields.Loaded)
                 {
@@ -89,7 +89,7 @@
                              aria-label="@(string.Format(L["EditorHeader_OpenAt"].Value, link.Name))">
                         <AppProviderLogo FallbackText="@link.Name[..1]" Size="AppControlSize.Compact" AltText="" Class="tl-editor-header__link-logo" />
                         <span>@link.Name</span>
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     </AppLink>
                 }
 

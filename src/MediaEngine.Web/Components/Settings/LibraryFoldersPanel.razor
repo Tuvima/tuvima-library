@@ -82,7 +82,7 @@
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                                 <span class="library-folders__name-text">
                                     <strong>@L["Common_ImportFolder"]</strong>
-                                    <span class="library-folders__path" title="@ImportStatus.Path">@ImportStatus.Path</span>
+                                    <span class="library-folders__path" data-overflow-tooltip="@ImportStatus.Path">@ImportStatus.Path</span>
                                 </span>
                             </div>
                             <div role="cell"><span class="library-folders__chip">@L["Common_Import"]</span></div>
@@ -118,7 +118,7 @@
                                 }
                                 else
                                 {
-                                    <span class="library-folders__destination-path" title="@destination.Path">&rarr; @DestinationName(destination) &middot; @destination.Path</span>
+                                    <span class="library-folders__destination-path" data-overflow-tooltip="@destination.Path">&rarr; @DestinationName(destination) &middot; @destination.Path</span>
                                     @if (unavailable)
                                     {
                                         <span class="library-folders__status library-folders__status--warning">@L["LibraryFoldersPanel_FolderUnavailable"]</span>

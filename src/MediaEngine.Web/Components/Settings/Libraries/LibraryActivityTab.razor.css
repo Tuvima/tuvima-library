@@ -1,7 +1,7 @@
 .library-activity { min-width: 0; max-width: 900px; }
 .library-activity__row { display: grid; grid-template-columns: 8.5rem 1.5rem minmax(0, 1fr); align-items: start; gap: var(--tl-space-3); padding: var(--tl-space-2) 0; }
 .library-activity__time { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); white-space: nowrap; }
-.library-activity__icon { display: inline-flex; font-size: 1.25rem; }
+.library-activity__icon { display: inline-flex; font-size: var(--tl-icon-size-sm); }
 .library-activity__icon--success { color: var(--tl-status-success); }
 .library-activity__icon--warning { color: var(--tl-status-warning); }
 .library-activity__icon--danger { color: var(--tl-status-danger); }

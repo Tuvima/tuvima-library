@@ -99,7 +99,8 @@
     --tl-icon-size-sm: 20px;
     --tl-icon-size-md: 24px;
     --tl-icon-size-lg: 32px;
-    --tl-icon-size-xl: 40px;
+    --tl-icon-size-xl: 48px;
+    --tl-icon-size-2xl: 64px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-touch-min: 44px;
@@ -357,6 +358,19 @@
     --tl-control-height-compact: var(--tl-control-height-sm);
     --tl-control-height-normal: var(--tl-control-height-md);
     --tl-control-height-large: var(--tl-control-height-lg);
+    /* One icon button (Look v3 D9): icons 20 in the 36 px size, 24 in 44 and 48. */
+    --tl-icon-button-icon-sm: 20px;
+    --tl-icon-button-icon-lg: 24px;
+    --tl-scrim-soft: rgba(16, 17, 21, 0.55);
+    --tl-scrim-soft-strong: rgba(16, 17, 21, 0.72);
+    --tl-on-scrim: #FFFFFF;
+    /* The hero's one main button (Look v3 D12): light on any artwork, 56 px tall. */
+    --tl-hero-action-bg: #F5F7FB;
+    --tl-hero-action-bg-hover: #E3E6EC;
+    --tl-hero-action-text: #101115;
+    --tl-hero-action-height: 56px;
+    --tl-hero-action-label-size: 20px;
+    --tl-hero-action-icon-size: 24px;
     --tl-control-radius: 10px;
     --tl-control-padding-x: 12px;
     --tl-control-gap: 12px;

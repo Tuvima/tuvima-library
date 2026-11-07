@@ -44,9 +44,12 @@
         <span class="@("plugin-provides" + (Mode == PluginProvidesMode.Icons ? " plugin-provides--icons" : string.Empty))" data-testid="plugin-provides">
             @foreach (var word in Plugin.Provides)
             {
-                <span class="plugin-provides__item plugin-provides-kind--@KindKey(word)" data-kind="@KindKey(word)" title="@word">
-                    <AppMaterialIcon Icon="@IconFor(word)" Size="@(Mode == PluginProvidesMode.Icons ? AppSize.Medium : AppSize.Small)" />@if (Mode == PluginProvidesMode.Named) { @word }
-                </span>
+                var item = word;
+                RenderFragment kind = @<span class="plugin-provides__item plugin-provides-kind--@KindKey(item)" data-kind="@KindKey(item)">
+                    <AppMaterialIcon Icon="@IconFor(item)" Size="@(Mode == PluginProvidesMode.Icons ? AppIconSize.Row24 : AppIconSize.Control20)" />@if (Mode == PluginProvidesMode.Named) { @item }
+                </span>;
+                @* Icons only: the tooltip names the kind. When the word is written beside the icon there is no tooltip (D8). *@
+                if (Mode == PluginProvidesMode.Icons) { <AppTooltip Text="@item">@kind</AppTooltip> } else { @kind }
             }
             @if (Plugin.RequiresLocalAi)
             {

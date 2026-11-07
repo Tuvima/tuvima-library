@@ -803,12 +803,11 @@
             <a id="@ItemId(item)"
                href="@item.Route"
                class="media-section-shell__tree-link"
-               title="@item.Label"
                aria-current="@(IsTreeRowCurrent(item) ? "page" : null)"
                @onclick="@(() => NavigateTreeNode(item))"
                @onclick:preventDefault="@HasChildren(item)">
-                <span class="media-section-shell__tree-icon"><AppMaterialIcon Icon="@item.Icon" Size="AppSize.Small" aria-hidden="true" /></span>
-                <span class="media-section-shell__tree-label">@item.Label</span>
+                <span class="media-section-shell__tree-icon"><AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Control20" aria-hidden="true" /></span>
+                <span class="media-section-shell__tree-label" data-overflow-tooltip="@item.Label">@item.Label</span>
                 <span class="media-section-shell__tree-badge">
                     @if (!string.IsNullOrWhiteSpace(item.Meta))
                     {

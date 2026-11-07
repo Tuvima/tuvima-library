@@ -35,7 +35,7 @@
                         <strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>
                         @if (capability.Status is not "passed")
                         {
-                            <a href="@(string.IsNullOrWhiteSpace(capability.RepairTarget) ? "/settings" : capability.RepairTarget)">@(capability.Status == "deferred" ? "Set up in Settings" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a>
+                            <a href="@(string.IsNullOrWhiteSpace(capability.RepairTarget) ? "/settings" : capability.RepairTarget)">@(capability.Status == "deferred" ? "Set up in Settings" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppIconSize.Control20" /></a>
                         }
                     </div>
                     <AppStatusBadge Text="@StatusLabel(capability.Status)" Tone="@StatusTone(capability.Status)" Icon="@(capability.Status == "passed" ? AppMaterialIcons.Filled.CheckCircle : null)" />

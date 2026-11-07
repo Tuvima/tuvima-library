@@ -52,7 +52,7 @@
 
 .tl-detail-person-fact ::deep .tl-icon-root {
     color: rgba(255, 255, 255, 0.62);
-    font-size: 1rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 @media (max-width: 1180px) {

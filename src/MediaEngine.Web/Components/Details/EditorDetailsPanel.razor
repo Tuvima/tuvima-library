@@ -94,7 +94,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 <span>@field.Label</span>
                 @if (overridden)
                 {
-                    <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} is changed")" title="@($"Changed from the {Canonical(field)} value")"></span>
+                    <AppTooltip Text="@($"Changed from the {Canonical(field)} value")"><span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} is changed")"></span></AppTooltip>
                 }
                 <span class="tl-editor-field__tools">
                     @if (state.Changed && !isReset)
@@ -264,7 +264,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 <span>@field.Label</span>
                 <AppTooltip Text="@why">
                     <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{field.Label} is locked. {why}")">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
                         <small>@SourceName(field)</small>
                     </span>
                 </AppTooltip>

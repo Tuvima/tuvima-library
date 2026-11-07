@@ -91,7 +91,7 @@ else if (!_removed)
                         </div>
                     }
                     <span class="media-tile-standin__number">@Item.StandInLabel</span>
-                    <span class="media-tile-standin__tag" title="@StandInTooltip" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
+                    <span class="media-tile-standin__tag" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
                 </div>
             }
             else if (IsVideoStill)
@@ -115,7 +115,7 @@ else if (!_removed)
                     }
                 </div>
                 <div class="media-tile-video-text">
-                    <span class="media-tile-video-text__title" title="@Item.Title">@Item.Title</span>
+                    <span class="media-tile-video-text__title" data-overflow-tooltip="@Item.Title">@Item.Title</span>
                     @if (VideoDetail is { } detail)
                     {
                         <span class="media-tile-video-text__detail">@detail</span>
@@ -155,7 +155,7 @@ else if (!_removed)
             }
             @if (BottomLabel is { } bottom)
             {
-                <span class="media-tile-label media-tile-label--bottom" aria-label="@bottom" title="@bottom">@bottom</span>
+                <span class="media-tile-label media-tile-label--bottom" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
             <AppArtworkProgress Enabled="@SupportsCompletion" State="@Item.ContinuationState" Percent="@Item.ProgressPct" MediaKind="@Item.MediaKind" RemainingSeconds="@Item.RemainingSeconds" Label="@Item.ProgressLabel" />
         </div>
