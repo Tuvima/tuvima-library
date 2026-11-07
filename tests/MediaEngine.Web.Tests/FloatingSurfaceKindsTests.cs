@@ -139,7 +139,7 @@ public sealed class FloatingSurfaceKindsTests : AsyncBunitContext
         var shell = ReadWeb("Components/Shared/AppDialogShell.razor.css");
         var markup = ReadWeb("Components/Shared/AppDialogShell.razor");
 
-        Assert.Contains("font-size: var(--tl-dialog-title-size, 1.25rem);", shell);
+        Assert.Contains("font-size: var(--tl-dialog-title-size);", shell);
         Assert.Contains("font-weight: 600;", shell);
         Assert.Contains("Size=\"AppControlSize.Normal\"", markup);
         Assert.Contains("justify-content: flex-end;", shell);

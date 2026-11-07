@@ -398,7 +398,7 @@ body {
 
 .tl-popover .tl-list-item:hover,
 .tl-popover .tl-list-item:focus {
-    background: var(--app-hover-overlay) !important;
+    background: var(--tl-bg-surface-hover) !important;
 }
 
 .app-artwork-picker {
@@ -502,7 +502,7 @@ body {
 
 .tl-table-hover .tl-table-row:hover,
 .tl-table tbody tr:hover {
-    background: var(--app-hover-overlay) !important;
+    background: var(--tl-bg-surface-hover) !important;
 }
 
 .tl-table-row.selected {
@@ -511,7 +511,7 @@ body {
 
 .tl-popover {
     color: var(--tl-text-primary) !important;
-    background: var(--tl-bg-surface) !important;
+    background: var(--tl-bg-surface-elevated) !important;
 
     border-radius: var(--tl-radius-lg) !important;
     box-shadow: var(--tl-shadow-lg) !important;
@@ -525,7 +525,7 @@ body {
 }
 
 .tl-list-item:hover {
-    background: var(--app-hover-overlay) !important;
+    background: var(--tl-bg-surface-hover) !important;
 }
 
 .tl-popover .tl-list {
@@ -787,7 +787,6 @@ code{
     /* One colour per area (Library setup D39): the Libraries screens and Add folder tiles read these. */
     --app-topbar-height: 65px;
     --tl-appbar-row-height: var(--app-topbar-height);
-    --app-hover-overlay: rgba(255, 255, 255, 0.04);
     --app-dock-width: 0px;
     --app-inset-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     --app-z-drawer: calc(var(--tl-z-sticky) + 2);
@@ -1745,7 +1744,7 @@ input.app-control.tl-input-slot,
 }
 
 .app-table tbody tr:hover {
-    background: var(--app-hover-overlay);
+    background: var(--tl-bg-surface-hover);
 }
 
 /* Numbers and durations: right-aligned with tabular numerals (Look v3 D15.4), in tables and in the shared number field. Mark a column's
@@ -4036,7 +4035,6 @@ input[type="reset"],
 
 .app-menu-item__check { margin-left:auto; }
 .app-menu-divider { height:1px; margin:4px 0; background:var(--tl-menu-divider); }
-.hero-icon-circle { display:grid; place-items:center; width:48px; height:48px; padding:0; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.3); color:var(--playback-text); }
 
 
 /* Portaled and fragment-owned control bridges. */
@@ -4420,7 +4418,7 @@ input[type="reset"],
 .layout-shell__menu-button:focus-visible,
 .phone-nav-menu__close:hover,
 .phone-nav-menu__close:focus-visible {
-    background: var(--app-hover-overlay, var(--tl-bg-surface-hover));
+    background: var(--tl-bg-surface-hover);
 }
 
 .layout-shell__menu-button:focus-visible,
@@ -4967,9 +4965,6 @@ button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
 }
 
 dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100dvh;max-height:none !important;margin:0;border:0 !important;border-radius:0 !important;background:transparent !important;box-shadow:none !important;overflow:visible}dialog.tl-editor-dialog::backdrop{background:color-mix(in srgb,var(--tl-bg-shell,#000) 62%,transparent)}
-/* Detail page: the small hero icons are quiet and each carries its name underneath (editor and details revision).
-   The Home hero keeps its single row. */
-.tl-detail-page .tl-detail-secondary-actions { align-items: flex-start; gap: 6px 18px; }
 
 /* Account menu surface (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
 .tl-popover.top-nav-account-menu__surface {
@@ -4978,14 +4973,11 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    border: 1px solid rgba(150, 164, 192, 0.16) !important;
+    border: 1px solid var(--tl-menu-border) !important;
     border-radius: var(--tl-radius-lg, 12px) !important;
-    color: var(--tl-text-primary, #e5edf5) !important;
-    background:
-        radial-gradient(circle at 100% 0, rgba(124, 77, 255, 0.12), transparent 42%),
-        rgba(12, 17, 28, 0.98) !important;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(0, 0, 0, 0.18) !important;
-    backdrop-filter: blur(20px) saturate(125%);
+    color: var(--tl-text-primary) !important;
+    background: var(--tl-menu-surface) !important;
+    box-shadow: var(--tl-shadow-lg) !important;
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-md);
 }
@@ -5010,10 +5002,10 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     box-sizing: border-box;
     width: min(520px, calc(100vw - 48px));
     padding: 0;
-    border: 1px solid var(--tl-accent-primary-border) !important;
+    border: 1px solid var(--tl-menu-border) !important;
     border-radius: var(--tl-radius-lg) !important;
     color: var(--tl-text-primary) !important;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-bg-surface-raised) 96%, #141b32), var(--tl-bg-surface)) !important;
+    background: var(--tl-menu-surface) !important;
     box-shadow: var(--tl-shadow-lg) !important;
     font-family: var(--font-ui);
 }
@@ -5022,11 +5014,11 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 .tl-popover.sme-tag-editor__suggestions-surface {
     box-sizing: border-box;
     padding: 0;
-    border: 1px solid rgba(151, 170, 205, 0.2) !important;
+    border: 1px solid var(--tl-menu-border) !important;
     border-radius: 0.5rem !important;
     color: var(--tl-text-primary) !important;
-    background: rgb(10, 20, 36) !important;
-    box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.35) !important;
+    background: var(--tl-menu-surface) !important;
+    box-shadow: var(--tl-shadow-lg) !important;
     font-family: var(--font-ui);
 }
 
@@ -5581,12 +5573,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
     width: 100%;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-secondary-actions {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 0.25rem 1.1rem;
 }
 
 /* The More menu is a bottom sheet on phones. */

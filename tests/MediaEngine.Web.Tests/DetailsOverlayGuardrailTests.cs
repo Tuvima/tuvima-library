@@ -86,7 +86,7 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Settings/NeedsReviewPageContent.razor"] = (2, "The Needs Review list rewriting its own filter address (kind and library) so Back leaves the list."),
         ["Components/Pages/ProfilePickerPage.razor"] = (1, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),
         ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
-        ["Components/Pages/Settings.razor"] = (6, "A Kids profile or a page switched off for this device goes Home, and an address that is not a Settings page (or one this person may not see) shows /not-found."),
+        ["Components/Pages/Settings.razor"] = (2, "A Kids profile or a page switched off for this device goes Home (an address that is not a Settings page shows the not-found page in place, with no replace)."),
         ["Components/Pages/SetupPage.razor"] = (1, "Full reload to Home or the sign-in page when setup ends."),
         ["Components/Pages/ShelfGridPage.razor.cs"] = (4, "The View all grid rewriting its own sort and filter address."),
         ["Components/Settings/ProfilesTab.razor"] = (1, "A member opening Manage Profiles is taken to their own profile page."),

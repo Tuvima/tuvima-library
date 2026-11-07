@@ -57,7 +57,7 @@ public sealed class IconLadderTests : AsyncBunitContext
         var css = File.ReadAllText(Web("Components", "Shared", "AppChoiceTile.razor.css"));
         Assert.Matches(@"\.app-choice-tile \{[^}]*flex-direction: column;[^}]*align-items: center;", css);
         Assert.Matches(@"\.app-choice-tile__label \{[^}]*font-size: var\(--tl-font-size-sm\);[^}]*font-weight: 500;", css);
-        Assert.Matches(@"--tl-font-size-sm:\s*0\.875rem;", Tokens());
+        Assert.Matches(@"--tl-font-size-sm:\s*14px;", Tokens());
         Assert.Contains("var(--app-choice-tile-tone, var(--tl-text-secondary)) 14%", css, StringComparison.Ordinal);
         Assert.DoesNotMatch(@"#[0-9a-fA-F]{3,8}\b|rgba?\(", css);
     }

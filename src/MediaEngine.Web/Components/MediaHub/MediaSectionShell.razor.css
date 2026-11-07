@@ -61,7 +61,7 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     font-weight: 600;
-    letter-spacing: 0.13em;
+    letter-spacing: normal;
 }
 
 ::deep .media-section-shell__create-menu .app-overflow-menu__trigger {
@@ -115,7 +115,7 @@
 
 .media-section-shell__rail-item {
     display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
     align-items: center;
     gap: 11px;
     min-height: 44px;
@@ -128,7 +128,7 @@
 }
 
 .media-section-shell__rail-item--parent {
-    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
     width: 100%;
     padding-right: 42px;
     font: inherit;
@@ -434,7 +434,7 @@
 
 .media-section-shell__tree-link {
     display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
     min-width: 0;
@@ -614,7 +614,7 @@
         color: var(--tl-text-muted);
         font-size: var(--tl-font-size-xs);
         font-weight: 600;
-        letter-spacing: 0.12em;
+        letter-spacing: normal;
     }
 
     .media-section-shell__mobile-nav-link {

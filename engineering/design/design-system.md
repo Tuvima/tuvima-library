@@ -121,17 +121,17 @@ One interface typeface, **Inter** (variable, SIL OFL 1.1, self-hosted woff2), so
 | Merriweather | `--font-reader` | `"Merriweather", Georgia, serif` | The book reader |
 | JetBrains Mono | `--tl-font-mono` | `'JetBrains Mono', 'Cascadia Code', Consolas, monospace` | Paths, URLs, identifiers |
 
-Sizes are a ladder; a page picks a step and never writes its own size. Hand-typed sizes may not appear in component styles.
+Sizes are a ladder in pixels (the page root is 14 px, so a rem value would not be the size written here); a page picks a step and never writes its own size. Hand-typed sizes may not appear in component styles.
 
 | Step | Token | Value | Used for |
 |---|---|---|---|
-| 12 caption | `--tl-font-size-xs` | `0.75rem` | Captions, metadata, the tile text floor |
-| 13 secondary | `--tl-font-size-secondary` | `0.8125rem` | Helper lines, form labels, tooltips |
+| 12 caption | `--tl-font-size-xs` | `12px` | Captions, metadata, the tile text floor |
+| 13 secondary | `--tl-font-size-secondary` | `13px` | Helper lines, form labels, tooltips |
 | 14 body | `--tl-font-size-body` | `var(--tl-font-size-sm)` | Body copy |
-| 16 controls | `--tl-font-size-md` | `1rem` | Controls, menus, rows |
-| 20 section | `--tl-font-size-dialog-title` | `1.25rem` | Section and shelf titles, window titles |
-| 24 page title | `--tl-font-size-title` | `1.5rem` | Page titles (28 at 1180 px and wider) |
-| 32 hero | `--tl-font-size-hero` | `2rem` | Hero titles |
+| 16 controls | `--tl-font-size-md` | `16px` | Controls, menus, rows |
+| 20 section | `--tl-font-size-dialog-title` | `20px` | Section and shelf titles, window titles |
+| 24 page title | `--tl-font-size-title` | `24px` | Page titles (28 at 1180 px and wider) |
+| 32 hero | `--tl-font-size-hero` | `32px` | Hero titles |
 
 | Weight | Token | Value | Used for |
 |---|---|---|---|
@@ -140,7 +140,7 @@ Sizes are a ladder; a page picks a step and never writes its own size. Hand-type
 | Semibold | `--tl-font-weight-semibold` | `600` | Group headings, card and row titles |
 | Bold | `--tl-font-weight-bold` | `700` | Page and hero titles only |
 
-Line heights 1.2 / 1.3 / 1.5 (`--tl-line-height-title`, `-heading`, `-body`). No uppercase labels; if a page needs an overline it is 12 / 600 with 0.06em spacing.
+Buttons and other controls are Medium (`--tl-control-font-weight` is 500); text inputs are Regular (400), the body weight. Line heights 1.2 / 1.3 / 1.5 (`--tl-line-height-title`, `-heading`, `-body`). No uppercase labels; if a page needs an overline it is 12 / 600 with 0.06em spacing.
 
 ## Spacing and shape
 
@@ -251,7 +251,7 @@ A tooltip exists only when (a) the control is icon-only, (b) the control is disa
 | Border | `--tl-tooltip-border` | `var(--tl-border-default)` | Tooltip hairline |
 | Text | `--tl-tooltip-text` | `var(--tl-text-primary)` | Tooltip text |
 | Corners | `--tl-tooltip-radius` | `6px` | Tooltip corners |
-| Size | `--tl-tooltip-font-size` | `0.8125rem` | Tooltip text size |
+| Size | `--tl-tooltip-font-size` | `13px` | Tooltip text size |
 | Widest | `--tl-tooltip-max-width` | `280px` | Tooltip maximum width |
 
 ## Alignment
@@ -328,4 +328,4 @@ Every picture asks the Engine for the copy that fits its drawn size, never the o
 ## Known gaps
 
 - `config/ui/palette.json` still feeds some chips and Universe graphs; media-type colors the Engine serves come from it. Page colors come from the tokens.
-- The token file still defines values the ladders above do not name: `--tl-font-size-lg` (1.125rem), `--tl-control-font-weight` (600, while the type ladder says buttons are 500), `--tl-letter-spacing-label` (0.08em, while the overline rule says 0.06em), `--tl-line-height-relaxed`, `--tl-bg-app-gradient` and `--tl-bg-shell-gradient` (the shell is meant to carry no gradient), and `--tl-radius-lg` (equal to `--tl-radius-md`). The cascade cleanup packet decides which go.
+- The token file still defines values the ladders above do not name: `--tl-font-size-lg` (1.125rem), `--tl-letter-spacing-label` (0.08em, while the overline rule says 0.06em), `--tl-line-height-relaxed`, `--tl-bg-app-gradient` and `--tl-bg-shell-gradient` (the shell is meant to carry no gradient), and `--tl-radius-lg` (equal to `--tl-radius-md`). The cascade cleanup packet decides which go.
