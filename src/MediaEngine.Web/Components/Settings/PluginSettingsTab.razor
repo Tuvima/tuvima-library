@@ -485,10 +485,10 @@ else
                         <div class="settings-plugin-rows__name">
                             @TileLogo(plugin, 32)
                             <span class="settings-plugin-rows__copy">
-                                <a href="@DetailHref(plugin.Id)" title="@plugin.LongDescription">@plugin.Name</a>
+                                <a href="@DetailHref(plugin.Id)">@plugin.Name</a>
                                 @if (IsPrivate(plugin)) { <span class="settings-plugin-rows__private">Private</span> }
                                 @if (status.KeyMissing) { <a class="plugin-foot__pill" href="@DetailHref(plugin.Id, "setup", true)" data-testid="plugin-key-missing">+ Add key</a> }
-                                <small title="@plugin.LongDescription">@plugin.ShortDescription</small>
+                                <small data-overflow-tooltip="@plugin.LongDescription">@plugin.ShortDescription</small>
                             </span>
                         </div>
                     </td>

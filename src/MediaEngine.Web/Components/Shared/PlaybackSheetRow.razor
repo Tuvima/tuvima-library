@@ -11,7 +11,6 @@
                          AriaLabel="@AriaLabel"
                          aria-current="@(IsActive ? "true" : null)"
                          aria-pressed="@(IsActive ? "true" : "false")"
-                         title="@ResolvedTitle"
                          @attributes="AdditionalAttributes">
             @ChildContent
         </AppNativeButton>
@@ -66,8 +65,6 @@ else
         "timer" => "timer",
         _ => "default",
     };
-
-    private string? ResolvedTitle => Title ?? AriaLabel;
 
     private string ShellClass => string.Join(" ", new[]
     {

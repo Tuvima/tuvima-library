@@ -12,7 +12,6 @@
             @foreach (var day in Days)
             {
                 <span class="@("overview-heatmap__cell overview-heatmap__cell--" + day.Level + (day.InWindow ? string.Empty : " overview-heatmap__cell--outside"))"
-                      title="@(day.InWindow ? ProfileOverviewPresentation.DayLabel(day) : null)"
                       data-heatmap-date="@(day.InWindow ? day.Date.ToString("yyyy-MM-dd") : null)"
                       data-heatmap-level="@(day.InWindow ? day.Level : null)"></span>
             }

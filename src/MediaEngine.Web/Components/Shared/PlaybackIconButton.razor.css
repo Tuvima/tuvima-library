@@ -9,7 +9,7 @@
     align-items: center;
     background: transparent;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--tl-control-radius);
     box-sizing: border-box;
     color: var(--playback-text);
     cursor: pointer;
@@ -36,7 +36,7 @@
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active,
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled)[aria-pressed="true"],
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled)[aria-expanded="true"] {
-    background: var(--tl-accent-primary-soft);
+    background: var(--playback-state-selected);
     color: var(--tl-accent-primary-hover);
 }
 

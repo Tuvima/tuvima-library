@@ -388,7 +388,7 @@
         ShuffleEnabled: Playback.ShuffleEnabled,
         RepeatMode: Playback.RepeatMode,
         PlaybackRate: Playback.PlaybackRate,
-        HasChapters: Playback.IsAudiobookMode,
+        HasChapters: CurrentChapters.Count > 0,
         CanBookmark: Playback.IsAudiobookMode && Playback.CurrentItem?.AssetId is not null,
         IsSleepTimerActive: Playback.SleepTimerState.Mode != AudiobookSleepTimerModes.Off,
         HasQueue: Playback.HasQueue,

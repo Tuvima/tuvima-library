@@ -47,7 +47,7 @@
                 {
                     var issue = IssueFor(source);
                     <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
-                        <span class="lib-folders__path" title="@source.Path">@source.Path</span>
+                        <span class="lib-folders__path" data-overflow-tooltip="@source.Path">@source.Path</span>
                         <span class="lib-folders__state">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.ContentCopy"
                                        Tooltip="@L["LibraryFoldersPopover_CopyPath"].Value"

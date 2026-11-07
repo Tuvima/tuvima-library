@@ -2,7 +2,7 @@
    Three zones in a grid whose outer columns are equal, so Play is at the exact centre whatever the title or the tools take. */
 .playback-shell {
     background: var(--tl-bg-shell);
-    border-top: 1px solid var(--tl-border-default);
+    border-top: 1px solid var(--playback-hairline);
     box-sizing: border-box;
     color: var(--playback-text);
     font-family: var(--font-ui);
@@ -189,7 +189,7 @@
 }
 
 .playback-shell ::deep .playback-popover-trigger:not(:disabled):is([aria-expanded="true"], [aria-pressed="true"], .is-on) {
-    background: var(--tl-accent-primary-soft);
+    background: var(--playback-state-selected);
     border-color: transparent;
     color: var(--tl-accent-primary-hover);
 }
@@ -236,7 +236,8 @@
 .playback-shell__identity { min-width: 240px; }
 
 @media (max-width: 1180px) {
-    .playback-shell__tools { overflow-x: auto; scrollbar-width: none; }
+    /* The inner padding keeps the 2 px focus ring (2 px offset) inside the scroll box, which clips both axes. */
+    .playback-shell__tools { overflow-x: auto; scrollbar-width: none; padding: 4px; margin: -4px; }
     .playback-shell__tools::-webkit-scrollbar { display: none; }
 }
 

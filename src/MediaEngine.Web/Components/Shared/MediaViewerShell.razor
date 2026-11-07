@@ -121,7 +121,7 @@
                 </AppOverflowMenu>
             }
             @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
-            @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a> }
+            @if (Capabilities.CanDownload) { <AppTooltip Text="Download original"><a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a></AppTooltip> }
             @if (Capabilities.CanArchive) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
             @if (Capabilities.CanRestore) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
             @ContextActions

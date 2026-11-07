@@ -203,6 +203,8 @@
     --playback-state-hover-video: rgba(255, 255, 255, 0.12);
     --playback-state-pressed: rgba(255, 255, 255, 0.16);
     --playback-state-disabled-opacity: 0.38;
+    --playback-state-selected: rgba(136, 82, 252, 0.22);
+    --playback-hairline: rgba(255, 255, 255, 0.10);
     --playback-focus-ring-width: 2px;
     --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);
@@ -237,6 +239,7 @@
     --playback-panel-edge: 12px;
     --playback-panel-surface-video: color-mix(in srgb, var(--tl-bg-surface-elevated) 96%, transparent);
     --playback-panel-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    --playback-panel-title-size: 17px;
     --playback-popover-gap: 8px;
     --playback-popover-margin: 8px;
     --playback-tool-max-height: min(70dvh, 640px);
@@ -375,6 +378,19 @@
     --tl-control-height-compact: var(--tl-control-height-sm);
     --tl-control-height-normal: var(--tl-control-height-md);
     --tl-control-height-large: var(--tl-control-height-lg);
+    /* One icon button (Look v3 D9): icons 20 in the 36 px size, 24 in 44 and 48. */
+    --tl-icon-button-icon-sm: 20px;
+    --tl-icon-button-icon-lg: 24px;
+    --tl-scrim-soft: rgba(16, 17, 21, 0.55);
+    --tl-scrim-soft-strong: rgba(16, 17, 21, 0.72);
+    --tl-on-scrim: #FFFFFF;
+    /* The hero's one main button (Look v3 D12): light on any artwork, 56 px tall. */
+    --tl-hero-action-bg: #F5F7FB;
+    --tl-hero-action-bg-hover: #E3E6EC;
+    --tl-hero-action-text: #101115;
+    --tl-hero-action-height: 56px;
+    --tl-hero-action-label-size: 20px;
+    --tl-hero-action-icon-size: 24px;
     --tl-control-radius: 10px;
     --tl-control-padding-x: 12px;
     --tl-control-gap: 12px;

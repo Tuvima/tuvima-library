@@ -2,21 +2,40 @@
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 <span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="BlurAsync" @onfocusin="Show" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
-    <AppTooltip Text="@L["MediaRateControl_Rate"].Value"><AppNativeButton Type="button" Class="@(PlaybackAppearance ? "playback-song-action" : "hero-icon-circle")" AriaLabel="@L["MediaRateControl_Rate"].Value" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
-        @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" /> }
-        else { <AppMaterialIcon Icon="@(Positive ? AppMaterialIcons.Filled.ThumbUp : Negative ? AppMaterialIcons.Filled.ThumbDown : AppMaterialIcons.Outlined.ThumbUp)" /> }
-    </AppNativeButton></AppTooltip>
+    @if (PlaybackAppearance)
+    {
+        <AppTooltip Text="@L["MediaRateControl_Rate"].Value"><AppNativeButton Type="button" Class="playback-song-action" AriaLabel="@L["MediaRateControl_Rate"].Value" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
+            <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" />
+        </AppNativeButton></AppTooltip>
+    }
+    else
+    {
+        @* The shared icon button (Look v3 D9): Plain at rest, Filled once the title is rated. *@
+        <AppIconButton Class="hero-icon-circle" Tooltip="@L["MediaRateControl_Rate"].Value" Label="@Label" Size="@TriggerSize" ButtonStyle="@(Positive || Negative ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" OverArtwork="@OverArtwork" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
+            @if (UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" /> }
+            else { <AppMaterialIcon Icon="@(Positive ? AppMaterialIcons.Filled.ThumbUp : Negative ? AppMaterialIcons.Filled.ThumbDown : AppMaterialIcons.Outlined.ThumbUp)" /> }
+        </AppIconButton>
+    }
     <span class="media-rate-control__choices" role="menu" aria-label="@L["MediaRateControl_RateThisItem"].Value" inert="@(!_open)">
-        <AppTooltip Text="@L["MediaRateControl_NotForMe"].Value"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="@L["MediaRateControl_NotForMe"].Value" OnClick="@(() => SelectAsync(false))">
+        <AppIconButton Tooltip="@L["MediaRateControl_NotForMe"].Value" ButtonStyle="@(Negative ? AppButtonStyle.Filled : AppButtonStyle.Text)" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" OnClick="@(() => SelectAsync(false))">
             @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Dislike" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbDown" /> }
-        </AppNativeButton></AppTooltip>
-        <AppTooltip Text="@L["MediaRateControl_ILikeThis"].Value"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="@L["MediaRateControl_ILikeThis"].Value" OnClick="@(() => SelectAsync(true))">
+        </AppIconButton>
+        <AppIconButton Tooltip="@L["MediaRateControl_ILikeThis"].Value" ButtonStyle="@(Positive ? AppButtonStyle.Filled : AppButtonStyle.Text)" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" OnClick="@(() => SelectAsync(true))">
             @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Like" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbUp" /> }
-        </AppNativeButton></AppTooltip>
+        </AppIconButton>
     </span>
 </span>
 @code {
     [Parameter] public bool Bare { get; set; }
+
+    /// <summary>True over a cover or backdrop (the hero): the Plain button gets the soft scrim.</summary>
+    [Parameter] public bool OverArtwork { get; set; }
+
+    /// <summary>A short name under the button where the row has room.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>The trigger's size: Large (48) in the hero row, Normal (44) elsewhere.</summary>
+    [Parameter] public AppControlSize TriggerSize { get; set; } = AppControlSize.Normal;
     [Parameter] public bool PlaybackAppearance { get; set; }
     [Parameter] public bool UseUtilityGlyph { get; set; }
     [Parameter] public bool Positive { get; set; }

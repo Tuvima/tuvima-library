@@ -208,7 +208,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     public async Task AudioSceneUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
     {
         var api = EngineApiClientStub.CreateDefault();
-        var playback = CreatePlayback(CreateItem("Book", "Author") with { MediaType = "Audiobook" });
+        var bookAsset = Guid.NewGuid();
+        var playback = CreatePlayback(CreateItem("Book", "Author") with { MediaType = "Audiobook", Chapters = [new() { Index = 0, AssetId = bookAsset, Title = "One", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = bookAsset, Title = "Two", StartSeconds = 30, EndSeconds = 90 }] });
         AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.SwitchDeviceAsync("mobile");

@@ -26,19 +26,21 @@
         var name = source.DisplayName();
         <div class="@RowClass(source)" role="row" @key="source.Id">
             <div class="folder-table__folder" role="cell">
-                <span class="@HandlingIconClass(source)" role="img" aria-label="@HandlingTitle(source)" title="@HandlingTitle(source)">
+                <AppTooltip Text="@HandlingTitle(source)">
+                <span class="@HandlingIconClass(source)" role="img" aria-label="@HandlingTitle(source)">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                     @if (!managed)
                     {
                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Lock" Class="folder-table__lock" />
                     }
                 </span>
+                </AppTooltip>
                 <div class="folder-table__folder-text">
                     @if (Library.Sources.Count > 1)
                     {
                         <strong>@name</strong>
                     }
-                    <span class="folder-table__path" title="@source.Path">@source.Path</span>
+                    <span class="folder-table__path" data-overflow-tooltip="@source.Path">@source.Path</span>
                     <span class="folder-table__tag" data-handling="@(managed ? "managed" : "read_only")">@FolderHandlingWords.LabelFor(managed)</span>
                     @if (job is not null)
                     {

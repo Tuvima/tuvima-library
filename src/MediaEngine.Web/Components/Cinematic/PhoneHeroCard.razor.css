@@ -205,22 +205,6 @@
     margin-top: var(--tl-space-2, 0.5rem);
 }
 
-.phone-hero__primary-label,
-.phone-hero__primary-detail {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* The time or percent after the action word: quieter and allowed to shrink first, so the button is one line and never taller than the tap size. */
-.phone-hero__primary-detail {
-    flex: 0 1 auto;
-    font-size: var(--tl-font-size-sm, 0.9rem);
-    font-weight: 500;
-    opacity: 0.88;
-}
-
 .phone-hero__dots {
     display: flex;
     justify-content: center;

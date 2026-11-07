@@ -121,7 +121,7 @@
                 <span class="tl-rail__text"><small>@level.Label</small>@if (!isTile) {<span>@level.CurrentTitle</span>}</span>
                 @if (waiting > 0)
                 {
-                    <span class="tl-rail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"]" title="@L["EditorRail_ChangesWaiting"]"></span>
+                    <AppTooltip Text="@L["EditorRail_ChangesWaiting"]"><span class="tl-rail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"]"></span></AppTooltip>
                 }
                 @if (hasChoices)
                 {
@@ -180,7 +180,7 @@
                                     <span>@(string.IsNullOrWhiteSpace(option.Number) ? option.Title : $"{option.Number} · {option.Title}")</span>
                                     @if (!option.Matched)
                                     {
-                                        <small title="@option.Reason">@L["EditorRail_NotMatched"]</small>
+                                        <small>@L["EditorRail_NotMatched"]</small>
                                     }
                                 </span>
                                 @if (waiting > 0)
@@ -189,7 +189,7 @@
                                 }
                                 @if (option.Matched)
                                 {
-                                    <span class="tl-rail__mark tl-rail__mark--ok" title="@L["EditorFamily_Matched"]"><span aria-hidden="true">&#10003;</span><span class="sr-only">@L["EditorFamily_Matched"]</span></span>
+                                    <span class="tl-rail__mark tl-rail__mark--ok"><span aria-hidden="true">&#10003;</span><span class="sr-only">@L["EditorFamily_Matched"]</span></span>
                                 }
                                 else
                                 {

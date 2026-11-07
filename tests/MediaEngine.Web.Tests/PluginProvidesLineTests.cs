@@ -8,7 +8,11 @@ namespace MediaEngine.Web.Tests;
 /// <summary>"What it provides" (Plugins and Integrations screens v5 D53): each of the eleven kinds has its own icon, accent colour and sentence.</summary>
 public sealed class PluginProvidesLineTests : BunitContext
 {
-    public PluginProvidesLineTests() => Services.AddLocalization();
+    public PluginProvidesLineTests()
+    {
+        Services.AddLocalization();
+        JSInterop.Mode = JSRuntimeMode.Loose;
+    }
 
     private static PluginSummaryResponse PluginWithEveryKind() => new()
     {

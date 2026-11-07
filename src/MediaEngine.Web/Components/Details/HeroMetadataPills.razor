@@ -19,11 +19,11 @@
             {
                 @if (!string.IsNullOrWhiteSpace(entry.item.Route))
                 {
-                    <a class="@WatchStatClass(entry.item)" href="@entry.item.Route" title="@entry.item.Tooltip">@WatchStatContent(entry.item)</a>
+                    <a class="@WatchStatClass(entry.item)" href="@entry.item.Route">@WatchStatContent(entry.item)</a>
                 }
                 else
                 {
-                    <span class="@WatchStatClass(entry.item)" title="@entry.item.Tooltip">@WatchStatContent(entry.item)</span>
+                    <span class="@WatchStatClass(entry.item)">@WatchStatContent(entry.item)</span>
                 }
                 @if (entry.index < inlinePrimaryItems.Count - 1)
                 {
@@ -49,8 +49,8 @@
             <div class="tl-detail-metadata-row" aria-label="@L["HeroMetadataPills_MediaDetails"].Value">
                 @if (ShouldRenderHeroBrand)
                 {
+                    <AppTooltip Text="@HeroBrand!.Label" Suppressed="@string.IsNullOrWhiteSpace(HeroBrand.ImageUrl)">
                     <span class="@HeroBrandBadgeClass"
-                          title="@HeroBrand!.Label"
                           aria-label="@HeroBrand.Label">
                         @if (!string.IsNullOrWhiteSpace(HeroBrand.ImageUrl))
                         {
@@ -61,12 +61,13 @@
                             <span>@HeroBrand.Label</span>
                         }
                     </span>
+                    </AppTooltip>
                 }
                 @foreach (var item in statItems)
                 {
                     @if (!string.IsNullOrWhiteSpace(item.Route))
                     {
-                        <a class="@StatClass(item)" href="@item.Route" title="@item.Tooltip">
+                        <a class="@StatClass(item)" href="@item.Route">
                             <AppMaterialIcon Icon="@IconFor(item)" Size="AppSize.Small" />
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>
@@ -74,7 +75,7 @@
                     }
                     else
                     {
-                        <span class="@StatClass(item)" title="@item.Tooltip">
+                        <span class="@StatClass(item)">
                             <AppMaterialIcon Icon="@IconFor(item)" Size="AppSize.Small" />
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>

@@ -272,8 +272,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.NotEmpty(links);
         foreach (var link in links)
         {
-            var label = link.QuerySelector(".media-section-shell__tree-label")!.TextContent;
-            Assert.Equal(label, link.GetAttribute("title"));
+            var labelElement = link.QuerySelector(".media-section-shell__tree-label")!;
+            Assert.Equal(labelElement.TextContent, labelElement.GetAttribute("data-overflow-tooltip"));
         }
     }
 

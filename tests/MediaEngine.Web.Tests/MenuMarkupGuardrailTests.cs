@@ -13,7 +13,6 @@ public sealed class MenuMarkupGuardrailTests
         ["Components/Shared/AppRowMenu.razor"] = "The shared row menu (its phone sheet).",
         ["Components/Details/ManageActionsMenu.razor"] = "The shared details action list (icons, left-aligned, destructive last).",
         ["Components/Details/OverflowActionMenu.razor"] = "Phone bottom sheet of the details actions; keeps the sheet behaviour.",
-        ["Components/Cinematic/PhoneHeroCard.razor"] = "Phone bottom sheet of the hero actions; keeps the sheet behaviour.",
         ["Components/Navigation/TopNavAccountMenu.razor"] = "Account panel with a header and a secure-account card, not a plain action list.",
         ["Components/Shared/MediaRateControl.razor"] = "Two thumb icons that open on hover, not a text menu.",
         ["Components/Listen/SongActions.razor"] = "The player's song menu, a playback popover (Group E); it uses the shared menu items.",

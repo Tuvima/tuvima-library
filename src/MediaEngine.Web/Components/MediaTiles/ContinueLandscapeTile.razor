@@ -52,7 +52,7 @@
             <MediaTileActions Item="@Item" IsContinue="true" OnRemoveFromContinue="HideAsync" />
         </div>
         <div class="continue-tile__text">
-            <span class="continue-tile__title" title="@HeadingText">@HeadingText</span>
+            <span class="continue-tile__title" data-overflow-tooltip="@HeadingText">@HeadingText</span>
             @if (!string.IsNullOrWhiteSpace(Line))
             {
                 <span class="continue-tile__line">@Line</span>

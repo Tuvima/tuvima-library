@@ -339,7 +339,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
         Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
         Assert.Contains(".playback-seek-rail--dock { position:absolute", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
-        Assert.Contains("border-top: 1px solid var(--tl-border-default);", shellStyles, StringComparison.Ordinal);
+        Assert.Contains("border-top: 1px solid var(--playback-hairline);", shellStyles, StringComparison.Ordinal);
         Assert.Contains(".video-playback-restore {", videoStyles, StringComparison.Ordinal);
         Assert.Contains("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
         Assert.Contains("OwnedEpisodeQueuePlanner.NextPlayableCandidates", watchPlayer, StringComparison.Ordinal);

@@ -72,7 +72,7 @@ else
                 @foreach (var row in State.Listed)
                 {
                     <li class="upload-row" data-state="@StateName(row)" data-file="@row.Name">
-                        <span class="upload-row__name" title="@row.Name">@row.Name</span>
+                        <span class="upload-row__name" data-overflow-tooltip="@row.Name">@row.Name</span>
                         <span class="upload-row__actions">
                             @if (row.State is UploadRowState.Starting or UploadRowState.Uploading)
                             {

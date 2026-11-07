@@ -28,7 +28,6 @@ public sealed class PopupCardGuardrailTests
         ["Components/Browse/BrowseFilterSheet.razor"] = "Phone filter sheet (Clear left, Show right).",
         ["Components/Pages/ViewDocumentsPage.razor"] = "Phone view-options sheet.",
         ["Components/Navigation/PhoneNavigationMenu.razor"] = "Phone navigation sheet.",
-        ["Components/Cinematic/PhoneHeroCard.razor"] = "Phone hero actions sheet.",
         ["Components/Details/OverflowActionMenu.razor"] = "Phone details actions sheet.",
         // Editors (Group C): their layout belongs to the edit panels work; they use the shared close prompt.
         ["Components/Profiles/ProfileEditorSheet.razor"] = "Profile editor sheet.",
