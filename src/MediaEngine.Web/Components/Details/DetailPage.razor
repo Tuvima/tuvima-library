@@ -316,7 +316,12 @@ else if (Model is not null)
         }
     }
 
-    private static string? ScopeFor(EditTrailItem item) => EditTrailKinds.ScopeOf(item.Kind);
+    // A folder of videos lists its sections and videos in the show's places, but its editor scopes are Series, Section and Video.
+    private string? ScopeFor(EditTrailItem item) => EditTrailKinds.ScopeOf(
+        item.Kind,
+        VideoFolderWording.IsVideoFolderList(Model?.SequencePlacement?.ContainerLabel, Model?.SequencePlacement?.ItemLabel)
+            ? VideoFolderWording.FolderMediaType
+            : null);
 
     private async Task LoadOtherItemFieldsAsync(EditTrailItem item)
     {

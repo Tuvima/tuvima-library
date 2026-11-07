@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Details;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -20,10 +21,18 @@ public static class EditTrailKinds
     public const string Thing = "Thing";
 
     /// <summary>The editor scope that edits an item of this kind (null for a kind with its own editor, such as a person).</summary>
-    public static string? ScopeOf(string kind) => kind switch
+    public static string? ScopeOf(string kind) => ScopeOf(kind, null);
+
+    /// <summary>
+    /// The editor scope that edits an item of this kind in a library of this media type. A folder of videos keeps the trail's Show, Season
+    /// and Episode places but its scopes are named Series, Section and Video, so the id of the item asked for is the id of its scope.
+    /// </summary>
+    public static string? ScopeOf(string kind, string? mediaType) => kind switch
     {
         Show => "series",
+        Season when VideoFolderWording.IsVideoFolderMediaType(mediaType) => "section",
         Season => "season",
+        Episode when VideoFolderWording.IsVideoFolderMediaType(mediaType) => "video",
         Episode => "episode",
         Album => "album",
         Track => "track",

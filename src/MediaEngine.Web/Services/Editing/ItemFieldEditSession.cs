@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using Microsoft.Extensions.Logging;
@@ -67,6 +68,7 @@ public sealed class ItemFieldEditSession
 
             var tv = string.Equals(_context.MediaType, "TV", StringComparison.OrdinalIgnoreCase);
             var music = string.Equals(_context.MediaType, "Music", StringComparison.OrdinalIgnoreCase);
+            var videos = VideoFolderWording.IsVideoFolderMediaType(_context.MediaType);
             return _context.Scopes
                 .OrderBy(scope => scope.Order)
                 .Select(scope => (Scope: scope, Kind: scope.ScopeId.ToLowerInvariant() switch
@@ -74,6 +76,10 @@ public sealed class ItemFieldEditSession
                     "series" when tv => EditTrailKinds.Show,
                     "season" when tv => EditTrailKinds.Season,
                     "episode" when tv => EditTrailKinds.Episode,
+                    // A folder of videos sits in the same trail as a show: Series, Section and Video take the places of Show, Season and Episode.
+                    "series" when videos => EditTrailKinds.Show,
+                    "section" when videos => EditTrailKinds.Season,
+                    "video" when videos => EditTrailKinds.Episode,
                     "album" when music => EditTrailKinds.Album,
                     "track" when music => EditTrailKinds.Track,
                     _ => null,
@@ -191,7 +197,12 @@ public sealed class ItemFieldEditSession
 
             var scopeId = !string.IsNullOrWhiteSpace(initialScope) ? initialScope : _context.InitialScope;
             var scopes = _context.Scopes.OrderBy(scope => scope.Order).ToList();
+            // The scope asked for may not exist for this kind of item (a folder of videos has Series, Section and Video where a show has
+            // Show, Season and Episode). The item asked for is then the scope whose fields are staged under that very id, and only after
+            // that the Engine's own choice: the editor never silently opens a parent instead of the item.
             _scope = scopes.FirstOrDefault(scope => string.Equals(scope.ScopeId, scopeId, StringComparison.OrdinalIgnoreCase))
+                     ?? scopes.FirstOrDefault(scope => scope.FieldEntityId == editorEntityId)
+                     ?? scopes.FirstOrDefault(scope => string.Equals(scope.ScopeId, _context.InitialScope, StringComparison.OrdinalIgnoreCase))
                      ?? scopes.FirstOrDefault();
 
             _preferences = null;
