@@ -77,7 +77,7 @@
                        State="@BarState" Identity="@BarIdentity" ErrorText="@Playback.CurrentError"
                        ArtworkSrc="@BarArtwork.Src" ArtworkSrcSet="@BarArtwork.SrcSet"
                        ArtworkAlt="@Playback.CurrentItem.Title" ArtworkDisplay="audio-dock-thumbnail"
-                       ArtworkClick="OpenNowPlaying" ArtworkLabel="@(IsDesktopNowPlaying ? "Close Now Playing" : "Open Now Playing")"
+                       ArtworkClick="OpenNowPlaying" ArtworkLabel="@(IsNowPlayingPage ? L["ListenNowPlayingBar_CloseNowPlaying"].Value : L["ListenNowPlayingBar_OpenNowPlaying"].Value)"
                        PlayButtonAttributes="@PlayButtonAttributes"
                        Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))"
                        VolumeSupported="@Playback.SoftwareVolumeSupported" VolumeStep="@VolumeStep"
@@ -133,7 +133,7 @@
                         {
                             @* On the Now playing page the lyrics are a tab of the page, so this tool only selects it. *@
                             <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
-                                            Inline="true" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" />
+                                            Inline="true" IsSelected="@(PressedInlineKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" />
                         }
                         else
                         {
@@ -143,14 +143,14 @@
                         break;
                     case PlaybackControlKey.Queue:
                         <ListenDockTool PanelKey="queue" Title="@L["Common_Queue"].Value" ListPanel="true" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
-                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
+                                        Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
                             <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" />
                         </ListenDockTool>
                         break;
                     case PlaybackControlKey.Chapters:
                         <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? L["Common_Chapters"].Value : "History")" ListPanel="@HasUsableChapters"
                                         Glyph="@(HasUsableChapters ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.History)"
-                                        ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
+                                        ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
                             <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" />
                         </ListenDockTool>
                         break;
@@ -262,6 +262,9 @@
     // Now playing on a desktop is the routed page (unified player v2 D24); its tabs are chosen by the bar's Lyrics, Queue and Chapters tools too.
     private bool IsNowPlayingPage => NowPlayingRoute.IsNowPlaying(RoutedPageAddress.AbsoluteFor(Nav, Overlay));
     private bool IsDesktopNowPlaying => IsNowPlayingPage && !IsPhonePresentation;
+    // While the Now playing page is open the bar follows the page's tab: a tool is pressed only for the tab the page shows, and none is pressed when the
+    // page opens on its default tab or shows About (mockup screen 13 presses only Now playing).
+    private string? PressedInlineKey => IsDesktopNowPlaying ? AudioSidebar.NowPlayingTab : InlinePanelKey;
     private string InlinePanelKey => Playback.IsAudiobookMode && !HasUsableChapters ? "history" : AudioSidebar.For(Playback).ActivePanelKey ?? (Playback.IsAudiobookMode ? "chapters" : "queue");
     private void ObserveLyricsPresentation()
     {
@@ -601,6 +604,8 @@
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;
+        _launcher = Services.GetService<NowPlayingLauncher>();
+        if (_launcher is not null) _launcher.Requested += HandleNowPlayingRequested;
         Playback.TransportCommandRequested += HandleTransportCommandAsync;
         Playback.SleepTimerNativeArmRequested += BindNativeSleepTimerAsync;
         Playback.SleepTimerPauseRequested += PauseNativeSleepTimerAsync;
@@ -1612,6 +1617,16 @@
             && Tools?.IsPinnedFor("audio-queue") != true && Tools?.IsPinnedFor("audio-chapters") != true) Tools?.Close();
     }
 
+    private NowPlayingLauncher? _launcher;
+
+    // The navbar icon asks the bar, which alone knows whether it is drawn for a phone: a phone toggles its expanded player, a desktop opens or leaves the page.
+    private void HandleNowPlayingRequested() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || !Playback.HasQueue || Playback.IsVideoMode) return;
+        if (IsPhonePresentation && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying) await CloseNowPlaying();
+        else await OpenNowPlaying();
+    });
+
     private async Task OpenNowPlaying()
     {
         Tools?.Close(); CloseSettingsMenu();
@@ -1714,7 +1729,7 @@
         Tools?.Close(); CloseSettingsMenu();
         Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
         // Leaving the page is going back to where the person came from; playback keeps going.
-        if (IsNowPlayingPage) Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav));
+        if (IsNowPlayingPage) Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav, Overlay));
         ReturnToDetailsAfterNowPlaying();
         if (_shell?.ArtworkElement is { } artwork) await artwork.FocusAsync();
     }
@@ -2107,6 +2122,7 @@
         Playback.SetTransportHostNotReady();
         Playback.Changed -= HandlePlaybackChanged;
         AudioSidebar.Changed -= HandleAudioPanelChanged;
+        if (_launcher is not null) _launcher.Requested -= HandleNowPlayingRequested;
         Playback.TransportCommandRequested -= HandleTransportCommandAsync;
         Playback.SleepTimerNativeArmRequested -= BindNativeSleepTimerAsync;
         Playback.SleepTimerPauseRequested -= PauseNativeSleepTimerAsync;

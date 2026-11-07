@@ -11494,10 +11494,16 @@
     <value>About</value>
   </data>
   <data name="NowPlayingPage_By" xml:space="preserve">
-    <value>By</value>
+    <value>By {0}</value>
   </data>
   <data name="NowPlayingPage_NarratedBy" xml:space="preserve">
-    <value>Narrated by</value>
+    <value>Narrated by {0}</value>
+  </data>
+  <data name="ListenNowPlayingBar_OpenNowPlaying" xml:space="preserve">
+    <value>Open Now Playing</value>
+  </data>
+  <data name="ListenNowPlayingBar_CloseNowPlaying" xml:space="preserve">
+    <value>Close Now Playing</value>
   </data>
   <data name="NowPlayingPage_ChapterOf" xml:space="preserve">
     <value>Chapter {0} of {1}</value>

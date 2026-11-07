@@ -124,14 +124,12 @@
 
 .np__tabs-row {
     align-items: center;
+    border-bottom: 1px solid var(--tl-border-default);
     display: flex;
     flex: none;
     gap: 8px;
 }
 
-.np__tabs-row > :first-child {
-    flex: 1;
-}
 
 .np__panel {
     display: flex;
@@ -178,6 +176,7 @@
 
 .np__empty {
     color: var(--playback-text-secondary);
+    font: inherit;
     margin: 0;
     padding: 24px 48px;
 }

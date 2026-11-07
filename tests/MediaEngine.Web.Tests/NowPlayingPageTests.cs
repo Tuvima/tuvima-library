@@ -235,14 +235,16 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         navigation.NavigateTo("/listen/music");
         const string tool = "[data-playback-zone='tools'] button[aria-label='Now playing']";
         Assert.DoesNotContain("is-selected", bar.Find(tool).ClassName);
-        Assert.Equal("false", bar.Find(tool).GetAttribute("aria-expanded"));
+        Assert.Equal("false", bar.Find(tool).GetAttribute("aria-pressed"));
 
         await bar.Find(tool).ClickAsync();
 
+        // The page is a place, not a popup: the tool is pressed and does not claim to expand anything.
         bar.WaitForAssertion(() =>
         {
             Assert.Contains("is-selected", bar.Find(tool).ClassName);
-            Assert.Equal("true", bar.Find(tool).GetAttribute("aria-expanded"));
+            Assert.Equal("true", bar.Find(tool).GetAttribute("aria-pressed"));
+            Assert.Null(bar.Find(tool).GetAttribute("aria-expanded"));
         });
 
         await bar.Find(tool).ClickAsync();
@@ -376,8 +378,287 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
     {
         var uri = new Uri(navigation.Uri);
         Assert.Equal(NowPlayingRoute.Path, uri.AbsolutePath);
-        Assert.Equal(cameFrom, NowPlayingRoute.ReturnTarget(navigation));
+        Assert.Equal(cameFrom, NowPlayingRoute.ReturnTarget(navigation, null));
         navigation.NavigateTo(cameFrom);
+    }
+
+    // ---- The bar follows the page's tab ----
+
+    private const string LyricsTool = "[data-playback-zone='tools'] button[aria-label='Lyrics']";
+    private const string QueueTool = "[data-playback-zone='tools'] button[aria-label='Queue']";
+    private const string ChaptersTool = "[data-playback-zone='tools'] button[aria-label='Chapters']";
+    private const string NowPlayingTool = "[data-playback-zone='tools'] button[aria-label='Now playing']";
+
+    [Fact]
+    public async Task WhenThePageOpensOnLyricsOnlyTheNowPlayingToolIsPressedAndNotTheQueueTool()
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        navigation.NavigateTo("/listen/music");
+
+        await bar.InvokeAsync(() => navigation.NavigateTo(NowPlayingRoute.Build("/listen/music")));
+        var page = Render<NowPlayingPage>();
+
+        Assert.Equal("lyrics", page.Find("[data-now-playing-panel]").GetAttribute("data-now-playing-panel"));
+        bar.WaitForAssertion(() => Assert.Equal("true", bar.Find(NowPlayingTool).GetAttribute("aria-pressed")));
+        Assert.Equal("false", bar.Find(QueueTool).GetAttribute("aria-pressed"));
+        Assert.DoesNotContain("is-selected", bar.Find(QueueTool).ClassName);
+        Assert.DoesNotContain("is-selected", bar.Find(LyricsTool).ClassName);
+    }
+
+    [Fact]
+    public async Task ChoosingATabOnThePagePressesThatToolInTheBarAndOnlyThatOne()
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        navigation.NavigateTo("/listen/music");
+        await bar.InvokeAsync(() => navigation.NavigateTo(NowPlayingRoute.Build("/listen/music")));
+        var page = Render<NowPlayingPage>();
+
+        await page.Find("[role='tab'][data-playback-list-tab='queue']").ClickAsync();
+
+        bar.WaitForAssertion(() =>
+        {
+            Assert.Equal("true", bar.Find(QueueTool).GetAttribute("aria-pressed"));
+            Assert.Equal("false", bar.Find(LyricsTool).GetAttribute("aria-pressed"));
+            Assert.Equal("true", bar.Find(NowPlayingTool).GetAttribute("aria-pressed"));
+        });
+
+        await page.Find("[role='tab'][data-playback-list-tab='lyrics']").ClickAsync();
+
+        bar.WaitForAssertion(() =>
+        {
+            Assert.Equal("true", bar.Find(LyricsTool).GetAttribute("aria-pressed"));
+            Assert.Equal("false", bar.Find(QueueTool).GetAttribute("aria-pressed"));
+        });
+    }
+
+    [Fact]
+    public async Task OnTheAudiobookPageTheChaptersToolIsPressedOnlyWhileTheChaptersTabShowsAndNeverForAbout()
+    {
+        var asset = Guid.NewGuid();
+        AddServices(Book("The Way Beyond", asset, position: 100), audiobook: true, position: 100, duration: 240);
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        navigation.NavigateTo("/listen/audiobooks");
+        await bar.InvokeAsync(() => navigation.NavigateTo(NowPlayingRoute.Build("/listen/audiobooks")));
+        var page = Render<NowPlayingPage>();
+        bar.WaitForAssertion(() => Assert.Equal("true", bar.Find(NowPlayingTool).GetAttribute("aria-pressed")));
+
+        // Opening on Chapters: the page shows Chapters, but nothing was chosen yet, so only Now playing is pressed.
+        Assert.Equal("chapters", page.Find("[data-now-playing-panel]").GetAttribute("data-now-playing-panel"));
+        Assert.Equal("false", bar.Find(ChaptersTool).GetAttribute("aria-pressed"));
+
+        await page.Find("[role='tab'][data-playback-list-tab='about']").ClickAsync();
+        bar.WaitForAssertion(() => Assert.Equal("false", bar.Find(ChaptersTool).GetAttribute("aria-pressed")));
+        Assert.Equal("true", bar.Find(NowPlayingTool).GetAttribute("aria-pressed"));
+
+        await page.Find("[role='tab'][data-playback-list-tab='chapters']").ClickAsync();
+        bar.WaitForAssertion(() => Assert.Equal("true", bar.Find(ChaptersTool).GetAttribute("aria-pressed")));
+    }
+
+    [Fact]
+    public async Task LeavingThePageReleasesTheBarsTabTools()
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        navigation.NavigateTo("/listen/music");
+        await bar.InvokeAsync(() => navigation.NavigateTo(NowPlayingRoute.Build("/listen/music")));
+        var page = Render<NowPlayingPage>();
+        await page.Find("[role='tab'][data-playback-list-tab='queue']").ClickAsync();
+        bar.WaitForAssertion(() => Assert.Equal("true", bar.Find(QueueTool).GetAttribute("aria-pressed")));
+
+        // Leaving the address removes the page from the screen, which disposes it.
+        await page.InvokeAsync(() => ((IDisposable)page.Instance).Dispose());
+
+        Assert.Null(Services.GetRequiredService<ListenContextSidebarState>().NowPlayingTab);
+        bar.WaitForAssertion(() => Assert.Equal("false", bar.Find(QueueTool).GetAttribute("aria-pressed")));
+    }
+
+    // ---- A details window on top of the page ----
+
+    [Fact]
+    public async Task PressingTheNowPlayingToolUnderAnOpenDetailsWindowReturnsToThePageBeforeNowPlaying()
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/listen/music");
+        var overlay = NewOverlay(navigation);
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>(parameters => parameters.AddCascadingValue(overlay));
+        await bar.InvokeAsync(() => navigation.NavigateTo(NowPlayingRoute.Build("/listen/music")));
+        bar.WaitForAssertion(() => Assert.Equal("true", bar.Find(NowPlayingTool).GetAttribute("aria-pressed")));
+
+        // The artist's details open as a window over the Now playing page; the address bar now names the artist, not the page.
+        await bar.InvokeAsync(() => navigation.NavigateTo($"/details/person/{Guid.NewGuid():D}"));
+        Assert.True(overlay.IsOpen);
+        bar.WaitForAssertion(() => Assert.Equal("true", bar.Find(NowPlayingTool).GetAttribute("aria-pressed")));
+
+        await bar.Find(NowPlayingTool).ClickAsync();
+
+        bar.WaitForAssertion(() => Assert.Equal("/listen/music", new Uri(navigation.Uri).AbsolutePath));
+    }
+
+    [Fact]
+    public async Task ThePagesCloseUnderAnOpenDetailsWindowGoesToThePageBeforeNowPlayingNotToTheArtist()
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/listen/music");
+        var overlay = NewOverlay(navigation);
+        navigation.NavigateTo(NowPlayingRoute.Build("/listen/music"));
+        var page = Render<NowPlayingPage>(parameters => parameters.AddCascadingValue(overlay));
+        navigation.NavigateTo($"/details/person/{Guid.NewGuid():D}");
+        Assert.True(overlay.IsOpen);
+
+        await page.Find("[data-now-playing-close]").ClickAsync();
+
+        Assert.Equal("/listen/music", new Uri(navigation.Uri).AbsolutePath);
+    }
+
+    [Fact]
+    public void WhenPlaybackEndsUnderAnOpenDetailsWindowThePageLeavesOnlyAfterTheWindowCloses()
+    {
+        var playback = AddServices(Song("Current", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/listen/music");
+        var overlay = NewOverlay(navigation);
+        navigation.NavigateTo(NowPlayingRoute.Build("/listen/music"));
+        var page = Render<NowPlayingPage>(parameters => parameters.AddCascadingValue(overlay));
+        var details = $"/details/person/{Guid.NewGuid():D}";
+        navigation.NavigateTo(details);
+        Assert.True(overlay.IsOpen);
+
+        page.InvokeAsync(playback.ClosePlayer);
+
+        // The details window stays; the page shows its empty state in the meantime.
+        Assert.Equal(details, new Uri(navigation.Uri).AbsolutePath);
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("[data-now-playing-empty]")));
+
+        navigation.NavigateTo(NowPlayingRoute.Build("/listen/music"));
+
+        page.WaitForAssertion(() => Assert.Equal("/listen/music", new Uri(navigation.Uri).AbsolutePath));
+    }
+
+    // ---- The navbar icon uses the bar's own rule ----
+
+    [Fact]
+    public async Task TheNavbarIconOnANarrowBarViewportTogglesThePhoneNowPlayingSurfaceInsteadOfTheDesktopPage()
+    {
+        var playback = AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        var navbar = Render<NowPlayingNavButton>();
+        navigation.NavigateTo("/listen/music");
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(390));
+
+        await navbar.Find("button").ClickAsync();
+
+        bar.WaitForAssertion(() => Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface));
+        Assert.Equal("/listen/music", new Uri(navigation.Uri).AbsolutePath);
+    }
+
+    [Fact]
+    public async Task TheNavbarIconRunsTheBarsStaleOverlayResetWhenItOpensThePage()
+    {
+        var playback = AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<AppPopoverHost>();
+        var bar = Render<ListenNowPlayingBar>();
+        var navbar = Render<NowPlayingNavButton>();
+        navigation.NavigateTo("/listen/music");
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(390));
+        await bar.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        await bar.InvokeAsync(() => bar.Instance.SetAudioPresentationViewport(1280));
+
+        await navbar.Find("button").ClickAsync();
+
+        // A phone overlay left over from a narrower window is dropped as the page opens.
+        bar.WaitForAssertion(() => Assert.Equal(NowPlayingRoute.Path, new Uri(navigation.Uri).AbsolutePath));
+        Assert.NotEqual(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+    }
+
+    // ---- Small page details ----
+
+    [Fact]
+    public void WhenNothingIsPlayingThePageShowsItsEmptyStateAsAHeadingThatCanTakeFocus()
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPreferences(Guid.NewGuid()));
+        Services.AddSingleton(api);
+        Services.AddSingleton(playback);
+        Services.AddSingleton(new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<IPlaybackCommandSink>(provider => new DirectPlaybackCommandSink(new ListenPlaybackCommandOwner(provider, playback)));
+        Services.AddSingleton(new PlaybackLyricsPresenter(api));
+        Services.AddSingleton(new PlaybackLyricsSelectionOwner(playback, api));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new TestPreferences(Guid.NewGuid()));
+
+        var cut = Render<NowPlayingPage>();
+
+        var empty = cut.Find("h1[data-now-playing-empty]");
+        Assert.Equal("-1", empty.GetAttribute("tabindex"));
+        Assert.Single(cut.FindAll("[data-now-playing-back]"));
+    }
+
+    [Fact]
+    public void TheByLinesComeFromFormatStringsWithThePeopleInPlaceOfTheNumberSlot()
+    {
+        var asset = Guid.NewGuid();
+        AddServices(Book("The Way Beyond", asset, position: 100), audiobook: true, position: 100, duration: 240);
+
+        var cut = Render<NowPlayingPage>();
+
+        Assert.Equal("By Maya Ellis", cut.Find("[data-now-playing-authors]").TextContent.Trim());
+        Assert.Equal("Narrated by Sam Rowe", cut.Find("[data-now-playing-narrators]").TextContent.Trim());
+        var resx = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
+        Assert.Contains("<value>By {0}</value>", resx, StringComparison.Ordinal);
+        Assert.Contains("<value>Narrated by {0}</value>", resx, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheBarsOpenAndCloseNowPlayingLabelsLiveInTheSharedStrings()
+    {
+        var resx = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
+        var bar = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
+
+        Assert.Contains("name=\"ListenNowPlayingBar_OpenNowPlaying\"", resx, StringComparison.Ordinal);
+        Assert.Contains("name=\"ListenNowPlayingBar_CloseNowPlaying\"", resx, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Open Now Playing\"", bar, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Close Now Playing\"", bar, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheCoverStartsItsRetriesAgainWhenTheSongChanges()
+    {
+        var playback = AddServices(Song("First", "Artist"), Song("Second", "Artist"));
+        var cut = Render<NowPlayingPage>();
+        await cut.Find("[data-now-playing-cover] img").TriggerEventAsync("onerror", new Microsoft.AspNetCore.Components.Web.ErrorEventArgs());
+        cut.WaitForAssertion(() => Assert.Contains("retry=1", cut.Find("[data-now-playing-cover] img").GetAttribute("src")), TimeSpan.FromSeconds(5));
+
+        await cut.InvokeAsync(() => playback.RestoreState(new ListenPlaybackSnapshot
+        {
+            ProfileId = Services.GetRequiredService<IUserPlaybackPreferencesAccessor>().ActiveProfileId!.Value,
+            Queue = [.. playback.Queue],
+            CurrentIndex = 1,
+            Experience = PlayerExperienceModes.Music,
+            DurationSeconds = 200,
+            IsPlaying = true,
+            PlaybackRequestVersion = 2,
+        }));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Second", cut.Find("h1").TextContent);
+            Assert.DoesNotContain("retry=", cut.Find("[data-now-playing-cover] img").GetAttribute("src"));
+        });
     }
 
     // ---- Setup ----
@@ -445,6 +726,7 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         Services.AddSingleton(api);
         Services.AddSingleton(playback);
         Services.AddSingleton(new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<NowPlayingLauncher>();
         Services.AddSingleton(new PlaybackLyricsPresenter(api));
         Services.AddSingleton(new PlaybackLyricsSelectionOwner(playback, api));
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new TestPreferences(profileId));
@@ -475,6 +757,19 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         }
 
         return directory?.FullName ?? throw new DirectoryNotFoundException("The repository root was not found.");
+    }
+
+    // The page under a details window must be one the overlay has seen, as it is in the running app.
+    private static DetailsOverlayState NewOverlay(NavigationManager navigation)
+    {
+        var overlay = new DetailsOverlayState(navigation, new NoHistory());
+        overlay.RememberPage(NowPlayingRoute.Path, new Microsoft.AspNetCore.Components.RouteData(typeof(NowPlayingPage), new Dictionary<string, object?>()));
+        return overlay;
+    }
+
+    private sealed class NoHistory : IDetailsOverlayHistory
+    {
+        public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
     }
 
     private sealed class MemorySidebarPreferences : IContextSidebarPreferences

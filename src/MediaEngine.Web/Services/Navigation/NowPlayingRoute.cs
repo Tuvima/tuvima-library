@@ -72,10 +72,12 @@ public static class NowPlayingRoute
         return candidate;
     }
 
-    /// <summary>The page to go back to, read from the current address.</summary>
-    public static string ReturnTarget(NavigationManager navigation)
+    /// <summary>
+    /// The page to go back to, read from the address of the routed page: under an open details window that is the page beneath it, not the window's own address.
+    /// </summary>
+    public static string ReturnTarget(NavigationManager navigation, DetailsOverlayState? overlay)
     {
-        var uri = navigation.ToAbsoluteUri(navigation.Uri);
+        var uri = new Uri(RoutedPageAddress.AbsoluteFor(navigation, overlay));
         foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
             var split = pair.IndexOf('=', StringComparison.Ordinal);

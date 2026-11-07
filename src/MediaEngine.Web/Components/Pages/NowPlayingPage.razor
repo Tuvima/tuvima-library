@@ -29,7 +29,7 @@
     </div>
     @if (Current is not { } item)
     {
-        <p class="np__empty" role="status" data-now-playing-empty>@L["Listen_NothingPlaying"]</p>
+        <h1 class="np__empty" tabindex="-1" data-now-playing-empty>@L["Listen_NothingPlaying"]</h1>
     }
     else
     {
@@ -48,10 +48,10 @@
                     <h1 class="np__title">@item.Title</h1>
                     @if (IsBook)
                     {
-                        <p class="np__line" data-now-playing-authors>@L["NowPlayingPage_By"] @Contributors(snapshot, item.Authors, item.AuthorName ?? item.Subtitle)</p>
+                        <p class="np__line" data-now-playing-authors>@Labeled(L["NowPlayingPage_By"].Value, Contributors(snapshot, item.Authors, item.AuthorName ?? item.Subtitle))</p>
                         @if (item.Narrators.Count > 0 || !string.IsNullOrWhiteSpace(item.NarratorName))
                         {
-                            <p class="np__line" data-now-playing-narrators>@L["NowPlayingPage_NarratedBy"] @Contributors(snapshot, item.Narrators, item.NarratorName)</p>
+                            <p class="np__line" data-now-playing-narrators>@Labeled(L["NowPlayingPage_NarratedBy"].Value, Contributors(snapshot, item.Narrators, item.NarratorName))</p>
                         }
                         @if (ChapterLine is { } chapterLine)
                         {
@@ -79,7 +79,7 @@
             </div>
             <div class="np__tabs-column">
                 <div class="np__tabs-row">
-                    <PlaybackListTabs Tabs="@Tabs" Active="@ActiveTab" ActiveChanged="SelectTabAsync" AriaLabel="@L["NowPlayingPage_Sections"].Value" IdPrefix="np" />
+                    <PlaybackListTabs Tabs="@Tabs" Active="@ActiveTab" ActiveChanged="SelectTabAsync" AriaLabel="@L["NowPlayingPage_Sections"].Value" IdPrefix="np" Flush="true" />
                     @if (ActiveTab == LyricsTab)
                     {
                         <PlaybackLyricsChip />
@@ -135,9 +135,13 @@
     private const string ChaptersTab = "chapters";
     private const string AboutTab = "about";
 
+    // The page under an open details window counts as the routed page while it is open.
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private string? _chosenTab;
     private long _lastInteraction;
     private bool _hadItem;
+    private bool _leavePending;
     private bool _disposed;
     private Guid _artItemKey;
     private int _artAttempt;
@@ -182,9 +186,13 @@
         _lastChapterNumber = ChapterNow?.Number ?? -1;
         Playback.Changed += OnPlaybackChanged;
         AudioSidebar.Changed += OnSidebarChanged;
+        if (Overlay is not null) Overlay.Changed += OnOverlayChanged;
     }
 
-    protected override void OnParametersSet()
+    protected override void OnParametersSet() => ResetArtworkForNewItem();
+
+    // A new song or book starts its cover with a fresh retry count.
+    private void ResetArtworkForNewItem()
     {
         var key = Current?.WorkId ?? Guid.Empty;
         if (key == _artItemKey) return;
@@ -205,9 +213,22 @@
         _ = InvokeAsync(() =>
         {
             if (_disposed) return;
-            // The bar's Close (or a video taking over) ends what this page shows: go back to where the person came from.
-            if (Current is null && _hadItem) { Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav)); return; }
-            _hadItem = Current is not null;
+            ResetArtworkForNewItem();
+            // The bar's Close (or a video taking over) ends what this page shows: go back to where the person came from, unless a details window is open on
+            // top, which must stay open; then the page waits for it to close.
+            if (Current is null && _hadItem)
+            {
+                _hadItem = false;
+                _leavePending = true;
+                LeaveIfNothingIsPlaying();
+                if (_disposed) return;
+            }
+            else if (Current is not null)
+            {
+                _hadItem = true;
+                _leavePending = false;
+            }
+            SyncBarTab();
             StateHasChanged();
         });
     }
@@ -220,20 +241,35 @@
         {
             _lastInteraction = AudioSidebar.InteractionGeneration;
             if (AudioSidebar.For(Playback).ActivePanelKey is { } key) _chosenTab = key;
+            SyncBarTab();
         }
         _ = InvokeAsync(StateHasChanged);
     }
 
+    private void LeaveIfNothingIsPlaying()
+    {
+        if (!_leavePending || Current is not null || Overlay is { IsOpen: true }) return;
+        _leavePending = false;
+        Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav, Overlay));
+    }
+
+    // A pending leave waits for the details window to close.
+    private void OnOverlayChanged() => _ = InvokeAsync(() => { if (!_disposed) LeaveIfNothingIsPlaying(); });
+
+    // The bar presses a tool only for the tab this page shows once a tab was chosen (and none for About).
+    private void SyncBarTab() => AudioSidebar.SetNowPlayingTab(Tabs.Any(tab => tab.Key == _chosenTab) && _chosenTab != AboutTab ? _chosenTab : null);
+
     private async Task SelectTabAsync(string key)
     {
         _chosenTab = key;
+        SyncBarTab();
         // The tab is remembered with the bar's own tools; About is only a part of this page.
         if (key != AboutTab) await AudioSidebar.OpenPanelAsync(SidebarContext, key);
     }
 
     private Task LeaveAsync()
     {
-        Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav));
+        Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav, Overlay));
         return Task.CompletedTask;
     }
 
@@ -249,6 +285,21 @@
 
     private static string? AlbumYear(ListenQueueItem item) =>
         string.Join(" · ", new[] { item.Album, item.Year }.Where(part => !string.IsNullOrWhiteSpace(part))) is { Length: > 0 } text ? text : null;
+
+    // "By {0}" and "Narrated by {0}" are format strings; the people (some of them links) fill {0}.
+    private static RenderFragment Labeled(string format, RenderFragment people) => builder =>
+    {
+        var split = format.IndexOf("{0}", StringComparison.Ordinal);
+        if (split < 0)
+        {
+            builder.AddContent(0, format);
+            builder.AddContent(1, people);
+            return;
+        }
+        builder.AddContent(0, format[..split]);
+        builder.AddContent(1, people);
+        builder.AddContent(2, format[(split + 3)..]);
+    };
 
     private RenderFragment Contributors(ListenPlaybackSnapshot snapshot, IReadOnlyList<PlaybackContributorIdentity> people, string? fallback) => builder =>
     {
@@ -302,5 +353,7 @@
         _disposed = true;
         Playback.Changed -= OnPlaybackChanged;
         AudioSidebar.Changed -= OnSidebarChanged;
+        if (Overlay is not null) Overlay.Changed -= OnOverlayChanged;
+        AudioSidebar.SetNowPlayingTab(null);
     }
 }
