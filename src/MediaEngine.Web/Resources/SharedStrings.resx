@@ -7884,21 +7884,6 @@
   <data name="VideoPlaybackHost_SeasonN" xml:space="preserve">
     <value>Season {0}</value>
   </data>
-  <data name="PlayerSettings_PreviewLine" xml:space="preserve">
-    <value>Subtitles will appear like this</value>
-  </data>
-  <data name="PlayerSettings_Reset" xml:space="preserve">
-    <value>Reset</value>
-  </data>
-  <data name="VideoPlaybackHost_TurnSubtitlesOff" xml:space="preserve">
-    <value>Turn subtitles off</value>
-  </data>
-  <data name="VideoPlaybackHost_SetSelectedSubtitlesAsPreferred" xml:space="preserve">
-    <value>Set selected subtitles as preferred</value>
-  </data>
-  <data name="VideoPlaybackHost_FindBetterSubtitles2" xml:space="preserve">
-    <value>Find better subtitles</value>
-  </data>
   <data name="VideoPlaybackHost_DismissHint" xml:space="preserve">
     <value>Dismiss hint</value>
   </data>
@@ -9648,9 +9633,6 @@
   <data name="PlayerSettings_Title" xml:space="preserve">
     <value>Settings</value>
   </data>
-  <data name="PlayerSettings_Audio" xml:space="preserve">
-    <value>Audio</value>
-  </data>
   <data name="PlayerSettings_PlaybackSpeed" xml:space="preserve">
     <value>Playback speed</value>
   </data>
@@ -9660,20 +9642,11 @@
   <data name="PlayerSettings_ShowBookmarksOnBar" xml:space="preserve">
     <value>Show bookmarks on the bar</value>
   </data>
-  <data name="PlayerSettings_Styling" xml:space="preserve">
-    <value>Styling…</value>
-  </data>
-  <data name="PlayerSettings_StylingTitle" xml:space="preserve">
-    <value>Subtitle styling</value>
-  </data>
   <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
     <value>No subtitle source is switched on</value>
   </data>
   <data name="PlayerSettings_Plugins" xml:space="preserve">
     <value>Plugins</value>
-  </data>
-  <data name="PlayerSettings_Size" xml:space="preserve">
-    <value>Size</value>
   </data>
   <data name="PlayerSettings_Font" xml:space="preserve">
     <value>Font</value>
@@ -9682,7 +9655,7 @@
     <value>Shadow</value>
   </data>
   <data name="PlayerSettings_Colour" xml:space="preserve">
-    <value>Text colour</value>
+    <value>Text color</value>
   </data>
   <data name="PlayerSettings_Small" xml:space="preserve">
     <value>Small</value>
@@ -9730,7 +9703,7 @@
     <value>Text opacity</value>
   </data>
   <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
-    <value>Background colour</value>
+    <value>Background color</value>
   </data>
   <data name="PlayerSettings_BackgroundOpacity" xml:space="preserve">
     <value>Background opacity</value>
@@ -9740,9 +9713,6 @@
   </data>
   <data name="PlayerSettings_Searching" xml:space="preserve">
     <value>Searching…</value>
-  </data>
-  <data name="PlayerSettings_OnlyAudioTrack" xml:space="preserve">
-    <value>{0} (the only audio track)</value>
   </data>
   <data name="PlayerContext_UpNext" xml:space="preserve">
     <value>Up Next</value>
@@ -11234,5 +11204,68 @@
   </data>
   <data name="ScrubPreviewSettingsCard_CouldNotChange" xml:space="preserve">
     <value>Scrub previews could not be changed. Try again.</value>
+  </data>
+  <data name="AudioSubtitles_Title" xml:space="preserve">
+    <value>Audio &amp; subtitles</value>
+  </data>
+  <data name="AudioSubtitles_Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="AudioSubtitles_NotSwitchable" xml:space="preserve">
+    <value>Not switchable in this browser</value>
+  </data>
+  <data name="AudioSubtitles_SubtitleAppearance" xml:space="preserve">
+    <value>Subtitle appearance</value>
+  </data>
+  <data name="AudioSubtitles_FindSubtitles" xml:space="preserve">
+    <value>Find subtitles…</value>
+  </data>
+  <data name="AudioSubtitles_FindTitle" xml:space="preserve">
+    <value>Find subtitles</value>
+  </data>
+  <data name="SubtitleAppearance_PreviewLine" xml:space="preserve">
+    <value>This is how your subtitles will look</value>
+  </data>
+  <data name="SubtitleAppearance_Sample" xml:space="preserve">
+    <value>Aa</value>
+  </data>
+  <data name="SubtitleAppearance_Style" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="SubtitleAppearance_Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="SubtitleAppearance_LargeText" xml:space="preserve">
+    <value>Large text</value>
+  </data>
+  <data name="SubtitleAppearance_HighContrast" xml:space="preserve">
+    <value>High contrast</value>
+  </data>
+  <data name="SubtitleAppearance_Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="SubtitleAppearance_BackgroundNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="SubtitleAppearance_BackgroundShadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
+  <data name="SubtitleAppearance_BackgroundBox" xml:space="preserve">
+    <value>Box</value>
+  </data>
+  <data name="SubtitleAppearance_Custom" xml:space="preserve">
+    <value>Custom appearance</value>
+  </data>
+  <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
+    <value>Font, colors and opacity</value>
+  </data>
+  <data name="SubtitleAppearance_Reset" xml:space="preserve">
+    <value>Reset to default</value>
+  </data>
+  <data name="SubtitleAppearance_Saved" xml:space="preserve">
+    <value>Changes saved automatically</value>
+  </data>
+  <data name="SubtitleFind_Intro" xml:space="preserve">
+    <value>Looks in the subtitle sources you have switched on for other versions of this title’s subtitles.</value>
   </data>
 </root>

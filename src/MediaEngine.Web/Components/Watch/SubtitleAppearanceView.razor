@@ -1,0 +1,106 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* Subtitle appearance, the nested view of Audio & subtitles (unified player v2 D13; mockup screen 4). From the top: a live preview strip, three style
+   presets (Default, Large text, High contrast; a tile is ticked only while the look matches it exactly), Text size and Background as segmented
+   controls, and a row that opens the full choices one level deeper. Every choice applies to the playing video at once and is saved on the profile. *@
+<div class="sav" data-subtitle-appearance>
+    <div class="sav__preview">
+        <AppCssElement Tag="span" Class="sav__preview-line" Css="@PreviewStyle" aria-live="polite">@L["SubtitleAppearance_PreviewLine"]</AppCssElement>
+    </div>
+    <div class="sav__heading">@L["SubtitleAppearance_Style"]</div>
+    <div class="sav__presets" role="radiogroup" aria-label="@L["SubtitleAppearance_Style"].Value">
+        @foreach (var preset in Presets)
+        {
+            var tile = preset;
+            var on = Current == tile.Preset;
+            <AppNativeButton Type="button" Class="@($"sav__tile sav__tile--{tile.Key}{(on ? " is-on" : null)}")" role="radio" aria-checked="@(on ? "true" : "false")"
+                             data-sav-preset="@tile.Key" OnClick="@(() => ChoosePresetAsync(tile.Preset))">
+                <b class="sav__aa">@L["SubtitleAppearance_Sample"]</b>
+                <span class="sav__tile-label">@tile.Label</span>
+                @if (on) { <i class="sav__tick"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></i> }
+            </AppNativeButton>
+        }
+    </div>
+    <div class="sav__row sav__row--first">
+        <span>@L["Common_TextSize"]</span>
+        <AppSegmentedControl Class="sav__segmented" Options="@SizeOptions" Value="@SubtitleAppearance.SizeChoice(Look)" AriaLabel="@L["Common_TextSize"].Value"
+                             ValueChanged="@(value => ChangeAsync(look => look.SubtitleSize = value))" />
+    </div>
+    <div class="sav__row">
+        <span>@L["SubtitleAppearance_Background"]</span>
+        <AppSegmentedControl Class="sav__segmented" Options="@BackdropOptions" Value="@SubtitleAppearance.BackdropChoice(Look).ToString()" AriaLabel="@L["SubtitleAppearance_Background"].Value"
+                             ValueChanged="@(value => ChangeAsync(look => SubtitleAppearance.ApplyBackdrop(look, Enum.Parse<SubtitleBackdrop>(value))))" />
+    </div>
+    <div class="sav__divider" role="separator"></div>
+    <AppNativeButton Type="button" Class="sav__custom" data-sav-custom="true" OnClick="OnCustom">
+        <span class="sav__custom-label">@L["SubtitleAppearance_Custom"]</span>
+        <span class="sav__custom-chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronRight" /></span>
+        <span class="sav__custom-sub">@L["SubtitleAppearance_CustomSub"]</span>
+    </AppNativeButton>
+</div>
+
+@code {
+    /// <summary>The profile's subtitle look (null until it has loaded; the defaults show then).</summary>
+    [Parameter] public SubtitleLanguageSettingsDto? Look { get; set; }
+
+    /// <summary>Asks the host to change the look: it applies the change to the playing video and saves it on the profile.</summary>
+    [Parameter] public Func<Action<SubtitleLanguageSettingsDto>, Task>? StyleChanged { get; set; }
+
+    /// <summary>Opens Custom appearance (font, colors and opacity), one level deeper.</summary>
+    [Parameter] public EventCallback OnCustom { get; set; }
+
+    private sealed record PresetTile(string Key, SubtitlePreset Preset, string Label);
+
+    private SubtitlePreset? Current => SubtitleAppearance.Matching(Look);
+
+    private IReadOnlyList<PresetTile> Presets =>
+    [
+        new("default", SubtitlePreset.Default, L["SubtitleAppearance_Default"].Value),
+        new("large", SubtitlePreset.LargeText, L["SubtitleAppearance_LargeText"].Value),
+        new("contrast", SubtitlePreset.HighContrast, L["SubtitleAppearance_HighContrast"].Value),
+    ];
+
+    private IReadOnlyList<AppSelectOption> SizeOptions =>
+    [
+        new(PlaybackPreferenceValues.Small, L["PlayerSettings_Small"].Value),
+        new(PlaybackPreferenceValues.Medium, L["PlayerSettings_Medium"].Value),
+        new(PlaybackPreferenceValues.Large, L["PlayerSettings_Large"].Value),
+    ];
+
+    private IReadOnlyList<AppSelectOption> BackdropOptions =>
+    [
+        new(nameof(SubtitleBackdrop.None), L["SubtitleAppearance_BackgroundNone"].Value),
+        new(nameof(SubtitleBackdrop.Shadow), L["SubtitleAppearance_BackgroundShadow"].Value),
+        new(nameof(SubtitleBackdrop.Box), L["SubtitleAppearance_BackgroundBox"].Value),
+    ];
+
+    private Task ChoosePresetAsync(SubtitlePreset preset) => ChangeAsync(look => SubtitleAppearance.Apply(look, preset));
+
+    private Task ChangeAsync(Action<SubtitleLanguageSettingsDto> change) => StyleChanged is null ? Task.CompletedTask : StyleChanged(change);
+
+    // The preview line follows each choice at once, from the same values the real cues read (SubtitleStyleCss), so the strip and the picture cannot disagree.
+    private string PreviewStyle
+    {
+        get
+        {
+            var size = SubtitleAppearance.SizeChoice(Look) switch
+            {
+                var choice when choice == PlaybackPreferenceValues.Small => "13px",
+                var choice when choice == PlaybackPreferenceValues.Large => "21px",
+                _ => "16px",
+            };
+            var family = (Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault) switch
+            {
+                var font when string.Equals(font, PlaybackPreferenceValues.FontSerif, StringComparison.OrdinalIgnoreCase) => "serif",
+                var font when string.Equals(font, PlaybackPreferenceValues.FontMono, StringComparison.OrdinalIgnoreCase) => "monospace",
+                _ => "inherit",
+            };
+            var shadow = Look?.SubtitleShadow == true ? "0 1px 3px black, 0 0 6px black" : "none";
+            return $"font-size:{size};font-family:{family};color:{SubtitleStyleCss.TextColor(Look)};text-shadow:{shadow};background:{SubtitleStyleCss.BackgroundColor(Look)}";
+        }
+    }
+}

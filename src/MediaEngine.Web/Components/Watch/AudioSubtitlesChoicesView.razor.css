@@ -1,0 +1,141 @@
+/* Mockup screen 3: two equal columns in the 560 px panel (gap 12, padding 8 / 12 around them), each with an uppercase 12 px section label (.mh) over
+   44 px rows (.pr: 16 / 500 text, a 13 px helper line below, a check at the right, a soft purple background when chosen). Screen 15 swaps the columns
+   for two tabs (.tabs2) over 52 px rows. */
+.asv__columns {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 4px;
+}
+
+.asv[data-layout="tabs"] .asv__columns {
+    display: block;
+    padding: 0;
+}
+
+.asv__column {
+    min-width: 0;
+}
+
+.asv__heading {
+    color: var(--playback-text-muted);
+    display: flex;
+    font: 400 12px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 10px 16px 4px;
+}
+
+.asv__row {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    font: 500 16px/1.45 var(--font-ui);
+    gap: 2px 12px;
+    min-height: var(--playback-panel-row-height);
+    padding: 4px 10px;
+    text-align: left;
+    width: 100%;
+}
+
+.asv__row:hover:not(:disabled) {
+    background: var(--playback-state-hover);
+}
+
+.asv__row:active:not(:disabled) {
+    background: var(--playback-state-pressed);
+}
+
+.asv__row.is-selected,
+.asv__row.is-selected:hover {
+    background: var(--playback-state-selected);
+}
+
+.asv__row:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.asv__row:disabled {
+    cursor: default;
+}
+
+.asv__row.is-unavailable:not(.is-selected) .asv__label {
+    opacity: 0.6;
+}
+
+.asv__label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.asv__check {
+    color: var(--playback-accent);
+    display: inline-flex;
+    margin-left: auto;
+}
+
+.asv__check ::deep .playback-utility-glyph {
+    flex-basis: 20px;
+    height: 20px;
+    stroke-width: 2.4;
+    width: 20px;
+}
+
+.asv__sub {
+    color: var(--playback-text-secondary);
+    flex-basis: 100%;
+    font: 400 13px/1.45 var(--font-ui);
+    order: 10;
+}
+
+.asv__empty {
+    color: var(--playback-text-secondary);
+    margin: 0;
+    padding: 10px;
+}
+
+.asv__tabs {
+    border-bottom: 1px solid var(--playback-hairline);
+    display: flex;
+    gap: 16px;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+
+.asv__tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    font: 600 16px/1.45 var(--font-ui);
+    min-height: var(--playback-control-target);
+    padding: 8px 0;
+}
+
+.asv__tab.is-on {
+    border-bottom-color: var(--playback-accent);
+    color: var(--playback-text);
+}
+
+.asv__tab:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.asv[data-layout="tabs"] .asv__row {
+    min-height: 52px;
+}
+
+.asv__notice {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 8px 14px 4px;
+}

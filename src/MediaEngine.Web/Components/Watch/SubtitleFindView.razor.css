@@ -1,0 +1,74 @@
+/* Find subtitles: a 14 px line, the purple full-width action of the mockup (.btn-p: 12 px padding, 15 / 600, 8 px radius) and an outlined action (.btn-o). */
+.sfv {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 8px 8px;
+}
+
+.sfv__intro,
+.sfv__status {
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    margin: 0;
+}
+
+.sfv__notice {
+    align-items: center;
+    color: var(--playback-text-secondary);
+    display: flex;
+    font: 400 14px/1.45 var(--font-ui);
+    gap: 16px;
+    justify-content: space-between;
+    margin: 0;
+    padding: 4px 8px;
+}
+
+.sfv__notice a {
+    color: var(--playback-accent);
+}
+
+.sfv__search,
+.sfv__preferred {
+    border-radius: 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+    min-height: var(--playback-control-target);
+    text-align: center;
+    width: 100%;
+}
+
+.sfv__search {
+    background: var(--playback-accent);
+    border: 0;
+    color: white;
+    font: 600 15px/1.45 var(--font-ui);
+    padding: 12px;
+}
+
+.sfv__search:hover:not(:disabled) {
+    background: var(--playback-accent-hover);
+}
+
+.sfv__search:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.sfv__preferred {
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    color: var(--playback-text);
+    font: 600 14px/1.45 var(--font-ui);
+    padding: 10px 14px;
+}
+
+.sfv__preferred:hover {
+    background: var(--playback-state-hover);
+}
+
+.sfv__search:focus-visible,
+.sfv__preferred:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}

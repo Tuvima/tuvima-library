@@ -4808,17 +4808,17 @@ input[type="reset"],
 .subtitle-preview { --subtitle-preview-size: 18px; --subtitle-preview-bg: rgb(0 0 0 / 60%); --subtitle-preview-shadow: none; display: flex; align-items: flex-end; justify-content: center; min-height: 140px; margin-bottom: 14px; padding: 16px 20px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); background: radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--tl-reader-dark-fg) 18%, var(--tl-reader-dark-bg)), var(--tl-reader-dark-bg)); }
 .subtitle-preview[data-subtitle-size="Small"] { --subtitle-preview-size: 14px; }
 .subtitle-preview[data-subtitle-size="Large"] { --subtitle-preview-size: 23px; }
-.subtitle-preview[data-subtitle-background="false"] { --subtitle-preview-bg: transparent; --subtitle-preview-shadow: 0 1px 3px black, 0 0 6px black; }
+.subtitle-preview[data-subtitle-background="false"] { --subtitle-preview-bg: transparent; }
 .subtitle-preview__line { margin: 0; text-align: center; }
 .subtitle-preview__text { padding: 0.1em 0.4em; background: var(--subtitle-preview-bg); color: white; font-size: var(--subtitle-preview-size); line-height: 1.4; text-shadow: var(--subtitle-preview-shadow); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 
-/* Player subtitles. ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and
+/* Player subtitles (unified player v2 D13: Background None / Shadow / Box; the soft shadow follows data-subtitle-shadow, so a look with no backing and no shadow is plain text). ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and
    data-subtitle-background from the profile; they become --tl-subtitle-size and --tl-subtitle-bg, which the cues read. */
 .video-playback-host { --tl-subtitle-size: max(14px, 2.8vh); --tl-subtitle-shadow: none; --tl-sub-text: #fff; --tl-sub-text-o: 100%; --tl-sub-bg: var(--tl-subtitle-swatch-black); --tl-sub-bg-o: 60%;
     --tl-subtitle-bg: color-mix(in srgb, var(--tl-sub-bg) var(--tl-sub-bg-o), transparent); }
 .video-playback-host[data-subtitle-size="Small"] { --tl-subtitle-size: max(14px, 2.2vh); }
 .video-playback-host[data-subtitle-size="Large"] { --tl-subtitle-size: max(14px, 3.6vh); }
-.video-playback-host[data-subtitle-background="false"] { --tl-subtitle-bg: transparent; --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
+.video-playback-host[data-subtitle-background="false"] { --tl-subtitle-bg: transparent; }
 .video-playback-host { --tl-subtitle-color: color-mix(in srgb, var(--tl-sub-text) var(--tl-sub-text-o), transparent); --tl-subtitle-font: inherit; }
 /* Unified player D12: the eight subtitle colours and the opacity stops, for the text and for the background behind it. */
 .video-playback-host[data-subtitle-color="Black"] { --tl-sub-text: var(--tl-subtitle-swatch-black); }
@@ -4848,7 +4848,7 @@ input[type="reset"],
 .video-playback-host[data-subtitle-font="Mono"] { --tl-subtitle-font: ui-monospace, Consolas, "Courier New", monospace; }
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
 .video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
-/* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions, and keeps two columns for Audio and Subtitles. */
+/* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions. (Audio and Subtitles moved to the Audio & subtitles panel.) */
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
 .player-settings-menu { min-width: min(380px, calc(100vw - 32px)); }
@@ -4867,13 +4867,8 @@ input[type="reset"],
 .audiobook-settings { display: inline-flex; }
 .audiobook-settings .playback-popover-trigger { position: relative; width: 44px; height: 44px; }
 .audiobook-settings .playback-popover-trigger.is-on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 2px; background: var(--tl-accent-primary); }
-.player-settings-menu__notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 12px 20px; color: var(--playback-text-secondary); }
-.player-settings-menu__notice a { color: var(--tl-accent-primary); }
 .player-settings-menu__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .player-settings-menu .player-settings-menu__nav { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; cursor: pointer; }
-.player-settings-menu__styling { display: grid; }
-.player-settings-menu__preview { margin: 0; padding: 18px 20px; display: grid; place-items: center; background: #05070d; text-align: center; }
-.player-settings-menu__preview span { padding: 2px 10px; border-radius: 4px; background: var(--preview-bg, transparent); }
 /* Unified player D12: colour swatches and opacity sliders on the style menu. */
 .player-settings-menu__choices { display: contents; }
 .player-settings-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }

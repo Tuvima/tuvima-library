@@ -13,8 +13,10 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
         Assert.Contains("\"close\" => ClosePlayerAsync()", razor);
         Assert.DoesNotContain("Back to details", razor);
-        Assert.Contains("<PlaybackPanel Title=\"@tool.AriaLabel\" ToolId=\"video-captions\"", razor);
-        Assert.Contains("<PlayerSettingsMenu", razor);
+        // Unified player v2 D12: one Audio & subtitles panel; the old Settings menu and the separate subtitle style button are gone from the video player.
+        Assert.Contains("<AudioSubtitlesPanel ToolId=\"video-captions\"", razor);
+        Assert.DoesNotContain("<PlayerSettingsMenu", razor);
+        Assert.DoesNotContain("video-subtitle-style", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
@@ -33,8 +35,8 @@ public sealed class VideoPlaybackSurfaceTests
         var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
         var script = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
 
-        Assert.Contains("@foreach (var track in _captionTracks)", razor, StringComparison.Ordinal);
-        Assert.Contains("IsActive=\"@(!_captionTracks.Any(track => track.Selected))\"", razor, StringComparison.Ordinal);
+        Assert.Contains(".Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))", razor, StringComparison.Ordinal);
+        Assert.Contains("new SubtitleChoice(null, Off, !_captionTracks.Any(track => track.Selected))", razor, StringComparison.Ordinal);
         Assert.Contains("CaptionTracks { get; set; }", razor, StringComparison.Ordinal);
         Assert.Contains("state.CaptionTracks", razor, StringComparison.Ordinal);
         Assert.Contains("readCaptionTrackChoices(element)", script, StringComparison.Ordinal);
