@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
 <article class="pickup-card" aria-label="@Title">
     <a class="pickup-art" href="@ResumeUrl" tabindex="-1" aria-hidden="true">
         @if (!string.IsNullOrWhiteSpace(ArtworkUrl))
@@ -29,6 +30,6 @@
     private string? ArtworkUrl => Item.PreviewImageUrl ?? Item.TileImageUrl;
     private string ResumeUrl => Item.PrimaryNavigationUrl ?? Item.NavigationUrl;
     private string? Subtitle => Item.EpisodeContext is { } episode
-        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}"
+        ? MediaTileLabels.EpisodeHeading(Item, episode)
         : Item.Creator ?? Item.Subtitle;
 }

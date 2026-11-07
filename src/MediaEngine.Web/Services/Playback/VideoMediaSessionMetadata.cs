@@ -23,10 +23,12 @@ public sealed record VideoMediaSessionMetadata(
         }
 
         var episode = VideoPresentationResolver.IsTvEpisode(item);
-        var title = StringHelpers.FirstNonBlankOr("Video", episode ? item.EpisodeTitle : null, item.Title);
+        var title = VideoPlayerWording.IsFolderVideo(item) && episode
+            ? StringHelpers.FirstNonBlankOr("Video", VideoPlayerWording.TitleLine(item))
+            : StringHelpers.FirstNonBlankOr("Video", episode ? item.EpisodeTitle : null, item.Title);
         var artist = episode ? StringHelpers.FirstNonBlankOr(string.Empty, showTitle, item.Album) : StringHelpers.FirstNonBlankOr(string.Empty, item.Year);
         var album = episode
-            ? StringHelpers.FirstNonBlankOr(string.Empty, string.IsNullOrWhiteSpace(item.SeasonNumber) ? null : $"Season {item.SeasonNumber}", item.Album)
+            ? StringHelpers.FirstNonBlankOr(string.Empty, string.IsNullOrWhiteSpace(item.SeasonNumber) || VideoPlayerWording.IsFolderVideo(item) ? null : $"Season {item.SeasonNumber}", item.Album)
             : StringHelpers.FirstNonBlankOr(string.Empty, item.Album);
         var artwork = new[] { "l", "m" }
             .Select(size => PlaybackArtworkUrl.ForItem(item, size))

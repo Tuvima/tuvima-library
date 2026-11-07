@@ -54,6 +54,41 @@ public static class VideoFolderWording
     public static bool IsVideoFolderMediaType(string? mediaType)
         => string.Equals(mediaType?.Trim(), FolderMediaType, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>True for a video that lives in a Videos or Other videos library (the Engine's <c>Videos</c> media type, or <c>Video</c> for a single one): it is numbered, never given a season or episode code.</summary>
+    public static bool IsVideoItemMediaType(string? mediaType)
+    {
+        var value = mediaType?.Trim();
+        return string.Equals(value, FolderMediaType, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, ItemLabel, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// A video's title line: "3 · Ball handling" when it has a number, otherwise the title alone. Takes the number as the Engine sent it
+    /// ("3", "03", "E3" or "Episode 3") and never produces a season or episode code.
+    /// </summary>
+    public static string NumberedTitle(string? number, string? title)
+    {
+        var text = title?.Trim() ?? string.Empty;
+        var digits = number?.Trim() ?? string.Empty;
+        if (digits.StartsWith("Episode ", StringComparison.OrdinalIgnoreCase))
+        {
+            digits = digits["Episode ".Length..].Trim();
+        }
+        else if (digits.Length > 1 && (digits[0] is 'E' or 'e') && char.IsDigit(digits[1]))
+        {
+            digits = digits[1..];
+        }
+
+        if (digits.Length == 0 || !digits.All(char.IsDigit))
+        {
+            return text;
+        }
+
+        var shown = digits.TrimStart('0');
+        shown = shown.Length == 0 ? "0" : shown;
+        return text.Length == 0 ? shown : $"{shown} · {text}";
+    }
+
     /// <summary>True when a Series-style list is a folder of videos, by the labels the Engine gave it (<see cref="ContainerLabel"/> and <see cref="ItemLabel"/>).</summary>
     public static bool IsVideoFolderList(string? containerLabel, string? itemLabel)
         => string.Equals(containerLabel, ContainerLabel, StringComparison.Ordinal) && string.Equals(itemLabel, ItemLabel, StringComparison.Ordinal);
