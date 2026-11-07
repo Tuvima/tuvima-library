@@ -1,0 +1,33 @@
+/* Mockup .kv rows: label left, value right, 8 / 10 padding, 15 px. */
+.piv__list {
+    margin: 0;
+}
+
+.piv__row {
+    align-items: baseline;
+    display: flex;
+    font: 400 15px/1.45 var(--font-ui);
+    gap: 16px;
+    justify-content: space-between;
+    padding: 8px 10px;
+}
+
+.piv__row dt {
+    color: var(--playback-text-secondary);
+    flex: none;
+}
+
+.piv__row dd {
+    color: var(--playback-text);
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+}
+
+.piv__empty {
+    color: var(--playback-text-secondary);
+    font: 400 15px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 10px;
+}

@@ -21,7 +21,7 @@
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:hover,
 .system-activity-indicator-shell ::deep .system-activity-indicator:focus-visible {
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
+    background: var(--tl-bg-surface-hover);
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:focus-visible {

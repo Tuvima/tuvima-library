@@ -16,12 +16,23 @@
             <AppMaterialIcon Icon="@Icon" Class="playback-tool-sheet__header-icon" />
         }
         <div class="playback-tool-sheet__heading">
-            <h2>@Title</h2>
+            @if (TitleAdornment is not null)
+            {
+                <div class="playback-tool-sheet__title-line">
+                    <h2>@Title</h2>
+                    @TitleAdornment
+                </div>
+            }
+            else
+            {
+                <h2>@Title</h2>
+            }
             @if (!string.IsNullOrWhiteSpace(Subtitle))
             {
                 <p>@Subtitle</p>
             }
         </div>
+        @HeaderActions
         @HeaderButton(PlaybackUtilityGlyphKind.Close, CloseAriaLabel, EventCallback.Factory.Create(this, CloseAsync))
     </div>
     <div class="playback-tool-sheet__content">
@@ -61,6 +72,14 @@
     /// <summary>Shows a back arrow in place of the icon and runs this when it is used (a nested view of a panel).</summary>
     [Parameter]
     public EventCallback OnBack { get; set; }
+
+    /// <summary>Small content right after the title (the Lyrics sheet's Synced chip).</summary>
+    [Parameter]
+    public RenderFragment? TitleAdornment { get; set; }
+
+    /// <summary>Icon buttons drawn before Close in the header (the Lyrics sheet's Open Now playing).</summary>
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
 
     /// <summary>Fixed actions under the scrolling content.</summary>
     [Parameter]

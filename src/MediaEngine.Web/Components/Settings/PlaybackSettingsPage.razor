@@ -73,22 +73,6 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.General.ResumePlayback = value))
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="@L["Common_Skip"].Value"
-                                  Description="@L["PlaybackSettingsPage_HowFarThePlayerSkip"].Value">
-                @IntSelectRow(
-                    "Skip back",
-                    "The amount used by the rewind control.",
-                    _settings.Watching.SkipBackSeconds,
-                    WatchingSkipBackOptions,
-                    value => UpdateAndSaveAsync(s => s.Watching.SkipBackSeconds = value))
-                @IntSelectRow(
-                    "Skip forward",
-                    "The amount used by the forward control.",
-                    _settings.Watching.SkipForwardSeconds,
-                    WatchingSkipForwardOptions,
-                    value => UpdateAndSaveAsync(s => s.Watching.SkipForwardSeconds = value))
-            </SettingsSectionPanel>
-
             <SettingsSectionPanel Title="@L["PlaybackSettingsPage_BarTitle"].Value"
                                   Description="@L["PlaybackSettingsPage_BarDescription"].Value">
                 @BoolRow(
@@ -96,11 +80,6 @@ else if (_settings is not null)
                     L["PlaybackSettingsPage_ChapterMarksHint"].Value,
                     _settings.General.ShowChapterMarks ?? false,
                     value => UpdateAndSaveAsync(s => s.General.ShowChapterMarks = value))
-                @BoolRow(
-                    L["PlaybackSettingsPage_BookmarkMarks"].Value,
-                    L["PlaybackSettingsPage_BookmarkMarksHint"].Value,
-                    _settings.General.ShowBookmarksOnBar,
-                    value => UpdateAndSaveAsync(s => s.General.ShowBookmarksOnBar = value))
             </SettingsSectionPanel>
 
             @if (!IsOtherProfile)
@@ -164,32 +143,6 @@ else if (_settings is not null)
                         value => UpdateAndSaveAsync(s => s.Subtitles.ForcedSubtitlesMode = value),
                         wide: true)
                 </SettingsSectionPanel>
-
-                <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitleAppearance"].Value"
-                                      Description="@L["PlaybackSettingsPage_HowSubtitlesLookOverThe"].Value">
-                    <div class="subtitle-preview"
-                         data-subtitle-size="@NormalizedSubtitleSize"
-                         data-subtitle-background="@(Subtitles.SubtitleBackground ? "true" : "false")"
-                         data-subtitle-shadow="@(Subtitles.SubtitleShadow ? "true" : "false")"
-                         role="img"
-                         aria-label="@L["PlaybackSettingsPage_SampleOfTheSubtitleStyle"].Value">
-                        <p class="subtitle-preview__line"><span class="subtitle-preview__text">@L["PlaybackSettingsPage_TheRainHadStoppedBy"]</span></p>
-                    </div>
-                    <AppSettingRow Label="@L["Common_TextSize"].Value" Helper="@L["PlaybackSettingsPage_HowLargeSubtitlesAreIn"].Value">
-<Control>
-<AppSegmentedControl Options="SubtitleSizeOptions"
-                                             Value="@NormalizedSubtitleSize"
-                                             ValueChanged="@(value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleSize = value))"
-                                             AriaLabel="@L["Common_TextSize"].Value"
-                                             Class="playback-preference-row__control" />
-</Control>
-</AppSettingRow>
-                    @BoolRow(
-                        "Background",
-                        "Put a dark box behind subtitles. Turn off to show the text with a soft shadow only.",
-                        Subtitles.SubtitleBackground,
-                        value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleBackground = value))
-                </SettingsSectionPanel>
             </div>
         </div>
     </div>
@@ -221,16 +174,6 @@ else if (_settings is not null)
 
     private SubtitleLanguageSettingsDto Subtitles => _settings!.Subtitles;
 
-    private static readonly int[] WatchingSkipBackOptions = [5, 10, 15, 30];
-    private static readonly int[] WatchingSkipForwardOptions = [10, 30, 60, 90];
-
-    private static readonly IReadOnlyList<AppSelectOption> SubtitleSizeOptions =
-    [
-        new(PlaybackPreferenceValues.Small, "Small"),
-        new(PlaybackPreferenceValues.Medium, "Medium"),
-        new(PlaybackPreferenceValues.Large, "Large"),
-    ];
-
     private IReadOnlyList<AppSelectOption> ShowSubtitlesOptions =>
     [
         new(PlaybackPreferenceValues.Auto, "Auto (only when audio is not my language)"),
@@ -255,15 +198,6 @@ else if (_settings is not null)
     // A language list with a leading "none" entry, for choices that are optional.
     private IReadOnlyList<AppSelectOption> OptionalLanguageOptions(string? current) =>
         [new(string.Empty, L["PlaybackSettingsPage_NoPreference"].Value), .. LanguageOptionsFor(current)];
-
-    // The Engine accepts ExtraLarge; this page offers three sizes, so it shows as the largest.
-    private string NormalizedSubtitleSize => Subtitles.SubtitleSize switch
-    {
-        var size when string.Equals(size, PlaybackPreferenceValues.Small, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Small,
-        var size when string.Equals(size, PlaybackPreferenceValues.Large, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
-        _ => PlaybackPreferenceValues.Medium,
-    };
 
     private static readonly IReadOnlyList<AppSelectOption> SpoilerLevelOptions =
     [
@@ -376,29 +310,6 @@ else if (_settings is not null)
                 <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
             }
         </AppSelect>
-        </Control>
-    </AppSettingRow>;
-
-    private RenderFragment IntSelectRow(
-        string title,
-        string description,
-        int value,
-        IReadOnlyList<int> options,
-        Func<int, Task> changed) => @<AppSettingRow Label="@title" Helper="@description">
-        <Control>
-        <AppIntSelect Value="@value"
-                      ValueChanged="@changed"
-                      Variant="AppVariant.Outlined"
-                      Margin="AppMargin.Dense"
-                      Dense="true"
-                      Size="AppControlSize.Compact"
-                      Class="playback-preference-row__select"
-                      aria-label="@title">
-            @foreach (var option in options)
-            {
-                <AppSelectItem T="int" Value="@option">@($"{option} seconds")</AppSelectItem>
-            }
-        </AppIntSelect>
         </Control>
     </AppSettingRow>;
 

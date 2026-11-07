@@ -132,7 +132,7 @@ public sealed class TooltipGuardrailTests : AsyncBunitContext
         var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
         Assert.Contains("--tl-tooltip-surface:", tokens);
         Assert.Contains("--tl-tooltip-radius: 6px;", tokens);
-        Assert.Contains("--tl-tooltip-font-size: 0.8125rem;", tokens);
+        Assert.Contains("--tl-tooltip-font-size: 13px;", tokens);
         Assert.Contains("--tl-tooltip-max-width: 280px;", tokens);
         var script = File.ReadAllText(Path.Combine(web, "wwwroot", "js", "playback-tooltip.js"));
         Assert.Contains("HOVER_DELAY_MS = 150", script);

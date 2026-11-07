@@ -59,8 +59,8 @@ public sealed partial class UiShellRenderTests
 
     [Theory]
     [InlineData("overview", null)]
-    [InlineData("ingestion", null)]
-    [InlineData("system", "overview")]
+    [InlineData("libraries", null)]
+    [InlineData("system", null)]
     public void Banner_ForAServerAdministrator_AppearsOnSeveralSettingsPages_AndLinksToTheNeedsReviewPage(string section, string? subsection)
     {
         UseLandingApi();

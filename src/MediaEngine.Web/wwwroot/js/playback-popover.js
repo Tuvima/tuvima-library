@@ -119,12 +119,13 @@ function releasePanel(state) {
     state.resizeObserver?.disconnect(); state.mutationObserver?.disconnect();
     if (state.panel) {
         state.panel.removeEventListener('pointerdown', state.onPanelPointerDown);
+        state.panel.removeEventListener('focusin', state.onPanelFocusIn);
         state.panel.removeAttribute?.('data-playback-panel-placed');
         leaveTopLayer(state.panel);
         if (state.marker?.isConnected) state.marker.replaceWith(state.panel);
         else state.panel.remove(); // The owner already left; never retain an orphan portal.
     }
-    state.panel = null; state.marker = null;
+    state.panel = null; state.marker = null; state.lastFocus = null; state.navStack = [];
     const index = opened.indexOf(state);
     if (index >= 0) opened.splice(index, 1);
     publishOpen();
@@ -194,6 +195,9 @@ export function update(root, panel, open, restoreFocus = false) {
             if (event.target.closest('[data-playback-popover-backdrop]')) state.close(true);
         };
         panel.addEventListener('pointerdown', state.onPanelPointerDown);
+        // Remember what was last focused inside the panel, so a nested view can hand focus back to it (see navigated).
+        state.onPanelFocusIn = event => { state.lastFocus = describeFocus(event.target); };
+        panel.addEventListener('focusin', state.onPanelFocusIn);
         state.resizeObserver = new ResizeObserver(() => position(state));
         state.resizeObserver.observe(panel); state.resizeObserver.observe(state.trigger);
         const centerCurrent = () => {
@@ -216,6 +220,32 @@ export function update(root, panel, open, restoreFocus = false) {
     if (state.focusOnOpen && !panel.classList.contains('playback-panel--sheet')) {
         (focusable(panel)[0] || panel).focus(); state.focusOnOpen = false;
     }
+}
+
+// A control that is redrawn when the view changes (the Lyrics footer's "..." button) is found again by its accessible name.
+const describeFocus = element => element ? { element, label: element.getAttribute?.('aria-label') ?? null } : null;
+export function returnTarget(saved, panel) {
+    if (!saved) return null;
+    if (saved.element?.isConnected && panel.contains(saved.element)) return saved.element;
+    if (!saved.label) return null;
+    return focusable(panel).find(element => element.getAttribute('aria-label') === saved.label) ?? null;
+}
+
+// Unified player v2: a nested view opening or closing must never drop keyboard focus to the page. Opening a nested view remembers the control that
+// had focus and moves focus to the first control in the new view (or its back button when the view has none); going back puts focus on the control
+// that opened it, and falls back to the first control of the view it returns to.
+export function navigated(root, panel, push) {
+    const state = states.get(root); if (!state || !panel?.isConnected) return;
+    const body = panel.querySelector('[data-playback-panel-body],.playback-tool-sheet__content') ?? panel;
+    state.navStack ??= [];
+    let target;
+    if (push) {
+        state.navStack.push(state.lastFocus ?? null);
+        target = focusable(body)[0] ?? focusable(panel)[0];
+    } else {
+        target = returnTarget(state.navStack.pop() ?? null, panel) ?? focusable(body)[0] ?? focusable(panel)[0];
+    }
+    (target ?? panel).focus();
 }
 
 export function detach(root) {

@@ -29,7 +29,12 @@
 
 <PageTitle>@BrowserTitle</PageTitle>
 
-@if (_leavingSettings)
+@if (_notFound)
+{
+    @* An address that is not a Settings page, or one this person may not see, shows the not-found page in place; the address stays as typed. *@
+    <NotFound />
+}
+else if (_leavingSettings)
 {
     @* A Kids profile reaches Profile and nothing else in Settings. The move to Home is already under way, so nothing is drawn meanwhile. *@
 }
@@ -344,6 +349,7 @@ else
     // A Kids profile reaches Profile and nothing else in Settings; every other address sends it Home.
     private bool _restricted;
     private bool _leavingSettings;
+    private bool _notFound;
 
     private SystemStatusViewModel? _systemStatus;
     private bool _shellStateLoading = true;
@@ -697,6 +703,7 @@ else
             return;
         }
 
+        _notFound = false;
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
 
@@ -710,14 +717,14 @@ else
 
         if (!resolution.IsKnownRoute)
         {
-            Nav.NavigateTo("/not-found", replace: true);
+            _notFound = true;
             return;
         }
 
         if (!resolution.RequestedSectionAllowed)
         {
             // A page this person may not see is not found, the same as one that does not exist.
-            Nav.NavigateTo("/not-found", replace: true);
+            _notFound = true;
             return;
         }
 
@@ -742,7 +749,7 @@ else
             var subsection = SettingsNav.ResolveSubsection(_activeSection, Subsection);
             if (subsection is null)
             {
-                Nav.NavigateTo("/not-found", replace: true);
+                _notFound = true;
                 return;
             }
 
@@ -751,7 +758,7 @@ else
 
         if (!IsValidDetailRoute(_activeSection, _activeSubsection, Detail))
         {
-            Nav.NavigateTo("/not-found", replace: true);
+            _notFound = true;
             return;
         }
     }

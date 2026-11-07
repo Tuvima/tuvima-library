@@ -550,7 +550,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
-            builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
             builder.CloseComponent();
         });
 
@@ -911,8 +910,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Five playback cards, the progress-bar card, plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
-            Assert.Equal(7, cut.FindAll(".app-settings-group").Count);
+            // Unified player v2 D14: Autoplay, Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11); skips and subtitle look moved to the player.
+            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
             Assert.NotEmpty(cut.FindAll(".app-setting-row"));
@@ -991,7 +990,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("ShortIntroLabel", source);
         Assert.DoesNotContain("NormalizeIntroLabel", source);
         Assert.Contains("<AppSelect", source);
-        Assert.Contains("<AppIntSelect", source);
         Assert.Contains("Orchestrator.SavePlaybackSettingsAsync", source);
         Assert.DoesNotContain("Reading.Theme", source);
         Assert.DoesNotContain("ThemeOptions", source);

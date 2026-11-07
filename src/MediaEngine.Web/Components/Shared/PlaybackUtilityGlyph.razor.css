@@ -1,13 +1,13 @@
 .playback-utility-glyph {
     display: block;
-    width: 22px;
-    height: 22px;
+    width: var(--playback-glyph-size, 22px);
+    height: var(--playback-glyph-size, 22px);
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.5;
+    stroke-width: var(--playback-glyph-stroke, 1.5);
     stroke-linecap: round;
     stroke-linejoin: round;
-    flex: 0 0 22px;
+    flex: 0 0 var(--playback-glyph-size, 22px);
 }
 
 .playback-utility-glyph[data-filled="true"] {

@@ -64,6 +64,7 @@
                     @if (Primary is not null)
                     {
                         <HeroActionRow PrimaryActions="@(new[] { Primary })"
+                                       ShowLabels="false"
                                        SecondaryActions="@(MyList is null ? Array.Empty<DetailAction>() : new[] { MyList })"
                                        OverflowActions="MoreActions"
                                        PrimaryLabel="@PrimaryText.Text"

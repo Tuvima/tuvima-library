@@ -185,6 +185,22 @@
     overscroll-behavior: contain;
 }
 
+/* The Lyrics sheet (unified player v2 D17): the sheet has a fixed height and the lyrics scroll themselves, so the identity row and footer stay in view. */
+.playback-tool-sheet--framed.playback-tool-sheet--lyrics {
+    height: 85svh;
+}
+
+.playback-tool-sheet--framed.playback-tool-sheet--lyrics .playback-tool-sheet__content {
+    overflow: hidden;
+}
+
+.playback-tool-sheet__title-line {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+}
+
 .playback-tool-sheet__footer {
     align-items: center;
     border-top: 1px solid var(--tl-border-default);

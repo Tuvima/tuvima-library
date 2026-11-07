@@ -433,6 +433,7 @@ builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
 builder.Services.AddScoped<PlayerPreferenceService>();
+builder.Services.AddScoped<PlaybackSettingsActions>();
 builder.Services.AddScoped<ContextSidebarPreferences>();
 builder.Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
 builder.Services.AddScoped<ListenContextSidebarState>();
@@ -568,6 +569,19 @@ app.MapGet("/engine-scrub/{assetId:guid}/{file:regex(^(index\\.json|sheet-\\d{{3
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
 }).WithName("ProxyEngineScrubPreview")
   .WithSummary("Proxies one scrub-preview index or sprite sheet through the Dashboard origin.")
+  .RequireAuthorization();
+
+// Video bookmark frames (Unified player v2 D21a): the still taken at a bookmark's time, through the Dashboard origin. The Engine shows it
+// only to a profile that may see the bookmark and answers 404 otherwise. The bookmark id is the only thing the route accepts.
+app.MapGet("/engine-bookmark-frame/{bookmarkId:guid}", async (Guid bookmarkId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/player/bookmarks/{bookmarkId:D}/frame");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).WithName("ProxyEngineBookmarkFrame")
+  .WithSummary("Proxies one video bookmark frame through the Dashboard origin.")
   .RequireAuthorization();
 
 app.MapGet("/engine-text-track/{assetId:guid}/{trackId:guid}", async (Guid assetId, Guid trackId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>

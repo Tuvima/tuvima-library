@@ -51,6 +51,11 @@ public enum PlaybackUtilityGlyphKind
     SubtitleAppearance,
     Search,
     ChevronRight,
+    ChevronDown,
+    SkipBack,
+    SkipForward,
+    Info,
+    OpenExternal,
 }
 
 public static class PlaybackUtilityGlyphMap

@@ -49,6 +49,54 @@ public sealed class DesignSystemDocDriftTests
     }
 
     [Fact]
+    public void TheTypeLadderTokensAreWrittenInPixelsAtExactlyTheD7Steps()
+    {
+        var tokens = TokenFile();
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["--tl-font-size-xs"] = "12px",
+            ["--tl-font-size-secondary"] = "13px",
+            ["--tl-font-size-sm"] = "14px",
+            ["--tl-font-size-md"] = "16px",
+            ["--tl-font-size-dialog-title"] = "20px",
+            ["--tl-font-size-shelf-title"] = "20px",
+            ["--tl-font-size-title"] = "24px",
+            ["--tl-font-size-xl"] = "24px",
+            ["--tl-font-size-hero"] = "32px",
+            ["--tl-control-font-size-sm"] = "13px",
+            ["--tl-control-font-size-md"] = "14px",
+            ["--tl-tooltip-font-size"] = "13px",
+            ["--tl-dialog-title-size"] = "var(--tl-font-size-dialog-title)",
+            ["--tl-font-size-caption"] = "var(--tl-font-size-xs)",
+            ["--tl-font-size-body"] = "var(--tl-font-size-sm)",
+            ["--tl-control-font-weight"] = "var(--tl-font-weight-medium)",
+        };
+
+        var problems = expected
+            .Where(pair => !tokens.TryGetValue(pair.Key, out var actual) || !string.Equals(actual, pair.Value, StringComparison.Ordinal))
+            .Select(pair => $"{pair.Key}: expected '{pair.Value}', token file says '{(tokens.TryGetValue(pair.Key, out var v) ? v : "(missing)")}'")
+            .ToList();
+
+        // Nothing named a font size may be written in rem or sit off the D7 ladder. --tl-font-size-lg (18 px) is the one named leftover step
+        // that the cascade cleanup packet still has to retire; no new off-ladder size may join it.
+        var ladder = new HashSet<string>(StringComparer.Ordinal) { "12px", "13px", "14px", "16px", "20px", "24px", "32px" };
+        foreach (var (token, value) in tokens.Where(pair => pair.Key.Contains("font-size", StringComparison.Ordinal)))
+        {
+            if (token == "--tl-font-size-lg" || value.StartsWith("var(", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!ladder.Contains(value))
+            {
+                problems.Add($"{token}: '{value}' is not a D7 ladder step in px");
+            }
+        }
+
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
+    }
+
+    [Fact]
     public void EveryDocumentedTokenExistsInTheTokenFileWithTheSameValue()
     {
         var tokens = TokenFile();

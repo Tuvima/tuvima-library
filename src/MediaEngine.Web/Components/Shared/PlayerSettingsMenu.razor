@@ -3,10 +3,10 @@
 @using MediaEngine.Web.Services.Playback
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Settings menu of the audiobook player and the speed page that video still shares (unified player D9, D10). The main page is one column under a
-   "Settings" title row with a close: each row has its label on the left and the current choice on the right. An audiobook lists Playback speed, Sleep timer and a
-   Show bookmarks on the bar switch; a row opens its own page with a back arrow and a close. Audio, Subtitles and subtitle styling are no longer pages of this menu:
-   they live in Audio & subtitles (unified player v2 D12, D13). *@
+@* The Settings menu of the audiobook player (unified player D9, D10). The main page is one column under a "Settings" title row with a close: each row has
+   its label on the left and the current choice on the right. An audiobook lists the Sleep timer and a Show bookmarks on the bar switch; a row opens its own page
+   with a back arrow and a close. Playback speed is no longer here: it has its own Speed panel (unified player v2 D15), and Audio, Subtitles and subtitle styling
+   live in Audio & subtitles (D12, D13). The sleep timer page stays until the Sleep timer panel replaces it. *@
 <div class="player-settings-menu" data-settings-page="main">
     @if (_page == "sleep" && SleepTimerState is not null)
     {
@@ -30,19 +30,6 @@
             </PlaybackSheetList>
         </section>
     }
-    else if (_page == "speed")
-    {
-        <header class="player-settings-menu__header">
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="player-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _page = null)" />
-            <h3>@L["PlayerSettings_PlaybackSpeed"]</h3>
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
-        </header>
-        <section class="player-settings-menu__page player-settings-menu__speed" aria-label="@L["PlayerSettings_PlaybackSpeed"].Value">
-            <output aria-live="polite">@SpeedLabel</output>
-            <AppRangeSlider Value="@PlaybackRate" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="video" AriaLabel="@L["PlaybackSpeedControl_PlaybackSpeed"].Value" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="PlaybackRateChanged" />
-            <AppNativeButton Type="button" OnClick="@(() => PlaybackRateChanged.InvokeAsync(1d))" AriaLabel="@L["PlaybackSpeedControl_ResetPlaybackSpeedTo1"].Value">@L["PlaybackSpeedControl_ResetTo1"]</AppNativeButton>
-        </section>
-    }
     else
     {
         <header class="player-settings-menu__header">
@@ -50,13 +37,6 @@
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
         </header>
         <div class="player-settings-menu__rows">
-            @if (Experience != PlaybackExperience.Music && PlaybackRateChanged.HasDelegate)
-            {
-                <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _page = "speed")" AriaLabel="@L["PlayerSettings_PlaybackSpeed"].Value" data-settings-row="speed">
-                    <span class="player-settings-menu__row-label">@L["PlayerSettings_PlaybackSpeed"]</span>
-                    <span class="player-settings-menu__row-value">@SpeedLabel<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
-                </AppNativeButton>
-            }
             @if (Experience == PlaybackExperience.Audiobook && SleepTimerState is not null && SleepTimerChanged.HasDelegate)
             {
                 <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _page = "sleep")" AriaLabel="@L["PlayerSettings_SleepTimer"].Value" data-settings-row="sleep">
@@ -74,16 +54,10 @@
 </div>
 
 @code {
-    /// <summary>Which player this menu belongs to; it decides the rows. Video is the default; music has no rows.</summary>
+    /// <summary>Which player this menu belongs to; it decides the rows. Only the audiobook player lists any.</summary>
     [Parameter] public PlaybackExperience Experience { get; set; } = PlaybackExperience.Video;
 
     private string? _page;
-
-    /// <summary>The current playback rate; the Playback speed row shows it on the right (for example "1.0x").</summary>
-    [Parameter] public double PlaybackRate { get; set; } = 1d;
-
-    /// <summary>Asks the host to change the playback rate. The Playback speed row is drawn only when the host listens.</summary>
-    [Parameter] public EventCallback<double> PlaybackRateChanged { get; set; }
 
     /// <summary>The audiobook sleep timer's state; the Sleep timer row is drawn only with this and <see cref="SleepTimerChanged"/>.</summary>
     [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
@@ -113,8 +87,6 @@
         _page = null;
         await SleepTimerChanged.InvokeAsync(selection);
     }
-
-    private string SpeedLabel => PlaybackRateOptions.IsValid(PlaybackRate) ? PlaybackRateOptions.FormatLabel(PlaybackRate) : string.Empty;
 
     [Parameter] public EventCallback OnClose { get; set; }
 }

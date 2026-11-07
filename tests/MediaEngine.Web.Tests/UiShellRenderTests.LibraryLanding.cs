@@ -57,11 +57,12 @@ public sealed partial class UiShellRenderTests
         var visited = new List<string>();
         navigation.LocationChanged += (_, args) => visited.Add(args.Location);
 
-        RenderSettings("ingestion");
+        var cut = RenderSettings("ingestion");
 
-        // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
-        Assert.Contains(visited, uri => uri.EndsWith("/not-found", StringComparison.Ordinal));
-        Assert.DoesNotContain(visited, uri => uri.Contains("/settings/libraries", StringComparison.Ordinal));
+        // The not-found page shows in place (D17): the address is not replaced, and nothing is forwarded.
+        Assert.Contains("Page Not Found", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(visited);
+        Assert.EndsWith("/settings/ingestion", navigation.Uri, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,10 +123,10 @@ public sealed partial class UiShellRenderTests
         });
         var cut = host.FindComponent<Settings>();
 
-        // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
-        cut.WaitForAssertion(
-            () => Assert.Contains(visited, uri => uri.EndsWith("/not-found", StringComparison.Ordinal)));
-        Assert.DoesNotContain(visited, uri => uri.EndsWith("/settings/review", StringComparison.Ordinal));
+        // The not-found page shows in place (D17): the address is not replaced, and nothing is forwarded.
+        cut.WaitForAssertion(() => Assert.Contains("Page Not Found", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(visited);
+        Assert.Contains("/settings/recently-added", navigation.Uri, StringComparison.Ordinal);
     }
 
     [Fact]

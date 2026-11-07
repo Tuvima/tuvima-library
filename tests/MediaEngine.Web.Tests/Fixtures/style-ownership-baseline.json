@@ -763,10 +763,6 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
-      "important": 0,
-      "deep": 2
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css": {
       "important": 4,
       "deep": 2
@@ -1151,7 +1147,7 @@
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
       "important": 0,
-      "deep": 8
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css": {
       "important": 0,
@@ -1701,9 +1697,13 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
+    "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css": {
       "important": 0,
-      "deep": 2
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css": {
+      "important": 0,
+      "deep": 1
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css": {
       "important": 4,
@@ -3867,6 +3867,26 @@
         ".sav__custom-chevron ::deep .playback-utility-glyph"
       ],
       "reason": "The Subtitle appearance view styles the preview line, preset ticks, segmented controls and chevron (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".psp__row ::deep .psp__select"
+      ],
+      "reason": "The old speed control was deleted when Speed became its own panel (unified player v2 WP6). The Playback settings panel lays the browser's own skip-length list invisibly over each row, which needs one deep rule; its glyph sizes use the glyph's size variables instead."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".playback-speed-panel ::deep .playback-popover-trigger"
+      ],
+      "reason": "The Speed panel keeps the 44 px speed trigger the deleted speed control gave the phone player and the media viewer (unified player v2 WP6)."
     }
   ],
   "finalBundleBytes": 1283347,

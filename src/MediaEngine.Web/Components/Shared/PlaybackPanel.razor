@@ -16,8 +16,8 @@
 <span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-chrome-hold>
     @if (TriggerContent is not null)
     {
-        <AppTooltip Text="@Title" Suppressed="@IsOpen">
-            <AppNativeButton @ref="_triggerButton" Class="@($"playback-popover-trigger {TriggerClass}")" AriaLabel="@Title" Disabled="@Disabled"
+        <AppTooltip Text="@(TriggerLabel ?? Title)" Suppressed="@IsOpen">
+            <AppNativeButton @ref="_triggerButton" Class="@($"playback-popover-trigger {TriggerClass}")" AriaLabel="@(TriggerLabel ?? Title)" Disabled="@Disabled"
                              aria-haspopup="dialog" aria-expanded="@(IsOpen ? "true" : "false")" aria-controls="@PanelId">
                 @TriggerContent
             </AppNativeButton>
@@ -33,8 +33,9 @@
                     @if (_mobile)
                     {
                         <div class="playback-panel__backdrop" data-playback-popover-backdrop></div>
-                        <PlaybackToolSheet Title="@CurrentTitle" Surface="@Surface" Presentation="full-overlay" Modal="true" Class="playback-tool-sheet--framed"
-                                           OnClose="CloseAsync" OnBack="@SheetBack" Footer="@CurrentFooter">
+                        <PlaybackToolSheet Title="@CurrentTitle" Surface="@Surface" Presentation="full-overlay" Modal="true" Class="@SheetClass"
+                                           OnClose="CloseAsync" OnBack="@SheetBack" Footer="@CurrentFooter"
+                                           TitleAdornment="@(Navigator.Depth == 0 ? TitleAdornment : null)" HeaderActions="@(Navigator.Depth == 0 ? HeaderActions : null)">
                             @CurrentBody
                         </PlaybackToolSheet>
                     }
@@ -48,7 +49,21 @@
                                     {
                                         @HeaderButton(PlaybackUtilityGlyphKind.Back, L["Common_Back"].Value, "playback-panel__icon-button playback-panel__back", EventCallback.Factory.Create(this, BackAsync))
                                     }
-                                    <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                    @if (TitleAdornment is not null && Navigator.Depth == 0)
+                                    {
+                                        <div class="playback-panel__heading">
+                                            <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                            @TitleAdornment
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <h2 class="playback-panel__title">@CurrentTitle</h2>
+                                    }
+                                    @if (HeaderActions is not null && Navigator.Depth == 0)
+                                    {
+                                        @HeaderActions
+                                    }
                                     @HeaderButton(PlaybackUtilityGlyphKind.Close, $"Close {Title}", "playback-panel__icon-button playback-panel__close", EventCallback.Factory.Create(this, CloseAsync))
                                 </header>
                             }
@@ -89,6 +104,9 @@
     [Parameter] public string Surface { get; set; } = "panel";
     [Parameter] public string? TriggerClass { get; set; }
 
+    /// <summary>The trigger's accessible name and tooltip when they differ from the panel's title (the Speed chip is named "Playback speed 1.25×" so its visible text is in its name).</summary>
+    [Parameter] public string? TriggerLabel { get; set; }
+
     /// <summary>True draws the fixed header (back, title, close). False leaves the heading to the content (menus, and panels not rebuilt yet).</summary>
     [Parameter] public bool ShowHeading { get; set; } = true;
 
@@ -99,6 +117,12 @@
     [Parameter] public ElementReference? Trigger { get; set; }
     [Parameter] public RenderFragment? TriggerContent { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Small content that sits right after the title in the header of the main view (the Lyrics panel's Synced chip).</summary>
+    [Parameter] public RenderFragment? TitleAdornment { get; set; }
+
+    /// <summary>Icon buttons the header draws before Close on the main view (the Lyrics panel's Open Now playing).</summary>
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
 
     /// <summary>The fixed footer actions. Only the body between header and footer scrolls.</summary>
     [Parameter] public RenderFragment? Footer { get; set; }
@@ -118,6 +142,7 @@
     private string EffectiveSize => Size is "menu" or "panel" or "wide" ? Size : Kind == "menu" ? "menu" : "panel";
     private string PanelClass => $"playback-panel playback-panel--{EffectiveSize} playback-panel--{(Kind is "lyrics" or "video" or "menu" or "speed" or "settings" ? Kind : "ordinary")}{(_mobile ? " playback-panel--sheet" : "")}";
     private string BodyClass => string.Join(" ", new[] { EffectiveSize == "menu" ? "playback-panel__body--menu" : null, !ShowHeading && EffectiveSize != "menu" && Kind != "settings" ? "playback-panel__body--legacy" : null, Navigator.Depth > 0 ? "playback-panel__body--nested" : null }.Where(value => value is not null));
+    private string SheetClass => Kind == "lyrics" ? "playback-tool-sheet--framed playback-tool-sheet--lyrics" : "playback-tool-sheet--framed";
     private bool ShowHeader => ShowHeading && EffectiveSize != "menu";
     private string CurrentTitle => Navigator.Current?.Title ?? Title;
     private RenderFragment? CurrentBody => Navigator.Current?.Body ?? ChildContent;
@@ -138,6 +163,7 @@
     private DotNetObjectReference<PlaybackPanel>? _reference;
     private string? _lastItemKey;
     private bool _mobile, _reportedOpen, _renderOpen, _disposed;
+    private int _pendingNavigation, _lastDepth;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
 
     protected override void OnInitialized()
@@ -163,7 +189,14 @@
         _tools?.Close(EffectiveToolId);
     }
 
-    private void NavigatorChanged() => _ = InvokeAsync(StateHasChanged);
+    // Opening or leaving a nested view removes the control that had focus; after the next draw focus goes into the new view, or back to the control that opened it.
+    private void NavigatorChanged()
+    {
+        var depth = Navigator.Depth;
+        if (IsOpen) _pendingNavigation = depth > _lastDepth ? 1 : -1;
+        _lastDepth = depth;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     private void ToolChanged()
     {
@@ -198,6 +231,12 @@
             _reference ??= DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("attach", _root, Trigger, _reference);
             await _module.InvokeVoidAsync("update", _root, IsOpen ? _panel : null, IsOpen);
+            if (_pendingNavigation != 0)
+            {
+                var push = _pendingNavigation > 0;
+                _pendingNavigation = 0;
+                if (IsOpen) await _module.InvokeVoidAsync("navigated", _root, _panel, push);
+            }
         }
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }

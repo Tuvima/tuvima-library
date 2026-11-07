@@ -29,15 +29,15 @@ test('manual scroll pauses following until the current line is requested', () =>
 });
 test('version change restores follow and detach removes every interaction listener', () => {
     const f = fixture(); lyrics.update(f.root, 1, 'asset:first');
-    f.listeners.get('keydown')({ key: 'PageDown' }); f.scroller.scrollTop = 0;
+    f.listeners.get('keydown')({ key: 'PageDown' }); f.scroller.scrollTop = 0; f.listeners.get('scroll')({});
     lyrics.update(f.root, 1, 'asset:second'); assert.equal(f.scroller.scrollTop, 270);
     lyrics.detach(f.root); assert.equal(f.listeners.size, 0);
     f.scroller.scrollTop = 0; lyrics.update(f.root, 2, 'asset:third'); assert.equal(f.scroller.scrollTop, 0);
 });
-test('return action is unnecessary while the manually browsed current line remains visible', () => {
+test('a hand scroll offers Resume following even while the current line is still visible (unified player v2 D17)', () => {
     const f = fixture(); lyrics.update(f.root, 1, 'asset:first');
-    f.listeners.get('touchstart')({}); f.listeners.get('scroll')({});
-    assert.equal(f.changes.some(([, needed]) => needed), false);
+    f.listeners.get('touchstart')({}); f.scroller.scrollTop = 100; f.listeners.get('scroll')({});
+    assert.deepEqual(f.changes.at(-1), ['FollowChanged', true]);
 });
 
 test('clock selection supports fractional lines, offsets, duplicate tags and reverse seeks',()=>{

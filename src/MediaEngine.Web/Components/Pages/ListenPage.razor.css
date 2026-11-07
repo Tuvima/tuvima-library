@@ -21,10 +21,7 @@
     height: calc(100dvh - var(--app-topbar-height, 65px) - 1rem);
     min-height: 0;
     padding-bottom: 0;
-    background:
-        radial-gradient(circle at top left, rgba(136, 82, 252, 0.12), transparent 30%),
-        radial-gradient(circle at 60% 0%, rgba(14, 165, 233, 0.09), transparent 28%),
-        linear-gradient(180deg, var(--tl-bg-shell) 0%, var(--tl-bg-root) 100%);
+    background: var(--tl-bg-root);
 }
 
 .listen-rail-shell {

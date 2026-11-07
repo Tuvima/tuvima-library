@@ -7366,6 +7366,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkD
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   OwnerName: System.String | nullability=nullable | accessors=get,init
+  FrameUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init

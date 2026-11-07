@@ -229,6 +229,12 @@ public sealed record AudiobookBookmarkDto
     public DateTimeOffset CreatedAt { get; init; }
     /// <summary>Whose bookmark it is, by display name. Filled in only in the administrator's Everyone's view; null everywhere else.</summary>
     public string? OwnerName { get; init; }
+    /// <summary>
+    /// Where the Engine serves the still frame taken at this bookmark's time (Unified player v2 D21a): a 320 px wide JPEG, shown only to a
+    /// profile that may see the bookmark. Null for an audiobook, music or book bookmark (the cover is used instead) and until the frame
+    /// has been made, so a row shows its placeholder first and the picture a moment later.
+    /// </summary>
+    public string? FrameUrl { get; init; }
 }
 
 /// <summary>Turns one profile's personal bookmark into a Global one (administrators only). The optional name replaces the bookmark's name.</summary>
@@ -626,8 +632,8 @@ public sealed class WatchingSettingsDto
 public sealed class ListeningSettingsDto
 {
     public decimal AudiobookDefaultSpeed { get; set; } = 1.25m;
-    public int SkipBackSeconds { get; set; } = 15;
-    public int SkipForwardSeconds { get; set; } = 15;
+    public int SkipBackSeconds { get; set; } = 10;
+    public int SkipForwardSeconds { get; set; } = 30;
     public int ResumeRewindSeconds { get; set; } = 10;
     public int AudiobookListenQualificationSeconds { get; set; } = 60;
     public int AudiobookHistoryLimit { get; set; } = 25;
