@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tuvima supporting files (Extras) rules",
+  "description": "How Library finds supporting files beside a title and reads their owner, role and group from folder and file names (universal editor v5, sections 3b and D16). Documented for people on docs.tuvima.com as \"Naming supporting files\".",
+  "type": "object",
+  "required": ["version", "accepted_types", "hidden_types", "roles", "default_roles", "role_families"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+
+    "accepted_types": {
+      "description": "File extensions Library can open and so shows as a supporting file, by what opens them.",
+      "type": "object",
+      "required": ["documents", "pictures", "videos", "audio"],
+      "properties": {
+        "documents": { "$ref": "#/$defs/extensions" },
+        "pictures": { "$ref": "#/$defs/extensions" },
+        "videos": { "$ref": "#/$defs/extensions" },
+        "audio": { "$ref": "#/$defs/extensions" }
+      },
+      "additionalProperties": false
+    },
+
+    "hidden_types": {
+      "description": "Files that are never supporting files: archives, metadata sidecars, subtitle files and artwork named for a media file (D16).",
+      "type": "object",
+      "required": ["extensions"],
+      "properties": {
+        "extensions": { "$ref": "#/$defs/extensions" },
+        "picture_sidecar_name_pattern": {
+          "description": "Case-insensitive regular expression for picture names that are artwork (poster, fanart, thumb...), not supporting files.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "ignored_folders": {
+      "description": "Folders other tools keep beside a title for their own use; never searched.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+
+    "transient_files": {
+      "description": "Names of files that are still being written or are the system's own; never supporting files.",
+      "type": "object",
+      "properties": {
+        "name_prefixes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "name_suffixes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "names": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    },
+
+    "hint_folders": {
+      "description": "Folder names (whole name, any case) that hint the files inside are supporting files. They never change who a file belongs to.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+
+    "group_parent_folders": {
+      "description": "Folders whose named sub-folders become groups (Extras/Character guides gives the group \"Character guides\").",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+
+    "folder_roles": {
+      "description": "Folder name (whole name, any case) to the role the files inside are guessed to have. A folder with a role is never a group.",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/roleId" }
+    },
+
+    "role_words": {
+      "description": "Words in a file name that say what the file is. The first role whose word appears wins; a role the file's kind does not allow is skipped.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "words"],
+        "properties": {
+          "role": { "$ref": "#/$defs/roleId" },
+          "words": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "roles": {
+      "description": "The fixed list of roles a person can pick, by what the file is (document, clip, picture).",
+      "type": "object",
+      "required": ["document", "clip", "picture"],
+      "properties": {
+        "document": { "$ref": "#/$defs/roleList" },
+        "clip": { "$ref": "#/$defs/roleList" },
+        "picture": { "$ref": "#/$defs/roleList" }
+      },
+      "additionalProperties": false
+    },
+
+    "default_roles": {
+      "description": "The role a file gets when no name says otherwise. Must be in the kind's role list.",
+      "type": "object",
+      "required": ["document", "clip", "picture"],
+      "properties": {
+        "document": { "$ref": "#/$defs/roleId" },
+        "clip": { "$ref": "#/$defs/roleId" },
+        "picture": { "$ref": "#/$defs/roleId" }
+      },
+      "additionalProperties": false
+    },
+
+    "role_families": {
+      "description": "How supporting files are grouped by default on a title with many of them and no groups of its own.",
+      "type": "object",
+      "required": ["document", "clip", "picture"],
+      "properties": {
+        "document": { "$ref": "#/$defs/family" },
+        "clip": { "$ref": "#/$defs/family" },
+        "picture": { "$ref": "#/$defs/family" }
+      },
+      "additionalProperties": false
+    },
+
+    "document_hint_words": {
+      "description": "Words that say a document in a book or comic library is a companion, not a book or issue of its own.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+
+    "clip_suffix_words": {
+      "description": "Words at the end of a video name that say it is an extra (Title-trailer.mkv, Season 1 trailer.mkv).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+
+    "season_words": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "specials_words": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "episode_words": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+
+    "title_separators": {
+      "description": "Characters in a file name that read as spaces in the title.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 1 }
+    },
+
+    "missing_file_keep_days": {
+      "description": "How many days the record of a file that left the disk is kept, shown as \"File missing\".",
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "extensions": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^\\.[a-z0-9]+$" }
+    },
+    "roleId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$" },
+    "roleList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "$ref": "#/$defs/roleId" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "family": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/roleId" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

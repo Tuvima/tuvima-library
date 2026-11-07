@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0082 documents_pictures_to_photos).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0083 supporting_files).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1264,6 +1264,23 @@ CREATE TABLE ingestion_log (
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
+CREATE TABLE item_extra_groups (
+    id          BLOB NOT NULL PRIMARY KEY,
+    item_folder TEXT NOT NULL COLLATE NOCASE,
+    name        TEXT NOT NULL COLLATE NOCASE,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    source      TEXT NOT NULL DEFAULT 'you' CHECK (source IN ('folder', 'you')),
+    created_at  TEXT NOT NULL,
+    UNIQUE (item_folder, name)
+);
+
+CREATE TABLE item_extra_tag_links (
+    extra_id BLOB NOT NULL REFERENCES item_extras(id) ON DELETE CASCADE,
+    tag_id   BLOB NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (extra_id, tag_id)
+);
+
 CREATE TABLE item_extras (
     id               BLOB NOT NULL PRIMARY KEY,
     library_id       TEXT NOT NULL,
@@ -1281,7 +1298,8 @@ CREATE TABLE item_extras (
     target_episode   INTEGER,
     found_at         TEXT NOT NULL
 , extra_kind TEXT
-    CHECK (extra_kind IS NULL OR extra_kind IN ('trailer', 'featurette', 'behind_the_scenes', 'deleted_scene', 'interview', 'document', 'pictures', 'other_clip')), place_season INTEGER, place_episode INTEGER, place_track INTEGER);
+    CHECK (extra_kind IS NULL OR extra_kind IN ('trailer', 'featurette', 'behind_the_scenes', 'deleted_scene', 'interview', 'document', 'pictures', 'other_clip')), place_season INTEGER, place_episode INTEGER, place_track INTEGER, own_title TEXT, own_description TEXT, role TEXT, inferred_role TEXT, group_id BLOB REFERENCES item_extra_groups(id) ON DELETE SET NULL, group_source TEXT
+    CHECK (group_source IS NULL OR group_source IN ('folder', 'you')), inferred_group TEXT, scope TEXT, inferred_scope TEXT NOT NULL DEFAULT 'root', alongside TEXT, inferred_alongside TEXT, missing_since TEXT);
 
 CREATE TABLE local_file_sources (
     id                  BLOB NOT NULL PRIMARY KEY,
@@ -3911,7 +3929,13 @@ CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_
 
 CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
 
+CREATE INDEX ix_item_extra_groups_folder ON item_extra_groups (item_folder);
+
+CREATE INDEX ix_item_extra_tag_links_tag ON item_extra_tag_links (tag_id);
+
 CREATE INDEX ix_item_extras_folder ON item_extras (item_folder);
+
+CREATE INDEX ix_item_extras_group ON item_extras (group_id);
 
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);
