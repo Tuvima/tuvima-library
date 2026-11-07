@@ -2947,55 +2947,6 @@ button.app-menu-item {
     outline: none !important;
 }
 
-.app-select__popover--playback-sleep.tl-popover {
-    width: 240px !important;
-    min-width: 240px !important;
-    max-width: min(240px, calc(100vw - 16px)) !important;
-    max-height: none !important;
-    overflow: visible !important;
-}
-
-.app-select__popover--playback-sleep .tl-list {
-    max-height: min(480px, calc(100dvh - 16px)) !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-}
-
-.app-select__popover--playback-sleep .tl-list-item {
-    box-sizing: border-box;
-    min-height: 44px !important;
-    padding-inline: 14px 38px !important;
-    position: relative;
-    white-space: normal;
-}
-
-.app-select__popover--playback-sleep .tl-selected-item {
-    background: transparent !important;
-    color: var(--tl-accent-primary) !important;
-    outline: 1px solid var(--tl-accent-primary);
-    outline-offset: -2px;
-    border-radius: 8px;
-}
-
-.app-select__popover--playback-sleep .tl-list-item[aria-selected="true"]::after,
-.app-select__popover--playback-sleep .tl-selected-item::after {
-    content: none;
-}
-
-.app-select__popover--playback-sleep .app-select__selected-check {
-    display: none;
-}
-
-.app-select__popover--playback-sleep .tl-selected-item .app-select__selected-check {
-    align-items: center;
-    color: var(--tl-accent-primary);
-    display: inline-flex;
-    font-weight: 600;
-    justify-content: center;
-    position: absolute;
-    right: 14px;
-}
-
 /* Flat player selectors share the same compact highlight as playback icons. */
 .app-select--playback-flat.app-field {
     isolation: isolate;
@@ -3018,8 +2969,7 @@ button.app-menu-item {
 
 .app-select--playback-flat.app-field:not(.app-select--disabled):hover::before,
 .app-select--playback-flat.app-field:not(.app-select--disabled).app-select--open::before,
-.app-select--playback-flat.app-field:not(.app-select--disabled):focus-within::before,
-.playback-sleep-timer--active .app-select--playback-flat.app-field:not(.app-select--disabled)::before {
+.app-select--playback-flat.app-field:not(.app-select--disabled):focus-within::before {
     background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(136, 82, 252, 0.18)));
 }
 
@@ -3033,8 +2983,7 @@ button.app-menu-item {
 .app-select--playback-flat.app-field:not(.app-select--disabled):not(.app-select--has-trigger-content):focus-within .tl-select-input,
 .app-select--playback-flat.app-field:not(.app-select--disabled):hover .app-select__trigger-content,
 .app-select--playback-flat.app-field:not(.app-select--disabled).app-select--open .app-select__trigger-content,
-.app-select--playback-flat.app-field:not(.app-select--disabled):focus-within .app-select__trigger-content,
-.playback-sleep-timer--active .app-select--playback-flat:not(.app-select--disabled) .app-select__trigger-content {
+.app-select--playback-flat.app-field:not(.app-select--disabled):focus-within .app-select__trigger-content {
     color: var(--playback-accent, var(--tl-accent-primary)) !important;
 }
 
@@ -4583,23 +4532,6 @@ input[type="reset"],
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
 .player-settings-menu { min-width: min(380px, calc(100vw - 32px)); }
-.player-settings-menu__rows, .player-settings-menu__page { display: flex; flex-direction: column; }
-.player-settings-menu .player-settings-menu__row { justify-content: space-between; gap: 24px; min-height: 44px; padding: 8px 20px; }
-.player-settings-menu__row-label { color: var(--playback-text); }
-.player-settings-menu__row-value { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--playback-text-secondary); overflow: hidden; text-overflow: ellipsis; }
-.player-settings-menu__page .playback-sheet-row { min-height: 44px; padding: 8px 20px; }
-.player-settings-menu__header { padding: 6px 12px 6px 20px; border-bottom: 1px solid var(--playback-border); }
-.player-settings-menu__page .playback-sheet-row, .player-settings-menu .player-settings-menu__row { min-height: 44px; padding: 8px 20px; font-size: inherit; }
-.player-settings-menu .player-settings-menu__row { display: flex; align-items: center; width: 100%; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
-.player-settings-menu .player-settings-menu__row:hover, .player-settings-menu .player-settings-menu__row:focus-visible { background: var(--playback-surface-hover); }
-/* Unified player D10: the audiobook menu's "Show bookmarks on the bar" switch sits in the same 44 px row rhythm as the other rows. */
-.player-settings-menu .player-settings-menu__switch { min-height: 44px; padding: 8px 20px; color: var(--playback-text); }
-/* Unified player D10: the audiobook Settings gear is a 44 px target in the dock, the More menu and the full player, underlined while the speed is not 1x or a sleep timer is running. */
-.audiobook-settings { display: inline-flex; }
-.audiobook-settings .playback-popover-trigger { position: relative; width: 44px; height: 44px; }
-.audiobook-settings .playback-popover-trigger.is-on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 2px; background: var(--tl-accent-primary); }
-.player-settings-menu__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.player-settings-menu .player-settings-menu__nav { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; cursor: pointer; }
 /* Unified player D12: colour swatches and opacity sliders on the style menu. */
 .player-settings-menu__choices { display: contents; }
 .player-settings-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -4614,12 +4546,11 @@ input[type="reset"],
 .player-settings-menu .player-settings-menu__choice { min-height: 44px; padding: 6px 16px; border: 1px solid var(--playback-border); border-radius: 4px; background: transparent; color: inherit; font-size: var(--tl-font-size-lg); cursor: pointer; }
 .player-settings-menu .player-settings-menu__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--playback-accent-soft); }
 
-.player-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
 .player-settings-menu .player-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 
 /* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
-@media (pointer: coarse) { .player-settings-menu .player-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .player-settings-menu .player-settings-menu__choice, .player-settings-menu .player-settings-menu__row { min-height: 48px; } .player-settings-menu__group { flex-wrap: wrap; } }
+@media (pointer: coarse) { .player-settings-menu .player-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .player-settings-menu .player-settings-menu__choice { min-height: 48px; } .player-settings-menu__group { flex-wrap: wrap; } }
 
 /* Unified player D7: a paused Now Playing page dims its backdrop after a short pause. */
 .playback-desktop--paused::before { filter: blur(34px) brightness(.28); transition: filter .4s ease 1.2s; }

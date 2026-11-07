@@ -1979,9 +1979,9 @@ public sealed partial class PlaybackSessionController
 
         AudiobookSleepBoundaryTarget? capturedTarget = null;
         if (selection.Mode == AudiobookSleepTimerModes.Timer
-            && (selection.Minutes is not int requestedMinutes || !SleepTimerOptionsMinutes.Contains(requestedMinutes)))
+            && (selection.Minutes is not int requestedMinutes || !AudiobookSleepTimerLimits.IsValidMinutes(requestedMinutes)))
         {
-            throw new ArgumentOutOfRangeException(nameof(selection), "Choose one of the available sleep timer durations.");
+            throw new ArgumentOutOfRangeException(nameof(selection), "Choose a sleep timer length from 1 to 720 minutes.");
         }
         if (selection.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext)
         {
@@ -3773,7 +3773,7 @@ public sealed partial class PlaybackSessionController
             || state.WorkId != (item.AudiobookWorkId ?? item.WorkId)
             || state.BoundAssetId != item.AssetId || state.TimerSessionId == Guid.Empty
             || (state.Mode == AudiobookSleepTimerModes.Timer
-                && (state.DeadlineUtc is null || state.ChosenMinutes is not int minutes || !SleepTimerOptionsMinutes.Contains(minutes))))
+                && (state.DeadlineUtc is null || state.ChosenMinutes is not int minutes || !AudiobookSleepTimerLimits.IsValidMinutes(minutes))))
         {
             SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
             return;

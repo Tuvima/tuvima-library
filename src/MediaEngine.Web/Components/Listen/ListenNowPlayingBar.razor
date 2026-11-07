@@ -162,11 +162,10 @@
                                             OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("speed", state))" />
                         break;
                     case PlaybackControlKey.SleepTimer:
-                        <AudiobookSettingsPopover Surface="dock" Title="@tool.AriaLabel" IsOn="@tool.IsActive" TriggerGlyph="PlaybackUtilityGlyphKind.Sleep"
-                                                  Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "sleep")" OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("sleep", state))"
-                                                  SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
-                                                  SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
-                                                  ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="ChangeShowBookmarksOnBarAsync" />
+                        @* The moon opens the Sleep timer panel directly (unified player v2 D16, mockup screen 6). *@
+                        <SleepTimerPanel Surface="dock" Title="@tool.AriaLabel" ItemKey="@DockItemKey" IsOn="@tool.IsActive" State="@Playback.SleepTimerState" Availability="@Playback.SleepTimerAvailability"
+                                         Chapters="@CurrentChapters" OffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SelectionChanged="SetAudiobookSleepTimerSelectionAsync"
+                                         Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "sleep")" OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("sleep", state))" />
                         break;
                 }
             </ToolContent>
@@ -583,30 +582,6 @@
         {
             Logger.LogInformation(ex, "The bookmark markers for the audiobook bar could not be loaded; the bar shows none.");
         }
-    }
-
-    private async Task ChangeShowBookmarksOnBarAsync(bool show)
-    {
-        _playerSettings ??= new UserPlaybackSettingsDto();
-        _playerSettings.General.ShowBookmarksOnBar = show;
-        var reload = RefreshBarMarkersAsync(force: true);
-        var preferences = Services.GetService<PlayerPreferenceService>();
-        if (preferences is not null)
-        {
-            try
-            {
-                if (!await preferences.UpdateAsync(settings => settings.General.ShowBookmarksOnBar = show))
-                {
-                    Logger.LogInformation("The bookmark markers choice could not be saved.");
-                }
-            }
-            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
-            {
-                Logger.LogWarning(ex, "The bookmark markers choice could not be saved.");
-            }
-        }
-
-        await reload;
     }
 
     /// <summary>
@@ -1818,7 +1793,7 @@
         _settingsMenuTool = null;
     }
 
-    // The bar's Speed panel and Sleep timer menu (which stays until the Sleep timer panel replaces it) share this state, so only the pressed one is open.
+    // The bar's Speed panel and Sleep timer panel share this state, so only the pressed one is open.
     private async Task HandleBarSettingsOpenChangedAsync(string tool, PlaybackToolOpenState state)
     {
         if (!state.IsOpen && _settingsMenuTool != tool) return;

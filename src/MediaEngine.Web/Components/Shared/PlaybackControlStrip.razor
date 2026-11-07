@@ -1,25 +1,10 @@
 @namespace MediaEngine.Web.Components.Shared
 @using System.Linq
-@using MediaEngine.Contracts.Playback
 
 <div class="@RootClass" role="toolbar" aria-label="@AriaLabel">
     @foreach (var control in Controls)
     {
-        @if (control.Key == PlaybackControlKey.SleepTimer && SleepTimerChanged.HasDelegate && SleepTimerState is not null && SleepTimerAvailability is not null)
-        {
-            <PlaybackSleepTimerControl State="@SleepTimerState"
-                                       OptionsMinutes="@SleepTimerOptionsMinutes"
-                                       DefaultMinutes="@SleepTimerDefaultMinutes"
-                                       OffersEndOfChapter="@SleepTimerOffersEndOfChapter"
-                                       Availability="@SleepTimerAvailability"
-                                       Surface="@Surface"
-                                       Open="@SleepMenuOpen"
-                                       OpenChanged="HandleSleepMenuOpenChanged"
-                                       SelectionChanged="@SleepTimerChanged"
-                                       Disabled="@control.IsDisabled"
-                                       Class="playback-control-strip__sleep" />
-        }
-        else if (control.Key == PlaybackControlKey.Settings && SettingsContent is not null)
+        @if (control.Key == PlaybackControlKey.Settings && SettingsContent is not null)
         {
             @SettingsContent(control)
         }
@@ -63,15 +48,6 @@
     [Parameter]
     public RenderFragment<PlaybackControlDefinition>? SettingsContent { get; set; }
 
-    [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
-    [Parameter] public AudiobookSleepTimerAvailabilityDto? SleepTimerAvailability { get; set; }
-    [Parameter] public IReadOnlyList<int> SleepTimerOptionsMinutes { get; set; } = [];
-    [Parameter] public int? SleepTimerDefaultMinutes { get; set; }
-    [Parameter] public bool SleepTimerOffersEndOfChapter { get; set; } = true;
-    [Parameter] public EventCallback<AudiobookSleepTimerSelectionDto> SleepTimerChanged { get; set; }
-    [Parameter] public bool SleepMenuOpen { get; set; }
-    [Parameter] public EventCallback<PlaybackToolOpenState> SleepMenuOpenChanged { get; set; }
-
     private string NormalizedSize => Size switch
     {
         "compact" => "compact",
@@ -95,9 +71,6 @@
     };
 
     private string NormalizedAppearance => Appearance == "bare" ? "bare" : "standard";
-
-    private Task HandleSleepMenuOpenChanged(bool isOpen) =>
-        SleepMenuOpenChanged.InvokeAsync(new PlaybackToolOpenState(Surface, isOpen));
 
     private Task HandleControlActivatedAsync(PlaybackControlDefinition control, ElementReference trigger) =>
         OnControlActivation.HasDelegate

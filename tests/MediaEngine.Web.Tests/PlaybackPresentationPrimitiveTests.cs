@@ -210,13 +210,4 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
         Assert.Null(tools.OpenToolId);
         Assert.False(tools.IsPinnedDock("queue"));
     }
-
-    [Fact]
-    public void SleepTriggerIsAnIconWhileItsAccessibleNameRetainsCurrentState()
-    {
-        var sleep = Render<PlaybackSleepTimerControl>(parameters => parameters.Add(component => component.State,
-            new AudiobookSleepTimerStateDto { Mode = AudiobookSleepTimerModes.EndNext, TargetChapterTitle = "Part two" }));
-        Assert.Contains("End of next chapter: Part two", sleep.FindComponent<AppSelect>().Instance.AriaLabel);
-        Assert.DoesNotContain("playback-sleep-timer__trigger-status", sleep.Markup);
-    }
 }

@@ -493,18 +493,18 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
-        // The phone full player has the same one Settings gear, and opening it uses the shared temporary-tool owner.
+        // The phone full player has the moon that opens the Sleep timer panel, and opening it uses the shared temporary-tool owner.
         var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
-        var gear = phoneFull.FindComponent<AudiobookSettingsPopover>().FindComponent<PlaybackPanel>();
+        var gear = phoneFull.FindComponent<SleepTimerPanel>().FindComponent<PlaybackPanel>();
         await cut.InvokeAsync(() => gear.Instance.OpenAsync(true));
         cut.WaitForAssertion(() => Assert.Equal("true", gear.Find("button").GetAttribute("aria-expanded")));
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
         cut.WaitForAssertion(() =>
         {
-            // Unified player v2 D15: speed has its own panel, opened from the speed value; the gear keeps the sleep timer and the bookmark switch.
+            // Unified player v2 D15 and D16: speed has its own panel, opened from the speed value; the moon opens the Sleep timer panel itself.
             Assert.Empty(phoneFull.FindAll("[data-settings-row='speed']"));
-            Assert.NotEmpty(phoneFull.FindAll("[data-settings-row='sleep']"));
-            Assert.NotEmpty(phoneFull.FindAll(".player-settings-menu__switch"));
+            Assert.NotEmpty(phoneFull.FindAll("[data-sleep-timer-view]"));
+            Assert.Empty(phoneFull.FindAll(".player-settings-menu__switch"));
         });
         await cut.InvokeAsync(() => gear.Instance.CloseAsync());
         cut.WaitForAssertion(() => Assert.Equal("false", gear.Find("button").GetAttribute("aria-expanded")));
@@ -593,9 +593,9 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(firstStableOffCalls, jsRuntime.OffCalls);
 
         var stableOffCalls = jsRuntime.OffCalls;
-        var settingsGear = cut.FindComponent<AudiobookSettingsPopover>().Instance;
+        var sleepPanel = cut.FindComponent<SleepTimerPanel>().Instance;
 
-        var selectionTask = cut.InvokeAsync(() => settingsGear.SleepTimerChanged.InvokeAsync(
+        var selectionTask = cut.InvokeAsync(() => sleepPanel.SelectionChanged.InvokeAsync(
             new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 15 }));
         await jsRuntime.CandidateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -615,6 +615,16 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(AudiobookSleepTimerModes.Timer, playback.SleepTimerState.Mode);
         Assert.Equal(15, playback.SleepTimerState.ChosenMinutes);
         Assert.Equal(stableOffCalls, jsRuntime.OffCalls);
+
+        // Unified player v2 A4 and D16: the timer lives in the session, so opening Now playing and closing it again neither resets nor moves the
+        // deadline, and the bar's Sleep timer panel keeps showing the session's own state.
+        var deadline = playback.SleepTimerState.DeadlineUtc;
+        Assert.NotNull(deadline);
+        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.Docked));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".playback-desktop")));
+        Assert.Equal(deadline, playback.SleepTimerState.DeadlineUtc);
+        Assert.Equal(deadline, cut.FindComponent<SleepTimerPanel>().Instance.State.DeadlineUtc);
+        Assert.Equal(15, cut.FindComponent<SleepTimerPanel>().Instance.State.ChosenMinutes);
     }
 
     [Fact]
@@ -661,8 +671,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var cut = Render<ListenNowPlayingBar>();
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
         var initialOffCalls = jsRuntime.OffCalls;
-        var settingsGear = cut.FindComponent<AudiobookSettingsPopover>().Instance;
-        var selectionTask = cut.InvokeAsync(() => settingsGear.SleepTimerChanged.InvokeAsync(
+        var sleepPanel = cut.FindComponent<SleepTimerPanel>().Instance;
+        var selectionTask = cut.InvokeAsync(() => sleepPanel.SelectionChanged.InvokeAsync(
             new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 15 }));
         await jsRuntime.CandidateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
