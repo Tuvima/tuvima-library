@@ -11981,4 +11981,334 @@
   <data name="EditorMusicMatchFlow_MoveKeepsOne" xml:space="preserve">
     <value> album keeps 1 track.</value>
   </data>
+  <data name="EditorBrowser_ActionsFor" xml:space="preserve">
+    <value>Actions for {0}</value>
+  </data>
+  <data name="EditorBrowser_AddTags" xml:space="preserve">
+    <value>Add tags</value>
+  </data>
+  <data name="EditorBrowser_AllGroups" xml:space="preserve">
+    <value>All groups</value>
+  </data>
+  <data name="EditorBrowser_AllTypes" xml:space="preserve">
+    <value>All types</value>
+  </data>
+  <data name="EditorBrowser_Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="EditorBrowser_BelongsTo" xml:space="preserve">
+    <value>Belongs to</value>
+  </data>
+  <data name="EditorBrowser_Browse" xml:space="preserve">
+    <value>Browse files</value>
+  </data>
+  <data name="EditorBrowser_BulkActions" xml:space="preserve">
+    <value>Actions for the selected files</value>
+  </data>
+  <data name="EditorBrowser_ClearFilters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="EditorBrowser_ClearTicks" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="EditorBrowser_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="EditorBrowser_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="EditorBrowser_DeleteBody" xml:space="preserve">
+    <value>The files are removed from the library and from disk where Library is allowed to. This happens at once and cannot be undone.</value>
+  </data>
+  <data name="EditorBrowser_DeleteFailed" xml:space="preserve">
+    <value>{0} files could not be deleted.</value>
+  </data>
+  <data name="EditorBrowser_DeleteMany" xml:space="preserve">
+    <value>Delete {0} files?</value>
+  </data>
+  <data name="EditorBrowser_DeleteOne" xml:space="preserve">
+    <value>Delete {0}?</value>
+  </data>
+  <data name="EditorBrowser_DeletedMany" xml:space="preserve">
+    <value>{0} files deleted.</value>
+  </data>
+  <data name="EditorBrowser_DeletedOne" xml:space="preserve">
+    <value>File deleted.</value>
+  </data>
+  <data name="EditorBrowser_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="EditorBrowser_EditSelected" xml:space="preserve">
+    <value>Edit selected</value>
+  </data>
+  <data name="EditorBrowser_Filters" xml:space="preserve">
+    <value>Filters</value>
+  </data>
+  <data name="EditorBrowser_FolderEmpty" xml:space="preserve">
+    <value>Nothing in this folder.</value>
+  </data>
+  <data name="EditorBrowser_FoldersAndFiles" xml:space="preserve">
+    <value>Folders and files</value>
+  </data>
+  <data name="EditorBrowser_FoldersHint" xml:space="preserve">
+    <value>Library never leaves the folder of this title.</value>
+  </data>
+  <data name="EditorBrowser_Group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="EditorBrowser_Groups" xml:space="preserve">
+    <value>Groups</value>
+  </data>
+  <data name="EditorBrowser_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="EditorBrowser_Loading" xml:space="preserve">
+    <value>Loading files</value>
+  </data>
+  <data name="EditorBrowser_MarkHidden" xml:space="preserve">
+    <value>Not shown in the library</value>
+  </data>
+  <data name="EditorBrowser_MarkMain" xml:space="preserve">
+    <value>Main</value>
+  </data>
+  <data name="EditorBrowser_MarkSupporting" xml:space="preserve">
+    <value>Supporting</value>
+  </data>
+  <data name="EditorBrowser_MarkUnsorted" xml:space="preserve">
+    <value>Not sorted yet</value>
+  </data>
+  <data name="EditorBrowser_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorBrowser_NewGroup" xml:space="preserve">
+    <value>New group...</value>
+  </data>
+  <data name="EditorBrowser_NewGroupName" xml:space="preserve">
+    <value>Name of the new group</value>
+  </data>
+  <data name="EditorBrowser_NextPage" xml:space="preserve">
+    <value>Next page</value>
+  </data>
+  <data name="EditorBrowser_NoFiles" xml:space="preserve">
+    <value>No supporting files yet</value>
+  </data>
+  <data name="EditorBrowser_NoFilesHint" xml:space="preserve">
+    <value>Documents, pictures, clips and other files that sit beside this title show up here.</value>
+  </data>
+  <data name="EditorBrowser_NothingMatches" xml:space="preserve">
+    <value>Nothing matches that</value>
+  </data>
+  <data name="EditorBrowser_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="EditorBrowser_Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="EditorBrowser_PreviousPage" xml:space="preserve">
+    <value>Previous page</value>
+  </data>
+  <data name="EditorBrowser_ReadOnly" xml:space="preserve">
+    <value>Read-only folder</value>
+  </data>
+  <data name="EditorBrowser_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="EditorBrowser_RoleOneType" xml:space="preserve">
+    <value>Role is offered when the selected files are all of one type.</value>
+  </data>
+  <data name="EditorBrowser_RowActions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="EditorBrowser_SearchPlaceholder" xml:space="preserve">
+    <value>Search files</value>
+  </data>
+  <data name="EditorBrowser_Selected" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="EditorBrowser_SetGroup" xml:space="preserve">
+    <value>Set group</value>
+  </data>
+  <data name="EditorBrowser_SetRole" xml:space="preserve">
+    <value>Set role</value>
+  </data>
+  <data name="EditorBrowser_SupportingFiles" xml:space="preserve">
+    <value>Supporting files</value>
+  </data>
+  <data name="EditorBrowser_TagsToAdd" xml:space="preserve">
+    <value>Tags to add (separate with commas)</value>
+  </data>
+  <data name="EditorBrowser_TickPage" xml:space="preserve">
+    <value>Select all files on this page</value>
+  </data>
+  <data name="EditorBrowser_TickRow" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
+  <data name="EditorBrowser_Title" xml:space="preserve">
+    <value>Supporting files</value>
+  </data>
+  <data name="EditorBrowser_Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="EditorBrowser_TypeAudio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="EditorBrowser_TypeDocuments" xml:space="preserve">
+    <value>Documents</value>
+  </data>
+  <data name="EditorBrowser_TypePictures" xml:space="preserve">
+    <value>Pictures</value>
+  </data>
+  <data name="EditorBrowser_TypeVideos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="EditorBrowser_Ungrouped" xml:space="preserve">
+    <value>No group</value>
+  </data>
+  <data name="EditorBrowser_UngroupedHint" xml:space="preserve">
+    <value>Group, role, where it belongs and tags are staged until you save.</value>
+  </data>
+  <data name="EditorBrowser_Up" xml:space="preserve">
+    <value>Up</value>
+  </data>
+  <data name="EditorBrowser_VideoOrder" xml:space="preserve">
+    <value>Video order</value>
+  </data>
+  <data name="EditorBrowser_Where" xml:space="preserve">
+    <value>Where</value>
+  </data>
+  <data name="EditorBrowser_WhereColumn" xml:space="preserve">
+    <value>Belongs to</value>
+  </data>
+  <data name="EditorFilesBatch_Back" xml:space="preserve">
+    <value>Back to the list</value>
+  </data>
+  <data name="EditorFilesBatch_Mixed" xml:space="preserve">
+    <value>Mixed - leave unchanged</value>
+  </data>
+  <data name="EditorFilesBatch_NoTitle" xml:space="preserve">
+    <value>Title and Description are not offered for several files. Open a single file to change them.</value>
+  </data>
+  <data name="EditorFilesBatch_TagsHelp" xml:space="preserve">
+    <value>These tags are added to every selected file; the tags they have stay.</value>
+  </data>
+  <data name="EditorFilesBatch_TotalSize" xml:space="preserve">
+    <value>Selected, in total</value>
+  </data>
+  <data name="EditorFilesBatch_WillMove" xml:space="preserve">
+    <value>{0} files will move to their new place when you save.</value>
+  </data>
+  <data name="EditorReorder_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="EditorReorder_Heading" xml:space="preserve">
+    <value>Reorder videos</value>
+  </data>
+  <data name="EditorReorder_NothingToOrder" xml:space="preserve">
+    <value>There are no videos here to put in order.</value>
+  </data>
+  <data name="EditorReorder_Row" xml:space="preserve">
+    <value>Reorder videos</value>
+  </data>
+  <data name="EditorReorder_RowHint" xml:space="preserve">
+    <value>Drag them, or use Move up and Move down. Nothing changes until you save.</value>
+  </data>
+  <data name="EditorReorder_SectionsHeading" xml:space="preserve">
+    <value>Reorder sections</value>
+  </data>
+  <data name="EditorReorder_SectionsRow" xml:space="preserve">
+    <value>Reorder sections</value>
+  </data>
+  <data name="EditorBrowser_Showing" xml:space="preserve">
+    <value>Showing {0}–{1} of {2}</value>
+  </data>
+  <data name="EditorBrowser_PageOf" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="EditorBrowser_SubtitleOne" xml:space="preserve">
+    <value>{0} · 1 file</value>
+  </data>
+  <data name="EditorBrowser_SubtitleMany" xml:space="preserve">
+    <value>{0} · {1} files across the {2}</value>
+  </data>
+  <data name="EditorBrowser_KindShow" xml:space="preserve">
+    <value>show</value>
+  </data>
+  <data name="EditorBrowser_KindCourse" xml:space="preserve">
+    <value>course</value>
+  </data>
+  <data name="EditorBrowser_KindAlbum" xml:space="preserve">
+    <value>album</value>
+  </data>
+  <data name="EditorBrowser_KindTitle" xml:space="preserve">
+    <value>title</value>
+  </data>
+  <data name="EditorFilesBatch_Title" xml:space="preserve">
+    <value>Editing {0} files</value>
+  </data>
+  <data name="EditorBrowser_NoTitleYet" xml:space="preserve">
+    <value>no title yet</value>
+  </data>
+  <data name="EditorBrowser_PicturesCount" xml:space="preserve">
+    <value>{0} pictures</value>
+  </data>
+  <data name="EditorBrowser_UnderOneMin" xml:space="preserve">
+    <value>under 1 min</value>
+  </data>
+  <data name="EditorBrowser_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="EditorBrowser_HoursMinutes" xml:space="preserve">
+    <value>{0} h {1} min</value>
+  </data>
+  <data name="EditorBrowser_OnePage" xml:space="preserve">
+    <value>1 page</value>
+  </data>
+  <data name="EditorBrowser_PagesCount" xml:space="preserve">
+    <value>{0} pages</value>
+  </data>
+  <data name="EditorBrowser_LoadFailed" xml:space="preserve">
+    <value>The supporting files could not be loaded.</value>
+  </data>
+  <data name="EditorBrowser_FolderFailed" xml:space="preserve">
+    <value>That folder could not be opened.</value>
+  </data>
+  <data name="EditorBrowser_PreviewFailed" xml:space="preserve">
+    <value>Could not check which files will move.</value>
+  </data>
+  <data name="EditorBrowser_TickCap" xml:space="preserve">
+    <value>You can edit up to {0} files at once.</value>
+  </data>
+  <data name="EditorBrowser_ViewOnly" xml:space="preserve">
+    <value>Edit on a computer to change these files.</value>
+  </data>
+  <data name="EditorBrowser_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="EditorFilesBatch_FromFolderBoth" xml:space="preserve">
+    <value>Both from their folder location</value>
+  </data>
+  <data name="EditorFilesBatch_FromFolderAll" xml:space="preserve">
+    <value>All from their folder location</value>
+  </data>
+  <data name="EditorFilesBatch_MoreFiles" xml:space="preserve">
+    <value>+{0} more</value>
+  </data>
+  <data name="EditorFilesBatch_HistoryFor" xml:space="preserve">
+    <value>History of {0}</value>
+  </data>
+  <data name="EditorFilesBatch_GroupCreate" xml:space="preserve">
+    <value>Create "{0}"</value>
+  </data>
+  <data name="EditorFilesBatch_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="EditorFilesBatch_FilesCount" xml:space="preserve">
+    <value>· {0} files</value>
+  </data>
+  <data name="EditorReorder_Moved" xml:space="preserve">
+    <value>Moved {0} to position {1}</value>
+  </data>
+  <data name="EditorBrowser_Search" xml:space="preserve">
+    <value>Search places</value>
+  </data>
 </root>

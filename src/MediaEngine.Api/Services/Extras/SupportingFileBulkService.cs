@@ -43,7 +43,7 @@ public sealed class SupportingFileBulkService(
     IEntityTimelineRepository? timeline = null,
     ILogger<SupportingFileBulkService>? logger = null)
 {
-    public const int MaxFilesPerCall = 2000;
+    public const int MaxFilesPerCall = SupportingFileListDefaults.MaxFilesPerCall;
     public const string NothingPicked = "Pick at least one file.";
     public const string NothingToChange = "Choose what to change.";
     public const string TitleNotFound = "That title has no supporting files.";

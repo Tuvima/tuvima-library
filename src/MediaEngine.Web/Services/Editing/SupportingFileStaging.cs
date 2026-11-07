@@ -297,7 +297,7 @@ public static class SupportingFileStaging
     public static string RoleLabel(EditorSupportingFileDto file, string? roleId) =>
         file.Roles.FirstOrDefault(role => string.Equals(role.Id, roleId, StringComparison.Ordinal))?.Label ?? file.File.RoleLabel;
 
-    private static SupportingFileStage Replace(SupportingFileStage stage, string key, string label, string before, string after)
+    internal static SupportingFileStage Replace(SupportingFileStage stage, string key, string label, string before, string after)
     {
         var rows = stage.Rows.Where(row => row.Key != key).ToList();
         rows.Add(new SupportingFileStagedRow(key, label, before, after));

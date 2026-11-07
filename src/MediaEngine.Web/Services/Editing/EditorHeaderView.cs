@@ -200,6 +200,17 @@ public static class EditorHeaderFacts
 public static class EditorNavText
 {
     /// <summary>
+    /// True when the item dropdown offers "Reorder videos" (v5 D19): only on a Videos series, a section of one, or a video in one, where the order
+    /// is the person's own. A show, album, comic or book Series takes its order from the match, so it never has the row.
+    /// </summary>
+    public static bool CanReorder(EditorHeaderDto header)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+        return header.Kind is EditorKindNames.Course or EditorKindNames.CourseSection
+            || (header.Kind == EditorKindNames.Video && header.ShowHome);
+    }
+
+    /// <summary>
     /// The small line over an item's title: <c>S02E03</c> for an episode, a lesson's number and length for a course ("01 · 12 min", never an
     /// S/E code), a track's number. An item with no code says what it is ("This movie").
     /// </summary>

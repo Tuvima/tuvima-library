@@ -87,6 +87,8 @@ public static class EditReviewRows
 
     public const string VideoSeriesNote = "Library only. No file is moved or renamed.";
 
+    public const string SectionsAsTheyAre = "Sections as they are now";
+
     public const string VideoOrderNote = "Library only. No file is moved or renamed.";
 
     public const string VideoRenameWarning = "Renames the files on disk to match the order. This cannot be undone.";
@@ -144,6 +146,8 @@ public static class EditReviewRows
         ArgumentNullException.ThrowIfNull(itemName);
 
         var rows = new List<EditReviewRow>();
+        // A new group named on several files is created once, so Review lists it once.
+        var groupsCreated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var change in pending.Changes)
         {
             var item = itemName(change.EntityId) ?? UnknownItem;
@@ -223,7 +227,7 @@ public static class EditReviewRows
                     break;
                 case EditSessionChangeKinds.VideoOrder:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, label ?? item,
-                        "Order", pending.Before(change.Id) ?? AsItIsNow, $"{change.OrderedIds.Count} videos in a new order", VideoOrderNote));
+                        "Order", pending.Before(change.Id) ?? AsItIsNow, pending.Before(change.Id) == SectionsAsTheyAre ? $"{change.OrderedIds.Count} sections in a new order" : $"{change.OrderedIds.Count} videos in a new order", VideoOrderNote));
                     break;
                 case EditSessionChangeKinds.VideoRename:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, label ?? item,
@@ -234,7 +238,7 @@ public static class EditReviewRows
                     {
                         rows.Add(new EditReviewRow(change.Id, staged.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, stage.ItemName,
                             staged.Label, staged.Before, staged.After, null, ItemId: fileId));
-                        if (staged.Key == SupportingFileFields.Group && stage.CreatesGroup)
+                        if (staged.Key == SupportingFileFields.Group && stage.CreatesGroup && groupsCreated.Add(stage.GroupName ?? staged.After))
                         {
                             rows.Add(new EditReviewRow(change.Id, SupportingFileFields.CreateGroup, change.EntityId, change.Kind, EditReviewGroup.Metadata,
                                 stage.ItemName, "Create group", NoGroupYet, stage.GroupName ?? staged.After, CreateGroupNote, ItemId: fileId));

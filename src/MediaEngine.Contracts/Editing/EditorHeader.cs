@@ -348,6 +348,10 @@ public sealed class EditorHeaderFolderButtonDto
     /// <summary>The line under "Browse files and folders": the title's folder, and the season or section folder when the level has one ("The Last Signal / Season 02").</summary>
     [JsonPropertyName("path_label")]
     public string PathLabel { get; init; } = string.Empty;
+
+    /// <summary>The level's folder relative to the title's folder, with <c>/</c> between parts ("Season 02"); empty at the title level. The folder view opens here.</summary>
+    [JsonPropertyName("relative_folder")]
+    public string RelativeFolder { get; init; } = string.Empty;
 }
 
 /// <summary>The file facts the Quick facts card shows now the Files tab is gone.</summary>
