@@ -479,7 +479,7 @@ public sealed class VideoPresentationComponentTests : AsyncBunitContext
     public async Task NestedSeasonSelectorKeepsItsOwningPlaybackPanelOpen(string appearance)
     {
         var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
-        var cut = Render<PlaybackPopover>(p => p.Add(x => x.ToolId, "episodes").Add(x => x.Title, "Episodes")
+        var cut = Render<PlaybackPanel>(p => p.Add(x => x.ToolId, "episodes").Add(x => x.Title, "Episodes")
             .AddChildContent<AppSelect>(select => select.Add(x => x.Options, new[] { new AppSelectOption("1", "Season 1"), new AppSelectOption("2", "Season 2") }).Add(x => x.Appearance, appearance)));
         await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
         var select = cut.FindComponent<AppSelect>();

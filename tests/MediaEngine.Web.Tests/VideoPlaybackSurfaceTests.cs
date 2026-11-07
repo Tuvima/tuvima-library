@@ -13,7 +13,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
         Assert.Contains("Close video", razor);
         Assert.DoesNotContain("Back to details", razor);
-        Assert.Contains("<PlaybackPopover Title=\"Settings\"", razor);
+        Assert.Contains("<PlaybackPanel Title=\"Settings\"", razor);
         Assert.Contains("<PlayerSettingsMenu", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);

@@ -22,7 +22,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Shared/MediaViewerShell.razor"] = "Full-screen media viewer.",
         ["Components/Vault/VaultImageViewer.razor"] = "Full-screen image viewer.",
         // Playback popovers and sheets (Group E).
-        ["Components/Shared/PlaybackPopover.razor"] = "Playback popover.",
+        ["Components/Shared/PlaybackPanel.razor"] = "Playback popover.",
         ["Components/Shared/PlaybackSeekRail.razor"] = "Seek rail.",
         // Phone bottom sheets (Group E): phone sheet behaviour, button order already cancel then main.
         ["Components/Browse/BrowseFilterSheet.razor"] = "Phone filter sheet (Clear left, Show right).",

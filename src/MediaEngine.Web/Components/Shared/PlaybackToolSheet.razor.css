@@ -129,7 +129,7 @@
         bottom: 0;
         height: auto;
         left: 0;
-        max-height: 82svh;
+        max-height: 85svh;
         position: fixed;
         right: 0;
         top: auto;
@@ -143,4 +143,54 @@
     .playback-tool-sheet__header {
         padding-top: 4px;
     }
+
+    .playback-tool-sheet__footer {
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+
+    .playback-tool-sheet--framed .playback-tool-sheet__content {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Unified player v2 D11: the phone bottom sheet of PlaybackPanel. Same surface as the desktop panel, a fixed header and footer, and only the body scrolls. */
+.playback-tool-sheet--framed {
+    background: var(--playback-popover-surface);
+    border-radius: 16px 16px 0 0;
+    border-width: 1px 0 0;
+    box-shadow: var(--playback-panel-shadow);
+}
+
+.playback-tool-sheet--framed .playback-tool-sheet__header {
+    align-items: center;
+    border-bottom: 1px solid var(--tl-border-default);
+    display: flex;
+    gap: 10px;
+    padding: 4px 12px 10px 16px;
+}
+
+.playback-tool-sheet--framed .playback-tool-sheet__heading {
+    flex: 1;
+}
+
+.playback-tool-sheet--framed .playback-tool-sheet__header h2 {
+    font-size: var(--tl-font-size-dialog-title);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.playback-tool-sheet--framed .playback-tool-sheet__content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.playback-tool-sheet__footer {
+    align-items: center;
+    border-top: 1px solid var(--tl-border-default);
+    display: flex;
+    flex: none;
+    font-size: var(--tl-font-size-sm);
+    gap: 10px;
+    padding: 10px 16px;
 }

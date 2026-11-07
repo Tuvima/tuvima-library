@@ -129,19 +129,19 @@ test('native-ended rejects mismatched and unfinished sources and captures immuta
 test('phone sheet restores before conditional removal and stale renders or observers cannot resurrect a portal', () => {
     const r = runtime('playback-popover.js'), root = new Surface(), trigger = new Surface(), panel = new Surface();
     r.document.body.append(root); root.append(trigger, panel); panel.id = 'chapters';
-    panel.classList.toggle('playback-popover--sheet', true);
+    panel.classList.toggle('playback-panel--sheet', true);
     root.querySelector = () => trigger;
     r.api.attach(root, null, { invokeMethodAsync: () => Promise.resolve() });
-    r.api.update(root, panel, true, true);
+    r.api.update(root, panel, true);
     assert.equal(panel.parentNode, r.document.body);
-    r.api.update(root, null, false, false, true);
+    r.api.update(root, null, false, true);
     assert.equal(panel.parentNode, root); assert.equal(trigger.focusCount, 1);
     panel.remove(); // Blazor's conditional removal, after the awaited release.
     for (const callback of r.observers) callback();
-    r.api.update(root, panel, true, true); // An obsolete render cannot reattach a detached element.
+    r.api.update(root, panel, true); // An obsolete render cannot reattach a detached element.
     assert.equal(panel.isConnected, false); assert.equal(r.document.body.children.includes(panel), false);
-    const replacement = new Surface(); root.append(replacement); replacement.id = 'chapters-next';
-    r.api.update(root, replacement, true, true);
+    const replacement = new Surface(); root.append(replacement); replacement.id = 'chapters-next'; replacement.classList.toggle('playback-panel--sheet', true);
+    r.api.update(root, replacement, true);
     root.remove(); r.api.detach(root); // Disposal after the marker's owner left also removes the orphan.
     assert.equal(replacement.isConnected, false); assert.equal(replacement.parentNode, null);
     assert.equal(trigger.countListeners(), 0); assert.equal(r.document.countListeners(), 0); assert.equal(r.window.countListeners(), 0);
@@ -160,15 +160,15 @@ test('audio dock popovers leave seek clear while non-dock anchoring and viewport
         trigger.closest = selector => selector === '.listen-player' && dockTop !== null
             ? { getBoundingClientRect: () => ({ top: dockTop }) } : null;
         trigger.getBoundingClientRect = () => ({ top: triggerTop, right: 820, width: 44, height: 44 });
-        panel.getBoundingClientRect = () => ({ width: Number.parseFloat(panel.style.width),
-            height: Math.min(300, Number.parseFloat(panel.style.maxHeight)) });
+        panel.getBoundingClientRect = () => ({ width: 400,
+            height: Math.min(300, Number.parseFloat(panel.style.maxHeight || '300')) });
         r.api.attach(root, null, { invokeMethodAsync: () => Promise.resolve() });
-        r.api.update(root, panel, true, true);
+        r.api.update(root, panel, true);
         const box = panel.getBoundingClientRect();
         assert.equal(Number.parseFloat(panel.style.top) + box.height, expectedBottom);
         assert.equal(Number.parseFloat(panel.style.left), 420, 'horizontal trigger anchoring stays unchanged');
-        assert.ok(Number.parseFloat(panel.style.top) >= 8, 'panel remains inside the viewport');
-        if (dockTop === 200) assert.equal(Number.parseFloat(panel.style.maxHeight), 184);
+        assert.ok(Number.parseFloat(panel.style.top) >= 12, 'panel remains 12px inside the viewport');
+        if (dockTop === 200) assert.equal(Number.parseFloat(panel.style.maxHeight), 180);
         r.api.detach(root);
     }
 });

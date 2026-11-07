@@ -28,7 +28,7 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         Assert.Equal("NOW PLAYING", cut.Find(".listen-context-sidebar__now-playing h3").TextContent);
         Assert.Equal("UP NEXT · 2", cut.Find(".listen-context-sidebar__section-action h3").TextContent);
         Assert.Single(cut.FindAll(".listen-context-sidebar__now-playing .playback-context-row.is-current"));
-        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPopover>().Last(p => p.Instance.Title == "Queue actions for Repeated").Instance.OpenAsync(true));
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Last(p => p.Instance.Title == "Queue actions for Repeated").Instance.OpenAsync(true));
         await cut.FindAll("button[aria-label='Remove Repeated from queue']").Last().ClickAsync();
         var remove = Assert.Single(sink.Commands);
         Assert.Same(snapshot, remove.Snapshot);

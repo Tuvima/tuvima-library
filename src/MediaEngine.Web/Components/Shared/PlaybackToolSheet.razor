@@ -7,7 +7,11 @@
 <section id="@(Modal ? _sheetId : null)" @ref="_root" class="@RootClass" role="@(Modal ? "dialog" : "region")" aria-label="@Title" aria-modal="@(Modal ? "true" : null)" tabindex="@(Modal ? "-1" : null)" @attributes="AdditionalAttributes">
     <PlaybackSheetHandleButton Class="playback-tool-sheet__handle" Label="@CloseLabel" OnClick="@CloseAsync" />
     <div class="playback-tool-sheet__header">
-        @if (!string.IsNullOrWhiteSpace(Icon))
+        @if (OnBack.HasDelegate)
+        {
+            @HeaderButton(PlaybackUtilityGlyphKind.Back, L["Common_Back"].Value, OnBack)
+        }
+        else if (!string.IsNullOrWhiteSpace(Icon))
         {
             <AppMaterialIcon Icon="@Icon" Class="playback-tool-sheet__header-icon" />
         }
@@ -18,17 +22,15 @@
                 <p>@Subtitle</p>
             }
         </div>
-        <AppNativeButton Type="button"
-                         Class="playback-tool-sheet__close"
-                         OnClick="@CloseAsync"
-                         AriaLabel="@CloseAriaLabel"
-                         title="@CloseAriaLabel">
-            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
-        </AppNativeButton>
+        @HeaderButton(PlaybackUtilityGlyphKind.Close, CloseAriaLabel, EventCallback.Factory.Create(this, CloseAsync))
     </div>
     <div class="playback-tool-sheet__content">
         <CascadingValue Name="PlaybackPopoverOwner" Value="@(Modal ? _sheetId : PlaybackPopoverOwner)">@ChildContent</CascadingValue>
     </div>
+    @if (Footer is not null)
+    {
+        <div class="playback-tool-sheet__footer">@Footer</div>
+    }
 </section>
 
 @code {
@@ -56,6 +58,14 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Shows a back arrow in place of the icon and runs this when it is used (a nested view of a panel).</summary>
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    /// <summary>Fixed actions under the scrolling content.</summary>
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
+
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
@@ -63,6 +73,7 @@
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IStringLocalizer<SharedStrings> L { get; set; } = default!;
     [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? PlaybackPopoverOwner { get; set; }
     private readonly string _sheetId = $"playback-sheet-{Guid.NewGuid():N}";
     private ElementReference _root;
@@ -113,6 +124,13 @@
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }
     }
+
+    private RenderFragment HeaderButton(PlaybackUtilityGlyphKind glyph, string label, EventCallback onClick) =>
+        @<AppTooltip Text="@label">
+            <AppNativeButton Type="button" Class="playback-tool-sheet__close" OnClick="onClick" AriaLabel="@label">
+                <PlaybackUtilityGlyph Glyph="glyph" />
+            </AppNativeButton>
+        </AppTooltip>;
 
     private async Task CloseAsync()
     {

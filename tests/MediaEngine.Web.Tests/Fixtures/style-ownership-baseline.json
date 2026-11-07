@@ -727,10 +727,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
       "deep": 1
@@ -1666,10 +1662,6 @@
       "deep": 31
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
       "important": 0,
       "deep": 0
     },

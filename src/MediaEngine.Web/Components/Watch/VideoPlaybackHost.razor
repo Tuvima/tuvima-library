@@ -116,17 +116,17 @@
                     <PlaybackVolumeControl Surface="video" Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                     @if (ContextKind is not null)
                     {
-                        <PlaybackPopover Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
+                        <PlaybackPanel Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" /></TriggerContent>
                             <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
                                 Lessons="@(!IsTvEpisode)" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
                                 Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
                                 EpisodeSelected="PlayOwnedEpisodeAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
-                        </PlaybackPopover>
+                        </PlaybackPanel>
                     }
                     @if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
                     {
-                        <PlaybackPopover Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                        <PlaybackPanel Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
                                 <VideoBookmarkPane OnClose="CloseSettingsAsync" Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
@@ -145,18 +145,18 @@
                                     </FindView>
                                 </VideoBookmarkPane>
                             </ChildContent>
-                        </PlaybackPopover>
+                        </PlaybackPanel>
                     }
                     @if (VideoControlState.HasCaptions)
                     {
-                        <PlaybackPopover Title="@L["PlayerSettings_StylingTitle"].Value" ToolId="video-subtitle-style" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                        <PlaybackPanel Title="@L["PlayerSettings_StylingTitle"].Value" ToolId="video-subtitle-style" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><span class="video-playback-host__aa" aria-hidden="true">@L["PlayerSettings_AaGlyph"]</span></TriggerContent>
                             <ChildContent>
                                 <PlayerSettingsMenu StylingOnly="true" Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync" />
                             </ChildContent>
-                        </PlaybackPopover>
+                        </PlaybackPanel>
                     }
-                    <PlaybackPopover Title="@L["PlayerSettings_Title"].Value" ToolId="video-captions" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
+                    <PlaybackPanel Title="@L["PlayerSettings_Title"].Value" ToolId="video-captions" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
                                      OpenChanged="HandleSettingsOpenChangedAsync" TriggerClass="@(_captionTracks.Any(track => track.Selected) || Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? "is-on" : null)">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" /></TriggerContent>
                         <ChildContent>
@@ -205,7 +205,7 @@
                                 </Subtitles>
                             </PlayerSettingsMenu>
                         </ChildContent>
-                    </PlaybackPopover>
+                    </PlaybackPanel>
                     <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video" OnControl="HandleVideoUtilityControl" />
                     <PlaybackIconButton Control="@FullscreenControl" Surface="video" OnClick="ToggleFullscreenAsync" />
                 </div>
