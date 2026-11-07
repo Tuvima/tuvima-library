@@ -194,6 +194,25 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         return ExtrasRule.ResolveScopeFolder(BuildContext(resolved.Library, resolved.Source.Path), full, scope);
     }
 
+    public async Task<IReadOnlyList<ExtraScope>> ListPlacesAsync(string itemFolder, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(itemFolder))
+        {
+            return [];
+        }
+
+        var full = Path.GetFullPath(itemFolder);
+        var resolved = _libraries.ResolveSourceForPath(full);
+        if (resolved is null
+            || resolved.Library.MediaTypes.Count == 0
+            || await _vault.IsVaultLibraryAsync(resolved.Library.Id, ct).ConfigureAwait(false))
+        {
+            return [];
+        }
+
+        return ExtrasRule.ListPlaces(BuildContext(resolved.Library, resolved.Source.Path), full);
+    }
+
     public async Task<ItemExtra?> DescribeAsync(
         string filePath, string origin, int? targetSeason, int? targetEpisode, CancellationToken ct = default)
     {

@@ -14,16 +14,20 @@ public sealed record SupportingFileSearchMatch(ItemExtra Extra, DisplayWorkRow O
 /// <summary>
 /// Finds supporting files for the main search box (universal editor v5 item 18, D4): by title, description and file name. A file has no
 /// visibility of its own; it follows the title it belongs to. The caller passes the works the searching profile may see (profile
-/// visibility, Kids levels, hidden libraries; the Vault is only in view in an unlocked Vault session), and a file whose title has no
-/// visible work is never returned, so a Kids profile never learns of a file in a title it may not open.
+/// visibility, Kids levels, hidden libraries; the Vault is only in view in an unlocked Vault session). A file is returned only when every
+/// file of the media under its title folder belongs to a visible work, so a Kids profile never learns of a file in a title it may not open,
+/// and never through a visible title that merely shares the folder. Candidates are read a page at a time until enough visible ones are
+/// found, so many matches in titles the profile cannot see never push the visible ones out; owners are looked up one page at a time in a
+/// single query.
 /// </summary>
 public sealed class SupportingFileSearchService(
     IItemExtraRepository extras,
     IMediaAssetRepository assets,
     IExtrasConfigurationSource? rules = null)
 {
-    // A search is a handful of results on screen; this bounds the candidates looked at before visibility is applied.
-    private const int MaxCandidates = 200;
+    // Candidates are read this many at a time and at most this many pages deep, which bounds the work of one keystroke.
+    internal const int PageSize = 100;
+    internal const int MaxPages = 20;
 
     /// <summary>The supporting-files rules in force (role words and file types).</summary>
     public ExtrasConfiguration Configuration => rules?.Current ?? ExtrasConfigurationProvider.Active;
@@ -38,47 +42,78 @@ public sealed class SupportingFileSearchService(
             return [];
         }
 
-        var candidates = await extras.SearchAsync(words, MaxCandidates, ct).ConfigureAwait(false);
-        if (candidates.Count == 0)
-        {
-            return [];
-        }
-
         var byAsset = new Dictionary<Guid, DisplayWorkRow>();
         foreach (var row in visibleWorks.Where(row => row.AssetId != Guid.Empty))
         {
             byAsset.TryAdd(row.AssetId, row);
         }
 
-        // The owner of each folder is looked up once: the first work the profile may see that has a file under it.
         var owners = new Dictionary<string, DisplayWorkRow?>(StringComparer.OrdinalIgnoreCase);
         var matches = new List<SupportingFileSearchMatch>();
         var pictureFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var extra in candidates)
+        for (var page = 0; page < MaxPages; page++)
         {
-            // A folder of pictures is one item, so it is found once.
-            if (extra.Kind == ItemExtraKinds.Picture && !pictureFolders.Add($"{extra.ItemFolder}|{extra.GroupKey}"))
+            var candidates = await extras.SearchAsync(words, PageSize, page * PageSize, ct).ConfigureAwait(false);
+            if (candidates.Count == 0)
             {
-                continue;
+                break;
             }
 
-            if (!owners.TryGetValue(extra.ItemFolder, out var owner))
+            // The owners of every folder this page names that is not known yet, in one query.
+            var unknown = candidates.Select(extra => extra.ItemFolder).Distinct(StringComparer.OrdinalIgnoreCase).Where(folder => !owners.ContainsKey(folder)).ToList();
+            if (unknown.Count > 0)
             {
-                var files = await assets.ListFilesUnderAsync(extra.ItemFolder, ct).ConfigureAwait(false);
-                owner = files.Select(file => byAsset.GetValueOrDefault(file.AssetId)).FirstOrDefault(row => row is not null);
-                owners[extra.ItemFolder] = owner;
-            }
-
-            if (owner is not null)
-            {
-                matches.Add(new SupportingFileSearchMatch(extra, owner));
-                if (matches.Count >= limit)
+                var files = await assets.ListFilesUnderFoldersAsync(unknown, ct).ConfigureAwait(false);
+                foreach (var folder in unknown)
                 {
-                    break;
+                    owners[folder] = OwnerOf(folder, files, byAsset);
                 }
+            }
+
+            foreach (var extra in candidates)
+            {
+                // A folder of pictures is one item, so it is found once.
+                if (extra.Kind == ItemExtraKinds.Picture && !pictureFolders.Add($"{extra.ItemFolder}|{extra.GroupKey}"))
+                {
+                    continue;
+                }
+
+                if (owners[extra.ItemFolder] is { } owner)
+                {
+                    matches.Add(new SupportingFileSearchMatch(extra, owner));
+                    if (matches.Count >= limit)
+                    {
+                        return matches;
+                    }
+                }
+            }
+
+            if (candidates.Count < PageSize)
+            {
+                break;
             }
         }
 
         return matches;
+    }
+
+    // The first visible work under the folder, or none when any media file under it belongs to a work the profile may not see.
+    private static DisplayWorkRow? OwnerOf(string folder, IReadOnlyList<MediaAssetFileRef> files, IReadOnlyDictionary<Guid, DisplayWorkRow> visible)
+    {
+        var prefix = folder.Replace('\\', '/').TrimEnd('/') + "/";
+        DisplayWorkRow? owner = null;
+        foreach (var file in files
+                     .Where(file => file.FilePath.Replace('\\', '/').StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(file => file.FilePath, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!visible.TryGetValue(file.AssetId, out var row))
+            {
+                return null;
+            }
+
+            owner ??= row;
+        }
+
+        return owner;
     }
 }

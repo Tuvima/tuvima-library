@@ -47,8 +47,30 @@ public sealed class SupportingFileBulkService(
     public const string BadPlace = "That is not a place a supporting file can belong to.";
     public const string ToManyFiles = "Too many files at once. Pick fewer and try again.";
 
-    public async Task<SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>> UpdateAsync(
+    /// <summary>Checks the change and plans any file moves, writing nothing: what Review lists and the amber footer shows.</summary>
+    public Task<SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>> PreviewAsync(
+        Guid titleId, SupportingFileBulkUpdateRequest request, CancellationToken ct = default) =>
+        RunAsync(titleId, request, preview: true, undoBox: null, ct);
+
+    /// <summary>
+    /// Writes the change: all the data changes in one transaction, then the file moves. <c>Undo</c> puts every row back as it was and moves
+    /// the files that moved back, for a staged save in which a later change failed; it is null when nothing was written.
+    /// </summary>
+    public async Task<(SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto> Outcome, Func<CancellationToken, Task>? Undo)> ApplyAsync(
         Guid titleId, SupportingFileBulkUpdateRequest request, CancellationToken ct = default)
+    {
+        var box = new UndoBox();
+        var outcome = await RunAsync(titleId, request, preview: false, box, ct).ConfigureAwait(false);
+        return (outcome, box.Undo);
+    }
+
+    private sealed class UndoBox
+    {
+        public Func<CancellationToken, Task>? Undo { get; set; }
+    }
+
+    private async Task<SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>> RunAsync(
+        Guid titleId, SupportingFileBulkUpdateRequest request, bool preview, UndoBox? undoBox, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
         var changes = request.Changes ?? new SupportingFileBulkChangesDto();
@@ -89,6 +111,18 @@ public sealed class SupportingFileBulkService(
             {
                 return Fail<SupportingFileBulkUpdateResultDto>(
                     SupportingFileBulkProblem.Invalid, RoleNotAvailable(config, misfit.Kind, update.Role.Value!));
+            }
+        }
+
+        // Belongs to must name a real place of the title: the title itself, one of its seasons, or an episode, lesson or section.
+        if (update.Scope.IsSet)
+        {
+            foreach (var folder in load.Targets.Select(target => target.ItemFolder).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!await disk.IsPlaceOfTitleAsync(folder, update.Scope.Value, ct).ConfigureAwait(false))
+                {
+                    return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, BadPlace);
+                }
             }
         }
 
@@ -142,7 +176,7 @@ public sealed class SupportingFileBulkService(
             });
         }
 
-        if (request.Preview)
+        if (preview)
         {
             return SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto
             {
@@ -156,6 +190,7 @@ public sealed class SupportingFileBulkService(
         try
         {
             await extras.UpdateOwnedManyAsync([.. load.Targets.Select(target => target.Id)], update, ct).ConfigureAwait(false);
+            undoBox?.Undo = _ => RestoreAsync(load.Targets, []);
         }
         catch (ExtraRoleNotAllowedException ex)
         {
@@ -164,15 +199,26 @@ public sealed class SupportingFileBulkService(
         }
 
         var moves = new List<SupportingFilePlannedMoveDto>();
+        var moved = new List<(ItemExtra Row, SupportingFileMovePlan Plan)>();
         foreach (var (id, plan) in plans.Where(pair => pair.Value.Moves))
         {
             var failure = disk.Move(plan);
             if (failure is null)
             {
-                await extras.RelocateFileAsync(id, plan.To!, ct).ConfigureAwait(false);
+                // The row follows the file straight away, and now counts as one a person decided, so the pipeline keeps claiming the
+                // file at its new place and a rescan keeps the row. The place read from the folder is the place the file now sits in.
+                var row = load.Targets.First(target => target.Id == id);
+                var nowSitsIn = update.Scope.IsSet ? update.Scope.Value : row.InferredScope;
+                await extras.RelocateFileAsync(id, plan.To!, nowSitsIn, ct).ConfigureAwait(false);
+                moved.Add((row, plan));
             }
 
             moves.Add(ToMove(id, plan, failure is null ? SupportingFileMoveStatuses.Moved : SupportingFileMoveStatuses.Failed, failure));
+        }
+
+        if (undoBox is not null && moved.Count > 0)
+        {
+            undoBox.Undo = _ => RestoreAsync(load.Targets, moved);
         }
 
         return SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>.Ok(new SupportingFileBulkUpdateResultDto
@@ -182,6 +228,24 @@ public sealed class SupportingFileBulkService(
             Changed = results.Count(result => result.Status == SupportingFileBulkStatuses.Changed),
             Moves = moves,
         });
+    }
+
+    // Puts every row back as it was before the change. A file that moved goes back first; one that cannot go back keeps its new path,
+    // so the row never points at a place the file is not in.
+    private async Task RestoreAsync(IReadOnlyList<ItemExtra> snapshots, IReadOnlyList<(ItemExtra Row, SupportingFileMovePlan Plan)> moved)
+    {
+        var stayed = new Dictionary<Guid, string>();
+        foreach (var (row, plan) in moved)
+        {
+            if (disk.Move(new SupportingFileMovePlan(plan.To, plan.From, null)) is not null)
+            {
+                stayed[row.Id] = plan.To!;
+            }
+        }
+
+        await extras.RestoreAsync(
+            [.. snapshots.Select(snapshot => stayed.TryGetValue(snapshot.Id, out var path) ? snapshot with { FilePath = path } : snapshot)],
+            CancellationToken.None).ConfigureAwait(false);
     }
 
     public async Task<SupportingFileBulkOutcome<SupportingFileBulkDeleteResultDto>> DeleteAsync(

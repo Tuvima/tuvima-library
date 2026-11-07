@@ -2882,7 +2882,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkSt
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest
   Ids: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Changes: MediaEngine.Contracts.Details.SupportingFileBulkChangesDto | nullability=not-null | accessors=get,init
-  Preview: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkUpdateResultDto
   Preview: System.Boolean | nullability=not-null | accessors=get,init
@@ -3478,6 +3477,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
   Slot: System.String | nullability=nullable | accessors=get,init
   Token: System.String | nullability=nullable | accessors=get,init
   OrderedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+  SupportingFiles: MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeKinds
 

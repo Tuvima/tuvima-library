@@ -15,6 +15,11 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
 
     public void Dispose() => _world.Dispose();
 
+    /// <summary>Applies a change the way the edit session does (the undo it hands back is not needed here).</summary>
+    private static async Task<SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>> SaveAsync(
+        SupportingFileBulkService bulk, Guid titleId, SupportingFileBulkUpdateRequest request) =>
+        (await bulk.ApplyAsync(titleId, request)).Outcome;
+
     // ── The list ──────────────────────────────────────────────────────────────
 
     [Fact]
@@ -148,7 +153,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         var before = await _world.List.ListAsync(_title, new SupportingFileListQuery());
         var ticked = (await _world.List.ListAsync(_title, new SupportingFileListQuery(Where: "season:3", PageSize: 25))).Items.Select(row => row.Id).ToList();
 
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = ticked,
             Changes = new SupportingFileBulkChangesDto { GroupName = "Homework" },
@@ -180,8 +185,8 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
             Changes = new SupportingFileBulkChangesDto { GroupName = "Extra reading", AddTags = ["maths", "Maths"] },
         };
 
-        var first = (await _world.Bulk.UpdateAsync(_title, request)).Value!;
-        var second = (await _world.Bulk.UpdateAsync(_title, request)).Value!;
+        var first = (await SaveAsync(_world.Bulk, _title, request)).Value!;
+        var second = (await SaveAsync(_world.Bulk, _title, request)).Value!;
 
         Assert.Equal(10, first.Changed);
         Assert.Equal(0, second.Changed);
@@ -197,13 +202,13 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         await _world.SeedGeneratedFilesAsync();
         var worksheet = (await _world.Extras.GetByPathAsync(Path.Combine(_world.SeasonFolder(1), "worksheet-001.pdf")))!;
         var id = worksheet.Id.ToString("D");
-        await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [id],
             Changes = new SupportingFileBulkChangesDto { AddTags = ["maths", "term one"] },
         });
 
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [id],
             Changes = new SupportingFileBulkChangesDto { RemoveTags = ["maths"], Role = ExtraRoles.Worksheet },
@@ -221,7 +226,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         await _world.SeedGeneratedFilesAsync();
         var worksheet = (await _world.Extras.GetByPathAsync(Path.Combine(_world.SeasonFolder(1), "worksheet-001.pdf")))!;
 
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [worksheet.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { Role = ExtraRoles.Trailer },
@@ -243,7 +248,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         await _world.Extras.SyncItemFolderAsync(otherFolder, [other], []);
         var gone = Guid.NewGuid().ToString("D");
 
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [mine.Id.ToString("D"), other.Id.ToString("D"), gone],
             Changes = new SupportingFileBulkChangesDto { GroupName = "Homework" },
@@ -261,7 +266,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
     [InlineData(SupportingFileBulkService.MaxFilesPerCall + 1)]
     public async Task BulkUpdate_RefusesNothingPickedOrTooManyFiles(int count)
     {
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [.. Enumerable.Range(0, count).Select(_ => Guid.NewGuid().ToString("D"))],
             Changes = new SupportingFileBulkChangesDto { GroupName = "Homework" },
@@ -275,7 +280,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
     {
         _world.Titles.HasFolder = false;
 
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [Guid.NewGuid().ToString("D")],
             Changes = new SupportingFileBulkChangesDto { GroupName = "Homework" },
@@ -294,11 +299,10 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         {
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { ScopeKey = "season:2" },
-            Preview = true,
         };
         var target = Path.Combine(_world.SeasonFolder(2), "guide.pdf");
 
-        var preview = (await _world.Bulk.UpdateAsync(_title, request)).Value!;
+        var preview = (await _world.Bulk.PreviewAsync(_title, request)).Value!;
 
         var planned = Assert.Single(preview.Moves);
         Assert.True(preview.Preview);
@@ -309,7 +313,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         Assert.False(File.Exists(target));
         Assert.Null((await _world.Extras.GetAsync(guide.Id))!.Scope);
 
-        var applied = (await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest { Ids = request.Ids, Changes = request.Changes })).Value!;
+        var applied = (await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest { Ids = request.Ids, Changes = request.Changes })).Value!;
 
         Assert.Equal(SupportingFileMoveStatuses.Moved, Assert.Single(applied.Moves).Status);
         Assert.False(File.Exists(guide.FilePath));
@@ -328,9 +332,9 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { ScopeKey = "season:2" },
         };
-        await _world.Bulk.UpdateAsync(_title, request);
+        await SaveAsync(_world.Bulk, _title, request);
 
-        var again = (await _world.Bulk.UpdateAsync(_title, request)).Value!;
+        var again = (await SaveAsync(_world.Bulk, _title, request)).Value!;
 
         Assert.Empty(again.Moves);
         Assert.Equal(0, again.Changed);
@@ -342,17 +346,16 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         using var readOnly = new SupportingFileTestWorld(managedFolder: false);
         var guide = await readOnly.SeedDiskFileAsync("guide.pdf", "Guide");
 
-        var result = (await readOnly.Bulk.UpdateAsync(Guid.NewGuid(), new SupportingFileBulkUpdateRequest
+        var result = (await readOnly.Bulk.PreviewAsync(Guid.NewGuid(), new SupportingFileBulkUpdateRequest
         {
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { ScopeKey = "season:2" },
-            Preview = true,
         })).Value!;
 
         Assert.Empty(result.Moves);
         Assert.Equal(SupportingFileDiskService.StaysWhereItIs, Assert.Single(result.Results).Note);
 
-        var applied = (await readOnly.Bulk.UpdateAsync(Guid.NewGuid(), new SupportingFileBulkUpdateRequest
+        var applied = (await SaveAsync(readOnly.Bulk, Guid.NewGuid(), new SupportingFileBulkUpdateRequest
         {
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { ScopeKey = "season:2" },
@@ -370,7 +373,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         Directory.CreateDirectory(_world.SeasonFolder(2));
         await File.WriteAllTextAsync(Path.Combine(_world.SeasonFolder(2), "guide.pdf"), "another file");
 
-        var result = (await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var result = (await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { ScopeKey = "season:2" },
@@ -387,7 +390,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
         var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
         await _world.Extras.UpdateOwnedAsync(guide.Id, new ExtraOwnedUpdate { Scope = ExtraValue<ExtraScope>.Set(ExtraScope.ForSeason(3)) });
 
-        var result = (await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var result = (await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { UseFolderLocation = true },
@@ -402,7 +405,7 @@ public sealed class SupportingFileBrowserServiceTests : IDisposable
     {
         var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
 
-        var outcome = await _world.Bulk.UpdateAsync(_title, new SupportingFileBulkUpdateRequest
+        var outcome = await SaveAsync(_world.Bulk, _title, new SupportingFileBulkUpdateRequest
         {
             Ids = [guide.Id.ToString("D")],
             Changes = new SupportingFileBulkChangesDto { ScopeKey = "nonsense" },

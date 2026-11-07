@@ -149,9 +149,14 @@ internal sealed class SupportingFileTestWorld : IDisposable
 
         public Task<bool> ClaimsFileAsync(string filePath, LibraryFolderEntry? library, CancellationToken ct = default) => Task.FromResult(false);
 
-        public void NoteFile(string filePath)
-        {
-        }
+        /// <summary>The paths the app was told about (a move is announced so the scanner does not see it as a new file).</summary>
+        public List<string> Noted { get; } = [];
+
+        public void NoteFile(string filePath) => Noted.Add(filePath);
+
+        public Task<IReadOnlyList<ExtraScope>> ListPlacesAsync(string itemFolder, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ExtraScope>>(
+                [ExtraScope.Root, .. Enumerable.Range(1, 6).Select(season => ExtraScope.ForSeason(season))]);
 
         public Task<int> SyncQueuedAsync(CancellationToken ct = default) => Task.FromResult(0);
 

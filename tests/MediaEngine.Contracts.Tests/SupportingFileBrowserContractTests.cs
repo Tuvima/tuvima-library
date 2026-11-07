@@ -56,7 +56,7 @@ public sealed class SupportingFileBrowserContractTests
     public void ABulkUpdateRequest_ReadsFromTheNamesTheDashboardSends_AndANewRequestChangesNothingByDefault()
     {
         var request = JsonSerializer.Deserialize<SupportingFileBulkUpdateRequest>(
-            """{"ids":["a","b"],"changes":{"groupName":"Homework","scopeKey":"season:2","addTags":["maths"],"removeTags":["old"]},"preview":true}""",
+            """{"ids":["a","b"],"changes":{"groupName":"Homework","scopeKey":"season:2","addTags":["maths"],"removeTags":["old"]}}""",
             Web)!;
 
         Assert.Equal(["a", "b"], request.Ids);
@@ -64,7 +64,6 @@ public sealed class SupportingFileBrowserContractTests
         Assert.Equal("season:2", request.Changes.ScopeKey);
         Assert.Equal(["maths"], request.Changes.AddTags);
         Assert.Equal(["old"], request.Changes.RemoveTags);
-        Assert.True(request.Preview);
 
         var empty = new SupportingFileBulkChangesDto();
         Assert.Null(empty.GroupName);
@@ -74,7 +73,6 @@ public sealed class SupportingFileBrowserContractTests
         Assert.False(empty.UseFolderLocation);
         Assert.Empty(empty.AddTags);
         Assert.Empty(empty.RemoveTags);
-        Assert.False(new SupportingFileBulkUpdateRequest().Preview);
     }
 
     [Fact]

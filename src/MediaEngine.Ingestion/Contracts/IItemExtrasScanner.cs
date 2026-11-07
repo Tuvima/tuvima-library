@@ -55,6 +55,12 @@ public interface IItemExtrasScanner
     Task<string?> ResolveScopeFolderAsync(string itemFolder, ExtraScope scope, CancellationToken ct = default);
 
     /// <summary>
+    /// The places a supporting file of the title in <paramref name="itemFolder"/> can belong to: the title itself, its seasons, and its
+    /// episodes, lessons and sections. Empty when the title has no folder in a library Library reads, or it is in a Vault library.
+    /// </summary>
+    Task<IReadOnlyList<ExtraScope>> ListPlacesAsync(string itemFolder, CancellationToken ct = default);
+
+    /// <summary>
     /// Where a person put this file when they moved it from Extras to an episode (WP4), or null when they did not. The ingestion
     /// pipeline reads it so the file is identified as that season and episode of its show.
     /// </summary>

@@ -70,7 +70,15 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string ThingAdd = "thing_add";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd];
+    /// <summary>
+    /// Group, role, Belongs to or tags set on several supporting files of one title at once (universal editor v5 D16, D30).
+    /// <see cref="EditSessionChange.EntityId"/> is the title; <see cref="EditSessionChange.SupportingFiles"/> names the files and what changes.
+    /// Library's own data, saved with the rest of the session and undone with it; in a Managed folder a changed Belongs to also moves the file
+    /// (put back if a later change fails). Deleting files is not a staged change: it asks once and happens at once.
+    /// </summary>
+    public const string SupportingFiles = "supporting_files";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 
@@ -134,6 +142,11 @@ public sealed class EditSessionChange
     /// <summary>The videos of a series or section, first to last (<see cref="EditSessionChangeKinds.VideoOrder"/> changes).</summary>
     [JsonPropertyName("ordered_ids")]
     public List<Guid> OrderedIds { get; init; } = [];
+
+    /// <summary>The files and the change for a <see cref="EditSessionChangeKinds.SupportingFiles"/> change.</summary>
+    [JsonPropertyName("supporting_files")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest? SupportingFiles { get; init; }
 }
 
 /// <summary>One staged value for a details field. An empty value reverts the field to the provider's value.</summary>
