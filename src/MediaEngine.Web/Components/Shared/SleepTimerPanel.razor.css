@@ -1,0 +1,71 @@
+/* Mockup screen 6: the moon sits before the title (the header lays the title and the adornment side by side; "order" puts the moon first), 24 px, 4 px
+   closer to the title than the header's own gap. The fixed footer holds "+5 minutes" (hairline outline, 14 / 600, 10 / 14 padding, radius 8) at the
+   left and "Cancel timer" (14 px secondary text) at the right. */
+.stp__moon {
+    --playback-glyph-size: 24px;
+    --playback-glyph-stroke: 1.8;
+    display: inline-flex;
+    margin-right: 4px;
+    order: -1;
+}
+
+.stp__footer {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 10px;
+}
+
+.stp__spacer {
+    flex: 1;
+}
+
+.stp__extend {
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    font: 600 14px/1.45 var(--font-ui);
+    min-height: 40px;
+    padding: 8px 14px;
+}
+
+.stp__cancel {
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    font: 400 14px/1.45 var(--font-ui);
+    min-height: 36px;
+    padding: 4px 12px;
+}
+
+.stp__extend:hover,
+.stp__cancel:hover {
+    background: var(--playback-state-hover);
+}
+
+.stp__cancel:hover {
+    color: var(--playback-text);
+}
+
+.stp__extend:active,
+.stp__cancel:active {
+    background: var(--playback-state-pressed);
+}
+
+.stp__extend:focus-visible,
+.stp__cancel:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+    .stp__extend,
+    .stp__cancel {
+        min-height: var(--playback-control-target);
+    }
+}

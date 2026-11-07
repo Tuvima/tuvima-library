@@ -1,0 +1,69 @@
+/* The Custom duration view (unified player v2 D16): the same 12 / 16 padding as the other panel bodies, a 13 px label, a 44 px field (hairline, radius 8,
+   15 px), 13 px helper text that turns to the error color for a bad value, and a Set timer button filled with the accent like the speed presets. */
+.stc {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 8px 0;
+}
+
+.stc__label {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+}
+
+.stc__input {
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    font: 400 15px/1.45 var(--font-ui);
+    min-height: 44px;
+    padding: 10px 12px;
+    width: 100%;
+}
+
+.stc__input:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.stc__input[aria-invalid="true"] {
+    border-color: var(--tl-status-error);
+}
+
+.stc__message {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 0;
+}
+
+.stc__message--error {
+    color: var(--tl-status-error);
+}
+
+.stc__set {
+    background: var(--playback-accent);
+    border: 0;
+    border-radius: 8px;
+    color: var(--tl-text-on-accent);
+    cursor: pointer;
+    font: 600 15px/1.45 var(--font-ui);
+    margin-top: 8px;
+    min-height: 44px;
+    padding: 10px 14px;
+}
+
+.stc__set:hover {
+    filter: brightness(1.08);
+}
+
+.stc__set:active {
+    filter: brightness(0.94);
+}
+
+.stc__set:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}

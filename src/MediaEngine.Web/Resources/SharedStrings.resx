@@ -9498,15 +9498,6 @@
   <data name="RestorePlugins_NothingChanged" xml:space="preserve">
     <value>Nothing could be restored.</value>
   </data>
-  <data name="PlayerSettings_Title" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="PlayerSettings_SleepTimer" xml:space="preserve">
-    <value>Sleep timer</value>
-  </data>
-  <data name="PlayerSettings_ShowBookmarksOnBar" xml:space="preserve">
-    <value>Show bookmarks on the bar</value>
-  </data>
   <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
     <value>No subtitle source is switched on</value>
   </data>
@@ -11465,5 +11456,64 @@
   </data>
   <data name="EpisodesPanel_Autoplay" xml:space="preserve">
     <value>Autoplay next episode</value>
+  <data name="SleepTimer_Title" xml:space="preserve">
+    <value>Sleep timer</value>
+  </data>
+  <data name="SleepTimer_TriggerOn" xml:space="preserve">
+    <value>Sleep timer, on</value>
+  </data>
+  <data name="SleepTimer_StoppingIn" xml:space="preserve">
+    <value>Stopping in</value>
+  </data>
+  <data name="SleepTimer_PausesAutomatically" xml:space="preserve">
+    <value>Playback will pause automatically.</value>
+  </data>
+  <data name="SleepTimer_ChooseWhen" xml:space="preserve">
+    <value>Choose when playback should stop.</value>
+  </data>
+  <data name="SleepTimer_StoppingAtChapter" xml:space="preserve">
+    <value>Stopping at the end of chapter {0}</value>
+  </data>
+  <data name="SleepTimer_StoppingAtChapterUnnumbered" xml:space="preserve">
+    <value>Stopping at the end of the chapter</value>
+  </data>
+  <data name="SleepTimer_Presets" xml:space="preserve">
+    <value>Timer length</value>
+  </data>
+  <data name="SleepTimer_PresetMinutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="SleepTimer_EndOfChapter" xml:space="preserve">
+    <value>End of chapter</value>
+  </data>
+  <data name="SleepTimer_EndOfChapterUnavailable" xml:space="preserve">
+    <value>End of chapter, unavailable: {0}</value>
+  </data>
+  <data name="SleepTimer_NoChapterBoundary" xml:space="preserve">
+    <value>No verified chapter boundary</value>
+  </data>
+  <data name="SleepTimer_Custom" xml:space="preserve">
+    <value>Custom duration…</value>
+  </data>
+  <data name="SleepTimer_CustomTitle" xml:space="preserve">
+    <value>Custom duration</value>
+  </data>
+  <data name="SleepTimer_CustomMinutes" xml:space="preserve">
+    <value>Minutes</value>
+  </data>
+  <data name="SleepTimer_CustomHelper" xml:space="preserve">
+    <value>Enter a whole number of minutes from {0} to {1}.</value>
+  </data>
+  <data name="SleepTimer_CustomError" xml:space="preserve">
+    <value>Enter a whole number of minutes from {0} to {1}.</value>
+  </data>
+  <data name="SleepTimer_CustomSet" xml:space="preserve">
+    <value>Set timer</value>
+  </data>
+  <data name="SleepTimer_AddFive" xml:space="preserve">
+    <value>+5 minutes</value>
+  </data>
+  <data name="SleepTimer_Cancel" xml:space="preserve">
+    <value>Cancel timer</value>
   </data>
 </root>
