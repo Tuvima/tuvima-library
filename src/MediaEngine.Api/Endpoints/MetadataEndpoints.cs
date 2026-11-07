@@ -7,6 +7,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Details.Internals;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
@@ -617,6 +618,8 @@ public static partial class MetadataEndpoints
             IMetadataEditorRepository metadataData,
             IEnumerable<IExternalMetadataProvider> providers,
             IWorkDetailReadService workDetailReadService,
+            EditorHeaderReadService editorHeader,
+            HttpContext http,
             CancellationToken ct) =>
         {
             var context = await ResolveEditorScopeContextAsync(entityId, canonicalRepo, libraryItemRepo, metadataData, ct);
@@ -624,6 +627,9 @@ public static partial class MetadataEndpoints
             {
                 return ApiErrors.NotFound($"Editor context for {entityId} not found.");
             }
+
+            // The header (universal editor v5): the way around the family, the cover's colours, the editor's numbers and the file facts.
+            var header = await editorHeader.GetHeaderAsync(context.LaunchWorkId, await CollectionEndpoints.ResolveViewerProfileIdAsync(http, ct), ct);
 
             var fieldScopes = context.Scopes
                 .Where(scope => !string.Equals(scope.FieldEntityKind, "File", StringComparison.OrdinalIgnoreCase))
@@ -759,6 +765,7 @@ public static partial class MetadataEndpoints
                 DisplayOverrideKeys = context.DisplayOverrideKeys.ToList(),
                 DisplayOverrides = new Dictionary<string, string>(context.DisplayOverrides, StringComparer.OrdinalIgnoreCase),
                 InitialScope = context.InitialScope,
+                Header = header,
                 Scopes = context.Scopes.Select(scope =>
                 {
                     var scopeIdentity = context.ScopeIdentitySummaries.TryGetValue(scope.FieldEntityId, out var resolvedScopeIdentity)
@@ -2228,6 +2235,7 @@ public static partial class MetadataEndpoints
         MapTvdbScopedMatchEndpoints(group);
         MapTvMatchBrowserEndpoints(group);
         MapMatchContextEndpoints(group);
+        MapEditorHeaderEndpoints(group);
         MapFileSortingEndpoints(group);
         MapArtworkWritebackEndpoints(group);
         MapArtworkWritebackStatusesEndpoint(group);

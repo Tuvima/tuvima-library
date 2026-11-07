@@ -97,6 +97,13 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<MediaEditorWorkVersionReadRepository>();
         services.AddSingleton<ItemQuickFactsRepository>();
         services.AddSingleton<ItemQuickFactsService>();
+        // The universal editor's v5 header, current match, document details and folder tree, and the numbers they read (config/editor.json).
+        services.AddSingleton<EditorConfigurationProvider>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(sp => sp.GetRequiredService<EditorConfigurationProvider>());
+        services.AddScoped<EditorHeaderReadService>();
+        services.AddScoped<EditorCurrentMatchService>();
+        services.AddScoped<EditorSuggestDetailsService>();
+        services.AddScoped<EditorFolderTreeService>();
         services.AddSingleton<MediaEditorFileCoverageRepository>();
         services.AddSingleton<MediaEditorSelectionHistoryReadService>();
         services.AddSingleton<PairingAssetReadService>();
