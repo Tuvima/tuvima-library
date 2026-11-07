@@ -23,7 +23,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
         Assert.Contains("object-fit:contain", css);
         Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
-        Assert.Contains("width:min(320px", css);
+        Assert.Contains("width: min(360px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoEndCard.razor.css")));
         Assert.Contains("<PlaybackSeekRail", razor);
         Assert.Contains("<PlaybackVolumeControl", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor")));
         Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));

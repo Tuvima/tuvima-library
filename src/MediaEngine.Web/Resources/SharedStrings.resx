@@ -7771,19 +7771,28 @@
     <value>Now playing</value>
   </data>
   <data name="VideoPlaybackHost_Rated" xml:space="preserve">
-    <value>RATED {0}</value>
+    <value>Rated {0}</value>
   </data>
-  <data name="VideoPlaybackHost_SeasonN" xml:space="preserve">
-    <value>Season {0}</value>
+  <data name="VideoPausedDetails_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="VideoPausedDetails_HoursMinutes" xml:space="preserve">
+    <value>{0}h {1}m</value>
+  </data>
+  <data name="VideoEndCard_NextLesson" xml:space="preserve">
+    <value>Next lesson</value>
+  </data>
+  <data name="VideoEndCard_Homework" xml:space="preserve">
+    <value>Homework: {0}</value>
+  </data>
+  <data name="VideoEndCard_PlayNow" xml:space="preserve">
+    <value>Play now</value>
+  </data>
+  <data name="VideoEndCard_Cancel" xml:space="preserve">
+    <value>Cancel</value>
   </data>
   <data name="VideoPlaybackHost_DismissHint" xml:space="preserve">
     <value>Dismiss hint</value>
-  </data>
-  <data name="VideoPlaybackHost_PlayNextEpisodeNow" xml:space="preserve">
-    <value>Play next episode now</value>
-  </data>
-  <data name="VideoPlaybackHost_DismissNextEpisode" xml:space="preserve">
-    <value>Dismiss next episode</value>
   </data>
   <data name="VideoPlaybackHost_VideoPlayback" xml:space="preserve">
     <value>Video playback</value>
