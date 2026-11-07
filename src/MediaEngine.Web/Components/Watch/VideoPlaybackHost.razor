@@ -102,7 +102,8 @@
                            HostedTools="@HostedBarTools" OmittedTools="@OmittedBarTools">
                 <TimelineContent>
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
-                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
+                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice"
+                               PreviewIndexUrl="@PlaybackSeekRail.PreviewIndexAddress(Playback.CurrentManifest?.ScrubPreviewIndexUrl)" />
                 </TimelineContent>
                 <ToolContent Context="tool">
                     @switch (tool.Key)

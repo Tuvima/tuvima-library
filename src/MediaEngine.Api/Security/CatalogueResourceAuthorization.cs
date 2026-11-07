@@ -718,7 +718,12 @@ public sealed record CatalogueQidAccessMetadata(string Permission);
 public sealed record CatalogueCharacterPortraitAccessMetadata(string Permission);
 public sealed record ProfileOperationAccessMetadata(string Permission);
 
-internal sealed class CatalogueAssetAccessFilter(ApplicationPermissionId permission) : IEndpointFilter
+/// <param name="permission">The application permission the route needs.</param>
+/// <param name="deniedAsNotFound">
+/// True for a route that must not reveal a file the caller may not use (scrub previews): a refusal and a missing file both answer 404.
+/// The check itself is the same one streaming the file uses.
+/// </param>
+internal sealed class CatalogueAssetAccessFilter(ApplicationPermissionId permission, bool deniedAsNotFound = false) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
@@ -741,7 +746,7 @@ internal sealed class CatalogueAssetAccessFilter(ApplicationPermissionId permiss
         {
             CatalogueResourceAccess.Allowed => await next(context),
             CatalogueResourceAccess.NotFound => Results.NotFound(),
-            _ => Results.Forbid(),
+            _ => deniedAsNotFound ? Results.NotFound() : Results.Forbid(),
         };
     }
 }
@@ -937,8 +942,9 @@ public static class CatalogueResourceEndpointExtensions
 
     public static RouteHandlerBuilder RequireCatalogueAssetAccess(
         this RouteHandlerBuilder builder,
-        ApplicationPermissionId permission) =>
-        builder.AddEndpointFilter(new CatalogueAssetAccessFilter(permission))
+        ApplicationPermissionId permission,
+        bool deniedAsNotFound = false) =>
+        builder.AddEndpointFilter(new CatalogueAssetAccessFilter(permission, deniedAsNotFound))
             .WithMetadata(new CatalogueAssetAccessMetadata(permission.Value));
 
     public static RouteHandlerBuilder RequireCatalogueArtworkAccess(

@@ -557,6 +557,19 @@ app.MapGet("/engine-subtitles/{assetId:guid}", async (Guid assetId, string? lang
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
 }).RequireAuthorization();
 
+// Scrub previews (Unified player v2 D9a): the index and sprite sheets of a video, through the Dashboard origin. The Engine applies the
+// same access checks as streaming the file and answers 404 when the profile may not play it.
+app.MapGet("/engine-scrub/{assetId:guid}/{file}", async (Guid assetId, string file, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/scrub/{Uri.EscapeDataString(file)}");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).WithName("ProxyEngineScrubPreview")
+  .WithSummary("Proxies one scrub-preview index or sprite sheet through the Dashboard origin.")
+  .RequireAuthorization();
+
 app.MapGet("/engine-text-track/{assetId:guid}/{trackId:guid}", async (Guid assetId, Guid trackId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
 {
     using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/text-tracks/{trackId:D}");

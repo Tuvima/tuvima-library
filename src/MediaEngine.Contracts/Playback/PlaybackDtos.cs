@@ -33,6 +33,12 @@ public sealed record PlaybackManifestDto
     public string? ConversionReason { get; init; }
     public int? SourceBitrateKbps { get; init; }
     public PlaybackConnectionContextDto Connection { get; init; } = new();
+
+    /// <summary>
+    /// Where the Engine serves the scrub-preview index (<see cref="ScrubPreviewIndexDto"/>) for this file, or null when it has no
+    /// previews (audio, previews switched off, or not made yet). The sprite sheets it names are served beside it.
+    /// </summary>
+    public string? ScrubPreviewIndexUrl { get; init; }
 }
 
 public sealed record PlaybackTechnicalInfoDto
