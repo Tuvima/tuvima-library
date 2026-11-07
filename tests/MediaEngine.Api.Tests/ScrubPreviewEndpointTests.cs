@@ -176,9 +176,95 @@ public sealed class ScrubPreviewEndpointTests : IDisposable
         }
     }
 
-    private async Task<TestApplication> StartAsync(Guid allowedLibrary)
+    /// <summary>A person on their own Dashboard session, the only kind of caller that can switch Vault mode on.</summary>
+    private RequestAuthority VaultPerson(Guid account, Guid session) => new(
+        PrincipalKind.Human,
+        true,
+        AccountId: account,
+        ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+        SessionId: session,
+        DeviceId: Guid.NewGuid(),
+        AccountEnabled: true,
+        ActiveProfileInUserHousehold: true,
+        AccountAuthorizationVersion: 1,
+        ProfileAuthorizationVersion: 1);
+
+    private (Guid Account, Guid Session) MakeVaultLibrary(Guid library)
     {
-        var authority = new RequestAuthority(
+        var account = Guid.NewGuid();
+        var session = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        using var connection = _world.Database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO accounts(id, email, normalized_email, created_at, updated_at, profile_id) VALUES(@account,@email,@email,@now,@now,@profile);",
+            new { account, email = $"{account:N}@example.com", now = now.ToString("O"), profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        connection.Execute("UPDATE profiles SET role='StandardUser' WHERE id=@profile;", new { profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        connection.Execute(
+            "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@library,'none',@now,@now,@now);",
+            new { library = library.ToString("D"), now = now.ToString("O") });
+        connection.Execute(
+            "INSERT INTO vault_section_grants(library_id, profile_id, created_at) VALUES(@library,@profile,@now);",
+            new { library = library.ToString("D"), profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, now = now.ToString("O") });
+        connection.Execute(
+            """
+            INSERT INTO auth_sessions(id,account_id,active_profile_id,token_hash,device_id,device_name,client,authentication_method,security_stamp,created_at,last_seen_at,expires_at)
+            VALUES(@session,@account,@profile,@hash,'device','Device','Dashboard','password','stamp',@now,@now,@later);
+            """,
+            new
+            {
+                session,
+                account,
+                profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+                hash = Guid.NewGuid().ToString("N"),
+                now = now.ToString("O"),
+                later = now.AddDays(30).ToString("O"),
+            });
+        return (account, session);
+    }
+
+    [Fact]
+    public async Task AVaultVideosPreviews_AreNotFoundWhileTheVaultIsLocked()
+    {
+        var library = Guid.NewGuid();
+        var assetId = await AddVideoWithPreviewsAsync(library);
+        var (account, session) = MakeVaultLibrary(library);
+        await using var app = await StartAsync(library, VaultPerson(account, session));
+
+        using var index = await app.Client.GetAsync($"/stream/{assetId:D}/scrub/index.json");
+        using var sheet = await app.Client.GetAsync($"/stream/{assetId:D}/scrub/sheet-000.jpg");
+
+        Assert.Equal(HttpStatusCode.NotFound, index.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, sheet.StatusCode);
+        Assert.Empty(await sheet.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task AVaultVideosPreviews_AreServedOnlyToAnUnlockedSession_AndAreNeverCached()
+    {
+        var library = Guid.NewGuid();
+        var assetId = await AddVideoWithPreviewsAsync(library);
+        var (account, session) = MakeVaultLibrary(library);
+        var nsfw = new NsfwAccessRepository(_world.Database);
+        await nsfw.SetAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, NsfwAccessMode.Allowed, null, null, DateTimeOffset.UtcNow);
+        await nsfw.UnlockAsync(session, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, NsfwUnlockMethod.Allowed, 15, DateTimeOffset.UtcNow);
+        await using var app = await StartAsync(library, VaultPerson(account, session));
+
+        using var index = await app.Client.GetAsync($"/stream/{assetId:D}/scrub/index.json");
+        using var sheet = await app.Client.GetAsync($"/stream/{assetId:D}/scrub/sheet-000.jpg");
+
+        Assert.Equal(HttpStatusCode.OK, index.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+        foreach (var response in new[] { index, sheet })
+        {
+            Assert.True(response.Headers.CacheControl?.NoStore == true, "a Vault preview is never kept by a cache");
+            Assert.True(response.Headers.CacheControl?.Private == true);
+            Assert.Null(response.Headers.CacheControl?.MaxAge);
+        }
+    }
+
+    private async Task<TestApplication> StartAsync(Guid allowedLibrary, RequestAuthority? signedIn = null)
+    {
+        var authority = signedIn ?? new RequestAuthority(
             PrincipalKind.DelegatedUserClient,
             true,
             AccountId: Guid.NewGuid(),

@@ -284,6 +284,31 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
         Assert.True(zone - fixedParts > 0, "the title still has room beside the four buttons");
     }
 
+    [Fact]
+    public void TheTitleTakesOnlyItsOwnWidthSoTheActionsSitRightAfterItAsInTheMockup()
+    {
+        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
+
+        Assert.Contains(".playback-identity__text {\n    flex: 0 1 auto;\n    min-width: 0;\n}", css, StringComparison.Ordinal);
+        Assert.DoesNotContain(".playback-identity__text {\n    flex: 1 1 auto;", css, StringComparison.Ordinal);
+        // A long title still ends in an ellipsis: the text may shrink (the 1) and its lines clip.
+        Assert.Contains("text-overflow: ellipsis;", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASongTitleLinksToItsAlbumBecauseTheLibraryHasNoPageForOneSong()
+    {
+        var song = Item(PlaybackBarMedia.Music);
+
+        var identity = PlaybackBarIdentity.Build(PlaybackBarMedia.Music, song);
+
+        Assert.Equal("album", identity.TitleLinkKind);
+        Assert.Equal(song.AlbumWorkId, identity.TitleLinkId);
+        Assert.Equal("The Midnight Coast", identity.SecondaryText);
+        Assert.Equal($"/details/musicalbum/{song.AlbumWorkId:D}?context=listen", PlaybackIdentityNavigation.Route(song, identity.TitleLinkKind, identity.TitleLinkId!.Value));
+        Assert.Null(PlaybackBarIdentity.Build(PlaybackBarMedia.Music, song with { AlbumWorkId = null }).TitleLinkKind);
+    }
+
     [Theory]
     [InlineData(PlaybackBarMedia.Audiobook)]
     [InlineData(PlaybackBarMedia.Movie)]

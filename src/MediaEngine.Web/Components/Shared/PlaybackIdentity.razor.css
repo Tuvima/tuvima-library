@@ -1,6 +1,6 @@
 /* The identity zone of the persistent bar (unified player v2 D5; mockup screen 1 marker 4): a 56 px tall artwork slot, the title and second line, then
-   the item's actions. The zone keeps at least 240 px (the phone's collapsed form lets it shrink) and the title takes what is left and ends in an
-   ellipsis; the actions never shrink, so Favorite, Like, Dislike and More stay visible beside a song title at 1024 wide. */
+   the item's actions. The zone keeps at least 240 px (the phone's collapsed form lets it shrink) and the title takes only the room it needs, so the actions sit right after it as in the mockup, and ends in an
+   ellipsis when it must shrink; the actions never shrink, so Favorite, Like, Dislike and More stay visible beside a song title at 1024 wide. */
 .playback-identity {
     align-items: center;
     display: flex;
@@ -70,7 +70,7 @@
 }
 
 .playback-identity__text {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
 }
 

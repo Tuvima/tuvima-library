@@ -49,7 +49,8 @@ public sealed record PlaybackBarIdentity(
                 {
                     AddIfText(parts, item.Album, item.AlbumWorkId is not null ? "album" : null, item.AlbumWorkId);
                 }
-                return new(item.Title, null, null, parts);
+                // There is no page of its own for one song, so the title opens the album it is on (D5: title and names are links).
+                return new(item.Title, item.AlbumWorkId is not null ? "album" : null, item.AlbumWorkId, parts);
 
             case PlaybackBarMedia.Audiobook:
                 var bookId = item.AudiobookWorkId ?? item.WorkId;

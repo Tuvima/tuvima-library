@@ -42,7 +42,7 @@ export function attach(root) {
         if (!url) return null;
         if (url !== previewUrl) {
             previewUrl = url; preview = null;
-            let supplied = null; try { supplied = root.dataset.scrubIndex ? JSON.parse(root.dataset.scrubIndex) : null; } catch (_) { }
+            let supplied = null; try { supplied = root.dataset.scrubIndex ? JSON.parse(root.dataset.scrubIndex) : null; } catch (_) { /* A malformed supplied copy is ignored on purpose: the index is then fetched from its URL below. */ }
             if (supplied) preview = supplied; else loadIndex(url).then(index => { if (previewUrl === url) { preview = index; } });
         }
         return preview;
