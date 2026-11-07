@@ -67,8 +67,15 @@ public sealed class EditorConfigurationProvider : IEditorConfigurationSource
         }
     }
 
-    /// <summary>Reads a rules file; null when it is unreadable or leaves out something the editor cannot work without.</summary>
-    public static EditorConfiguration? TryRead(string json, out string? problem)
+    /// <summary>Reads the shipped rules file on its own: every count must be in it. Null when it is unreadable or leaves out something the editor cannot work without.</summary>
+    public static EditorConfiguration? TryRead(string json, out string? problem) => TryRead(json, fallback: null, out problem);
+
+    /// <summary>
+    /// Reads a person's rules file. Anything the file leaves out (a count, the document-details limits, a whole kind) is filled from
+    /// <paramref name="fallback"/>, the shipped rules, so a short file never breaks the editor. With no fallback every count must be in the file.
+    /// Null when the file is unreadable, or a count it does state is not a positive number.
+    /// </summary>
+    public static EditorConfiguration? TryRead(string json, EditorConfiguration? fallback, out string? problem)
     {
         problem = null;
         try
@@ -80,6 +87,12 @@ public sealed class EditorConfigurationProvider : IEditorConfigurationSource
                 return null;
             }
 
+            if (fallback is not null)
+            {
+                using var document = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+                FillMissing(read, document.RootElement, fallback);
+            }
+
             problem = Check(read);
             return problem is null ? read : null;
         }
@@ -89,6 +102,60 @@ public sealed class EditorConfigurationProvider : IEditorConfigurationSource
             return null;
         }
     }
+
+    // A key that is not in the file takes the shipped value. A key that is in the file is checked as written, so a stated 0 is refused
+    // rather than quietly replaced.
+    private static void FillMissing(EditorConfiguration read, JsonElement root, EditorConfiguration shipped)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (!Has(root, "inline_supporting_files"))
+        {
+            read.InlineSupportingFiles = shipped.InlineSupportingFiles;
+        }
+
+        if (!Has(root, "cards_per_group"))
+        {
+            read.CardsPerGroup = shipped.CardsPerGroup;
+        }
+
+        if (!Has(root, "rows_per_page"))
+        {
+            read.RowsPerPage = shipped.RowsPerPage;
+        }
+
+        if (!Has(root, "item_list_page_size"))
+        {
+            read.ItemListPageSize = shipped.ItemListPageSize;
+        }
+
+        if (!Has(root, "folder_tree_page_size"))
+        {
+            read.FolderTreePageSize = shipped.FolderTreePageSize;
+        }
+
+        JsonElement? details = root.TryGetProperty("suggest_details", out var stated) && stated.ValueKind == JsonValueKind.Object ? stated : null;
+        if (details is not { } firstLinesOwner || !Has(firstLinesOwner, "first_lines"))
+        {
+            read.SuggestDetails.FirstLines = shipped.SuggestDetails.FirstLines;
+        }
+
+        if (details is not { } maxOwner || !Has(maxOwner, "description_max_characters"))
+        {
+            read.SuggestDetails.DescriptionMaxCharacters = shipped.SuggestDetails.DescriptionMaxCharacters;
+        }
+
+        foreach (var (kind, rules) in shipped.Kinds)
+        {
+            read.Kinds.TryAdd(kind, rules);
+        }
+    }
+
+    private static bool Has(JsonElement element, string name) =>
+        element.EnumerateObject().Any(property => property.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
     private static string? Check(EditorConfiguration config)
     {
@@ -128,7 +195,7 @@ public sealed class EditorConfigurationProvider : IEditorConfigurationSource
 
         try
         {
-            var read = TryRead(File.ReadAllText(path), out var problem);
+            var read = TryRead(File.ReadAllText(path), BuiltIn, out var problem);
             if (read is not null)
             {
                 return read;

@@ -5,6 +5,7 @@ using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Extras;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Services.EditSession;
 
@@ -12,7 +13,8 @@ namespace MediaEngine.Api.Services.EditSession;
 /// The folder button's tree (universal editor v5 3a, section 5): the title's own folder and every folder below it, each file marked as the
 /// title's media, a supporting file, a file Library never shows ("Not shown in the library", such as an .nfo or a subtitle), or one that is
 /// not sorted yet. One folder at a time, paged, so a long season folder costs no more than a short one. A read only: it only looks at
-/// the disk, and it never leaves the title's folder.
+/// the disk, and it never leaves the title's folder: a shortcut (a symbolic link or a junction) that points outside it is not followed, and
+/// one that cannot be read is left out of the list.
 /// </summary>
 public sealed class EditorFolderTreeService(
     EditorHeaderReadService header,
@@ -21,8 +23,11 @@ public sealed class EditorFolderTreeService(
     IMediaTypeExtensionCatalog extensions,
     IEditorConfigurationSource editorConfig,
     IDatabaseConnection db,
-    IExtrasConfigurationSource? rules = null)
+    IExtrasConfigurationSource? rules = null,
+    ILogger<EditorFolderTreeService>? logger = null)
 {
+    private readonly ILogger _logger = logger ?? NullLogger<EditorFolderTreeService>.Instance;
+
     /// <summary>
     /// One page of one folder. <paramref name="folder"/> is relative to the title's folder with <c>/</c> between parts; empty or null is the
     /// title's folder. Null when the item has no title folder, or the folder is not inside it (including any attempt to climb out of it).
@@ -43,7 +48,7 @@ public sealed class EditorFolderTreeService(
         }
 
         var directory = relative.Length == 0 ? root : Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
-        if (!IsInside(root, directory) || !Directory.Exists(directory))
+        if (!IsInside(root, directory) || !Directory.Exists(directory) || !StaysInside(root, relative))
         {
             return null;
         }
@@ -53,8 +58,20 @@ public sealed class EditorFolderTreeService(
         var pageSize = editorConfig.Current.FolderTreePageSize;
 
         // Folders first, then files, each in natural name order.
-        var folders = Directory.EnumerateDirectories(directory).Select(path => new DirectoryInfo(path)).OrderBy(info => info.Name, NaturalOrder.Instance).ToList();
-        var files = Directory.EnumerateFiles(directory).Select(path => new FileInfo(path)).OrderBy(info => info.Name, NaturalOrder.Instance).ToList();
+        List<DirectoryInfo> folders;
+        List<FileInfo> files;
+        try
+        {
+            folders = Directory.EnumerateDirectories(directory).Select(path => new DirectoryInfo(path))
+                .Where(info => StaysInside(root, info)).OrderBy(info => info.Name, NaturalOrder.Instance).ToList();
+            files = Directory.EnumerateFiles(directory).Select(path => new FileInfo(path))
+                .Where(info => StaysInside(root, info)).OrderBy(info => info.Name, NaturalOrder.Instance).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "The folder {Folder} of item {ItemId} could not be listed", relative, workId);
+            return null;
+        }
         var total = folders.Count + files.Count;
         offset = Math.Clamp(offset, 0, total);
 
@@ -84,6 +101,17 @@ public sealed class EditorFolderTreeService(
             main.TryGetValue(full, out var itemId);
             supporting.TryGetValue(Path.GetFullPath(full), out var extraId);
             var info = (FileInfo)entry;
+            long size;
+            try
+            {
+                size = info.Length;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "The file {File} of item {ItemId} could not be read and is left out of the folder list", path, workId);
+                continue;
+            }
+
             entries.Add(new EditorFolderEntryDto
             {
                 Name = entry.Name,
@@ -94,7 +122,7 @@ public sealed class EditorFolderTreeService(
                     : extraId != Guid.Empty
                         ? EditorFolderEntryStates.Supporting
                         : IsHidden(context, full) ? EditorFolderEntryStates.Hidden : EditorFolderEntryStates.Unsorted,
-                SizeBytes = info.Length,
+                SizeBytes = size,
                 ItemId = itemId != Guid.Empty ? itemId : null,
                 SupportingFileId = extraId != Guid.Empty ? extraId : null,
             });
@@ -173,6 +201,51 @@ public sealed class EditorFolderTreeService(
         return parts.Any(part => part is "." or ".." || part.Contains(':') || part.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             ? null
             : string.Join('/', parts);
+    }
+
+    // A shortcut (symbolic link, junction) is followed only when it ends inside the title's folder; one that points outside it (another
+    // title, the Vault, anywhere else), or that is broken, is left out. A real file or folder always stays.
+    private bool StaysInside(string root, FileSystemInfo info)
+    {
+        try
+        {
+            if (info.LinkTarget is null && !info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                return true;
+            }
+
+            var target = info.ResolveLinkTarget(returnFinalTarget: true);
+            if (target is null || !target.Exists)
+            {
+                _logger.LogWarning("The shortcut {Name} in a title folder points nowhere and is left out of the folder list", info.Name);
+                return false;
+            }
+
+            var resolved = Path.TrimEndingDirectorySeparator(target.FullName);
+            var realRoot = Path.TrimEndingDirectorySeparator(new DirectoryInfo(root).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? root);
+            return IsInside(root, resolved) || IsInside(realRoot, resolved);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "The shortcut {Name} in a title folder could not be read and is left out of the folder list", info.Name);
+            return false;
+        }
+    }
+
+    // Every part of a folder path a person asks for must stay inside the title's folder too, not just the last one.
+    private bool StaysInside(string root, string relative)
+    {
+        var current = root;
+        foreach (var part in relative.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            if (!StaysInside(root, new DirectoryInfo(current)))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool IsInside(string root, string candidate)

@@ -9,6 +9,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -21,6 +22,7 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
 {
     private readonly EditorHeaderTestWorld _world = new("Game of Thrones");
     private readonly string _config = Path.Combine(Path.GetTempPath(), $"tuvima_current_match_{Guid.NewGuid():N}");
+    private readonly MemoryCache _previews = new(new MemoryCacheOptions());
 
     [Fact]
     public async Task AMatchedShow_IsReadFromTheProviderByItsTheTvdbId_WithNoTextSearch()
@@ -41,7 +43,8 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
         Assert.Equal("Show", record.Kind);
         Assert.Equal("Game of Thrones", record.Title);
         Assert.Equal("2011", record.Year);
-        Assert.Equal("https://artworks.thetvdb.com/series/121361.jpg", record.ImageUrl);
+        Assert.Matches($"^/metadata/{show:D}/tvdb-match/previews/[0-9a-f]{{32}}$", record.ImageUrl);
+        Assert.DoesNotContain("thetvdb.com", record.ImageUrl, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("https://thetvdb.com/dereferrer/series/121361", record.SourceUrl);
         Assert.Equal(EditorCurrentMatchSources.Provider, record.Source);
         Assert.Equal("Q23572", match.WikidataQid);
@@ -89,6 +92,51 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
         Assert.Equal("Game of Thrones", title.MatchedRecord);
         Assert.Equal(EditorMatchEvidenceStates.Agrees, title.State);
         Assert.Equal(0.93, title.Score);
+    }
+
+    [Fact]
+    public async Task AnEpisodesYear_IsComparedWithTheShowsYear_NotTheEpisodesAirYear()
+    {
+        var show = _world.Work("TV", "parent", "Game of Thrones");
+        var season = _world.Work("TV", "parent", "Season 2", show, 2);
+        var episode = _world.Work("TV", "child", "The North Remembers", season, 1);
+        _world.File(episode, "Game of Thrones (2011) S02E01.mkv");
+        _world.Canonical(episode, BridgeIdKeys.TvdbEpisodeId, "3254641");
+        _world.Canonical(episode, "year", "2012");
+        _world.Canonical(show, "year", "2011");
+        _world.Canonical(show, "title", "Game of Thrones");
+
+        var match = await Service(new TvdbSpy(), connected: false).ReadAsync(episode);
+
+        var year = Assert.Single(match!.Why, row => row.Field == "year");
+        Assert.Equal("2011", year.YourFile);
+        Assert.Equal("2011", year.MatchedRecord);
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, year.State);
+    }
+
+    [Fact]
+    public async Task AFilmsDirector_IsTheCreatorOfItsMatchedRecord()
+    {
+        var film = _world.Work("Movies", "standalone", "Arrival");
+        _world.Canonical(film, BridgeIdKeys.TmdbId, "329865");
+        _world.Canonical(film, "director", "Denis Villeneuve");
+
+        var match = await Service(new TvdbSpy(), connected: true).ReadAsync(film);
+
+        Assert.Equal("Denis Villeneuve", match!.Record!.Creator);
+    }
+
+    [Fact]
+    public async Task AStoredTvdbPicture_IsAlsoShownThroughThePreview_NeverAsTheTvdbAddress()
+    {
+        var show = _world.Work("TV", "parent", "Game of Thrones");
+        _world.Canonical(show, BridgeIdKeys.TvdbId, "121361");
+        _world.Canonical(show, "cover_url", "https://artworks.thetvdb.com/series/121361/posters/1.jpg");
+
+        var match = await Service(new TvdbSpy(), connected: false).ReadAsync(show);
+
+        Assert.Equal(EditorCurrentMatchSources.Stored, match!.Record!.Source);
+        Assert.Matches($"^/metadata/{show:D}/tvdb-match/previews/[0-9a-f]{{32}}$", match.Record.ImageUrl);
     }
 
     [Fact]
@@ -194,6 +242,7 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
             new CanonicalValueRepository(_world.Database),
             new MetadataClaimRepository(_world.Database),
             client,
+            _previews,
             NullLogger<EditorCurrentMatchService>.Instance);
     }
 
@@ -229,6 +278,7 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
 
     public void Dispose()
     {
+        _previews.Dispose();
         _world.Dispose();
         try
         {

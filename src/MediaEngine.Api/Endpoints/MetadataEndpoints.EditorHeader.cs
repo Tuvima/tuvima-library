@@ -12,16 +12,18 @@ public static partial class MetadataEndpoints
 {
     /// <summary>
     /// The editor's v5 header reads (universal editor v5, section 5 "Engine reads"): one more page of the item dropdown, the Match tab's
-    /// current match found by its stored id, "Suggest details" for a supporting file's document, and the folder button's tree. The first
-    /// view of the header itself rides on the editor-context read. All four are reads: nothing is written until Save.
+    /// current match found by its stored id, "Suggest details" for a supporting file's document, the folder button's tree, and the rules of
+    /// one kind of item. The first view of the header itself rides on the editor-context read. All five are reads: nothing is written until Save.
     /// </summary>
     private static void MapEditorHeaderEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/{entityId:guid}/editor-nav/level", async (
-            Guid entityId, Guid? level_id, string? q, int? offset, HttpContext http, EditorHeaderReadService header, CancellationToken ct) =>
+            Guid entityId, Guid? level_id, string? q, int? offset, Guid? supporting_file_id, HttpContext http, EditorHeaderReadService header,
+            CancellationToken ct) =>
         {
             var level = await header.GetLevelAsync(
-                entityId, level_id, q, PagedRequest.From(offset, null).Offset, await CollectionEndpoints.ResolveViewerProfileIdAsync(http, ct), ct);
+                entityId, level_id, q, PagedRequest.From(offset, null).Offset, await CollectionEndpoints.ResolveViewerProfileIdAsync(http, ct), ct,
+                supporting_file_id);
             return level is null ? ApiErrors.NotFound("That list was not found.") : Results.Ok(level);
         }).WithName("GetEditorNavLevel")
           .WithSummary("One searchable, paged list of the editor's item dropdown: a season, a section or the whole title.")
@@ -29,6 +31,24 @@ public static partial class MetadataEndpoints
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
+        // The rules of one kind of item, for the editors that do not open on a work (a person, a Universe, a supporting file, a View photo or
+        // gallery, several items at once). The same numbers and per-kind rules the header carries; the Dashboard holds none of them.
+        group.MapGet("/editor-config", (string? kind, EditorHeaderReadService header) =>
+        {
+            if (string.IsNullOrWhiteSpace(kind))
+            {
+                return ApiErrors.BadRequest("Say which kind of item the editor rules are for.");
+            }
+
+            var config = header.GetKindConfig(kind.Trim());
+            return config is null ? ApiErrors.NotFound("That kind of item is not known.") : Results.Ok(config);
+        }).WithName("GetEditorKindConfig")
+          .WithSummary("The editor's numbers and the tabs, facts and search fields of one kind of item (person, Universe, supporting file, View photo or gallery, several items).")
+          .Produces<EditorHeaderConfigDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status400BadRequest)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
 
         group.MapGet("/{entityId:guid}/current-match", async (Guid entityId, EditorCurrentMatchService match, CancellationToken ct) =>
         {
@@ -42,14 +62,10 @@ public static partial class MetadataEndpoints
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
         group.MapGet("/{entityId:guid}/supporting-files/{supportingFileId:guid}/suggest-details", async (
-            Guid entityId, Guid supportingFileId, IItemExtraRepository extras, EditorHeaderReadService header,
-            EditorSuggestDetailsService suggest, CancellationToken ct) =>
+            Guid entityId, Guid supportingFileId, EditorHeaderReadService header, EditorSuggestDetailsService suggest, CancellationToken ct) =>
         {
-            // Only a supporting file of this item's own folder: the route never reads another title's file.
-            var extra = await extras.GetAsync(supportingFileId, ct);
-            var itemFolder = await header.GetItemFolderAsync(entityId, ct);
-            if (extra is null || itemFolder is null
-                || !string.Equals(Path.GetFullPath(extra.ItemFolder), Path.GetFullPath(itemFolder), StringComparison.OrdinalIgnoreCase))
+            // Only a supporting file of this item's own folder: the route never reads another title's file (a book's neighbour in its Series included).
+            if (!await header.OwnsSupportingFileAsync(entityId, supportingFileId, ct))
             {
                 return ApiErrors.NotFound("That supporting file was not found.");
             }

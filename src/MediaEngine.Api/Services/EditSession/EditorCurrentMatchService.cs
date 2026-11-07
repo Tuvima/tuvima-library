@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.EditSession;
 
@@ -14,13 +16,15 @@ namespace MediaEngine.Api.Services.EditSession;
 /// found by the provider id the Engine stored when it matched, never by a text search, so the tab can never say "Nothing called ..." about
 /// the item's own title. A show, season or episode matched on TheTVDB is read from TheTVDB by its id; when the provider is not connected,
 /// does not answer, or is one the Engine has no lookup by id for, the record the Engine stored is shown and a plain note says so.
-/// A read only: nothing is written.
+/// TheTVDB pictures reach the browser through the Engine's own preview connection point (the same one the TheTVDB match lists use), so the
+/// browser never contacts TheTVDB itself. A read only: nothing is written.
 /// </summary>
 public sealed class EditorCurrentMatchService(
     IMetadataEditorRepository launches,
     ICanonicalValueRepository canonicals,
     IMetadataClaimRepository claims,
     ProviderApiClient tvdb,
+    IMemoryCache previews,
     ILogger<EditorCurrentMatchService> logger)
 {
     private const string TvdbProvider = "tvdb";
@@ -64,7 +68,7 @@ public sealed class EditorCurrentMatchService(
         var stored = new RecordFacts(
             Value(own, MetadataFieldConstants.Title),
             Value(own, MetadataFieldConstants.Year),
-            Value(own, MetadataFieldConstants.Author) ?? Value(own, MetadataFieldConstants.Artist),
+            Value(own, MetadataFieldConstants.Author) ?? Value(own, MetadataFieldConstants.Artist) ?? Value(own, MetadataFieldConstants.Director),
             Value(own, MetadataFieldConstants.SeasonNumber),
             Value(own, MetadataFieldConstants.EpisodeNumber),
             Value(own, "cover_url") ?? Value(own, "poster_url"),
@@ -117,6 +121,13 @@ public sealed class EditorCurrentMatchService(
         var showLevel = isTv && source.Kind != "Show";
         var titleSide = showLevel ? Value(root, MetadataFieldConstants.Title) ?? Value(root, MetadataFieldConstants.ShowName) : facts.Title ?? stored.Title;
         var scores = await ReadScoresAsync(showLevel && launch.RootWorkId != Guid.Empty ? launch.RootWorkId : launch.WorkId, ct).ConfigureAwait(false);
+
+        // The year row compares like with like: a season or episode file carries the show's year, so it is set beside the show's year.
+        var yearSide = showLevel ? Value(root, MetadataFieldConstants.Year) : facts.Year;
+
+        // A TheTVDB picture is shown through the Engine's preview, never as TheTVDB's own address.
+        var imageUrl = MetadataEndpoints.CreateTvdbPreviewUrl(previews, entityId, launch.WorkId, facts.ImageUrl)
+            ?? (IsTvdbAddress(facts.ImageUrl) ? null : facts.ImageUrl);
         return new EditorCurrentMatchDto
         {
             EntityId = entityId,
@@ -130,18 +141,23 @@ public sealed class EditorCurrentMatchService(
                 Title = facts.Title ?? stored.Title ?? string.Empty,
                 Year = facts.Year,
                 Creator = facts.Creator,
-                ImageUrl = facts.ImageUrl,
+                ImageUrl = imageUrl,
                 Description = facts.Description,
                 SourceUrl = source.Url,
                 Source = origin,
             },
             WikidataQid = qid,
             WikidataUrl = OutsideLinks.Wikidata(qid),
-            Why = BuildWhy(isTv, parsed, titleSide, facts, scores),
+            Why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores),
             FileName = fileName,
             Note = note,
         };
     }
+
+    private static bool IsTvdbAddress(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var address)
+        && (address.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
+            || address.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase));
 
     private sealed record RecordFacts(
         string? Title, string? Year, string? Creator, string? Season, string? Episode, string? ImageUrl, string? Description);
@@ -275,12 +291,12 @@ public sealed class EditorCurrentMatchService(
     // Each fact the file's name says, set beside what the matched record says. A fact the file does not say is "not checked" and never
     // counts against the match.
     private static IReadOnlyList<EditorMatchEvidenceRowDto> BuildWhy(
-        bool isTv, ParsedFileName parsed, string? titleSide, RecordFacts record, IReadOnlyDictionary<string, double> scores)
+        bool isTv, ParsedFileName parsed, string? titleSide, string? yearSide, RecordFacts record, IReadOnlyDictionary<string, double> scores)
     {
         var rows = new List<EditorMatchEvidenceRowDto>();
         var fileTitle = isTv ? parsed.Show : parsed.Title;
         rows.Add(Row("title", fileTitle, titleSide, scores.GetValueOrDefault(MetadataFieldConstants.Title) is var t and > 0 ? t : null, same: SameText));
-        rows.Add(Row("year", parsed.Year, record.Year, scores.GetValueOrDefault(MetadataFieldConstants.Year) is var y and > 0 ? y : null, same: SameText));
+        rows.Add(Row("year", parsed.Year, yearSide, scores.GetValueOrDefault(MetadataFieldConstants.Year) is var y and > 0 ? y : null, same: SameText));
         if (isTv && (parsed.Season is not null || record.Season is not null))
         {
             rows.Add(Row("season_number", parsed.Season?.ToString(CultureInfo.InvariantCulture), record.Season, null, same: SameNumber));

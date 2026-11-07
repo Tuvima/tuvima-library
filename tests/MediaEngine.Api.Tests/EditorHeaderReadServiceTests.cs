@@ -1,6 +1,8 @@
 using Dapper;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Tests;
@@ -399,6 +401,175 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         var tv = SeedExpanse();
 
         Assert.Null(await _world.Header().GetLevelAsync(tv.Episode3, Guid.NewGuid(), null, 0, null));
+    }
+
+    [Fact]
+    public async Task ABookInASeries_HomesOnTheSeries_AndListsItsOwnSupportingFiles_NotASiblings()
+    {
+        var series = _world.Work("Books", "parent", "Dune Chronicles");
+        var firstBook = _world.Work("Books", "child", "Dune", series, 1);
+        var secondBook = _world.Work("Books", "child", "Dune Messiah", series, 2);
+        var firstFolder = _world.AddTitleFolder("Dune");
+        var secondFolder = _world.AddTitleFolder("Dune Messiah");
+        _world.File(firstBook, "Dune.epub", folder: firstFolder);
+        _world.File(secondBook, "Dune Messiah.epub", folder: secondFolder);
+        await _world.SupportingFileAsync("Map of Arrakis.pdf", ExtraScope.Root, folder: firstFolder);
+        await _world.SupportingFileAsync("Family tree.pdf", ExtraScope.Root, folder: secondFolder);
+
+        var header = await _world.Header().GetHeaderAsync(secondBook, null);
+
+        Assert.Equal("book", header!.Kind);
+        Assert.True(header.ShowHome);
+        Assert.Equal(series, header.HomeId);
+        Assert.Equal(["Dune", "Dune Messiah"], header.Level!.Items.Select(item => item.Title));
+        var files = header.Level.SupportingFiles!;
+        Assert.Equal("Family tree", Assert.Single(files.Files).Title);
+        Assert.Equal(1, files.TotalInRoot);
+        Assert.Equal("Dune Messiah", header.FolderButton!.FolderName);
+        Assert.Equal(secondFolder, await _world.Header().GetItemFolderAsync(secondBook));
+        Assert.Equal(firstFolder, await _world.Header().GetItemFolderAsync(firstBook));
+    }
+
+    [Fact]
+    public async Task AFilmInAFilmSeries_KeepsTheHomeButton_WithTheSeriesAsHome()
+    {
+        var series = _world.Work("Movies", "parent", "Alien Collection");
+        var alien = _world.Work("Movies", "child", "Alien", series, 1);
+        var aliens = _world.Work("Movies", "child", "Aliens", series, 2);
+        _world.File(alien, "Alien (1979).mkv", folder: _world.AddTitleFolder("Alien (1979)"));
+        _world.File(aliens, "Aliens (1986).mkv", folder: _world.AddTitleFolder("Aliens (1986)"));
+
+        var header = await _world.Header().GetHeaderAsync(aliens, null);
+
+        Assert.Equal("movie", header!.Kind);
+        Assert.True(header.ShowHome);
+        Assert.Equal(series, header.HomeId);
+        Assert.False(header.HomeIsCurrent);
+        Assert.Equal("Alien Collection", header.Label);
+        Assert.Equal(["Alien", "Aliens"], header.Level!.Items.Select(item => item.Title));
+        Assert.Equal("series", (await _world.Header().GetHeaderAsync(series, null))!.Kind);
+    }
+
+    [Fact]
+    public async Task ASupportingFileOfAnotherTitle_IsNotOwnedByTheBookBeingEdited()
+    {
+        var series = _world.Work("Books", "parent", "Dune Chronicles");
+        var firstBook = _world.Work("Books", "child", "Dune", series, 1);
+        var secondBook = _world.Work("Books", "child", "Dune Messiah", series, 2);
+        var firstFolder = _world.AddTitleFolder("Dune");
+        var secondFolder = _world.AddTitleFolder("Dune Messiah");
+        _world.File(firstBook, "Dune.epub", folder: firstFolder);
+        _world.File(secondBook, "Dune Messiah.epub", folder: secondFolder);
+        var siblings = await _world.SupportingFileAsync("Map of Arrakis.pdf", ExtraScope.Root, folder: firstFolder);
+        var own = await _world.SupportingFileAsync("Family tree.pdf", ExtraScope.Root, folder: secondFolder);
+        var service = _world.Header();
+
+        Assert.True(await service.OwnsSupportingFileAsync(secondBook, own));
+        Assert.False(await service.OwnsSupportingFileAsync(secondBook, siblings));
+        Assert.False(await service.OwnsSupportingFileAsync(secondBook, Guid.NewGuid()));
+        Assert.True(await service.OwnsSupportingFileAsync(firstBook, siblings));
+    }
+
+    [Fact]
+    public async Task ASearchedCourseList_NeverRenumbersTheLessonsThatHaveNoStoredNumber()
+    {
+        var course = _world.Work("Videos", "parent", "Build with Blazor");
+        var section = _world.Work("Videos", "parent", "Components", course, 1);
+        foreach (var title in new[] { "A Creating a component", "B Passing parameters", "C Component events" })
+        {
+            _world.File(_world.Work("Videos", "child", title, section), $"Components/{title}.mkv");
+        }
+
+        var service = _world.Header();
+        var lesson = (await service.GetLevelAsync(section, section, null, 0, null))!.Items[0].Id;
+        var all = await service.GetLevelAsync(lesson, section, null, 0, null);
+        var searched = await service.GetLevelAsync(lesson, section, "events", 0, null);
+
+        Assert.Equal([1, 2, 3], all!.Items.Select(item => item.Number!.Value));
+        var found = Assert.Single(searched!.Items);
+        Assert.Equal("C Component events", found.Title);
+        Assert.Equal(3, found.Number);
+        Assert.Equal("03", found.Code);
+    }
+
+    [Fact]
+    public async Task ASupportingFile_CarriesWhereItIsShownAlongside_AndIsMarkedWhenItIsTheOneBeingEdited()
+    {
+        var course = _world.Work("Videos", "parent", "Build with Blazor");
+        var section = _world.Work("Videos", "parent", "02 Components", course, 2);
+        var lesson = _world.Work("Videos", "child", "Passing parameters", section, 2);
+        _world.File(lesson, "02 Components/02 Passing parameters.mkv");
+        var withLesson = await _world.SupportingFileAsync(
+            "02 Components/Component exercises.pdf", ExtraScope.ForFolder("02 Components"),
+            alongside: ExtraScope.ForFile("02 Components/02 Passing parameters.mkv"));
+        var plain = await _world.SupportingFileAsync("02 Components/Notes.pdf", ExtraScope.ForFolder("02 Components"));
+
+        var level = await _world.Header().GetLevelAsync(lesson, section, null, 0, null, supportingFileId: withLesson);
+
+        var exercises = Assert.Single(level!.SupportingFiles!.Files, file => file.Id == withLesson);
+        Assert.Equal("file:02 Components/02 Passing parameters.mkv", exercises.ShownAlongside!.Key);
+        Assert.Equal("with lesson 02", exercises.ShownAlongside.Label);
+        Assert.True(exercises.IsCurrent);
+        var notes = Assert.Single(level.SupportingFiles.Files, file => file.Id == plain);
+        Assert.Null(notes.ShownAlongside);
+        Assert.False(notes.IsCurrent);
+
+        var header = await _world.Header().GetHeaderAsync(lesson, null, supportingFileId: withLesson);
+        Assert.True(Assert.Single(header!.Level!.SupportingFiles!.Files, file => file.Id == withLesson).IsCurrent);
+    }
+
+    [Fact]
+    public async Task AHeaderThatCannotBeBuilt_IsNullAndLogged_RatherThanFailingTheEditorRead()
+    {
+        var movie = _world.Work("Movies", "standalone", "Arrival");
+        _world.File(movie, "Arrival (2016).mkv");
+        var logger = new CapturingLogger();
+
+        var header = await _world.Header(new BrokenConfig(), logger).GetHeaderAsync(movie, null);
+
+        Assert.Null(header);
+        var warning = Assert.Single(logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Warning);
+        Assert.Contains(movie.ToString(), warning.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(EditorKinds.Person, new[] { "details", "artwork", "match", "history" })]
+    [InlineData(EditorKinds.SupportingFile, new[] { "details", "preview", "history" })]
+    [InlineData(EditorKinds.Universe, new[] { "details", "pictures", "match", "history" })]
+    [InlineData(EditorKinds.ViewItem, new[] { "details", "history" })]
+    [InlineData(EditorKinds.ViewGallery, new[] { "details", "artwork", "history" })]
+    [InlineData(EditorKinds.Multiple, new[] { "details", "history" })]
+    public void TheEditorsThatDoNotOpenOnAWork_ReadTheirTabsFactsAndNumbersFromTheEngine(string kind, string[] tabs)
+    {
+        var config = _world.Header().GetKindConfig(kind);
+
+        Assert.NotNull(config);
+        Assert.Equal(kind, config.Kind);
+        Assert.Equal(tabs, config.Tabs);
+        Assert.NotEmpty(config.QuickFacts);
+        Assert.Equal(EditorConfigurationProvider.BuiltIn.InlineSupportingFiles, config.InlineSupportingFiles);
+        Assert.Equal(EditorConfigurationProvider.BuiltIn.RowsPerPage, config.RowsPerPage);
+    }
+
+    [Fact]
+    public void AKindTheEditorDoesNotKnow_HasNoRules() => Assert.Null(_world.Header().GetKindConfig("something_new"));
+
+    private sealed class BrokenConfig : IEditorConfigurationSource
+    {
+        public EditorConfiguration Current => throw new InvalidOperationException("The rules could not be read.");
+    }
+
+    private sealed class CapturingLogger : Microsoft.Extensions.Logging.ILogger<EditorHeaderReadService>
+    {
+        public List<(Microsoft.Extensions.Logging.LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Entries.Add((logLevel, formatter(state, exception)));
     }
 
     private sealed record Expanse(Guid Show, Guid Season1, Guid Season2, Guid Episode1, Guid Episode3);

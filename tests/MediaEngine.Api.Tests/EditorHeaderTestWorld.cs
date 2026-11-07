@@ -11,6 +11,7 @@ using MediaEngine.Ingestion.Models;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
 using MediaEngine.TestSupport;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Tests;
 
@@ -32,6 +33,9 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         Directory.CreateDirectory(TitleFolder);
         Folders = new FolderResolverSpy(Library, accessMode);
         Scanner = new ScannerSpy(new ExtraTitleFolder("lib", TitleFolder));
+        Scanner.PerFile = path => OtherTitleFolders.FirstOrDefault(folder => path.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.Ordinal)) is { } own
+            ? new ExtraTitleFolder("lib", own)
+            : null;
         Extras = new ItemExtraRepository(Database);
     }
 
@@ -46,9 +50,21 @@ internal sealed class EditorHeaderTestWorld : IDisposable
 
     public ScannerSpy Scanner { get; }
 
+    /// <summary>Further title folders of the same Library (one per book or film of a Series); a file under one resolves to it, any other to <see cref="TitleFolder"/>.</summary>
+    public List<string> OtherTitleFolders { get; } = [];
+
+    /// <summary>Makes another title folder of the Library (a book's or film's own) and returns its path.</summary>
+    public string AddTitleFolder(string name)
+    {
+        var folder = Path.Combine(Library, name);
+        Directory.CreateDirectory(folder);
+        OtherTitleFolders.Add(folder);
+        return folder;
+    }
+
     public ItemExtraRepository Extras { get; }
 
-    public EditorHeaderReadService Header(IEditorConfigurationSource? config = null) => new(
+    public EditorHeaderReadService Header(IEditorConfigurationSource? config = null, ILogger<EditorHeaderReadService>? logger = null) => new(
         Database,
         new MediaEditorNavigationReadService(Database, null!, new HierarchyAlignmentService(Database, null!)),
         Extras,
@@ -56,7 +72,9 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         config ?? new EditorConfigurationProvider(() => null),
         Folders,
         new ItemQuickFactsService(new ItemQuickFactsRepository(Database), Folders),
-        new MediaEditorWorkVersionReadRepository(Database));
+        new MediaEditorWorkVersionReadRepository(Database),
+        null,
+        logger);
 
     public EditorFolderTreeService FolderTree(IEditorConfigurationSource? config = null) => new(
         Header(config),
@@ -81,13 +99,13 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         return workId;
     }
 
-    /// <summary>Adds the work's one media file (under the title's folder when the path is relative) and returns the asset id.</summary>
-    public Guid File(Guid workId, string relativePath, double? durationSeconds = null)
+    /// <summary>Adds the work's one media file (under the title's folder, or <paramref name="folder"/> when given) and returns the asset id.</summary>
+    public Guid File(Guid workId, string relativePath, double? durationSeconds = null, string? folder = null)
     {
         var editionId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         var hash = Guid.NewGuid().ToString("N");
-        var path = Path.Combine(TitleFolder, relativePath);
+        var path = Path.Combine(folder ?? TitleFolder, relativePath);
         using var connection = Database.CreateConnection();
         connection.Execute(
             """
@@ -124,15 +142,18 @@ internal sealed class EditorHeaderTestWorld : IDisposable
     }
 
     /// <summary>Stores a supporting file of the title at a place (a scope key such as <c>season:2</c>).</summary>
-    public async Task<Guid> SupportingFileAsync(string relativePath, ExtraScope scope, string kind = ItemExtraKinds.Document, string role = ExtraRoles.Guide)
+    public async Task<Guid> SupportingFileAsync(
+        string relativePath, ExtraScope scope, string kind = ItemExtraKinds.Document, string role = ExtraRoles.Guide, string? folder = null,
+        ExtraScope? alongside = null)
     {
         var id = Guid.NewGuid();
-        var path = Path.Combine(TitleFolder, relativePath);
+        var titleFolder = folder ?? TitleFolder;
+        var path = Path.Combine(titleFolder, relativePath);
         var extra = new ItemExtra(
-            id, "lib", TitleFolder, path, kind, ItemExtraOrigins.Rule, Path.GetFileNameWithoutExtension(relativePath), null, 0, 100, null, 12,
-            DateTimeOffset.UtcNow, InferredRole: role, InferredScope: scope);
-        var existing = await Extras.ListAllInItemFolderAsync(TitleFolder);
-        await Extras.SyncItemFolderAsync(TitleFolder, [.. existing, extra], []);
+            id, "lib", titleFolder, path, kind, ItemExtraOrigins.Rule, Path.GetFileNameWithoutExtension(relativePath), null, 0, 100, null, 12,
+            DateTimeOffset.UtcNow, InferredRole: role, InferredScope: scope, InferredAlongside: alongside);
+        var existing = await Extras.ListAllInItemFolderAsync(titleFolder);
+        await Extras.SyncItemFolderAsync(titleFolder, [.. existing, extra], []);
         return id;
     }
 
@@ -182,8 +203,11 @@ internal sealed class EditorHeaderTestWorld : IDisposable
 
     internal sealed class ScannerSpy(ExtraTitleFolder titleFolder) : IItemExtrasScanner
     {
+        /// <summary>When set, answers for a file first; null from it means the Library's default title folder.</summary>
+        public Func<string, ExtraTitleFolder?>? PerFile { get; set; }
+
         public Task<ExtraTitleFolder?> ResolveTitleFolderAsync(string titleFilePath, CancellationToken ct = default) =>
-            Task.FromResult<ExtraTitleFolder?>(titleFolder);
+            Task.FromResult<ExtraTitleFolder?>(PerFile?.Invoke(titleFilePath) ?? titleFolder);
 
         public Task<ItemExtra?> DescribeAsync(string filePath, string origin, ExtraDecision decision, CancellationToken ct = default) =>
             Task.FromResult<ItemExtra?>(null);

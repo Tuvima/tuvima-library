@@ -22,7 +22,16 @@ public sealed partial class EditorSuggestDetailsService(
     private const int MaxLineCharacters = 200;
     private const int MaxTextBytes = 64 * 1024;
 
-    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase) { ".txt", ".md", ".markdown", ".text", ".nfo", ".rtf" };
+    // A document that takes longer than this to read gives no suggestions; the form stays as it is.
+    private static readonly TimeSpan ReadTimeLimit = TimeSpan.FromSeconds(10);
+
+    // An EPUB gives its opening lines from its first chapters; the rest of the book (and its pictures) is never opened.
+    private const int MaxEpubChapters = 3;
+
+    // A page of markup that makes a pattern run away is given up on rather than waited for.
+    private const int RegexTimeoutMilliseconds = 2000;
+
+    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase) { ".txt", ".md", ".markdown", ".text" };
 
     /// <summary>The suggestions for one supporting file; null when there is no such supporting file.</summary>
     public async Task<EditorSuggestDetailsDto?> ReadAsync(Guid supportingFileId, CancellationToken ct = default)
@@ -41,9 +50,13 @@ public sealed partial class EditorSuggestDetailsService(
             return empty;
         }
 
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limit.CancelAfter(ReadTimeLimit);
         try
         {
-            var read = await Task.Run(() => Read(extra.FilePath, extension, settings), ct).ConfigureAwait(false);
+            var path = extra.FilePath;
+            var read = await Task.Run(() => Read(path, extension, settings, limit.Token), limit.Token)
+                .WaitAsync(limit.Token).ConfigureAwait(false);
             return read is null
                 ? empty
                 : new EditorSuggestDetailsDto
@@ -57,6 +70,12 @@ public sealed partial class EditorSuggestDetailsService(
                     FirstLines = read.FirstLines,
                 };
         }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // The document took too long to read; it simply gives no suggestions.
+            logger.LogInformation("Reading details from a supporting file ({Extension}) took longer than {Seconds} seconds and was stopped", extension, ReadTimeLimit.TotalSeconds);
+            return empty;
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // A damaged, password-protected or unusual document simply gives no suggestions; the form stays as it is.
@@ -68,24 +87,26 @@ public sealed partial class EditorSuggestDetailsService(
     private sealed record DocumentRead(
         string Source, string? Title, string? Description, string? Author, int? PageCount, IReadOnlyList<string> FirstLines);
 
-    private static DocumentRead? Read(string path, string extension, EditorSuggestDetailsConfiguration settings)
+    private static DocumentRead? Read(string path, string extension, EditorSuggestDetailsConfiguration settings, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         if (extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
         {
-            return ReadPdf(path, settings);
+            return ReadPdf(path, settings, ct);
         }
 
         if (extension.Equals(".epub", StringComparison.OrdinalIgnoreCase))
         {
-            return ReadEpub(path, settings);
+            return ReadEpub(path, settings, ct);
         }
 
         return TextExtensions.Contains(extension) ? ReadText(path, settings) : null;
     }
 
-    private static DocumentRead ReadPdf(string path, EditorSuggestDetailsConfiguration settings)
+    private static DocumentRead ReadPdf(string path, EditorSuggestDetailsConfiguration settings, CancellationToken ct)
     {
         using var document = PdfDocument.Open(path, new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true });
+        ct.ThrowIfCancellationRequested();
         var info = document.Information;
         var lines = document.NumberOfPages > 0
             ? Lines(document.GetPage(1).Text, settings.FirstLines)
@@ -100,13 +121,15 @@ public sealed partial class EditorSuggestDetailsService(
             lines);
     }
 
-    private static DocumentRead ReadEpub(string path, EditorSuggestDetailsConfiguration settings)
+    private static DocumentRead ReadEpub(string path, EditorSuggestDetailsConfiguration settings, CancellationToken ct)
     {
-        var book = EpubReader.ReadBook(path);
+        // Open the book's structure only, then read the first chapters one at a time: the pictures and the rest of the book stay on disk.
+        using var book = EpubReader.OpenBook(path);
         var lines = new List<string>();
-        foreach (var chapter in book.ReadingOrder)
+        foreach (var chapter in book.GetReadingOrder().Take(MaxEpubChapters))
         {
-            lines.AddRange(Lines(HtmlToText(chapter.Content), settings.FirstLines - lines.Count));
+            ct.ThrowIfCancellationRequested();
+            lines.AddRange(Lines(HtmlToText(chapter.ReadContent()), settings.FirstLines - lines.Count));
             if (lines.Count >= settings.FirstLines)
             {
                 break;
@@ -181,16 +204,16 @@ public sealed partial class EditorSuggestDetailsService(
     private static string? Truncate(string? value, int max) =>
         string.IsNullOrEmpty(value) ? null : value.Length <= max ? value : value[..max].TrimEnd() + "…";
 
-    [GeneratedRegex(@"\s+")]
+    [GeneratedRegex(@"\s+", RegexOptions.None, RegexTimeoutMilliseconds)]
     private static partial Regex WhitespaceRun();
 
     // The head, scripts and styles hold no reading text (a page's title would run into its first line otherwise).
-    [GeneratedRegex(@"<(head|script|style)\b[^>]*>.*?</\1\s*>|<\?.*?\?>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(head|script|style)\b[^>]*>.*?</\1\s*>|<\?.*?\?>", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexTimeoutMilliseconds)]
     private static partial Regex NonText();
 
-    [GeneratedRegex(@"<[^>]*>")]
+    [GeneratedRegex(@"<[^>]*>", RegexOptions.None, RegexTimeoutMilliseconds)]
     private static partial Regex Tag();
 
-    [GeneratedRegex(@"</(p|div|h[1-6]|li|br)\s*>|<br\s*/?>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"</(p|div|h[1-6]|li|br)\s*>|<br\s*/?>", RegexOptions.IgnoreCase, RegexTimeoutMilliseconds)]
     private static partial Regex BlockEnd();
 }

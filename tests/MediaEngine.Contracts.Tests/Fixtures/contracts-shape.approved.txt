@@ -3610,7 +3610,12 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStepDt
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpSteps
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderAlongsideDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderConfigDto
+  Kind: System.String | nullability=not-null | accessors=get,init
   InlineSupportingFiles: System.Int32 | nullability=not-null | accessors=get,init
   CardsPerGroup: System.Int32 | nullability=not-null | accessors=get,init
   RowsPerPage: System.Int32 | nullability=not-null | accessors=get,init
@@ -3681,6 +3686,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSupporti
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   ItemCount: System.Int32 | nullability=not-null | accessors=get,init
   IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+  ShownAlongside: MediaEngine.Contracts.Editing.EditorHeaderAlongsideDto | nullability=nullable | accessors=get,init
+  IsCurrent: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSupportingFilesDto
   ScopeKey: System.String | nullability=nullable | accessors=get,init
