@@ -14,7 +14,8 @@
    page). Nothing here is read from or written to the browser's storage, and the viewer closes at once when Vault mode locks. *@
 @if (Current is { ImageId: { } imageId } current)
 {
-    <div class="vault-viewer" role="dialog" aria-modal="true" aria-label="@L["VaultImageViewer_ImageViewer"].Value" tabindex="0" @ref="_root" @onkeydown="OnKeyDownAsync">
+    <AppViewer @ref="_viewer" Class="vault-viewer" Label="@L["VaultImageViewer_ImageViewer"].Value" tabindex="0" OnKeyDown="OnKeyDownAsync"
+               OnClose="CloseAsync" CloseLabel="@L["Common_Close"].Value">
         <div class="vault-viewer__stage vault-viewer__stage--@ModeClass">
             @if (Mode == VaultCoverMode.Hide)
             {
@@ -31,7 +32,6 @@
             <header class="vault-viewer__bar">
                 <span class="vault-viewer__title @(TitlesHidden ? "vault-viewer__title--hidden" : null)">@current.Title</span>
                 <span class="vault-viewer__count">@(Index + 1) of @Images.Count</span>
-                <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CloseAsync" />
             </header>
             <div class="vault-viewer__nav">
                 <AppButton Label="@L["Home_CarouselPrevious"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
@@ -87,11 +87,12 @@
                 </div>
             }
         </aside>
-    </div>
+    </AppViewer>
 }
 
 @code {
-    private ElementReference _root;
+    private AppViewer? _viewer;
+    private ElementReference _root => _viewer?.Root ?? default;
     private Guid? _loadedFor;
     private VaultImageDetailDto? _detail;
     private IReadOnlyList<VaultImageGalleryDto> _manualGalleries = [];

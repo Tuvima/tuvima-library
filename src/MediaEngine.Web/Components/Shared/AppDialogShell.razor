@@ -2,7 +2,7 @@
 @using MediaEngine.Web.Services.Ui
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="app-dialog-shell app-dialog-shell--@SizeClass"
+<div class="@RootClass"
      role="@(Modal && Context is null ? "dialog" : "region")"
      aria-modal="@(Modal && Context is null ? "true" : null)"
      aria-labelledby="@TitleId">
@@ -10,7 +10,7 @@
         @if (OnBack.HasDelegate)
         {
             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack"
-                           Size="AppControlSize.Compact"
+                           Size="AppControlSize.Normal"
                            Tone="AppUiTone.Neutral"
                            Class="app-dialog-shell__back"
                            aria-label="@L["Common_GoBack"].Value"
@@ -42,7 +42,7 @@
         @if (OnClose.HasDelegate)
         {
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                           Size="AppControlSize.Compact"
+                           Size="AppControlSize.Normal"
                            Tone="AppUiTone.Neutral"
                            Class="app-dialog-shell__close"
                            aria-label="@L["Common_CloseDialog"].Value"
@@ -88,8 +88,15 @@
     private string TitleId { get; } = $"dialog-title-{Guid.NewGuid():N}";
     private string HeaderClass => $"app-dialog-shell__header{(CenterTitle ? " app-dialog-shell__header--centered" : string.Empty)}";
 
-    protected override Task OnParametersSetAsync() => Context is not null && (Context.PresentationClass is null || !string.IsNullOrWhiteSpace(HostClass))
-        ? Context.SetPresentationClassAsync(string.IsNullOrWhiteSpace(HostClass) ? "app-dialog-host" : $"app-dialog-host {HostClass}") : Task.CompletedTask;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Context is null) return;
+        if (Context.PresentationClass is null || !string.IsNullOrWhiteSpace(HostClass))
+            await Context.SetPresentationClassAsync(string.IsNullOrWhiteSpace(HostClass) ? "app-dialog-host" : $"app-dialog-host {HostClass}");
+        // The hosting frame owns the width (Look v3 D14: S 480, M 640, L 900), so the card tells it which step its own size name asks for.
+        if (Context.Options.Size is null)
+            await Context.SetOptionsAsync(Context.Options with { Size = AppWindowSizing.Resolve(Context.Options, Size) });
+    }
 
     private string? ResolvedIcon => !string.IsNullOrWhiteSpace(Icon)
         ? Icon
@@ -104,6 +111,8 @@
     private string IconClass => Tone is null or AppUiTone.Neutral or AppUiTone.Primary
         ? "app-dialog-shell__icon"
         : $"app-dialog-shell__icon app-dialog-shell__icon--{Tone.ToString()!.ToLowerInvariant()}";
+
+    private string RootClass => $"app-dialog-shell app-dialog-shell--{SizeClass}{(Context is not null || !Modal ? " app-dialog-shell--framed" : string.Empty)}";
 
     private string SizeClass => Size.Trim().ToLowerInvariant() switch
     {

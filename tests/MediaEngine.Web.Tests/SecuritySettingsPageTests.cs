@@ -218,7 +218,8 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         cut.WaitForElement("[data-nav-row='password']");
         await cut.InvokeAsync(() => cut.Find("[data-nav-row='password']").Click());
         cut.Find("input[type='password']").Input("a-long-test-password");
-        await cut.InvokeAsync(() => cut.Find(".settings-sheet-backdrop").Click());
+        // A press outside the window is the shared Window frame's cancel.
+        await cut.InvokeAsync(() => cut.FindComponent<AppDialogFrame>().Instance.RequestCancel());
         await cut.InvokeAsync(() => cut.Find("[data-nav-row='password']").Click());
         Assert.Equal(string.Empty, cut.Find("input[type='password']").GetAttribute("value") ?? string.Empty);
     }

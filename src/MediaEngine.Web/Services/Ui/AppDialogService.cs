@@ -8,6 +8,8 @@ namespace MediaEngine.Web.Services.Ui;
 public sealed record AppDialogOptions
 {
     public AppMaxWidth? MaxWidth { get; init; }
+    /// <summary>The Window size (S 480, M 640, L 900). When left empty it is worked out from <see cref="MaxWidth"/> and the popup's own size name (see <see cref="AppWindowSizing"/>).</summary>
+    public AppWindowSize? Size { get; init; }
     public AppDialogPosition? Position { get; init; }
     public bool? FullWidth { get; init; }
     public bool? FullScreen { get; init; }

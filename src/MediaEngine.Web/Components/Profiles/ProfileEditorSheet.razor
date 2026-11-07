@@ -7,15 +7,9 @@
    OnSave / OnDelete; the page that opens it talks to the Engine. *@
 @if (Open)
 {
-    <div class="profile-editor-backdrop" @onclick="CloseAsync">
-        <div @ref="_root"
-             class="profile-editor"
-             role="dialog"
-             aria-modal="true"
-             aria-labelledby="profile-editor-title"
-             tabindex="-1"
-             @onclick:stopPropagation="true"
-             @onkeydown="OnKeyDown">
+    @* The shared Window (a Sheet on phones): Escape and a press outside ask CloseAsync, which does nothing while a save is running. *@
+    <AppDialogFrame Open="true" Title="@(IsAdd ? "Add profile" : "Edit profile")" DialogOptions="FrameOptions" OnCancel="CloseAsync">
+        <div @ref="_root" class="profile-editor" tabindex="-1">
             <h2 id="profile-editor-title" class="profile-editor__title">@(IsAdd ? "Add profile" : "Edit profile")</h2>
 
             <div class="profile-editor__preview">
@@ -128,13 +122,14 @@
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Class="profile-editor__save" Disabled="@(!CanSave)" OnClick="SaveAsync" Label="@(Saving ? "Saving…" : IsAdd ? "Add profile" : "Save")" />
             </div>
         </div>
-    </div>
+    </AppDialogFrame>
 }
 
 @code {
     private const string DefaultColor = "#8852FC";
     private const long MaxPhotoBytes = 5 * 1024 * 1024;
 
+    private static readonly AppDialogOptions FrameOptions = new() { Size = AppWindowSize.Medium, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
     private ElementReference _root;
     private bool _wasOpen;
     private string _name = string.Empty;
@@ -400,14 +395,6 @@
     private Task ConfirmDeleteAsync() => OnDelete.InvokeAsync(_keepPhotos);
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
-
-    private async Task OnKeyDown(KeyboardEventArgs args)
-    {
-        if (args.Key == "Escape")
-        {
-            await CloseAsync();
-        }
-    }
 
     private async Task SaveAsync()
     {

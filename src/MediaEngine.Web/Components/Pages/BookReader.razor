@@ -30,7 +30,7 @@
 
 <link href="css/book-reader.css" rel="stylesheet" />
 
-<div class="br-shell br-theme-@ThemeClass" data-state="@_state">
+<AppViewer Class="@($"br-shell br-theme-{ThemeClass}")" Role="" Surface="AppViewerSurface.Page" data-state="@_state">
 
     @* The script mounts the book view in here; Blazor never puts children in it. *@
     <div class="br-stage" @ref="_host"></div>
@@ -90,7 +90,7 @@
     @if (_state == "ready" && _editing is { } editing)
     {
         <div class="br-scrim br-scrim--clear" role="presentation" @onclick="CloseEditorAsync"></div>
-        <AppCssElement Tag="div" Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" role="dialog" aria-label="@L["BookReader_Highlight"].Value">
+        <AppPopout Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" Role="dialog" AriaLabel="@L["BookReader_Highlight"].Value">
             <div class="br-quote">@editing.SelectedText</div>
             <div class="br-swatches" role="group" aria-label="@L["BookReader_HighlightColour"].Value">
                 @foreach (var color in HighlightColor.All)
@@ -105,13 +105,13 @@
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" OnClick="DeleteHighlightAsync">@L["Common_Delete"]</AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseEditorAsync">@L["Common_Done"]</AppButton>
             </div>
-        </AppCssElement>
+        </AppPopout>
     }
 
     @if (_state == "ready" && _panel is not null)
     {
         <div class="br-scrim" role="presentation" @onclick="ClosePanelAsync"></div>
-        <aside class="br-panel" role="dialog" aria-label="@PanelTitle">
+        <AppPopout Class="br-panel" Role="dialog" AriaLabel="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
                 <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["Common_Close"].Value" AriaLabel="@($"Close {PanelTitle}")">
@@ -293,7 +293,7 @@
                     <p class="br-hint">@L["BookReader_TheseChoicesAreRememberedOn"]</p>
                 }
             </div>
-        </aside>
+        </AppPopout>
     }
 
     @if (!string.IsNullOrEmpty(_notice))
@@ -328,7 +328,7 @@
             </AppPageState>
         </div>
     }
-</div>
+</AppViewer>
 
 @code {
     private static readonly TimeSpan SaveInterval = TimeSpan.FromSeconds(5);

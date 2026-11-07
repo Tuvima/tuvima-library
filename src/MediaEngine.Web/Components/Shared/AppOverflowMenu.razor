@@ -54,6 +54,7 @@
     else if (_open)
     {
         <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_trigger" FocusOnOpen="@FocusOnOpen"
+                    Size="@(MatchAnchorWidth ? AppPopoutSize.None : AppPopoutSize.Menu)"
                     AnchorOrigin="@AnchorOrigin"
                     TransformOrigin="@TransformOrigin"
                     MatchAnchorWidth="@MatchAnchorWidth"

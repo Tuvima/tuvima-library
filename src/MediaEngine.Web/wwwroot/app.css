@@ -4428,8 +4428,7 @@ input[type="reset"],
 @media (prefers-reduced-motion: reduce) { .pin-pad__dots.is-wrong { animation: none; } .pin-pad__dot, .pin-pad__key { transition: none; } .pin-pad__key:active:not(:disabled) { transform: none; } }
 /* Profile editor sheet and avatar choices (ProfileEditorSheet.razor, ProfileAvatarPicker.razor). Bottom sheet on phones, centred dialog from 641px. */
 
-.profile-editor-backdrop { position: fixed; inset: 0; z-index: 1300; display: grid; align-items: end; justify-items: center; overflow-y: auto; background: rgb(0 0 0 / 62%); animation: profile-editor-fade 160ms ease-out; }
-.profile-editor { display: grid; gap: 14px; box-sizing: border-box; width: 100%; max-height: 92svh; overflow-y: auto; padding: 22px 20px calc(20px + env(safe-area-inset-bottom)); color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 18px 18px 0 0; background: var(--tl-bg-surface-elevated); box-shadow: 0 -12px 48px rgb(0 0 0 / 40%); outline: none; animation: profile-editor-rise 200ms ease-out; }
+.profile-editor { display: grid; gap: 14px; box-sizing: border-box; width: 100%; padding: 20px 24px; color: var(--tl-text-primary); outline: none; }
 .profile-editor__title { margin: 0; font-size: var(--tl-font-size-dialog-title); text-align: center; }
 .profile-editor__preview { display: grid; justify-items: center; gap: 10px; }
 .profile-editor__avatar { display: block; width: 104px; height: 104px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
@@ -4467,22 +4466,10 @@ input[type="reset"],
 .avatar-picker__file { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .avatar-picker__upload:focus-within { box-shadow: 0 0 0 3px var(--tl-accent-primary); }
 .avatar-picker__hint { margin: 0; }
-@keyframes profile-editor-rise { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes profile-editor-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (min-width: 641px) { .profile-editor-backdrop { align-items: center; padding: 24px; } .profile-editor { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } .profile-editor__avatar { width: 120px; height: 120px; } }
-@media (min-width: 1600px) { .profile-editor { width: min(640px, 100%); gap: 22px; } .avatar-picker__grid { gap: 14px; } .profile-editor__avatar { width: 144px; height: 144px; } .profile-editor .who-button, .profile-editor__limit .app-segmented-control__item { min-height: 56px; } }
-@media (prefers-reduced-motion: reduce) { .profile-editor-backdrop, .profile-editor { animation: none; } .avatar-picker__option { transition: none; } .avatar-picker__option:hover:not(:disabled) { transform: none; } }
-/* Settings > Security: the sheet a row opens. A bottom sheet on phones, a centred dialog from 641px. */
-.settings-sheet-backdrop { position: fixed; inset: 0; z-index: 1400; display: grid; align-items: end; justify-items: center; overflow-y: auto; background: rgb(0 0 0 / 62%); animation: profile-editor-fade 160ms ease-out; }
-.settings-sheet { display: grid; gap: 14px; box-sizing: border-box; width: 100%; max-height: 92svh; overflow-y: auto; padding: 22px 20px calc(20px + env(safe-area-inset-bottom)); color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 18px 18px 0 0; background: var(--tl-bg-surface-elevated); box-shadow: 0 -12px 48px rgb(0 0 0 / 40%); outline: none; animation: profile-editor-rise 200ms ease-out; }
+@media (min-width: 641px) { .profile-editor__avatar { width: 120px; height: 120px; } }
+@media (min-width: 1600px) { .profile-editor { gap: 22px; } .avatar-picker__grid { gap: 14px; } .profile-editor__avatar { width: 144px; height: 144px; } .profile-editor .who-button, .profile-editor__limit .app-segmented-control__item { min-height: 56px; } }
+@media (prefers-reduced-motion: reduce) { .avatar-picker__option { transition: none; } .avatar-picker__option:hover:not(:disabled) { transform: none; } }
 
-@media (min-width: 641px) { .settings-sheet-backdrop { align-items: center; padding: 24px; } .settings-sheet { width: min(560px, 100%); padding-bottom: 22px; border-radius: 18px; } }
-@media (min-width: 1600px) { .settings-sheet { width: min(640px, 100%); gap: 22px; } }
-.settings-sheet.settings-sheet--card { display: block; width: min(560px, 100%); padding: 0; gap: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
-
-
-
-@media (prefers-reduced-motion: reduce) { .settings-sheet-backdrop, .settings-sheet { animation: none; } }
 .invitation-qr {
     width: 11rem;
     max-width: 100%;
@@ -5286,7 +5273,7 @@ a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 6
 
 /* The document viewer fills the window above everything else, like the photo viewer. */
 .view-document-viewer { position: fixed; inset: 0; z-index: 1300; display: flex; flex-direction: column; background: var(--tl-bg-surface); color: var(--tl-text-primary); outline: none; }
-.view-document-viewer__bar { display: flex; align-items: center; gap: var(--tl-space-3); padding: var(--tl-space-2) var(--tl-space-3); border-bottom: 1px solid var(--tl-border-subtle); }
+.view-document-viewer__bar { display: flex; align-items: center; gap: var(--tl-space-3); padding: var(--tl-space-2) calc(var(--tl-viewer-close) + var(--tl-space-3) * 2) var(--tl-space-2) var(--tl-space-3); border-bottom: 1px solid var(--tl-border-subtle); }
 .view-document-viewer__title { flex: 1; min-width: 0; }
 .view-document-viewer__title h2 { margin: 0; overflow: hidden; font-size: var(--tl-font-size-md); text-overflow: ellipsis; white-space: nowrap; }
 .view-document-viewer__title p { margin: 0; overflow: hidden; color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); text-overflow: ellipsis; white-space: nowrap; }
@@ -5901,6 +5888,53 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 .tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
 .tl-editor-tab svg{color:var(--tl-editor-tab-icon,currentColor)}
 .tl-editor-tab--details{--tl-editor-tab-icon:#9a8cf0}.tl-editor-tab--contents{--tl-editor-tab-icon:#4fb3d9}.tl-editor-tab--artwork{--tl-editor-tab-icon:#e58fb4}.tl-editor-tab--match{--tl-editor-tab-icon:#4ec9a0}.tl-editor-tab--files{--tl-editor-tab-icon:#e8b24a}.tl-editor-tab--history{--tl-editor-tab-icon:#8aa0c8}
+/* -------------------------------------------------------------------------
+   Viewer (Look v3 D14): the full-screen kind, drawn by AppViewer. Zero specificity on purpose, so a viewer's own
+   classes (bars, stages, panels) always win and this only supplies the kind's defaults: full screen, black or the
+   page surface, and the 44 px close X at the top right.
+   ---------------------------------------------------------------------- */
+:where(.app-viewer) {
+    position: fixed;
+    inset: 0;
+    box-sizing: border-box;
+    z-index: var(--tl-z-modal);
+    margin: 0;
+    color: var(--tl-text-primary);
+}
+
+:where(dialog.app-viewer) {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    border: 0;
+}
+
+:where(.app-viewer--black) {
+    background: var(--tl-viewer-black);
+}
+
+:where(.app-viewer--page) {
+    background: var(--tl-bg-page);
+}
+
+:where(.app-viewer__close) {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    width: var(--tl-viewer-close);
+    height: var(--tl-viewer-close);
+}
+
+/* Window footer (Look v3 D14, D15.3): Cancel or Discard sits alone at the far left, a quiet text button beside it; the right-hand group
+   (destructive outlined red, then the one primary) ends with the primary. A lone button, or a destructive button first, stays on the right. */
+.app-dialog-shell__footer > :first-child:not(:last-child):not(.app-tone--error):not(.app-button--text),
+.app-dialog-shell__footer > .app-button--text:first-child + :not(:last-child):not(.app-tone--error) {
+    margin-inline-end: auto;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
