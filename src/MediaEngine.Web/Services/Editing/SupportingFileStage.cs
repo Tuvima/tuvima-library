@@ -51,7 +51,8 @@ public sealed record SupportingFileStage(Guid TitleId, Guid FileId, string ItemN
 
     public string? GroupName { get; init; }
 
-    public bool ClearGroup { get; init; }
+    /// <summary>True when the group is taken off and none applies (even where the folder names one); a rescan keeps it.</summary>
+    public bool NoGroup { get; init; }
 
     /// <summary>True when the group named is new to the title, so Save creates it (Review lists "Create group").</summary>
     public bool CreatesGroup { get; init; }
@@ -67,6 +68,9 @@ public sealed record SupportingFileStage(Guid TitleId, Guid FileId, string ItemN
     public bool NoAlongside { get; init; }
 
     public bool UseGuessedAlongside { get; init; }
+
+    /// <summary>True when Shown alongside was cleared because Belongs to moved to an episode, lesson or track, so moving back can undo it.</summary>
+    public bool ClearedByScope { get; init; }
 
     public IReadOnlyList<string> AddTags { get; init; } = [];
 
@@ -100,8 +104,8 @@ public sealed record SupportingFileStage(Guid TitleId, Guid FileId, string ItemN
             ClearTitle = ClearTitle,
             Description = ClearDescription ? null : Description,
             ClearDescription = ClearDescription,
-            GroupName = ClearGroup ? null : GroupName,
-            ClearGroup = ClearGroup,
+            GroupName = NoGroup ? null : GroupName,
+            NoGroup = NoGroup,
             Role = Role,
             ScopeKey = UseFolderLocation ? null : ScopeKey,
             UseFolderLocation = UseFolderLocation,
@@ -122,10 +126,10 @@ public sealed record SupportingFileStage(Guid TitleId, Guid FileId, string ItemN
         {
             SupportingFileFields.Title => this with { Title = null, ClearTitle = false, Rows = kept },
             SupportingFileFields.Description => this with { Description = null, ClearDescription = false, Rows = kept },
-            SupportingFileFields.Group => this with { GroupName = null, ClearGroup = false, CreatesGroup = false, Rows = kept },
+            SupportingFileFields.Group => this with { GroupName = null, NoGroup = false, CreatesGroup = false, Rows = kept },
             SupportingFileFields.Role => this with { Role = null, Rows = kept },
             SupportingFileFields.Scope => this with { ScopeKey = null, UseFolderLocation = false, MoveFrom = null, MoveTo = null, Rows = kept },
-            SupportingFileFields.Alongside => this with { AlongsideKey = null, NoAlongside = false, UseGuessedAlongside = false, Rows = kept },
+            SupportingFileFields.Alongside => this with { AlongsideKey = null, NoAlongside = false, UseGuessedAlongside = false, ClearedByScope = false, Rows = kept },
             SupportingFileFields.Tags => this with { AddTags = [], RemoveTags = [], Rows = kept },
             _ => this,
         };

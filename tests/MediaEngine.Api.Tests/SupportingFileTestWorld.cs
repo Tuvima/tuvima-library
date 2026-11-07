@@ -43,7 +43,8 @@ internal sealed class SupportingFileTestWorld : IDisposable
             Folders, new SourceMutationPolicyGate(), Scanner, Excluded, Filter,
             new AssetPathService(Root, dataRoot: Path.Combine(Root, "data")), NullLogger<SupportingFileDiskService>.Instance);
         List = new SupportingFileListService(Extras, Titles, config);
-        Bulk = new SupportingFileBulkService(Extras, Titles, Disk, config);
+        Timeline = new EntityTimelineRepository(Database);
+        Bulk = new SupportingFileBulkService(Extras, Titles, Disk, config, Timeline);
     }
 
     public string Root { get; }
@@ -69,6 +70,8 @@ internal sealed class SupportingFileTestWorld : IDisposable
     public SupportingFileListService List { get; }
 
     public SupportingFileBulkService Bulk { get; }
+
+    public EntityTimelineRepository Timeline { get; }
 
     public string SeasonFolder(int season) => Path.Combine(Show, $"Season {season:00}");
 
@@ -109,10 +112,11 @@ internal sealed class SupportingFileTestWorld : IDisposable
         return (await Extras.GetByPathAsync(path))!;
     }
 
-    public ItemExtra Row(string path, string kind, string title, ExtraScope scope, string? groupKey = null) => new(
+    public ItemExtra Row(string path, string kind, string title, ExtraScope scope, string? groupKey = null, string? inferredGroup = null) => new(
         Guid.NewGuid(), "lib", Show, path, kind, ItemExtraOrigins.Rule,
         title, groupKey, 0, 10, null, null, DateTimeOffset.UtcNow,
         InferredRole: ExtraRoles.DefaultFor(kind),
+        InferredGroup: inferredGroup,
         InferredScope: scope);
 
     public void Dispose()

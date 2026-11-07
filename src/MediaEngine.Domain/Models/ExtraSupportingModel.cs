@@ -321,6 +321,12 @@ public sealed record ExtraOwnedUpdate
     /// <summary>The group's name. A name no group has yet creates the group; clear returns to the group read from the folder, if any.</summary>
     public ExtraValue<string> GroupName { get; init; }
 
+    /// <summary>
+    /// True when the files should be in no group at all, even where their folder names one. A person's choice, so a rescan keeps it
+    /// (the group stays empty with the source "you"); <see cref="GroupName"/> clear instead returns to the group the folder names.
+    /// </summary>
+    public bool NoGroup { get; init; }
+
     /// <summary>The role (an <see cref="ExtraRoles"/> id); clear returns to the guessed role.</summary>
     public ExtraValue<string> Role { get; init; }
 
@@ -341,6 +347,6 @@ public sealed record ExtraOwnedUpdate
 
     /// <summary>True when the change names no field at all.</summary>
     public bool IsEmpty =>
-        !Title.IsChanged && !Description.IsChanged && !GroupName.IsChanged && !Role.IsChanged && !Scope.IsChanged && !Alongside.IsChanged
+        !Title.IsChanged && !Description.IsChanged && !GroupName.IsChanged && !NoGroup && !Role.IsChanged && !Scope.IsChanged && !Alongside.IsChanged
         && AddTags.Count == 0 && RemoveTags.Count == 0 && ReplaceTags is null;
 }

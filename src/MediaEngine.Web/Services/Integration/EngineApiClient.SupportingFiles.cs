@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -15,6 +16,25 @@ public sealed partial class EngineApiClient
             $"/metadata/{titleId:D}/supporting-files/{fileId:D}/suggest-details",
             logAsWarning: false,
             ct: ct);
+
+    public async Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetSupportingFileHistoryAsync(Guid titleId, Guid fileId, CancellationToken ct = default)
+    {
+        var rows = await GetAsync<List<MediaEngine.Contracts.Items.LibraryItemHistoryDto>>(
+            "GET /metadata/{id}/supporting-files/{fileId}/history", $"/metadata/{titleId:D}/supporting-files/{fileId:D}/history", ct: ct);
+        return rows is null
+            ? ([], "History could not be loaded. Try again later.")
+            : ([.. rows.Select(item => new LibraryItemHistoryDto
+            {
+                Id = item.Id,
+                EntityId = item.EntityId,
+                OccurredAt = item.OccurredAt,
+                EventType = item.EventType,
+                Label = item.Label,
+                Detail = item.Detail,
+                Category = item.Category,
+                ActorLabel = item.ActorLabel,
+            })], null);
+    }
 
     public Task<LibraryBatchEditOutcome<SupportingFileBulkUpdateResultDto>> PreviewSupportingFilesChangeAsync(
         Guid titleId, SupportingFileBulkUpdateRequest request, CancellationToken ct = default) =>

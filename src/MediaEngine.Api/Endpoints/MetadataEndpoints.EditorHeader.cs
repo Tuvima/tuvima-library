@@ -144,6 +144,23 @@ public static partial class MetadataEndpoints
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
+        // The History tab of a supporting file: what was changed in the editor and when, one row per changed field, move or delete.
+        group.MapGet("/{entityId:guid}/supporting-files/{supportingFileId:guid}/history", async (
+            Guid entityId, Guid supportingFileId, EditorHeaderReadService header, IEntityTimelineRepository timeline, CancellationToken ct) =>
+        {
+            if (!await header.OwnsSupportingFileAsync(entityId, supportingFileId, ct))
+            {
+                return ApiErrors.NotFound("That supporting file was not found.");
+            }
+
+            return Results.Ok(await SupportingFileHistory.Read(timeline, supportingFileId, ct));
+        }).WithName("GetSupportingFileHistory")
+          .WithSummary("What was changed in the editor on one supporting file, newest first: its fields, its moves and its removal.")
+          .Produces<IReadOnlyList<MediaEngine.Contracts.Items.LibraryItemHistoryDto>>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
         group.MapGet("/{entityId:guid}/folder-tree", async (
             Guid entityId, string? folder, int? offset, EditorFolderTreeService tree, CancellationToken ct) =>
         {

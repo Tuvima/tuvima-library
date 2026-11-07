@@ -83,6 +83,7 @@ public sealed partial class SupportingFileEditorReadService(
             FolderScopeLabel = LabelOf(file.InferredScope, titleName),
             AlongsideLabel = EditorHeaderReadService.AlongsideOf(file.EffectiveAlongside, header?.Root.MediaType ?? string.Empty)?.Label,
             Header = header,
+            DescriptionMaxCharacters = headers.DescriptionMaxCharacters,
             Config = headers.GetKindConfig(Kind) ?? new EditorHeaderConfigDto(),
         };
     }

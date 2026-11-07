@@ -2857,6 +2857,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRe
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkChangesDto
   GroupName: System.String | nullability=nullable | accessors=get,init
   ClearGroup: System.Boolean | nullability=not-null | accessors=get,init
+  NoGroup: System.Boolean | nullability=not-null | accessors=get,init
   Role: System.String | nullability=nullable | accessors=get,init
   ClearRole: System.Boolean | nullability=not-null | accessors=get,init
   ScopeKey: System.String | nullability=nullable | accessors=get,init
@@ -3920,6 +3921,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFile
   ScopeLabel: System.String | nullability=not-null | accessors=get,init
   FolderScopeLabel: System.String | nullability=not-null | accessors=get,init
   AlongsideLabel: System.String | nullability=nullable | accessors=get,init
+  DescriptionMaxCharacters: System.Int32 | nullability=not-null | accessors=get,init
   Header: MediaEngine.Contracts.Editing.EditorHeaderDto | nullability=nullable | accessors=get,init
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
 

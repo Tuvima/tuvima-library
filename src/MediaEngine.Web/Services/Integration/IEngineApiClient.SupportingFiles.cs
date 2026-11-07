@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -17,6 +18,12 @@ public partial interface IEngineApiClient
     /// lines), read on this computer. Null when the file cannot be read.
     /// </summary>
     Task<EditorSuggestDetailsDto?> GetSupportingFileSuggestDetailsAsync(Guid titleId, Guid fileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /metadata/{titleId}/supporting-files/{fileId}/history - what was changed in the editor on one supporting file, newest first (one row per
+    /// changed field, per move and per delete). The error is a plain sentence when the history could not be read.
+    /// </summary>
+    Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetSupportingFileHistoryAsync(Guid titleId, Guid fileId, CancellationToken ct = default);
 
     /// <summary>
     /// POST /api/v1/supporting-files/titles/{titleId}/preview - checks a change to supporting files and plans the file moves, writing nothing:

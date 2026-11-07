@@ -103,6 +103,10 @@ public sealed class EditorSupportingFileDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? AlongsideLabel { get; init; }
 
+    /// <summary>The most characters a description may hold (<c>suggest_details.description_max_characters</c> in <c>config/editor.json</c>); the form stops typing there.</summary>
+    [JsonPropertyName("description_max_characters")]
+    public int DescriptionMaxCharacters { get; init; }
+
     /// <summary>The owner's header (home, Season or Section, item dropdown) with this file marked current; null when the header could not be built.</summary>
     [JsonPropertyName("header")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

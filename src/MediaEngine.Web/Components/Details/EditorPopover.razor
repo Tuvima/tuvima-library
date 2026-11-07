@@ -69,9 +69,9 @@
                 }
                 else if (tool == EditTool.History && mode.Fields.SupportingFile is not null)
                 {
-                    @* The Engine keeps no history for a supporting file's record, so there is nothing to list (spec D16 keeps the tab for the kind). *@
-                    <div class="tl-editor-details" data-supporting-file-history="true">
-                        <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorSupportingFile_HistoryNote"]</AppAlert>
+                    <div data-supporting-file-history="true">
+                        <EditorHistoryTool EntityId="@(Guid.TryParse(mode.Fields.SupportingFile.File.Id, out var fileId) ? fileId : Guid.Empty)"
+                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" />
                     </div>
                 }
                 else if (tool == EditTool.Details)

@@ -57,8 +57,7 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
                         }
                     </div>
                     <AppTextarea Value="@_description" ValueChanged="@(value => TypeDescription(file, value))" Lines="3" ReadOnly="@(!canEdit)"
-                                 aria-label="@L["EditorSupportingFile_Description"].Value" />
-                    <small class="tl-editor-field__count">@L["EditorSupportingFile_CharacterCount", _description.Length, DescriptionLimit]</small>
+                                 MaxLength="@DescriptionLimit(file)" aria-label="@L["EditorSupportingFile_Description"].Value" />
                     @if (!string.IsNullOrWhiteSpace(_suggestNote))
                     {
                         <span class="tl-editor-field__note" role="status" data-hint="suggest">@_suggestNote</span>
@@ -68,10 +67,14 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
                 <div class="tl-editor-field" data-field-key="group">
                     <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Group"]</span></div>
                     <AppAutocomplete TItem="string" Value="@SupportingFileStaging.GroupOf(file, stage)" ValueChanged="@(value => PickGroupAsync(file, value))"
-                                     SearchFunc="@(async (text, ct) => await FindGroupsAsync(file, text))" ToStringFunc="@GroupText"
+                                     SearchFunc="@(async (text, ct) => await FindGroupsAsync(file, text, SupportingFileStaging.GroupOf(file, stage)))" ToStringFunc="@GroupText"
                                      CoerceValue="true" ResetValueOnEmptyText="true" Disabled="@(!canEdit)" Placeholder="@L["EditorSupportingFile_NoGroup"].Value" aria-label="@L["EditorSupportingFile_Group"].Value">
                         <ItemTemplate Context="item">
-                            @if (IsNewGroup(item))
+                            @if (IsNoGroup(item))
+                            {
+                                <span data-group-none="true">@L["EditorSupportingFile_NoGroup"]</span>
+                            }
+                            else if (IsNewGroup(item))
                             {
                                 <span data-group-create="true">@L["EditorSupportingFile_CreateGroup", GroupText(item)]</span>
                             }
@@ -122,8 +125,8 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
                 {
                     <div class="tl-editor-field" data-field-key="alongside">
                         <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_ShownAlongside"]</span></div>
-                        <AppSelect T="string" Value="@alongside" ValueChanged="@(value => SetAlongside(file, value))" Options="@AlongsideOptions(file, scope, alongside)"
-                                   Disabled="@(!canEdit)" AriaLabel="@L["EditorSupportingFile_ShownAlongside"].Value" />
+                        <AppSelect T="string" Value="@(alongside.Length == 0 ? null : alongside)" ValueChanged="@(value => SetAlongside(file, value))" Options="@AlongsideOptions(file, scope, alongside)"
+                                   Placeholder="@AlongsidePlaceholder(file)" Disabled="@(!canEdit)" AriaLabel="@L["EditorSupportingFile_ShownAlongside"].Value" />
                         <span class="tl-editor-field__note" data-hint="alongside">@AlongsideHint(file, stage, alongside)</span>
                     </div>
                 }
@@ -155,7 +158,8 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
 
 @code {
     private const string NewGroupPrefix = "\u0001new:";
-    private const int DescriptionLimit = 500;
+    private const string NoGroupItem = "\u0001none";
+    private const string NoAlongsideItem = "\u0001none";
 
     private Guid _draftFileId;
     private string _title = string.Empty;
@@ -317,15 +321,24 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
 
     private static bool IsNewGroup(string item) => item.StartsWith(NewGroupPrefix, StringComparison.Ordinal);
 
-    private static string GroupText(string? item) => item is null ? string.Empty : IsNewGroup(item) ? item[NewGroupPrefix.Length..] : item;
+    private static bool IsNoGroup(string item) => string.Equals(item, NoGroupItem, StringComparison.Ordinal);
 
-    // The groups of this title that match what is typed, then a Create row for text that is not one of them yet.
-    private static Task<IEnumerable<string>> FindGroupsAsync(EditorSupportingFileDto file, string? text)
+    private static string GroupText(string? item) =>
+        item is null || IsNoGroup(item) ? string.Empty : IsNewGroup(item) ? item[NewGroupPrefix.Length..] : item;
+
+    // "No group" first when the file has a group to take off, then the groups of this title that match what is typed, then a Create row for
+    // text that is not one of them yet.
+    private static Task<IEnumerable<string>> FindGroupsAsync(EditorSupportingFileDto file, string? text, string currentGroup)
     {
         var typed = Clean(text);
-        var matches = file.Groups
-            .Where(name => typed.Length == 0 || name.Contains(typed, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var matches = new List<string>();
+        if (currentGroup.Length > 0 && (typed.Length == 0 || string.Equals(typed, currentGroup, StringComparison.OrdinalIgnoreCase)))
+        {
+            matches.Add(NoGroupItem);
+        }
+
+        matches.AddRange(file.Groups
+            .Where(name => typed.Length == 0 || name.Contains(typed, StringComparison.OrdinalIgnoreCase)));
         if (typed.Length > 0 && !file.Groups.Any(name => string.Equals(name, typed, StringComparison.OrdinalIgnoreCase)))
         {
             matches.Add(NewGroupPrefix + typed);
@@ -368,10 +381,11 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
         return options;
     }
 
+    // "From its folder location (Season 02 / Documents)": the folder the file sits in, as on screens C and D.
     private string ScopeHint(EditorSupportingFileDto file, bool setByYou) =>
         setByYou
             ? file.ReadOnly ? L["EditorSupportingFile_ScopeSetByYouReadOnly"].Value : L["EditorSupportingFile_ScopeSetByYou"].Value
-            : L["EditorSupportingFile_ScopeFromFolder", file.FolderScopeLabel].Value;
+            : L["EditorSupportingFile_ScopeFromFolder", string.IsNullOrWhiteSpace(file.Folder) ? file.FolderScopeLabel : file.Folder].Value;
 
     private async Task SetScopeAsync(EditorSupportingFileDto file, string? key)
     {
@@ -404,7 +418,12 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
         var fileId = Guid.Parse(file.File.Id);
         var outcome = await Api.PreviewSupportingFilesChangeAsync(file.TitleId, next.ToRequest());
         var current = pending.FindSupportingFile(fileId);
-        if (current?.Row(SupportingFileFields.Scope) is null)
+
+        // An answer is only for the Belongs to it was asked about: a slower answer for an earlier choice, or one for a choice since taken back,
+        // must not change the move or the note of the choice staged now.
+        if (current?.Row(SupportingFileFields.Scope) is null
+            || !string.Equals(current.ScopeKey, next.ScopeKey, StringComparison.Ordinal)
+            || current.UseFolderLocation != next.UseFolderLocation)
         {
             return;
         }
@@ -430,14 +449,39 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
             return L["EditorSupportingFile_AlongsideNone"].Value;
         }
 
-        return SupportingFileStaging.AlongsideIsGuessed(file, stage)
-            ? L["EditorSupportingFile_AlongsideGuessed"].Value
-            : L["EditorSupportingFile_AlongsideChosen"].Value;
+        if (SupportingFileStaging.AlongsideIsGuessed(file, stage))
+        {
+            return L["EditorSupportingFile_AlongsideGuessed"].Value;
+        }
+
+        return SupportingFileStaging.AlongsideNoun(file) switch
+        {
+            "lesson" => L["EditorSupportingFile_AlongsideChosenLesson"].Value,
+            "track" => L["EditorSupportingFile_AlongsideChosenTrack"].Value,
+            _ => L["EditorSupportingFile_AlongsideChosenEpisode"].Value,
+        };
     }
+
+    // "Choose an episode" on a show, "Choose a lesson" on a course, "Choose a track" on an album.
+    private string AlongsidePlaceholder(EditorSupportingFileDto file) => SupportingFileStaging.AlongsideNoun(file) switch
+    {
+        "lesson" => L["EditorSupportingFile_ChooseLesson"].Value,
+        "track" => L["EditorSupportingFile_ChooseTrack"].Value,
+        _ => L["EditorSupportingFile_ChooseEpisode"].Value,
+    };
+
+    // The most characters a description may hold, from config/editor.json via the Engine's read; without one the box is not limited here.
+    private static int DescriptionLimit(EditorSupportingFileDto file) => file.DescriptionMaxCharacters > 0 ? file.DescriptionMaxCharacters : int.MaxValue;
 
     private static IReadOnlyList<AppSelectOption> AlongsideOptions(EditorSupportingFileDto file, string scope, string current)
     {
-        var options = new List<AppSelectOption> { new(string.Empty, SupportingFileStaging.NoAlongside) };
+        // Nothing chosen shows the placeholder, so "None" is only offered to take a choice back.
+        var options = new List<AppSelectOption>();
+        if (current.Length > 0)
+        {
+            options.Add(new AppSelectOption(NoAlongsideItem, SupportingFileStaging.NoAlongside));
+        }
+
         options.AddRange(SupportingFileStaging.AlongsideChoices(file, scope).Select(place => new AppSelectOption(place.Key, place.Label)));
         if (current.Length > 0 && options.All(option => option.Value != current))
         {
@@ -451,7 +495,8 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
     {
         if (CanStage)
         {
-            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetAlongside(file, Current(file), key));
+            Flow!.Session.Pending.SetSupportingFile(
+                SupportingFileStaging.SetAlongside(file, Current(file), string.Equals(key, NoAlongsideItem, StringComparison.Ordinal) ? null : key));
         }
     }
 
