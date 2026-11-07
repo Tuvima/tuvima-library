@@ -7,7 +7,7 @@
     <div class="tl-detail-hero-genres" aria-label="@L["Common_Genres"].Value">
         @foreach (var genre in VisibleGenres)
         {
-            <a class="tl-detail-hero-genre" href="@genre.Route" title="@genre.Tooltip">@genre.Label</a>
+            <a class="tl-detail-hero-genre" href="@genre.Route">@genre.Label</a>
         }
 
         @if (HiddenGenres.Count > 0)
@@ -22,7 +22,7 @@
                              TransformOrigin="AppOrigin.TopLeft">
                 @foreach (var genre in HiddenGenres)
                 {
-                    <a class="app-menu-item" href="@genre.Route" role="menuitem" title="@genre.Tooltip">@genre.Label</a>
+                    <a class="app-menu-item" href="@genre.Route" role="menuitem">@genre.Label</a>
                 }
             </AppOverflowMenu>
         }

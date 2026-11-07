@@ -22,7 +22,7 @@ public sealed class PersonTileTests : AsyncBunitContext
 
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.person-tile").GetAttribute("href"));
         Assert.Equal("Adele", cut.Find(".person-tile__name").TextContent);
-        var counts = cut.FindAll(".media-count-line__item").Select(i => i.GetAttribute("title")).ToList();
+        var counts = cut.FindAll(".media-count-line__item").Select(i => i.ParentElement!.GetAttribute("data-playback-tooltip")).ToList();
         Assert.Equal(["4 albums", "52 songs"], counts);
     }
 }

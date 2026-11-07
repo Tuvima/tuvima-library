@@ -7326,6 +7326,9 @@
   <data name="DeleteFromLibraryDialog_TypeTheNameToConfirm" xml:space="preserve">
     <value>Type the name to confirm</value>
   </data>
+  <data name="HeroActionRow_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
   <data name="MediaRateControl_Rate" xml:space="preserve">
     <value>Rate</value>
   </data>
@@ -10208,9 +10211,6 @@
   </data>
   <data name="EditorVideoSeries_NotMatched" xml:space="preserve">
     <value>Not matched</value>
-  </data>
-  <data name="EditorVideoSeries_NotInASeriesTip" xml:space="preserve">
-    <value>This video is not in a series yet, so Library shows it on its own.</value>
   </data>
   <data name="EditorRail_Label" xml:space="preserve">
     <value>Where this item sits</value>

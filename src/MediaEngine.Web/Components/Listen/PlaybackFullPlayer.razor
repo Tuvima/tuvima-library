@@ -93,7 +93,7 @@
             <div class="playback-full__modes" aria-label="@L["PlaybackFullPlayer_PlayerViews"].Value">
                 @foreach (var mode in Modes)
                 {
-                    <AppTooltip Text="@mode.Label">
+                    <AppTooltip Text="@mode.Label" Suppressed="@(mode.Key is not "lyrics" and not "queue")">
                     <AppNativeButton Type="button" Class="@($"playback-full__mode {(ModeIsSelected(mode.Key) ? "is-selected" : null)}")"
                         aria-pressed="@(ModeIsSelected(mode.Key) ? "true" : "false")" AriaLabel="@mode.Label"
                         @ref="_modeButtons[mode.Key]" OnClick="@(() => SelectModeAsync(mode.Key))"><PlaybackUtilityGlyph Glyph="@mode.Glyph" />@if (mode.Key is not "lyrics" and not "queue") { <span>@mode.Label</span> }</AppNativeButton>

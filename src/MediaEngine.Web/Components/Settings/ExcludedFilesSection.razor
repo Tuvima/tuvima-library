@@ -37,7 +37,7 @@
                             }
                         </td>
                         <td data-card-role="subtitle">@file.FolderLabel</td>
-                        <td data-card-role="value"><span class="excluded-files__when" title="@AbsoluteDate(file.ExcludedAt)">@RelativeAge(file.ExcludedAt, DateTimeOffset.UtcNow)</span></td>
+                        <td data-card-role="value"><time class="excluded-files__when" datetime="@file.ExcludedAt.ToString("O")" title="@AbsoluteDate(file.ExcludedAt)">@RelativeAge(file.ExcludedAt, DateTimeOffset.UtcNow)</time></td>
                         <td data-label="Deleted by">@(string.IsNullOrWhiteSpace(file.ExcludedBy) ? "—" : file.ExcludedBy)</td>
                         <td data-card-role="actions">
                             @if (!ReadOnly)

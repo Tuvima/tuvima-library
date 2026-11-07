@@ -322,7 +322,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Single(cut.FindAll("a.person-tile"));
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.person-tile").GetAttribute("href"));
         Assert.Empty(cut.FindAll(".media-group-tile"));
-        Assert.Equal("2 movies", cut.Find(".media-count-line__item").GetAttribute("title"));
+        Assert.Equal("2 movies", cut.Find(".media-count-line__item").ParentElement!.GetAttribute("data-playback-tooltip"));
     }
 
     [Fact]

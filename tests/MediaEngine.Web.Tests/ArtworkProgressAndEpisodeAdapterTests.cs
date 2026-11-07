@@ -82,7 +82,7 @@ public sealed class ArtworkProgressAndEpisodeAdapterTests : AsyncBunitContext
         var cut = Render<MediaEngine.Web.Components.MediaTiles.MediaTile>(p => p.Add(c => c.Item, tile));
         Assert.Equal("E7", cut.Find(".media-tile-standin__number").TextContent.Trim());
         Assert.Equal("Show image", cut.Find(".media-tile-standin__tag").TextContent.Trim());
-        Assert.Contains("Library checks again every 90 days", cut.Find(".media-tile-standin__tag").GetAttribute("title"));
+        Assert.Contains("Library checks again every 90 days", cut.Find(".media-tile-standin__tag").GetAttribute("aria-label"));
         Assert.NotEmpty(cut.FindAll(".media-tile-standin__image"));
     }
     [Fact]

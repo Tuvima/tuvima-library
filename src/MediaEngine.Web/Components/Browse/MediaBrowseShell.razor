@@ -281,7 +281,6 @@
                                 <AppNativeButton Type="button"
                                                  Class="@LayoutToggleClass(LibraryLayoutMode.Card)"
                                                  AriaLabel="@L["MediaBrowseShell_ShowCards"].Value"
-                                                 Title="@L["MediaBrowseShell_ShowCards"].Value"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.Card ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.Card))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />
@@ -290,7 +289,6 @@
                                 <AppNativeButton Type="button"
                                                  Class="@LayoutToggleClass(LibraryLayoutMode.List)"
                                                  AriaLabel="@L["MediaBrowseShell_ShowList"].Value"
-                                                 Title="@L["MediaBrowseShell_ShowList"].Value"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.List ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.List))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" />

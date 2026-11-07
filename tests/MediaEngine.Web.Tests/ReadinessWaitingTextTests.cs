@@ -53,7 +53,7 @@ public sealed class ReadinessWaitingTextTests : AsyncBunitContext
 
         var status = cut.Find(".ingestion-media-list-row__status");
         Assert.Equal("Waiting for matching and artwork", status.TextContent.Trim());
-        Assert.Equal("Waiting for matching and artwork", status.GetAttribute("title"));
+        Assert.Equal("Waiting for matching and artwork", status.GetAttribute("data-overflow-tooltip"));
         Assert.Contains("Waiting for matching and artwork", cut.Find("button.ingestion-media-list-row__open").GetAttribute("aria-label"));
     }
 

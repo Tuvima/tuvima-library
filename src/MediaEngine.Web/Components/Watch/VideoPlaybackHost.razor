@@ -102,7 +102,7 @@
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
                                Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
             <div class="playback-video-controls">
-                <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
+                <div class="playback-video-controls__identity" data-overflow-tooltip="@VideoBarTitle">@VideoBarTitle</div>
                 <div class="playback-video-controls__centre">
                     @if (CanGoToPreviousEpisode) { <AppTooltip Text="@L["VideoPlaybackHost_PreviousEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_PreviousEpisode"].Value" OnClick="@(() => Playback.SkipPreviousAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipPrevious" /></AppNativeButton></AppTooltip> }
                     <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />

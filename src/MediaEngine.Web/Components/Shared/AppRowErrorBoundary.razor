@@ -22,7 +22,7 @@ else
             <strong>@Headline</strong>
             @if (!string.IsNullOrWhiteSpace(ItemTitle))
             {
-                <small title="@ItemTitle">@ItemTitle</small>
+                <small data-overflow-tooltip="@ItemTitle">@ItemTitle</small>
             }
         </span>
     </div>

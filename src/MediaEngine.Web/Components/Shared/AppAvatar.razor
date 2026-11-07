@@ -1,5 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
-<span class="@RootClass" style="@AvatarStyle" title="@Title" @attributes="AdditionalAttributes">
+<span class="@RootClass" style="@AvatarStyle" @attributes="AdditionalAttributes">
     @if (!string.IsNullOrWhiteSpace(ImageUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(ImageUrl, DrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ImageUrl, DrawnPx)" alt="@AltText" loading="lazy" decoding="async" /> }
     else if (!string.IsNullOrWhiteSpace(Icon)) { <AppMaterialIcon Icon="@Icon" Size="@IconSize" /> }
     else if (ChildContent is not null) { @ChildContent }

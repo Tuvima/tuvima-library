@@ -97,7 +97,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
 
         var context = cut.Find(".cinematic-hero-carousel__context");
         Assert.Equal(label, context.TextContent);
-        Assert.Equal("Because you finished Dune", context.GetAttribute("title"));
+        Assert.Equal("Because you finished Dune", context.GetAttribute("data-overflow-tooltip"));
     }
 
     [Fact]

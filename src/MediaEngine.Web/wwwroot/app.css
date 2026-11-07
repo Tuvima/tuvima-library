@@ -408,19 +408,6 @@ body {
     border-radius: var(--tl-radius-lg);
 }
 
-.tl-icon-button {
-    width: 34px !important;
-    height: 34px !important;
-
-    border-radius: var(--tl-radius-sm) !important;
-}
-.tl-icon-button:not([aria-pressed="true"]) { color:var(--tl-text-muted) !important; }
-
-.tl-icon-button:not([aria-pressed="true"]):hover {
-    color: var(--tl-text-primary) !important;
-    background: var(--app-hover-overlay) !important;
-}
-
 .tl-input-control {
     margin-top: 0 !important;
 }
@@ -846,12 +833,8 @@ code{
 
 /* The cover's "..." (D3, D17): always visible, top right, a vertical three-dot mark with no box and a soft shadow so it reads on any art.
    The mark is small; the tappable area is the full 44 px on every device. */
-.media-tile-actions { position:absolute; top:0; right:0; z-index:8; display:flex; pointer-events:none; }
+.media-tile-actions { position:absolute; top:6px; right:6px; z-index:8; display:flex; pointer-events:none; }
 .media-tile-actions > * { pointer-events:auto; }
-.media-tile-actions .app-overflow-menu__trigger, .media-tile-actions .media-tile-action { display:inline-flex; align-items:center; justify-content:center; width:var(--tl-tile-menu-button,44px); height:var(--tl-tile-menu-button,44px); min-width:var(--tl-tile-menu-button,44px); min-height:var(--tl-tile-menu-button,44px); padding:0; border:0; border-radius:var(--tl-radius-md); background:transparent; box-shadow:none; color:#fff; cursor:pointer; }
-.media-tile-actions .app-overflow-menu__trigger .tl-icon-root, .media-tile-actions .media-tile-action .tl-icon-root { font-size:22px; filter:drop-shadow(0 1px 3px rgba(0,0,0,.9)); }
-.media-tile-actions .app-overflow-menu__trigger:is(:hover, [aria-expanded="true"]) { background:rgba(16,17,21,.55); }
-.media-tile-actions .app-overflow-menu__trigger:focus-visible { outline:2px solid var(--tl-accent-primary,#8852FC); outline-offset:-2px; }
 @media (prefers-reduced-motion: reduce){
     .tl-card-hover--quiet,
     .tl-card-hover--standard,
@@ -970,14 +953,12 @@ body,
     background: var(--tl-accent-primary-hover) !important;
 }
 
-.app-button--text,
-.tl-icon-button:not([aria-pressed="true"]) {
+.app-button--text {
     color: var(--tl-text-secondary) !important;
     background: transparent !important;
 }
 
-.app-button--text:hover,
-.tl-icon-button:not([aria-pressed="true"]):hover {
+.app-button--text:hover {
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-surface-hover) !important;
 }
@@ -1331,8 +1312,7 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     overflow: visible !important;
 }
 
-.tl-button,
-.tl-icon-button {
+.tl-button {
     min-height: var(--tl-control-height-md) !important;
     border-radius: var(--tl-control-radius) !important;
     padding-inline: var(--tl-control-padding-x) !important;
@@ -1345,18 +1325,11 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 }
 
 .tl-button:disabled,
-.tl-button[aria-disabled="true"],
-.tl-icon-button:disabled,
-.tl-icon-button[aria-disabled="true"] {
+.tl-button[aria-disabled="true"] {
     color: var(--tl-text-disabled) !important;
     opacity: 0.72 !important;
 }
 
-.tl-icon-button {
-    width: var(--tl-control-height-md) !important;
-    min-width: var(--tl-control-height-md) !important;
-    padding: 0 !important;
-}
 
 
 
@@ -1808,13 +1781,6 @@ input.app-control.tl-input-slot,
     flex: 0 0 auto;
     margin-right: var(--tl-space-2);
     color: currentColor !important;
-}
-
-.app-icon-button.tl-icon-button {
-    width: var(--app-control-height, var(--tl-control-height-md)) !important;
-    height: var(--app-control-height, var(--tl-control-height-md)) !important;
-    min-width: var(--app-control-height, var(--tl-control-height-md)) !important;
-    border-radius: var(--tl-control-radius) !important;
 }
 
 .app-action-bar,
@@ -2971,7 +2937,6 @@ button.app-menu-item {
     animation: tl-tooltip-in 100ms ease-out;
 }
 /* A rated title shows its state at rest on every surface (Look pass v2 A7). */
-.hero-icon-circle[data-rated="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); color: var(--tl-accent-primary-hover); }
 @keyframes tl-tooltip-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .playback-tooltip { animation: none; } }
 .playback-popover-owner { display: contents; }
@@ -4065,7 +4030,7 @@ input[type="reset"],
     letter-spacing: 0.08em;
 }
 
-.app-overflow-menu__trigger:where(:not(.hero-icon-circle)) {
+.app-overflow-menu__trigger:where(:not(.hero-icon-circle, .app-icon-button)) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4087,9 +4052,9 @@ input[type="reset"],
     font-size: 1.22rem;
 }
 
-.app-overflow-menu__trigger:where(:not(.hero-icon-circle)):hover,
-.app-overflow-menu__trigger:where(:not(.hero-icon-circle)):focus-visible,
-.app-overflow-menu:focus-within > .app-overflow-menu__trigger:where(:not(.hero-icon-circle)) {
+.app-overflow-menu__trigger:where(:not(.hero-icon-circle, .app-icon-button)):hover,
+.app-overflow-menu__trigger:where(:not(.hero-icon-circle, .app-icon-button)):focus-visible,
+.app-overflow-menu:focus-within > .app-overflow-menu__trigger:where(:not(.hero-icon-circle, .app-icon-button)) {
     border-color: transparent !important;
     background: transparent !important;
 }
@@ -4136,13 +4101,13 @@ input[type="reset"],
     outline-offset: 2px;
 }
 
-.app-overflow-menu__trigger--icon {
+.app-overflow-menu__trigger--icon:not(.app-icon-button) {
     width: var(--tl-control-height-lg);
     height: var(--tl-control-height-lg);
     padding: 0;
 }
 
-.app-overflow-menu.app-control--compact .app-overflow-menu__trigger--icon {
+.app-overflow-menu.app-control--compact .app-overflow-menu__trigger--icon:not(.app-icon-button) {
     width: 2rem;
     min-width: 2rem;
     height: 2rem;
@@ -4150,7 +4115,7 @@ input[type="reset"],
     border-radius: 0.48rem;
 }
 
-.app-overflow-menu.app-control--compact .app-overflow-menu__trigger--icon > .tl-icon-root {
+.app-overflow-menu.app-control--compact .app-overflow-menu__trigger--icon:not(.app-icon-button) > .tl-icon-root {
     font-size: 1.08rem;
 }
 
@@ -4206,7 +4171,7 @@ input[type="reset"],
     min-height: 2.7rem;
 }
 
-.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle)) {
+.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle, .app-icon-button)) {
     border: 1px solid var(--tl-secondary-action-border) !important;
     border-radius: var(--tl-radius-md);
     background: var(--tl-secondary-action-bg) !important;
@@ -4214,8 +4179,8 @@ input[type="reset"],
 
 .app-overflow-menu__trigger--labeled:hover,
 .app-overflow-menu__trigger--labeled:focus-visible,
-.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle)):hover,
-.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle)):focus-visible {
+.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle, .app-icon-button)):hover,
+.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle, .app-icon-button)):focus-visible {
     border-color: var(--tl-secondary-action-border-hover) !important;
     background: var(--tl-secondary-action-bg-hover) !important;
 }
@@ -4385,7 +4350,6 @@ input[type="reset"],
 .app-menu-item__check { margin-left:auto; }
 .app-menu-divider { height:1px; margin:4px 0; background:var(--tl-menu-divider); }
 .playback-popover-content:has(.app-menu-item) { border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); overflow:hidden; }
-.hero-icon-circle { display:grid; place-items:center; width:48px; height:48px; padding:0; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.3); color:var(--playback-text); }
 
 /* Song and detail menus share content sizing, typography, and row geometry. */
 .playback-popover--menu .playback-popover-surface { width:max-content; min-width:var(--tl-menu-min-width); max-width:100%; border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); background:var(--tl-menu-surface); color:var(--tl-text-primary); }
@@ -5436,9 +5400,7 @@ button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
 dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100dvh;max-height:none !important;margin:0;border:0 !important;border-radius:0 !important;background:transparent !important;box-shadow:none !important;overflow:visible}dialog.tl-editor-dialog::backdrop{background:color-mix(in srgb,var(--tl-bg-shell,#000) 62%,transparent)}
 /* Detail page: the small hero icons are quiet and each carries its name underneath (editor and details revision).
    The Home hero keeps its single row. */
-.tl-detail-page .tl-detail-secondary-actions { align-items: flex-start; gap: 6px 18px; padding-bottom: 1.35rem; }
-.tl-detail-page .tl-detail-actions .hero-icon-circle { position: relative; }
-.tl-detail-page .tl-detail-actions .hero-icon-circle::after { content: attr(data-phone-label); position: absolute; top: calc(100% + 0.2rem); left: 50%; max-width: 5.5rem; overflow: hidden; transform: translateX(-50%); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.tl-detail-page .tl-detail-secondary-actions { align-items: flex-start; gap: 6px 18px; }
 
 /* Account menu surface (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
 .tl-popover.top-nav-account-menu__surface {
@@ -5558,44 +5520,6 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     max-width: 60ch;
 }
 
-/* Phone Home hero buttons. They are app buttons (child components), which a component's isolated CSS cannot reach, so their rules live here;
-   everything else of the hero is in PhoneHeroCard.razor.css. */
-.phone-hero__primary {
-    flex: 1 1 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--tl-space-2, 0.5rem);
-    min-width: 0;
-    min-height: var(--phone-hero-tap);
-    max-height: var(--phone-hero-tap);
-    padding: 0 var(--tl-space-4, 1rem);
-    border: 0;
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-accent-primary, #8852fc);
-    color: var(--tl-text-on-accent, #ffffff);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.phone-hero__icon-button {
-    flex: 0 0 var(--phone-hero-tap);
-    display: inline-grid;
-    place-items: center;
-    width: var(--phone-hero-tap);
-    min-width: var(--phone-hero-tap);
-    min-height: var(--phone-hero-tap);
-    padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.24);
-    border-radius: 50%;
-    background: rgba(5, 7, 12, 0.55);
-    color: var(--tl-text-primary, #f8fafc);
-    cursor: pointer;
-}
-
-.phone-hero__primary:focus-visible,
-.phone-hero__icon-button:focus-visible,
 .phone-hero__dot:focus-visible {
     outline: 3px solid var(--tl-focus-ring, #ffffff);
     outline-offset: 2px;
@@ -6093,67 +6017,10 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
     width: 100%;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-action--primary {
-    flex: 1 1 auto;
-    width: 100%;
-    height: 3rem;
-    min-height: 3rem;
-    font-size: var(--tl-font-size-lg);
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-action--primary.tl-detail-action--has-progress {
-    height: 3.5rem;
-    min-height: 3.5rem;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-action--primary .tl-icon-root {
-    width: 24px;
-    height: 24px;
-    flex-basis: 24px;
-    font-size: 24px;
-}
-
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-secondary-actions {
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.25rem 1.1rem;
-    padding-bottom: 1.35rem;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .media-rate-control .hero-icon-circle {
-    position: relative;
-    flex: 0 0 var(--tl-tap-target-min, 44px);
-    width: var(--tl-tap-target-min, 44px);
-    height: var(--tl-tap-target-min, 44px);
-    min-width: var(--tl-tap-target-min, 44px);
-    min-height: var(--tl-tap-target-min, 44px);
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle .playback-utility-glyph {
-    width: 22px;
-    height: 22px;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle::after {
-    content: attr(aria-label);
-    position: absolute;
-    top: calc(100% + 0.2rem);
-    left: 50%;
-    max-width: 5.5rem;
-    overflow: hidden;
-    transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.78);
-    font-size: 0.75rem;
-    font-weight: 500;
-    line-height: 1.3;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    pointer-events: none;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle[data-phone-label]::after {
-    content: attr(data-phone-label);
 }
 
 /* The More menu is a bottom sheet on phones. */

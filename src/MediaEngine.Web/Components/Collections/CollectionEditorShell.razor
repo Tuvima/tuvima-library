@@ -2019,7 +2019,7 @@
             <div class="collection-flow__covers">
                 @foreach (var item in _previewResult.Items.Take(12))
                 {
-                    <div class="collection-flow__cover" title="@item.Title">
+                    <div class="collection-flow__cover">
                         @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
                         {
                             <img src="@MediaTileArtworkUrl.ForDrawnSize(item.CoverUrl, 120)"
@@ -2183,8 +2183,8 @@
                     {
                         <span class="app-artwork-picker__placeholder"><AppMaterialIcon Icon="@CollectionTypeIcon" /></span>
                     }
-                    <span class="app-artwork-picker__edit" title="Edit artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
-                    <InputFile class="app-artwork-picker__input" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
+                    <span class="app-artwork-picker__edit"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
+                    <InputFile class="app-artwork-picker__input" aria-label="Edit artwork" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
                 </label>
             }
             <AppTextField T="string"

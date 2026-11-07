@@ -73,7 +73,8 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
         Assert.Equal("Video folder", label.TextContent.Trim());
         Assert.Equal("88 videos · 14 sections", cut.Find(".tl-detail-hero__subtitle").TextContent.Trim());
         Assert.Equal("Play", cut.Find(".tl-detail-action--primary").TextContent.Trim());
-        Assert.Equal("Open folder", cut.Find(".cinematic-hero-carousel__folder-link").TextContent.Trim());
+        // Look v3 D12: the folder is an Open button with a folder icon, not a text link.
+        Assert.Equal("Open folder", cut.Find(".cinematic-hero-carousel__folder-link").GetAttribute("aria-label"));
         Assert.Equal("/details/tvshow/folder?context=watch", cut.Find(".cinematic-hero-carousel__folder-link").GetAttribute("href"));
         AssertNeverReading(cut.Markup);
     }
@@ -154,7 +155,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
 
         Assert.Equal("Video folder", cut.Find(".phone-hero__tag").TextContent.Trim());
         Assert.Equal("88 videos · 14 sections", cut.Find(".phone-hero__meta").TextContent.Trim());
-        Assert.Equal("Play", cut.Find(".phone-hero__primary-label").TextContent.Trim());
+        Assert.Equal("Play", cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
         AssertNeverReading(cut.Markup);
     }
 
@@ -167,8 +168,8 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
 
         Assert.Equal("Continue Watching", cut.Find(".phone-hero__tag").TextContent.Trim());
         Assert.Contains("Next up: Variables", cut.Find(".phone-hero__meta").TextContent);
-        Assert.Equal("Resume", cut.Find(".phone-hero__primary-label").TextContent.Trim());
-        Assert.Equal("25 min left", cut.Find(".phone-hero__primary-detail").TextContent.Trim());
+        Assert.Equal("Resume", cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
+        Assert.Equal("25 min left", cut.Find(".tl-detail-action-progress__label").TextContent.Trim());
     }
 
     [Theory]
@@ -182,7 +183,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
 
         Assert.Equal(label, cut.Find(".phone-hero__tag").TextContent.Trim());
         Assert.Equal(line, cut.Find(".phone-hero__meta").TextContent.Trim());
-        Assert.Equal(button, cut.Find(".phone-hero__primary-label").TextContent.Trim());
+        Assert.Equal(button, cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
         AssertNeverReading(cut.Markup);
     }
 

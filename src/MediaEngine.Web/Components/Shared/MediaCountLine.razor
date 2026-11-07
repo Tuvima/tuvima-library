@@ -8,11 +8,13 @@
     <span class="media-count-line">
         @foreach (var count in Counts)
         {
-            <span class="media-count-line__item" title="@Spell(count)">
-                <AppMaterialIcon Icon="@count.Icon" />
-                <span aria-hidden="true">@count.Count</span>
-                <span class="media-count-line__sr">@Spell(count)</span>
-            </span>
+            <AppTooltip Text="@Spell(count)">
+                <span class="media-count-line__item">
+                    <AppMaterialIcon Icon="@count.Icon" />
+                    <span aria-hidden="true">@count.Count</span>
+                    <span class="media-count-line__sr">@Spell(count)</span>
+                </span>
+            </AppTooltip>
         }
     </span>
 }

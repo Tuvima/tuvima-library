@@ -194,7 +194,7 @@
                                     <span class="tl-art-picker__tab-count" aria-hidden="true">@count</span>
                                     @if (staged)
                                     {
-                                        <span class="tl-art-picker__tab-dot" title="Changed, not saved" aria-hidden="true"></span>
+                                        <span class="tl-art-picker__tab-dot" aria-hidden="true"></span>
                                     }
                                 </text>)
                         }
@@ -250,7 +250,6 @@
                        Tone="AppUiTone.Error"
                        StartIcon="@AppMaterialIcons.Outlined.Delete"
                        Class="tl-art-picker__action tl-art-picker__delete"
-                       title="Remove this version from the item"
                        Disabled="@(picker.Busy || preferred is null)"
                        OnClick="@(() => DeleteAsync(preferred))">
                 Remove
@@ -261,7 +260,6 @@
                            Tone="AppUiTone.Neutral"
                            StartIcon="@AppMaterialIcons.Outlined.Refresh"
                            Class="tl-art-picker__action tl-art-picker__refresh"
-                           title="Ask the providers this item is matched with for pictures again"
                            Disabled="@picker.Busy"
                            OnClick="@(() => BeginAddAsync(SourceProviders, refresh: true))">
                     Refresh

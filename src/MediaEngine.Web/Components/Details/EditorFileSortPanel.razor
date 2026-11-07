@@ -538,7 +538,7 @@
                     var staged = Pending?.FindFileChoice(file.EntityId);
                     var guessed = GuessedChoice(sorting, file);
                     <div class="tl-filesort__row @(staged is not null ? "tl-filesort__row--staged" : null)">
-                        <span class="tl-filesort__name" title="@file.FileName">@file.FileName</span>
+                        <span class="tl-filesort__name" data-overflow-tooltip="@file.FileName">@file.FileName</span>
                         @if (staged is not null)
                         {
                             <span>@L["EditorFileSort_StagedAs", Pending?.Label(staged.Id) ?? string.Empty]</span>
