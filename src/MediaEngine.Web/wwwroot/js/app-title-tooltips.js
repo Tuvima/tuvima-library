@@ -13,6 +13,9 @@ function take(event) {
     const text = element.getAttribute('title');
     element.removeAttribute('title');
     if (!text || !text.trim()) return;
+    // A redraw puts the title back on a control that is already wired: refresh the text only. Wiring it again and replaying
+    // the hover is what used to show a second bubble, or one on the wrong element (Look v3 D8).
+    if (element.dataset.tooltipFromTitle === 'true') { element.dataset.playbackTooltip = text.trim(); return; }
     element.dataset.playbackTooltip = text.trim();
     if (!element.hasAttribute('aria-label') && !element.textContent.trim() && !element.getAttribute('aria-labelledby')) {
         element.setAttribute('aria-label', text.trim());
