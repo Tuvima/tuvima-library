@@ -19,7 +19,7 @@ namespace MediaEngine.Api.Services.EditSession;
 /// </para>
 /// <para>No undo: like choosing a match, removing one rewrites claims, bridge ids and a Work's list in several steps, so the session runs it last among the data changes.</para>
 /// </summary>
-public sealed class MatchRemovalEditSessionChangeHandler(IServiceScopeFactory scopes) : IEditSessionChangeHandler
+public sealed class MatchRemovalEditSessionChangeHandler(IServiceScopeFactory scopes, EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     public string Kind => EditSessionChangeKinds.MatchRemoval;
 
@@ -66,6 +66,11 @@ public sealed class MatchRemovalEditSessionChangeHandler(IServiceScopeFactory sc
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            return EditSessionReasons.SeriesIsReadOnly;
+        }
+
         using var scope = scopes.CreateScope();
         var plan = await PlanAsync(scope.ServiceProvider, change.EntityId, ct).ConfigureAwait(false);
         return plan is null ? EditSessionReasons.Gone : plan.Was is null ? EditSessionReasons.NoMatchToRemove : null;
@@ -73,6 +78,11 @@ public sealed class MatchRemovalEditSessionChangeHandler(IServiceScopeFactory sc
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
+        }
+
         using var scope = scopes.CreateScope();
         var services = scope.ServiceProvider;
         var plan = await PlanAsync(services, change.EntityId, ct).ConfigureAwait(false)

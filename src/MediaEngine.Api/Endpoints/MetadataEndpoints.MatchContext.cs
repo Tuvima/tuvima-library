@@ -41,6 +41,7 @@ public static partial class MetadataEndpoints
                 ParsedSeason = parsed.Season,
                 ParsedEpisode = parsed.Episode,
                 ParsedYear = parsed.Year,
+                ParsedAbsolute = parsed.Absolute,
             };
 
             // The best guess is the top TheTVDB answer for the parsed show. Without a connected provider, or when it does not answer, there

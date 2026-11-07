@@ -13,8 +13,9 @@ namespace MediaEngine.Api.Services.Matching;
 /// <param name="Edition">An edition marker the name carries (Extended, Director's Cut, Remastered, Live), when it carries one.</param>
 /// <param name="Track">For music, the track number at the start of the name.</param>
 /// <param name="Disc">For music, the disc number, when the name carries one.</param>
+/// <param name="Absolute">For TV, an absolute episode number (a show numbered straight through, as anime is), when the name carries one and no season-and-episode pair.</param>
 public sealed record ParsedFileName(
-    string? Title, string? Show, int? Season, int? Episode, string? Year, string? Edition = null, int? Track = null, int? Disc = null);
+    string? Title, string? Show, int? Season, int? Episode, string? Year, string? Edition = null, int? Track = null, int? Disc = null, int? Absolute = null);
 
 /// <summary>
 /// Reads a file name the way the Match tool starts from it (universal editor v3, WP4): the show, season and episode of a TV file
@@ -51,6 +52,7 @@ public static class EditorFileNameParser
 
         int? season = null;
         int? episode = null;
+        int? absolute = null;
         string? show = null;
         string? title = null;
         string? edition = null;
@@ -61,6 +63,12 @@ public static class EditorFileNameParser
             episode = ReadNumber(numbered, "e");
             show = Clean(rules, rules.StripYear(name[..numbered.Index]));
             title = Clean(rules, rules.StripTags(name[(numbered.Index + numbered.Length)..], out edition));
+        }
+        else if (rules.AbsoluteEpisode.Select(pattern => pattern.Match(name)).FirstOrDefault(match => match.Success && !IsYearOnly(rules, match)) is { } counted)
+        {
+            absolute = ReadNumber(counted, "e");
+            show = Clean(rules, rules.StripYear(name[..counted.Index]));
+            title = Clean(rules, rules.StripTags(name[(counted.Index + counted.Length)..], out edition));
         }
         else
         {
@@ -78,8 +86,13 @@ public static class EditorFileNameParser
             season = folderSeason;
         }
 
-        return new ParsedFileName(string.IsNullOrWhiteSpace(title) ? null : title, string.IsNullOrWhiteSpace(show) ? null : show, season, episode, year, edition);
+        return new ParsedFileName(string.IsNullOrWhiteSpace(title) ? null : title, string.IsNullOrWhiteSpace(show) ? null : show, season, episode, year, edition, Absolute: absolute);
     }
+
+    // "Show - 2024" is a year, not the 2024th episode.
+    private static bool IsYearOnly(FilenameCleaningRules rules, Match match) =>
+        match.Groups["e"].Value.Length == 4
+        && Regex.IsMatch(match.Groups["e"].Value, $"^(?:{rules.Configuration.Year.Pattern})$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
 
     /// <summary>
     /// Reads a music file name: the disc and track number at its start and the song title after them ("1-05 Karma Police.flac",

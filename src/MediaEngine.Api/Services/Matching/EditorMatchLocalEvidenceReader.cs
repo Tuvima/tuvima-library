@@ -80,7 +80,7 @@ public sealed partial class EditorMatchLocalEvidenceReader(
         var year = tags.Year ?? parsed.Year ?? FolderYear(folders, rules);
         var creator = tags.Creator;
         string? series = null;
-        int? number = parsed.Episode ?? parsed.Track;
+        int? number = parsed.Episode ?? parsed.Track ?? (isMusic ? tags.Track : null);
 
         switch (kind)
         {
@@ -141,6 +141,9 @@ public sealed partial class EditorMatchLocalEvidenceReader(
             FileTitle = isTv ? parsed.Show ?? title : title,
             Year = year,
             Number = number,
+            Season = isTv ? parsed.Season : null,
+            EpisodeTitle = isTv ? parsed.Title : null,
+            Disc = isMusic ? parsed.Disc ?? tags.Disc : null,
             Creator = creator,
             MeasuredSeconds = measured is > 0 ? measured : null,
             MeasuredText = EditorMatchVerdictCalculator.ClockText(measured),
@@ -220,7 +223,7 @@ public sealed partial class EditorMatchLocalEvidenceReader(
 
     private sealed record TagFacts(
         string? Title, string? Creator, string? Artist, string? Album, string? Year, string? Series, int? Issue, string? Narrator, string? Isbn,
-        string? Isrc);
+        string? Isrc, int? Track = null, int? Disc = null);
 
     // The embedded tags the scan read from the file (a claim from the local file reader), the newest of each.
     private async Task<TagFacts> ReadTagsAsync(Guid assetId, CancellationToken ct)
@@ -242,8 +245,14 @@ public sealed partial class EditorMatchLocalEvidenceReader(
             int.TryParse(Get(MetadataFieldConstants.SeriesPosition) ?? Get(MetadataFieldConstants.IssueNumber), NumberStyles.Integer, CultureInfo.InvariantCulture, out var issue) ? issue : null,
             Get(MetadataFieldConstants.Narrator),
             Get(BridgeIdKeys.Isbn13) ?? Get(BridgeIdKeys.Isbn),
-            Get(BridgeIdKeys.Isrc));
+            Get(BridgeIdKeys.Isrc),
+            WholeNumber(Get(MetadataFieldConstants.TrackNumber)),
+            WholeNumber(Get(MetadataFieldConstants.DiscNumber)));
     }
+
+    // A track or disc number a tag carries as "4" or "4/12"; null when it is not above zero.
+    private static int? WholeNumber(string? text) =>
+        int.TryParse(text?.Split('/')[0].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0 ? value : null;
 
     private IReadOnlyList<EditorMatchIdentifierDto> ReadIdentifiers(string kind, string? path, string? fileName, TagFacts tags)
     {

@@ -66,7 +66,30 @@
             }
         </div>
     </div>
-    @if (ShowFooter)
+    @if (ShowFooter && ReadOnly)
+    {
+        @* A read-only item (a Series, v5 D7 and screen H) has nothing to save or discard: the footer says so and offers only Close. *@
+        <footer class="tl-editor-window__footer tl-editor-window__footer--read-only" data-read-only="true">
+            <div class="tl-editor-window__where" role="status">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" Class="tl-editor-window__where-icon" />
+                <div class="tl-editor-window__where-text">
+                    <strong>@L["EditorSeries_ReadOnlyTitle"]</strong>
+                    <small>@L["EditorSeries_ReadOnlyDetail"]</small>
+                </div>
+            </div>
+            <span class="tl-editor-window__changes"></span>
+            <div class="tl-editor-window__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Large"
+                           Class="tl-editor-window__cancel tl-editor-window__close-button"
+                           OnClick="OnClose">
+                    @L["Common_Close"]
+                </AppButton>
+            </div>
+        </footer>
+    }
+    else if (ShowFooter)
     {
         <footer class="tl-editor-window__footer">
             @if (FooterStart is not null)
@@ -133,6 +156,9 @@
     [Parameter] public RenderFragment? Body { get; set; }
 
     [Parameter] public bool ShowFooter { get; set; } = true;
+
+    /// <summary>True for an item nothing can be changed on (a Series): the footer then shows only Close, with no Delete, count, Discard or Save changes.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     /// <summary>The footer's first words: where changes go.</summary>
     [Parameter] public RenderFragment? Where { get; set; }

@@ -179,22 +179,58 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     // -- Series ------------------------------------------------------------------
 
     [Fact]
-    public async Task Series_Apply_StoresALocalOverrideAndLeavesTheCanonicalNameAlone()
+    public async Task Series_Apply_RefusesEveryFieldWriteAndStoresNothing()
     {
         var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
 
         var result = await CreateService().RunAsync(
             Request(previewOnly: false, DetailsChange("d1", series, ("title", "Expanse"), ("description", "Mine."))), NoRefusals);
 
-        Assert.True(result.DataSaved);
-        var subject = (await _subjects.LoadAsync(series))!;
-        Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
-        Assert.Equal(["CoverArt", "Background"], subject.ArtworkSlots);
-        var title = subject.Fields.Single(field => field.Key == "title");
-        Assert.Equal("Expanse", title.Value);
-        Assert.Equal("The Expanse", title.CanonicalValue);
-        Assert.True(title.IsOverridden);
+        Assert.False(result.Valid);
+        Assert.False(result.DataSaved);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, Assert.Single(result.Changes).Reason);
+        Assert.Empty(await _overrides.LoadAsync(series) ?? new Dictionary<string, string>());
         Assert.Equal("The Expanse", (await _collections.GetByIdAsync(series))!.DisplayName);
+    }
+
+    [Fact]
+    public async Task Series_Opens_WithItsFieldsButNoPicturesToChoose()
+    {
+        var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
+        Assert.Empty(subject.ArtworkSlots);
+        Assert.Equal("The Expanse", subject.Fields.Single(field => field.Key == "title").Value);
+    }
+
+    [Fact]
+    public async Task Series_Opens_WithItsMembersInOrder_SoTheEditorCanListAndOpenThem()
+    {
+        var series = SeedGrouping(CollectionType.Series, "Dune Novels", null);
+        var second = SeedMember(series, "Dune Messiah", 2);
+        var first = SeedMember(series, "Dune", 1);
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal([first, second], subject.Members.Select(member => member.Id));
+        Assert.Equal(["Dune", "Dune Messiah"], subject.Members.Select(member => member.Title));
+        Assert.Equal([1, 2], subject.Members.Select(member => member.Number));
+    }
+
+    [Fact]
+    public async Task Series_Artwork_IsRefused_BecauseASeriesShowsItsMembersCovers()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
+        var cover = SeedAsset("cover");
+        await _artwork.LinkAsync("Collection", series, new(cover, "Primary", Preferred: false, SourceAssetType: "CoverArt"), CancellationToken.None);
+
+        var result = await CreateService().RunAsync(Request(previewOnly: false, ArtworkChange("a1", series, "CoverArt", cover)), NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.Equal(EditSessionReasons.SeriesHasNoArtwork, Assert.Single(result.Changes).Reason);
+        Assert.Null(await _artwork.GetChosenAsync("Collection", series, "Primary", CancellationToken.None));
     }
 
     [Fact]
@@ -613,6 +649,19 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         using var connection = _db.CreateConnection();
         connection.Execute("UPDATE persons SET occupation = 'Writer' WHERE id = @id;", new { id = created.Id });
         return created.Id;
+    }
+
+    private Guid SeedMember(Guid collection, string title, int ordinal)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _db.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO works (id, media_type, work_kind, collection_id, ordinal) VALUES (@id, 'Books', 'standalone', @collection, @ordinal);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'title', @title, @now);
+            """,
+            new { id = GuidSql.ToBlob(id), collection = GuidSql.ToBlob(collection), ordinal, title, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
     }
 
     private Guid SeedGrouping(CollectionType type, string name, string? description, string? qid = null)

@@ -19,3 +19,17 @@
         padding: 0 var(--tl-space-4) var(--tl-space-4);
     }
 }
+
+/* A Series' members in order (universal editor v5 screen H): a locked, read-only list, never inputs. */
+.tl-editor-details__members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-1) var(--tl-space-4);
+    margin: 0;
+    padding: var(--tl-space-3);
+    border: 1px dashed var(--tl-divider);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-secondary);
+    line-height: 1.8;
+    list-style: none;
+}

@@ -51,6 +51,10 @@ public sealed class FilenameCleaningRules
         SeasonEpisode = seasonEpisode;
         SeasonFolder = seasonFolder;
         TrackPatterns = trackPatterns;
+        AbsoluteEpisode = configuration.AbsoluteEpisodePatterns
+            .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
+            .Select(pattern => new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, PatternTimeout))
+            .ToArray();
         _editionMarkers = editionMarkers;
     }
 
@@ -77,6 +81,9 @@ public sealed class FilenameCleaningRules
     public Regex SeasonFolder { get; }
 
     public IReadOnlyList<Regex> TrackPatterns { get; }
+
+    /// <summary>Patterns that read an absolute episode number (anime), with the named group <c>e</c>; empty when none are configured.</summary>
+    public IReadOnlyList<Regex> AbsoluteEpisode { get; }
 
     /// <summary>
     /// Compiles the rules. Null (with the reason) when a pattern does not compile or a rule the readers cannot work without is empty.

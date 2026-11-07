@@ -35,6 +35,7 @@
                         TabsDisabled="@(flow.Saving || flow.Switching)"
                         OnTab="@(key => Enum.TryParse<EditTool>(key, out var picked) && picked != shown ? flow.SelectToolAsync(picked) : Task.CompletedTask)"
                         ShowFooter="@(!_reviewing)"
+                        ReadOnly="@mode.Fields.IsReadOnlySeries"
                         ChangeCount="count"
                         Saving="flow.Saving"
                         OnClose="@(() => flow.LeaveAsync())"

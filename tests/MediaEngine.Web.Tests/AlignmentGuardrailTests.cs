@@ -113,7 +113,7 @@ public sealed class AlignmentGuardrailTests
     [Fact]
     public void TheMatchRow_IsOneNonWrappingFlexLine_OnTheCentreLine()
     {
-        var css = File.ReadAllText(Path.Combine(WebRoot(), "Components", "Details", "EditorMatchPanel.razor.css"));
+        var css = File.ReadAllText(Path.Combine(WebRoot(), "Components", "Details", "EditorMatchRow.razor.css"));
         var row = Rules(css).Single(rule => rule.Selector.Trim() == ".tl-matchrow").Body;
         Assert.Contains("display: flex", row, StringComparison.Ordinal);
         Assert.Contains("align-items: center", row, StringComparison.Ordinal);

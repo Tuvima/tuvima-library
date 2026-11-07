@@ -48,6 +48,11 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
+    "absolute_episode_patterns": {
+      "description": "Optional regular expressions that read an absolute episode number (shows numbered straight through, as anime is), with the named group e. Tried only when no season-and-episode pattern matches.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
     "season_folder_pattern": {
       "description": "A regular expression for a folder that names a season (\"Season 02\", \"Specials\").",
       "type": "string",

@@ -24,6 +24,8 @@ public static class EditSessionReasons
     public const string SubjectUnavailable = "This cannot be opened for editing.";
     public const string BadPosition = "The track number is not valid. Use a whole number from 1 to 9999.";
     public const string NotInThatAlbum = "This song is no longer in that album.";
+    public const string SeriesIsReadOnly = "A Series comes from its members' own matches and cannot be changed. Edit one of its members instead.";
+    public const string SeriesHasNoArtwork = "A Series has no picture of its own. It shows the covers of its members.";
 
     public const string NotAVideo = "That is not a video.";
     public const string SeriesGone = "That series is no longer available. Pick it again.";

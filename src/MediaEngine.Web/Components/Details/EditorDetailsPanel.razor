@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Items
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Services.Editing
@@ -24,7 +25,12 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     var facts = Rows(fields).Where(row => !editable.Contains(row)).ToList();
     <div class="tl-editor-details-layout">
     <div class="tl-editor-details">
-        @if (!canEdit)
+        @if (fields.IsReadOnlySeries)
+        {
+            @* A Series is a canonical grouping (v5 D7, screen H): nothing on it can be changed, so say why and where to go instead. *@
+            <AppAlert Severity="AppSeverity.Info" Dense="true" Icon="@AppMaterialIcons.Outlined.Lock" data-series-note="true">@L["EditorSeries_ReadOnlyNotice"]</AppAlert>
+        }
+        else if (!canEdit)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["Common_YouCanLookAtThese"]</AppAlert>
         }
@@ -54,11 +60,42 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         @if (facts.Count > 0 && !canEdit)
         {
             <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
-                <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
+                @if (!fields.IsReadOnlySeries)
+                {
+                    <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
+                }
                 @foreach (var field in facts)
                 {
                     @FactRow(field)
                 }
+            </section>
+        }
+
+        @if (fields.IsReadOnlySeries && EditorSeriesRules.Members(fields) is { Count: > 0 } members)
+        {
+            @* The Series' members in order. Each opens that member's own editor in this same window (screen H). *@
+            var heading = L[EditorSeriesRules.MembersHeadingKey(fields)].Value;
+            <section class="tl-editor-details__group" aria-label="@heading" data-series-members="true">
+                <div class="tl-editor-field tl-editor-field--locked">
+                    <div class="tl-editor-field__label"><span>@heading</span></div>
+                    <ol class="tl-editor-details__members">
+                        @foreach (var member in members)
+                        {
+                            <li>
+                                @if (Flow is null)
+                                {
+                                    @member.Line
+                                }
+                                else
+                                {
+                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                               Disabled="@(Flow.Saving || Flow.Switching)"
+                                               OnClick="@(() => Flow.SwitchToAsync(member.Id, member.Title))">@member.Line</AppButton>
+                                }
+                            </li>
+                        }
+                    </ol>
+                </div>
             </section>
         }
 
@@ -75,6 +112,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
 
     [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
+
+    /// <summary>The editor's flow: with it, a Series' members are buttons that open the member's own editor in this window.</summary>
+    [Parameter] public EditSessionFlow? Flow { get; set; }
 
     /// <summary>Extra read-only content shown under the fields (the Universe's Series list).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }

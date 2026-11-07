@@ -73,6 +73,25 @@ public sealed class EditorSubjectDto
     /// <summary>Facts from providers, shown read-only beside the fields (a person's occupation, birth date, nationality).</summary>
     [JsonPropertyName("facts")]
     public List<EditorSubjectFactDto> Facts { get; init; } = [];
+
+    /// <summary>For a Series: its members in order, so the editor can list them (locked) and open any one of them. Empty for every other kind.</summary>
+    [JsonPropertyName("members")]
+    public List<EditorSubjectMemberDto> Members { get; init; } = [];
+}
+
+/// <summary>One member of a Series: the book, film or comic the editor opens when it is chosen.</summary>
+public sealed class EditorSubjectMemberDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; init; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = string.Empty;
+
+    /// <summary>The member's place in the Series; null when the Series gives it none.</summary>
+    [JsonPropertyName("number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Number { get; init; }
 }
 
 /// <summary>One Details field of an editor subject.</summary>

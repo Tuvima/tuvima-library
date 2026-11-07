@@ -16,4 +16,22 @@ public sealed partial class EngineApiClient
     public async Task<EditorMatchPlacementDto?> GetEditorMatchPlacementAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default) =>
         await PostAsync<EditorMatchPlacementRequestDto, EditorMatchPlacementDto>(
             "Editor match placement", $"/metadata/{entityId}/match-placement", new EditorMatchPlacementRequestDto { Candidate = candidate }, ct: ct);
+
+    public async Task<EditorMatchResultDto?> GetEditorMatchVerdictAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default) =>
+        await PostAsync<EditorMatchVerdictRequestDto, EditorMatchResultDto>(
+            "Editor match verdict", $"/metadata/{entityId}/match-verdict", new EditorMatchVerdictRequestDto { Candidate = candidate }, ct: ct);
+
+    public async Task<EditorMusicReleasesDto?> GetEditorMusicReleasesAsync(Guid entityId, string? artist, string? album, string? song, CancellationToken ct = default) =>
+        await GetAsync<EditorMusicReleasesDto>(
+            "Editor music releases",
+            $"/metadata/{entityId}/match-music/releases",
+            new Dictionary<string, string?> { ["artist"] = artist, ["album"] = album, ["song"] = song }, ct: ct);
+
+    public async Task<EditorMusicReleaseTracksDto?> GetEditorMusicReleaseTracksAsync(Guid entityId, string releaseId, CancellationToken ct = default) =>
+        await GetAsync<EditorMusicReleaseTracksDto>(
+            "Editor music release tracks", $"/metadata/{entityId}/match-music/releases/{Uri.EscapeDataString(releaseId)}", ct: ct);
+
+    public async Task<EditorGroupMatchDto?> LineUpEditorGroupMatchAsync(Guid entityId, EditorGroupMatchRequestDto request, CancellationToken ct = default) =>
+        await PostAsync<EditorGroupMatchRequestDto, EditorGroupMatchDto>(
+            "Editor group match", $"/metadata/{entityId}/match-group", request, ct: ct);
 }

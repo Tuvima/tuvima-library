@@ -53,7 +53,8 @@ public sealed class EditorCurrentMatchService(
             : Path.GetFileName(launch.RepresentativeMediaFilePath.Replace('\\', '/'));
 
         var qid = Value(own, BridgeIdKeys.WikidataQid) ?? Value(root, BridgeIdKeys.WikidataQid);
-        var source = FindSource(launch.MediaType, isTv, own, root);
+        var isEpisode = string.Equals(launch.WorkKind, "child", StringComparison.OrdinalIgnoreCase);
+        var source = FindSource(launch.MediaType, isTv, isEpisode, own, root);
         if (source is null)
         {
             return new EditorCurrentMatchDto
@@ -176,7 +177,7 @@ public sealed class EditorCurrentMatchService(
     // The provider id the Engine stored for this item at its own level: an episode by its episode id, a season by its season id, a show by
     // its show id. Anything else is read from what the Engine stored.
     private static Source? FindSource(
-        string mediaType, bool isTv, IReadOnlyDictionary<string, string> own, IReadOnlyDictionary<string, string> root)
+        string mediaType, bool isTv, bool isEpisode, IReadOnlyDictionary<string, string> own, IReadOnlyDictionary<string, string> root)
     {
         if (isTv)
         {
@@ -190,12 +191,14 @@ public sealed class EditorCurrentMatchService(
                 return new Source(TvdbProvider, "TheTVDB", season, "Season", OutsideLinks.TvdbSeason(season), true);
             }
 
-            if ((Value(own, BridgeIdKeys.TvdbId) ?? Value(root, BridgeIdKeys.TvdbId)) is { } show)
+            // An episode that has lost its own match (Remove match) is not matched to its show: the show's id is the show's, so the episode
+            // reads "Not matched yet" instead of borrowing it. A season keeps showing the show it belongs to.
+            if (!isEpisode && (Value(own, BridgeIdKeys.TvdbId) ?? Value(root, BridgeIdKeys.TvdbId)) is { } show)
             {
                 return new Source(TvdbProvider, "TheTVDB", show, "Show", OutsideLinks.TvdbSeries(show), true);
             }
 
-            if ((Value(own, BridgeIdKeys.TmdbId) ?? Value(root, BridgeIdKeys.TmdbId)) is { } tmdbShow)
+            if ((Value(own, BridgeIdKeys.TmdbId) ?? (isEpisode ? null : Value(root, BridgeIdKeys.TmdbId))) is { } tmdbShow)
             {
                 return new Source("tmdb", "TMDB", tmdbShow, "Show", OutsideLinks.Tmdb(tmdbShow, "TV"), false);
             }

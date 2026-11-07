@@ -26,7 +26,11 @@ public sealed record TvMatchBrowserSeasonDto(
 public sealed record TvMatchBrowserSeasonsDto(
     string SeriesId,
     string ShowName,
-    IReadOnlyList<TvMatchBrowserSeasonDto> Seasons);
+    IReadOnlyList<TvMatchBrowserSeasonDto> Seasons,
+    string? Genre = null,
+    string? Overview = null,
+    string? Year = null,
+    string? ImageUrl = null);
 
 /// <summary>
 /// One real episode record in the Episode column. It carries the full identity a save needs (show, season, episode numbers and
@@ -47,7 +51,9 @@ public sealed record TvMatchBrowserEpisodeDto(
     string AttributionUrl,
     bool IsCurrent,
     bool HasFile,
-    Guid? FileEntityId);
+    Guid? FileEntityId,
+    int? RuntimeMinutes = null,
+    int? AbsoluteNumber = null);
 
 public sealed record TvMatchBrowserEpisodesDto(
     string SeriesId,

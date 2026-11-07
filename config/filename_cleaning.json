@@ -40,6 +40,11 @@
     "Season[ ._-]*(?<s>\\d{1,2})[ ._-]*(?:Episode|Ep|E)[ ._-]*(?<e>\\d{1,3})"
   ],
 
+  "absolute_episode_patterns": [
+    "(?<![A-Za-z0-9])[-_ .]*(?:ep|episode)[ ._-]*(?<e>\\d{1,4})(?![0-9A-Za-z])",
+    "[ ._]-[ ._]+(?<e>\\d{2,4})(?:v\\d)?(?=[ ._\\[(]|$)"
+  ],
+
   "season_folder_pattern": "^(?:season|series|staffel|saison|s)[ ._-]*\\d{1,2}$|^specials?$",
 
   "track_patterns": [
