@@ -284,6 +284,36 @@
             </AppTable>
         </AppCard>
 
+        <AppCard Title="Alignment: one axis per row, one order for buttons" Description="Look v3 D15: rows sit on one centre line, fields keep their label above, status text gets its own reserved line, and a footer reads quiet, destructive, Discard, primary." data-testid="design-system-alignment">
+            <AppSettingsGroup Heading="Settings row with a status line" Helper="Label and helper left, controls at the right end, the result on its own line under the row.">
+                <AppSettingRow Label="Metadata key" Helper="Tested before it is saved." LabelColumn="true" ReserveStatus="true" data-testid="preview-alignment-row">
+                    <Control>
+                        <AppButton Label="Test" Size="AppControlSize.Compact" />
+                        <AppButton Label="Remove" Size="AppControlSize.Compact" />
+                    </Control>
+                    <Status><span class="design-system-preview__ok">Connected</span></Status>
+                </AppSettingRow>
+            </AppSettingsGroup>
+            <div class="design-system-preview__matchrow" data-testid="preview-alignment-matchrow">
+                <div class="design-system-preview__matchrow-start">
+                    <AppSelect T="string" Value="tvdb" Options="@ProviderRowOptions" AriaLabel="Search in" FullWidth="false" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="Search" Size="AppControlSize.Compact" />
+                </div>
+                <AppSegmentedControl Options="@SegmentOptions" Value="providers" AriaLabel="What to match" />
+            </div>
+            <div class="design-system-preview__form-grid" data-testid="preview-alignment-form">
+                <AppTextField Label="Title" Value="Dune Part One" />
+                <AppTextField Label="Sort title" Value="Dune Part One" HelpText="Used only for ordering" />
+                <AppNumericField Label="Year" Value="2021" />
+            </div>
+            <div data-testid="preview-alignment-footer"><AppActionBar Align="AppHorizontalAlignment.End">
+                <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" />
+                <AppButton Label="Delete" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Outlined" />
+                <AppButton Label="Discard" />
+                <AppButton Label="Save changes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+            </AppActionBar></div>
+        </AppCard>
+
         <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 272 and Panel 400; Viewer full screen. Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
             <div class="design-system-preview__row">
                 <AppButton Label="Window S 480" OnClick="@(() => _windowOpen = AppWindowSize.Small)" data-testid="preview-window-s" />
@@ -414,6 +444,8 @@
         AppUiTone.Warning,
         AppUiTone.Error,
     ];
+
+    private static readonly IReadOnlyList<AppSelectOption> ProviderRowOptions = [new AppSelectOption("tvdb", "TheTVDB"), new AppSelectOption("tmdb", "TMDB")];
 
     private static readonly IReadOnlyList<AppSelectOption> LanguageOptions =
     [

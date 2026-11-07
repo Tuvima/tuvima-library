@@ -345,6 +345,12 @@
     --tl-control-height-compact: var(--tl-control-height-sm);
     --tl-control-height-normal: var(--tl-control-height-md);
     --tl-control-height-large: var(--tl-control-height-lg);
+    /* Alignment (Look v3 D15): the row-height ladder, the left label column of a settings or list row, and the gap between a form field's label and its field. */
+    --tl-row-h-compact: 44px;
+    --tl-row-h-default: 56px;
+    --tl-row-h-media: 64px;
+    --tl-row-label-column: 200px;
+    --tl-field-label-gap: 6px;
     /* One icon button (Look v3 D9): icons 20 in the 36 px size, 24 in 44 and 48. */
     --tl-icon-button-icon-sm: 20px;
     --tl-icon-button-icon-lg: 24px;

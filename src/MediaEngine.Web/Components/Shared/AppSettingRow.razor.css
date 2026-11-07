@@ -2,8 +2,17 @@
 .app-setting-row {
     box-sizing: border-box;
     min-width: 0;
-    min-height: 56px;
+    min-height: var(--tl-row-h-default);
     padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Rows with a picture (Look v3 D15.1) sit on the 64 px step of the ladder. */
+.app-setting-row--media {
+    min-height: var(--tl-row-h-media);
 }
 
 .app-setting-row__line {
@@ -13,6 +22,12 @@
     gap: 16px;
     min-height: 32px;
     min-width: 0;
+}
+
+/* The left label column (Look v3 D15, 200 px): only on rows that opt in, so the labels of a list of rows line up. */
+.app-setting-row--label-column .app-setting-row__text {
+    flex: 0 0 var(--tl-row-label-column);
+    max-width: var(--tl-row-label-column);
 }
 
 .app-setting-row__text {
@@ -64,8 +79,10 @@
 }
 
 .app-setting-row__status {
-    margin-top: 8px;
+    box-sizing: border-box;
     width: 100%;
+    min-height: 1.4em;
+    line-height: 1.4;
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-secondary);
 }
