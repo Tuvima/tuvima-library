@@ -18,25 +18,25 @@
     {
         @if (_state is { } state)
         {
-            <AppCard Title="@L["BackupRecoveryPanel_RestoredProgress"].Value" Class="backup-action-card">
+            <AppSettingsGroup Heading="@L["BackupRecoveryPanel_RestoredProgress"].Value" Class="backup-action-card">
                 <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="@L["BackupRecoveryPanel_KeepRestoredProgressWaitingFor"].Value" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                            Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
-            </AppCard>
+            </AppSettingsGroup>
         }
 
-        <AppCard Title="@L["Backups_MonthlyRestoreCheckTitle"].Value" Class="backup-action-card">
+        <AppSettingsGroup Heading="@L["Backups_MonthlyRestoreCheckTitle"].Value" Class="backup-action-card">
             <small class="backup-destinations__hint" data-testid="restore-check">
                 @(_settings?.LastRestoreCheckResult is { } check ? L["BackupDestinationsSection_MonthlyRestoreCheck", check].Value : L["Backups_NoRestoreCheckYet"].Value)
             </small>
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["Backups_ArchiveTitle"].Value" Class="backup-action-card">
+        <AppSettingsGroup Heading="@L["Backups_ArchiveTitle"].Value" Class="backup-action-card">
             <div class="backup-advanced__content" data-testid="archive-facts">
                 <div><span>@L["BackupRecoveryPanel_StoredContent"]</span><strong>@L["BackupRecoveryPanel_SettingsAndYourOwnProgress"]</strong></div>
                 <div><span>@L["BackupRecoveryPanel_TotalArchiveSize"]</span><strong>@FormatBytes(_backups.Sum(item => item.SizeBytes))</strong></div>
                 <p>@L["BackupRecoveryPanel_BackupLocationAndRetentionAre"]</p>
             </div>
-        </AppCard>
+        </AppSettingsGroup>
     }
 </div>
 

@@ -129,7 +129,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         var cut = Render<SecuritySettingsPage>();
 
         cut.WaitForElement("[data-nav-row='photo-views']");
-        var panels = cut.FindAll(".settings-section-card");
+        var panels = cut.FindAll(".app-settings-group");
         var access = panels.Single(panel => panel.QuerySelector("[data-nav-row='photo-views']") is not null);
         Assert.NotNull(access.QuerySelector("[data-nav-row='sign-out-others']"));
         Assert.Contains("Access", access.TextContent, StringComparison.Ordinal);

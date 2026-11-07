@@ -8,7 +8,7 @@
    review, what failed and what the system did. Server administrators only; the Engine enforces that, and the Settings shell only
    offers the page to administrators. The Engine writes every word shown here (title, detail, media type); this panel only lays
    them out. *@
-<AppCard Title="@L["Common_Events"].Value" Description="@L["ActivityLogPanel_WhatWasAddedWhatNeeds"].Value">
+<AppSettingsGroup Heading="@L["Common_Events"].Value" Helper="@L["ActivityLogPanel_WhatWasAddedWhatNeeds"].Value">
     <AppFilterRow Class="activity-log__toolbar" AriaLabel="@L["ActivityLogPanel_FilterTheActivityLog"].Value">
         <div class="activity-log__filters">
             <AppSegmentedControl Options="FilterOptions"
@@ -129,7 +129,7 @@
             </div>
         </div>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     // One row of the log: a single event, or a show or album folding the episodes or songs added to it.

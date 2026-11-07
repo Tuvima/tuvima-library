@@ -20,7 +20,7 @@
     }
 
     <div class="library-handling__grid">
-    <AppCard Class="library-handling__card" Title="@L["Common_Organization"].Value" Description="@L["LibraryFileHandlingTab_HowLibraryNamesAndFiles"].Value">
+    <AppSettingsGroup Class="library-handling__card" Heading="@L["Common_Organization"].Value" Helper="@L["LibraryFileHandlingTab_HowLibraryNamesAndFiles"].Value">
         <ChildContent>
             <div class="library-handling__choices" role="group" aria-label="@L["Common_Organization"].Value">
                 <AppChoiceRow Title="@L["LibraryFileHandlingTab_PreserveOriginalNames"].Value"
@@ -51,9 +51,9 @@
             }
             <div class="library-handling__example"><span>@L["LibraryFileHandlingTab_Example"]</span><code>@OrganizationExample</code></div>
         </ChildContent>
-    </AppCard>
+    </AppSettingsGroup>
 
-    <AppCard Class="library-handling__card" Title="@L["LibraryFileHandlingTab_FileChanges"].Value" Description="Both are off until you switch them on. Renaming and moving use the naming above; writing metadata puts titles, people and artwork into the files themselves.">
+    <AppSettingsGroup Class="library-handling__card" Heading="@L["LibraryFileHandlingTab_FileChanges"].Value" Helper="Both are off until you switch them on. Renaming and moving use the naming above; writing metadata puts titles, people and artwork into the files themselves.">
         <ChildContent>
             <AppSwitchRow Label="@L["LibraryFileHandlingTab_RenameOrMoveFilesAutomatically"].Value"
                           Description="@RenameDescription"
@@ -91,9 +91,9 @@
             <p class="library-handling__note">@L["LibraryFileHandlingTab_WritingMetadataWaitsForA"] <AppLink Href="@HowWritingWorksAddress" Target="_blank">@L["LibraryFileHandlingTab_HowWritingMetadataWorks"]</AppLink></p>
             <div class="library-handling__example"><span>@L["LibraryFileHandlingTab_Example"]</span><code>@FileChangesExample</code></div>
         </ChildContent>
-    </AppCard>
+    </AppSettingsGroup>
 
-    <AppCard Class="library-handling__card" Title="@L["Common_Duplicates"].Value" Description="@L["LibraryFileHandlingTab_WhenTheSameFileArrives"].Value">
+    <AppSettingsGroup Class="library-handling__card" Heading="@L["Common_Duplicates"].Value" Helper="@L["LibraryFileHandlingTab_WhenTheSameFileArrives"].Value">
         <ChildContent>
             <AppSegmentedControl Options="DuplicateOptions"
                                  Value="@_dup"
@@ -106,9 +106,9 @@
             }
             <div class="library-handling__example"><span>@L["LibraryFileHandlingTab_Example"]</span><code>@DuplicateExample</code></div>
         </ChildContent>
-    </AppCard>
+    </AppSettingsGroup>
 
-    <AppCard Class="library-handling__card" Title="@L["LibraryFileHandlingTab_DeletedFiles"].Value" Description="@L["LibraryFileHandlingTab_WhenOnDeletingATitle"].Value">
+    <AppSettingsGroup Class="library-handling__card" Heading="@L["LibraryFileHandlingTab_DeletedFiles"].Value" Helper="@L["LibraryFileHandlingTab_WhenOnDeletingATitle"].Value">
         <ChildContent>
             <AppSwitchRow Label="@L["LibraryFileHandlingTab_UseRecycleBin"].Value"
                           Description="@L["LibraryFileHandlingTab_DeletedFilesWaitInThe"].Value"
@@ -117,7 +117,7 @@
                           Disabled="@Locked" />
             <div class="library-handling__example"><span>@L["LibraryFileHandlingTab_Example"]</span><code>@(_recycle ? "Delete Dune (2021) and its file waits in the Recycle bin, where you can restore it." : "Delete Dune (2021) and its file is removed from the disk straight away.")</code></div>
         </ChildContent>
-    </AppCard>
+    </AppSettingsGroup>
     </div>
 
     <p class="library-handling__note">@L["LibraryFileHandlingTab_AFolderCanOverrideThese"] <AppLink Href="@FoldersAddress">@L["LibraryFileHandlingTab_FoldersTab"]</AppLink>.</p>

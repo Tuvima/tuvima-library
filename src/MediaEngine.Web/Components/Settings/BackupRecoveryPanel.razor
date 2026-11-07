@@ -26,7 +26,7 @@
             <AppText Class="tl-u-color-tl-text-muted" data-testid="data-store-version">@versionLine</AppText>
         }
 
-        <AppCard Title="@L["BackupRecoveryPanel_BackupStatus"].Value" Class="backup-status">
+        <AppSettingsGroup Heading="@L["BackupRecoveryPanel_BackupStatus"].Value" Class="backup-status">
             @if (LatestBackup is null)
             {
                 @if (RestoreSummaryLine is { } emptyRestoreSummary)
@@ -51,7 +51,7 @@
                     <p class="backup-status__mobile-note">@L["BackupRecoveryPanel_CreatingDownloadingTestingAndRestoring"]</p>
                 }
             }
-        </AppCard>
+        </AppSettingsGroup>
 
         @if (_lastValidation is { Valid: false })
         {
@@ -72,7 +72,7 @@
         @if (!DeviceContext.IsMobile)
         {
         <div class="backup-actions-grid">
-            <AppCard Title="@L["BackupRecoveryPanel_CreateBackup"].Value" Class="backup-action-card">
+            <AppSettingsGroup Heading="@L["BackupRecoveryPanel_CreateBackup"].Value" Class="backup-action-card">
                 <AppButton Label="@L["BackupRecoveryPanel_CreateBackup"].Value" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
                 @if (_lastCreated is { } created)
                 {
@@ -84,9 +84,9 @@
                 {
                     <AppAlert Tone="AppUiTone.Warning" data-testid="file-only-warning">@FileOnlyLine(fileOnly.FileOnlyTitles)</AppAlert>
                 }
-            </AppCard>
+            </AppSettingsGroup>
 
-            <AppCard Title="@L["Common_Restore"].Value" Class="backup-action-card" data-testid="restore-list">
+            <AppSettingsGroup Heading="@L["Common_Restore"].Value" Class="backup-action-card" data-testid="restore-list">
                 <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
                 @if (_rows.Count == 0)
                 {
@@ -115,7 +115,7 @@
                 {
                     <small class="backup-destinations__hint" data-testid="destination-unreachable">@L["Backups_DestinationUnreachable", name]</small>
                 }
-            </AppCard>
+            </AppSettingsGroup>
         </div>
 
         <BackupSchedulePanel />

@@ -151,7 +151,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.DoesNotContain("Server administrator", rows[0].TextContent);
         Assert.Contains("Kids", rows[1].TextContent);
         Assert.DoesNotContain("You", rows[1].TextContent);
-        Assert.Equal(["Home"], cut.FindAll(".profiles-tab__group .settings-section-card__title").Select(title => title.TextContent));
+        Assert.Equal(["Home"], cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
         Assert.Equal("list", cut.Find(".profiles-tab__list").GetAttribute("role"));
         Assert.All(rows, row => Assert.Single(row.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Edit"));
         Assert.Single(cut.FindAll(".profiles-tab__row--add"));
@@ -174,7 +174,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        Assert.Equal(["Home", "Cabin"], cut.FindAll(".profiles-tab__group .settings-section-card__title").Select(title => title.TextContent));
+        Assert.Equal(["Home", "Cabin"], cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
         var cabin = cut.Find($"[data-household-group='{OtherHouseholdId}']");
         Assert.Contains("Alex", cabin.TextContent);
         Assert.DoesNotContain("Sam", cabin.TextContent);

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Keeps every content block on a Settings page to one card style: a <c>SettingsSectionPanel</c> or <c>AppCard</c>,
+/// Keeps every content block on a Settings page to one card style: a <c>SettingsSectionPanel</c> (an <c>AppSettingsGroup</c>) or an object <c>AppCard</c>,
 /// padded by the one <c>--settings-card-padding</c> token the page frame owns, so the first line of text inside any
 /// card starts the same distance from the card edge on every page (see engineering/specs/settings-revamp.md, WP3).
 /// </summary>
@@ -33,6 +33,43 @@ public sealed partial class SettingsCardGuardrailTests
         [".pt-detail-panel"] = "Developer tool; the Developer tools spec replaces it.",
         [".settings-tab-panel"] = "Spacing above the body of a tab strip, not a card.",
     };
+
+    /// <summary>
+    /// Settings files that may still draw an <c>AppCard</c> (Look v3 D5): a card stays only for an object, never for a group of settings.
+    /// Keys are paths under Components/Settings with forward slashes.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> ObjectCardAllowlist = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Overview/OverviewPage.razor"] = "The signed-in person's profile card: one object (a person), not a group of settings.",
+        ["Overview/RecycleBinLeavingSoonCard.razor"] = "A recycle-bin item that is about to be removed: one object.",
+        ["IngestionFlowEditor.razor"] = "One card per media type's provider order: each is an object, not a group of settings.",
+        ["Plugins/PluginFileCard.razor"] = "A plugin's file: one object (a plugin file), not a group of settings.",
+    };
+
+    [Fact]
+    public void NoCardInsideSettingsExceptObjectCards()
+    {
+        var offenders = Directory.EnumerateFiles(SettingsFolder, "*.razor", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(SettingsFolder, path).Replace('\\', '/'))
+            .Where(relative => !ObjectCardAllowlist.ContainsKey(relative))
+            .Where(relative => File.ReadAllText(Path.Combine(SettingsFolder, relative)).Contains("<AppCard", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(
+            offenders.Count == 0,
+            "Settings use groups and rows (AppSettingsGroup, AppSettingRow); a card is only for an object. Offenders: " + string.Join("; ", offenders));
+    }
+
+    [Fact]
+    public void ObjectCardAllowlist_NamesRealFilesThatStillDrawACard_SoItCannotQuietlyGoStale()
+    {
+        foreach (var relative in ObjectCardAllowlist.Keys)
+        {
+            var path = Path.Combine(SettingsFolder, relative);
+            Assert.True(File.Exists(path), $"{relative} is in the object-card allowlist but no longer exists; remove the entry.");
+            Assert.Contains("<AppCard", File.ReadAllText(path), StringComparison.Ordinal);
+        }
+    }
 
     [Fact]
     public void SettingsPageComponents_DoNotUseAppPanelForContentBlocks_ExceptTheListedOnes()

@@ -35,7 +35,7 @@
             </div>
         }
 
-        <SettingsSectionPanel Title="@L["SystemSummaryPage_ThisServer"].Value" Icon="@AppMaterialIcons.Outlined.Dns">
+        <SettingsSectionPanel Title="@L["SystemSummaryPage_ThisServer"].Value">
             <dl class="system-summary__facts" data-testid="system-summary-server">
                 @Fact("Version", _resources.EngineVersion)
                 @Fact("Running for", FormatUptime(_resources.UptimeSeconds))
@@ -44,7 +44,7 @@
             </dl>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="@L["SystemSummaryPage_ProcessorAndMemory"].Value" Icon="@AppMaterialIcons.Outlined.Memory">
+        <SettingsSectionPanel Title="@L["SystemSummaryPage_ProcessorAndMemory"].Value">
             <div class="system-summary__meters" data-testid="system-summary-load">
                 <AppProgressBar Value="@_resources.ProcessorPercent"
                                 Label="@ProcessorLabel"
@@ -55,7 +55,7 @@
             </div>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="@L["SystemSummaryPage_Storage"].Value" Icon="@AppMaterialIcons.Outlined.Storage">
+        <SettingsSectionPanel Title="@L["SystemSummaryPage_Storage"].Value">
             <div class="system-summary__drives" data-testid="system-summary-storage">
                 @if (_resources.Drives.Count == 0)
                 {

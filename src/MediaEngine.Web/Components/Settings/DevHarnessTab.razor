@@ -12,7 +12,7 @@
         <p>Use protected real media or generated fixtures to exercise the normal library experience.</p>
     </header>
 
-    <AppCard Title="Real media" Description="Index an existing collection without moving, renaming, or writing to its files.">
+    <AppSettingsGroup Heading="Real media" Helper="Index an existing collection without moving, renaming, or writing to its files.">
         <div class="real-media-harness-controls">
             <div>
                 <p>@_realMediaStatus</p>
@@ -24,10 +24,10 @@
             <AppButton Label="Verify original files" ButtonStyle="AppButtonStyle.Outlined"
                        Disabled="@(!_realMediaActive || _runningAction is not null)" OnClick="VerifyRealMediaAsync" />
         </div>
-    </AppCard>
+    </AppSettingsGroup>
 
-    <AppCard Title="Test Media"
-             Description="Choose the media you want to recreate as new library input."
+    <AppSettingsGroup Heading="Test Media"
+             Helper="Choose the media you want to recreate as new library input."
              Class="dev-harness-card">
         <div class="dev-harness-form">
             <section class="dev-harness-fieldset" aria-labelledby="dev-media-label">
@@ -78,7 +78,7 @@
                 <p>Clears generated library state, creates the selected test media fixtures, and sends them through the normal ingestion pipeline.</p>
             </div>
         </div>
-    </AppCard>
+    </AppSettingsGroup>
 
     <section class="dev-harness-secondary-section">
         <div>

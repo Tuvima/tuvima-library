@@ -921,10 +921,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             // Five playback cards, the progress-bar card, plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
-            Assert.Equal(7, cut.FindAll(".playback-settings-card").Count);
+            Assert.Equal(7, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
-            Assert.NotEmpty(cut.FindAll(".settings-section-header"));
-            Assert.NotEmpty(cut.FindAll(".playback-preference-row"));
+            Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
+            Assert.NotEmpty(cut.FindAll(".app-setting-row"));
             Assert.Contains("Autoplay", cut.Markup);
             Assert.Contains("Resume", cut.Markup);
             Assert.DoesNotContain("Subtitles &amp; Languages", cut.Markup);
@@ -991,7 +991,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("data-playback-section=\"overview\"", source);
         Assert.Contains("Size=\"AppControlSize.Compact\"", source);
         Assert.DoesNotContain("settings-field--compact", source);
-        Assert.Contains("playback-preference-row", source);
+        Assert.Contains("AppSettingRow", source);
         Assert.Contains("UpdateAndSaveAsync", source);
         Assert.DoesNotContain("Default playback speed", source);
         Assert.DoesNotContain("Audiobook default speed", source);

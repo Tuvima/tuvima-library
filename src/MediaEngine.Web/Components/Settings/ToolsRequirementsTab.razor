@@ -33,7 +33,7 @@
             <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@L["ToolsRequirementsTab_SomethingTheLibraryNeedsIsn"]</AppAlert>
         }
 
-        <AppCard Title="@L["Common_Tools"].Value" Description="@L["ToolsRequirementsTab_OutsideProgramsTheLibraryUses"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["Common_Tools"].Value" Helper="@L["ToolsRequirementsTab_OutsideProgramsTheLibraryUses"].Value">
             <ToolsSummaryLine Tools="@Tools" />
             <div class="tools-requirements__list" data-testid="tools-list">
                 @foreach (var tool in Tools)
@@ -42,13 +42,13 @@
                                         OnInstall="InstallAsync" OnCancel="CancelInstallAsync" OnRunInstaller="RunInstallerAsync" />
                 }
             </div>
-        </AppCard>
+        </AppSettingsGroup>
 
         <RestoreOfficialPluginsRow />
 
-        <AppCard Title="@L["ToolsRequirementsTab_LocalAIModels"].Value" Description="@L["ToolsRequirementsTab_ModelFilesForTheOptional"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["ToolsRequirementsTab_LocalAIModels"].Value" Helper="@L["ToolsRequirementsTab_ModelFilesForTheOptional"].Value">
             <AppButton Label="@L["ToolsRequirementsTab_OpenModelsAndHardware"].Value" Href="@SettingsNav.RouteFor(SettingsSection.LocalAi, "models")" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" data-testid="models-link" />
-        </AppCard>
+        </AppSettingsGroup>
     }
 </div>
 

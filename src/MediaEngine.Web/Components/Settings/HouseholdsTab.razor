@@ -25,8 +25,7 @@ else
 {
     <div class="households-tab" data-households-tab>
         <SettingsSectionPanel Title="@L["HouseholdsTab_Households"].Value"
-                              Description="@L["HouseholdsTab_EachHouseholdHasItsOwn"].Value"
-                              Icon="@AppMaterialIcons.Outlined.Home">
+                              Description="@L["HouseholdsTab_EachHouseholdHasItsOwn"].Value">
             <Actions>
                 <AppButton Label="@L["Common_AddHousehold"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary"
                            ButtonStyle="AppButtonStyle.Filled" Disabled="@(_adding || _busy)" OnClick="BeginAdd" />
