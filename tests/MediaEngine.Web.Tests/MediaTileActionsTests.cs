@@ -275,4 +275,36 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         Assert.Null(MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Mix", MediaKind = "Music", IsPlaylist = true }));
         Assert.Null(MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Frank", MediaKind = "Shelf" }));
     }
+
+    [Theory]
+    [InlineData("Movie")]
+    [InlineData("TV")]
+    [InlineData("Video")]
+    [InlineData("Videos")]
+    [InlineData("Music")]
+    [InlineData("Book")]
+    [InlineData("Audiobook")]
+    [InlineData("Comic")]
+    public void EveryKindOnHomeGetsAMenu(string mediaKind)
+        => Assert.NotNull(MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), WorkId = Guid.NewGuid(), Title = "Anything", MediaKind = mediaKind }));
+
+    [Fact]
+    public void AShowOrAlbumDrawnAsAGroupTile_StillGetsAMenu_ButASeriesGroupDoesNot()
+    {
+        var showGroup = new MediaTileViewModel { Id = Guid.NewGuid(), WorkId = Guid.NewGuid(), Title = "Severance", MediaKind = "TV", IsCollection = true, Presentation = MediaTilePresentation.TvSeries };
+        var movieSeries = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Dune", MediaKind = "Movie", IsCollection = true, Presentation = MediaTilePresentation.MovieSeries };
+
+        Assert.NotNull(MediaTileActionTarget.For(showGroup));
+        Assert.Null(MediaTileActionTarget.For(movieSeries));
+    }
+
+    [Fact]
+    public void AVideoTileShowsNoNewPill()
+    {
+        var video = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Clip", MediaKind = "Video", NewLabel = "New" };
+        var movie = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Dune", MediaKind = "Movie", NewLabel = "New" };
+
+        Assert.Null(MediaTileLabels.Status(video, "Getting details"));
+        Assert.Equal("New", MediaTileLabels.Status(movie, "Getting details"));
+    }
 }

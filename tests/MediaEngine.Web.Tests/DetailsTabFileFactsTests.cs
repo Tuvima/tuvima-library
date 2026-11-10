@@ -481,7 +481,7 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     {
         var css = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Details/DetailsTab.razor.css"));
 
-        Assert.Contains("grid-template-columns: minmax(5rem, 9rem) minmax(0, 1fr)", css);
+        Assert.Contains("grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr))", css);
         Assert.Contains("overflow-wrap: anywhere", css);
         Assert.Contains("@media (max-width: 600px)", css);
         Assert.DoesNotContain("overflow-x: auto", css);
