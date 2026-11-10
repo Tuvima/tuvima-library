@@ -554,6 +554,21 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheViewerOffersHideOnlyWhenAllowedAndTellsTheHostWhenPressed()
+    {
+        var item = new MediaViewerItem("fixture", MediaViewerKind.Image, "Fixture", null, "/preview", "/original");
+        var hidden = 0;
+
+        var offered = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanHide: true))
+            .Add(x => x.OnHide, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => hidden++)));
+        await offered.Find("button[aria-label='Hide item']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.Equal(1, hidden);
+
+        var withheld = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities()));
+        Assert.Empty(withheld.FindAll("button[aria-label='Hide item']"));
+    }
+
+    [Fact]
     public async Task TheViewersGalleryListOffersNewGalleryOnlyWhenThePageAllowsIt()
     {
         var item = new MediaViewerItem("fixture", MediaViewerKind.Image, "Fixture", null, "/preview", "/original");
