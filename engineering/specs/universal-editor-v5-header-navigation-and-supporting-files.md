@@ -426,4 +426,30 @@ The guides, worksheets and clips that sit beside your shows and courses become r
 
 ## 10. Build notes
 
-TODO: the decisions taken during the build, recorded by the coordinating session (Editor v5 WP12 left this heading as a placeholder; the decisions are in the build reports).
+Decisions the build took where the spec was silent or the code disagreed (2026-11-07 to 2026-11-10). Shy can change any of them at the batched Local check.
+
+- **Footer wording:** the footer says "Edits save in Library" (the app-name rule), not "Tuvima" as D10 quoted.
+- **Home for a movie in a film Series** is the Series, the same as a book in a Series.
+- **Supporting-file changes** go through the editor's one Save (all or nothing).
+- **Verdicts:** an agreeing identifier with a differing title reads Possible.
+- **TV:** the v4 "match the rest" switch is not restored (D28); a group match picks the show once. After Remove match a season keeps its own match card; only episodes stop borrowing the show's id.
+- **Music:** the suggested release is chosen by title and track count, with lengths breaking ties. Match never searches on open.
+- **Group misfits** (flagged in a group match) are a file-name season that doesn't fit, or two files aimed at the same target.
+- **Bookmarks (WP15):** books get Export and Import in the editor, and the reader loses Promote, Everyone's editing, Find and Export. The unused admin player routes were deleted. A pooled export carries only time and name (privacy) and includes frames. L16's "import into a show's episode" wording no longer fits and is noted in the batch list.
+- **Universe and Series:** the Universe name stays overridable (Universe takes overrides). A Series' footer has Close only, and a stored Series cover is no longer served (stack only).
+- **Section order** extends the existing `video_order` change kind.
+- **The video series chooser** (`EditorVideoSeriesPanel`) stays in the browser's Folders view. Mock E note 7: "What is this file?" is in the Folders view only.
+- **Wikidata (WP9b):** Remove link is allowed even when online lookups are off, and a removed QID is never re-aligned automatically.
+- **Extras (WP11):** files that belong to a lesson get chips and the Homework block. Open on the end card goes to the Extras viewer, and the player shrinks to its bar (L12 checks this). Unified player v2 D25a now reads "Homework for this lesson; Open".
+- **View editor (WP14):** the View limits come with the photo list read (`editor_limits` on `GET /view/assets?galleryId=`), with no change to who can read the editor configuration. All photos is a list inside the pop-over. Photos get no header color wash, because they have no stored colors yet. Back to the gallery opens the gallery editor. A gallery's header picture is a placeholder. "In N galleries" is not shown, because the photo read has no membership.
+- `missing_file_keep_days` stays in `config/extras.json`.
+
+Open questions and gaps for Shy:
+
+- D24's parenthetical (show seasons and album tracks called Series) contradicts section 3a.
+- A loose video at the root of a library has no folder button, so the series chooser can't be reached for it.
+- Add files stays its own dialog, outside the shared browser frame.
+- Linking an episode or track to Wikidata doesn't refresh its details until the next scan.
+- An XL window step for the shared browser is a Look v3 follow-up.
+- Single-file delete (one version of an item) has no Dashboard caller left, but the Engine actions and Contracts remain. Keep them or remove them?
+- `EditorFamilyState` keeps a few left-tree reads that only its tests use.
