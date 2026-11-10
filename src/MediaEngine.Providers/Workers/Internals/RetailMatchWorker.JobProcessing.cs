@@ -745,6 +745,17 @@ public sealed partial class RetailMatchWorker
         else if (bestCandidate is not null
             && (bestCandidate.Outcome == "Ambiguous" || rangeReviewReason is not null))
         {
+            // An audiobook Apple can only half match ("needs confirmation") still belongs to the owned book with the
+            // same title and author. That book's Wikidata ID is the better evidence, so the audiobook takes it and no
+            // Needs Review item is raised for the guess. The half match is not selected, so the hand-off stays valid.
+            if (mediaType == MediaType.Audiobooks
+                && bestCandidate.Outcome == "Ambiguous"
+                && rangeReviewReason is null
+                && await TryLinkAudiobookToOwnedBookAsync(job, hints, lineage, ct).ConfigureAwait(false))
+            {
+                return;
+            }
+
             await _jobRepo.SetSelectedCandidateAsync(job.Id, bestCandidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatchedNeedsReview, ct: ct);
             await _outcomeFactory.CreateRetailAmbiguousAsync(
