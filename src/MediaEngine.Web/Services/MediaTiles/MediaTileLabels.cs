@@ -23,6 +23,12 @@ public static class MediaTileLabels
             return gettingDetails;
         }
 
+        // A video tile carries no New pill (item 14): its still and name are the whole story.
+        if (IsVideoStillTile(item))
+        {
+            return null;
+        }
+
         return string.IsNullOrWhiteSpace(item.NewLabel) ? null : item.NewLabel;
     }
 

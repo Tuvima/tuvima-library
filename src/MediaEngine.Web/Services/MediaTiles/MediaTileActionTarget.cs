@@ -26,7 +26,10 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
     public static MediaTileActionTarget? For(MediaTileViewModel item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        if (item.IsPlaylist || item.IsCollection || item.Person is not null)
+        // A show or an album is drawn as a group tile, so IsCollection alone must not hide its menu (item 30b); a Series, curated
+        // collection or playlist still has none.
+        var isShowOrAlbumGroup = item.Presentation is MediaTilePresentation.TvSeries or MediaTilePresentation.Album;
+        if (item.IsPlaylist || (item.IsCollection && !isShowOrAlbumGroup) || item.Person is not null)
         {
             return null;
         }
@@ -42,6 +45,9 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
         {
             "movie" or "movies" => new(id, title, ProfileEntityKind.Movie, DetailEntityType.Movie, "Movies", null),
             "tv" => new(id, title, ProfileEntityKind.TvShow, DetailEntityType.TvShow, "TV", LibraryGroupKinds.Show),
+            // Videos get the same menu as a movie or a show (item 30b): a folder of videos is saved and edited as a show, one video as a movie.
+            "videos" => new(id, title, ProfileEntityKind.TvShow, DetailEntityType.TvShow, VideoFolderWording.FolderMediaType, LibraryGroupKinds.Show),
+            "video" => new(id, title, ProfileEntityKind.Movie, DetailEntityType.Movie, VideoFolderWording.FolderMediaType, null),
             "music" => new(id, title, ProfileEntityKind.Album, DetailEntityType.MusicAlbum, "Music", LibraryGroupKinds.Album),
             "audiobook" or "audiobooks" => new(id, title, ProfileEntityKind.Audiobook, DetailEntityType.Audiobook, "Audiobooks", null),
             "comic" or "comics" => new(id, title, ProfileEntityKind.Comic, DetailEntityType.ComicIssue, "Comics", null),

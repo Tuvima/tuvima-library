@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Domain.Services
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
@@ -96,7 +97,8 @@
             if (_target is { } target && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>()))
             {
                 actions.Add(target.IsGroup
-                    ? DetailMenuGrouping.DeleteGroupAction(target.GroupKind == LibraryGroupKinds.Album ? L["MediaTile_DeleteAlbum"].Value : L["MediaTile_DeleteShow"].Value)
+                    ? DetailMenuGrouping.DeleteGroupAction(target.GroupKind == LibraryGroupKinds.Album ? L["MediaTile_DeleteAlbum"].Value
+                        : VideoFolderWording.IsVideoFolderMediaType(Item.MediaKind) ? "Delete folder…" : L["MediaTile_DeleteShow"].Value)
                     : DetailMenuGrouping.DeleteFromLibraryAction);
             }
 

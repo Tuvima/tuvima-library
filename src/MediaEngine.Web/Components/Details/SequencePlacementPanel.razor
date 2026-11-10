@@ -1465,6 +1465,7 @@ else
     // Details overlay spec D8: an owned single title in the detail page's own list can be ticked.
     private bool IsTickable(SequenceItemViewModel item)
         => DetailSurface
+           && !IsVideoFolder // A folder of videos is a plain list: no tick boxes (item 12b).
            && PageEditor is { CanEdit: true }
            && BatchSelection is not null
            && item.IsOwned

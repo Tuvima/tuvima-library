@@ -366,7 +366,10 @@ public sealed class MediaTileComposerService
             HoverFacts = card.Facts,
             Genres = card.Genres,
             MediaKind = card.MediaType,
-            AccentColor = card.Artwork.AccentColor ?? AccentForBucket(bucket),
+            // Every video (a folder, a single file) wears the one video color (item 14).
+            AccentColor = VideoFolderWording.IsVideoFolderMediaType(card.MediaType) || string.Equals(card.MediaType, "Video", StringComparison.OrdinalIgnoreCase)
+                ? "var(--tl-media-video)"
+                : card.Artwork.AccentColor ?? AccentForBucket(bucket),
             Shape = tileShape,
             HoverArtworkShape = surface.HoverArtworkShape,
             Presentation = presentation,
