@@ -1,7 +1,9 @@
 using Dapper;
 using MediaEngine.Api.Services.EditSession;
+using MediaEngine.Api.Services.Extras;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,6 +102,24 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
 
         Assert.False(result.Valid);
         Assert.All(result.Changes, change => Assert.Equal(EditSessionReasons.SeriesIsReadOnly, change.Reason));
+    }
+
+    [Fact]
+    public async Task ASeriesOfBooks_RefusesChangingOrDeletingSupportingFilesThroughIt()
+    {
+        // The guard answers before any file is read, so the file services are never reached for a Series.
+        var bulk = new SupportingFileBulkService(null!, null!, null!, seriesGuard: _guard);
+        var ids = new[] { Guid.NewGuid().ToString() };
+
+        var change = await bulk.PreviewAsync(
+            _series,
+            new SupportingFileBulkUpdateRequest { Ids = ids, Changes = new SupportingFileBulkChangesDto { GroupName = "Week 1" } });
+        var delete = await bulk.DeleteAsync(_series, new SupportingFileBulkDeleteRequest { Ids = ids }, accountId: null, deletedBy: null);
+
+        Assert.Null(change.Value);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, change.Message);
+        Assert.Null(delete.Value);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, delete.Message);
     }
 
     [Fact]

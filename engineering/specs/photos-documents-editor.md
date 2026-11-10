@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting your Local checks (cloud build 2026-11-04; Locked by Shy 2026-11-04) · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Product overview](../product/overview.md) · [Universal editor v4 (Locked)](universal-editor-v4.md) · [Universal editor v3](universal-editor-v3.md) · [Documents in View](archive/documents-in-view.md) · [Photo and video filing](photo-video-filing.md) · [Safer deleting in View](safer-deleting-in-view.md) · [Batched write-back](batched-writeback.md) · Mockups: [`engineering/design/mockups/photos-documents-editor/photos-documents-editor-mockups.html`](../design/mockups/photos-documents-editor/photos-documents-editor-mockups.html) (built on the v4 mockup frame) · Answers Q11 of the editor overhaul (Shy, 2026-11-04 03:18Z)
 
+> **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): walkthrough items 3, 4 and 10 and D2 (tabs, the gallery's Contents, the Files tab, the rail) and the UI rows for the gallery and the narrow window are superseded by D25 and WP14 there: the v5 header, no Files tab (its facts are in Quick facts), and the gallery's pictures in the item dropdown.
+
 > Written from a review of the code on `main`, then **revised 2026-11-04 04:50Z** after Shy asked for one look and feel across the app: this editor now uses the Locked Universal editor v4 frame and controls exactly (dropdown rail, horizontal tabs, Quick Facts, locks and revert arrows, Discard and Save changes, instant delete after "Are you sure?"). Where v4 says something, v4 rules.
 
 ## 0. What exists today (verified in code)

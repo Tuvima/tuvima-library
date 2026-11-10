@@ -271,7 +271,7 @@ public sealed class EditorHost : IDisposable
     /// <summary>The rows ticked for the bulk panel; what it stages goes into the same pending list as one item's edits.</summary>
     public BulkEditSelection Batch { get; }
 
-    /// <summary>The family behind the rail of dropdowns and the Contents tab: this show, album or series and its seasons, episodes or tracks (universal editor v4 D2).</summary>
+    /// <summary>The family behind the header: this show, album or series and its seasons, episodes or tracks (universal editor v4 D2).</summary>
     public EditorFamilyState Family { get; }
 
     /// <summary>The rail of the Universe editor: the Universe, its kinds with counts, and the things of each kind (universal editor v4, WP11).</summary>
@@ -907,7 +907,7 @@ public sealed class EditorHost : IDisposable
 
         if (Mode.IsOn && Session.IsActive && _binding?.UniverseQid is { } universeQid)
         {
-            // A Universe, or a character, place or faction of one: the rail of kinds replaces the family rail.
+            // A Universe, or a character, place or faction of one: the header shows the Universe's kinds.
             if (Family.Visible)
             {
                 _ = FamilyAsync(Family.EnsureAsync(Guid.Empty));

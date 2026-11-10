@@ -1,6 +1,6 @@
 # Spec: Editor v5, header navigation and supporting files
 
-> **Status:** In progress (locked by Shy 2026-11-07 06:53Z; cloud build started 2026-11-07) · **Version:** 1 · **Last updated:** 2026-11-07 · **Amends:** [Universal editor v4](universal-editor-v4.md) (Built, awaiting Local checks), [Editor and details page revision v4.1](universal-editor-v4-1-details-page.md) (Locked), [Extras](archive/extras.md) (Built) · **Builds on:** [Look pass v2](look-pass-v2.md) · **Related:** [Videos](videos.md), [Universal editor v3.1](universal-editor-v3-1-video-series-and-order.md), [Photos, videos and documents editor](photos-documents-editor.md), [Universe contents](universe-contents.md), [Product overview](../product/overview.md) · **Mockups:** [Editor v5 mockups](../design/mockups/editor-v5/editor-v5-mockups.html) (screens A to Q2; also at https://claude.ai/artifact/PQa4Y3aZCKg1f4NC1uCHGn) · **Planning thread:** "Plan media editor redesign", 2026-11-07
+> **Status:** Built (2026-11-10, PRs 769 to 801; awaiting the batched Local checks in `engineering/validation/batch.md`; locked by Shy 2026-11-07 06:53Z) · **Version:** 1 · **Last updated:** 2026-11-10 · **Amends:** [Universal editor v4](../universal-editor-v4.md) (Built, awaiting Local checks), [Editor and details page revision v4.1](../universal-editor-v4-1-details-page.md) (Locked), [Extras](extras.md) (Built) · **Builds on:** [Look pass v2](../look-pass-v2.md) · **Related:** [Videos](../videos.md), [Universal editor v3.1](../universal-editor-v3-1-video-series-and-order.md), [Photos, videos and documents editor](../photos-documents-editor.md), [Universe contents](../universe-contents.md), [Product overview](../../product/overview.md) · **Mockups:** [Editor v5 mockups](../../design/mockups/editor-v5/editor-v5-mockups.html) (screens A to Q2; also at https://claude.ai/artifact/PQa4Y3aZCKg1f4NC1uCHGn) · **Planning thread:** "Plan media editor redesign", 2026-11-07
 
 Per CLAUDE.md "Never" 10, this spec does not rewrite the body of the Locked v4 or v4.1 specs. It amends them; section 9 lists every line that changes and Shy's recorded override.
 
@@ -423,3 +423,33 @@ Lines in Locked or Built documents that this spec changes. None is rewritten; ea
 The editor becomes a window that looks like the thing you are editing: a big cover, the show's name as a label, the episode's title, and under it a home button, a Season dropdown and an episode list with pictures. There is no Contents tab and no Files tab any more; you get around from the header, and a folder button at the end of the list opens the real folders when you need them. Every field starts locked, you unlock the one you want to change, and what you change stays yours when the provider refreshes. The header's colour comes from the cover itself, and the footer tells you plainly that edits stay in Tuvima and your files are untouched.
 
 The guides, worksheets and clips that sit beside your shows and courses become real items: you can name them, describe them, put them in groups you invent, say which season or lesson they belong to, and find them on the show page and in Search. The Engine guesses where each file belongs from its folder and name, and you can correct it. When a show has two hundred such files, a browser with search, filters and bulk editing keeps it manageable; when it has three, nothing changes and they just show up. Match opens on what the item is already matched to and only searches when you type, which fixes the "Nothing called …" bug, and Series become read-only groupings. Every question is answered; it waits only for the word to lock.
+
+## 10. Build notes
+
+Decisions the build took where the spec was silent or the code disagreed (2026-11-07 to 2026-11-10). Shy can change any of them at the batched Local check.
+
+- **Footer wording:** the footer says "Edits save in Library" (the app-name rule), not "Tuvima" as D10 quoted.
+- **Home for a movie in a film Series** is the Series, the same as a book in a Series.
+- **Supporting-file changes** go through the editor's one Save (all or nothing).
+- **Verdicts:** an agreeing identifier with a differing title reads Possible.
+- **TV:** the v4 "match the rest" switch is not restored (D28); a group match picks the show once. After Remove match a season keeps its own match card; only episodes stop borrowing the show's id.
+- **Music:** the suggested release is chosen by title and track count, with lengths breaking ties. Match never searches on open.
+- **Group misfits** (flagged in a group match) are a file-name season that doesn't fit, or two files aimed at the same target.
+- **Bookmarks (WP15):** books get Export and Import in the editor, and the reader loses Promote, Everyone's editing, Find and Export. The unused admin player routes were deleted. A pooled export carries only time and name (privacy) and includes frames. L16's "import into a show's episode" wording no longer fits and is noted in the batch list.
+- **Universe and Series:** the Universe name stays overridable (Universe takes overrides). A Series' footer has Close only, and a stored Series cover is no longer served (stack only).
+- **Section order** extends the existing `video_order` change kind.
+- **The video series chooser** (`EditorVideoSeriesPanel`) stays in the browser's Folders view. Mock E note 7: "What is this file?" is in the Folders view only.
+- **Wikidata (WP9b):** Remove link is allowed even when online lookups are off, and a removed QID is never re-aligned automatically.
+- **Extras (WP11):** files that belong to a lesson get chips and the Homework block. Open on the end card goes to the Extras viewer, and the player shrinks to its bar (L12 checks this). Unified player v2 D25a now reads "Homework for this lesson; Open".
+- **View editor (WP14):** the View limits come with the photo list read (`editor_limits` on `GET /view/assets?galleryId=`), with no change to who can read the editor configuration. All photos is a list inside the pop-over. Photos get no header color wash, because they have no stored colors yet. Back to the gallery opens the gallery editor. A gallery's header picture is a placeholder. "In N galleries" is not shown, because the photo read has no membership.
+- `missing_file_keep_days` stays in `config/extras.json`.
+
+Open questions and gaps for Shy:
+
+- D24's parenthetical (show seasons and album tracks called Series) contradicts section 3a.
+- A loose video at the root of a library has no folder button, so the series chooser can't be reached for it.
+- Add files stays its own dialog, outside the shared browser frame.
+- Linking an episode or track to Wikidata doesn't refresh its details until the next scan.
+- An XL window step for the shared browser is a Look v3 follow-up.
+- Single-file delete (one version of an item) has no Dashboard caller left, but the Engine actions and Contracts remain. Keep them or remove them?
+- `EditorFamilyState` keeps a few left-tree reads that only its tests use.

@@ -64,7 +64,7 @@ public sealed class EditorUniverseState
     /// <summary>The kinds the rail shows, in the Engine's order. A kind the Universe does not use yet (Concepts) is left out until it has a thing.</summary>
     public IReadOnlyList<EditorUniverseKindDto> Kinds { get; private set; } = [];
 
-    /// <summary>True while the editor is on a Universe: the rail is drawn instead of the family rail.</summary>
+    /// <summary>True while the editor is on a Universe: the Universe kinds are drawn in the header instead of Season and Item.</summary>
     public bool Visible => Qid is not null;
 
     /// <summary>The things read so far for a kind (empty and not loaded when its dropdown was never opened).</summary>

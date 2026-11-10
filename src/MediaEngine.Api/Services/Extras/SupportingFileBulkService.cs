@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -41,7 +42,8 @@ public sealed class SupportingFileBulkService(
     SupportingFileDiskService disk,
     IExtrasConfigurationSource? rules = null,
     IEntityTimelineRepository? timeline = null,
-    ILogger<SupportingFileBulkService>? logger = null)
+    ILogger<SupportingFileBulkService>? logger = null,
+    EditorSeriesGuard? seriesGuard = null)
 {
     public const int MaxFilesPerCall = SupportingFileListDefaults.MaxFilesPerCall;
     public const string NothingPicked = "Pick at least one file.";
@@ -90,6 +92,11 @@ public sealed class SupportingFileBulkService(
         if (request.Ids.Count > MaxFilesPerCall)
         {
             return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, ToManyFiles);
+        }
+
+        if (await IsSeriesAsync(titleId, ct).ConfigureAwait(false))
+        {
+            return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, EditSessionReasons.SeriesIsReadOnly);
         }
 
         var built = BuildUpdate(changes);
@@ -301,6 +308,11 @@ public sealed class SupportingFileBulkService(
             CancellationToken.None).ConfigureAwait(false);
     }
 
+    // A Series is read-only (universal editor v5 D7): its files are its members' files, changed and deleted through each member, never
+    // through the Series that only groups them, so every write path (the edit session, the preview and the bulk delete) refuses it here.
+    private async Task<bool> IsSeriesAsync(Guid titleId, CancellationToken ct) =>
+        seriesGuard is not null && await seriesGuard.IsSeriesAsync(titleId, ct).ConfigureAwait(false);
+
     public async Task<SupportingFileBulkOutcome<SupportingFileBulkDeleteResultDto>> DeleteAsync(
         Guid titleId, SupportingFileBulkDeleteRequest request, Guid? accountId, string? deletedBy, CancellationToken ct = default)
     {
@@ -313,6 +325,11 @@ public sealed class SupportingFileBulkService(
         if (request.Ids.Count > MaxFilesPerCall)
         {
             return Fail<SupportingFileBulkDeleteResultDto>(SupportingFileBulkProblem.Invalid, ToManyFiles);
+        }
+
+        if (await IsSeriesAsync(titleId, ct).ConfigureAwait(false))
+        {
+            return Fail<SupportingFileBulkDeleteResultDto>(SupportingFileBulkProblem.Invalid, EditSessionReasons.SeriesIsReadOnly);
         }
 
         var load = await LoadAsync(titleId, request.Ids, ct).ConfigureAwait(false);

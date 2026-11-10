@@ -2,6 +2,8 @@
 
 > **Status:** Locked · **Version:** 1.2 · **Last updated:** 2026-11-06 · **Related docs:** [Look pass](look-pass.md) · [Uniformity review](../design/look-pass/uniformity-review-2026-11-06.md) · [Mockup](../design/mockups/look-pass-v2/unified-look-mockup.html) · [Before and after](../design/mockups/look-pass-v2/settings-before-after.html) · [One tile design](one-tile-design.md) · [Design system](../design/design-system.md)
 
+> **Version note (2026-11-10):** [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9) changes nothing here: the editor keeps these tokens, and the lock and Quick facts use `--tl-accent-primary`.
+
 ## 1. Goal
 
 The whole app looks and feels like one product: a calm neutral near-black background (the one the editor and details pages already use), purple only as an accent, one set of text sizes and weights, one icon style, buttons and chips that match everywhere, readable menus and targets on phones, and one good-looking tooltip in place of the browser's.

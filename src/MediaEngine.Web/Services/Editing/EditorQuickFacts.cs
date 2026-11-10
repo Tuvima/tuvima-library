@@ -355,7 +355,7 @@ public static class EditorQuickFactsBuilder
     public const string FileNotFoundNote = "File not found";
 
     /// <summary>
-    /// Adds the file facts the Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, folder, the number of
+    /// Adds the file facts the old Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, folder, the number of
     /// supporting files on a container, a read-only mark and a "File not found" note with the last known folder. Only the facts the kind's
     /// own list in <c>config/editor.json</c> asks for are added, and a fact the header does not know is left out.
     /// </summary>

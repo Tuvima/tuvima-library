@@ -204,7 +204,9 @@
 
     private async Task DeleteAsync(IReadOnlyList<SupportingFileRowDto> rows)
     {
-        if (rows.Count == 0)
+        // Every edit handler is gated, not only its buttons (CLAUDE.md Never 1): the read-only See all browser and a device that cannot
+        // edit never delete, whatever calls this.
+        if (rows.Count == 0 || !CanEdit || ReadOnly)
         {
             return;
         }
