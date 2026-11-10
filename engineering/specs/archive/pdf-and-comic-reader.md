@@ -1,6 +1,6 @@
 # Spec: PDF and comic reader
 
-> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-11-10 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Global bookmarks](global-bookmarks.md) (stage 3 waits for this) · [Book reader pictures](book-reader-images.md) · [Unified player v2](archive/unified-player-v2.md) (Bookmarks panel) · [Universal editor v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (Bookmarks tab) · [Look pass v3](look-pass-v3.md) · Mockups: [`../design/mockups/pdf-comic-reader.html`](../design/mockups/pdf-comic-reader.html)
+> **Status:** Built (awaiting Local checks L1 to L10 in the validation batch) · **Version:** 2 · **Last updated:** 2026-11-10 (built) · **Related docs:** [Product overview](../../product/overview.md) · [Global bookmarks](../global-bookmarks.md) (stage 3 waits for this) · [Book reader pictures](../book-reader-images.md) · [Unified player v2](unified-player-v2.md) (Bookmarks panel) · [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) (Bookmarks tab) · [Look pass v3](../look-pass-v3.md) · Mockups: [`../design/mockups/pdf-comic-reader.html`](../../design/mockups/pdf-comic-reader.html)
 
 ## 1. Goal
 

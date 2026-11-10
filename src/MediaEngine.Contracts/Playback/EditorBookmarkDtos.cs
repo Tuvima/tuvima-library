@@ -72,6 +72,9 @@ public sealed record EditorBookmarkImportItem
     public string? Locator { get; init; }
     public int? ChapterIndex { get; init; }
 
+    /// <summary>Set to <c>page</c> for a comic or PDF bookmark: <see cref="PositionSeconds"/> is then the page. Null for a time or a book place.</summary>
+    public string? PositionKind { get; init; }
+
     /// <summary>The picture of that moment the file carried (a small JPEG, base64); used when valid, else the Engine makes one.</summary>
     public string? FrameBase64 { get; init; }
 

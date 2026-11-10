@@ -54,6 +54,7 @@ public sealed class ComicPageService : IComicPageService
         {
             PageCount = source.Pages.Count,
             RightToLeft = source.RightToLeft,
+            Widths = _configuration().Comic.Widths,
             Pages = source.Pages.Select((page, index) => new ComicPageDto
             {
                 Number = index + 1,

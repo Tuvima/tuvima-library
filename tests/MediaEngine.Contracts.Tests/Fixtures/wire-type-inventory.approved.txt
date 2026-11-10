@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1542; api=0; web-client=56
+# scopes: contracts=1546; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9034,9 +9034,10 @@
   Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | json=yours | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GapSeconds: System.Double? | json=gapSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GapChapters: System.Int32? | json=gapChapters | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GapPages: System.Int32? | json=gapPages | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Closeness: System.String | json=closeness | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DefaultChoice: System.String | json=defaultChoice | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"index":7,"incoming":null,"yours":null,"gapSeconds":7,"gapChapters":7,"closeness":"sample","defaultChoice":"sample"}
+  sample={"index":7,"incoming":null,"yours":null,"gapSeconds":7,"gapChapters":7,"gapPages":7,"closeness":"sample","defaultChoice":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.BookmarkSetExistingDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9290,11 +9291,12 @@
   ChapterTitle: System.String | json=chapterTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Locator: System.String | json=locator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ChapterIndex: System.Int32? | json=chapterIndex | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PositionKind: System.String | json=positionKind | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FrameBase64: System.String | json=frameBase64 | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Name: System.String | json=name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ReplacesBookmarkId: System.Guid? | json=replacesBookmarkId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"positionSeconds":7,"endSeconds":7,"chapterTitle":"sample","locator":"sample","chapterIndex":7,"frameBase64":"sample","name":"sample","description":"sample","replacesBookmarkId":"11111111-2222-3333-4444-555555555555"}
+  sample={"positionSeconds":7,"endSeconds":7,"chapterTitle":"sample","locator":"sample","chapterIndex":7,"positionKind":"sample","frameBase64":"sample","name":"sample","description":"sample","replacesBookmarkId":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Playback.EditorBookmarkOp
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9970,7 +9972,12 @@
   FontSizePx: System.Int32 | json=fontSizePx | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LineHeight: System.Decimal | json=lineHeight | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PageWidth: System.String | json=pageWidth | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"readingMode":"sample","fontSizePercent":7,"lineSpacing":"sample","margins":"sample","keepScreenAwake":true,"showChapterProgress":true,"showPageNumbers":true,"defaultComicMode":"sample","theme":"sample","font":"sample","fontSizePx":7,"lineHeight":7,"pageWidth":"sample"}
+  PageFit: System.String | json=pageFit | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PageBackground: System.String | json=pageBackground | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowBookmarksOnBar: System.Boolean | json=showBookmarksOnBar | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PageLayouts: System.Collections.Generic.Dictionary<System.String, System.String> | json=pageLayouts | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ComicDirections: System.Collections.Generic.Dictionary<System.String, System.String> | json=comicDirections | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"readingMode":"sample","fontSizePercent":7,"lineSpacing":"sample","margins":"sample","keepScreenAwake":true,"showChapterProgress":true,"showPageNumbers":true,"defaultComicMode":"sample","theme":"sample","font":"sample","fontSizePx":7,"lineHeight":7,"pageWidth":"sample","pageFit":"sample","pageBackground":"sample","showBookmarksOnBar":true,"pageLayouts":{},"comicDirections":{}}
 
 [contracts] MediaEngine.Contracts.Playback.RefreshTextTracksResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11290,12 +11297,19 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   PageCount: System.Int32 | json=page_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RightToLeft: System.Boolean | json=right_to_left | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Widths: System.Collections.Generic.IReadOnlyList<System.Int32> | json=widths | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | json=pages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"page_count":7,"right_to_left":true,"pages":[]}
+  sample={"page_count":7,"right_to_left":true,"widths":[],"pages":[]}
 
 [contracts] MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
   AudiobookAssetId: System.Guid | json=audiobookAssetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Reading.CreatePageBookmarkRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Page: System.Int32 | json=page | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"page":7,"label":"sample"}
 
 [contracts] MediaEngine.Contracts.Reading.CreateReaderBookmarkRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11338,6 +11352,18 @@
   Children: System.Collections.Generic.List<MediaEngine.Contracts.Reading.EpubTocEntryDto> | json=children | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"title":"sample","chapterIndex":7,"fragmentId":"sample","children":[]}
 
+[contracts] MediaEngine.Contracts.Reading.PageBookmarkDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AssetId: System.Guid | json=assetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Page: System.Int32 | json=page | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsGlobal: System.Boolean | json=isGlobal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsYours: System.Boolean | json=isYours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnerName: System.String | json=ownerName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CreatedAt: System.DateTime | json=createdAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","page":7,"label":"sample","isGlobal":true,"isYours":true,"ownerName":"sample","createdAt":"2025-01-02T03:04:05Z"}
+
 [contracts] MediaEngine.Contracts.Reading.ReaderBookmarkDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -11350,6 +11376,14 @@
   OwnerName: System.String | json=ownerName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTime | json=createdAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","userId":"sample","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"cfiPosition":"sample","label":"sample","isGlobal":true,"ownerName":"sample","createdAt":"2025-01-02T03:04:05Z"}
+
+[contracts] MediaEngine.Contracts.Reading.ReaderFormatDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Format: System.String | json=format | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Subtitle: System.String | json=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Series: System.String | json=series | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"format":"sample","title":"sample","subtitle":"sample","series":"sample"}
 
 [contracts] MediaEngine.Contracts.Reading.ReaderHighlightDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11365,6 +11399,15 @@
   NoteText: System.String | json=noteText | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTime | json=createdAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","userId":"sample","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"startOffset":7,"endOffset":7,"cfiRange":"sample","selectedText":"sample","color":"sample","noteText":"sample","createdAt":"2025-01-02T03:04:05Z"}
+
+[contracts] MediaEngine.Contracts.Reading.ReaderNextIssueDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AssetId: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CollectionId: System.Guid | json=collection_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Series: System.String | json=series | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","work_id":"11111111-2222-3333-4444-555555555555","collection_id":"11111111-2222-3333-4444-555555555555","series":"sample","title":"sample"}
 
 [contracts] MediaEngine.Contracts.Reading.ReaderStatisticsDto
   kind=class | converter=default | number-handling=default | unmapped=default

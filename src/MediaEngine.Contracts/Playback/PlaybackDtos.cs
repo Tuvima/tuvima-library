@@ -674,6 +674,21 @@ public sealed class ReadingSettingsDto
 
     /// <summary>Book reader page width: "narrow", "standard" or "wide".</summary>
     public string PageWidth { get; set; } = ReadingPreferenceValues.PageWidthStandard;
+
+    /// <summary>Page reader (comics and PDFs): how the page fits, "page" or "width".</summary>
+    public string PageFit { get; set; } = ReadingPreferenceValues.PageFitPage;
+
+    /// <summary>Page reader: the colour around the page, "black", "dark" or "light".</summary>
+    public string PageBackground { get; set; } = ReadingPreferenceValues.PageBackgroundBlack;
+
+    /// <summary>Page reader: show bookmarks on the page slider.</summary>
+    public bool ShowBookmarksOnBar { get; set; }
+
+    /// <summary>Page reader layout chosen per title: asset id to "auto", "one", "two" or "scroll".</summary>
+    public Dictionary<string, string> PageLayouts { get; set; } = [];
+
+    /// <summary>Page reader direction chosen per Series: the Series name, lower case, to "ltr" or "rtl".</summary>
+    public Dictionary<string, string> ComicDirections { get; set; } = [];
 }
 
 /// <summary>Values and ranges for the book reader fields of <see cref="ReadingSettingsDto"/>; the reader's own names.</summary>
@@ -689,6 +704,19 @@ public static class ReadingPreferenceValues
     public const string PageWidthNarrow = "narrow";
     public const string PageWidthStandard = "standard";
     public const string PageWidthWide = "wide";
+    public const string PageFitPage = "page";
+    public const string PageFitWidth = "width";
+    public const string PageBackgroundBlack = "black";
+    public const string PageBackgroundDark = "dark";
+    public const string PageBackgroundLight = "light";
+    public const string LayoutAuto = "auto";
+    public const string LayoutOne = "one";
+    public const string LayoutTwo = "two";
+    public const string LayoutScroll = "scroll";
+    public const string DirectionLtr = "ltr";
+    public const string DirectionRtl = "rtl";
+    /// <summary>Most per-title or per-Series page reader choices kept on a profile.</summary>
+    public const int MaxPageChoices = 300;
     public const int MinFontSizePx = 12;
     public const int MaxFontSizePx = 32;
     public const int DefaultFontSizePx = 18;

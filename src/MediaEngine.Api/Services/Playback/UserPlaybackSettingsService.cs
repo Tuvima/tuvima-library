@@ -331,6 +331,10 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Reading.Font = NormalizeToken(settings.Reading.Font).ToLowerInvariant();
         settings.Reading.PageWidth = NormalizeToken(settings.Reading.PageWidth).ToLowerInvariant();
         settings.Reading.FontSizePx = Math.Clamp(settings.Reading.FontSizePx, ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx);
+        settings.Reading.PageFit = OneOf(settings.Reading.PageFit, ReadingPreferenceValues.PageFitPage, ReadingPreferenceValues.PageFitPage, ReadingPreferenceValues.PageFitWidth);
+        settings.Reading.PageBackground = OneOf(settings.Reading.PageBackground, ReadingPreferenceValues.PageBackgroundBlack, ReadingPreferenceValues.PageBackgroundBlack, ReadingPreferenceValues.PageBackgroundDark, ReadingPreferenceValues.PageBackgroundLight);
+        settings.Reading.PageLayouts = CleanChoices(settings.Reading.PageLayouts, ReadingPreferenceValues.LayoutAuto, ReadingPreferenceValues.LayoutOne, ReadingPreferenceValues.LayoutTwo, ReadingPreferenceValues.LayoutScroll);
+        settings.Reading.ComicDirections = CleanChoices(settings.Reading.ComicDirections, ReadingPreferenceValues.DirectionLtr, ReadingPreferenceValues.DirectionRtl);
         settings.Reading.LineHeight = Math.Clamp(settings.Reading.LineHeight, ReadingPreferenceValues.MinLineHeight, ReadingPreferenceValues.MaxLineHeight);
         settings.Subtitles.ForcedSubtitlesMode = NormalizeToken(settings.Subtitles.ForcedSubtitlesMode);
         settings.Subtitles.SubtitleSize = NormalizeToken(settings.Subtitles.SubtitleSize);
@@ -451,6 +455,35 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
 
     private static HashSet<string> BuildSet(params string[] values) =>
         new(values, StringComparer.OrdinalIgnoreCase);
+
+    private static string OneOf(string? value, string fallback, params string[] allowed)
+    {
+        var token = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return allowed.Contains(token, StringComparer.Ordinal) ? token : fallback;
+    }
+
+    // Keeps only known choices and at most MaxPageChoices of them, so a profile's settings cannot grow without bound.
+    private static Dictionary<string, string> CleanChoices(Dictionary<string, string>? choices, params string[] allowed)
+    {
+        var clean = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in choices ?? [])
+        {
+            var name = (key ?? string.Empty).Trim().ToLowerInvariant();
+            var choice = (value ?? string.Empty).Trim().ToLowerInvariant();
+            if (name.Length is 0 or > 200 || !allowed.Contains(choice, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            clean[name] = choice;
+            if (clean.Count >= ReadingPreferenceValues.MaxPageChoices)
+            {
+                break;
+            }
+        }
+
+        return clean;
+    }
 
     private static string NormalizeToken(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
