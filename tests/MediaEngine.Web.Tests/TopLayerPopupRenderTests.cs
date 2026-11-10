@@ -53,7 +53,7 @@ public sealed class TopLayerPopupRenderTests : AsyncBunitContext
     [Theory]
     [InlineData("Components/Details/EditorHeaderNav.razor")]
     [InlineData("Components/Details/EditorUniverseRail.razor")]
-    [InlineData("Components/Details/ViewEditRail.razor")]
+    [InlineData("Components/Details/ViewEditHeaderNav.razor")]
     [InlineData("Components/Collections/CollectionRuleValuePicker.razor")]
     public void RailsAndRulePicker_DrawTheirListsThroughTheSharedPopover_WithoutAScrim(string relative)
     {

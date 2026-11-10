@@ -103,7 +103,7 @@
                          MotionUrl="@MotionUrl(_active)"
                          PositionLabel="@($"{ActiveIndex + 1} of {_page?.Items.Count ?? 0}")"
                          ThumbnailUrl="@Thumbnail(_active)"
-                         EditRail="@(_gallery is not null && _page is not null ? new ViewEditGalleryRail(_gallery.Id, _gallery.Name, _page.Items) : null)"
+                         EditRail="@(_gallery is not null && _page is not null ? new ViewEditGalleryRail(_gallery.Id, _gallery.Name, _page.Items, _gallery.ItemCount, _page.HasMore) : null)"
                          OnClose="@(() => _active = null)"
                          OnPrevious="Previous"
                          OnNext="Next"
