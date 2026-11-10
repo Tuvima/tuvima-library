@@ -393,6 +393,17 @@ public sealed class DetailComposerServiceTests
     }
 
     [Fact]
+    public void DetailComposer_TvShowDescriptionPrefersTheShowProviderTextOverTheOneLineWikidataDescription()
+    {
+        var source = ReadDetailComposerSource();
+
+        var show = source.IndexOf("MetadataFieldConstants.ShowDescription", StringComparison.Ordinal);
+        var shortDescription = source.IndexOf("GetValue(values, MetadataFieldConstants.ShortDescription))", StringComparison.Ordinal);
+        Assert.True(show > 0, "A TV show page must read the show's own description.");
+        Assert.True(shortDescription > show, "The one-line Wikidata description is only the last resort.");
+    }
+
+    [Fact]
     public void DetailComposer_BuildsTvShowHeroMetadataAndEpisodeAwareActions()
     {
         var source = ReadDetailComposerSource();

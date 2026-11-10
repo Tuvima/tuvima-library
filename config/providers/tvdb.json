@@ -7,7 +7,7 @@
   "icon": "images/providers/tvdb.png",
   "capability_tags": ["tv_series", "seasons", "episodes"],
   "provider_capabilities": ["identity", "metadata", "artwork", "people"],
-  "available_fields": ["show_name", "author", "year", "season_number", "episode_number", "episode_title", "episode_description", "title", "air_date", "cast_member", "cast_member_character", "cast_member_tvdb_id", "cast_member_tvdb_identity", "cast_member_profile_url", "tvdb_id", "tvdb_season_id", "tvdb_episode_id"],
+  "available_fields": ["show_name", "author", "year", "season_number", "episode_number", "episode_title", "episode_description", "show_description", "title", "air_date", "cast_member", "cast_member_character", "cast_member_tvdb_id", "cast_member_tvdb_identity", "cast_member_profile_url", "tvdb_id", "tvdb_season_id", "tvdb_episode_id"],
   "field_weights": {},
   "endpoints": { "api": "https://api4.thetvdb.com/v4" },
   "rate_limit": { "requests_per_second": 2, "burst": 2, "max_concurrency": 2 },
@@ -558,6 +558,19 @@
                 "confidence": 0.9,
                 "json_path": "episode_en.name",
                 "trim": true
+              },
+              {
+                "claim_key": "show_description",
+                "confidence": 0.85,
+                "json_path": "show_en.overview",
+                "trim": true
+              },
+              {
+                "claim_key": "show_description",
+                "confidence": 0.8,
+                "json_path": "show.overview",
+                "trim": true,
+                "add": "if_missing_key"
               },
               {
                 "claim_key": "episode_description",
