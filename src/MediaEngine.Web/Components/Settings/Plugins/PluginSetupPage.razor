@@ -340,7 +340,7 @@ else
 
     private string ConnectionDetail(ConnectionState state, string label, IReadOnlyList<PluginSetupCredentialDto> household) => state switch
     {
-        ConnectionState.Connected => !string.IsNullOrWhiteSpace(LastChecked) ? LastChecked! : $"{label} is saved.",
+        ConnectionState.Connected => (!string.IsNullOrWhiteSpace(LastChecked) ? LastChecked! : $"{label} is saved.") + " Keys are encrypted on this server.",
         ConnectionState.NeedsAttention => _testResult?.Summary is { Length: > 0 } reason ? reason : "The last test did not pass.",
         _ => household.FirstOrDefault(credential => !string.IsNullOrWhiteSpace(credential.Help))?.Help is { Length: > 0 } help ? help : $"Add {label} to switch this on.",
     };

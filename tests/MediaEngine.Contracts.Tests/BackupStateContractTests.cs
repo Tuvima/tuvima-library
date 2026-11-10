@@ -46,7 +46,7 @@ public sealed class BackupStateContractTests
         var inspection = JsonSerializer.Serialize(
             new SetupBackupInspectionDto(Guid.Empty, "a.zip", null, "3.0", "epoch", 1, 2, 3, 4, "warning", contents), MediaEngineJson.Web);
 
-        const string expected = "\"contents\":{\"profiles\":2,\"configuration_rows\":31,\"personal_items\":120,\"titles\":80,\"file_only_titles\":5}";
+        const string expected = "\"contents\":{\"profiles\":2,\"configuration_rows\":31,\"personal_items\":120,\"titles\":80,\"file_only_titles\":5,\"includes_keys\":false}";
         Assert.Contains(expected, drill, StringComparison.Ordinal);
         Assert.Contains(expected, inspection, StringComparison.Ordinal);
     }

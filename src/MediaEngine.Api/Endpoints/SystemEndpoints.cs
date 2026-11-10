@@ -199,13 +199,19 @@ public static class SystemEndpoints
 
         app.MapPost("/system/backups", async (
             DatabaseBackupService backups,
-            INotificationPublisher notifications,
-            CancellationToken ct) =>
+            [Microsoft.AspNetCore.Mvc.FromServices] INotificationPublisher notifications,
+            CancellationToken ct,
+            [Microsoft.AspNetCore.Mvc.FromBody] CreateBackupRequest? request = null) =>
         {
+            if (request?.KeysPin is { } pin && (pin.Length != 4 || !pin.All(char.IsAsciiDigit)))
+            {
+                return ApiErrors.BadRequest("The PIN for keys must be four digits.");
+            }
+
             string path;
             try
             {
-                path = await backups.CreateAsync(ct).ConfigureAwait(false);
+                path = await backups.CreateAsync(ct, request?.KeysPin).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -287,7 +293,7 @@ public static class SystemEndpoints
         {
             try
             {
-                return (IResult)Results.Ok(backups.ScheduleRestore(request.FileName));
+                return (IResult)Results.Ok(backups.ScheduleRestore(request.FileName, request.KeysPin));
             }
             catch (ArgumentException ex)
             {

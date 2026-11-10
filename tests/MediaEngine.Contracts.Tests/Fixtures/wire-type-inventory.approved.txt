@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1542; api=0; web-client=56
+# scopes: contracts=1543; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1693,7 +1693,8 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   DestinationId: System.String | json=destination_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"destination_id":"sample","name":"sample"}
+  KeysPin: System.String | json=keys_pin | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"destination_id":"sample","name":"sample","keys_pin":"sample"}
 
 [contracts] MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13601,6 +13602,7 @@
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IncludesSecrets: System.Boolean | json=includes_secrets | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IncludesKeys: System.Boolean | json=includes_keys | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.BackupContentsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13609,6 +13611,7 @@
   PersonalItems: System.Int32 | json=personal_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Titles: System.Int32 | json=titles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileOnlyTitles: System.Int32 | json=file_only_titles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IncludesKeys: System.Boolean | json=includes_keys | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.BackupStateDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13617,9 +13620,13 @@
   StillWaiting: System.Int32 | json=still_waiting | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LatestRestore: MediaEngine.Contracts.System.LatestRestoreDto | json=latest_restore | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.System.ConfirmSetupRestoreRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  KeysPin: System.String | json=keys_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.System.CreateBackupRequest
   kind=class | converter=default | number-handling=default | unmapped=default
-  sample={}
+  KeysPin: System.String | json=keys_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.DataStoreVersionDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13687,12 +13694,15 @@
 [contracts] MediaEngine.Contracts.System.ScheduleRestoreRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KeysPin: System.String | json=keys_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.ScheduleRestoreResultDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Scheduled: System.Boolean | json=scheduled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KeysStatus: System.String | json=keys_status | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RestoredKeys: System.Collections.Generic.IReadOnlyList<System.String> | json=restored_keys | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.ScheduledTaskDto
   kind=class | converter=default | number-handling=default | unmapped=default

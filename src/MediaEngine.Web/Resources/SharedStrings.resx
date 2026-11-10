@@ -7007,6 +7007,9 @@
   <data name="PlaybackSeekRail_Bookmark" xml:space="preserve">
     <value>Bookmark</value>
   </data>
+  <data name="ProviderCredentialForm_KeysEncrypted" xml:space="preserve">
+    <value>Keys are encrypted on this server.</value>
+  </data>
   <data name="ProviderOnboardingDialog_OpenTroubleshootingHelp" xml:space="preserve">
     <value>Open troubleshooting help</value>
   </data>
@@ -12607,5 +12610,20 @@
   </data>
   <data name="ViewFoldersTab_FolderNameOptional" xml:space="preserve">
     <value>Folder name (optional)</value>
+  </data>
+  <data name="BackupRecoveryPanel_IncludeKeys" xml:space="preserve">
+    <value>Include keys</value>
+  </data>
+  <data name="BackupRecoveryPanel_IncludeKeysHelp" xml:space="preserve">
+    <value>Adds your provider and plugin keys, locked with a PIN. Off by default.</value>
+  </data>
+  <data name="BackupRecoveryPanel_KeysPin" xml:space="preserve">
+    <value>4-digit PIN for keys</value>
+  </data>
+  <data name="BackupRecoveryPanel_KeysPinHelp" xml:space="preserve">
+    <value>The PIN only stops casual snooping, so keep the backup somewhere safe. If a backup is lost, providers let you reset keys.</value>
+  </data>
+  <data name="BackupRecoveryPanel_RestorePinHelp" xml:space="preserve">
+    <value>Only needed if this backup includes keys. Without the right PIN everything else still restores and you enter keys again.</value>
   </data>
 </root>

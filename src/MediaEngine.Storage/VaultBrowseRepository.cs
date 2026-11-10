@@ -317,7 +317,16 @@ public sealed class VaultBrowseRepository(IDatabaseConnection database, IConfigS
         var owner = SecretOwner.Provider(FolderKeyOwner);
         // The key sits in the secrets folder (not the data store), so ids stay the same across a data store reset and never travel in a backup.
         // Loaded once, at first use, by the one thread the lazy field allows.
-        var stored = secrets.GetAsync(owner, FolderKeyName).GetAwaiter().GetResult();
+        string? stored = null;
+        try
+        {
+            stored = secrets.GetAsync(owner, FolderKeyName).GetAwaiter().GetResult();
+        }
+        catch (SecretsUnreadableException)
+        {
+            // Keys that cannot be opened on this computer are replaced below; folder ids are only names for this install's folders.
+        }
+
         if (!string.IsNullOrEmpty(stored))
         {
             try

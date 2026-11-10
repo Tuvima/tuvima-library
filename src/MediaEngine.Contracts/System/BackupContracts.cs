@@ -6,12 +6,20 @@ public sealed record BackupArchiveDto(
     [property: JsonPropertyName("file_name")] string FileName,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("size_bytes")] long SizeBytes,
-    [property: JsonPropertyName("includes_secrets")] bool IncludesSecrets = false);
+    [property: JsonPropertyName("includes_secrets")] bool IncludesSecrets = false,
+    [property: JsonPropertyName("includes_keys")] bool IncludesKeys = false);
 
-public sealed record CreateBackupRequest;
+/// <param name="KeysPin">Four digits. When set, provider and plugin keys travel inside the backup, sealed under this PIN; omit to leave keys out.</param>
+public sealed record CreateBackupRequest(
+    [property: JsonPropertyName("keys_pin")] string? KeysPin = null);
 
 public sealed record ScheduleRestoreRequest(
-    [property: JsonPropertyName("file_name")] string FileName);
+    [property: JsonPropertyName("file_name")] string FileName,
+    [property: JsonPropertyName("keys_pin")] string? KeysPin = null);
+
+/// <summary>Setup-time restore confirmation; the PIN is only needed when the backup holds keys.</summary>
+public sealed record ConfirmSetupRestoreRequest(
+    [property: JsonPropertyName("keys_pin")] string? KeysPin = null);
 
 public sealed record RestoreValidationResultDto(
     [property: JsonPropertyName("valid")] bool Valid,
@@ -23,7 +31,9 @@ public sealed record RestoreValidationResultDto(
 public sealed record ScheduleRestoreResultDto(
     [property: JsonPropertyName("scheduled")] bool Scheduled,
     [property: JsonPropertyName("restart_required")] bool RestartRequired,
-    [property: JsonPropertyName("message")] string Message);
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("keys_status")] string? KeysStatus = null,
+    [property: JsonPropertyName("restored_keys")] IReadOnlyList<string>? RestoredKeys = null);
 
 /// <summary>What a backup file holds, in counts read from its manifest. It names no title and no profile.</summary>
 /// <param name="Profiles">Profiles in the backup.</param>
@@ -36,7 +46,8 @@ public sealed record BackupContentsDto(
     [property: JsonPropertyName("configuration_rows")] int ConfigurationRows,
     [property: JsonPropertyName("personal_items")] int PersonalItems,
     [property: JsonPropertyName("titles")] int Titles,
-    [property: JsonPropertyName("file_only_titles")] int FileOnlyTitles);
+    [property: JsonPropertyName("file_only_titles")] int FileOnlyTitles,
+    [property: JsonPropertyName("includes_keys")] bool IncludesKeys = false);
 
 /// <summary>The latest restore, in counts. Never names a title.</summary>
 public sealed record LatestRestoreDto(

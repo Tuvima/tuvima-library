@@ -94,8 +94,8 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         var rotated = await service.SaveAsync("contract_provider", ValidCredentials('b'));
 
         Assert.True(rotated.Success);
-        Assert.Contains(second, File.ReadAllText(secretPath), StringComparison.Ordinal);
-        Assert.DoesNotContain(first, File.ReadAllText(secretPath), StringComparison.Ordinal);
+        Assert.Contains(second, ReadSecretFile(secretPath), StringComparison.Ordinal);
+        Assert.DoesNotContain(first, ReadSecretFile(secretPath), StringComparison.Ordinal);
         Assert.False(File.Exists(secretPath + ".bak"));
         Assert.Equal(second, consumer.LastCredentials["api_key"]);
 
@@ -120,8 +120,8 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         var secretPath = Path.Combine(_root, "secrets", "contract_provider.json");
 
         Assert.False(result.Success);
-        Assert.Contains(new string('a', 32), File.ReadAllText(secretPath), StringComparison.Ordinal);
-        Assert.DoesNotContain(new string('b', 32), File.ReadAllText(secretPath), StringComparison.Ordinal);
+        Assert.Contains(new string('a', 32), ReadSecretFile(secretPath), StringComparison.Ordinal);
+        Assert.DoesNotContain(new string('b', 32), ReadSecretFile(secretPath), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -158,14 +158,14 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         Assert.Contains("api_key=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", handler.LastRequestUri?.Query, StringComparison.Ordinal);
         Assert.Contains($"client_key={clientKey}", handler.LastRequestUri?.Query, StringComparison.Ordinal);
         var secretPath = Path.Combine(_root, "secrets", "contract_provider.json");
-        Assert.Contains(new string('a', 32), File.ReadAllText(secretPath), StringComparison.Ordinal);
-        Assert.Contains(clientKey, File.ReadAllText(secretPath), StringComparison.Ordinal);
+        Assert.Contains(new string('a', 32), ReadSecretFile(secretPath), StringComparison.Ordinal);
+        Assert.Contains(clientKey, ReadSecretFile(secretPath), StringComparison.Ordinal);
 
         var removed = service.Remove("contract_provider");
 
         Assert.True(removed.Success);
-        Assert.Contains(new string('a', 32), File.ReadAllText(secretPath), StringComparison.Ordinal);
-        Assert.DoesNotContain(clientKey, File.ReadAllText(secretPath), StringComparison.Ordinal);
+        Assert.Contains(new string('a', 32), ReadSecretFile(secretPath), StringComparison.Ordinal);
+        Assert.DoesNotContain(clientKey, ReadSecretFile(secretPath), StringComparison.Ordinal);
         Assert.Equal(new string('a', 32), consumer.LastCredentials["api_key"]);
         Assert.Null(consumer.LastCredentials.GetValueOrDefault("client_key"));
     }
@@ -230,8 +230,8 @@ public sealed class ProviderCredentialServiceTests : IDisposable
 
         Assert.Equal("invalid_credential", rejected.Status);
         var secretPath = Path.Combine(_root, "secrets", "subdl.json");
-        Assert.Contains(firstKey, File.ReadAllText(secretPath));
-        Assert.DoesNotContain(replacement, File.ReadAllText(secretPath));
+        Assert.Contains(firstKey, ReadSecretFile(secretPath));
+        Assert.DoesNotContain(replacement, ReadSecretFile(secretPath));
         Assert.DoesNotContain(replacement, JsonSerializer.Serialize(rejected));
     }
 
@@ -491,7 +491,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         var result = await service.SaveAsync("stashbox", new Dictionary<string, string> { ["api_key"] = key });
 
         Assert.True(result.Success);
-        Assert.Contains(key, File.ReadAllText(Path.Combine(_root, "secrets", "stashbox.json")), StringComparison.Ordinal);
+        Assert.Contains(key, ReadSecretFile(Path.Combine(_root, "secrets", "stashbox.json")), StringComparison.Ordinal);
         var server = Assert.Single((await settings.GetAsync()).Servers);
         Assert.True(server.HasKey);
         Assert.Equal(StashBoxConnectionStates.Connected, server.Connection);
@@ -615,5 +615,14 @@ public sealed class ProviderCredentialServiceTests : IDisposable
             => Task.FromResult<IReadOnlyList<ProviderClaim>>([]);
         public void ApplyCredentials(IReadOnlyDictionary<string, string?> credentials) =>
             LastCredentials = new Dictionary<string, string?>(credentials, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The saved values of one provider's key file, opened the way the Engine opens them (the file itself holds only a locked envelope).</summary>
+    private static string ReadSecretFile(string path)
+    {
+        var configDirectory = Path.GetDirectoryName(Path.GetDirectoryName(path))!;
+        var owner = SecretOwner.Provider(Path.GetFileNameWithoutExtension(path));
+        var values = new ConfigFolderSecretsStore(configDirectory).GetAllAsync(owner).GetAwaiter().GetResult();
+        return string.Join("\n", values.Select(pair => $"{pair.Key}={pair.Value}"));
     }
 }

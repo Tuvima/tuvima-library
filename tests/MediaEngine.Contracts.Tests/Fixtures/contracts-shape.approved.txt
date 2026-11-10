@@ -1431,6 +1431,7 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupsRe
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.RestoreFromDestinationRequest
   DestinationId: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
+  KeysPin: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
   Id: System.String | nullability=nullable | accessors=get,set
@@ -11554,6 +11555,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupArchiveDto
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
   IncludesSecrets: System.Boolean | nullability=not-null | accessors=get,init
+  IncludesKeys: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupContentsDto
   Profiles: System.Int32 | nullability=not-null | accessors=get,init
@@ -11561,6 +11563,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupContentsDto
   PersonalItems: System.Int32 | nullability=not-null | accessors=get,init
   Titles: System.Int32 | nullability=not-null | accessors=get,init
   FileOnlyTitles: System.Int32 | nullability=not-null | accessors=get,init
+  IncludesKeys: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupStateDto
   FileOnlyTitles: System.Int32 | nullability=not-null | accessors=get,init
@@ -11568,7 +11571,11 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupStateDto
   StillWaiting: System.Int32 | nullability=not-null | accessors=get,init
   LatestRestore: MediaEngine.Contracts.System.LatestRestoreDto | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ConfirmSetupRestoreRequest
+  KeysPin: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.CreateBackupRequest
+  KeysPin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
   StepNumber: System.Int32 | nullability=not-null | accessors=get,init
@@ -11627,11 +11634,14 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.RestoreValidationResul
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreRequest
   FileName: System.String | nullability=not-null | accessors=get,init
+  KeysPin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreResultDto
   Scheduled: System.Boolean | nullability=not-null | accessors=get,init
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
+  KeysStatus: System.String | nullability=nullable | accessors=get,init
+  RestoredKeys: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskDto
   Key: System.String | nullability=not-null | accessors=get,set
