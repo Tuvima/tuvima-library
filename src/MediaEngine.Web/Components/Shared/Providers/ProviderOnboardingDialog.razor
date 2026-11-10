@@ -56,19 +56,6 @@
                             </div>
                             <div class="provider-onboarding__saved-actions">
                                 <AppButton Label="@L["ProviderOnboardingDialog_ReplaceKey"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="StartReplace" data-action="replace-key" />
-                                @if (CanRemove)
-                                {
-                                    @if (_confirmRemove)
-                                    {
-                                        <span class="provider-onboarding__confirm">@L["ProviderOnboardingDialog_RemoveThisKey"]</span>
-                                        <AppButton Label="@L["ProviderOnboardingDialog_RemoveKey"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="RemoveAsync" data-action="confirm-remove-key" />
-                                        <AppButton Label="@L["ProviderOnboardingDialog_Keep"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _confirmRemove = false)" />
-                                    }
-                                    else
-                                    {
-                                        <AppButton Label="@L["ProviderOnboardingDialog_RemoveKey"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => _confirmRemove = true)" data-action="remove-key" />
-                                    }
-                                }
                             </div>
                         </div>
                     }
@@ -79,6 +66,14 @@
                                                 FieldErrors="@FieldErrors"
                                                 Replacing="@(Operation == ProviderOnboardingOperation.Replace || _replacing)"
                                                 ValuesChanged="CredentialsChanged" />
+                    }
+
+                    @if (_result?.Success == true)
+                    {
+                        <div class="provider-onboarding__success" role="status" data-testid="provider-test-success">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
+                            <div><h3>@SuccessTitle</h3><p>@_result.Message</p></div>
+                        </div>
                     }
 
                     @if (_result is { Success: false })
@@ -107,38 +102,45 @@
                     }
                 </section>
 
-            @if (_result?.Success == true)
-            {
-                <div class="provider-onboarding__success" role="status">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
-                    <div><h3>@SuccessTitle</h3><p>@_result.Message</p></div>
-                </div>
-            }
         </div>
     </ChildContent>
     <FooterContent>
         <div class="provider-onboarding__footer">
             <div class="provider-onboarding__footer-start">
-                @if (_result?.Success != true)
+                @if (CanRemove && HasSavedKey && Operation != ProviderOnboardingOperation.Test)
                 {
-                    <AppButton Label="@(SavedKeyView ? L["Common_Close"].Value : L["Search_Cancel"].Value)" Disabled="@_busy" OnClick="Cancel" />
+                    @if (_confirmRemove)
+                    {
+                        <span class="provider-onboarding__confirm">@L["ProviderOnboardingDialog_RemoveThisKey"]</span>
+                        <AppButton Label="@L["ProviderOnboardingDialog_RemoveKey"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="RemoveAsync" data-action="confirm-remove-key" />
+                        <AppButton Label="@L["ProviderOnboardingDialog_Keep"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _confirmRemove = false)" />
+                    }
+                    else
+                    {
+                        <AppButton Label="@L["ProviderOnboardingDialog_RemoveKey"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => _confirmRemove = true)" data-action="remove-key" />
+                    }
                 }
             </div>
             <div class="provider-onboarding__footer-end">
-            @if (_result?.Success == true)
-            {
-                <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
-            }
-            else
-            {
-                <AppButton Label="@SubmitLabel"
+                <AppButton Label="@(SavedKeyView ? L["Common_Close"].Value : L["Search_Cancel"].Value)" Disabled="@_busy" OnClick="Cancel" />
+                <AppButton Label="@L["ProviderOnboardingDialog_TestConnection"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
-                           ButtonStyle="AppButtonStyle.Filled"
+                           ButtonStyle="@(CanSave ? AppButtonStyle.Outlined : AppButtonStyle.Filled)"
                            Tone="AppUiTone.Primary"
-                           Loading="@_busy"
+                           Loading="@(_busy && _testing)"
                            Disabled="@(_busy || !CanSubmit)"
-                           OnClick="SubmitAsync" />
-            }
+                           OnClick="TestAsync"
+                           data-action="test-key" />
+                @if (CanSave)
+                {
+                    <AppButton Label="@L["Common_Save"].Value"
+                               ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Loading="@(_busy && !_testing)"
+                               Disabled="@(_busy || !CanSubmit)"
+                               OnClick="SaveAsync"
+                               data-action="save-key" />
+                }
             </div>
         </div>
     </FooterContent>
@@ -156,13 +158,18 @@
     private bool _busy;
     private bool _replacing;
     private bool _confirmRemove;
+    private bool _testing;
 
     // A saved key is only ever shown masked: the Engine never sends it back. Opening a source that has one shows that view
     // (Test connection, Replace key, Remove key) instead of an empty key box; Replace key switches to the entry form.
     private bool SavedKeyView => !_replacing
         && Operation == ProviderOnboardingOperation.Connect
-        && UserFields.Any(credential => credential.Configured)
-        && _result?.Success != true;
+        && HasSavedKey;
+
+    private bool HasSavedKey => UserFields.Any(credential => credential.Configured);
+
+    // Save is the default action whenever a key is being typed; the saved view has nothing to save, and the Test operation never saves.
+    private bool CanSave => !SavedKeyView && Operation != ProviderOnboardingOperation.Test;
 
     // The Engine has no remove action while first-run setup is open, so Remove key is offered only in Settings.
     private bool CanRemove => string.IsNullOrWhiteSpace(SetupSession);
@@ -197,10 +204,7 @@
     private string ProviderPurpose => Onboarding.SupportedLanes.Count > 0
         ? $"Supports {string.Join(", ", Onboarding.SupportedLanes)}."
         : "Metadata provider";
-    private string SubmitLabel => Operation == ProviderOnboardingOperation.Test || SavedKeyView ? "Test connection" : "Test and save";
-    private string SuccessTitle => Operation == ProviderOnboardingOperation.Test
-        ? "Connection verified"
-        : "Key saved";
+    private string SuccessTitle => "Connection verified";
     private ProviderOnboardingTroubleshootingDto? Troubleshooting => Onboarding.Troubleshooting.FirstOrDefault(item =>
         string.Equals(item.Status, _result?.Status, StringComparison.OrdinalIgnoreCase));
     private string FailureTitle => _result?.Status switch
@@ -310,10 +314,17 @@
         return Task.CompletedTask;
     }
 
-    private async Task SubmitAsync()
+    private Task TestAsync() => RunAsync(save: false);
+
+    private Task SaveAsync() => RunAsync(save: true);
+
+    // Test checks the key and leaves the window as it is, so the result shows beside the key. Save asks the Engine to check the
+    // key and store it only when that works (ProviderCredentialService.SaveAsync); a saved key closes the window.
+    private async Task RunAsync(bool save)
     {
         if (_busy || !CanSubmit) return;
         _busy = true;
+        _testing = !save;
         _result = null;
         try
         {
@@ -323,16 +334,13 @@
                     .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
                     .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
             };
-            // The Engine's save action checks the key with the service first and stores it only when that
-            // succeeds (ProviderCredentialService.SaveAsync), so Test is a single call: a good key is saved,
-            // a bad one is refused. Only the explicit Test operation stays test-only.
-            _result = Operation == ProviderOnboardingOperation.Test || SavedKeyView
+            _result = save
                 ? !string.IsNullOrWhiteSpace(SetupSession)
-                    ? await ApiClient.TestSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
-                    : await ApiClient.TestProviderCredentialsAsync(Catalogue.Name, request)
-                : !string.IsNullOrWhiteSpace(SetupSession)
                     ? await ApiClient.SaveSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
-                    : await ApiClient.SaveProviderCredentialsAsync(Catalogue.Name, request);
+                    : await ApiClient.SaveProviderCredentialsAsync(Catalogue.Name, request)
+                : !string.IsNullOrWhiteSpace(SetupSession)
+                    ? await ApiClient.TestSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
+                    : await ApiClient.TestProviderCredentialsAsync(Catalogue.Name, request);
             _result ??= new ProviderCredentialOperationResultDto
             {
                 Success = false,
@@ -353,6 +361,12 @@
         finally
         {
             _busy = false;
+            _testing = false;
+        }
+
+        if (save && _result is { Success: true })
+        {
+            Complete();
         }
     }
 

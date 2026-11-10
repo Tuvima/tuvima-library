@@ -8144,6 +8144,9 @@
   <data name="SetupVaultOffer_YourPINCouldnTBe" xml:space="preserve">
     <value>Your PIN couldn't be saved. Check it and try again.</value>
   </data>
+  <data name="ProviderOnboardingDialog_TestConnection" xml:space="preserve">
+    <value>Test connection</value>
+  </data>
   <data name="ProviderOnboardingDialog_AKeyIsSaved" xml:space="preserve">
     <value>A key is saved</value>
   </data>
