@@ -1,0 +1,13 @@
+{
+  "_comment": "Limits for the page reader (comics and PDFs). Edit and save: no rebuild or restart needed. 'widths' are the only picture widths the Engine will make for a comic page (0 means the original). 'cache_size_mb' bounds the temporary folder where CBR and CB7 comics are unpacked; the oldest is cleared first.",
+  "comic": {
+    "widths": [160, 480, 720, 1080, 1440, 2160],
+    "thumbnail_width": 160,
+    "max_entries": 6000,
+    "max_page_megabytes": 60,
+    "max_page_megapixels": 120,
+    "max_unpacked_megabytes": 4096,
+    "cache_size_mb": 2048,
+    "jpeg_quality": 85
+  }
+}

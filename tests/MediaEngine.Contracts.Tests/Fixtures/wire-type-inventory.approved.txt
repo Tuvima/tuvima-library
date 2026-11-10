@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1540; api=0; web-client=56
+# scopes: contracts=1542; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11278,6 +11278,20 @@
   CreatedAt: System.DateTime | json=createdAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CompletedAt: System.DateTime? | json=completedAt | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","ebookAssetId":"11111111-2222-3333-4444-555555555555","audiobookAssetId":"11111111-2222-3333-4444-555555555555","status":0,"alignmentData":"sample","errorMessage":"sample","createdAt":"2025-01-02T03:04:05Z","completedAt":"2025-01-02T03:04:05Z"}
+
+[contracts] MediaEngine.Contracts.Reading.ComicPageDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Number: System.Int32 | json=number | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Width: System.Int32 | json=width | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Height: System.Int32 | json=height | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"number":7,"width":7,"height":7}
+
+[contracts] MediaEngine.Contracts.Reading.ComicPageListDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PageCount: System.Int32 | json=page_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RightToLeft: System.Boolean | json=right_to_left | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | json=pages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"page_count":7,"right_to_left":true,"pages":[]}
 
 [contracts] MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default

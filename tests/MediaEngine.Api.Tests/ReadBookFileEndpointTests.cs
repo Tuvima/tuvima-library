@@ -5,6 +5,8 @@ using System.Text.Encodings.Web;
 using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Reading;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
@@ -253,10 +255,89 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         return request;
     }
 
-    private async Task<Guid> InsertBookAsync(Guid libraryId, string extension, bool writeFile = true) =>
-        (await InsertBookWithIdsAsync(libraryId, extension, writeFile)).AssetId;
+    [Fact]
+    public async Task ComicPageRoutes_UseTheSameGateAndTheReaderLimit()
+    {
+        await using var app = await StartAsync(Guid.NewGuid());
+        foreach (var pattern in new[] { "/read/{assetId:guid}/pages", "/read/{assetId:guid}/pages/{page:int}" })
+        {
+            var endpoint = app.Routes.Single(route => route.RoutePattern.RawText == pattern);
+            Assert.Contains(endpoint.Metadata.OfType<ClientScopeRequirementMetadata>(),
+                metadata => metadata.Scope == ApplicationPermissionIds.LibraryRead.Value);
+            Assert.Contains(endpoint.Metadata.OfType<CatalogueAssetAccessMetadata>(),
+                metadata => metadata.Permission == ApplicationPermissionIds.LibraryRead.Value);
+            Assert.Contains(endpoint.Metadata.OfType<EnableRateLimitingAttribute>(),
+                attribute => attribute.PolicyName == "reader_files");
+        }
+    }
 
-    private async Task<(Guid WorkId, Guid AssetId)> InsertBookWithIdsAsync(Guid libraryId, string extension, bool writeFile = true)
+    [Fact]
+    public async Task ComicPages_AreListedAndServedAtAnAllowedWidth()
+    {
+        var library = Guid.NewGuid();
+        var assetId = await InsertBookAsync(library, ".cbz", content: ComicZip(("1.jpg", ComicPageServiceTests.Jpeg(1000, 1500))));
+        await using var app = await StartAsync(library);
+
+        using var list = await app.Client.GetAsync($"/read/{assetId:D}/pages");
+        using var page = await app.Client.GetAsync($"/read/{assetId:D}/pages/1?width=480");
+        using var badWidth = await app.Client.GetAsync($"/read/{assetId:D}/pages/1?width=7");
+        using var missing = await app.Client.GetAsync($"/read/{assetId:D}/pages/9");
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Contains("\"page_count\":1", await list.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Equal("image/jpeg", page.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("nosniff", Assert.Single(page.Headers.GetValues("X-Content-Type-Options")));
+        Assert.Equal(HttpStatusCode.BadRequest, badWidth.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task ComicPages_AreNotServedForABookOrAPersonWithoutLibraryAccess()
+    {
+        var library = Guid.NewGuid();
+        var book = await InsertBookAsync(library, ".epub");
+        var comic = await InsertBookAsync(Guid.NewGuid(), ".cbz", content: ComicZip(("1.jpg", ComicPageServiceTests.Jpeg(10, 10))));
+        await using var app = await StartAsync(library);
+
+        using var notAComic = await app.Client.GetAsync($"/read/{book:D}/pages");
+        using var notAllowed = await app.Client.GetAsync($"/read/{comic:D}/pages/1");
+
+        Assert.Equal(HttpStatusCode.NotFound, notAComic.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, notAllowed.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cb7File_IsServedLikeTheOtherReadableKinds()
+    {
+        var library = Guid.NewGuid();
+        var assetId = await InsertBookAsync(library, ".cb7");
+        await using var app = await StartAsync(library);
+
+        using var response = await app.Client.GetAsync($"/read/{assetId:D}/file");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static byte[] ComicZip(params (string Name, byte[] Bytes)[] entries)
+    {
+        using var stream = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, bytes) in entries)
+            {
+                using var entry = zip.CreateEntry(name).Open();
+                entry.Write(bytes);
+            }
+        }
+
+        return stream.ToArray();
+    }
+
+    private async Task<Guid> InsertBookAsync(Guid libraryId, string extension, bool writeFile = true, byte[]? content = null) =>
+        (await InsertBookWithIdsAsync(libraryId, extension, writeFile, content)).AssetId;
+
+    private async Task<(Guid WorkId, Guid AssetId)> InsertBookWithIdsAsync(Guid libraryId, string extension, bool writeFile = true, byte[]? content = null)
     {
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
@@ -264,7 +345,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         var path = Path.Combine(_filesDirectory, $"{assetId:N}{extension}");
         if (writeFile)
         {
-            await File.WriteAllBytesAsync(path, _bytes);
+            await File.WriteAllBytesAsync(path, content ?? _bytes);
         }
 
         using var connection = _database.CreateConnection();
@@ -327,6 +408,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         builder.Services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         // The other reader routes share this group; they are never called here, but their services must resolve.
         builder.Services.AddSingleton<IEpubContentService>(_ => null!);
+        builder.Services.AddSingleton<IComicPageService>(_ => new ComicPageService(() => new ReaderConfiguration(), Path.Combine(_filesDirectory, "cache")));
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(allowedLibrary));
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowAuthorizationEvaluator>();
