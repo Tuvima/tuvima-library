@@ -1,6 +1,6 @@
 # Spec: Encrypted plugin and integration keys
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-21 · **Related docs:** [Developer tools spec](developer-tools.md) (WP14 secrets store, WP19 install, WP25 backup encryption, D-K, D-P) · [Security architecture](../../docs/architecture/security.md#secrets-limits-and-lifecycle)
+> **Status:** Built, awaiting your Local checks (PR 814) · **Version:** 1 · **Last updated:** 2026-10-21 · **Related docs:** [Developer tools spec](developer-tools.md) (WP14 secrets store, WP19 install, WP25 backup encryption, D-K, D-P) · [Security architecture](../../docs/architecture/security.md#secrets-limits-and-lifecycle)
 
 > **Change note (Shy, 2026-10-22):** Backups are no longer encrypted and have no passphrase ([Backup and restore](backup-and-restore.md) D15). "Include keys" stays (D4, D5) but is locked with a 4-digit PIN the person types when turning it on, instead of the backup passphrase ([Backup and restore](backup-and-restore.md) D16). Restoring without the PIN, or with a wrong one, skips only the keys; everything else restores. EK2 therefore no longer depends on WP25's passphrase; it depends on EK1 and on Backup and restore WP3 (the new archive).
 
