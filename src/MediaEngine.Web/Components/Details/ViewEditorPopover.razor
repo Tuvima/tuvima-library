@@ -31,17 +31,15 @@
                             TabsDisabled="@(session.Saving || session.Switching)"
                             OnTab="@(key => { if (Enum.TryParse<ViewEditTool>(key, out var picked)) { session.SelectTool(picked); } return Task.CompletedTask; })"
                             ShowFooter="@(!_reviewing)"
+                            FooterStart="@(CanDelete(session) ? DeleteButton(session) : null)"
                             ChangeCount="session.ChangeCount"
                             Saving="session.Saving"
                             OnClose="@(() => session.LeaveAsync())"
                             OnDiscard="@(() => session.LeaveAsync())"
                             OnSave="OpenReviewAsync">
             <ItemHeader>
-                @* The gallery and its photos sit inside the header: the gallery as a fixed tile, the photo as a dropdown under the title. *@
-                <ViewEditHeader Session="session">
-                    <Tile><ViewEditRail Session="session" Part="EditorFamilyRailPart.Tile" /></Tile>
-                    <Selects><ViewEditRail Session="session" Part="EditorFamilyRailPart.Selects" OnPick="@(item => Host.SwitchItemAsync(item))" /></Selects>
-                </ViewEditHeader>
+                @* The gallery is the family: the header draws its home button and the dropdown of its photos (screen L). *@
+                <ViewEditHeader Session="session" />
             </ItemHeader>
             <Notice>
                 @if (!_reviewing && (!string.IsNullOrWhiteSpace(session.Message) || !string.IsNullOrWhiteSpace(_deleteNote)))
@@ -65,14 +63,8 @@
                         <div class="view-edit-body__main">
                             @switch (tool)
                             {
-                                case ViewEditTool.Contents when session.Gallery is { } contents:
-                                    <ViewGalleryContentsPanel Gallery="contents" />
-                                    break;
                                 case ViewEditTool.Artwork when session.Gallery is { } artwork:
                                     <ViewGalleryArtworkPanel Gallery="artwork" />
-                                    break;
-                                case ViewEditTool.Files:
-                                    <ViewEditFilesPanel Items="stage.Items" />
                                     break;
                                 case ViewEditTool.History:
                                     <ViewEditHistoryPanel Item="@(stage.Items.Count == 1 && !session.IsGallery ? stage.Items[0] : null)" />
@@ -90,12 +82,6 @@
                                     break;
                             }
 
-                            @if (tool == ViewEditTool.Details && CanDelete(session))
-                            {
-                                <div class="view-edit-body__danger">
-                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" Disabled="@_deleting" OnClick="DeleteAsync">@L["ViewEdit_Delete"]</AppButton>
-                                </div>
-                            }
                         </div>
                         @if (!session.IsGallery)
                         {
@@ -138,6 +124,15 @@
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
 
+    // Delete sits at the bottom-left of the shared footer, red, as in the library editor: it asks once and then happens at once.
+    private RenderFragment DeleteButton(ViewEditSession session) => __builder =>
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
+                   StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(_deleting || session.Saving || session.Switching)" OnClick="DeleteAsync">
+            @L["ViewEdit_Delete"]
+        </AppButton>
+    };
+
     private static bool CanDelete(ViewEditSession session) =>
         session.IsGallery ? session.Gallery is { IsNew: false } : session.Active.Items.Count > 0;
 
@@ -147,18 +142,14 @@
 
     private string TabLabel(ViewEditTool tool) => tool switch
     {
-        ViewEditTool.Contents => L["ViewEdit_TabContents"].Value,
         ViewEditTool.Artwork => L["ViewEdit_TabArtwork"].Value,
-        ViewEditTool.Files => L["ViewEdit_TabFiles"].Value,
         ViewEditTool.History => L["ViewEdit_TabHistory"].Value,
         _ => L["ViewEdit_TabDetails"].Value,
     };
 
     private static string TabIcon(ViewEditTool tool) => tool switch
     {
-        ViewEditTool.Contents => AppMaterialIcons.Outlined.List,
         ViewEditTool.Artwork => AppMaterialIcons.Outlined.PhotoLibrary,
-        ViewEditTool.Files => AppMaterialIcons.Outlined.Folder,
         ViewEditTool.History => AppMaterialIcons.Outlined.History,
         _ => AppMaterialIcons.Outlined.Description,
     };

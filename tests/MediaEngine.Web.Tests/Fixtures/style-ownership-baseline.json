@@ -1195,7 +1195,7 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
       "important": 15,
-      "deep": 89
+      "deep": 75
     },
     "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
       "important": 0,
@@ -1894,6 +1894,14 @@
       "deep": 1
     },
     "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css": {
       "important": 0,
       "deep": 1
     }
@@ -4501,6 +4509,28 @@
         ".tl-fbfolders ::deep .tl-fbfolders__row"
       ],
       "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css",
+      "important": 0,
+      "deep": 13,
+      "selectors": [
+        ".view-hnav ::deep .view-hnav__home.is-current",
+        ".view-hnav ::deep .view-hnav__trigger",
+        ".view-hnav__panel ::deep .view-hnav__option"
+      ],
+      "reason": "The View editor header (Editor v5 WP14) draws the item dropdown on the v5 frame and passes its classes to App* controls (icon button, row buttons, image), so their look is reached with deep rules from the component root. The budget comes from the shared media editor shell, which no longer exists."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".tl-editor-header ::deep .tl-editor-header__img"
+      ],
+      "reason": "The View editor header (Editor v5 WP14) passes its picture class to the shared image control, so the rule is reached with a deep rule from the header root. The budget comes from the shared media editor shell, which no longer exists."
     }
   ],
   "finalBundleBytes": 1283347,

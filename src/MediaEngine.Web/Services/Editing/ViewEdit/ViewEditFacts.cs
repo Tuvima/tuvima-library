@@ -42,6 +42,17 @@ public static class ViewEditFacts
             facts.Add(new ViewQuickFact("size", size, "ViewEdit_FactSize", "Storage"));
         }
 
+        // The Files tab is gone (universal editor v5 D25): the file's name and its parts (a RAW and its JPEG, for example) are facts here.
+        if (!string.IsNullOrWhiteSpace(item.FileName))
+        {
+            facts.Add(new ViewQuickFact("file", item.FileName, "ViewEdit_FactFile", "Folder"));
+        }
+
+        if (item.Files.Count > 1)
+        {
+            facts.Add(new ViewQuickFact("parts", item.Files.Count.ToString(CultureInfo.InvariantCulture), "ViewEdit_FactParts", "Storage"));
+        }
+
         if (ViewEditStage.IsDocument(item))
         {
             if (item.PageCount is { } pages)

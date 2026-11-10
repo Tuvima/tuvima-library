@@ -90,6 +90,61 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
         return true;
     }
 
+    /// <summary>
+    /// The numbers the header's item dropdown follows (how many photos show inline, how many a page holds). They live in <c>config/editor.json</c>
+    /// and arrive from the Engine's editor-config read; that read is open to administrators and applications only, so for anyone else the dropdown
+    /// uses the shipped defaults below. Read once per circuit.
+    /// </summary>
+    public async Task<ViewEditorLimits> GetLimitsAsync()
+    {
+        if (_limits is not null)
+        {
+            return _limits;
+        }
+
+        try
+        {
+            var config = await api.GetEditorKindConfigAsync(MediaEngine.Contracts.Editing.EditorKindNames.ViewItem);
+            _limits = config is { InlineSupportingFiles: > 0, ItemListPageSize: > 0 }
+                ? new ViewEditorLimits(config.InlineSupportingFiles, config.ItemListPageSize)
+                : ViewEditorLimits.Shipped;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "The editor limits could not be read; the shipped defaults are used.");
+            _limits = ViewEditorLimits.Shipped;
+        }
+
+        return _limits;
+    }
+
+    private ViewEditorLimits? _limits;
+
+    /// <summary>One page of a gallery's photos for the header's item dropdown, optionally narrowed by a search. Null when the Engine could not be reached.</summary>
+    public Task<ViewAssetTimelinePageDto?> GalleryPhotosAsync(Guid galleryId, string? cursor, string? search, int limit) =>
+        api.GetViewAssetsAsync(new ViewAssetQueryOptions(workspace.ScopeKind, workspace.ScopeProfileId, cursor, string.IsNullOrWhiteSpace(search) ? null : search.Trim(),
+            GalleryId: galleryId, Limit: limit));
+
+    /// <summary>The home button of a photo opened from a gallery: the window moves to the gallery's own editor. Asks first when something is staged.</summary>
+    public async Task<bool> OpenGalleryByIdAsync(Guid galleryId)
+    {
+        var gallery = await api.GetViewGalleryAsync(galleryId);
+        return gallery is not null && await OpenGalleryAsync(gallery);
+    }
+
+    /// <summary>A photo picked in the dropdown of a gallery's own editor: the window moves to that photo, with the gallery as its family.</summary>
+    public async Task<bool> OpenPhotoInGalleryAsync(LocalAssetDto photo, Guid galleryId, string galleryName)
+    {
+        var page = await GalleryPhotosAsync(galleryId, null, null, (await GetLimitsAsync()).PageSize);
+        IReadOnlyList<LocalAssetDto> members = page?.Items ?? [photo];
+        if (members.All(member => member.Id != photo.Id))
+        {
+            members = [photo, .. members];
+        }
+
+        return await OpenItemsAsync([photo], new ViewEditGalleryRail(galleryId, galleryName, members, page?.HasMore ?? false));
+    }
+
     /// <summary>Opens the window and completes when it closes, with what changed (the old launcher's "applied" answer).</summary>
     public Task<ViewEditClosedArgs> WhenClosedAsync() => _closed?.Task ?? Task.FromResult(new ViewEditClosedArgs(false, [], [], null, null));
 
@@ -202,4 +257,11 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
             return item;
         }
     }
+}
+
+/// <summary>The item dropdown's numbers: photos shown before "All photos", and the size of one page of the full list.</summary>
+public sealed record ViewEditorLimits(int InlineItems, int PageSize)
+{
+    /// <summary>The values <c>config/editor.json</c> ships with, used only when the Engine's editor-config read is not open to the person.</summary>
+    public static ViewEditorLimits Shipped { get; } = new(8, 50);
 }

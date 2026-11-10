@@ -8,14 +8,12 @@ namespace MediaEngine.Web.Services.Editing;
 public enum ViewEditTool
 {
     Details,
-    Contents,
     Artwork,
-    Files,
     History,
 }
 
-/// <summary>Where a photo was opened from: its gallery, and the gallery's other photos for the rail's second dropdown.</summary>
-public sealed record ViewEditGalleryRail(Guid GalleryId, string GalleryName, IReadOnlyList<LocalAssetDto> Members);
+/// <summary>Where a photo was opened from: its gallery, and the gallery's photos loaded so far for the header's item dropdown (<c>HasMore</c> when the gallery holds more).</summary>
+public sealed record ViewEditGalleryRail(Guid GalleryId, string GalleryName, IReadOnlyList<LocalAssetDto> Members, bool HasMore = false);
 
 /// <summary>
 /// One open View editor (spec photos-documents-editor): the chosen items (or one gallery), what is staged on each, the tool showing, and the
@@ -90,8 +88,8 @@ public sealed class ViewEditSession : IReviewSource
     public IReadOnlyList<ViewEditTool> Tools => IsGallery
         ? Gallery is { IsDocumentView: true }
             ? [ViewEditTool.Details, ViewEditTool.History]
-            : [ViewEditTool.Details, ViewEditTool.Contents, ViewEditTool.Artwork, ViewEditTool.History]
-        : [ViewEditTool.Details, ViewEditTool.Files, ViewEditTool.History];
+            : [ViewEditTool.Details, ViewEditTool.Artwork, ViewEditTool.History]
+        : [ViewEditTool.Details, ViewEditTool.History];
 
     public ViewEditStage StageFor(IReadOnlyList<LocalAssetDto> items)
     {
