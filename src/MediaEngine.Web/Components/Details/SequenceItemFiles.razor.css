@@ -1,0 +1,47 @@
+/* A row with chips is a cell of the strip: the row, then its files under it. */
+.tl-series-cell {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    scroll-snap-align: start;
+}
+
+/* The chips under an episode or lesson row: supporting files that belong to it or are shown alongside it (universal editor v5 D31). */
+.tl-series-item__files {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+}
+
+.tl-series-item__file {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    min-height: 1.75rem;
+    padding: 0.15rem 0.55rem;
+    border: 1px solid rgba(214, 222, 237, 0.2);
+    border-radius: 0.4rem;
+    color: rgba(214, 222, 237, 0.78);
+    font-size: var(--tl-font-size-xs);
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+.tl-series-item__file > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-series-item__file:hover,
+.tl-series-item__file:focus-visible {
+    border-color: rgba(214, 222, 237, 0.5);
+    color: #fff;
+}
+
+.tl-series-detail.tl-series-panel--landscape .tl-series-item__files {
+    justify-content: flex-start;
+}

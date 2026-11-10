@@ -42,7 +42,7 @@
                                  Highlight="_highlight"
                                  HighlightChanged="@(index => _highlight = index)"
                                  OnOpenRow="OpenHighlightedAsync"
-                                 OnToggleRow="ToggleHighlighted"
+                                 OnToggleRow="@(ReadOnly ? default : EventCallback.Factory.Create<int>(this, ToggleHighlighted))"
                                  ShowState="ShowState">
                     <ToolbarEnd>
                         <div class="tl-fbrowser__select">
@@ -54,16 +54,16 @@
                                        AriaLabel="@L["EditorBrowser_Type"].Value" />
                         </div>
                     </ToolbarEnd>
-                    <Sidebar><EditorFileBrowserSidebar State="State" /></Sidebar>
+                    <Sidebar><EditorFileBrowserSidebar State="State" ReadOnly="ReadOnly" /></Sidebar>
                     <InsideContent>
                         @if (State.List is { Total: > 0 })
                         {
                             <div class="tl-fbrowser__count" data-testid="file-browser-count" aria-busy="@(State.Loading ? "true" : null)">@EditorFileBrowserRules.ShowingLine(L, State.List)</div>
                         }
                     </InsideContent>
-                    <Columns><EditorFileBrowserColumns State="State" /></Columns>
+                    <Columns><EditorFileBrowserColumns State="State" ReadOnly="ReadOnly" /></Columns>
                     <Rows>
-                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" Highlight="_highlight" IdPrefix="@RowIdPrefix" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
+                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" ReadOnly="ReadOnly" Highlight="_highlight" IdPrefix="@RowIdPrefix" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
                     </Rows>
                     <StateContent>
                         @if (State.Error is { } error && State.List is null)
@@ -103,7 +103,10 @@
                             </div>
                         }
 
-                        <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" OnDelete="DeleteTickedAsync" />
+                        @if (!ReadOnly)
+                        {
+                            <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" OnDelete="DeleteTickedAsync" />
+                        }
                     </AfterContent>
                 </AppBrowserFrame>
             }
@@ -124,7 +127,7 @@
 
         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-browser-close="true"
                    OnClick="@(() => Finish(EditorFileBrowserOutcome.Closed))">@L["EditorBrowser_Close"]</AppButton>
-        @if (State.View == EditorBrowserView.Files)
+        @if (State.View == EditorBrowserView.Files && !ReadOnly)
         {
             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(State.Ticked.Count == 0 || !CanEdit)" data-browser-edit="true"
                        OnClick="@(() => Finish(new EditorFileBrowserOutcome(EditorFileBrowserAction.EditSelected)))">@L["EditorBrowser_EditSelected"]</AppButton>
@@ -152,6 +155,9 @@
 
     /// <summary>The title is a Videos series: the Folders and files view shows its video order.</summary>
     [Parameter] public bool IsVideoSeries { get; set; }
+
+    /// <summary>Reading only (the details page's Extras "See all"): no ticks, no bulk bar, no Edit selected, no Folders and files view, and each row has an Open button.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     /// <summary>False outside a desktop editing session (EditorDeviceRule.CanEdit): the browser only shows, opens and previews.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;

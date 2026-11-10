@@ -232,6 +232,65 @@
     min-width: 0;
 }
 
+/* Supporting files: one 44px-or-taller row each, a type badge then the title and the title it belongs to. */
+.universal-results__files {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.universal-results__file {
+    display: flex;
+    min-height: 56px;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(128, 146, 180, 0.1);
+    color: inherit;
+    text-decoration: none;
+}
+
+.universal-results__file:hover,
+.universal-results__file.is-selected {
+    background: rgba(128, 146, 180, 0.08);
+}
+
+.universal-results__file-type {
+    flex: 0 0 40px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(128, 146, 180, 0.14);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.universal-results__file-copy {
+    display: grid;
+    min-width: 0;
+}
+
+.universal-results__file-copy strong,
+.universal-results__file-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.universal-results__file-copy strong {
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-secondary);
+}
+
+.universal-results__file-copy small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
 .universal-results__preview {
     position: sticky;
     top: 0;

@@ -151,11 +151,12 @@
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
             </AppNativeButton></AppTooltip>
         </div>
-        @if (_endCard.Visible && EligibleNextEpisode is { } nextEpisode)
+        @if (_endCard.Visible && (EligibleNextEpisode is not null || HomeworkFiles.Count > 0))
         {
-            @* The Homework line stays empty until the Editor's supporting-files data (files marked "Shown alongside" a lesson) feeds it. *@
-            <VideoEndCard Next="@nextEpisode" Lesson="@(IsFolderVideoNow || !IsTvEpisodeNow)" AutoAdvance="@_endCard.AutoAdvance" RemainingSeconds="@_endCard.RemainingSeconds"
-                          PlayNow="AdvanceCurrentVideoAsync" Cancel="DismissEndCard" />
+            @* A course's card also lists the files shown alongside the lesson that ended; it shows on the last lesson too (universal editor v5 D31). *@
+            <VideoEndCard Next="@EligibleNextEpisode" Lesson="@(IsFolderVideoNow || !IsTvEpisodeNow)" AutoAdvance="@_endCard.AutoAdvance" RemainingSeconds="@_endCard.RemainingSeconds"
+                          UpNextDismissed="@_endCard.UpNextDismissed" HomeworkFiles="@HomeworkFiles"
+                          PlayNow="AdvanceCurrentVideoAsync" Cancel="DismissEndCard" OpenHomework="OpenHomeworkAsync" />
         }
     }
 </section>
@@ -1021,7 +1022,15 @@
 
     private void ObserveEndCard() { _endCard.AutoAdvance = Playback.AutoplayNextEpisode; ObserveEndCardCore(); }
     private void ObserveEndCardCore() => _endCard.Observe(VideoPlaybackIdentity.Capture(Playback), EligibleNextEpisode?.WorkId,
-        Playback.CurrentTimeSeconds, Playback.DurationSeconds, Playback.CurrentManifest?.Segments ?? []);
+        Playback.CurrentTimeSeconds, Playback.DurationSeconds, Playback.CurrentManifest?.Segments ?? [], HomeworkFiles.Count > 0);
+    // The files shown alongside the lesson that is playing; never any for a TV episode.
+    private IReadOnlyList<DetailExtraCardViewModel> HomeworkFiles => _presentationContext is { } context && context.Identity.IsCurrent(Playback) ? context.HomeworkFiles : [];
+    // Open stops the countdown and opens the file over the course page; leaving the player minimises it to its bar (HandleLocationChanged).
+    private void OpenHomeworkAsync(DetailExtraCardViewModel file)
+    {
+        _endCard.Dismiss();
+        Nav.NavigateTo($"/extras/{Uri.EscapeDataString(file.Id)}");
+    }
     [JSInvokable] public async Task HandleEndCardTick(Guid profileId, Guid workId, Guid assetId, long requestVersion, double elapsedSeconds)
     {
         if (!new VideoPlaybackIdentity(profileId, workId, assetId, requestVersion).IsCurrent(Playback)) return;

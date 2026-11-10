@@ -8,8 +8,11 @@
 @* The header cells of the supporting-files list (screen E): the tick-the-page box, the three headings that sort, and Group and Role. They fill the
    shared browser frame's header; the arrow shows the direction of the sort in use. *@
 <AppBrowserColumn Width="2.5rem">
-    <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
-                 Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
+    @if (!ReadOnly)
+    {
+        <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
+                     Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
+    }
 </AppBrowserColumn>
 <AppBrowserColumn Label="@L["EditorBrowser_Name"].Value" MinWidth="12rem" OnSort="@(() => State.SortByAsync(SupportingFileListDefaults.SortTitle))"
                   Direction="@SortState(SupportingFileListDefaults.SortTitle)" data-sort="@SupportingFileListDefaults.SortTitle" />
@@ -23,6 +26,9 @@
 
 @code {
     [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>The read-only browser (the page's Extras "See all") has no ticks, so no tick-the-page box.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     private string? SortState(string sort) => State.Sort == sort ? (State.Descending ? "descending" : "ascending") : null;
 
