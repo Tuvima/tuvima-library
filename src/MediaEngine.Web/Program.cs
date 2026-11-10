@@ -380,6 +380,7 @@ builder.Services.AddScoped<ViewEditorHost>();
 builder.Services.AddScoped<ViewRibbonState>();
 builder.Services.AddScoped<ViewRibbonVoice>();
 builder.Services.AddScoped<ViewDropUploader>();
+builder.Services.AddScoped<ViewFolderGate>();
 builder.Services.AddScoped<ListEditLauncher>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();

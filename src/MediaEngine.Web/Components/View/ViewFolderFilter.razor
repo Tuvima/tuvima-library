@@ -1,0 +1,72 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Components.Settings
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Folders filter of a View kind's page (View folders spec D4b): All folders, or one folder by its friendly name with its Read-only or Managed tag. It is drawn only
+   once the kind has two or more folders, and the choice is remembered for this profile in the browser. *@
+@if (Folders.Count >= 2)
+{
+    <label class="view-folder-filter" data-folder-filter>
+        <span>@L["ViewFolderFilter_Folders"]</span>
+        <AppSelect Native="true" Value="@(Selected?.ToString("D") ?? string.Empty)" ValueChanged="ChangedAsync" aria-label="@L["ViewFolderFilter_Folders"].Value">
+            <option value="">@L["ViewFolderFilter_AllFolders"]</option>
+            @foreach (var folder in Folders)
+            {
+                <option value="@folder.Id.ToString("D")">@folder.Name · @FolderHandlingWords.LabelFor(ViewFolderRules.IsManaged(folder))</option>
+            }
+        </AppSelect>
+    </label>
+}
+
+@code {
+    /// <summary>The kind's folders (see <see cref="ViewFolderRules.OfKind"/>).</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ViewSourceAdminDto> Folders { get; set; } = [];
+    /// <summary>The kind the page shows, so each kind remembers its own choice.</summary>
+    [Parameter, EditorRequired] public string Kind { get; set; } = string.Empty;
+    /// <summary>The active profile, so each profile remembers its own choice.</summary>
+    [Parameter] public Guid? ProfileId { get; set; }
+    [Parameter] public Guid? Selected { get; set; }
+    [Parameter] public EventCallback<Guid?> SelectedChanged { get; set; }
+
+    private bool _restored;
+
+    private string StorageKey => $"tuvima.view.folder.{Kind}.{ProfileId?.ToString("N") ?? "device"}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The remembered folder applies once, as soon as the folders are known; a folder that has gone is forgotten.
+        if (_restored || Folders.Count < 2) return;
+        _restored = true;
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+            if (Guid.TryParse(stored, out var id) && Folders.Any(folder => folder.Id == id) && Selected != id)
+            {
+                await SelectedChanged.InvokeAsync(id);
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Storage is blocked or the circuit ended: the filter starts on All folders.
+        }
+    }
+
+    private async Task ChangedAsync(string? value)
+    {
+        Guid? chosen = Guid.TryParse(value, out var id) && Folders.Any(folder => folder.Id == id) ? id : null;
+        try
+        {
+            if (chosen is null) await JS.InvokeVoidAsync("localStorage.removeItem", StorageKey);
+            else await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, chosen.Value.ToString("D"));
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Not remembered; the choice still applies to this visit.
+        }
+
+        await SelectedChanged.InvokeAsync(chosen);
+    }
+}

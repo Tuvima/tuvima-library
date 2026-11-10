@@ -1,0 +1,1 @@
+.view-uploads-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }

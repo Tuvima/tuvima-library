@@ -43,7 +43,7 @@
     {
             <div class="lib-folders__inner">
             <ul class="lib-folders__list">
-                @foreach (var source in Sources)
+                @foreach (var source in Rows)
                 {
                     var issue = IssueFor(source);
                     <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
@@ -63,7 +63,10 @@
             </div>
     };
 
-    [Parameter, EditorRequired] public IReadOnlyList<LibrarySourceDto> Sources { get; set; } = [];
+    /// <summary>A library's folders; use <see cref="Items"/> instead for folders that are not a library's (View folders).</summary>
+    [Parameter] public IReadOnlyList<LibrarySourceDto> Sources { get; set; } = [];
+    /// <summary>The same list from neutral items (View folders spec D5); when set it is shown instead of <see cref="Sources"/>.</summary>
+    [Parameter] public IReadOnlyList<FolderListItem>? Items { get; set; }
     [Parameter] public string LibraryName { get; set; } = "library";
     /// <summary>Folder path to its problem (offline, no access); null while the folder checks have not finished, so nothing is claimed.</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
@@ -83,10 +86,12 @@
         return Task.CompletedTask;
     }
 
-    private string Label => Sources.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Sources.Count].Value;
+    private IReadOnlyList<FolderListItem> Rows => Items ?? [.. Sources.Select(source => new FolderListItem(source.Id, source.Path))];
+
+    private string Label => Rows.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Rows.Count].Value;
     private string PanelLabel => L["LibraryFoldersPopover_FoldersOf", LibraryName].Value;
 
-    private string? IssueFor(LibrarySourceDto source) => PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null;
+    private string? IssueFor(FolderListItem source) => source.Issue ?? (PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null);
 
     private void Toggle()
     {
