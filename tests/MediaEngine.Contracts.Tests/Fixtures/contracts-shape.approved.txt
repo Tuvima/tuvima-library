@@ -5411,6 +5411,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAssetTim
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  EditorLimits: MediaEngine.Contracts.LocalAssets.ViewEditorLimitsDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAtlasHotspotDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -5688,6 +5689,10 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicat
   ScanHour: System.Int32 | nullability=not-null | accessors=get,init
   LastScanAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDuplicateGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewEditorLimitsDto
+  InlineItems: System.Int32 | nullability=not-null | accessors=get,init
+  PageSize: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFilingLayoutDto
   Pattern: System.String | nullability=not-null | accessors=get,init

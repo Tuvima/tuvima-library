@@ -10010,9 +10010,6 @@
   <data name="ViewEdit_UseOriginal" xml:space="preserve">
     <value>Use original</value>
   </data>
-  <data name="ViewEdit_WhereChangesSave" xml:space="preserve">
-    <value>Changes save in Library</value>
-  </data>
   <data name="ViewEdit_Edit" xml:space="preserve">
     <value>Edit</value>
   </data>
@@ -12491,19 +12488,22 @@
   <data name="ViewEdit_NavPosition" xml:space="preserve">
     <value>{0} of {1}</value>
   </data>
-  <data name="ViewEdit_NavPositionMore" xml:space="preserve">
-    <value>{0} of {1}+</value>
-  </data>
   <data name="ViewEdit_NavAllPhotos" xml:space="preserve">
     <value>All photos ({0})</value>
-  </data>
-  <data name="ViewEdit_NavAllPhotosMore" xml:space="preserve">
-    <value>All photos ({0}+)</value>
   </data>
   <data name="ViewEdit_FactFile" xml:space="preserve">
     <value>File name</value>
   </data>
   <data name="ViewEdit_FactParts" xml:space="preserve">
     <value>Files in this item, for example a RAW and its JPEG</value>
+  </data>
+  <data name="ViewEdit_NavGoToGallery" xml:space="preserve">
+    <value>Go to gallery {0}</value>
+  </data>
+  <data name="ViewEdit_FactGalleryPhotos" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
+  <data name="ViewEdit_FactGalleryOnePhoto" xml:space="preserve">
+    <value>1 photo</value>
   </data>
 </root>

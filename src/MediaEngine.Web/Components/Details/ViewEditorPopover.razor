@@ -50,7 +50,14 @@
                 }
             </Notice>
             <Where>
-                <span class="tl-editor-window__where">@L["ViewEdit_WhereChangesSave"]</span>
+                @* A View edit never writes into the files, so the footer always says so, in the library editor's words and look. *@
+                <div class="tl-editor-window__where" data-footer-status="writebackoff" role="status">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" Class="tl-editor-window__where-icon" />
+                    <div class="tl-editor-window__where-text">
+                        <strong>@L["EditorFooter_WriteBackOffTitle"]</strong>
+                        <small>@L["EditorFooter_WriteBackOffDetail"]</small>
+                    </div>
+                </div>
             </Where>
             <Body>
                 @if (_reviewing)

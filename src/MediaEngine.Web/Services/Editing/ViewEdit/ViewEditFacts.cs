@@ -97,7 +97,10 @@ public static class ViewEditFacts
         return notes;
     }
 
-    /// <summary>One line of facts for the header: when it was taken or dated, how big, how many pages or how long.</summary>
+    /// <summary>
+    /// What follows the kind word on the header's one line (screen L): when it was taken or dated, and where. A document adds its pages. File facts
+    /// (size, dimensions, camera) are in Quick facts, not here.
+    /// </summary>
     public static string HeaderLine(LocalAssetDto item)
     {
         var parts = new List<string>();
@@ -105,9 +108,52 @@ public static class ViewEditFacts
             : item.CapturedAt?.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
         if (when is not null) { parts.Add(when); }
         if (ViewEditStage.IsDocument(item) && item.PageCount is { } pages) { parts.Add($"{pages} p."); }
-        if (!ViewEditStage.IsDocument(item) && item.Width is { } w && item.Height is { } h) { parts.Add($"{w} × {h}"); }
-        if (SizeText(item) is { } size) { parts.Add(size); }
+        if (!ViewEditStage.IsDocument(item) && PlaceText(item) is { } place) { parts.Add(place); }
         return string.Join(" · ", parts);
+    }
+
+    /// <summary>The place as the person reads it: "Lisbon, Portugal" when the city and country are known, else the place name the item carries.</summary>
+    public static string? PlaceText(LocalAssetDto item)
+    {
+        var named = string.Join(", ", new[] { item.LocationCity, item.LocationCountry }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        return named.Length > 0 ? named : string.IsNullOrWhiteSpace(item.LocationName) ? null : item.LocationName;
+    }
+
+    /// <summary>
+    /// The formats of a selection for the header's line ("36 JPEG · 4 RAW + JPEG"): a photo made of several files (a RAW and its JPEG) counts as that
+    /// pair, any other photo by its own file type.
+    /// </summary>
+    public static string FormatSummary(IReadOnlyList<LocalAssetDto> items) => string.Join(" · ", items
+        .Select(item => item.Files.Count > 1
+            ? string.Join(" + ", item.Files.Select(file => Plain(FileKind(file))).Distinct().OrderBy(kind => kind == "RAW" ? 0 : 1).ThenBy(kind => kind, StringComparer.Ordinal))
+            : Plain(TypeText(item) ?? string.Empty))
+        .Where(kind => kind.Length > 0)
+        .GroupBy(kind => kind, StringComparer.Ordinal)
+        .OrderByDescending(group => group.Count())
+        .Select(group => $"{group.Count()} {group.Key}"));
+
+    // One name for one format: a photo named .jpg and its twin typed image/jpeg are both JPEG.
+    private static string Plain(string kind) => kind switch
+    {
+        "JPG" => "JPEG",
+        "TIF" => "TIFF",
+        _ => kind,
+    };
+
+    private static string FileKind(LocalAssetFileDto file)
+    {
+        var extension = Path.GetExtension(file.FileName ?? string.Empty).TrimStart('.');
+        if (file.Role.Contains("raw", StringComparison.OrdinalIgnoreCase) || file.MimeType.Contains("raw", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RAW";
+        }
+
+        if (extension.Length > 0)
+        {
+            return extension.ToUpperInvariant();
+        }
+
+        return file.MimeType.Contains('/') ? file.MimeType[(file.MimeType.IndexOf('/') + 1)..].ToUpperInvariant() : file.MimeType.ToUpperInvariant();
     }
 
     private static string? TypeText(LocalAssetDto item)

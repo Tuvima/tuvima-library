@@ -87,9 +87,6 @@ public sealed class ViewGalleryEditStage
     /// <summary>Photos already chosen for a new gallery (New gallery from the selection bar): they go in when it is created.</summary>
     public List<LocalAssetDto> StartingMembers { get; } = [];
 
-    /// <summary>Photos taken out of the gallery by this Save (they stay in the library).</summary>
-    public HashSet<Guid> Removed { get; } = [];
-
     public event Action? Changed;
 
     public void SetName(string? value) { _name = (value ?? string.Empty).Trim(); Raise(); }
@@ -107,24 +104,6 @@ public sealed class ViewGalleryEditStage
     public void UseAutomaticCover() { CoverMode = ViewCoverMode.Automatic; CoverItemId = null; Raise(); }
 
     public void RevertCover() { CoverMode = ViewCoverMode.Keep; CoverItemId = null; Raise(); }
-
-    public void Remove(IEnumerable<Guid> ids)
-    {
-        foreach (var id in ids)
-        {
-            Removed.Add(id);
-        }
-
-        Raise();
-    }
-
-    public void KeepAgain(Guid id)
-    {
-        if (Removed.Remove(id))
-        {
-            Raise();
-        }
-    }
 
     /// <summary>The cover now: the staged choice, else the gallery's own.</summary>
     public Guid? EffectiveCover => CoverMode switch
@@ -168,7 +147,6 @@ public sealed class ViewGalleryEditStage
         if (RuleChanged) { Add("rule", "Rule", null, "Rule changed"); }
         if (SoundtrackChanged) { Add("soundtrack", "Soundtrack", null, _soundtrack is null ? "None" : "Playlist chosen"); }
         if (CoverMode != ViewCoverMode.Keep) { Add("cover", "Cover", null, CoverMode == ViewCoverMode.Automatic ? "Automatic" : "A photo from this gallery"); }
-        if (Removed.Count > 0) { Add("members", "Photos", null, $"Remove {Removed.Count} {(Removed.Count == 1 ? "photo" : "photos")} from this gallery (they stay in your library)"); }
         return rows;
     }
 
@@ -206,7 +184,6 @@ public sealed class ViewGalleryEditStage
         _ruleJson = Original?.SmartRuleJson ?? VaultOriginal?.SmartRuleJson;
         CoverMode = ViewCoverMode.Keep;
         CoverItemId = null;
-        Removed.Clear();
         Raise();
     }
 

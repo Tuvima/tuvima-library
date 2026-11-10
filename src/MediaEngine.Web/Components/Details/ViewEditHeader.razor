@@ -68,7 +68,15 @@
             _ => L["ViewEdit_KindPhoto"].Value,
         };
 
-    private string Facts => Session.IsGallery ? Kind
-        : Stage.IsGroup ? ViewEditFacts.DateRange(Stage.Items) ?? string.Empty
-        : string.Join(" · ", new[] { Kind, ViewEditFacts.HeaderLine(Stage.Items[0]), Stage.Items[0].LocationName }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    private string Facts => Session.IsGallery ? string.Join(" · ", new[] { Kind, GalleryCount() }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : Stage.IsGroup ? string.Join(" · ", new[] { ViewEditFacts.DateRange(Stage.Items), ViewEditFacts.FormatSummary(Stage.Items) }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : string.Join(" · ", new[] { Kind, ViewEditFacts.HeaderLine(Stage.Items[0]) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    // "40 photos" for a gallery that has its photos (a saved one, or a new one started from a selection).
+    private string? GalleryCount()
+    {
+        var gallery = Session.Gallery!;
+        var count = gallery.Original?.ItemCount ?? gallery.StartingMembers.Count;
+        return count <= 0 ? null : count == 1 ? L["ViewEdit_FactGalleryOnePhoto"].Value : string.Format(L["ViewEdit_FactGalleryPhotos"].Value, count);
+    }
 }

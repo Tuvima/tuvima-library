@@ -211,7 +211,7 @@ public static partial class ViewEndpoints
             [FromQuery(Name = "added_by")] Guid[]? addedBy, bool? missing,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
-            IViewQueryOrchestrator queries, CancellationToken ct) =>
+            IViewQueryOrchestrator queries, IEditorConfigurationSource editorConfig, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (!authority.IsAuthenticated)
@@ -264,6 +264,10 @@ public static partial class ViewEndpoints
                         NextCursor = byAdded && timelinePage.HasMore && timelinePage.Items.Count > 0
                             ? ViewAddedCursor.Encode(timelinePage.Items[^1])
                             : timelinePage.NextCursor,
+                        // The View editor's photo list reads a gallery's items; the numbers it follows (config/editor.json) ride on that read.
+                        EditorLimits = galleryId is null
+                            ? null
+                            : new ViewEditorLimitsDto(editorConfig.Current.InlineSupportingFiles, editorConfig.Current.ItemListPageSize),
                     }
                     : null);
             }
