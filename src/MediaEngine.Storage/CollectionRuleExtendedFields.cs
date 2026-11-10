@@ -444,13 +444,13 @@ internal sealed class CollectionRuleExtendedFields(IDatabaseConnection db, TimeP
     private static string OnMyList(Guid viewer, Binder b)
     {
         var profile = b.Bind(GuidSql.ToBlob(viewer));
-        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_m WHERE psi_m.profile_id = {profile} AND psi_m.entity_id IN ({LineageWorkIds}))";
+        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_m WHERE psi_m.profile_id = {profile} AND psi_m.entity_kind <> 'Song' AND psi_m.entity_id IN ({LineageWorkIds}))";
     }
 
     private static string Favourite(Guid viewer, Binder b)
     {
         var profile = b.Bind(GuidSql.ToBlob(viewer));
-        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_f WHERE psi_f.profile_id = {profile} AND psi_f.entity_id IN ({LineageWorkIds}))";
+        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_f WHERE psi_f.profile_id = {profile} AND psi_f.entity_kind = 'Song' AND psi_f.entity_id IN ({LineageWorkIds}))";
     }
 
     // ── My library ──────────────────────────────────────────────────────────────

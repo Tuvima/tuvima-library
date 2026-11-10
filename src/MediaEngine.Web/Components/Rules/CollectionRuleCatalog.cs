@@ -117,7 +117,7 @@ public static class CollectionRuleCatalog
              new("known", "has been played"), new("unknown", "has never been played")],
             new(RuleValueProviderKind.Text));
         AddBoolean(fields, "activity", "on_my_list", "Is on My List");
-        AddBoolean(fields, "activity", "favourite", "Is a favourite");
+        AddBoolean(fields, "activity", "favourite", "Is a favorite");
 
         AddEntity(fields, "production", "filming_location", "Filming location", AppMaterialIcons.Outlined.MovieFilter, "Movies & TV");
         AddText(fields, "library", "added_within_days", "Added within days", "Filter by when an item entered your library.", AppMaterialIcons.Outlined.History, RuleOperators.Number);

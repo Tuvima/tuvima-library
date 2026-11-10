@@ -84,11 +84,11 @@
     private bool Liked => _reaction == MediaReaction.Like;
     private bool Disliked => _reaction == MediaReaction.Dislike;
 
-    private string GroupLabel => Media == PlaybackBarMedia.Music ? "Song actions" : "Item actions";
+    private string GroupLabel => Media == PlaybackBarMedia.Music ? L["PlaybackIdentity_SongActions"].Value : L["PlaybackIdentity_ItemActions"].Value;
     private string FavoriteLabel => (Media == PlaybackBarMedia.Music, Favorited) switch
     {
-        (true, true) => "Remove song from Favorites",
-        (true, false) => "Add song to Favorites",
+        (true, true) => L["PlaybackIdentity_RemoveSongFromFavorites"].Value,
+        (true, false) => L["PlaybackIdentity_AddSongToFavorites"].Value,
         (false, true) => L["MediaTile_RemoveFromMyList"].Value,
         _ => L["MediaTile_AddToMyList"].Value,
     };
@@ -152,7 +152,7 @@
         if (profile is null)
         {
             Services.GetService<IAppToastService>()?.Add(
-                subject.Kind == ProfileEntityKind.Song ? "Favorites need an active profile." : L["DetailPage_MyListRequiresAnActive"].Value, AppSeverity.Warning);
+                subject.Kind == ProfileEntityKind.Song ? L["PlaybackIdentity_FavoritesNeedProfile"].Value : L["DetailPage_MyListRequiresAnActive"].Value, AppSeverity.Warning);
             return;
         }
         if (!Current() || FavoriteSubject != subject || profile != Profile) return;

@@ -155,21 +155,23 @@ public sealed class CollectionRuleExtendedFieldTests : IDisposable
         var liked = Movie("Liked");
         var disliked = Movie("Disliked");
         Movie("Plain");
+        var favoriteSong = Movie("Favorite song", mediaType: "Music");
         SaveToMyList(_alice, listed);
+        SaveToMyList(_alice, favoriteSong, "Song");
         React(_alice, liked, "Like");
         React(_alice, disliked, "Dislike");
         React(_bob, listed, "Like");
 
         Assert.Equal([listed], Match(_alice, Rule("on_my_list", "eq", "true")));
         Assert.Empty(Match(_bob, Rule("on_my_list", "eq", "true")));
-        Assert.Equal([listed], Match(_alice, Rule("favourite", "eq", "true")));
+        Assert.Equal([favoriteSong], Match(_alice, Rule("favourite", "eq", "true")));
         Assert.Empty(Match(_bob, Rule("favourite", "eq", "true")));
         Assert.Equal([liked], Match(_alice, Rule("your_rating", "eq", "like")));
         Assert.Empty(Match(_alice, Rule("your_rating", "eq", "love")));
         Assert.Equal([disliked], Match(_alice, Rule("your_rating", "eq", "dislike")));
         Assert.Equal([listed], Match(_bob, Rule("your_rating", "eq", "like")));
-        Assert.Equal(2, Match(_alice, Rule("your_rating", "eq", "unrated")).Count);
-        Assert.Equal(3, Match(_alice, Rule("on_my_list", "eq", "false")).Count);
+        Assert.Equal(3, Match(_alice, Rule("your_rating", "eq", "unrated")).Count);
+        Assert.Equal(4, Match(_alice, Rule("on_my_list", "eq", "false")).Count);
     }
 
     [Fact]
@@ -500,12 +502,12 @@ public sealed class CollectionRuleExtendedFieldTests : IDisposable
             new { profile, workId, plays, at = lastPlayed.ToString("O") });
     }
 
-    private void SaveToMyList(Guid profile, Guid workId)
+    private void SaveToMyList(Guid profile, Guid workId, string entityKind = "Movie")
     {
         using var conn = _db.CreateConnection();
         conn.Execute(
-            "INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@profile, 'Movie', @workId, @at);",
-            new { profile, workId, at = Now.ToString("O") });
+            "INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@profile, @entityKind, @workId, @at);",
+            new { profile, entityKind, workId, at = Now.ToString("O") });
     }
 
     private void React(Guid profile, Guid workId, string reaction)

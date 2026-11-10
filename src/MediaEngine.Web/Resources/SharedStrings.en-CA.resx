@@ -113,4 +113,13 @@
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
     <value>Font, colours and opacity</value>
   </data>
+  <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
+    <value>Add song to Favourites</value>
+  </data>
+  <data name="PlaybackIdentity_RemoveSongFromFavorites" xml:space="preserve">
+    <value>Remove song from Favourites</value>
+  </data>
+  <data name="PlaybackIdentity_FavoritesNeedProfile" xml:space="preserve">
+    <value>Favourites need an active profile.</value>
+  </data>
 </root>

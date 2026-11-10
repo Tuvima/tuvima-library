@@ -161,7 +161,7 @@
     private IReadOnlyList<SurfaceTabItem> NavigationItems =>
     [
         new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
-        new("my-list", "My List", AppMaterialIcons.Filled.Favorite, _saved.Count),
+        new("my-list", "My List", AppMaterialIcons.Filled.Favorite, _saved.Count(s => s.EntityKind != ProfileEntityKind.Song)),
         new("favorites", "Favorites", AppMaterialIcons.Outlined.FavoriteBorder, FavoriteStates.Count),
         new("liked", "Liked", AppMaterialIcons.Outlined.ThumbUp, LikedStates.Count),
         new("collections", "Collections", AppMaterialIcons.Outlined.CollectionsBookmark, _collections.Count),
