@@ -133,7 +133,7 @@ internal sealed class BackupOrchestrator(
     /// Fetches a backup from a destination and stages it with the existing safe restore, which refuses unsafe entries, secrets and
     /// zip bombs exactly as for an uploaded backup (applied at the next start; the current data is kept as a pre-restore copy).
     /// </summary>
-    public async Task<MediaEngine.Contracts.System.ScheduleRestoreResultDto> RestoreFromDestinationAsync(IBackupDestination destination, string name, CancellationToken ct)
+    public async Task<MediaEngine.Contracts.System.ScheduleRestoreResultDto> RestoreFromDestinationAsync(IBackupDestination destination, string name, CancellationToken ct, string? keysPin = null)
     {
         if (string.IsNullOrWhiteSpace(name) || !string.Equals(name, Path.GetFileName(name), StringComparison.Ordinal) || !name.StartsWith(NamePrefix, StringComparison.Ordinal))
         {
@@ -158,7 +158,7 @@ internal sealed class BackupOrchestrator(
                 await source.CopyToAsync(target, ct).ConfigureAwait(false);
             }
 
-            return backups.ScheduleRestore(restoredName);
+            return backups.ScheduleRestore(restoredName, keysPin);
         }
         catch
         {

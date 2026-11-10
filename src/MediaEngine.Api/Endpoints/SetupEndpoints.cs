@@ -8,6 +8,7 @@ using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
+using MediaEngine.Contracts.System;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Identity.Contracts;
@@ -465,7 +466,7 @@ public static class SetupEndpoints
         group.MapPost("/restore/{operationId:guid}/confirm", async (
             Guid operationId, HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
             DatabaseBackupService backups, OnboardingRepository onboarding,
-            IHostApplicationLifetime lifetime, CancellationToken ct) =>
+            IHostApplicationLifetime lifetime, CancellationToken ct, [FromBody] ConfirmSetupRestoreRequest? body = null) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -474,7 +475,7 @@ public static class SetupEndpoints
 
             try
             {
-                var result = backups.ConfirmUploadedRestore(operationId, onboarding);
+                var result = backups.ConfirmUploadedRestore(operationId, onboarding, body?.KeysPin);
                 if (ContainerEnvironment.IsContainer())
                 {
                     _ = Task.Run(async () =>

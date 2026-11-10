@@ -62,7 +62,7 @@ public partial interface IEngineApiClient
     /// <summary>GET /system/resources — Engine version, uptime, processor, memory and disk space; <c>null</c> when the Engine could not be asked.</summary>
     Task<SystemResourcesDto?> GetSystemResourcesAsync(CancellationToken ct = default);
 
-    Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default);
+    Task<BackupArchiveDto?> CreateBackupAsync(string? keysPin = null, CancellationToken ct = default);
 
     Task<byte[]?> DownloadBackupAsync(string fileName, CancellationToken ct = default);
 
@@ -78,7 +78,7 @@ public partial interface IEngineApiClient
     /// <summary>PUT /system/backups/waiting-period: how many days restored progress waits for its files. Returns the new state, or <c>null</c> when it was not saved.</summary>
     Task<BackupStateDto?> SetBackupWaitingPeriodAsync(int days, CancellationToken ct = default);
 
-    Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, CancellationToken ct = default);
+    Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, string? keysPin = null, CancellationToken ct = default);
 
     Task<IReadOnlyList<PluginSummaryResponse>> GetPluginsAsync(CancellationToken ct = default);
 

@@ -73,7 +73,13 @@
         {
         <div class="backup-actions-grid">
             <AppSettingsGroup Heading="@L["BackupRecoveryPanel_CreateBackup"].Value" Class="backup-action-card">
-                <AppButton Label="@L["BackupRecoveryPanel_CreateBackup"].Value" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
+                <AppSwitchRow Label="@L["BackupRecoveryPanel_IncludeKeys"].Value" Description="@L["BackupRecoveryPanel_IncludeKeysHelp"].Value" Value="_includeKeys" ValueChanged="@(on => _includeKeys = on)" Disabled="@_busy" />
+                @if (_includeKeys)
+                {
+                    <AppTextField Label="@L["BackupRecoveryPanel_KeysPin"].Value" Value="@_keysPin" ValueChanged="@(value => _keysPin = value ?? string.Empty)"
+                                  InputType="AppInputType.Password" MaxLength="4" HelpText="@L["BackupRecoveryPanel_KeysPinHelp"].Value" autocomplete="off" data-testid="keys-pin" />
+                }
+                <AppButton Label="@L["BackupRecoveryPanel_CreateBackup"].Value" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || (_includeKeys && !PinIsValid(_keysPin)))" Loading="@_busy" OnClick="CreateAsync" />
                 @if (_lastCreated is { } created)
                 {
                     <p data-testid="backup-created">@L["BackupRecoveryPanel_BackupCreated"] <strong>@created.FileName</strong>, @FormatBytes(created.SizeBytes).</p>
@@ -148,6 +154,11 @@
                 <div><dt>@L["BackupRecoveryPanel_ArchiveSize"]</dt><dd>@FormatBytes(_selectedRestore.SizeBytes)</dd></div>
                 <div><dt>@L["Common_Destination"]</dt><dd>@_selectedRestore.DestinationName</dd></div>
             </dl>
+            @if (_selectedRestore.IncludesKeys || !_selectedRestore.IsLocal)
+            {
+                <AppTextField Label="@L["BackupRecoveryPanel_KeysPin"].Value" Value="@_restorePin" ValueChanged="@(value => _restorePin = value ?? string.Empty)"
+                              InputType="AppInputType.Password" MaxLength="4" HelpText="@L["BackupRecoveryPanel_RestorePinHelp"].Value" autocomplete="off" data-testid="restore-keys-pin" />
+            }
         }
     </ChildContent>
     <FooterContent>
@@ -167,6 +178,11 @@
     private IReadOnlyList<BackupArchiveDto> _backups = [];
     private bool _loading = true;
     private bool _busy;
+    private bool _includeKeys;
+    private string _keysPin = string.Empty;
+    private string _restorePin = string.Empty;
+
+    private static bool PinIsValid(string pin) => pin.Length == 4 && pin.All(char.IsAsciiDigit);
     private bool _restartRequired;
     private string? _notice;
     private RestoreValidationResultDto? _lastValidation;
@@ -181,7 +197,7 @@
     private RestoreRow? LatestBackup => _rows.OrderByDescending(item => item.CreatedAt).FirstOrDefault();
 
     /// <summary>One backup in the single restore list: held on this computer or at one of the destinations.</summary>
-    private sealed record RestoreRow(string DestinationId, string DestinationName, string FileName, DateTimeOffset CreatedAt, long SizeBytes)
+    private sealed record RestoreRow(string DestinationId, string DestinationName, string FileName, DateTimeOffset CreatedAt, long SizeBytes, bool IncludesKeys = false)
     {
         public bool IsLocal => DestinationId == BackupDestinationIds.Local;
     }
@@ -217,7 +233,7 @@
     private async Task BuildRestoreListAsync(BackupSettingsResponse? settings)
     {
         var rows = _backups
-            .Select(item => new RestoreRow(BackupDestinationIds.Local, L["Backups_ThisComputer"].Value, item.FileName, item.CreatedAt, item.SizeBytes))
+            .Select(item => new RestoreRow(BackupDestinationIds.Local, L["Backups_ThisComputer"].Value, item.FileName, item.CreatedAt, item.SizeBytes, item.IncludesKeys))
             .ToList();
         var unreachable = new List<string>();
         var others = (settings?.Destinations ?? []).Where(item => item.Id != BackupDestinationIds.Local && item.IsConfigured).ToList();
@@ -242,7 +258,7 @@
         _busy = true;
         _notice = null;
         _restartRequired = false;
-        var backup = await ApiClient.CreateBackupAsync();
+        var backup = await ApiClient.CreateBackupAsync(_includeKeys ? _keysPin : null);
         if (backup is null)
         {
             Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe"].Value, AppSeverity.Error);
@@ -250,6 +266,8 @@
         else
         {
             _lastCreated = backup;
+            _includeKeys = false;
+            _keysPin = string.Empty;
             Snackbar.Add(L["BackupRecoveryPanel_RecoveryPointCreated"].Value, AppSeverity.Success);
             await LoadAsync();
         }
@@ -308,14 +326,15 @@
 
         _busy = true;
         var result = _selectedRestore.IsLocal
-            ? await ApiClient.ScheduleRestoreAsync(_selectedRestore.FileName)
-            : await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _selectedRestore.DestinationId, Name = _selectedRestore.FileName });
+            ? await ApiClient.ScheduleRestoreAsync(_selectedRestore.FileName, PinOrNull(_restorePin))
+            : await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _selectedRestore.DestinationId, Name = _selectedRestore.FileName, KeysPin = PinOrNull(_restorePin) });
         if (result?.Scheduled == true)
         {
             _notice = result.Message;
             _restartRequired = result.RestartRequired;
             _restoreDialogOpen = false;
             _selectedRestore = null;
+            _restorePin = string.Empty;
             Snackbar.Add(
                 result.RestartRequired
                     ? "Restore scheduled. Restart the Engine when ready."
@@ -328,6 +347,8 @@
         }
         _busy = false;
     }
+
+    private static string? PinOrNull(string pin) => PinIsValid(pin) ? pin : null;
 
     private static string FileOnlyLine(int count) => count == 1
         ? "1 item is matched by exact file only and may lose progress if the file changes."

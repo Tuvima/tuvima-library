@@ -15,7 +15,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task Secrets_RoundTripPerOwnerKind()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
         var provider = SecretOwner.Provider("tmdb");
         var plugin = SecretOwner.Plugin("tuvima.example");
 
@@ -33,7 +33,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task Plugin_CannotReadAnotherPluginsSecrets()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
         await store.SetAsync(SecretOwner.Plugin("plugin-a"), new Dictionary<string, string> { ["token"] = "a-secret" });
         await store.SetAsync(SecretOwner.Plugin("plugin-b"), new Dictionary<string, string> { ["token"] = "b-secret" });
 
@@ -63,7 +63,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task DefaultOwner_IsRefusedByTheStore()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
 
         await Assert.ThrowsAsync<ArgumentException>(() => store.GetAllAsync(default));
         await Assert.ThrowsAsync<ArgumentException>(() => store.SetAsync(default, new Dictionary<string, string> { ["k"] = "v" }));
@@ -71,9 +71,9 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ProviderFile_KeepsTodaysFlatShapeAndLocation()
+    public async Task ProviderFile_KeepsTodaysLocation_AndHoldsOnlyALockedEnvelope()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
 
         await store.SetAsync(SecretOwner.Provider("tmdb"), new Dictionary<string, string>
         {
@@ -83,8 +83,8 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
 
         var path = Path.Combine(ConfigDirectory, "secrets", "tmdb.json");
         using var document = JsonDocument.Parse(File.ReadAllText(path));
-        var properties = document.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString());
-        Assert.Equal(new Dictionary<string, string?> { ["api_key"] = "abc", ["pin"] = "1234" }, properties);
+        Assert.True(SecretsEnvelope.LooksLikeEnvelope(document.RootElement));
+        Assert.DoesNotContain("abc", File.ReadAllText(path));
         Assert.Empty(Directory.GetFiles(Path.Combine(ConfigDirectory, "secrets"), "*.tmp"));
         Assert.True(File.Exists(Path.Combine(ConfigDirectory, "secrets", "tmdb.json")));
     }
@@ -92,7 +92,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task PluginFile_LivesUnderSecretsPlugins()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
 
         await store.SetAsync(SecretOwner.Plugin("tuvima.example"), new Dictionary<string, string> { ["token"] = "t" });
 
@@ -102,7 +102,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task Set_KeepsTheOwnersOtherSecrets_AndReplaceDropsThem()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
         var owner = SecretOwner.Plugin("tuvima.example");
         await store.SetAsync(owner, new Dictionary<string, string> { ["one"] = "1", ["two"] = "2" });
 
@@ -117,7 +117,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task Remove_DeletesTheFileWhenTheLastSecretGoes()
     {
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
         var owner = SecretOwner.Plugin("tuvima.example");
         await store.SetAsync(owner, new Dictionary<string, string> { ["one"] = "1", ["two"] = "2" });
         var path = Path.Combine(ConfigDirectory, "secrets", "plugins", "tuvima.example.json");
@@ -147,14 +147,14 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
             command.ExecuteNonQuery();
         }
 
-        await new ConfigFolderSecretsStore(ConfigDirectory)
+        await new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")))
             .SetAsync(SecretOwner.Provider("tmdb"), new Dictionary<string, string> { ["api_key"] = "kept" });
-        await new ConfigFolderSecretsStore(ConfigDirectory)
+        await new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")))
             .SetAsync(SecretOwner.Plugin("tuvima.example"), new Dictionary<string, string> { ["token"] = "kept-too" });
 
         File.Delete(databasePath);
 
-        var afterWipe = new ConfigFolderSecretsStore(ConfigDirectory);
+        var afterWipe = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
         Assert.Equal("kept", await afterWipe.GetAsync(SecretOwner.Provider("tmdb"), "api_key"));
         Assert.Equal("kept-too", await afterWipe.GetAsync(SecretOwner.Plugin("tuvima.example"), "token"));
     }
@@ -165,7 +165,7 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
         var secretsDirectory = Path.Combine(ConfigDirectory, "secrets");
         Directory.CreateDirectory(secretsDirectory);
         File.WriteAllText(Path.Combine(secretsDirectory, "tmdb.json"), "{\"api_key\": \"super-secret-value\" oops");
-        var store = new ConfigFolderSecretsStore(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
 
         var error = await Assert.ThrowsAsync<InvalidDataException>(() => store.GetAllAsync(SecretOwner.Provider("tmdb")));
 
@@ -176,9 +176,10 @@ public sealed class ConfigFolderSecretsStoreTests : IDisposable
     [Fact]
     public async Task Loader_OverlaysProviderKeysFromTheStore()
     {
-        using var loader = new ConfigurationDirectoryLoader(ConfigDirectory);
+        var store = new ConfigFolderSecretsStore(ConfigDirectory, new FileSecretsRootKey(Path.Combine(_root, "data", "root.key")));
+        using var loader = new ConfigurationDirectoryLoader(ConfigDirectory, store);
         loader.SaveProvider(new ProviderConfiguration { Name = "contract_provider", DisplayName = "Contract Provider" });
-        await new ConfigFolderSecretsStore(ConfigDirectory).SetAsync(
+        await store.SetAsync(
             SecretOwner.Provider("contract_provider"),
             new Dictionary<string, string> { ["api_key"] = "loaded-key", ["username"] = "someone" });
 

@@ -262,6 +262,20 @@ builder.Services.AddSingleton<IDatabaseConnection>(_ =>
 // One secrets store for provider and plugin keys, kept in the config folder so it survives a data store wipe.
 var configSecrets = new ConfigFolderSecretsStore(configDirectory);
 builder.Services.AddSingleton<IConfigSecretsStore>(configSecrets);
+{
+    // Key files written by an earlier version are plain text. Lock them once; each original is removed only after the
+    // locked copy reads back correctly, and a file that cannot be converted stays as it was and is retried next start.
+    var conversion = configSecrets.ConvertPlainFiles();
+    if (conversion.Converted.Count > 0)
+    {
+        Log.Information("Locked {Count} key file(s) with the Library's root key: {Owners}", conversion.Converted.Count, string.Join(", ", conversion.Converted));
+    }
+
+    foreach (var owner in conversion.Failed)
+    {
+        Log.Warning("The key file for {Owner} could not be locked yet; it was left as it was and will be retried at the next start", owner);
+    }
+}
 
 ConfigurationDirectoryLoader configLoader;
 try
@@ -508,7 +522,8 @@ builder.Services.AddSingleton<AssetStoreCleanupService>();
 builder.Services.AddSingleton(sp => new DatabaseBackupService(
     sp.GetRequiredService<PersonalStateBackupRepository>(),
     configDirectory,
-    backupDirectory));
+    backupDirectory,
+    sp.GetRequiredService<IConfigSecretsStore>()));
 builder.Services.AddSingleton<IPendingRestoreImportService>(sp => new PendingRestoreImportService(
     sp.GetRequiredService<BackupRestoreRepository>(),
     sp.GetRequiredService<IBackupPortableValueCodec>(),

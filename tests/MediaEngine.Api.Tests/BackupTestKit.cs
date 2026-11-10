@@ -28,8 +28,8 @@ internal static class BackupTestKit
     }
 
     public static DatabaseBackupService Service(
-        DatabaseConnection database, string config, string? backup = null, IBackupPortableValueCodec? codec = null) =>
-        new(new PersonalStateBackupRepository(database, codec ?? Codec()), config, backup);
+        DatabaseConnection database, string config, string? backup = null, IBackupPortableValueCodec? codec = null, MediaEngine.Domain.Contracts.IConfigSecretsStore? secrets = null) =>
+        new(new PersonalStateBackupRepository(database, codec ?? Codec()), config, backup, secrets);
 
     public static PendingRestoreImportService Importer(
         DatabaseConnection database, string config, IBackupPortableValueCodec? codec = null, ILogger<PendingRestoreImportService>? logger = null, Action<string>? removeStagedFolder = null) =>

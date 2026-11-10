@@ -58,9 +58,28 @@ public readonly record struct SecretOwner
     }
 }
 
+/// <summary>Whether an owner's saved keys can be opened on this computer.</summary>
+public enum SecretFileState
+{
+    /// <summary>The owner has no saved keys.</summary>
+    None = 0,
+
+    /// <summary>The owner's keys can be read.</summary>
+    Readable,
+
+    /// <summary>The owner has saved keys that cannot be opened here (for example the config folder was copied to a computer without the root key). The person enters them again.</summary>
+    CannotBeRead,
+}
+
 /// <summary>
-/// The one secrets store for provider keys and plugin keys. Values live in files under the
-/// config folder, so they survive a data store wipe and are excluded from backups. Each owner can
+/// An owner's key file exists but cannot be opened on this computer. Carries the owner and a reason code only,
+/// never any content. Callers already treat <see cref="IOException"/> as "show the keys as not set".
+/// </summary>
+public sealed class SecretsUnreadableException(string message) : IOException(message);
+
+/// <summary>
+/// The one secrets store for provider keys and plugin keys. Values live in encrypted files under the
+/// config folder, so they survive a data store wipe and are excluded from backups unless the person asks (sealed with a PIN). Each owner can
 /// only reach its own secrets.
 ///
 /// SECURITY: implementations and callers MUST NOT log or return secret values anywhere an
@@ -89,4 +108,10 @@ public interface IConfigSecretsStore
 
     /// <summary>The names of the owner's configured secrets. Never values.</summary>
     Task<IReadOnlyList<string>> ListNamesAsync(SecretOwner owner, CancellationToken cancellationToken = default);
+
+    /// <summary>Whether the owner's keys exist and can be opened here. Stores that never encrypt report <see cref="SecretFileState.Readable"/>.</summary>
+    SecretFileState GetState(SecretOwner owner) => SecretFileState.Readable;
+
+    /// <summary>Every owner that has a saved key file (names only). Stores that cannot list return none.</summary>
+    IReadOnlyList<SecretOwner> ListOwners() => [];
 }

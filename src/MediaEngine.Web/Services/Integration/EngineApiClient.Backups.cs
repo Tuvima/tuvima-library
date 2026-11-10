@@ -28,9 +28,9 @@ public sealed partial class EngineApiClient
     public Task<SystemResourcesDto?> GetSystemResourcesAsync(CancellationToken ct = default) =>
         GetAsync<SystemResourcesDto>("GET /system/resources", "/system/resources", ct: ct);
 
-    public Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default) =>
+    public Task<BackupArchiveDto?> CreateBackupAsync(string? keysPin = null, CancellationToken ct = default) =>
         PostAsync<CreateBackupRequest, BackupArchiveDto>(
-            "POST /system/backups", "/system/backups", new CreateBackupRequest(), ct: ct);
+            "POST /system/backups", "/system/backups", new CreateBackupRequest(keysPin), ct: ct);
 
     public async Task<byte[]?> DownloadBackupAsync(string fileName, CancellationToken ct = default)
     {
@@ -47,11 +47,11 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, CancellationToken ct = default) =>
+    public Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, string? keysPin = null, CancellationToken ct = default) =>
         PostAsync<ScheduleRestoreRequest, ScheduleRestoreResultDto>(
             "POST /system/backups/restore",
             "/system/backups/restore",
-            new ScheduleRestoreRequest(fileName),
+            new ScheduleRestoreRequest(fileName, keysPin),
             ct: ct);
 
     public async Task<RestoreValidationResultDto?> ValidateRestoreAsync(string fileName, CancellationToken ct = default)

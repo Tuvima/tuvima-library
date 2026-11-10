@@ -14,7 +14,7 @@
         <ChildContent>
         <div class="plugin-upload app-dialog-shell__pad app-dialog-shell__pad--stretch" data-testid="plugin-upload-dialog">
             <AppAlert Tone="AppUiTone.Warning">@L["PluginUploadDialog_OnlyUploadPluginsYouTrust"]</AppAlert>
-            <p>Only plugins described entirely in JSON can be uploaded. An uploaded plugin is marked Private and arrives switched off; you see what it can do before you switch it on. Any keys it needs are kept in the config folder as plain text, and the page never shows them back.</p>
+            <p>Only plugins described entirely in JSON can be uploaded. An uploaded plugin is marked Private and arrives switched off; you see what it can do before you switch it on. Any keys it needs are kept encrypted on this server, and the page never shows them back.</p>
             <AppFileUpload T="IBrowserFile" Accept=".zip" FilesChanged="@Chosen" Disabled="@_busy">
                 <SelectedTemplate>
                     <span data-testid="plugin-upload-file">@(_file?.Name ?? "No file chosen")</span>
