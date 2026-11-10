@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Pages
 
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 
@@ -54,6 +55,9 @@
                         </AppNativeButton>
                     }
                 }
+                <AppNativeButton Class="@($"pr-ib {(_panel == "pages" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("pages"))" Tooltip="@L["PageReader_Pages"].Value" AriaLabel="@L["PageReader_Pages"].Value">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" Size="AppIconSize.Control20" />
+                </AppNativeButton>
                 <AppNativeButton Class="@($"pr-ib {(_panel == "settings" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
                 </AppNativeButton>
@@ -65,7 +69,7 @@
         @if (_state == "ready" && _pageCount > 0)
         {
             <span class="pr-count">@CountText</span>
-            <AppRangeSlider Class="pr-slider" Min="1" Max="@_pageCount" Step="1" Value="@_page" ShowTicks="false"
+            <AppRangeSlider Class="@($"pr-slider{(_rtl ? " pr-slider--rtl" : "")}")" Min="1" Max="@_pageCount" Step="1" Value="@_page" ShowTicks="false"
                             AriaLabel="@L["PageReader_Page"].Value" CommitOnChange="true" ValueChanged="OnSliderChanged" />
         }
     </footer>
@@ -83,7 +87,11 @@
                 </AppNativeButton>
             </div>
             <div class="br-panel-body">
-                @if (_panel == "contents")
+                @if (_panel == "pages")
+                {
+                    <div class="pr-grid-host" @ref="_gridHost"></div>
+                }
+                else if (_panel == "contents")
                 {
                     <ul class="br-list">
                         @foreach (var item in _outline)
@@ -165,6 +173,25 @@
         </AppPopout>
     }
 
+    @if (_state == "ready" && _endCard && _next is { } next)
+    {
+        <div class="pr-overlay pr-overlay--card">
+            <div class="pr-endcard" role="region" aria-label="@L["PageReader_NextIn", next.Series ?? _title].Value">
+                <div class="pr-endcard-pic">
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize($"/engine-image/stream/entity/work/{next.WorkId:D}/cover", 130)" alt="" />
+                </div>
+                <div>
+                    <small>@L["PageReader_NextIn", next.Series ?? _title]</small>
+                    <h3>@(next.Title ?? next.Series)</h3>
+                    <div class="pr-endcard-actions">
+                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ReadNextAsync">@L["PageReader_ReadNext"]</AppButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="BackToSeriesAsync">@L["PageReader_BackToSeries", next.Series ?? _title]</AppButton>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     @if (_state == "loading")
     {
         <div class="pr-overlay">
@@ -242,6 +269,12 @@
     private string _background = "black";
     private bool _showBookmarksOnBar;
 
+    // The Pages panel (the grid is built by the script) and the end-of-issue card
+    private ElementReference _gridHost;
+    private bool _gridMounted;
+    private MediaEngine.Contracts.Reading.ReaderNextIssueDto? _next;
+    private bool _endCard;
+
     // PDF contents and search
     private const int SearchHitLimit = 200;
     private IReadOnlyList<PdfOutlineItem> _outline = [];
@@ -258,6 +291,7 @@
     {
         "search" => L["PageReader_Search"].Value,
         "contents" => L["PageReader_Contents"].Value,
+        "pages" => L["PageReader_Pages"].Value,
         _ => L["PageReader_ReadingSettings"].Value,
     };
 
@@ -317,6 +351,11 @@
             if (_kind == "pdf")
             {
                 _outline = await _module.InvokeAsync<List<PdfOutlineItem>>("getOutline");
+            }
+            else if (!string.IsNullOrWhiteSpace(Series))
+            {
+                // Only a comic in a Series can show the next-issue card; the Engine answers 404 when no later issue is owned.
+                _next = await Api.GetReaderNextIssueAsync(AssetId);
             }
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
@@ -381,13 +420,38 @@
     }
 
     [JSInvokable]
-    public Task OnEndReached() => Task.CompletedTask;
+    public async Task OnEndReached()
+    {
+        // One more turn past the last page shows the next owned issue; with none, the last turn does nothing.
+        if (_disposed || _next is null || _endCard)
+        {
+            return;
+        }
+
+        _endCard = true;
+        await CallScriptAsync("setInputPaused", true);
+        await SavePageAsync();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnGridPick(int page)
+    {
+        await ClosePanelAsync();
+        await CallScriptAsync("goTo", page);
+    }
 
     [JSInvokable]
     public async Task OnEscape()
     {
         // Escape closes the innermost thing first and leaves the reader last.
-        if (_panel is not null)
+        if (_endCard)
+        {
+            _endCard = false;
+            await CallScriptAsync("setInputPaused", false);
+            StateHasChanged();
+        }
+        else if (_panel is not null)
         {
             await ClosePanelAsync();
         }
@@ -560,6 +624,12 @@
             return;
         }
 
+        if (_gridMounted)
+        {
+            _gridMounted = false;
+            await CallScriptAsync("unmountPageGrid");
+        }
+
         _panel = panel;
         _focusSearch = panel == "search";
         await CallScriptAsync("setInputPaused", true);
@@ -571,6 +641,12 @@
         {
             _opened = true;
             await OpenAsync();
+        }
+
+        if (_panel == "pages" && !_gridMounted)
+        {
+            _gridMounted = true;
+            await CallScriptAsync("mountPageGrid", _gridHost, Array.Empty<int>());
         }
 
         if (_focusSearch && _panel == "search" && _searchInput is not null)
@@ -654,6 +730,12 @@
 
     private async Task ClosePanelAsync()
     {
+        if (_gridMounted)
+        {
+            _gridMounted = false;
+            await CallScriptAsync("unmountPageGrid");
+        }
+
         _panel = null;
         await CallScriptAsync("setInputPaused", false);
     }
@@ -681,6 +763,37 @@
     }
 
     // ---- Leaving ------------------------------------------------------------------------------------------------
+
+    private async Task ReadNextAsync()
+    {
+        if (_next is not { } next || _exited)
+        {
+            return;
+        }
+
+        _exited = true;
+        await SavePageAsync();
+        // The next issue opens with the same layout; its direction comes from the Series.
+        if (_layout != PageReaderProfileSettings.Auto)
+        {
+            await SaveChoiceAsync(reading => PageReaderProfileSettings.SetLayout(reading, next.AssetId, _layout));
+        }
+
+        var query = ReturnCollectionId.HasValue ? $"?ReturnCollectionId={ReturnCollectionId.Value}" : string.Empty;
+        Nav.NavigateTo($"/read/{next.AssetId}{query}");
+    }
+
+    private async Task BackToSeriesAsync()
+    {
+        if (_next is not { } next || _exited)
+        {
+            return;
+        }
+
+        _exited = true;
+        await SavePageAsync();
+        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Overlay, $"/details/collection/{next.CollectionId}");
+    }
 
     private async Task ExitReader()
     {

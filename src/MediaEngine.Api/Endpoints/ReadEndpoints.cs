@@ -173,6 +173,35 @@ public static class ReadEndpoints
         .RequireClientScope(ClientApiScopes.LibraryRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
 
+        // ── Next issue (PDF and comic reader spec D13) ───────────────────
+
+        group.MapGet("/{assetId:guid}/next", async (
+            Guid assetId,
+            ClaimsPrincipal user,
+            HttpContext context,
+            IReaderNextIssueService nextIssues,
+            CancellationToken ct) =>
+        {
+            Guid? profileId = Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var profile) ? profile : null;
+            var next = await nextIssues.FindAsync(context, assetId, profileId, ct);
+            return next is null
+                ? ApiErrors.NotFound("There is no next issue.")
+                : Results.Ok(new ReaderNextIssueDto
+                {
+                    AssetId = next.AssetId,
+                    WorkId = next.WorkId,
+                    CollectionId = next.CollectionId,
+                    Series = next.Series,
+                    Title = next.Title,
+                });
+        })
+        .WithName("GetReaderNextIssue")
+        .WithSummary("Returns the next owned issue in the comic's Series, or 404 when there is none.")
+        .Produces<ReaderNextIssueDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
+
         // ── Comic pages (PDF and comic reader spec D2, D16, D18) ─────────
 
         // The page list and one page picture at a time, for CBZ, CBR and CB7 alike. Same asset gate as the file itself.

@@ -812,6 +812,10 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<ReaderNextIssueDto?> GetReaderNextIssueAsync(Guid assetId, CancellationToken ct = default) =>
+        // No later owned issue is a normal answer (404), so it is not logged as a warning.
+        GetAsync<ReaderNextIssueDto>($"GET /read/{assetId}/next", $"read/{assetId}/next", logAsWarning: false, ct: ct);
+
     public async Task<EpubBookMetadataDto?> GetBookMetadataAsync(Guid assetId, CancellationToken ct = default)
     {
         var endpoint = $"GET /read/{assetId}/metadata";

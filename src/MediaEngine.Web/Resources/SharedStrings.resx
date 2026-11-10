@@ -12635,6 +12635,18 @@
   <data name="PageReader_ClosePanel" xml:space="preserve">
     <value>Close {0}</value>
   </data>
+  <data name="PageReader_Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="PageReader_NextIn" xml:space="preserve">
+    <value>Next in {0}</value>
+  </data>
+  <data name="PageReader_ReadNext" xml:space="preserve">
+    <value>Read next</value>
+  </data>
+  <data name="PageReader_BackToSeries" xml:space="preserve">
+    <value>Back to {0}</value>
+  </data>
   <data name="PageReader_PageOf" xml:space="preserve">
     <value>Page {0} of {1}</value>
   </data>

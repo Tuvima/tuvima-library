@@ -33,6 +33,28 @@ public sealed class ComicPageDto
     public int Height { get; init; }
 }
 
+/// <summary>The next owned issue in a comic's Series, shown on the card after the last page.</summary>
+public sealed class ReaderNextIssueDto
+{
+    [JsonPropertyName("asset_id")]
+    public Guid AssetId { get; init; }
+
+    /// <summary>The next issue's Work, used for its cover.</summary>
+    [JsonPropertyName("work_id")]
+    public Guid WorkId { get; init; }
+
+    /// <summary>The Series the issues belong to, for the Back to Series button.</summary>
+    [JsonPropertyName("collection_id")]
+    public Guid CollectionId { get; init; }
+
+    [JsonPropertyName("series")]
+    public string? Series { get; init; }
+
+    /// <summary>The next issue's name, for example "Saga #13".</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+}
+
 /// <summary>Which reader opens a title: the book reader (<c>epub</c>), the page reader (<c>comic</c>, <c>pdf</c>) or none (<c>unsupported</c>).</summary>
 public sealed class ReaderFormatDto
 {

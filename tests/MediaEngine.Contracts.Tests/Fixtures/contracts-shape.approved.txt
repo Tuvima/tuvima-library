@@ -9695,6 +9695,13 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   NoteText: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderNextIssueDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Series: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderStatisticsDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   UserId: System.String | nullability=not-null | accessors=get,init

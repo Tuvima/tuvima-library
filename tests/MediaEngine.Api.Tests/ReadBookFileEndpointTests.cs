@@ -369,6 +369,87 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         return stream.ToArray();
     }
 
+    [Fact]
+    public async Task NextIssue_IsTheNextOwnedIssueInTheSeries_SkippingAMissingOne_AndNothingAfterTheLast()
+    {
+        var library = Guid.NewGuid();
+        var series = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                "INSERT INTO collections (id, display_name, collection_type) VALUES (@series, 'Saga', 'Series');",
+                new { series });
+        }
+
+        var one = await InsertBookWithIdsAsync(library, ".cbz");
+        var two = await InsertBookWithIdsAsync(library, ".cbz");
+        var three = await InsertBookWithIdsAsync(library, ".cbz");
+        await PlaceInSeriesAsync(series, one.WorkId, 1, owned: true);
+        await PlaceInSeriesAsync(series, two.WorkId, 2, owned: false);
+        await PlaceInSeriesAsync(series, three.WorkId, 3, owned: true);
+        await using var app = await StartAsync(library);
+
+        using var fromFirst = await app.Client.GetAsync($"/read/{one.AssetId:D}/next");
+        using var fromLast = await app.Client.GetAsync($"/read/{three.AssetId:D}/next");
+
+        Assert.Equal(HttpStatusCode.OK, fromFirst.StatusCode);
+        var body = await fromFirst.Content.ReadAsStringAsync();
+        Assert.Contains(three.AssetId.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(series.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.NotFound, fromLast.StatusCode);
+    }
+
+    [Fact]
+    public async Task NextIssue_IsNotFoundForAComicOutsideASeries_AndForAnIssueInAnotherLibrary()
+    {
+        var library = Guid.NewGuid();
+        var series = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                "INSERT INTO collections (id, display_name, collection_type) VALUES (@series, 'Saga', 'Series');",
+                new { series });
+        }
+
+        var alone = await InsertBookWithIdsAsync(library, ".cbz");
+        var first = await InsertBookWithIdsAsync(library, ".cbz");
+        var hidden = await InsertBookWithIdsAsync(Guid.NewGuid(), ".cbz"); // a library this person may not read
+        await PlaceInSeriesAsync(series, first.WorkId, 1, owned: true);
+        await PlaceInSeriesAsync(series, hidden.WorkId, 2, owned: true);
+        await using var app = await StartAsync(library);
+
+        using var outsideSeries = await app.Client.GetAsync($"/read/{alone.AssetId:D}/next");
+        using var onlyHiddenAfter = await app.Client.GetAsync($"/read/{first.AssetId:D}/next");
+
+        Assert.Equal(HttpStatusCode.NotFound, outsideSeries.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, onlyHiddenAfter.StatusCode);
+    }
+
+    [Fact]
+    public async Task NextIssueRoute_RequiresLibraryReadScopeAndAssetAccess()
+    {
+        await using var app = await StartAsync(Guid.NewGuid());
+        var endpoint = app.Routes.Single(route => route.RoutePattern.RawText == "/read/{assetId:guid}/next");
+
+        Assert.Contains(endpoint.Metadata.OfType<ClientScopeRequirementMetadata>(),
+            metadata => metadata.Scope == ApplicationPermissionIds.LibraryRead.Value);
+        Assert.Contains(endpoint.Metadata.OfType<CatalogueAssetAccessMetadata>(),
+            metadata => metadata.Permission == ApplicationPermissionIds.LibraryRead.Value);
+    }
+
+    private async Task PlaceInSeriesAsync(Guid series, Guid workId, double position, bool owned)
+    {
+        using var connection = _database.CreateConnection();
+        await connection.ExecuteAsync(
+            """
+            UPDATE works
+            SET collection_id = @series, ordinal = @ordinal, ordinal_sort = @position,
+                ownership = @ownership, is_catalog_only = @catalogOnly
+            WHERE id = @workId;
+            """,
+            new { series, workId, position, ordinal = (int)position, ownership = owned ? "Owned" : "Unowned", catalogOnly = owned ? 0 : 1 });
+    }
+
     private async Task<Guid> InsertBookAsync(Guid libraryId, string extension, bool writeFile = true, byte[]? content = null) =>
         (await InsertBookWithIdsAsync(libraryId, extension, writeFile, content)).AssetId;
 
@@ -444,6 +525,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         // The other reader routes share this group; they are never called here, but their services must resolve.
         builder.Services.AddSingleton<IEpubContentService>(_ => null!);
         builder.Services.AddSingleton<IReaderTitleService>(_ => new ReaderTitleService(_database));
+        builder.Services.AddScoped<IReaderNextIssueService, ReaderNextIssueService>();
         builder.Services.AddSingleton<IComicPageService>(_ => new ComicPageService(() => new ReaderConfiguration(), Path.Combine(_filesDirectory, "cache")));
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(allowedLibrary));

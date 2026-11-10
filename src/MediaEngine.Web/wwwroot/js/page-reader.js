@@ -126,6 +126,8 @@ export function dispose() {
     }
 
     state.disposed = true;
+    clearTimeout(state.peekTimer);
+    state.grid?.observer.disconnect();
     clearTimeout(state.chromeTimer);
     clearTimeout(state.resizeTimer);
     state.scrollObserver?.disconnect();
@@ -622,7 +624,13 @@ export function next() {
     }
 
     if (state.mode === "scroll") {
-        state.stage.scrollBy({ top: state.stage.clientHeight * 0.85, behavior: "auto" });
+        const stage = state.stage;
+        if (stage.scrollTop + stage.clientHeight >= stage.scrollHeight - 2) {
+            state.dotnet.invokeMethodAsync("OnEndReached");
+            return;
+        }
+
+        stage.scrollBy({ top: stage.clientHeight * 0.85, behavior: "auto" });
         return;
     }
 
@@ -759,8 +767,160 @@ function wireInput() {
     on(stage, "wheel", onWheel, { passive: false });
     on(document, "keydown", onKeyDown);
     on(state.shell, "pointermove", onShellPointerMove);
+    on(state.shell, "pointermove", onSliderPointer);
+    on(state.shell, "pointerdown", onSliderPointer);
+    on(state.shell, "pointerleave", hidePeek);
+    on(document, "pointerup", hidePeek);
+    on(document, "pointercancel", hidePeek);
     on(window, "resize", onResize);
     on(window, "orientationchange", onResize);
+}
+
+// ---- Page pictures for the slider preview and the Pages panel -----------------------------------------------------
+
+const THUMB_WIDTH = 160;
+
+function thumbWidth() {
+    return state.widths.length > 0 ? state.widths[0] : THUMB_WIDTH;
+}
+
+// A small picture of page `number` in `holder`.
+function drawThumb(holder, number) {
+    return state.source.draw(holder, number, thumbWidth());
+}
+
+// The slider preview: while the pointer is over the slider (or dragging it), a small picture of the page under it shows above it.
+function onSliderPointer(event) {
+    if (!state) {
+        return;
+    }
+
+    const slider = event.target.closest ? event.target.closest(".pr-slider") : null;
+    if (!slider || (event.pointerType !== "mouse" && event.type === "pointermove" && event.buttons === 0)) {
+        if (!slider) {
+            hidePeek();
+        }
+        return;
+    }
+
+    const rect = slider.getBoundingClientRect();
+    if (rect.width <= 0 || state.pages.length === 0) {
+        return;
+    }
+
+    let fraction = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+    if (effectiveRtl()) {
+        fraction = 1 - fraction;
+    }
+
+    const number = clamp(Math.round(1 + fraction * (state.pages.length - 1)), 1, state.pages.length);
+    let peek = state.peek;
+    if (!peek) {
+        peek = document.createElement("div");
+        peek.className = "pr-peek";
+        peek.setAttribute("aria-hidden", "true");
+        peek.innerHTML = '<div class="pr-peek-pic pr-page--loading"></div><span class="pr-peek-label"></span>';
+        slider.appendChild(peek);
+        state.peek = peek;
+    }
+
+    if (peek.parentElement !== slider) {
+        slider.appendChild(peek);
+    }
+
+    const half = 45;
+    peek.style.left = `${clamp(event.clientX - rect.left, half, Math.max(half, rect.width - half))}px`;
+    peek.hidden = false;
+    peek.querySelector(".pr-peek-label").textContent = `Page ${number}`;
+    if (peek.dataset.page !== String(number)) {
+        peek.dataset.page = String(number);
+        const pic = peek.querySelector(".pr-peek-pic");
+        pic.classList.add("pr-page--loading");
+        pic.replaceChildren();
+        const wanted = number;
+        clearTimeout(state.peekTimer);
+        // Wait a beat so a fast drag does not ask for every page it passes.
+        state.peekTimer = setTimeout(() => {
+            if (state && peek.dataset.page === String(wanted)) {
+                drawThumb(pic, wanted);
+            }
+        }, 60);
+    }
+}
+
+function hidePeek() {
+    if (state?.peek) {
+        state.peek.hidden = true;
+        clearTimeout(state.peekTimer);
+    }
+}
+
+/**
+ * The Pages panel's grid. The component gives an empty element; the grid is built here so a long comic opens at once,
+ * and a picture is only asked for when its cell scrolls into view. `marked` is the pages that carry a bookmark mark.
+ */
+export function mountPageGrid(host, marked) {
+    if (!state) {
+        return;
+    }
+
+    unmountPageGrid();
+    const markedSet = new Set(marked || []);
+    const grid = document.createElement("div");
+    grid.className = "pr-grid";
+    const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+            if (entry.isIntersecting) {
+                observer.unobserve(entry.target);
+                drawThumb(entry.target.querySelector(".pr-th-pic"), Number(entry.target.dataset.page));
+            }
+        }
+    }, { root: host.closest(".br-panel-body") || null, rootMargin: "200px" });
+
+    const first = state.current;
+    for (const page of state.pages) {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "pr-th";
+        cell.dataset.page = String(page.number);
+        cell.setAttribute("aria-label", markedSet.has(page.number) ? `Page ${page.number}, bookmarked` : `Page ${page.number}`);
+        if (page.number === first) {
+            cell.classList.add("pr-th--cur");
+            cell.setAttribute("aria-current", "true");
+        }
+
+        const pic = document.createElement("div");
+        pic.className = "pr-th-pic pr-page--loading";
+        const ratio = page.width > 0 && page.height > 0 ? page.width / page.height : 0.66;
+        pic.style.aspectRatio = String(ratio);
+        cell.appendChild(pic);
+        const label = document.createElement("span");
+        label.className = "pr-th-num";
+        label.textContent = String(page.number);
+        cell.appendChild(label);
+        if (markedSet.has(page.number)) {
+            const mark = document.createElement("i");
+            mark.className = "pr-th-bm";
+            cell.appendChild(mark);
+        }
+
+        cell.addEventListener("click", () => state?.dotnet.invokeMethodAsync("OnGridPick", page.number));
+        grid.appendChild(cell);
+        observer.observe(cell);
+    }
+
+    host.replaceChildren(grid);
+    state.grid = { host, observer };
+    const current = grid.querySelector(".pr-th--cur");
+    current?.scrollIntoView({ block: "center" });
+}
+
+export function unmountPageGrid() {
+    if (state?.grid) {
+        state.grid.observer.disconnect();
+        state.grid.host.replaceChildren();
+        state.grid = null;
+    }
 }
 
 function onShellPointerMove(event) {
@@ -781,7 +941,18 @@ function onResize() {
 }
 
 function onKeyDown(event) {
-    if (!state || state.paused || event.defaultPrevented) {
+    if (!state || event.defaultPrevented) {
+        return;
+    }
+
+    // Esc closes the innermost thing first (a panel or the end card), even while a panel has the page keys paused.
+    if (event.key === "Escape") {
+        state.dotnet.invokeMethodAsync("OnEscape");
+        event.preventDefault();
+        return;
+    }
+
+    if (state.paused) {
         return;
     }
 

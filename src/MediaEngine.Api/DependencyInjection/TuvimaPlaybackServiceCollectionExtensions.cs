@@ -60,6 +60,7 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         // Page reader (PDF and comic reader spec WP1): comic page lists and page pictures, limits from config/reader.json.
         services.AddSingleton<MediaEngine.Api.Services.Reading.ReaderConfigurationProvider>();
         services.AddSingleton<MediaEngine.Api.Services.Reading.IReaderTitleService, MediaEngine.Api.Services.Reading.ReaderTitleService>();
+        services.AddScoped<MediaEngine.Api.Services.Reading.IReaderNextIssueService, MediaEngine.Api.Services.Reading.ReaderNextIssueService>();
         services.AddSingleton<MediaEngine.Api.Services.Reading.IComicPageService, MediaEngine.Api.Services.Reading.ComicPageService>();
         services.AddSingleton<BookmarkSetService>();
         services.AddSingleton<EditorBookmarkRepository>();

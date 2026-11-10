@@ -122,6 +122,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /read/{assetId}/format  -  which reader opens the title: "epub", "comic", "pdf" or "unsupported"; plus the title lines for the top line; null when the Engine cannot say.</summary>
     Task<ReaderFormatDto?> GetReaderFormatAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>GET /read/{assetId}/next  -  the next owned issue in the comic's Series; null when there is none.</summary>
+    Task<ReaderNextIssueDto?> GetReaderNextIssueAsync(Guid assetId, CancellationToken ct = default);
+
     /// <summary>GET /read/{assetId}/toc  -  table of contents.</summary>
     Task<List<EpubTocEntryDto>> GetTableOfContentsAsync(Guid assetId, CancellationToken ct = default);
 
