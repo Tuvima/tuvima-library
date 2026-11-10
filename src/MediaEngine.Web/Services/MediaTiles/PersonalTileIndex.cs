@@ -47,10 +47,18 @@ public sealed class PersonalTileIndex
             .Distinct()
             .ToList();
 
-    /// <summary>The ids Liked (and Favorites) need from the item lookup. A liked Collection comes from the Collection catalogue.</summary>
+    /// <summary>The ids Favorites need from the item lookup: the songs the profile saved.</summary>
+    public static IReadOnlyList<Guid> FavoriteMediaIds(IEnumerable<ProfileSavedItemDto> saved) =>
+        saved
+            .Where(item => item.EntityKind == ProfileEntityKind.Song)
+            .Select(item => item.EntityId)
+            .Distinct()
+            .ToList();
+
+    /// <summary>The ids Liked needs from the item lookup. A liked Collection comes from the Collection catalogue.</summary>
     public static IReadOnlyList<Guid> ReactionMediaIds(IEnumerable<ProfileReactionDto> reactions) =>
         reactions
-            .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+            .Where(item => item.Reaction == ProfileReactionKind.Like)
             .Where(item => item.EntityKind != ProfileEntityKind.Collection)
             .Select(item => item.EntityId)
             .Distinct()
@@ -106,10 +114,10 @@ public sealed class PersonalTileIndex
             .OrderByDescending(item => item.SavedAt)
             .Select(FindSaved), documentsAllowed);
 
-    /// <summary>Liked: everything the profile marked Like or Love, newest first.</summary>
+    /// <summary>Liked: everything the profile marked Like, newest first. Favorites (saved songs) are a list, not a rating.</summary>
     public IReadOnlyList<MediaTileViewModel> Liked(IEnumerable<ProfileReactionDto> reactions, bool documentsAllowed) =>
         Resolve(reactions
-            .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+            .Where(item => item.Reaction == ProfileReactionKind.Like)
             .OrderByDescending(item => item.UpdatedAt)
             .Select(FindReaction), documentsAllowed);
 

@@ -623,7 +623,7 @@ public partial class ListenPage
             _managedCollections.Clear();
             _managedCollections.AddRange(collectionsTask.Result);
 
-            _favoriteWorkIds = (await Reactions.GetFavoriteWorkIdsAsync(_activeProfileId, ct)).ToHashSet();
+            _favoriteWorkIds = await LoadFavoriteSongIdsAsync(ct);
             _dislikedWorkIds = (await Reactions.GetDislikedWorkIdsAsync(_activeProfileId, ct)).ToHashSet();
             if (!IsCurrentLoad(loadVersion))
             {
@@ -1559,7 +1559,6 @@ public partial class ListenPage
                     [
                         new DetailAction { Key = "reaction-dislike", Label = "Not for me", Icon = "thumb_down" },
                         new DetailAction { Key = "reaction-like", Label = "I like this", Icon = "thumb_up" },
-                        new DetailAction { Key = "reaction-love", Label = "I love this", Icon = "favorite" },
                     ],
                 },
                 new DetailAction { Key = "shuffle", Label = "Shuffle", Icon = "shuffle", DisplayStyle = "icon" },
@@ -1741,12 +1740,13 @@ public partial class ListenPage
 
     private async Task ToggleFavoriteAsync(WorkViewModel work)
     {
-        var current = _favoriteWorkIds.Contains(work.Id) ? MediaReaction.Like : MediaReaction.Neutral;
-        await Reactions.SetReactionAsync(
-            work.Id,
-            current == MediaReaction.Neutral ? MediaReaction.Like : MediaReaction.Neutral,
-            _activeProfileId,
-            ProfileEntityKind.Song);
+        if (!_activeProfileId.HasValue)
+        {
+            return;
+        }
+
+        // Favorite is saved-item membership; it never sets or clears Like or Dislike.
+        await SavedItems.ToggleAsync(ProfileEntityKind.Song, work.Id);
         await RefreshReactionStateAsync();
     }
 
@@ -1865,9 +1865,23 @@ public partial class ListenPage
         return string.Equals(workCreator, album.Creator, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Favorites are the songs the profile saved (its saved items); Like and Dislike are separate reactions.</summary>
+    private async Task<HashSet<Guid>> LoadFavoriteSongIdsAsync(CancellationToken ct)
+    {
+        if (!_activeProfileId.HasValue)
+        {
+            return [];
+        }
+
+        return (await SavedItems.GetListAsync(ct))
+            .Where(item => item.EntityKind == ProfileEntityKind.Song)
+            .Select(item => item.EntityId)
+            .ToHashSet();
+    }
+
     private async Task RefreshReactionStateAsync()
     {
-        _favoriteWorkIds = (await Reactions.GetFavoriteWorkIdsAsync(_activeProfileId)).ToHashSet();
+        _favoriteWorkIds = await LoadFavoriteSongIdsAsync(CancellationToken.None);
         _dislikedWorkIds = (await Reactions.GetDislikedWorkIdsAsync(_activeProfileId)).ToHashSet();
         StateHasChanged();
     }

@@ -50,7 +50,7 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
     {
         RequireProfile(connection, transaction, profileId, token);
-        RequireTarget(connection, transaction, entityKind, entityId, allowSong: false, token);
+        RequireTarget(connection, transaction, entityKind, entityId, token);
         var now = DateTimeOffset.UtcNow;
         connection.Execute(new CommandDefinition(
             """
@@ -131,7 +131,7 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
     {
         RequireProfile(connection, transaction, profileId, token);
-        RequireTarget(connection, transaction, entityKind, entityId, allowSong: true, token);
+        RequireTarget(connection, transaction, entityKind, entityId, token);
         var now = DateTimeOffset.UtcNow;
         connection.Execute(new CommandDefinition(
             """
@@ -176,14 +176,8 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         System.Data.IDbTransaction transaction,
         ProfileEntityKind entityKind,
         Guid entityId,
-        bool allowSong,
         CancellationToken ct)
     {
-        if (!allowSong && entityKind == ProfileEntityKind.Song)
-        {
-            throw new InvalidOperationException("Songs can be favorited or added to a Playlist, but are not saved to My List.");
-        }
-
         var exists = entityKind == ProfileEntityKind.Album
             ? connection.ExecuteScalar<long>(new CommandDefinition(
                 "SELECT (SELECT COUNT(1) FROM works WHERE id = @entityId) + (SELECT COUNT(1) FROM collections WHERE id = @entityId);",

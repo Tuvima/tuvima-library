@@ -73,7 +73,7 @@ public sealed class LibraryMoveSafetyTests : IDisposable
     // ----- what people did with a title is kept ----------------------------------------------------------------------------------
 
     [Fact]
-    public async Task AHeartedSongWithPlays_KeepsItsHeartAndPlays_WhenMatchedOntoAnExistingEntry()
+    public async Task ASavedAndLikedSongWithPlays_KeepsItsFavoriteLikeAndPlays_WhenMatchedOntoAnExistingEntry()
     {
         var bestOf = _world.AddParent("Music", "The Best Of");
         var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
@@ -82,7 +82,7 @@ public sealed class LibraryMoveSafetyTests : IDisposable
         _world.Execute(
             """
             INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'Song', @song, '2026-10-01T00:00:00Z');
-            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @song, 'Love', '2026-10-05T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @song, 'Like', '2026-10-05T00:00:00Z');
             INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @entry, 'Dislike', '2026-10-02T00:00:00Z');
             INSERT INTO music_play_stats (profile_id, work_id, play_count, last_played_at) VALUES (@person, @song, 5, '2026-10-04T00:00:00Z');
             INSERT INTO music_play_stats (profile_id, work_id, play_count, last_played_at) VALUES (@person, @entry, 2, '2026-10-03T00:00:00Z');
@@ -97,14 +97,14 @@ public sealed class LibraryMoveSafetyTests : IDisposable
         Assert.True(result.IsSuccess, result.Refusal?.Message);
         Assert.False(_world.WorkExists(song));
         Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @entry;", new { entry }));
-        Assert.Equal("Love", _world.Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @entry;", new { entry }));
+        Assert.Equal("Like", _world.Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @entry;", new { entry }));
         Assert.Equal(7, _world.Scalar<long>("SELECT play_count FROM music_play_stats WHERE work_id = @entry;", new { entry }));
         Assert.Equal("2026-10-04T00:00:00Z", _world.Scalar<string>("SELECT last_played_at FROM music_play_stats WHERE work_id = @entry;", new { entry }));
         Assert.Equal("[\"entry\"]", _world.Scalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @entry;", new { entry }));
     }
 
     [Fact]
-    public async Task AnEarlierHeartOnTheEntry_IsNotOverwrittenByAnOlderOneOnTheMovedSong()
+    public async Task ALaterLikeOnTheEntry_IsNotOverwrittenByAnOlderReactionOnTheMovedSong()
     {
         var bestOf = _world.AddParent("Music", "The Best Of");
         var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
@@ -113,14 +113,14 @@ public sealed class LibraryMoveSafetyTests : IDisposable
         _world.Execute(
             """
             INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @song, 'Dislike', '2026-10-01T00:00:00Z');
-            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @entry, 'Love', '2026-10-09T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @entry, 'Like', '2026-10-09T00:00:00Z');
             """,
             new { person = Person, song, entry });
 
         var preview = await Preview([song], okComputer);
         await Commit(preview, Match(song, preview.Entries.Single().EntryKey));
 
-        Assert.Equal("Love", _world.Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @entry;", new { entry }));
+        Assert.Equal("Like", _world.Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @entry;", new { entry }));
     }
 
     [Fact]

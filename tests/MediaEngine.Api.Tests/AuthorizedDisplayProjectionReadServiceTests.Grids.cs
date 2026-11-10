@@ -281,22 +281,24 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Grid_LikedIncludesLikeAndLoveButNotDislikeNewestFirst()
+    public async Task Grid_LikedIncludesLikeButNotDislikeOrFavoriteNewestFirst()
     {
         var (context, library) = await SignInForLookupsAsync(AccountFeatureId.Watch);
         var liked = await InsertOwnedWorkWithIdAsync(library, "Liked film", "Movie");
-        var loved = await InsertOwnedWorkWithIdAsync(library, "Loved film", "Movie");
+        var favorited = await InsertOwnedWorkWithIdAsync(library, "Favorite film", "Movie");
+        var likedLater = await InsertOwnedWorkWithIdAsync(library, "Liked later film", "Movie");
         var disliked = await InsertOwnedWorkWithIdAsync(library, "Disliked film", "Movie");
         var state = new ProfileStateRepository(_database);
         await state.SetReactionAsync(ProfileForLookups, ProfileEntityKind.Movie, liked.WorkId, ProfileReactionKind.Like);
-        await state.SetReactionAsync(ProfileForLookups, ProfileEntityKind.Movie, loved.WorkId, ProfileReactionKind.Love);
+        await state.SetReactionAsync(ProfileForLookups, ProfileEntityKind.Movie, likedLater.WorkId, ProfileReactionKind.Like);
+        await state.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Movie, favorited.WorkId);
         await state.SetReactionAsync(ProfileForLookups, ProfileEntityKind.Movie, disliked.WorkId, ProfileReactionKind.Dislike);
         StampReaction(ProfileForLookups, liked.WorkId, "2026-10-01T10:00:00.0000000+00:00");
-        StampReaction(ProfileForLookups, loved.WorkId, "2026-10-02T10:00:00.0000000+00:00");
+        StampReaction(ProfileForLookups, likedLater.WorkId, "2026-10-02T10:00:00.0000000+00:00");
 
         var page = await CreateGridComposer(context).BuildGridAsync("personal", "liked", new DisplayGridQuery(), ProfileForLookups);
 
-        Assert.Equal(["Loved film", "Liked film"], GridTitles(page));
+        Assert.Equal(["Liked later film", "Liked film"], GridTitles(page));
         Assert.Equal(DisplayGridValues.RememberLiked, page!.RememberKey);
     }
 

@@ -33,7 +33,7 @@ internal sealed class DetailProjectionReader
         }
 
         using var conn = _db.CreateConnection();
-        var rows = await conn.QueryAsync<object>(new CommandDefinition(
+        var rows = await conn.QueryAsync<Guid>(new CommandDefinition(
             """
             SELECT entity_id
             FROM profile_saved_items
@@ -43,8 +43,6 @@ internal sealed class DetailProjectionReader
             cancellationToken: ct));
 
         return rows
-            .Select(StringValue)
-            .Select(value => Guid.TryParse(value, out var id) ? id : Guid.Empty)
             .Where(id => id != Guid.Empty)
             .ToHashSet();
     }
@@ -147,19 +145,4 @@ internal sealed class DetailProjectionReader
 
     private static string ToDetailRouteEntityType(DetailEntityType entityType)
         => entityType.ToString().Replace("Tv", "tv-", StringComparison.Ordinal).ToLowerInvariant();
-
-    private static string? StringValue(object? value)
-    {
-        if (value is null or DBNull)
-        {
-            return null;
-        }
-
-        if (value is byte[] bytes && bytes.Length == 16)
-        {
-            return new Guid(bytes).ToString("D");
-        }
-
-        return Convert.ToString(value);
-    }
 }

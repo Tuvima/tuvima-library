@@ -25,10 +25,10 @@ public sealed class DisplayGridPersonalReader(
             .Select(item => new DisplayGridPersonalEntry(item.EntityKind, item.EntityId, item.SavedAt))
             .ToList();
 
-    /// <summary>Liked: everything the profile marked Like or Love, newest first.</summary>
+    /// <summary>Liked: everything the profile marked Like, newest first.</summary>
     public async Task<IReadOnlyList<DisplayGridPersonalEntry>> LoadLikedAsync(Guid profileId, CancellationToken ct) =>
         (await state.GetReactionsAsync(profileId, ct).ConfigureAwait(false))
-            .Where(item => item.ProfileId == profileId && item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+            .Where(item => item.ProfileId == profileId && item.Reaction == ProfileReactionKind.Like)
             .OrderByDescending(item => item.UpdatedAt)
             .Select(item => new DisplayGridPersonalEntry(item.EntityKind, item.EntityId, item.UpdatedAt))
             .ToList();

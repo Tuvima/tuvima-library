@@ -3,11 +3,12 @@
 @using Microsoft.Extensions.DependencyInjection
 @implements IDisposable
 @inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
 
 @* The actions beside the title in the bar's identity zone (unified player v2 D5; mockup screen 1 marker 4): square 44 px buttons, 8 px apart.
    Music: Favorite, Like, Dislike and More. Audiobooks, TV and movies: Favorite (where the item supports it) and More. Favorite and a rating are
    separate buttons: Like clears Dislike and the other way round, and pressing an active rating removes it (MediaReactionService.ToggleRating).
-   Favorite also stays selected beside Like, as the song actions always did. *@
+   Favorite is membership in the profile's saved items (a song's Favorites, My List for everything else) and is independent of Like and Dislike. *@
 <div class="playback-identity-actions" role="group" aria-label="@GroupLabel" data-playback-identity-actions>
     @if (ShowReactions && CanFavorite)
     {
@@ -59,7 +60,9 @@
     [Parameter] public RenderFragment? ExtraMenuRows { get; set; }
 
     private MediaReactionService? _reactions;
+    private SavedItemService? _savedItems;
     private MediaReaction _reaction;
+    private bool _saved;
     private (Guid Id, ProfileEntityKind Kind, Guid? Profile)? _loaded;
     private long _version;
 
@@ -77,8 +80,8 @@
     };
 
     private bool CanFavorite => FavoriteSubject is not null;
-    private bool Favorited => IsFavorite ?? _reaction == MediaReaction.Love;
-    private bool Liked => _reaction is MediaReaction.Like or MediaReaction.Love;
+    private bool Favorited => IsFavorite ?? _saved;
+    private bool Liked => _reaction == MediaReaction.Like;
     private bool Disliked => _reaction == MediaReaction.Dislike;
 
     private string GroupLabel => Media == PlaybackBarMedia.Music ? "Song actions" : "Item actions";
@@ -86,8 +89,8 @@
     {
         (true, true) => "Remove song from Favorites",
         (true, false) => "Add song to Favorites",
-        (false, true) => "Remove from Favorites",
-        _ => "Add to Favorites",
+        (false, true) => L["MediaTile_RemoveFromMyList"].Value,
+        _ => L["MediaTile_AddToMyList"].Value,
     };
 
     private PlaybackControlDefinition FavoriteControl => new(PlaybackControlKey.Favorite, "Favorite",
@@ -101,7 +104,9 @@
     protected override void OnInitialized()
     {
         _reactions = Services.GetService<MediaReactionService>();
+        _savedItems = Services.GetService<SavedItemService>();
         if (_reactions is not null) _reactions.Changed += Changed;
+        if (_savedItems is not null) _savedItems.Changed += Changed;
     }
 
     protected override Task OnParametersSetAsync() => LoadAsync();
@@ -112,22 +117,26 @@
         StateHasChanged();
     });
 
-    /// <summary>Reads the reaction for the subject. Music needs it for Like and Dislike as well as Favorite; the other media only for Favorite.</summary>
+    /// <summary>Reads the subject's state: whether it is saved (Favorite) for every media, and the Like or Dislike reaction for music.</summary>
     private async Task LoadAsync(bool force = false)
     {
         var subject = FavoriteSubject;
         var profile = Profile;
-        if (_reactions is null || subject is not { } target)
+        if (subject is not { } target)
         {
             _reaction = MediaReaction.Neutral;
+            _saved = false;
             _loaded = null;
             return;
         }
         if (!force && _loaded == (target.Id, target.Kind, profile)) return;
         var version = ++_version;
-        var result = await _reactions.GetReactionAsync(target.Id, profile, target.Kind);
+        var saved = profile.HasValue && _savedItems is not null
+            && (await _savedItems.GetMembershipAsync(target.Kind, target.Id)).IsSaved;
+        var reaction = _reactions is null ? MediaReaction.Neutral : await _reactions.GetReactionAsync(target.Id, profile, target.Kind);
         if (version != _version || FavoriteSubject != subject || profile != Profile) return;
-        _reaction = result;
+        _saved = saved;
+        _reaction = reaction;
         _loaded = (target.Id, target.Kind, profile);
     }
 
@@ -138,16 +147,17 @@
             await FavoriteChanged.InvokeAsync();
             return;
         }
-        if (!Current() || FavoriteSubject is not { } subject || _reactions is null) return;
+        if (!Current() || FavoriteSubject is not { } subject || _savedItems is null) return;
         var profile = Profile;
         if (profile is null)
         {
-            Services.GetService<IAppToastService>()?.Add("Favorites need an active profile.", AppSeverity.Warning);
+            Services.GetService<IAppToastService>()?.Add(
+                subject.Kind == ProfileEntityKind.Song ? "Favorites need an active profile." : L["DetailPage_MyListRequiresAnActive"].Value, AppSeverity.Warning);
             return;
         }
-        var current = await _reactions.GetReactionAsync(subject.Id, profile, subject.Kind);
         if (!Current() || FavoriteSubject != subject || profile != Profile) return;
-        await _reactions.SetReactionAsync(subject.Id, current == MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Love, profile, subject.Kind);
+        // Favorite is saved-item membership only; it never sets or clears Like or Dislike.
+        await _savedItems.ToggleAsync(subject.Kind, subject.Id);
     }
 
     private async Task RateAsync(bool positive)
@@ -164,5 +174,6 @@
     {
         ++_version;
         if (_reactions is not null) _reactions.Changed -= Changed;
+        if (_savedItems is not null) _savedItems.Changed -= Changed;
     }
 }

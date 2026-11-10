@@ -582,6 +582,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api));
@@ -713,6 +714,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api, preferences);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
@@ -801,6 +803,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api, preferences);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
@@ -868,6 +871,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
@@ -958,6 +962,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
         AddBookmarkBarServices(api);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
@@ -1024,6 +1029,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         var actions = new AudiobookBookmarkActionService(api);
         Services.AddSingleton(actions);
         Services.AddSingleton<IAudiobookBookmarkActions>(actions);

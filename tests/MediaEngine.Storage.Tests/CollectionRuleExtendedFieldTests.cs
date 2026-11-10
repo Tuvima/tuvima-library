@@ -152,18 +152,20 @@ public sealed class CollectionRuleExtendedFieldTests : IDisposable
     public void OnMyListFavouriteAndYourRating_AreEachProfilesOwn()
     {
         var listed = Movie("Listed");
-        var loved = Movie("Loved");
+        var liked = Movie("Liked");
         var disliked = Movie("Disliked");
         Movie("Plain");
         SaveToMyList(_alice, listed);
-        React(_alice, loved, "Love");
+        React(_alice, liked, "Like");
         React(_alice, disliked, "Dislike");
         React(_bob, listed, "Like");
 
         Assert.Equal([listed], Match(_alice, Rule("on_my_list", "eq", "true")));
         Assert.Empty(Match(_bob, Rule("on_my_list", "eq", "true")));
-        Assert.Equal([loved], Match(_alice, Rule("favourite", "eq", "true")));
-        Assert.Equal([loved], Match(_alice, Rule("your_rating", "eq", "love")));
+        Assert.Equal([listed], Match(_alice, Rule("favourite", "eq", "true")));
+        Assert.Empty(Match(_bob, Rule("favourite", "eq", "true")));
+        Assert.Equal([liked], Match(_alice, Rule("your_rating", "eq", "like")));
+        Assert.Empty(Match(_alice, Rule("your_rating", "eq", "love")));
         Assert.Equal([disliked], Match(_alice, Rule("your_rating", "eq", "dislike")));
         Assert.Equal([listed], Match(_bob, Rule("your_rating", "eq", "like")));
         Assert.Equal(2, Match(_alice, Rule("your_rating", "eq", "unrated")).Count);

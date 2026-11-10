@@ -387,7 +387,7 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at)
             VALUES (@person, @source, '["mine"]', 1, '2026-10-01T00:00:00Z');
             INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at)
-            VALUES (@person, 'TvShow', @source, 'Love', '2026-10-01T00:00:00Z');
+            VALUES (@person, 'TvShow', @source, 'Like', '2026-10-01T00:00:00Z');
             """, new { person, source = _source, asset = _asset, bookmark = Guid.NewGuid() });
     }
 

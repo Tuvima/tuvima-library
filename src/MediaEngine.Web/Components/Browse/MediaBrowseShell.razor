@@ -25,7 +25,7 @@
 @inject EditorHost Editor
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
-@inject MediaReactionService Reactions
+@inject SavedItemService SavedItems
 @inject PlaybackSessionController Playback
 @inject ListenAudioDragService AudioDrag
 @inject NavigationManager Nav
@@ -1795,10 +1795,20 @@
             return;
         }
         var kind = IsMusicSongsGrouping ? ProfileEntityKind.Song : ProfileEntityKindForBrowse();
-        var current = await Reactions.GetReactionAsync(workId, _activeProfileId, kind);
-        var next = current is MediaReaction.Like or MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Like;
-        await Reactions.SetReactionAsync(workId, next, _activeProfileId, kind);
-        Snackbar.Add(next == MediaReaction.Neutral ? "Removed from Favorites." : "Added to Favorites.", AppSeverity.Success);
+        // The heart is saved-item membership (a song's Favorites, My List for everything else); it never sets or clears Like or Dislike.
+        var membership = await SavedItems.ToggleAsync(kind, workId);
+        if (membership is null)
+        {
+            Snackbar.Add(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppSeverity.Warning);
+            return;
+        }
+
+        var isSong = kind == ProfileEntityKind.Song;
+        Snackbar.Add(
+            membership.IsSaved
+                ? L[isSong ? "ViewPage_FavoriteAdded" : "MediaTile_AddedToMyList"].Value
+                : L[isSong ? "ViewPage_FavoriteRemoved" : "MediaTile_RemovedFromMyList"].Value,
+            AppSeverity.Success);
         await LoadBrowseContentAsync();
     }
 

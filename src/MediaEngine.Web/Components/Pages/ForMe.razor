@@ -178,8 +178,9 @@
         ("collections", "Collections"),
     ];
 
-    private IReadOnlyList<ProfileReactionDto> FavoriteStates => _reactions
-        .Where(item => item.EntityKind == ProfileEntityKind.Song && item.Reaction == ProfileReactionKind.Love)
+    // Favorites are the songs the profile saved (the heart); Like is a separate reaction.
+    private IReadOnlyList<ProfileSavedItemDto> FavoriteStates => _saved
+        .Where(item => item.EntityKind == ProfileEntityKind.Song)
         .ToList();
 
     private IReadOnlyList<MediaTileViewModel> SavedItems => SortItems(FilterArea(
@@ -201,15 +202,15 @@
     }
 
     private IReadOnlyList<ProfileReactionDto> LikedStates => _reactions
-        .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+        .Where(item => item.Reaction == ProfileReactionKind.Like)
         .ToList();
 
     private IReadOnlyList<MediaTileViewModel> LikedItems => SortItems(FilterArea(_index.Liked(_reactions, _documentsAllowed)),
         LikedStates.GroupBy(item => (item.EntityKind, item.EntityId)).ToDictionary(group => group.Key, group => group.Max(item => item.UpdatedAt)));
 
     private IReadOnlyList<MediaTileViewModel> FavoriteItems => SortItems(FilterArea(
-        FavoriteStates.Select(_index.FindReaction).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
-        FavoriteStates.ToDictionary(item => (item.EntityKind, item.EntityId), item => item.UpdatedAt));
+        FavoriteStates.Select(_index.FindSaved).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
+        FavoriteStates.ToDictionary(item => (item.EntityKind, item.EntityId), item => item.SavedAt));
 
     private IReadOnlyList<MediaTileViewModel> ActiveItems => ActiveView switch
     {
@@ -250,8 +251,8 @@
     private string ViewDescription => ActiveView switch
     {
         "my-list" => "Movies, shows, books, albums, Collections, and shared Playlists you saved for later.",
-        "favorites" => "Media and songs you marked as something you like or love.",
-        "liked" => "Everything you marked Like or Love, across movies, shows, books, audiobooks, albums and songs.",
+        "favorites" => "Songs you added to Favorites with the heart.",
+        "liked" => "Everything you marked Like, across movies, shows, books, audiobooks, albums and songs.",
         "collections" => "Collections owned by this profile. Library-wide Collections remain in Collections unless you save one.",
         "playlists" => "Manual and Smart Playlists owned by this profile.",
         "galleries" => "Galleries from this profile's Personal Space.",
@@ -272,7 +273,7 @@
     {
         "my-list" => "Use Add to My List on a media or Collection detail page to save it here.",
         "favorites" => "Use the heart on a song to add it to Favorites.",
-        "liked" => "Use Like or Love on a title to see it here.",
+        "liked" => "Use Like on a title to see it here.",
         "collections" => "Create a personal Collection to organize media for this profile.",
         "playlists" => "Create a Playlist from Listen or add songs to a new Playlist.",
         "galleries" => "Create a Gallery from View to organize personal photos and videos.",
@@ -313,6 +314,7 @@
 
             // Saved, liked and favorite ids resolve through the Engine's direct item lookup, not through lane pages, which stop at a fixed size.
             var mediaIds = PersonalTileIndex.SavedMediaIds(await savedTask)
+                .Concat(PersonalTileIndex.FavoriteMediaIds(await savedTask))
                 .Concat(PersonalTileIndex.ReactionMediaIds(await reactionsTask))
                 .Distinct()
                 .ToList();

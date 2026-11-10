@@ -28,7 +28,6 @@ public static class DetailActionKeys
     public const string MyList = "my-list";
     public const string ReactionDislike = "reaction-dislike";
     public const string ReactionLike = "reaction-like";
-    public const string ReactionLove = "reaction-love";
     public const string Details = "details";
     /// <summary>A video's "..." shortcut that opens the editor on Match (shown only for a video not yet matched).</summary>
     public const string Identify = "identify";
@@ -80,7 +79,6 @@ public static class DetailActionKeys
         MyList,
         ReactionDislike,
         ReactionLike,
-        ReactionLove,
         Details,
         Identify,
         ChangeThumbnail,

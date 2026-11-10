@@ -298,7 +298,7 @@ public sealed class VideoOverlayTests : AsyncBunitContext
         var (cut, _, _) = RenderHost(Episode(), canPictureInPicture: false, device);
 
         Assert.Single(cut.FindAll("[data-video-phone-header] [data-playback-identity-actions]"));
-        Assert.Empty(cut.FindAll("[data-video-phone-header] [aria-label='Add to Favorites']"));
+        Assert.Empty(cut.FindAll("[data-video-phone-header] [aria-label='Add to My List']"));
         Assert.Empty(cut.FindAll(".playback-shell--phone .playback-identity"));
         Assert.Contains("Shimmer and Shine", cut.Find(".video-playback-host__phone-title").TextContent);
     }
