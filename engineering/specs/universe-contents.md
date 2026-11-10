@@ -2,6 +2,8 @@
 
 > **Status:** In progress · **Version:** 2 · **Last updated:** 2026-11-04 · **Related docs:** [Product overview](../product/overview.md) · [Universes spec (v4, In progress)](universe.md) · [Universal editor v3](universal-editor-v3.md) · [Plugin architecture](plugin-architecture.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md)
 
+> **Version note (2026-11-10):** parts superseded by [universal-editor-v5](universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): 4.4's editor description: the tabs stay Details, Pictures, Match and History, but provider facts are locked with no unlock and only the override fields (description override, aliases, extra pictures) can be edited.
+
 ## 0. Where we are today (read from the code; nothing was run)
 
 - A Universe stores **five kinds of thing** in one table (`fictional_entities`): Character, Location (shown as "Places"), Organization (shown as "Factions"/"organisations"), Event and Object. Each is identified by a Wikidata ID (required and unique), and links to the Works it appears in (with role, time and spoiler information).

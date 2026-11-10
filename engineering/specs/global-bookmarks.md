@@ -2,6 +2,8 @@
 
 > **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; stage 3 PDF/comic parked until a reader exists) · **Version:** 4 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
 
+> **Version note (2026-11-10):** parts superseded by [universal-editor-v5](universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): D2 (Everyone's), D3 (Promote, now staged inside the editor), D4 and D6 to D9 (Find bookmarks, compare, Export) move from the player to the editor's Bookmarks tab for administrators (D37, WP15), "Global" is now "Everyone's", and a title gains a definitive set that Everyone's pools from the profiles until one exists; the store, closeness config and merge rule stay.
+
 ## 1. Goal
 
 People bookmark a film for themselves. An administrator can see what the household bookmarked and promote the good ones to **Global**, so everybody gets them. Bookmarks from outside (another library, later Tuvima itself) arrive through a "Find bookmarks" panel in the player that works like Find another subtitles and lyrics, with a side-by-side check against what you already have. Everything happens in the player; there is no Settings page and no bulk import.

@@ -4,7 +4,7 @@ namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
 /// Small rules for the Universe editor (universal editor v4, WP11): which subjects it covers, what its tabs are called and which of them it
-/// offers. A Universe and a character, place or faction of one have Details, Pictures, Match and History, and no Files tab.
+/// offers. A Universe and a character, place or faction of one have Details, Pictures, Match and History, and no Files or Contents tab.
 /// </summary>
 public static class EditorUniverseRules
 {

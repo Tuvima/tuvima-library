@@ -71,10 +71,10 @@
 
     [Parameter] public bool CanEdit { get; set; }
 
-    /// <summary>Shows the series chooser (Match & Identity). The Contents tab turns it off and shows only the order.</summary>
+    /// <summary>Shows the series chooser (Match). The browser's order view turns it off and shows only the order.</summary>
     [Parameter] public bool ShowSeriesChooser { get; set; } = true;
 
-    /// <summary>Shows the order list (Contents). Match & Identity keeps it until its own packet narrows the panel to the series chooser.</summary>
+    /// <summary>Shows the order list (the browser). Match keeps it until its own packet narrows the panel to the series chooser.</summary>
     [Parameter] public bool ShowOrder { get; set; } = true;
 
     private PendingEditList? Pending => Session?.Pending;
