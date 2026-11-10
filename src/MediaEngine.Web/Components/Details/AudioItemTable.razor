@@ -10,7 +10,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using MediaEngine.Web.Services.Ui
 @using MediaEngine.Web.Services.Theming
-@inject MediaReactionService Reactions
+@inject SavedItemService SavedItems
 @inject ListenAudioDragService AudioDrag
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
@@ -512,13 +512,18 @@
             return;
         }
 
-        // Favourites are one profile-wide read (every reaction the profile has), so fetch it once
+        // Favorites are the profile's saved songs: one profile-wide read, so fetch it once
         // per profile for this table; toggles keep _favoriteIds current locally.
         if (_favoritesProfileId is { } loadedFor && loadedFor == profile?.Id)
             return;
 
         _favoriteIds.Clear();
-        _favoriteIds.UnionWith(await Reactions.GetFavoriteWorkIdsAsync(profile?.Id));
+        if (profile is not null)
+        {
+            _favoriteIds.UnionWith((await SavedItems.GetListAsync())
+                .Where(saved => saved.EntityKind == ProfileEntityKind.Song)
+                .Select(saved => saved.EntityId));
+        }
         _favoritesProfileId = profile?.Id;
     }
 
@@ -649,9 +654,14 @@
             return;
         }
         var id = ItemId(item);
-        var next = _favoriteIds.Contains(id) ? MediaReaction.Neutral : MediaReaction.Like;
-        await Reactions.SetReactionAsync(id, next, profile.Id, ProfileEntityKind.Song);
-        if (next == MediaReaction.Like)
+        // Favorite is saved-item membership; it never sets or clears Like or Dislike.
+        var membership = await SavedItems.ToggleAsync(ProfileEntityKind.Song, id);
+        if (membership is null)
+        {
+            return;
+        }
+
+        if (membership.IsSaved)
         {
             _favoriteIds.Add(id);
         }

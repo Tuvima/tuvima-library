@@ -18,7 +18,7 @@
 @inject IUserPlaybackPreferencesAccessor PlaybackPreferences
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject ListenAudioDragService AudioDrag
-@inject MediaReactionService Reactions
+@inject SavedItemService SavedItems
 @inject UIOrchestratorService Orchestrator
 @inject IServiceProvider Services
 @inject IJSRuntime JS
@@ -526,7 +526,7 @@
     private static string PlayerModeButtonClass(bool active) =>
         $"listen-player__mode-button {(active ? "is-active" : string.Empty)}".Trim();
 
-    private void ReactionChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
+    private void SavedItemsChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
 
     // Unified player D5: an audiobook's bar never draws chapter ticks (ticks are for bookmarks). It shows the current chapter by default,
     // or the whole book when the person picks "Book"; the Chapters list is the way to jump around.
@@ -600,7 +600,7 @@
 
     protected override void OnInitialized()
     {
-        Reactions.Changed += ReactionChanged;
+        SavedItems.Changed += SavedItemsChanged;
         TimelineScope.Changed += TimelineScopeChanged;
         _ = TimelineScope.EnsureLoadedAsync();
         _ = RefreshBarMarkersAsync();
@@ -1683,11 +1683,11 @@
             && Playback.IsMusicMode && Playback.PlaybackRequestVersion == request
             && Playback.CurrentItem?.WorkId == workId && Playback.ActiveProfileId == profileId;
         if (!Current() || profile?.Id != profileId) return;
-        var reaction = await Reactions.GetReactionAsync(workId, profileId, ProfileEntityKind.Song);
+        var membership = await SavedItems.GetMembershipAsync(ProfileEntityKind.Song, workId);
         if (!Current()) return;
         _favoriteSongId = workId;
         _favoriteProfileId = profileId;
-        _isFavorite = reaction == MediaReaction.Love;
+        _isFavorite = membership.IsSaved;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -1707,7 +1707,8 @@
         }
         if (_favoriteSongId != workId || _favoriteProfileId != profileId) await LoadFavoriteAsync();
         if (!Current()) return;
-        await Reactions.SetReactionAsync(workId, _isFavorite ? MediaReaction.Neutral : MediaReaction.Love, profile.Id, ProfileEntityKind.Song);
+        // Favorite is membership in the profile's saved items; it never sets or clears Like or Dislike.
+        await SavedItems.ToggleAsync(ProfileEntityKind.Song, workId);
         if (Current()) await LoadFavoriteAsync();
     }
 
@@ -2141,7 +2142,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        Reactions.Changed -= ReactionChanged;
+        SavedItems.Changed -= SavedItemsChanged;
         TimelineScope.Changed -= TimelineScopeChanged;
         _disposed = true;
         Playback.SetTransportHostNotReady();

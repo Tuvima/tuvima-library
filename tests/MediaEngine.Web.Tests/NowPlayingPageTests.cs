@@ -907,6 +907,7 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
         var bookmarks = new AudiobookBookmarkActionService(api);
         Services.AddSingleton(bookmarks);

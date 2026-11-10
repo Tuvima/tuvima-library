@@ -95,10 +95,10 @@ public static class CollectionRuleCatalog
             new(RuleValueProviderKind.CollectionLibrary, "collection.in_collection", SearchPlaceholder: "Search collections…", ResolvesEntities: true));
 
         AddText(fields, "recognition", "provider_rating", "Provider rating", "Filter by average provider rating.", AppMaterialIcons.Outlined.Star, RuleOperators.Number);
-        AddField(fields, "recognition", "your_rating", "Your rating", "Filter by how the profile you are using rated it: Love, Like or Dislike.",
+        AddField(fields, "recognition", "your_rating", "Your rating", "Filter by how the profile you are using rated it: Like or Dislike.",
             AppMaterialIcons.Outlined.FavoriteBorder, [RuleOperators.Is, RuleOperators.IsNot],
             new(RuleValueProviderKind.StaticOptions, "collection.your_rating",
-                [new("love", "Loved"), new("like", "Liked"), new("dislike", "Disliked"), new("unrated", "Not rated yet")]));
+                [new("like", "Liked"), new("dislike", "Disliked"), new("unrated", "Not rated yet")]));
         foreach (var field in new[] { ("award_received", "Award won"), ("award_nominated", "Award nominated"), ("award_family", "Award family"), ("nomination_family", "Nomination family") })
         {
             AddEntity(fields, "recognition", field.Item1, field.Item2, AppMaterialIcons.Outlined.EmojiEvents, "Movies & TV");
@@ -117,7 +117,7 @@ public static class CollectionRuleCatalog
              new("known", "has been played"), new("unknown", "has never been played")],
             new(RuleValueProviderKind.Text));
         AddBoolean(fields, "activity", "on_my_list", "Is on My List");
-        AddBoolean(fields, "activity", "favourite", "Is a favourite");
+        AddBoolean(fields, "activity", "favourite", "Is a favorite");
 
         AddEntity(fields, "production", "filming_location", "Filming location", AppMaterialIcons.Outlined.MovieFilter, "Movies & TV");
         AddText(fields, "library", "added_within_days", "Added within days", "Filter by when an item entered your library.", AppMaterialIcons.Outlined.History, RuleOperators.Number);

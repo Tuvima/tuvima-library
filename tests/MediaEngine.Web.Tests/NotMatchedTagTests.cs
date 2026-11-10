@@ -30,6 +30,7 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
     }

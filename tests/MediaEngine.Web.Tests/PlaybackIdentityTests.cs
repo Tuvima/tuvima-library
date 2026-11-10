@@ -21,6 +21,7 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
     private static readonly Guid SeasonId = Guid.NewGuid();
     private readonly PlaybackTransientToolCoordinator _tools = new();
     private readonly Dictionary<(ProfileEntityKind, Guid), ProfileReactionKind> _stored = [];
+    private readonly HashSet<(ProfileEntityKind, Guid)> _saved = [];
 
     public PlaybackIdentityTests()
     {
@@ -42,8 +43,21 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
                 _stored.Remove(((ProfileEntityKind)args![0]!, (Guid)args[1]!));
                 return Task.FromResult(true);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetSavedItemsAsync), _ => Task.FromResult<IReadOnlyList<ProfileSavedItemDto>>(
+                [.. _saved.Select(key => new ProfileSavedItemDto(key.Item1, key.Item2, DateTimeOffset.UtcNow, null))]));
+            stub.SetHandler(nameof(IEngineApiClient.GetSavedItemAsync), args => Task.FromResult(
+                _saved.Contains(((ProfileEntityKind)args![0]!, (Guid)args[1]!))
+                    ? new ProfileSavedItemDto((ProfileEntityKind)args[0]!, (Guid)args[1]!, DateTimeOffset.UtcNow, null) : null));
+            stub.SetHandler(nameof(IEngineApiClient.SaveItemAsync), args =>
+            {
+                _saved.Add(((ProfileEntityKind)args![0]!, (Guid)args[1]!));
+                return Task.FromResult<ProfileStateMutationDto?>(new((ProfileEntityKind)args[0]!, (Guid)args[1]!, true, null, DateTimeOffset.UtcNow));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.RemoveSavedItemAsync), args =>
+                Task.FromResult(_saved.Remove(((ProfileEntityKind)args![0]!, (Guid)args[1]!))));
         }));
         Services.AddScoped<MediaReactionService>();
+        Services.AddScoped<SavedItemService>();
         Render<AppPopoverHost>();
     }
 
@@ -316,14 +330,14 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
     {
         var actions = RenderShell(media).Find(".playback-identity__actions");
 
-        Assert.Equal(["Add to Favorites", "More actions"], ButtonLabels(actions));
+        Assert.Equal(["Add to My List", "More actions"], ButtonLabels(actions));
     }
 
     [Fact]
     public void ATvEpisodeOffersFavoriteForItsShowAndMoreAlways()
     {
         var withShow = RenderShell(PlaybackBarMedia.Tv).Find(".playback-identity__actions");
-        Assert.Equal(["Add to Favorites", "More actions"], ButtonLabels(withShow));
+        Assert.Equal(["Add to My List", "More actions"], ButtonLabels(withShow));
 
         var episode = Item(PlaybackBarMedia.Tv);
         var withoutShow = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Tv).Add(a => a.Item, episode));
@@ -368,32 +382,76 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task FavoriteIsSeparateFromTheRatingAndSavedAgainstTheMediaItself()
+    public async Task FavoriteIsASavedItemAndNotAReaction_ForASongAndForEveryOtherMedia()
     {
         var song = Item(PlaybackBarMedia.Music);
         var music = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Music).Add(a => a.Item, song)
             .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
         await music.InvokeAsync(() => music.Find("button[aria-label='Add song to Favorites']").Click());
         music.WaitForAssertion(() => Assert.Equal("true", music.Find("button[aria-label='Remove song from Favorites']").GetAttribute("aria-pressed")));
-        Assert.Equal(ProfileReactionKind.Love, _stored[(ProfileEntityKind.Song, song.WorkId)]);
+        Assert.Contains((ProfileEntityKind.Song, song.WorkId), _saved);
+        Assert.Empty(_stored);
 
         var book = Item(PlaybackBarMedia.Audiobook);
         var audiobook = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Audiobook).Add(a => a.Item, book)
             .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
-        await audiobook.InvokeAsync(() => audiobook.Find("button[aria-label='Add to Favorites']").Click());
-        audiobook.WaitForAssertion(() => Assert.Contains(((ProfileEntityKind.Audiobook, book.AudiobookWorkId!.Value)), _stored.Keys));
+        await audiobook.InvokeAsync(() => audiobook.Find("button[aria-label='Add to My List']").Click());
+        audiobook.WaitForAssertion(() => Assert.Contains((ProfileEntityKind.Audiobook, book.AudiobookWorkId!.Value), _saved));
 
         var movie = Item(PlaybackBarMedia.Movie);
         var film = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Movie).Add(a => a.Item, movie)
             .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
-        await film.InvokeAsync(() => film.Find("button[aria-label='Add to Favorites']").Click());
-        film.WaitForAssertion(() => Assert.Contains((ProfileEntityKind.Movie, movie.WorkId), _stored.Keys));
+        await film.InvokeAsync(() => film.Find("button[aria-label='Add to My List']").Click());
+        film.WaitForAssertion(() => Assert.Contains((ProfileEntityKind.Movie, movie.WorkId), _saved));
 
         var episode = Item(PlaybackBarMedia.Tv);
         var tv = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Tv).Add(a => a.Item, episode).Add(a => a.ShowWorkId, ShowId)
             .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
-        await tv.InvokeAsync(() => tv.Find("button[aria-label='Add to Favorites']").Click());
-        tv.WaitForAssertion(() => Assert.Contains((ProfileEntityKind.TvShow, ShowId), _stored.Keys));
+        await tv.InvokeAsync(() => tv.Find("button[aria-label='Add to My List']").Click());
+        tv.WaitForAssertion(() => Assert.Contains((ProfileEntityKind.TvShow, ShowId), _saved));
+        Assert.Empty(_stored);
+    }
+
+    [Fact]
+    public async Task LikeThenFavoriteKeepsBoth_UnfavoritingKeepsTheLike_AndDislikeKeepsTheFavorite()
+    {
+        var song = Item(PlaybackBarMedia.Music);
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Music).Add(a => a.Item, song)
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Like']").Click());
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Like']").GetAttribute("aria-pressed")));
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Add song to Favorites']").Click());
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Remove song from Favorites']").GetAttribute("aria-pressed")));
+        Assert.Equal("true", cut.Find("button[aria-label='Like']").GetAttribute("aria-pressed"));
+        Assert.Equal(ProfileReactionKind.Like, _stored[(ProfileEntityKind.Song, song.WorkId)]);
+        Assert.Contains((ProfileEntityKind.Song, song.WorkId), _saved);
+
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Remove song from Favorites']").Click());
+        cut.WaitForAssertion(() => Assert.Equal("false", cut.Find("button[aria-label='Add song to Favorites']").GetAttribute("aria-pressed")));
+        Assert.Equal("true", cut.Find("button[aria-label='Like']").GetAttribute("aria-pressed"));
+        Assert.Equal(ProfileReactionKind.Like, _stored[(ProfileEntityKind.Song, song.WorkId)]);
+        Assert.DoesNotContain((ProfileEntityKind.Song, song.WorkId), _saved);
+
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Add song to Favorites']").Click());
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Remove song from Favorites']").GetAttribute("aria-pressed")));
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Dislike']").Click());
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Dislike']").GetAttribute("aria-pressed")));
+        Assert.Equal("true", cut.Find("button[aria-label='Remove song from Favorites']").GetAttribute("aria-pressed"));
+        Assert.Equal(ProfileReactionKind.Dislike, _stored[(ProfileEntityKind.Song, song.WorkId)]);
+        Assert.Contains((ProfileEntityKind.Song, song.WorkId), _saved);
+    }
+
+    [Fact]
+    public void AMovieSavedFromTheDetailsPage_ShowsAsSavedOnThePlayersHeart()
+    {
+        var movie = Item(PlaybackBarMedia.Movie);
+        _saved.Add((ProfileEntityKind.Movie, movie.WorkId));
+
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Movie).Add(a => a.Item, movie)
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Remove from My List']").GetAttribute("aria-pressed")));
     }
 
     // ---- D23: the item actions menu -----------------------------------------------------------------------------------------------------

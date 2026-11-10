@@ -28,33 +28,41 @@ public sealed class ProfileStateRepositoryTests : IDisposable
         var workId = SeedWork("Movies");
 
         await _repository.SaveItemAsync(firstProfile, ProfileEntityKind.Movie, workId);
-        await _repository.SetReactionAsync(firstProfile, ProfileEntityKind.Movie, workId, ProfileReactionKind.Love);
+        await _repository.SetReactionAsync(firstProfile, ProfileEntityKind.Movie, workId, ProfileReactionKind.Like);
 
         Assert.NotNull(await _repository.GetSavedItemAsync(firstProfile, ProfileEntityKind.Movie, workId));
-        Assert.Equal(ProfileReactionKind.Love,
+        Assert.Equal(ProfileReactionKind.Like,
             (await _repository.GetReactionAsync(firstProfile, ProfileEntityKind.Movie, workId))?.Reaction);
         Assert.Null(await _repository.GetSavedItemAsync(secondProfile, ProfileEntityKind.Movie, workId));
         Assert.Null(await _repository.GetReactionAsync(secondProfile, ProfileEntityKind.Movie, workId));
 
         await _repository.RemoveSavedItemAsync(firstProfile, ProfileEntityKind.Movie, workId);
         Assert.Null(await _repository.GetSavedItemAsync(firstProfile, ProfileEntityKind.Movie, workId));
-        Assert.Equal(ProfileReactionKind.Love,
+        Assert.Equal(ProfileReactionKind.Like,
             (await _repository.GetReactionAsync(firstProfile, ProfileEntityKind.Movie, workId))?.Reaction);
     }
 
     [Fact]
-    public async Task SongCannotBeSavedButCanBeFavorited()
+    public async Task ASong_CanBeSavedAsAFavorite_AndLikedOrDislikedIndependently()
     {
         var profileId = SeedProfile("Listener");
         var songId = SeedWork("Music");
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, songId));
-        Assert.Contains("not saved to My List", error.Message, StringComparison.OrdinalIgnoreCase);
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, songId);
+        Assert.Null(await _repository.GetReactionAsync(profileId, ProfileEntityKind.Song, songId));
 
-        var reaction = await _repository.SetReactionAsync(
-            profileId, ProfileEntityKind.Song, songId, ProfileReactionKind.Like);
-        Assert.Equal(ProfileReactionKind.Like, reaction.Reaction);
+        var liked = await _repository.SetReactionAsync(profileId, ProfileEntityKind.Song, songId, ProfileReactionKind.Like);
+        Assert.Equal(ProfileReactionKind.Like, liked.Reaction);
+        Assert.NotNull(await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Song, songId));
+
+        var disliked = await _repository.SetReactionAsync(profileId, ProfileEntityKind.Song, songId, ProfileReactionKind.Dislike);
+        Assert.Equal(ProfileReactionKind.Dislike, disliked.Reaction);
+        Assert.NotNull(await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Song, songId));
+
+        await _repository.RemoveReactionAsync(profileId, ProfileEntityKind.Song, songId);
+        Assert.NotNull(await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Song, songId));
+        await _repository.RemoveSavedItemAsync(profileId, ProfileEntityKind.Song, songId);
+        Assert.Null(await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Song, songId));
     }
 
     [Fact]

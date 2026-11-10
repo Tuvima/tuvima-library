@@ -399,7 +399,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         };
         var liked = new List<ProfileReactionDto>
         {
-            new(ProfileEntityKind.Movie, cards[299].Id, ProfileReactionKind.Love, Now),
+            new(ProfileEntityKind.Movie, cards[299].Id, ProfileReactionKind.Like, Now),
         };
 
         var cut = await RenderAsync(new Data { Library = Page(cards), Saved = saved, Reactions = liked });

@@ -16,8 +16,8 @@ namespace MediaEngine.Storage;
 /// that names nobody) an activity condition matches nothing rather than guessing.
 ///
 /// Every field here reads data the Engine already keeps: <c>user_states</c> and <c>consumption_history</c> for progress
-/// and plays, <c>music_play_stats</c> for songs, <c>profile_saved_items</c> for My List, <c>profile_reactions</c> for
-/// Favourites (Love) and the viewer's rating, <c>profile_work_preferences</c> for the viewer's own tags, and the
+/// and plays, <c>music_play_stats</c> for songs, <c>profile_saved_items</c> for My List and Favourites, <c>profile_reactions</c> for
+/// the viewer's rating (Like or Dislike), <c>profile_work_preferences</c> for the viewer's own tags, and the
 /// canonical values for dates, ratings and video size.
 /// </summary>
 internal sealed class CollectionRuleExtendedFields(IDatabaseConnection db, TimeProvider clock)
@@ -306,7 +306,7 @@ internal sealed class CollectionRuleExtendedFields(IDatabaseConnection db, TimeP
 
     // ── Recognition and the viewer's own activity ───────────────────────────────
 
-    /// <summary>The viewer's rating is the reaction they gave: Love, Like or Dislike (there is no star rating per profile).</summary>
+    /// <summary>The viewer's rating is the reaction they gave: Like or Dislike (there is no star rating per profile).</summary>
     private static string? YourRating(string op, string[] values, Guid viewer, Binder b)
     {
         var profile = b.Bind(GuidSql.ToBlob(viewer));
@@ -325,7 +325,7 @@ internal sealed class CollectionRuleExtendedFields(IDatabaseConnection db, TimeP
 
         var wanted = values
             .Select(value => value.Trim().ToLowerInvariant())
-            .Where(value => value is "love" or "like" or "dislike" or "unrated")
+            .Where(value => value is "like" or "dislike" or "unrated")
             .Distinct()
             .ToList();
         if (wanted.Count == 0)
@@ -444,13 +444,13 @@ internal sealed class CollectionRuleExtendedFields(IDatabaseConnection db, TimeP
     private static string OnMyList(Guid viewer, Binder b)
     {
         var profile = b.Bind(GuidSql.ToBlob(viewer));
-        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_m WHERE psi_m.profile_id = {profile} AND psi_m.entity_id IN ({LineageWorkIds}))";
+        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_m WHERE psi_m.profile_id = {profile} AND psi_m.entity_kind <> 'Song' AND psi_m.entity_id IN ({LineageWorkIds}))";
     }
 
     private static string Favourite(Guid viewer, Binder b)
     {
         var profile = b.Bind(GuidSql.ToBlob(viewer));
-        return $"EXISTS (SELECT 1 FROM profile_reactions pr_f WHERE pr_f.profile_id = {profile} AND pr_f.reaction = 'Love' AND pr_f.entity_id IN ({LineageWorkIds}))";
+        return $"EXISTS (SELECT 1 FROM profile_saved_items psi_f WHERE psi_f.profile_id = {profile} AND psi_f.entity_kind = 'Song' AND psi_f.entity_id IN ({LineageWorkIds}))";
     }
 
     // ── My library ──────────────────────────────────────────────────────────────

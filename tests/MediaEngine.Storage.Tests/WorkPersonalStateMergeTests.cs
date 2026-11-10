@@ -154,7 +154,7 @@ public sealed class WorkPersonalStateMergeTests : IDisposable
         Execute(
             """
             INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, @entityKind, @source, '2026-10-01T00:00:00Z');
-            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, @entityKind, @source, 'Love', '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, @entityKind, @source, 'Like', '2026-10-01T00:00:00Z');
             INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @source, '["watch later"]', 1, '2026-10-01T00:00:00Z');
             INSERT INTO music_play_stats (profile_id, work_id, play_count, last_played_at) VALUES (@person, @source, 3, '2026-10-01T00:00:00Z');
             INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, position_seconds, created_at) VALUES (@bookmark, @person, @source, @asset, 12, '2026-10-01T00:00:00Z');
@@ -166,7 +166,7 @@ public sealed class WorkPersonalStateMergeTests : IDisposable
         Carry(source, target);
 
         Assert.Equal(1, Scalar<long>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @target AND entity_kind = @entityKind;", new { target, entityKind }));
-        Assert.Equal("Love", Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @target AND entity_kind = @entityKind;", new { target, entityKind }));
+        Assert.Equal("Like", Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @target AND entity_kind = @entityKind;", new { target, entityKind }));
         Assert.Equal("""["watch later"]""", Scalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @target;", new { target }));
         Assert.Equal(3, Scalar<long>("SELECT play_count FROM music_play_stats WHERE work_id = @target;", new { target }));
         Assert.Equal(1, Scalar<long>("SELECT COUNT(*) FROM audiobook_bookmarks WHERE work_id = @target;", new { target }));

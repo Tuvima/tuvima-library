@@ -91,7 +91,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
 
         var actions = cut.FindAll("[data-playback-full-actions] button");
         Assert.Single(actions);
-        Assert.Contains("Favorites", actions[0].GetAttribute("aria-label"));
+        Assert.Contains("My List", actions[0].GetAttribute("aria-label"));
     }
 
     [Fact]

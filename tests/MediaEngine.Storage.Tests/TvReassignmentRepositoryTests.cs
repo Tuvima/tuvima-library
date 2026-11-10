@@ -117,7 +117,7 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         {
             seed.Execute("""
                 INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'Movie', @movieWorkId, '2026-10-01T00:00:00Z');
-                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @movieWorkId, 'Love', '2026-10-01T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @movieWorkId, 'Like', '2026-10-01T00:00:00Z');
                 INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @movieWorkId, '["rewatch"]', 1, '2026-10-01T00:00:00Z');
                 INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@person, @assetId, 40, '2026-10-01T00:00:00Z');
                 """, new { person, movieWorkId, assetId });
@@ -148,7 +148,7 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         {
             seed.Execute("""
                 INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'TvShow', @show, '2026-10-01T00:00:00Z'), (@person, 'Movie', @movie, '2026-10-02T00:00:00Z');
-                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @show, 'Like', '2026-10-01T00:00:00Z'), (@person, 'Movie', @movie, 'Love', '2026-10-02T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @show, 'Like', '2026-10-01T00:00:00Z'), (@person, 'Movie', @movie, 'Like', '2026-10-02T00:00:00Z');
                 """, new { person, show = firstMove.ShowWorkId, movie = second.WorkId });
         }
 

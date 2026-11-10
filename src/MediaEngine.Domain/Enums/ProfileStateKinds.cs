@@ -17,5 +17,4 @@ public enum ProfileReactionKind
 {
     Like,
     Dislike,
-    Love,
 }

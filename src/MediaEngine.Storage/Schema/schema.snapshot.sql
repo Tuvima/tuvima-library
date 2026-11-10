@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0084 bookmark_definitive_sets).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0085 favorites_are_saved_items).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2314,11 +2314,11 @@ CREATE TABLE profile_person_preferences (
     PRIMARY KEY (profile_id, person_id)
 );
 
-CREATE TABLE profile_reactions (
+CREATE TABLE "profile_reactions" (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     entity_kind  TEXT NOT NULL CHECK(entity_kind IN ('Movie','TvShow','Book','Comic','Audiobook','Album','Song','Collection','Playlist')),
     entity_id    BLOB NOT NULL,
-    reaction     TEXT NOT NULL CHECK(reaction IN ('Like','Dislike','Love')),
+    reaction     TEXT NOT NULL CHECK(reaction IN ('Like','Dislike')),
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (profile_id, entity_kind, entity_id)
 );

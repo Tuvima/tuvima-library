@@ -1066,7 +1066,7 @@ else if (Model is not null)
             return;
         }
 
-        if (action.Key is DetailActionKeys.ReactionDislike or DetailActionKeys.ReactionLike or DetailActionKeys.ReactionLove)
+        if (action.Key is DetailActionKeys.ReactionDislike or DetailActionKeys.ReactionLike)
         {
             await SetReactionAsync(action);
             return;
@@ -1350,7 +1350,6 @@ else if (Model is not null)
         {
             "reaction-dislike" => MediaReaction.Dislike,
             "reaction-like" => MediaReaction.Like,
-            "reaction-love" => MediaReaction.Love,
             _ => MediaReaction.Neutral,
         };
 
@@ -1374,10 +1373,9 @@ else if (Model is not null)
         {
             item.IsSelected = item.Key switch
             {
-                "reaction-menu" => selected is MediaReaction.Like or MediaReaction.Love,
+                "reaction-menu" => selected == MediaReaction.Like,
                 "reaction-dislike" => selected == MediaReaction.Dislike,
-                "reaction-like" => selected is MediaReaction.Like or MediaReaction.Love,
-                "reaction-love" => selected == MediaReaction.Love,
+                "reaction-like" => selected == MediaReaction.Like,
                 _ => item.IsSelected,
             };
             SetReactionSelection(item.Children, selected);

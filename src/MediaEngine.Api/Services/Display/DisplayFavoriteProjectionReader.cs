@@ -21,19 +21,17 @@ public sealed class DisplayFavoriteProjectionReader
         }
 
         using var conn = _db.CreateConnection();
-        var ids = await conn.QueryAsync<object>(new CommandDefinition(
+        var ids = await conn.QueryAsync<Guid>(new CommandDefinition(
             """
             SELECT entity_id
-            FROM profile_reactions
+            FROM profile_saved_items
             WHERE profile_id = @ProfileId
-              AND reaction = 'Love'
               AND entity_kind = 'Song';
             """,
             new { ProfileId = GuidSql.ToBlob(profileId.Value) },
             cancellationToken: ct));
 
         return ids
-            .Select(value => value is byte[] bytes && bytes.Length == 16 ? GuidSql.FromDb(bytes) : Guid.Empty)
             .Where(id => id != Guid.Empty)
             .ToHashSet();
     }

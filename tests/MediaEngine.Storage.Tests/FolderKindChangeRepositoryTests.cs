@@ -66,7 +66,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         {
             seed.Execute("""
                 INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'Movie', @movieWork, '2026-10-01T00:00:00Z');
-                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @movieWork, 'Love', '2026-10-01T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @movieWork, 'Like', '2026-10-01T00:00:00Z');
                 INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @movieWork, '["rewatch"]', 1, '2026-10-01T00:00:00Z');
                 INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@person, @assetId, 40, '2026-10-01T00:00:00Z');
                 """, new { person, movieWork, assetId });
@@ -76,7 +76,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
 
         using var conn = _db.CreateConnection();
         Assert.Equal(result.WorkId, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id = @person;", new { person }));
-        Assert.Equal("Love", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE profile_id = @person;", new { person }));
+        Assert.Equal("Like", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE profile_id = @person;", new { person }));
         Assert.Equal(result.WorkId, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
         Assert.Equal("""["rewatch"]""", conn.ExecuteScalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @id;", new { id = result.WorkId }));
         Assert.Equal(40, conn.ExecuteScalar<int>("SELECT progress_pct FROM user_states WHERE user_id = @person AND asset_id = @assetId;", new { person, assetId }));
@@ -120,7 +120,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         {
             seed.Execute("""
                 INSERT INTO editions (id, work_id) VALUES (@otherEdition, @sharedWork);
-                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @sharedWork, 'Love', '2026-10-01T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @sharedWork, 'Like', '2026-10-01T00:00:00Z');
                 """, new { otherEdition, sharedWork, person = Profile.SeedProfileId });
         }
 
@@ -187,7 +187,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
             show = seed.ExecuteScalar<Guid>("SELECT parent_work_id FROM works WHERE id = @season;", new { season });
             seed.Execute("""
                 INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'TvShow', @show, '2026-10-01T00:00:00Z');
-                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @show, 'Love', '2026-10-01T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @show, 'Like', '2026-10-01T00:00:00Z');
                 INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience)
                 VALUES (@collection, 'Favourites', 'Custom', 'library', 'materialized', 'Manual', 'Library', 'Everyone');
                 INSERT INTO collection_items (id, collection_id, work_id, sort_order) VALUES (@item, @collection, @show, 1);
@@ -201,7 +201,7 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
         Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id IN (@episode, @season);", new { episode, season }));
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @show;", new { show }));
         Assert.Equal(show, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
-        Assert.Equal("Love", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @show;", new { show }));
+        Assert.Equal("Like", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @show;", new { show }));
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM collection_items WHERE work_id = @show;", new { show }));
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM collections;"));
     }
