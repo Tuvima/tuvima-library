@@ -10208,9 +10208,6 @@
   <data name="LibraryActivity_NotLive" xml:space="preserve">
     <value>Not live</value>
   </data>
-  <data name="LibraryActivity_StartedAgo" xml:space="preserve">
-    <value>Started {0}</value>
-  </data>
   <data name="LibraryActivity_ItemsFailed" xml:space="preserve">
     <value>These items could not be loaded.</value>
   </data>

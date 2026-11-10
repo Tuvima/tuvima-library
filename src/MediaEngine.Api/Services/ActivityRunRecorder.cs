@@ -12,7 +12,8 @@ public sealed class ActivityRunRecorder(
     IActivityRunStore store,
     IVaultLibraryRepository vaultLibraries,
     TimeProvider time,
-    ILogger<ActivityRunRecorder> logger) : IActivityRunRecorder
+    ILogger<ActivityRunRecorder> logger,
+    IIngestionQueueProgressService? queue = null) : IActivityRunRecorder
 {
     /// <summary>How long a run stays open with nothing new before it completes.</summary>
     public static readonly TimeSpan QuietWindow = TimeSpan.FromMinutes(5);
@@ -115,10 +116,12 @@ public sealed class ActivityRunRecorder(
             var run = await store.FindOpenRunAsync(library, kind, now - QuietWindow, ct).ConfigureAwait(false);
             if (run is null)
             {
+                // Runs opened while another library's run of the same kind is still going belong to the same scan: one History entry.
+                var scanId = await store.FindOpenScanIdAsync(kind, now - QuietWindow, ct).ConfigureAwait(false) ?? Guid.NewGuid();
                 run = new ActivityRunRecord(
                     Guid.NewGuid(), library, kind, ActivityRunStatuses.Active,
-                    IsFirstRun: kind == ActivityRunKinds.Added && !await store.LibraryHasRunsAsync(library, ct).ConfigureAwait(false),
-                    now, now, null, 0);
+                    IsFirstRun: kind == ActivityRunKinds.Added && await IsInitialImportAsync(library, ct).ConfigureAwait(false),
+                    now, now, null, 0, scanId);
                 await store.InsertRunAsync(run, ct).ConfigureAwait(false);
             }
 
@@ -130,6 +133,22 @@ public sealed class ActivityRunRecorder(
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// A run is part of a library's first import (D14) when the library has no runs yet, or when its earlier runs are all first runs and the
+    /// Engine has been busy without a break since the first one began: a big library arrives in several waves, and every wave of the initial
+    /// load counts as first, so nothing is tagged New until the Library has actually gone quiet once.
+    /// </summary>
+    private async Task<bool> IsInitialImportAsync(string library, CancellationToken ct)
+    {
+        if (await store.GetInitialImportStartAsync(library, ct).ConfigureAwait(false) is not { } firstStarted)
+        {
+            return !await store.LibraryHasRunsAsync(library, ct).ConfigureAwait(false);
+        }
+
+        // The queue's active period runs from idle to idle; the import is still the initial one while that period began before the first run did.
+        return queue?.Current is { State: "working", StartedAt: { } periodStart } && periodStart <= firstStarted;
     }
 
     /// <summary>
