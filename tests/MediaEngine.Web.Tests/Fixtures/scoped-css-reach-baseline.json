@@ -77,15 +77,6 @@
     "src/MediaEngine.Web/Components/Details/OverviewTab.razor": [
       "tl-overview-section__more"
     ],
-    "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor": [
-      "tl-editor-header__img"
-    ],
-    "src/MediaEngine.Web/Components/Details/ViewEditRail.razor": [
-      "tl-rail__crumb",
-      "tl-rail__crumb--tile",
-      "tl-rail__img",
-      "tl-rail__option"
-    ],
     "src/MediaEngine.Web/Components/Import/ImportPreviewFrame.razor": [
       "import-frame__facts"
     ],

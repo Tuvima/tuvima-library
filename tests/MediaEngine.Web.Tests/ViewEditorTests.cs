@@ -189,7 +189,7 @@ public sealed class ViewEditorTests
     {
         var first = Photo("IMG_1.jpg");
         var second = Photo("IMG_2.jpg");
-        var session = new ViewEditSession(EngineApiClientStub.CreateDefault(), [first], new ViewEditGalleryRail(Guid.NewGuid(), "Lisbon 2026", [first, second]));
+        var session = new ViewEditSession(EngineApiClientStub.CreateDefault(), [first], new ViewEditGalleryRail(Guid.NewGuid(), "Lisbon 2026", [first, second], 2));
         session.Active.AddTag("Summer");
 
         session.SwitchTo([second]);
@@ -223,17 +223,5 @@ public sealed class ViewEditorTests
         Assert.Null(stage.Problem());
         stage.SetSmart(true);
         Assert.Equal("A Smart gallery needs at least one rule.", stage.Problem());
-    }
-
-    [Fact]
-    public void RemovingAPhotoFromAGalleryIsStagedAndCanBeTakenBack()
-    {
-        var stage = new ViewGalleryEditStage(null, null);
-        var id = Guid.NewGuid();
-
-        stage.Remove([id]);
-        Assert.Contains(id, stage.Removed);
-        stage.KeepAgain(id);
-        Assert.Empty(stage.Removed);
     }
 }

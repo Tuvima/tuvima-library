@@ -22,8 +22,8 @@
             </div>
         }
 
-        <div class="tl-editor-field">
-            <span class="tl-editor-field__label">@L["ViewEdit_DateTaken"]</span>
+        <div class="@FieldClass(ViewEditStage.LockDate)" data-field-key="date" data-locked="@(Stage.IsLocked(ViewEditStage.LockDate) ? "true" : "false")">
+            @LabelRow(ViewEditStage.LockDate, L["ViewEdit_DateTaken"].Value, () => Stage.RevertDate())
             @if (Stage.IsGroup)
             {
                 <div class="view-edit-details__row">
@@ -43,33 +43,38 @@
             else
             {
                 <AppTextField InputType="AppInputType.DateTimeLocal" Label="@L["ViewEdit_DateTaken"].Value" HideLabel="true"
-                              Value="@DateText()" ValueChanged="@(value => ApplyDate(value?.ToString()))" />
+                              Value="@DateText()" ValueChanged="@(value => ApplyDate(value?.ToString()))" ReadOnly="@Stage.IsLocked(ViewEditStage.LockDate)" />
                 @if (Stage.IsGroup && Stage.DateMode == ViewDateMode.None)
                 {
                     <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
                 }
             }
 
-            <ViewEditRevert Show="Stage.DateMode != ViewDateMode.None" Field="@L["ViewEdit_DateTaken"].Value" OnRevert="@(() => Stage.RevertDate())" />
-            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalDate())">@L["ViewEdit_UseOriginal"]</AppButton>
+            @if (!Stage.IsLocked(ViewEditStage.LockDate))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalDate())">@L["ViewEdit_UseOriginal"]</AppButton>
+            }
         </div>
 
-        <div class="tl-editor-field">
-            <span class="tl-editor-field__label">@L["ViewEdit_Place"]</span>
+        <div class="@FieldClass(ViewEditStage.LockPlace)" data-field-key="place" data-locked="@(Stage.IsLocked(ViewEditStage.LockPlace) ? "true" : "false")">
+            @LabelRow(ViewEditStage.LockPlace, L["ViewEdit_Place"].Value, () => Stage.RevertPlace())
             <AppTextField Label="@L["ViewEdit_PlaceName"].Value" HideLabel="true" Placeholder="@L["ViewEdit_PlaceName"].Value"
                           Value="@(Stage.PlaceMode == ViewPlaceMode.Set ? Stage.PlaceName ?? string.Empty : _placeText)"
+                          ReadOnly="@Stage.IsLocked(ViewEditStage.LockPlace)"
                           ValueChanged="@(value => _placeText = value?.ToString() ?? string.Empty)" />
             <div class="view-edit-details__row">
-                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@L["ViewEdit_Latitude"].Value" Value="@_lat" ValueChanged="@(value => { _lat = value?.ToString() ?? string.Empty; ApplyPlace(); })" />
-                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@L["ViewEdit_Longitude"].Value" Value="@_lon" ValueChanged="@(value => { _lon = value?.ToString() ?? string.Empty; ApplyPlace(); })" />
+                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@L["ViewEdit_Latitude"].Value" Value="@_lat" ReadOnly="@Stage.IsLocked(ViewEditStage.LockPlace)" ValueChanged="@(value => { _lat = value?.ToString() ?? string.Empty; ApplyPlace(); })" />
+                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@L["ViewEdit_Longitude"].Value" Value="@_lon" ReadOnly="@Stage.IsLocked(ViewEditStage.LockPlace)" ValueChanged="@(value => { _lon = value?.ToString() ?? string.Empty; ApplyPlace(); })" />
             </div>
             @if (Stage.IsGroup && Stage.PlaceMode == ViewPlaceMode.None)
             {
                 <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
             }
 
-            <ViewEditRevert Show="Stage.PlaceMode != ViewPlaceMode.None" Field="@L["ViewEdit_Place"].Value" OnRevert="@(() => Stage.RevertPlace())" />
-            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalPlace())">@L["ViewEdit_UseOriginal"]</AppButton>
+            @if (!Stage.IsLocked(ViewEditStage.LockPlace))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalPlace())">@L["ViewEdit_UseOriginal"]</AppButton>
+            }
         </div>
     }
     else
@@ -202,16 +207,28 @@
 
     @if (Stage.IsMedia)
     {
-        <div class="tl-editor-field">
-            <span class="tl-editor-field__label">@L["ViewEdit_People"]</span>
-            <AppTagInput Commit="CommitPersonAsync" Search="SearchNoneAsync" />
-            <ViewEditRevert Show="Stage.PeopleAdd.Count + Stage.PeopleRemove.Count > 0" Field="@L["ViewEdit_People"].Value" OnRevert="@(() => Stage.RevertPeople())" />
+        <div class="@FieldClass(ViewEditStage.LockPeople)" data-field-key="people" data-locked="@(Stage.IsLocked(ViewEditStage.LockPeople) ? "true" : "false")">
+            @LabelRow(ViewEditStage.LockPeople, L["ViewEdit_People"].Value, () => Stage.RevertPeople())
+            @if (!Stage.IsLocked(ViewEditStage.LockPeople))
+            {
+                <AppTagInput Commit="CommitPersonAsync" Search="SearchNoneAsync" />
+            }
+
             @if (Stage.ShownPeople().Count > 0)
             {
                 <ul class="view-edit-details__chips">
                     @foreach (var person in Stage.ShownPeople())
                     {
-                        <li @key="person"><AppChip Text="@person" OnClose="@(() => Stage.RemovePerson(person))" /></li>
+                        <li @key="person">
+                            @if (Stage.IsLocked(ViewEditStage.LockPeople))
+                            {
+                                <AppChip Text="@person" />
+                            }
+                            else
+                            {
+                                <AppChip Text="@person" OnClose="@(() => Stage.RemovePerson(person))" />
+                            }
+                        </li>
                     }
                 </ul>
             }
@@ -249,6 +266,37 @@
     private string _dateMode = "set", _days = string.Empty, _hours = string.Empty, _placeText = string.Empty, _lat = string.Empty, _lon = string.Empty;
 
     [Parameter, EditorRequired] public ViewEditStage Stage { get; set; } = default!;
+
+    private string FieldClass(string key) => Stage.IsLocked(key) ? "tl-editor-field tl-editor-field--form-locked" : Stage.IsChanged(key) ? "tl-editor-field tl-editor-field--changed" : "tl-editor-field";
+
+    // The label row of a field read from the file: its name, then Revert once the person has changed it, then the shared lock (Unlock, Lock, or "kept").
+    private RenderFragment LabelRow(string key, string label, Action revert) => __builder =>
+    {
+        <div class="tl-editor-field__label">
+            <span>@label</span>
+            <span class="tl-editor-field__tools">
+                @if (Stage.IsChanged(key))
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay"
+                               aria-label="@($"{L["ViewEdit_Revert"].Value}: {label}")" OnClick="@(() => revert())">@L["EditorDetailsPanel_Revert"]</AppButton>
+                }
+
+                <EditorFieldLock FieldLabel="@label" Locked="@Stage.IsLocked(key)" Changed="@Stage.IsChanged(key)" OnToggle="@(() => ToggleLock(key))" />
+            </span>
+        </div>
+    };
+
+    private void ToggleLock(string key)
+    {
+        if (Stage.IsLocked(key))
+        {
+            Stage.Unlock(key);
+        }
+        else
+        {
+            Stage.Relock(key);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

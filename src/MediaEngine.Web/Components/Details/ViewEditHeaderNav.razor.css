@@ -1,0 +1,188 @@
+/* The nav row of the View editor's header (universal editor v5 D25, mock-up screen L): the accent home button and the item dropdown with thumbnails. It
+   mirrors the library editor's nav row. The list is drawn in the top layer by AppPopover; its surface is styled globally in app.css (.view-hnav__surface). */
+.view-hnav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+    margin-top: 0.875rem;
+}
+
+.view-hnav__cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.view-hnav__dot {
+    flex: 0 0 auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary);
+}
+
+.view-hnav ::deep .view-hnav__home.is-current {
+    box-shadow: 0 0 0 2px var(--tl-accent-primary-hover);
+}
+
+.view-hnav ::deep .view-hnav__trigger {
+    gap: 0.625rem;
+    height: var(--tl-control-height-md);
+    min-width: 26.25rem;
+    max-width: 100%;
+    padding: 0 0.75rem 0 0.375rem;
+    border: 1px solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
+    color: var(--tl-text-primary);
+}
+
+.view-hnav ::deep .view-hnav__trigger:hover {
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 85%, transparent);
+}
+
+.view-hnav ::deep .view-hnav__trigger.is-open {
+    border-color: var(--tl-accent-primary);
+}
+
+.view-hnav__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.15;
+    text-align: left;
+}
+
+.view-hnav__text > small {
+    overflow: hidden;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.view-hnav__text > span,
+.view-hnav__text > b {
+    overflow: hidden;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.view-hnav__placeholder {
+    color: var(--tl-text-muted);
+    font-weight: normal;
+}
+
+/* A thumbnail is 52 by 30 in the button and 88 by 50 in the list. */
+.view-hnav__still {
+    display: inline-flex;
+    flex: 0 0 auto;
+    overflow: hidden;
+    width: 3.25rem;
+    height: 1.875rem;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-hover);
+}
+
+.view-hnav ::deep .view-hnav__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.view-hnav__panel {
+    box-sizing: border-box;
+    padding: var(--tl-space-2);
+}
+
+.view-hnav__search {
+    margin-bottom: 0.375rem;
+}
+
+.view-hnav__scroll {
+    max-height: min(32rem, 62vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.view-hnav__options {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.view-hnav__options--tail {
+    margin-top: 0.375rem;
+    padding-top: 0.375rem;
+    border-top: 1px solid var(--tl-border-strong);
+}
+
+.view-hnav__panel ::deep .view-hnav__option {
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 4rem;
+    padding: 0.375rem var(--tl-space-2);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+}
+
+.view-hnav__panel ::deep .view-hnav__option .view-hnav__still {
+    width: 5.5rem;
+    height: 3.125rem;
+    border-radius: var(--tl-radius-sm);
+}
+
+.view-hnav__panel ::deep .view-hnav__option .view-hnav__text > b {
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-medium);
+}
+
+.view-hnav__panel ::deep .view-hnav__option:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.view-hnav__panel ::deep .view-hnav__option.is-selected {
+    background: var(--tl-accent-primary-soft);
+}
+
+.view-hnav__panel ::deep .view-hnav__option.is-selected .view-hnav__text > b {
+    color: var(--tl-accent-primary-hover);
+}
+
+.view-hnav__panel ::deep .view-hnav__option--plain {
+    min-height: 2.75rem;
+    color: var(--tl-text-secondary);
+}
+
+.view-hnav__badge {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 1.75rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-accent-primary-hover);
+}
+
+.view-hnav__note,
+.view-hnav__more {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+/* Under 1180 the nav row wraps under the title and the dropdown may take the whole row. */
+@media (max-width: 1180px) {
+    .view-hnav ::deep .view-hnav__trigger {
+        min-width: 0;
+        flex: 1 1 18rem;
+    }
+}

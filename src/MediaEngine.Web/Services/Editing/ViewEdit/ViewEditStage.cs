@@ -106,6 +106,33 @@ public sealed class ViewEditStage
 
     public HashSet<string> PeopleAdd { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    // ---- Locks (universal editor v5 D25, the same locks as the library editor) ----
+    // What is read from the file (Date taken, Place, and People on a single item) starts locked: the form shows it but does not take typing until
+    // Unlock is pressed. A group's date is a shift and its people are "add", so only its Place starts locked. Unlocking stages nothing.
+    public const string LockDate = "date";
+    public const string LockPlace = "place";
+    public const string LockPeople = "people";
+
+    private readonly HashSet<string> _unlocked = new(StringComparer.Ordinal);
+
+    public void Unlock(string key) => _unlocked.Add(key);
+
+    public void Relock(string key) => _unlocked.Remove(key);
+
+    /// <summary>True when the field starts locked for this stage and has not been unlocked or changed.</summary>
+    public bool IsLocked(string key) => IsMedia && StartsLocked(key) && !_unlocked.Contains(key) && !IsChanged(key);
+
+    /// <summary>True when the person has a staged change on the field (the lock gives way to "kept" and Revert).</summary>
+    public bool IsChanged(string key) => key switch
+    {
+        LockDate => DateMode != ViewDateMode.None,
+        LockPlace => PlaceMode != ViewPlaceMode.None,
+        LockPeople => PeopleAdd.Count + PeopleRemove.Count > 0,
+        _ => false,
+    };
+
+    private bool StartsLocked(string key) => key == LockPlace || (!IsGroup && key is LockDate or LockPeople);
+
     public HashSet<string> PeopleRemove { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The tags on any chosen item, with how many items carry each (a group shows "on 12 of 40").</summary>

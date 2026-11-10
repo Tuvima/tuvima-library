@@ -8,14 +8,12 @@ namespace MediaEngine.Web.Services.Editing;
 public enum ViewEditTool
 {
     Details,
-    Contents,
     Artwork,
-    Files,
     History,
 }
 
-/// <summary>Where a photo was opened from: its gallery, and the gallery's other photos for the rail's second dropdown.</summary>
-public sealed record ViewEditGalleryRail(Guid GalleryId, string GalleryName, IReadOnlyList<LocalAssetDto> Members);
+/// <summary>Where a photo was opened from: its gallery, and the gallery's photos loaded so far for the header's item dropdown (<c>HasMore</c> when the gallery holds more).</summary>
+public sealed record ViewEditGalleryRail(Guid GalleryId, string GalleryName, IReadOnlyList<LocalAssetDto> Members, int ItemCount, bool HasMore = false);
 
 /// <summary>
 /// One open View editor (spec photos-documents-editor): the chosen items (or one gallery), what is staged on each, the tool showing, and the
@@ -90,8 +88,8 @@ public sealed class ViewEditSession : IReviewSource
     public IReadOnlyList<ViewEditTool> Tools => IsGallery
         ? Gallery is { IsDocumentView: true }
             ? [ViewEditTool.Details, ViewEditTool.History]
-            : [ViewEditTool.Details, ViewEditTool.Contents, ViewEditTool.Artwork, ViewEditTool.History]
-        : [ViewEditTool.Details, ViewEditTool.Files, ViewEditTool.History];
+            : [ViewEditTool.Details, ViewEditTool.Artwork, ViewEditTool.History]
+        : [ViewEditTool.Details, ViewEditTool.History];
 
     public ViewEditStage StageFor(IReadOnlyList<LocalAssetDto> items)
     {
@@ -184,7 +182,6 @@ public sealed class ViewEditSession : IReviewSource
                 case "rule": gallery.SetRule(gallery.Original?.SmartRuleJson ?? gallery.VaultOriginal?.SmartRuleJson); break;
                 case "soundtrack": gallery.SetSoundtrack(gallery.Original?.SoundtrackPlaylistId?.ToString("D")); break;
                 case "cover": gallery.RevertCover(); break;
-                case "members": gallery.Removed.Clear(); break;
                 default: return false;
             }
 
@@ -245,7 +242,11 @@ public sealed class ViewEditSession : IReviewSource
     /// <summary>Raised when the window should close (after a save, a discard or a delete that left nothing).</summary>
     public event Action? CloseRequested;
 
-    public async Task<bool> LeaveAsync()
+    /// <summary>
+    /// Asks "Unsaved changes" when something is staged and, once the person agrees, drops it. It does not close the window: the host uses it when the
+    /// window moves to another item or gallery, so the page that opened the window keeps waiting for the one real close.
+    /// </summary>
+    public async Task<bool> ConfirmLeaveAsync()
     {
         if (Saving)
         {
@@ -266,6 +267,16 @@ public sealed class ViewEditSession : IReviewSource
         }
 
         Gallery?.Clear();
+        return true;
+    }
+
+    public async Task<bool> LeaveAsync()
+    {
+        if (!await ConfirmLeaveAsync())
+        {
+            return false;
+        }
+
         CloseRequested?.Invoke();
         return true;
     }
@@ -408,16 +419,6 @@ public sealed class ViewEditSession : IReviewSource
             if (await _api.AddViewGalleryItemsAsync(saved.Id, [.. gallery.StartingMembers.Select(member => member.Id)]) is null)
             {
                 Message = "The gallery was saved, but its photos could not be added. Your changes are still here.";
-                return false;
-            }
-        }
-
-        if (gallery.Removed.Count > 0 && gallery.Original is { } source)
-        {
-            // Taking photos out of a gallery keeps them in the library.
-            if (await _api.RemoveViewGalleryItemsAsync(source.Id, [.. gallery.Removed]) is null)
-            {
-                Message = "The photos could not be taken out of the gallery. Your changes are still here.";
                 return false;
             }
         }

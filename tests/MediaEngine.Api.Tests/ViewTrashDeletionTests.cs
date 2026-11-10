@@ -104,6 +104,7 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
         builder.Services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
         builder.Services.AddScoped<IViewRequestProfileContext, HttpViewRequestProfileContext>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new SwitchableAuthorityResolver(_actor));
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(new MediaEngine.Api.Services.EditSession.EditorConfigurationProvider(() => null));
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
         builder.Services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
