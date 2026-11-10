@@ -400,6 +400,51 @@ public sealed class ReadBookFileEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task NextIssue_FollowsTheSeriesOrder_NotTheIssueNumberTheFileCarries()
+    {
+        var library = Guid.NewGuid();
+        var series = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                "INSERT INTO collections (id, display_name, collection_type, wikidata_qid) VALUES (@series, 'Saga', 'Series', 'Q100');",
+                new { series });
+        }
+
+        // The files are numbered 1, 2, 3, but the Series (Wikidata's manifest) puts them in the order b, c, a.
+        var a = await InsertBookWithIdsAsync(library, ".cbz");
+        var b = await InsertBookWithIdsAsync(library, ".cbz");
+        var c = await InsertBookWithIdsAsync(library, ".cbz");
+        await PlaceInSeriesAsync(series, a.WorkId, 1, owned: true);
+        await PlaceInSeriesAsync(series, b.WorkId, 2, owned: true);
+        await PlaceInSeriesAsync(series, c.WorkId, 3, owned: true);
+        await ManifestAsync(series, a.WorkId, 3);
+        await ManifestAsync(series, b.WorkId, 1);
+        await ManifestAsync(series, c.WorkId, 2);
+        await using var app = await StartAsync(library);
+
+        using var fromB = await app.Client.GetAsync($"/read/{b.AssetId:D}/next");
+        using var fromC = await app.Client.GetAsync($"/read/{c.AssetId:D}/next");
+        using var fromA = await app.Client.GetAsync($"/read/{a.AssetId:D}/next");
+
+        Assert.Contains(c.AssetId.ToString("D"), await fromB.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(a.AssetId.ToString("D"), await fromC.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.NotFound, fromA.StatusCode);
+    }
+
+    private async Task ManifestAsync(Guid series, Guid workId, double ordinal)
+    {
+        using var connection = _database.CreateConnection();
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO series_manifest_items
+                (id, collection_id, series_qid, item_qid, raw_ordinal, parsed_ordinal, ordinal_scope_qid, membership_scope, order_source, ownership_state, linked_work_id, last_hydrated_at)
+            VALUES (@id, @series, 'Q100', @qid, @raw, @ordinal, 'Q100', 'MainSequence', 'SeriesOrdinal', 'Owned', @workId, '2026-11-10T00:00:00Z');
+            """,
+            new { id = Guid.NewGuid(), series, workId, ordinal, raw = ordinal.ToString("0"), qid = "Q" + Guid.NewGuid().ToString("N")[..8] });
+    }
+
+    [Fact]
     public async Task NextIssue_IsNotFoundForAComicOutsideASeries_AndForAnIssueInAnotherLibrary()
     {
         var library = Guid.NewGuid();
