@@ -6,11 +6,12 @@ namespace MediaEngine.Web.Services.Playback;
 
 /// <summary>
 /// The bookmark markers on an audiobook's progress bar (unified player D10: "Show bookmarks on the bar" in the audiobook Settings menu, the same
-/// per-profile setting the video player and Settings > Playback use). The markers are off by default and drawn only while the setting is on.
+/// per-profile setting the video player and Settings > Playback use). The markers are off by default and drawn only while the setting is on, and they
+/// follow the list the Bookmarks panel shows (Everyone or Mine; mockup screen 11).
 /// </summary>
 public static class AudiobookBarMarkers
 {
-    /// <summary>The profile's saved and Global bookmarks for the book's current file. A failed load leaves the bar without markers.</summary>
+    /// <summary>The bookmarks the Engine lets the profile see on the book's current file (their own and Everyone's). A failed load leaves the bar without markers.</summary>
     public static async Task<IReadOnlyList<AudiobookBookmarkDto>> LoadAsync(
         IEngineApiClient? api, Guid workId, Guid profileId, Guid assetId, CancellationToken ct)
     {
@@ -26,18 +27,18 @@ public static class AudiobookBarMarkers
     }
 
     /// <summary>
-    /// The markers to draw. When the bar shows one chapter (<paramref name="scope"/>), only that chapter's markers are kept and their
+    /// The markers to draw: the list the panel shows (<paramref name="choice"/>, Everyone by default). When the bar shows one chapter (<paramref name="scope"/>), only that chapter's markers are kept and their
     /// positions are moved to time into the chapter; use <see cref="ToAbsolute"/> to turn a chosen marker back into a book position.
     /// </summary>
     public static IReadOnlyList<PlaybackRailBookmark> ForBar(
-        IReadOnlyList<AudiobookBookmarkDto> saved, bool show, double duration, AudiobookChapterWindow? scope)
+        IReadOnlyList<AudiobookBookmarkDto> saved, bool show, string? choice, double duration, AudiobookChapterWindow? scope)
     {
         if (!show || saved.Count == 0)
         {
             return [];
         }
 
-        var markers = PlaybackRailBookmark.From(saved, duration);
+        var markers = PlaybackRailBookmark.ForChoice(PlaybackRailBookmark.From(saved, duration), choice);
         if (scope is null)
         {
             return markers;

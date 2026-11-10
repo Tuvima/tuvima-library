@@ -51,6 +51,9 @@ public partial interface IEngineApiClient
 
     Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> CreateAudiobookBookmarkWithOutcomeAsync(Guid workId, CreateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default);
 
+    /// <summary>PUT /api/v1/player/audiobooks/bookmarks/{id} - renames one of the caller's own bookmarks and changes its note.</summary>
+    Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default);
+
     Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, Guid profileId, CancellationToken ct = default);
 
     Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default);

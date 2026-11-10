@@ -7590,6 +7590,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkD
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   OwnerName: System.String | nullability=nullable | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  InEveryone: System.Boolean | nullability=not-null | accessors=get,init
   FrameUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
@@ -8630,6 +8632,10 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   IsUserOwned: System.Boolean | nullability=not-null | accessors=get,set
   IsLocallyExported: System.Boolean | nullability=not-null | accessors=get,set
   Url: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
+  Label: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegmentRequest
   Kind: System.String | nullability=nullable | accessors=get,init

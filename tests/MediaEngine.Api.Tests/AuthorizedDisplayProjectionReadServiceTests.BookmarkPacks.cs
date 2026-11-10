@@ -27,8 +27,18 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     /// <summary>The title's bookmarks as the editor's Everyone's list hands them to the compare.</summary>
-    private static async Task<IReadOnlyList<AudiobookBookmarkDto>> EveryoneOfAsync(AudiobookBookmarkRepository bookmarks, Guid workId) =>
-        await bookmarks.GetByWorkAsync(VaultProfile, workId);
+    private async Task<IReadOnlyList<AudiobookBookmarkDto>> EveryoneOfAsync(AudiobookBookmarkRepository bookmarks, Guid workId) =>
+        [.. (await BookmarkRowsAsync(workId)).Select(row => new AudiobookBookmarkDto
+        {
+            Id = row.Id, ProfileId = row.ProfileId, WorkId = row.WorkId, AssetId = row.AssetId, ChapterIndex = row.ChapterIndex,
+            ChapterTitle = row.ChapterTitle, PositionSeconds = row.PositionSeconds, DurationSeconds = row.DurationSeconds,
+            EndSeconds = row.EndSeconds, Label = row.Label, Note = row.Note, Description = row.Description, IsGlobal = row.IsGlobal,
+            CreatedAt = row.CreatedAt,
+        })];
+
+    /// <summary>Every profile's timed bookmarks on the title, newest first, read straight from the table.</summary>
+    private async Task<IReadOnlyList<EditorBookmarkRow>> BookmarkRowsAsync(Guid workId) =>
+        [.. (await new EditorBookmarkRepository(_database).GetByWorksAsync([workId], null)).OrderByDescending(row => row.CreatedAt)];
 
     private void GiveIds(Guid workId, string imdb)
     {
@@ -107,7 +117,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Null(compare.Rows[3].Yours);
         Assert.Null(compare.Rows[3].GapSeconds);
         // Comparing changes nothing.
-        Assert.Equal(3, (await bookmarks.GetByWorkAsync(VaultProfile, shape.Normal.WorkId)).Count);
+        Assert.Equal(3, (await BookmarkRowsAsync(shape.Normal.WorkId)).Count);
     }
 
     [Fact]
@@ -123,7 +133,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(BookmarkPackMatchResults.WrongTitle, compare.Match);
         Assert.False(compare.RowsReady);
         Assert.Empty(compare.Rows);
-        Assert.Empty(await bookmarks.GetByWorkAsync(VaultProfile, other.WorkId));
+        Assert.Empty(await BookmarkRowsAsync(other.WorkId));
     }
 
     [Fact]

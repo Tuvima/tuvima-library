@@ -13,7 +13,7 @@
     }
     @if (HasArtCell)
     {
-        <div class="@($"plr__art plr__art--{(IsEpisode ? "still" : "square")}")" aria-hidden="true">
+        <div class="@($"plr__art plr__art--{(IsStill ? (IsBookmark ? "frame" : "still") : "square")}")" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(ArtUrl))
             {
                 <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtUrl, ArtDrawnPx)" srcset="@(ArtSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(ArtUrl, ArtDrawnPx))" sizes="@($"{ArtDrawnPx}px")"
@@ -46,11 +46,16 @@
     private const int SquareArtPx = 40;
     private const int StillArtWidthPx = 96;
     private const int StillArtHeightPx = 54;
+    private const int FrameArtWidthPx = 72;
+    private const int FrameArtHeightPx = 40;
 
-    /// <summary>"queue", "now", "history", "episode" or "chapter": which cells the row has and how its grid is laid out.</summary>
+    /// <summary>"queue", "now", "history", "episode", "chapter", "bookmark" (a 72 x 40 frame) or "bookmark-cover" (the 40 px cover of audio): which cells the row has and how its grid is laid out.</summary>
     [Parameter] public string Variant { get; set; } = "queue";
 
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>Accent-colored text before the title and a dot (a bookmark's time: "12:48 · The first clue").</summary>
+    [Parameter] public string? TitleAccent { get; set; }
 
     /// <summary>The second line (artist, "22:38 · synopsis", "12:08 elapsed · 18:32 remaining").</summary>
     [Parameter] public string? Secondary { get; set; }
@@ -89,11 +94,13 @@
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private bool IsEpisode => Variant == "episode";
+    private bool IsBookmark => Variant is "bookmark" or "bookmark-cover";
+    private bool IsStill => Variant is "episode" or "bookmark";
     private bool HasLeadingCell => Variant is "queue" or "chapter";
-    private bool HasArtCell => Variant is "queue" or "now" or "history" or "episode";
-    private bool HasLengthCell => Variant != "episode";
-    private int ArtDrawnPx => IsEpisode ? StillArtWidthPx : SquareArtPx;
-    private int ArtDrawnHeightPx => IsEpisode ? StillArtHeightPx : SquareArtPx;
+    private bool HasArtCell => Variant is "queue" or "now" or "history" or "episode" or "bookmark" or "bookmark-cover";
+    private bool HasLengthCell => Variant is not ("episode" or "bookmark" or "bookmark-cover");
+    private int ArtDrawnPx => IsEpisode ? StillArtWidthPx : Variant == "bookmark" ? FrameArtWidthPx : SquareArtPx;
+    private int ArtDrawnHeightPx => IsEpisode ? StillArtHeightPx : Variant == "bookmark" ? FrameArtHeightPx : SquareArtPx;
 
     private string RootClass => string.Join(" ", new[] { "plr", $"plr--{Variant}", IsCurrent ? "is-current" : null, OnClick.HasDelegate ? "is-actionable" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
@@ -102,7 +109,7 @@
     private RenderFragment Copy =>
         @<text>
             <span class="plr__titleline">
-                <span class="plr__title" data-overflow-tooltip="@Title">@Title</span>
+                <span class="plr__title" data-overflow-tooltip="@(string.IsNullOrWhiteSpace(TitleAccent) ? Title : $"{TitleAccent} · {Title}")">@if (!string.IsNullOrWhiteSpace(TitleAccent)) { <span class="plr__accent">@TitleAccent</span>@if (!string.IsNullOrWhiteSpace(Title)) { <text> · </text> } }@Title</span>
                 @TitleChip
             </span>
             @if (!string.IsNullOrWhiteSpace(Secondary) || !string.IsNullOrWhiteSpace(SecondaryAccent))

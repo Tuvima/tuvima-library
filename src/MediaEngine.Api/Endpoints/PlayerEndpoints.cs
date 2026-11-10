@@ -298,7 +298,7 @@ public static class PlayerEndpoints
         })
         .WithName("GetAudiobookBookmarks")
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
-        .WithSummary("Return the profile's saved bookmarks for a work, plus the bookmarks shared with everyone. Works for videos and audiobooks.")
+        .WithSummary("Return the profile's own bookmarks for a work plus the title's Everyone list (the administrator's set, else every profile's pooled), each marked with IsYours and InEveryone. Works for videos and audiobooks.")
         .Produces<IReadOnlyList<AudiobookBookmarkDto>>(StatusCodes.Status200OK)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
@@ -320,10 +320,33 @@ public static class PlayerEndpoints
             return Results.Created($"/player/audiobooks/{workId:D}/bookmarks/{bookmark.Id:D}", bookmark);
         })
         .WithName("CreateAudiobookBookmark")
-        .WithSummary("Save the current playback position of a video or audiobook as a bookmark. Sharing it with everyone needs a server administrator.")
+        .WithSummary("Save the current playback position of a video or audiobook as the profile's own bookmark. Everyone's bookmarks are made in the editor, so isGlobal is refused.")
         .Produces<AudiobookBookmarkDto>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        group.MapPut("/audiobooks/bookmarks/{bookmarkId:guid}", async (
+            Guid bookmarkId,
+            Guid? profileId,
+            UpdateAudiobookBookmarkRequestDto request,
+            ClaimsPrincipal user,
+            PlayerService player,
+            CancellationToken ct) =>
+        {
+            if (!PlayerService.TryNormalizeAudiobookBookmarkUpdate(request, out var normalizedRequest, out var validationError))
+            {
+                return ApiErrors.BadRequest(validationError!);
+            }
+
+            var identity = Bind(user, profileId, null, null);
+            var updated = await player.UpdateOwnAudiobookBookmarkAsync(identity.ProfileId, bookmarkId, normalizedRequest!, ct);
+            return updated is null ? ApiErrors.NotFound($"Bookmark '{bookmarkId}' not found.") : Results.Ok(updated);
+        })
+        .WithName("UpdateAudiobookBookmark")
+        .WithSummary("Rename one of the caller's own bookmarks and change its note. Anyone else's bookmark, and one in the administrator's set, is not found.")
+        .Produces<AudiobookBookmarkDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 
         group.MapDelete("/audiobooks/bookmarks/{bookmarkId:guid}", async (
@@ -338,7 +361,7 @@ public static class PlayerEndpoints
             return deleted ? Results.NoContent() : ApiErrors.NotFound($"Bookmark '{bookmarkId}' not found.");
         })
         .WithName("DeleteAudiobookBookmark")
-        .WithSummary("Delete one saved bookmark. A bookmark shared with everyone can be deleted only by a server administrator.")
+        .WithSummary("Delete one of the caller's own bookmarks. A bookmark in the administrator's set is removed in the editor, never here.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.ProgressWrite);

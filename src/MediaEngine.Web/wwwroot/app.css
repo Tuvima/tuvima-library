@@ -2837,38 +2837,6 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
 }
-/* Video Bookmarks panel quick list (video-player-controls-and-bookmarks D6, D7) */
-/* Bookmarks panel (unified player D9a): header with count, timeline switch, full-width add button, tabs, search, rows with a time chip, footer line.
-   As tall as its content; only the list scrolls, and only past about 80% of the player height. Nothing scrolls sideways. */
-.video-bookmark-pane { display:grid; gap:12px; width:min(400px,92vw); max-height:min(80svh,720px); overflow:hidden; padding:16px 16px 12px; box-sizing:border-box; grid-template-rows:auto auto auto auto auto auto minmax(0,1fr) auto auto; }
-.video-bookmark-pane > * { min-width:0; }
-.video-bookmark-pane__header { display:flex; align-items:center; gap:8px; }
-.video-bookmark-pane__header h3 { margin:0; flex:1; font-size:var(--tl-font-size-dialog-title); font-weight:600; }
-.video-bookmark-pane__header-icon { color:var(--tl-accent-primary); }
-.video-bookmark-pane__count { min-width:22px; padding:1px 8px; border-radius:6px; background:var(--playback-accent-soft); color:var(--playback-text); font-size:var(--tl-font-size-secondary); text-align:center; }
-.video-bookmark-pane .video-bookmark-pane__close { display:grid; place-items:center; width:44px; height:44px; margin:-8px -8px -8px 0; border:0; background:transparent; color:inherit; cursor:pointer; }
-.video-bookmark-pane .video-bookmark-pane__add { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:44px; padding:8px 14px; border:1px solid var(--tl-accent-primary); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--tl-accent-primary); font-weight:600; cursor:pointer; }
-.video-bookmark-pane .video-bookmark-pane__add:hover { background:var(--playback-accent-soft); }
-.video-bookmark-pane__note,.video-bookmark-pane__search { width:100%; box-sizing:border-box; min-height:44px; padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:inherit; }
-.video-bookmark-pane__filter { display:flex; gap:20px; border-bottom:1px solid var(--playback-border); }
-.video-bookmark-pane .video-bookmark-pane__tab { min-height:44px; padding:0 2px; border:0; border-bottom:3px solid transparent; background:transparent; color:var(--playback-text-secondary); font:inherit; cursor:pointer; }
-.video-bookmark-pane__tab.is-selected { border-bottom-color:var(--tl-accent-primary); color:var(--playback-text); }
-.video-bookmark-pane__list { display:grid; align-content:start; gap:2px; min-height:0; margin:0; padding:0; overflow-x:hidden; overflow-y:auto; list-style:none; }
-.video-bookmark-pane .video-bookmark-pane__time { min-width:64px; min-height:32px; padding:0 10px; border:0; border-radius:6px; background:var(--tl-accent-primary); color:#fff; font-weight:600; font-variant-numeric:tabular-nums; cursor:pointer; }
-.video-bookmark-pane .video-bookmark-pane__time.is-global { background:var(--playback-surface-hover); color:var(--playback-text); }
-.video-bookmark-pane .video-bookmark-pane__action--icon { display:grid; place-items:center; min-width:44px; min-height:44px; padding:0; }
-.video-bookmark-pane__hint { margin:0; color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
-.video-bookmark-pane__empty { padding:12px 4px; color:var(--playback-text-secondary); font-size:var(--tl-font-size-sm); }
-.video-bookmark-pane__row { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--tl-radius-sm,6px); }
-.video-bookmark-pane__row.is-near { background:var(--playback-accent-soft); }
-.video-bookmark-pane__dot { flex:0 0 12px; width:12px; height:12px; border-radius:50%; background:var(--tl-accent-primary); }
-.video-bookmark-pane__dot.is-global { background:var(--playback-text); }
-.video-bookmark-pane__copy { display:grid; flex:1; min-width:0; }
-.video-bookmark-pane__copy > strong,.video-bookmark-pane__copy > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.video-bookmark-pane__copy > span { color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
-.video-bookmark-pane .video-bookmark-pane__action { padding:4px 8px; border:0; border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); font-size:var(--tl-font-size-sm); cursor:pointer; }
-.video-bookmark-pane .video-bookmark-pane__action:hover { color:var(--tl-accent-primary); }
-.video-bookmark-pane .video-bookmark-pane__action.is-danger { color:var(--tl-status-danger,#ff6b6b); }
 @media (max-width: 720px){
     .playback-panel .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
     .playback-panel .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }

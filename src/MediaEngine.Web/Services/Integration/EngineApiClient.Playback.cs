@@ -223,6 +223,31 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default)
+    {
+        var path = BuildEndpointPath($"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}",
+            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await _http.PutAsJsonAsync(path, request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<AudiobookBookmarkDto>(response.StatusCode, "save");
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<AudiobookBookmarkDto>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown("The save response was empty; the change may have been applied.")
+                : AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Changing an audiobook bookmark had no reliable response");
+            return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown("The change could not be confirmed. Reload the bookmarks to check.");
+        }
+    }
+
     public async Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(
         Guid bookmarkId, Guid profileId, CancellationToken ct = default)
     {

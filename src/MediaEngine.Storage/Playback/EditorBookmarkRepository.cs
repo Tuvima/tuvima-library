@@ -133,21 +133,29 @@ public sealed class EditorBookmarkRepository
     }
 
     /// <summary>
-    /// Everyone's bookmarks on a title as the player should show them: the rows flagged <c>is_global</c> when the title has a definitive set,
-    /// else every profile's bookmarks pooled. This is the one seam the player reads: when its pool changes, only the pooled branch changes.
+    /// Everyone's bookmarks on a title: the rows flagged <c>is_global</c> when the title has a definitive set, else every profile's
+    /// bookmarks pooled. The editor and the player both take Everyone from <see cref="Everyone"/>, so they cannot disagree.
+    /// <paramref name="excludeAsset"/> leaves a file out of the set before it is built (the player drops Vault files, which have no
+    /// pooled view); the editor passes nothing because it refuses a Vault title as a whole.
     /// </summary>
     public async Task<IReadOnlyList<EditorBookmarkRow>> GetEveryoneAsync(
-        Guid workId, IReadOnlySet<Guid>? authorizedAssetIds, Func<string, double> sameSpotFor, CancellationToken ct = default)
+        Guid workId, IReadOnlySet<Guid>? authorizedAssetIds, Func<string, double> sameSpotFor, CancellationToken ct = default,
+        Func<Guid, bool>? excludeAsset = null)
     {
         var rows = await GetByWorksAsync([workId], authorizedAssetIds, ct).ConfigureAwait(false);
         var definitive = (await GetDefinitiveAsync([workId], ct).ConfigureAwait(false)).Contains(workId);
-        return Everyone(rows, definitive, sameSpotFor);
+        return Everyone(rows, definitive, sameSpotFor, excludeAsset);
     }
 
     /// <summary>Everyone's rows out of a title's rows: the flagged ones when definitive, else one standing bookmark per spot.</summary>
     public static IReadOnlyList<EditorBookmarkRow> Everyone(
-        IReadOnlyList<EditorBookmarkRow> rows, bool definitive, Func<string, double> sameSpotFor)
+        IReadOnlyList<EditorBookmarkRow> rows, bool definitive, Func<string, double> sameSpotFor, Func<Guid, bool>? excludeAsset = null)
     {
+        if (excludeAsset is not null)
+        {
+            rows = [.. rows.Where(row => !excludeAsset(row.AssetId))];
+        }
+
         if (definitive)
         {
             return OrderForList(rows.Where(row => row.IsGlobal));

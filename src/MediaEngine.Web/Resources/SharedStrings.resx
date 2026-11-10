@@ -1442,9 +1442,6 @@
   <data name="Common_Lyrics" xml:space="preserve">
     <value>Lyrics</value>
   </data>
-  <data name="ListenNowPlayingBar_BookmarksAreUnavailableUntilThe" xml:space="preserve">
-    <value>Bookmarks are unavailable until the current audiobook session is ready.</value>
-  </data>
   <data name="ListenNowPlayingBar_RetryPlaybackStateRestore" xml:space="preserve">
     <value>Retry playback state restore</value>
   </data>
@@ -6908,65 +6905,11 @@
   <data name="AppTimelineNavigator_JumpToPeriod" xml:space="preserve">
     <value>Jump to period</value>
   </data>
-  <data name="AudiobookBookmarkDialog_LoadingBookmarkDetails" xml:space="preserve">
-    <value>Loading bookmark details…</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_LongerDescription" xml:space="preserve">
-    <value>Longer description</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_TheSaveOutcomeIsUnknown" xml:space="preserve">
-    <value>The save outcome is unknown. Reload Saved before deciding whether to try again.</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_ReloadSaved" xml:space="preserve">
-    <value>Reload Saved</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_SavedPositions" xml:space="preserve">
-    <value>Saved positions</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_LoadingSavedBookmarks" xml:space="preserve">
-    <value>Loading saved bookmarks…</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_NoSavedBookmarksYet" xml:space="preserve">
-    <value>No saved bookmarks yet.</value>
-  </data>
   <data name="Common_Everyone" xml:space="preserve">
-    <value>· Global</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_DeleteThisBookmark" xml:space="preserve">
-    <value>Delete this bookmark?</value>
+    <value>· Everyone</value>
   </data>
   <data name="Glossary_Bookmarks" xml:space="preserve">
     <value>Bookmarks</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_BookmarkSections" xml:space="preserve">
-    <value>Bookmark sections</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_CapturedBookmarkPosition" xml:space="preserve">
-    <value>Captured bookmark position</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_PreviewCapturedPosition" xml:space="preserve">
-    <value>Preview captured position</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_OptionalBookmarkNote" xml:space="preserve">
-    <value>Optional bookmark note</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_OptionalLongerDescription" xml:space="preserve">
-    <value>Optional longer description</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_SavedBookmarks" xml:space="preserve">
-    <value>Saved bookmarks</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_RequestDeletionOfBookmark" xml:space="preserve">
-    <value>Request deletion of bookmark</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_ReplayBookmark" xml:space="preserve">
-    <value>Replay bookmark</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_ReadBookmarkNote" xml:space="preserve">
-    <value>Read bookmark note</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_ConfirmBookmarkDeletion" xml:space="preserve">
-    <value>Confirm bookmark deletion</value>
   </data>
   <data name="DeleteFromLibraryDialog_OfOwnedOnlyWhatYou" xml:space="preserve">
     <value>{0} of {1} {2} owned. Only what you own is deleted.</value>
@@ -7060,6 +7003,9 @@
   </data>
   <data name="PlaybackSeekRail_PlaybackPosition" xml:space="preserve">
     <value>Playback position</value>
+  </data>
+  <data name="PlaybackSeekRail_BookmarkAt" xml:space="preserve">
+    <value>Bookmark at {0}</value>
   </data>
   <data name="PlaybackSeekRail_Bookmark" xml:space="preserve">
     <value>Bookmark</value>
@@ -7508,18 +7454,6 @@
   <data name="ViewPlacesTimeline_TimelineGranularity" xml:space="preserve">
     <value>Timeline granularity</value>
   </data>
-  <data name="VideoBookmarkQuickList_Keep" xml:space="preserve">
-    <value>Keep</value>
-  </data>
-  <data name="VideoBookmarkQuickList_AddANoteOptional" xml:space="preserve">
-    <value>Add a note (optional)</value>
-  </data>
-  <data name="VideoBookmarkQuickList_BookmarkNote" xml:space="preserve">
-    <value>Bookmark note</value>
-  </data>
-  <data name="VideoBookmarkQuickList_KeepBookmark" xml:space="preserve">
-    <value>Keep bookmark</value>
-  </data>
   <data name="VideoContextPanel_NothingUpNext" xml:space="preserve">
     <value>Nothing up next</value>
   </data>
@@ -7750,9 +7684,6 @@
   </data>
   <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot2" xml:space="preserve">
     <value>The series preference could not be reset.</value>
-  </data>
-  <data name="ListenNowPlayingBar_TheAudiobookPositionCouldNot" xml:space="preserve">
-    <value>The audiobook position could not be captured. Try again when playback is ready.</value>
   </data>
   <data name="ListenNowPlayingBar_FinishOrCloseTheAudiobook" xml:space="preserve">
     <value>Finish or close the audiobook before adding music to its queue.</value>
@@ -8218,15 +8149,6 @@
   </data>
   <data name="SetupVaultOffer_YourPINCouldnTBe" xml:space="preserve">
     <value>Your PIN couldn't be saved. Check it and try again.</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_BookmarkDetailsCouldNotBe" xml:space="preserve">
-    <value>Bookmark details could not be refreshed. Try reloading Saved.</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_BookmarkSaved" xml:space="preserve">
-    <value>Bookmark saved.</value>
-  </data>
-  <data name="AudiobookBookmarkDialog_ThatBookmarkIsNoLonger" xml:space="preserve">
-    <value>That bookmark is no longer available to delete.</value>
   </data>
   <data name="ProviderOnboardingDialog_AKeyIsSaved" xml:space="preserve">
     <value>A key is saved</value>
@@ -9296,32 +9218,74 @@
   <data name="PlaybackSettingsPage_ChapterMarksHint" xml:space="preserve">
     <value>Off for video and on for audiobooks until you choose.</value>
   </data>
-  <data name="VideoBookmarkPane_AddHere" xml:space="preserve">
-    <value>+ Bookmark at {0}</value>
+  <data name="BookmarksPanel_AddHere" xml:space="preserve">
+    <value>Bookmark at {0}</value>
   </data>
-  <data name="VideoBookmarkPane_ShowOnTimeline" xml:space="preserve">
-    <value>Show on timeline</value>
-  </data>
-  <data name="VideoBookmarkPane_Search" xml:space="preserve">
-    <value>Search bookmarks</value>
-  </data>
-  <data name="VideoBookmarkPane_Hint" xml:space="preserve">
-    <value>Select a time to jump to that moment.</value>
-  </data>
-  <data name="VideoBookmarkPane_AddFailed" xml:space="preserve">
+  <data name="BookmarksPanel_AddFailed" xml:space="preserve">
     <value>Couldn’t save · Try again</value>
   </data>
-  <data name="VideoBookmarkPane_Empty" xml:space="preserve">
-    <value>No bookmarks yet.</value>
+  <data name="BookmarksPanel_AddNote" xml:space="preserve">
+    <value>Add a note…</value>
   </data>
-  <data name="VideoBookmarkPane_Show" xml:space="preserve">
-    <value>Show bookmarks</value>
+  <data name="BookmarksPanel_HideNote" xml:space="preserve">
+    <value>Hide note</value>
   </data>
-  <data name="VideoBookmarkPane_Mine" xml:space="preserve">
-    <value>Mine</value>
+  <data name="BookmarksPanel_NoteLabel" xml:space="preserve">
+    <value>Note for this bookmark</value>
   </data>
-  <data name="VideoBookmarkPane_Global" xml:space="preserve">
-    <value>Global</value>
+  <data name="BookmarksPanel_Choice" xml:space="preserve">
+    <value>Show bookmarks from</value>
+  </data>
+  <data name="BookmarksPanel_Everyone" xml:space="preserve">
+    <value>Everyone · {0}</value>
+  </data>
+  <data name="BookmarksPanel_Mine" xml:space="preserve">
+    <value>Mine · {0}</value>
+  </data>
+  <data name="BookmarksPanel_Search" xml:space="preserve">
+    <value>Search bookmarks</value>
+  </data>
+  <data name="BookmarksPanel_Jump" xml:space="preserve">
+    <value>Go to {0}</value>
+  </data>
+  <data name="BookmarksPanel_EditAt" xml:space="preserve">
+    <value>Edit bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_DeleteAt" xml:space="preserve">
+    <value>Delete bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="BookmarksPanel_KeepAt" xml:space="preserve">
+    <value>Keep bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="BookmarksPanel_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="BookmarksPanel_SaveFailed" xml:space="preserve">
+    <value>Couldn’t save · Try again</value>
+  </data>
+  <data name="BookmarksPanel_DeleteFailed" xml:space="preserve">
+    <value>Couldn’t delete · Try again</value>
+  </data>
+  <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
+    <value>No bookmarks for this title yet</value>
+  </data>
+  <data name="BookmarksPanel_EmptyMine" xml:space="preserve">
+    <value>No bookmarks of yours yet</value>
+  </data>
+  <data name="BookmarksPanel_NoMatches" xml:space="preserve">
+    <value>No bookmarks match your search</value>
+  </data>
+  <data name="BookmarksPanel_Hint" xml:space="preserve">
+    <value>Select a bookmark to jump to that moment.</value>
+  </data>
+  <data name="BookmarksPanel_ShowOnTimeline" xml:space="preserve">
+    <value>Show on timeline</value>
   </data>
   <data name="NeedsReviewList_ShowAriaLabel" xml:space="preserve">
     <value>Show</value>

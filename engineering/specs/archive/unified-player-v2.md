@@ -1,6 +1,6 @@
 # Spec: Unified player v2 (one player system for music, audiobooks, TV and movies)
 
-> **Status:** In progress (cloud build started 2026-11-07 07:45Z; Locked by Shy 2026-11-07 07:01Z) · **Version:** 2 (supersedes [Unified player](unified-player.md) v1; amends the specs listed in section 10) · **Last updated:** 2026-11-07 07:05Z · **Related docs:** [Player controls v3](player-controls-v3.md) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Global bookmarks](global-bookmarks.md) · [Look pass v2](look-pass-v2.md) (D6 tooltip, A13 players) · [Look v2 ownership map](look-pass-v2-ownership.md) · [Design system](../design/design-system.md) · Shy's brief and 13 reference images (local check thread, 2026-11-07 04:29Z) · Mockups: [design/mockups/unified-player-v2.html](../design/mockups/unified-player-v2.html) (16 numbered screens)
+> **Status:** Built, awaiting your Local checks (built 2026-11-07 in PRs 766, 771, 773, 775, 778, 779, 781, 789, 790, 791, 793 and 796; Local checks L1 to L14 in `engineering/validation/batch.md`; Locked by Shy 2026-11-07 07:01Z) · **Version:** 2 (supersedes [Unified player](unified-player.md) v1; amends the specs listed in section 10) · **Last updated:** 2026-11-07 07:05Z · **Related docs:** [Player controls v3](../player-controls-v3.md) · [Video player controls and bookmarks](../video-player-controls-and-bookmarks.md) · [Music player and queue](../music-player-and-queue.md) · [Global bookmarks](../global-bookmarks.md) · [Look pass v2](../look-pass-v2.md) (D6 tooltip, A13 players) · [Look v2 ownership map](../look-pass-v2-ownership.md) · [Design system](../../design/design-system.md) · Shy's brief and 13 reference images (local check thread, 2026-11-07 04:29Z) · Mockups: [design/mockups/unified-player-v2.html](../../design/mockups/unified-player-v2.html) (16 numbered screens)
 
 ## 1. Goal
 
@@ -256,7 +256,7 @@ Sizes: Mechanical / Standard / Complex. Each packet lists its done-when check; f
 | Music player and queue v2 | Built, awaiting Local checks | Lyrics layout (D7 close kept; D6d kept); queue layout kept; music transport loses the skip buttons and gains the Previous restart rule (D3) | Same note |
 | Native clients (`clients/*/README.md`, API contract README) | Built | Gain a Player section pointing at `clients/contracts/v1/player-controls.md` (D29) | Six follow-up threads, one per client, each a Standard build: Roku (skips, Episodes, Audio & subtitles, Bookmarks, end card), Android TV (tool row and side panels), Apple TV (bring to contract), TV web (tool row, side panels, bookmarks), CarPlay (Continue and shelves list, audiobook card actions), Android Auto (same); the Android Cast button (V6b-A) stays waiting on Shy's TV test |
 | Global bookmarks v4 | In progress | Section 3 "the editor is not used for bookmarks" reversed by Shy (D22); D1, D2, D11 wording (Mine / Shared with me, Library members, Shared with the library) | New version 5: the rules document both the player and the editor reference; mechanics unchanged |
-| [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) | Locked (PR 763) | Owns the administrators' Bookmarks tab (D22): its D37, WP15, screens Q and Q2 | Cross-reference only |
+| [Universal editor v5](../universal-editor-v5-header-navigation-and-supporting-files.md) | Locked (PR 763) | Owns the administrators' Bookmarks tab (D22): its D37, WP15, screens Q and Q2 | Cross-reference only |
 | Look pass v2 | Locked | A13 confirmed; if Q1B, one token for the player tint | Note only (or a v1.3 for Q1B) |
 | Look v3 (draft, planning thread 2026-11-07) | Draft | This spec consumes its shared surface, border, hover, selected and type tokens and retires the `--player-*` / `--playback-*` navy surface family as it proposes; the player keeps only its size tokens | Cross-reference; no change to Look v3 |
 
@@ -274,6 +274,21 @@ Sizes: Mechanical / Standard / Complex. Each packet lists its done-when check; f
 10. **The lock screen is the system's:** Tuvima fills in the cover, the names and the right buttons, and lets your phone, PC or car draw them, so it matches everything else you play there.
 11. **Your TV is already a receiver:** AirPlay and Google Cast are built into the browser, so Tuvima asks the browser rather than installing anything on the TV; the action sits in a menu because on a desktop it is the exception, not the rule.
 12. **One contract for every screen:** the TV apps and the car apps follow the Dashboard's order and names, so learning one player is learning them all.
+
+
+## 11. Build notes (2026-11-07, added at archive; the sections above are unchanged)
+
+Where the build differs from the text above, and why:
+
+- **D1:** the shell draws the bar, panels and overlay from one state, but the one `<audio>` element stays in the persistent audio host and the one `<video>` element in `VideoPlaybackHost`. Each is created once per session and never recreated, which is what D1 protects; moving them into the shell would have meant rewiring playback itself, which section 1 rules out.
+- **D28 (Shy 2026-11-07 14:57Z and 15:58Z):** the Dashboard may start casting with its signed-in session, for video and audio. Every request the receiver makes checks the session, profile, permissions, Kid limits and Vault again, so signing out ends the cast. Cast links keep today's model: a short-lived secret for one title (at most 6 hours) that works wherever the server is reachable, **not** home network only as D28 says.
+- **D5, D6:** song action gaps are 6 px and panel titles 17 px, as drawn in the mockup, rather than the 8 px and 20 px in the text (Shy: controls about 1:1 with the mock).
+- **D10:** the volume slider slides out over the tools instead of pushing them, so the speaker never moves under the pointer.
+- **D16:** music has no sleep timer; the fixed presets replace the profile's sleep-timer list and default length in Settings › Listening.
+- **D21, D22:** bookmark names and notes allow 200 characters (the shared note limit), not 120. Music has Bookmarks on the bar too, with the album cover on each row.
+- **Settings › Playback** keeps the chapter marks switch, the second and third subtitle languages and the lyrics language beside the rows D14 lists, because nothing else in the player sets them.
+- **D26:** the phone player has no Close button, matching mock screen 15.
+- **Follow-ups not built:** "Go to season" needs a season id from the Engine; Favorite and Like share one reaction value (D5 treats them as separate); the A4 Now playing test does not cover tracks; the old bookmark owner services (replay, preview, delete) can be cleaned up; the TV, car and lock-screen fine-tuning (D27, D29) and the client threads in section 9 stay in the backlog.
 
 ## Plain English summary
 

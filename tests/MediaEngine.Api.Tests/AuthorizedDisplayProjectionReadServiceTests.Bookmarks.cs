@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
@@ -9,11 +10,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Tests;
 
-// Bookmarks in videos and audiobooks (Videos spec WP15, D43). The Engine, not the Dashboard, decides who may share a bookmark with
-// everyone, and a bookmark on a Vault file follows the Vault rules: while Vault mode is off it cannot be made, listed or deleted
+// Bookmarks in videos and audiobooks (Videos spec WP15, D43). The player makes only personal bookmarks (Everyone's set is made in the editor), and a bookmark on a Vault file follows the Vault rules: while Vault mode is off it cannot be made, listed or deleted
 // (not found), and unlocking brings it back.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
+    // The Everyone list as the player reads it: the administrator's set once there is one, else every profile's bookmarks pooled.
+    private PlayerBookmarkVisibility BookmarkVisibility() =>
+        new(new EditorBookmarkRepository(_database), new BookmarkClosenessProvider(() => null), new VaultLibraryRepository(_database));
+
     private (PlayerService Player, PlayerCatalogueScope Scope) BookmarkPlayer(Guid account, Guid? session)
     {
         var context = VaultContext(account, session);
@@ -24,7 +28,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         context.RequestServices = services;
         var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
         var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
-            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!);
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, bookmarkVisibility: BookmarkVisibility());
         return (player, scope);
     }
 
@@ -41,7 +45,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Bookmarks_OnlyAServerAdministratorCanShareOneWithEveryone(bool administrator)
+    public async Task Bookmarks_ThePlayerMakesOnlyPersonalOnes_EvenForAServerAdministrator(bool administrator)
     {
         var shape = await SeedVaultAsync(administrator, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (player, scope) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
@@ -52,25 +56,21 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.False(personal.IsGlobal);
         Assert.Equal("A longer description of the scene.", personal.Description);
 
-        if (administrator)
-        {
-            var shared = await player.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 900, global: true));
-            Assert.True(shared.IsGlobal);
-        }
-        else
-        {
-            await Assert.ThrowsAsync<PlayerBookmarkSharingDeniedException>(() =>
-                player.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 900, global: true)));
-            Assert.Single(await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId));
-        }
+        // Everyone's set is made in the editor's Bookmarks tab; the player refuses the share flag (the route answers 400), whoever asks.
+        Assert.False(PlayerService.TryNormalizeAudiobookBookmarkRequest(
+            BookmarkAt(shape.Normal.AssetId, 900, global: true), out _, out var refused));
+        Assert.Contains("always your own", refused);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            player.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 900, global: true)));
+        Assert.Single(await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId));
     }
 
     [Fact]
-    public async Task Bookmarks_AGlobalBookmark_IsSeenByAStandardProfile_ButOnlyAnAdministratorCanDeleteIt()
+    public async Task Bookmarks_AGlobalBookmark_IsSeenByAStandardProfile_ButNotDeletedFromThePlayer()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (standard, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
-        // Made earlier by an administrator (the profile here stands in for the maker).
+        // Made earlier in the editor by an administrator (the profile here stands in for the maker).
         var shared = await new AudiobookBookmarkRepository(_database).CreateAsync(
             VaultProfile, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 300, global: true));
 
@@ -81,14 +81,48 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Bookmarks_AnAdministrator_CanDeleteAGlobalBookmark()
+    public async Task Bookmarks_AnAdministrator_CannotDeleteAGlobalBookmarkFromThePlayer_ItIsRemovedInTheEditor()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (admin, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
-        var shared = await admin.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 300, global: true));
+        var shared = await new AudiobookBookmarkRepository(_database).CreateAsync(
+            VaultProfile, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 300, global: true));
+        var personal = await admin.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 600));
 
-        Assert.True(await admin.DeleteAudiobookBookmarkAsync(null, shared.Id));
-        Assert.Empty(await admin.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId));
+        Assert.False(await admin.DeleteAudiobookBookmarkAsync(null, shared.Id));
+        Assert.Contains(await admin.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId), row => row.Id == shared.Id);
+        Assert.True(await admin.DeleteAudiobookBookmarkAsync(null, personal.Id));
+    }
+
+    [Fact]
+    public async Task Bookmarks_OnAMusicTrack_RoundTrip_WithTheSameVisibilityRuleAsOtherMedia()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE works SET media_type = 'Music' WHERE id = @workId;", new { workId = shape.Normal.WorkId });
+        }
+
+        var other = AddOtherProfile();
+        var theirs = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 95);
+        var (player, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
+
+        var made = await player.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 42));
+        Assert.Equal(42, made.PositionSeconds);
+        var listed = await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
+        Assert.Equal([made.Id, theirs.Id], listed.Select(row => row.Id));
+        Assert.True(listed.Single(row => row.Id == made.Id).IsYours);
+        var another = listed.Single(row => row.Id == theirs.Id);
+        Assert.False(another.IsYours);
+        Assert.True(another.InEveryone);
+        Assert.Equal(Guid.Empty, another.ProfileId);
+
+        var renamed = await player.UpdateOwnAudiobookBookmarkAsync(null, made.Id, new UpdateAudiobookBookmarkRequestDto { Label = "The riff" });
+        Assert.Equal("The riff", renamed!.Label);
+        Assert.Null(await player.UpdateOwnAudiobookBookmarkAsync(null, theirs.Id, new UpdateAudiobookBookmarkRequestDto { Label = "Hijacked" }));
+        Assert.False(await player.DeleteAudiobookBookmarkAsync(null, theirs.Id));
+        Assert.True(await player.DeleteAudiobookBookmarkAsync(null, made.Id));
+        Assert.Equal([theirs.Id], (await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId)).Select(row => row.Id));
     }
 
     [Fact]
@@ -99,7 +133,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await UnlockVaultAsync(session);
         var (unlocked, _) = BookmarkPlayer(shape.Account, session);
         var saved = await unlocked.CreateAudiobookBookmarkAsync(null, shape.Secret.WorkId, BookmarkAt(shape.Secret.AssetId, 120));
-        var shared = await unlocked.CreateAudiobookBookmarkAsync(null, shape.Secret.WorkId, BookmarkAt(shape.Secret.AssetId, 240, global: true));
+        var shared = await new AudiobookBookmarkRepository(_database).CreateAsync(
+            VaultProfile, shape.Secret.WorkId, BookmarkAt(shape.Secret.AssetId, 240, global: true));
         Assert.Equal(2, (await unlocked.GetAudiobookBookmarksAsync(null, shape.Secret.WorkId)).Count);
 
         // A new request on a session that is not unlocked: the bookmarks do not exist, personal or shared.

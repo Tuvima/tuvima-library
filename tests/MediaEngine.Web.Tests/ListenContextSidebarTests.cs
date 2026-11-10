@@ -118,6 +118,119 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AudiobookBar_HostsTheBookmarksPanel_EveryoneFirst_WithTheMakerOnTheirRows_AndNoOldDialog()
+    {
+        var profileId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var theirs = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = workId, AssetId = assetId, PositionSeconds = 120, Note = "The first clue", OwnerName = "Morgan", InEveryone = true };
+        var mine = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = workId, AssetId = assetId, PositionSeconds = 300, Note = "My own", OwnerName = "Me", IsYours = true };
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
+            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([theirs, mine]))));
+        var preferences = new TestPlaybackPreferencesAccessor(profileId);
+        var item = CreateItem("A book", "Narrator") with { MediaType = "Audiobook", AssetId = assetId, WorkId = workId, AudiobookWorkId = workId, StreamUrl = "stream://book" };
+        var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Render<AppPopoverHost>();
+
+        var cut = Render<ListenNowPlayingBar>();
+        var panel = cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.ToolId == "audio-bookmarks");
+        Assert.Equal("bookmarks", panel.Instance.Kind);
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll("[data-bookmark-id]");
+            var row = Assert.Single(rows);
+            Assert.Contains("The first clue", row.TextContent);
+            Assert.Contains("Morgan", row.TextContent);
+        });
+        Assert.Empty(cut.FindAll("[data-bookmark-edit]"));
+        Assert.Contains("Everyone · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Contains("Mine · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Empty(cut.FindAll(".audiobook-bookmark-dialog-layer"));
+    }
+
+    private (IRenderedComponent<ListenNowPlayingBar> Bar, ListenQueueItem Item, List<(Guid Work, CreateAudiobookBookmarkRequestDto Request)> Created, AudiobookBookmarkDto Saved)
+        RenderMusicBarWithBookmarks(bool showOnBar = false)
+    {
+        var profileId = Guid.NewGuid();
+        var item = CreateItem("A song", "Artist") with { AssetId = Guid.NewGuid() };
+        var saved = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = item.WorkId, AssetId = item.AssetId!.Value, PositionSeconds = 60, Note = "The riff", IsYours = true, InEveryone = true, OwnerName = "Me" };
+        var created = new List<(Guid Work, CreateAudiobookBookmarkRequestDto Request)>();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
+                Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([saved])));
+            stub.SetHandler(nameof(IEngineApiClient.CreateAudiobookBookmarkWithOutcomeAsync), args =>
+            {
+                var request = (CreateAudiobookBookmarkRequestDto)args![1]!;
+                created.Add(((Guid)args[0]!, request));
+                return Task.FromResult(AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(
+                    new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = (Guid)args[0]!, AssetId = request.AssetId, PositionSeconds = request.PositionSeconds, IsYours = true }));
+            });
+        });
+        var settings = UserPlaybackSettingsDto.CreateDefaults(profileId);
+        settings.General.ShowBookmarksOnBar = showOnBar;
+        var preferences = new SavedPreferences(settings);
+        var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item, CreateItem("Next", "Artist")], CurrentIndex = 0, Experience = PlayerExperienceModes.Music, DurationSeconds = 200 });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Render<AppPopoverHost>();
+        return (Render<ListenNowPlayingBar>(), item, created, saved);
+    }
+
+    [Fact]
+    public async Task MusicBar_ShowsBookmarksBetweenQueueAndVolume_AndOpensThePanelWithTheCoverAndTheTracksBookmarks()
+    {
+        var (cut, item, created, saved) = RenderMusicBarWithBookmarks();
+
+        var tools = cut.FindAll("[data-playback-zone='tools'] button").Select(button => button.GetAttribute("aria-label")).ToList();
+        Assert.Contains("Bookmarks", tools);
+        Assert.True(tools.IndexOf("Queue") < tools.IndexOf("Bookmarks"), string.Join(", ", tools));
+        Assert.True(tools.IndexOf("Bookmarks") < tools.IndexOf("Mute"), string.Join(", ", tools)); // the Volume tool is labelled by its mute button
+
+        var panel = cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.ToolId == "audio-bookmarks");
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.Contains("The riff", Assert.Single(cut.FindAll("[data-bookmark-id]")).TextContent));
+        var inner = cut.FindComponent<BookmarksPanel>().Instance;
+        Assert.False(inner.UseFrames);
+        Assert.False(string.IsNullOrWhiteSpace(inner.CoverUrl));
+
+        // The press saves on the track itself: its own work and file, at the pressed moment.
+        await cut.Find("[data-bookmarks-add]").ClickAsync();
+        var (work, request) = Assert.Single(created);
+        Assert.Equal(item.WorkId, work);
+        Assert.Equal(item.AssetId, (Guid?)request.AssetId);
+        Assert.Equal(saved.WorkId, work);
+    }
+
+    [Fact]
+    public void MusicBar_DrawsTheTracksBookmarksOnItsSeekRail_WhenShowOnTimelineIsOn()
+    {
+        var (cut, _, _, _) = RenderMusicBarWithBookmarks(showOnBar: true);
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".playback-seek-rail__bookmark")));
+    }
+
+    [Fact]
+    public async Task MusicBar_OnAPhone_OffersBookmarksInTheMoreMenuOfTheExpandedPlayer()
+    {
+        var (cut, _, _, _) = RenderMusicBarWithBookmarks();
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync("mobile");
+        await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
+        await cut.InvokeAsync(() => Services.GetRequiredService<PlaybackSessionController>().SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".playback-full--phone")));
+        var more = cut.FindComponent<PlaybackItemMenu>().FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => more.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-playback-item-action='bookmarks']")));
+    }
+
+    [Fact]
     public async Task BarRemovedWhileItsScriptsAreLoadingRegistersNothingAndReleasesWhatItHad()
     {
         // A reload that swaps the shell can remove the bar while its first render still waits on the browser.

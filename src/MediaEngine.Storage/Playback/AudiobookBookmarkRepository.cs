@@ -7,7 +7,7 @@ namespace MediaEngine.Storage.Playback;
 /// <summary>
 /// Saved spots in a video or an audiobook (Videos spec D43). The table and class keep their audiobook names because the
 /// stored data is unchanged; a row works for any playable file. A personal bookmark belongs to the profile that made it;
-/// a global one (<c>is_global</c>) is seen by everybody who can see the title and changed only by a server administrator.
+/// a global one (<c>is_global</c>) is in the title's Everyone list and changed only in the editor by a server administrator.
 /// </summary>
 public sealed class AudiobookBookmarkRepository
 {
@@ -16,51 +16,6 @@ public sealed class AudiobookBookmarkRepository
     public AudiobookBookmarkRepository(IDatabaseConnection db)
     {
         _db = db;
-    }
-
-    /// <summary>
-    /// The profile's own bookmarks for the title plus every global one, newest first, limited to the files the caller may see
-    /// (null means no limit). A file the caller cannot see (a Vault file without an unlocked session) contributes nothing.
-    /// </summary>
-    public Task<IReadOnlyList<AudiobookBookmarkDto>> GetByWorkAsync(
-        Guid profileId,
-        Guid workId,
-        CancellationToken ct = default,
-        IReadOnlySet<Guid>? authorizedAssetIds = null)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query<BookmarkRow>(
-            """
-            SELECT id AS Id,
-                   profile_id AS ProfileId,
-                   work_id AS WorkId,
-                   asset_id AS AssetId,
-                   chapter_index AS ChapterIndex,
-                   chapter_title AS ChapterTitle,
-                   position_seconds AS PositionSeconds,
-                   duration_seconds AS DurationSeconds,
-                   end_seconds AS EndSeconds,
-                   label AS Label,
-                   note AS Note,
-                   description AS Description,
-                   is_global AS IsGlobal,
-                   created_at AS CreatedAt
-            FROM audiobook_bookmarks
-            WHERE (profile_id = @profileId OR is_global = 1)
-              AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
-              AND work_id = @workId AND position_kind = 'time'
-            ORDER BY created_at DESC;
-            """,
-            new
-            {
-                profileId,
-                workId,
-                unrestricted = authorizedAssetIds is null ? 1 : 0,
-                allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
-            }).ToList();
-
-        return Task.FromResult<IReadOnlyList<AudiobookBookmarkDto>>(rows.Select(ToDto).ToList());
     }
 
     /// <summary>
@@ -85,9 +40,10 @@ public sealed class AudiobookBookmarkRepository
     }
 
     /// <summary>
-    /// One timed bookmark, only if the caller may see it, by exactly the rule of the bookmark list: the profile's own or a Global one, on
-    /// a file the caller may see (<paramref name="authorizedAssetIds"/>; null means no limit). With <paramref name="seesEveryones"/>
-    /// (a server administrator) every profile's personal bookmark on such a file is also visible, as in the Everyone's view.
+    /// One timed bookmark the caller owns, on a file the caller may see (<paramref name="authorizedAssetIds"/>; null means no limit). A row
+    /// flagged global is not visible just for that: whether someone else's bookmark is in a title's Everyone list is decided by the player's
+    /// visibility rule (a Vault file and a merged-away duplicate are not). With <paramref name="seesEveryones"/> (a server administrator,
+    /// who works on every profile's bookmarks in the editor) any profile's bookmark on such a file is visible.
     /// </summary>
     public Task<AudiobookBookmarkDto?> GetVisibleAsync(
         Guid profileId,
@@ -106,7 +62,7 @@ public sealed class AudiobookBookmarkRepository
                    is_global AS IsGlobal, created_at AS CreatedAt
             FROM audiobook_bookmarks
             WHERE id = @bookmarkId AND position_kind = 'time'
-              AND (profile_id = @profileId OR is_global = 1 OR @seesEveryones = 1)
+              AND (profile_id = @profileId OR @seesEveryones = 1)
               AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
             """,
             new
@@ -270,6 +226,38 @@ public sealed class AudiobookBookmarkRepository
                     profileId,
                     bookmarkId,
                     canChangeGlobal = canChangeGlobal ? 1 : 0,
+                    unrestricted = authorizedAssetIds is null ? 1 : 0,
+                    allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+                },
+                tx);
+            return affected > 0;
+        }, ct);
+    }
+
+    /// <summary>
+    /// Renames the profile's own personal bookmark and changes its note. Another profile's bookmark, a global one (changed only in the
+    /// editor's Bookmarks tab) and one on a file the caller cannot see are left alone and reported as not found.
+    /// </summary>
+    public Task<bool> UpdateOwnAsync(Guid profileId, Guid bookmarkId, string? label, string? note, CancellationToken ct = default,
+        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var affected = conn.Execute(
+                """
+                UPDATE audiobook_bookmarks
+                SET label = @label, note = @note
+                WHERE id = @bookmarkId AND is_global = 0 AND profile_id = @profileId AND position_kind = 'time'
+                  AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
+                """,
+                new
+                {
+                    profileId,
+                    bookmarkId,
+                    label = BlankToNull(label),
+                    note = BlankToNull(note),
                     unrestricted = authorizedAssetIds is null ? 1 : 0,
                     allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
                 },

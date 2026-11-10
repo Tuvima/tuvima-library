@@ -59,8 +59,8 @@ public sealed class BookBookmarkStorageTests : IDisposable
         var film = new MediaEngine.Storage.Playback.AudiobookBookmarkRepository(_db);
 
         using var conn = _db.CreateConnection();
-        var workId = conn.QuerySingle<Guid>("SELECT work_id FROM audiobook_bookmarks LIMIT 1;");
-        Assert.Empty(await film.GetByWorkAsync(maya, workId));
+        var bookmarkId = conn.QuerySingle<Guid>("SELECT id FROM audiobook_bookmarks LIMIT 1;");
+        Assert.Null(await film.GetVisibleAsync(maya, bookmarkId, seesEveryones: true, authorizedAssetIds: null));
     }
 
     private async Task<ReaderBookmark> AddAsync(Guid profile, string cfi, bool global = false)
