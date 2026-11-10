@@ -343,7 +343,10 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
 
         Assert.Contains("LibraryAddFlow.OpenAsync", cards, StringComparison.Ordinal);
-        Assert.Contains("Editor.RenameSetupLibraryAsync", cards, StringComparison.Ordinal);
+        // Every row, View kinds included, has one Edit button; the old three-icon cell (rename, change folder, remove) is gone (View folders spec D7).
+        Assert.Contains("EditAsync(row)", cards, StringComparison.Ordinal);
+        Assert.DoesNotContain("RenameSetup", cards, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppIconButton", cards, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<CreateLibraryDialog>", File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibraryAddFlow.cs")), StringComparison.Ordinal);
         Assert.DoesNotContain("Simple", overview, StringComparison.Ordinal);
         Assert.DoesNotContain("SetupSession", overview, StringComparison.Ordinal);

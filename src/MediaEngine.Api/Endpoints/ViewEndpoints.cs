@@ -209,6 +209,7 @@ public static partial class ViewEndpoints
             Guid[]? tag, Guid? correspondent, Guid? docType, DateOnly? docFrom, DateOnly? docTo,
             string? filing, string[]? field, string? docSort, string? sort,
             [FromQuery(Name = "added_by")] Guid[]? addedBy, bool? missing,
+            [FromQuery(Name = "source")] Guid[]? source,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, IEditorConfigurationSource editorConfig, CancellationToken ct) =>
@@ -256,6 +257,7 @@ public static partial class ViewEndpoints
                     PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter,
                     AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null,
                     IncludeMissing: missing == true,
+                    SourceIds: source is { Length: > 0 } ? source : null,
                     SortByAddedAt: byAdded, AddedBefore: byAdded ? addedBefore : null, AddedAfterKey: byAdded ? addedKey : null), ct);
                 return Access(result.Outcome, result.Page is { } timelinePage
                     ? timelinePage with
@@ -324,6 +326,7 @@ public static partial class ViewEndpoints
         group.MapGet("/assets/timeline-index", async (string? scope, Guid? scopeProfileId,
             string? q, string[]? kind, bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
             [FromQuery(Name = "added_by")] Guid[]? addedBy, Guid[]? tag,
+            [FromQuery(Name = "source")] Guid[]? source,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -363,7 +366,8 @@ public static partial class ViewEndpoints
                     Lifecycle: ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     DocumentFilter: BuildDocumentFilter(tag, null, null, null, null, null, null),
-                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null), ct);
+                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null,
+                    SourceIds: source is { Length: > 0 } ? source : null), ct);
                 return Access(result.Outcome, result.Index);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }

@@ -1,0 +1,292 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient Api
+@inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
+
+@* Edit for a View kind (View folders spec D4): the same window as a library's Edit, for Photos, Personal videos or Documents. One block per folder (clipped path, online
+   dot, Read-only or Managed tag, skipped count, friendly name once there are two or more folders, icon-only Remove), Add folder (the same window as Add), and a fixed footer
+   (Discard, Save changes). Nothing is saved until Save changes, which shows Review first. Removing a folder never deletes files. Setup edits the Shared Library's folders;
+   Settings also reads each profile's own space, so Edit lists the same set the Folders count does. *@
+<AppDialogShell Title="@Title" Subtitle="@Lead" Size="Large" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="lib-edit" data-step="@(_review ? "review" : "edit")" data-view-kind-edit="@Kind.Key">
+            @if (_review)
+            {
+                <ul class="lib-edit__review" data-review>
+                    @foreach (var line in ReviewLines)
+                    {
+                        <li>@line</li>
+                    }
+                </ul>
+            }
+            else if (_loading)
+            {
+                <p class="lib-edit__note" role="status">@L["ViewKindEdit_Loading"]</p>
+            }
+            else
+            {
+                @if (NeedsManagedNote)
+                {
+                    <p class="lib-edit__note lib-edit__note--uploads" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(Noun)</p>
+                }
+
+                <div class="lib-edit__folders" role="list" aria-label="@L["LibraryEditDialog_Folders"].Value" data-folder-rows>
+                    @foreach (var entry in Kept)
+                    {
+                        var source = entry.Source;
+                        <div class="lib-edit__folder" role="listitem" data-source="@source.Id">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                            <span class="lib-edit__body">
+                                @if (ShowFolderNames)
+                                {
+                                    <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
+                                                  Value="@NameOf(entry)"
+                                                  ValueChanged="@((string? value) => _names[source.Id] = value ?? string.Empty)"
+                                                  MaxLength="@FolderHandlingWords.MaxFolderNameLength"
+                                                  ReadOnly="@_saving"
+                                                  Error="@(NameProblem(entry) is not null)"
+                                                  ErrorText="@NameProblem(entry)" />
+                                }
+                                <span class="lib-edit__path" data-overflow-tooltip="@ViewFolderRules.PathOf(source)">@ViewFolderRules.PathOf(source)</span>
+                                @if (source.SkippedFileCount > 0)
+                                {
+                                    <small class="lib-edit__note" data-skipped>@L["ViewKindEdit_Skipped", source.SkippedFileCount.ToString("N0"), Noun]</small>
+                                }
+                            </span>
+                            <span class="lib-edit__tag" data-handling="@(ViewFolderRules.IsManaged(source) ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(ViewFolderRules.IsManaged(source))</span>
+                            <span class="lib-edit__state" data-state="@(source.FolderOffline ? "offline" : "online")">@(source.FolderOffline ? L["Common_FolderOffline"].Value : L["LibraryFoldersPopover_Online"].Value)</span>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" Tooltip="@L["ViewKindEdit_RemoveFolder"].Value"
+                                           AriaLabel="@L["LibraryEditDialog_ActionsFor", ViewFolderRules.PathOf(source)].Value" Disabled="@_saving"
+                                           OnClick="@(() => Remove(entry))" data-remove="@source.Id" />
+                        </div>
+                    }
+                    @foreach (var plan in _added)
+                    {
+                        <div class="lib-edit__folder lib-edit__folder--new" role="listitem" data-added="@(plan.Path ?? plan.Name)">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CreateNewFolder" />
+                            <span class="lib-edit__body">
+                                @if (ShowFolderNames)
+                                {
+                                    <strong class="lib-edit__label">@PlanName(plan)</strong>
+                                }
+                                <span class="lib-edit__path" data-overflow-tooltip="@(plan.Path ?? PlanName(plan))">@(plan.Path ?? PlanName(plan))</span>
+                            </span>
+                            <span class="lib-edit__tag" data-handling="@(plan.Managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(plan.Managed)</span>
+                            <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", plan.Path ?? PlanName(plan)].Value" OnClick="@(() => _added.Remove(plan))" />
+                        </div>
+                    }
+                    @if (Kept.Count == 0 && _added.Count == 0)
+                    {
+                        <p class="lib-edit__note">@L["LibraryEditDialog_NoFolders"]</p>
+                    }
+                </div>
+
+                <AppButton Label="@L["LibraryEditDialog_AddFolder"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="AddFolderAsync" data-add-folder />
+                <p class="lib-edit__note">@L["ViewKindEdit_NeverDeletes"]</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            @if (_review)
+            {
+                <AppButton Label="@L["LibraryEditDialog_Back"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => _review = false)" />
+                <AppButton Label="@L["LibraryEditDialog_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" OnClick="SaveAsync" />
+            }
+            else
+            {
+                <AppButton Label="@L["ViewKindEdit_Discard"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
+                <AppButton Label="@L["LibraryEditDialog_SaveChanges"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanReview)" OnClick="OpenReview" />
+            }
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    /// <summary>The View kind being edited (its key is photos, personal_videos or documents).</summary>
+    [Parameter, EditorRequired] public LibraryTypeOption Kind { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>First-run setup: only the Shared Library's folders exist, and nothing is scanned.</summary>
+    [Parameter] public string? SetupSession { get; set; }
+
+    /// <summary>A centred window on a computer, a sheet on a phone (Look v3 D14).</summary>
+    public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.Large, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true, Sheet = AppDialogSheetMode.Phone };
+
+    // Friendly names edited here (source id to name), folders marked for removal, and folders collected by Add folder; nothing is sent until Save changes.
+    private readonly Dictionary<Guid, string> _names = [];
+    private readonly HashSet<Guid> _removed = [];
+    private readonly List<ViewFolderPlan> _added = [];
+    private IReadOnlyList<ViewFolderEntry> _entries = [];
+    private bool _loading = true;
+    private bool _review;
+    private bool _saving;
+    private string? _error;
+
+    private string Noun => ViewFolderRules.Noun(Kind.Key, Kind.PluralLabel);
+    private string Title => L["LibrariesOverview_EditNamed", Kind.Label].Value;
+    private string Lead => L["ViewKindEdit_Lead", Noun].Value;
+
+    private IReadOnlyList<ViewFolderEntry> OfKind => [.. _entries.Where(entry => ViewFolderRules.OfKind([entry.Source], Kind.Key).Count == 1)];
+    private IReadOnlyList<ViewFolderEntry> Kept => [.. OfKind.Where(entry => !_removed.Contains(entry.Source.Id))];
+
+    // The names show only once the kind has two or more folders (Libraries v3 D18).
+    private bool ShowFolderNames => Kept.Count + _added.Count >= 2;
+
+    private bool NeedsManagedNote => !Kept.Any(entry => ViewFolderRules.IsManaged(entry.Source) && entry.Source.Enabled) && !_added.Any(plan => plan.Managed);
+
+    private string NameOf(ViewFolderEntry entry) => _names.TryGetValue(entry.Source.Id, out var name) ? name : entry.Source.Name;
+
+    private string PlanName(ViewFolderPlan plan) => ViewFolderRules.NameFor(plan.Name, plan.Path, PlanTaken(plan));
+
+    // Every other name in the window: kept folders by their (edited) names, and the folders added before this one.
+    private IEnumerable<string> PlanTaken(ViewFolderPlan plan) => Kept.Select(NameOf)
+        .Concat(_added.TakeWhile(other => !ReferenceEquals(other, plan)).Select(PlanName));
+
+    private string? NameProblem(ViewFolderEntry entry)
+    {
+        if (!_names.TryGetValue(entry.Source.Id, out var typed)) return null;
+        var name = typed.Trim();
+        if (name.Length > FolderHandlingWords.MaxFolderNameLength) return L["LibraryEditDialog_NameTooLong", FolderHandlingWords.MaxFolderNameLength].Value;
+        var taken = Kept.Any(other => other.Source.Id != entry.Source.Id && string.Equals(NameOf(other).Trim(), name, StringComparison.OrdinalIgnoreCase));
+        return name.Length > 0 && taken ? L["ViewKindEdit_NameTaken", name].Value : null;
+    }
+
+    private bool Renamed(ViewFolderEntry entry) => _names.TryGetValue(entry.Source.Id, out var typed)
+        && !string.Equals(typed.Trim(), entry.Source.Name.Trim(), StringComparison.Ordinal);
+
+    private bool HasChanges => _removed.Count > 0 || _added.Count > 0 || Kept.Any(Renamed);
+
+    private bool CanReview => HasChanges && !Kept.Any(entry => NameProblem(entry) is not null) && !_saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _entries = await ViewFolderRules.LoadAsync(Api, includeProfiles: SetupSession is null) ?? [];
+        _loading = false;
+    }
+
+    private void Remove(ViewFolderEntry entry)
+    {
+        _removed.Add(entry.Source.Id);
+        _error = null;
+    }
+
+    private IReadOnlyList<string> ReviewLines
+    {
+        get
+        {
+            var lines = new List<string>();
+            foreach (var entry in Kept.Where(Renamed))
+            {
+                lines.Add(L["LibraryEditDialog_ReviewRenameFolder", ViewFolderRules.PathOf(entry.Source), _names[entry.Source.Id].Trim()].Value);
+            }
+
+            foreach (var plan in _added)
+            {
+                lines.Add(plan.Managed
+                    ? L["ViewKindEdit_ReviewAddManaged", PlanName(plan)].Value
+                    : L["LibraryEditDialog_ReviewAddFolder", plan.Path ?? string.Empty].Value);
+            }
+
+            foreach (var entry in OfKind.Where(entry => _removed.Contains(entry.Source.Id)))
+            {
+                lines.Add(L["LibraryEditDialog_ReviewRemoveFolder", ViewFolderRules.PathOf(entry.Source)].Value);
+            }
+
+            lines.Add(L["LibraryEditDialog_ReviewNeverChanged"].Value);
+            return lines;
+        }
+    }
+
+    private void OpenReview()
+    {
+        if (!CanReview) return;
+        _error = null;
+        _review = true;
+    }
+
+    private async Task AddFolderAsync()
+    {
+        var parameters = new AppDialogParameters<AddViewFolderDialog>
+        {
+            { component => component.Kind, Kind },
+            { component => component.Configuration, Configuration },
+            { component => component.SetupSession, SetupSession },
+            { component => component.ExistingFolders, [.. Kept.Select(entry => entry.Source)] },
+            { component => component.Defer, true },
+            { component => component.PendingNames, [.. _added.Select(PlanName)] },
+            { component => component.PendingManaged, _added.Any(plan => plan.Managed) },
+        };
+        var dialog = await DialogService.ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
+        if (await dialog.Result is not { Canceled: false, Data: ViewFolderPlan plan }) return;
+        if (!plan.Managed && (_added.Any(item => string.Equals(item.Path, plan.Path, StringComparison.OrdinalIgnoreCase))
+            || Kept.Any(entry => string.Equals(entry.Source.Location, plan.Path, StringComparison.OrdinalIgnoreCase))))
+        {
+            _error = L["LibraryEditDialog_AlreadyListed"].Value;
+            return;
+        }
+
+        _error = null;
+        _added.Add(plan);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            foreach (var entry in Kept.Where(Renamed))
+            {
+                var source = entry.Source;
+                var name = ViewFolderRules.NameFor(_names[source.Id], source.Location, Kept.Where(other => other.Source.Id != source.Id).Select(NameOf));
+                var request = new UpdateViewSourceRequest(name, source.Enabled, source.IncludeInTimeline, source.ContentKind);
+                var saved = entry.OwnerProfileId is { } owner
+                    ? await Api.UpdateViewProfileSourceAsync(owner, source.Id, request)
+                    : await Api.UpdateViewSharedSourceAsync(source.Id, request);
+                if (saved is null) { Fail(L["ViewKindEdit_SaveFailed"].Value); return; }
+            }
+
+            foreach (var entry in OfKind.Where(entry => _removed.Contains(entry.Source.Id)))
+            {
+                var removed = entry.OwnerProfileId is { } owner
+                    ? await Api.DeleteViewProfileSourceAsync(owner, entry.Source.Id)
+                    : await Api.DeleteViewSharedSourceAsync(entry.Source.Id);
+                if (!removed) { Fail(L["ViewKindEdit_RemoveFailed"].Value); return; }
+            }
+
+            var names = Kept.Select(NameOf).ToList();
+            foreach (var plan in _added)
+            {
+                var name = ViewFolderRules.NameFor(plan.Name, plan.Path, names);
+                if (await Api.CreateViewSharedSourceAsync(ViewFolderRules.RequestFor(plan, name)) is null) { Fail(L["ViewKindEdit_AddFailed"].Value); return; }
+                names.Add(name);
+            }
+
+            Dialog.Close(AppDialogResult.Ok(true));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // A refusal shows the Engine's own words above the footer and goes back to the form; what was already saved stays saved.
+    private void Fail(string fallback)
+    {
+        _review = false;
+        _error = Api.LastError ?? fallback;
+    }
+}

@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF and comic reader mockups</title>
+<style>
+  :root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--text:#F7F7FA;--sub:#9EA4BC;--line:#30364A;--accent:#8852FC;--accent2:#A46FFF}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0b0c0f;color:var(--text);font:14px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;padding:24px 16px 64px}
+  h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:40px 0 10px}
+  .lead{color:var(--sub);max-width:900px;margin:0 0 8px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .scroll{overflow-x:auto;padding-bottom:6px}
+  ol.notes{max-width:900px;color:#d5d7e2;padding-left:22px;margin:12px 0 0}
+  ol.notes li{margin:4px 0}
+  /* reader frame */
+  .screen{position:relative;width:1120px;height:630px;background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .screen.dark{background:var(--page)}
+  .bar{position:absolute;left:0;right:0;display:flex;align-items:center;gap:8px;padding:0 12px;background:linear-gradient(#000d,#0009 70%,#0000);z-index:3}
+  .bar.top{top:0;height:60px}
+  .bar.bottom{bottom:0;height:64px;background:linear-gradient(#0000,#0009 30%,#000d);gap:14px;padding:0 20px}
+  .ib{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--text);flex:none;position:relative}
+  .ib.on{background:var(--hover);color:var(--accent2)}
+  .ib svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .ib svg.f{fill:currentColor;stroke:none}
+  .ttl{flex:1;min-width:0;padding-left:4px}
+  .ttl b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ttl span{display:block;font-size:12px;color:var(--sub)}
+  .tools{display:flex;gap:2px}
+  .count{font-size:13px;color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .rail{flex:1;height:4px;border-radius:2px;background:var(--line);position:relative}
+  .rail i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--accent)}
+  .rail u{position:absolute;top:-6px;width:16px;height:16px;border-radius:50%;background:#fff;margin-left:-8px}
+  .rail s{position:absolute;top:-3px;width:3px;height:10px;border-radius:1px;background:#F2C14E}
+  .peek{position:absolute;bottom:22px;margin-left:-45px;width:90px;background:var(--menu);border-radius:8px;padding:5px 5px 4px;text-align:center;font-size:12px;box-shadow:0 6px 20px #000a}
+  .peek .pg{width:80px;height:118px;margin:0 auto 3px}
+  /* pages */
+  .stage{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;gap:0}
+  .pg{background:#f3efe6;display:grid;gap:5px;padding:7px;flex:none}
+  .pg b{background:linear-gradient(135deg,#c9d3e6,#8fa0c4);border:2px solid #1c1c22;display:block}
+  .pg b.w{background:linear-gradient(135deg,#f0c9a4,#d98c6a)} .pg b.g{background:linear-gradient(135deg,#bfe0c8,#6fae8a)} .pg b.p{background:linear-gradient(135deg,#d9c6f2,#9c7fd6)} .pg b.k{background:linear-gradient(135deg,#55596b,#23252f)}
+  .c1{grid-template:2fr 1.4fr 1.6fr / 1fr 1fr 1fr}
+  .c1 b:nth-child(1){grid-column:1/4} .c1 b:nth-child(3){grid-column:2/4} .c1 b:nth-child(4){grid-column:1/3} .c1 b:nth-child(6){display:none}
+  .c2{grid-template:1.2fr 2fr 1.3fr / 1fr 1fr}
+  .c2 b:nth-child(3){grid-column:1/3}
+  .c3{grid-template:1fr / 1fr}
+  .pdf{background:#fff;color:#222;padding:34px 40px;display:block;font:10px/1.7 Georgia,serif}
+  .pdf h4{font:700 15px Georgia,serif;margin:0 0 10px;color:#111}
+  .pdf p{margin:0 0 8px} .pdf mark{background:#ffe27a} .pdf mark.cur{background:#ffb347;outline:2px solid #e8891a}
+  .ln{display:block;height:6px;border-radius:2px;background:#d9d9de;margin:6px 0}
+  /* panel */
+  .scrim{position:absolute;inset:0;background:#0006;z-index:4}
+  .panel{position:absolute;top:0;right:0;bottom:0;width:400px;background:var(--card);border-left:1px solid var(--line);z-index:5;display:flex;flex-direction:column}
+  .ph{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 6px 20px}
+  .ph h3{margin:0;font-size:17px;font-weight:600}
+  .pb{padding:6px 20px 20px;overflow:hidden;flex:1}
+  .field{margin:14px 0 4px;font-size:13px;color:var(--sub)}
+  .seg{display:flex;background:var(--page);border-radius:8px;padding:3px;gap:3px}
+  .seg span{flex:1;text-align:center;height:38px;line-height:38px;border-radius:6px;font-size:13px;color:#d5d7e2}
+  .seg span.on{background:var(--menu);color:#fff;font-weight:600}
+  .sw{display:flex;align-items:center;justify-content:space-between;margin-top:20px;min-height:44px}
+  .tg{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;flex:none}
+  .tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+  .tg.on{background:var(--accent)} .tg.on::after{left:21px}
+  .in{height:44px;border-radius:8px;background:var(--page);border:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:8px;color:#fff}
+  .hint{color:var(--sub);font-size:13px;margin:10px 0 6px}
+  .row{display:flex;gap:12px;align-items:center;padding:9px 8px;border-radius:8px;min-height:44px}
+  .row.cur{background:var(--hover)}
+  .row small{display:block;color:var(--sub);font-size:12px}
+  .row em{font-style:normal;background:#ffe27a;color:#111;border-radius:2px;padding:0 2px}
+  .row .pg{width:44px;height:64px;padding:3px;gap:2px} .row .pg b{border-width:1px}
+  .row .del{margin-left:auto}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 10px}
+  .th{text-align:center;font-size:12px;color:var(--sub);position:relative}
+  .th .pg{width:100%;height:118px;padding:4px;gap:3px;margin-bottom:3px} .th .pg b{border-width:1px}
+  .th.cur .pg{outline:3px solid var(--accent);outline-offset:1px} .th.cur{color:#fff}
+  .th .bm{position:absolute;top:0;right:6px;width:12px;height:18px;background:#F2C14E;clip-path:polygon(0 0,100% 0,100% 100%,50% 72%,0 100%)}
+  .btn{height:44px;border-radius:8px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+  .btn.pri{background:var(--accent);color:#fff} .btn.out{border:1px solid var(--line);color:#fff} .btn.wide{width:100%;justify-content:center}
+  .endcard{width:520px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;gap:22px;align-items:center}
+  .endcard .pg{width:130px;height:196px}
+  .endcard small{color:var(--sub);display:block;font-size:13px} .endcard h3{margin:2px 0 16px;font-size:20px}
+  .state{text-align:center;max-width:420px} .state p{margin:0 0 16px;font-size:16px}
+  .spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent)}
+  /* phone */
+  .phones{display:flex;gap:28px;flex-wrap:wrap}
+  .phone{position:relative;width:360px;height:720px;background:#000;border:1px solid var(--line);border-radius:28px;overflow:hidden;flex:none}
+  .phone .bar.top{height:56px;padding:0 6px} .phone .bar.bottom{height:60px;padding:0 16px}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:18px 18px 0 0;padding:8px 18px 22px;z-index:5}
+  .grip{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
+  /* markers */
+  .m{position:absolute;width:20px;height:20px;border-radius:50%;background:#FFD23F;color:#111;font:700 11px/20px system-ui;text-align:center;z-index:9;box-shadow:0 0 0 2px #000}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="toc" viewBox="0 0 24 24"><path d="M4 7h11M4 12h11M4 17h11M19 7h1M19 12h1M19 17h1"/></symbol>
+  <symbol id="pages" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/></symbol>
+  <symbol id="bmadd" viewBox="0 0 24 24"><path d="M7 4h7M17 9v11l-5-3.5L7 20V4M18 2v6M15 5h6"/></symbol>
+  <symbol id="bmon" viewBox="0 0 24 24"><path d="M7 3h10v18l-5-3.5L7 21z"/></symbol>
+  <symbol id="bm" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-3.5L7 20z"/></symbol>
+  <symbol id="tune" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
+  <symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></symbol>
+</svg>
+
+<div class="wrap">
+<h1>PDF and comic reader</h1>
+<p class="lead">Mockups for the Locked spec (2026-11-10). Each screen shows exactly what the reader shows. The yellow numbers are not part of the product; they point at the notes under each screen. Comic pages are drawn as colored panels to stand in for artwork.</p>
+
+<!-- 1 -->
+<h2>Screen 1. A comic on a computer, two pages</h2>
+<div class="scroll"><div class="screen">
+  <div class="stage">
+    <div class="pg c1" style="width:372px;height:560px"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div>
+    <div class="pg c2" style="width:372px;height:560px"><b class="g"></b><b class="k"></b><b class="w"></b><b></b><b class="p"></b></div>
+  </div>
+  <div class="bar top">
+    <span class="ib"><svg><use href="#back"/></svg></span>
+    <div class="ttl"><b>Saga</b><span>#12 · Brian K. Vaughan, Fiona Staples</span></div>
+    <div class="tools">
+      <span class="ib"><svg><use href="#pages"/></svg></span>
+      <span class="ib"><svg><use href="#bmadd"/></svg></span>
+      <span class="ib"><svg><use href="#bm"/></svg></span>
+      <span class="ib"><svg><use href="#tune"/></svg></span>
+    </div>
+  </div>
+  <div class="bar bottom">
+    <div class="rail"><i style="width:46%"></i><s style="left:17%"></s><s style="left:71%"></s><u style="left:46%"></u>
+      <div class="peek" style="left:63%"><div class="pg c2"><b class="p"></b><b></b><b class="w"></b><b class="g"></b><b class="k"></b></div>Page 18</div>
+    </div>
+    <span class="count">Pages 12–13 of 28</span>
+  </div>
+  <span class="m" style="left:22px;top:54px">1</span>
+  <span class="m" style="left:150px;top:44px">2</span>
+  <span class="m" style="right:150px;top:54px">3</span>
+  <span class="m" style="right:104px;top:54px">4</span>
+  <span class="m" style="right:58px;top:54px">5</span>
+  <span class="m" style="right:12px;top:54px">6</span>
+  <span class="m" style="left:120px;top:300px">7</span>
+  <span class="m" style="left:550px;top:300px">8</span>
+  <span class="m" style="left:686px;bottom:186px">9</span>
+  <span class="m" style="left:196px;bottom:44px">10</span>
+  <span class="m" style="right:60px;bottom:48px">11</span>
+</div></div>
+<ol class="notes">
+  <li>Back returns to the page you came from. Your page is saved.</li>
+  <li>Title, with the issue and creators under it (a PDF shows the author).</li>
+  <li>Pages: opens the grid of small page pictures (screen 4).</li>
+  <li>Bookmark this page. It fills in when the page on screen has your bookmark; pressing again removes it.</li>
+  <li>Bookmarks: opens the list (screen 5).</li>
+  <li>Settings: layout, fit, direction, background (screen 3).</li>
+  <li>Click or tap the left third to go back a page, the right third to go forward. Arrow keys and Space do the same. With Right to left on, the sides swap.</li>
+  <li>Click or tap the middle to show or hide the top line and the slider. They fade by themselves after 3 seconds.</li>
+  <li>While you drag or hover on the slider, a small picture of that page shows above it.</li>
+  <li>Bookmark marks on the slider. Off by default; they appear only when "Show bookmarks on the bar" is on.</li>
+  <li>Where you are. In one-page layout it reads "Page 12 of 28".</li>
+</ol>
+
+<!-- 2 -->
+<h2>Screen 2. A PDF on a computer, with Search open</h2>
+<div class="scroll"><div class="screen dark">
+  <div class="stage" style="right:400px">
+    <div class="pg pdf" style="width:420px;height:580px">
+      <h4>Chapter 4. Tides and the Moon</h4>
+      <p>The pull of the Moon raises the sea twice a day. Where the coast narrows, the <mark class="cur">spring tide</mark> can lift the water by several meters within hours.</p>
+      <span class="ln"></span><span class="ln"></span><span class="ln" style="width:82%"></span>
+      <p style="margin-top:10px">Sailors learned to wait for the <mark>spring tide</mark> before crossing the bar, and harbors kept tables for every week of the year.</p>
+      <span class="ln"></span><span class="ln"></span><span class="ln"></span><span class="ln" style="width:64%"></span>
+      <span class="ln" style="margin-top:14px"></span><span class="ln"></span><span class="ln" style="width:90%"></span><span class="ln"></span><span class="ln" style="width:48%"></span>
+    </div>
+  </div>
+  <div class="bar top" style="right:400px">
+    <span class="ib"><svg><use href="#back"/></svg></span>
+    <div class="ttl"><b>The Sea Around Us</b><span>Rachel Carson</span></div>
+    <div class="tools">
+      <span class="ib on"><svg><use href="#search"/></svg></span>
+      <span class="ib"><svg><use href="#toc"/></svg></span>
+      <span class="ib"><svg><use href="#pages"/></svg></span>
+      <span class="ib"><svg><use href="#bmadd"/></svg></span>
+      <span class="ib"><svg><use href="#bm"/></svg></span>
+      <span class="ib"><svg><use href="#tune"/></svg></span>
+    </div>
+  </div>
+  <div class="bar bottom" style="right:400px">
+    <div class="rail"><i style="width:30%"></i><u style="left:30%"></u></div>
+    <span class="count">Page 74 of 246</span>
+  </div>
+  <div class="panel">
+    <div class="ph"><h3>Search</h3><span class="ib"><svg><use href="#close"/></svg></span></div>
+    <div class="pb">
+      <div class="in"><svg width="18" height="18" style="fill:none;stroke:#9EA4BC;stroke-width:1.8"><use href="#search"/></svg>spring tide</div>
+      <p class="hint">7 places found.</p>
+      <div class="row cur"><div>...coast narrows, the <em>spring tide</em> can lift the water...<small>Page 74</small></div></div>
+      <div class="row"><div>...wait for the <em>spring tide</em> before crossing the bar...<small>Page 74</small></div></div>
+      <div class="row"><div>...a <em>spring tide</em> follows the new and the full Moon...<small>Page 76</small></div></div>
+      <div class="row"><div>...the highest <em>spring tide</em> of the year came in March...<small>Page 81</small></div></div>
+      <div class="row"><div>...between neap and <em>spring tide</em> the range doubles...<small>Page 112</small></div></div>
+    </div>
+  </div>
+  <span class="m" style="right:654px;top:54px">1</span>
+  <span class="m" style="right:608px;top:54px">2</span>
+  <span class="m" style="right:372px;top:74px">3</span>
+  <span class="m" style="right:372px;top:150px">4</span>
+  <span class="m" style="left:392px;top:92px">5</span>
+</div></div>
+<ol class="notes">
+  <li>Search appears only for PDFs. A scanned PDF with no text shows "This PDF has no text to search." in the panel.</li>
+  <li>Contents appears only when the PDF has its own outline. It lists the chapters; choosing one goes there.</li>
+  <li>Type at least two letters and press Enter.</li>
+  <li>Each result shows the words around the match and the page. Choosing one goes to that page.</li>
+  <li>Matches are marked on the page; the chosen one is stronger.</li>
+</ol>
+
+<!-- 3 -->
+<h2>Screen 3. Settings</h2>
+<div class="scroll"><div class="screen">
+  <div class="stage" style="right:400px"><div class="pg c1" style="width:372px;height:560px"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div></div>
+  <div class="scrim"></div>
+  <div class="panel">
+    <div class="ph"><h3>Settings</h3><span class="ib"><svg><use href="#close"/></svg></span></div>
+    <div class="pb">
+      <div class="field">Layout</div>
+      <div class="seg"><span class="on">Auto</span><span>One page</span><span>Two pages</span><span>Scrolling</span></div>
+      <div class="field">Fit</div>
+      <div class="seg"><span class="on">Page</span><span>Width</span></div>
+      <div class="field">Direction</div>
+      <div class="seg"><span class="on">Left to right</span><span>Right to left</span></div>
+      <div class="field">Background</div>
+      <div class="seg"><span class="on">Black</span><span>Dark</span><span>Light</span></div>
+      <div class="sw"><span>Show bookmarks on the bar</span><span class="tg"></span></div>
+    </div>
+  </div>
+  <span class="m" style="right:372px;top:64px">1</span>
+  <span class="m" style="right:372px;top:142px">2</span>
+  <span class="m" style="right:372px;top:220px">3</span>
+  <span class="m" style="right:372px;top:298px">4</span>
+  <span class="m" style="right:372px;top:372px">5</span>
+</div></div>
+<ol class="notes">
+  <li>Auto shows two pages on a wide screen and one page otherwise. The cover and any double-width page always show alone. Scrolling stacks the pages down the screen. Remembered for this title.</li>
+  <li>Page shows the whole page. Width fills the width and you scroll down. Pinch, double-tap or Ctrl and the wheel zoom in closer.</li>
+  <li>Comics only. Set by itself for manga; your choice is remembered for the whole Series. Not shown for PDFs.</li>
+  <li>The color around the page. The page itself is never recolored.</li>
+  <li>Off by default, like every other kind of media.</li>
+</ol>
+
+<!-- 4 -->
+<h2>Screen 4. Pages</h2>
+<div class="scroll"><div class="screen">
+  <div class="stage" style="right:400px"><div class="pg c1" style="width:372px;height:560px"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div></div>
+  <div class="scrim"></div>
+  <div class="panel">
+    <div class="ph"><h3>Pages</h3><span class="ib"><svg><use href="#close"/></svg></span></div>
+    <div class="pb">
+      <div class="grid">
+        <div class="th"><div class="pg c2"><b class="g"></b><b></b><b class="w"></b><b class="p"></b><b class="k"></b></div>9</div>
+        <div class="th"><div class="pg c1"><b class="p"></b><b></b><b class="g"></b><b class="w"></b><b class="k"></b><b></b></div>10</div>
+        <div class="th"><div class="pg c3"><b class="k"></b></div>11</div>
+        <div class="th cur"><div class="pg c1"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div>12</div>
+        <div class="th"><div class="pg c2"><b class="g"></b><b class="k"></b><b class="w"></b><b></b><b class="p"></b></div>13</div>
+        <div class="th"><span class="bm"></span><div class="pg c1"><b class="w"></b><b></b><b class="k"></b><b class="g"></b><b class="p"></b><b></b></div>14</div>
+        <div class="th"><div class="pg c2"><b></b><b class="p"></b><b class="g"></b><b class="w"></b><b class="k"></b></div>15</div>
+        <div class="th"><div class="pg c1"><b class="k"></b><b class="g"></b><b></b><b class="w"></b><b class="p"></b><b class="g"></b></div>16</div>
+        <div class="th"><div class="pg c2"><b class="w"></b><b></b><b class="k"></b><b class="p"></b><b class="g"></b></div>17</div>
+        <div class="th"><div class="pg c2"><b class="p"></b><b></b><b class="w"></b><b class="g"></b><b class="k"></b></div>18</div>
+        <div class="th"><div class="pg c1"><b></b><b class="k"></b><b class="w"></b><b class="g"></b><b class="p"></b><b></b></div>19</div>
+        <div class="th"><div class="pg c3"><b class="w"></b></div>20</div>
+      </div>
+    </div>
+  </div>
+  <span class="m" style="right:24px;top:64px">1</span>
+  <span class="m" style="right:214px;top:238px">2</span>
+</div></div>
+<ol class="notes">
+  <li>The page you are on is outlined. Choosing any page goes there and closes the panel.</li>
+  <li>A bookmarked page carries a gold bookmark mark. Pictures load as you scroll, so a long comic opens this list at once.</li>
+</ol>
+
+<!-- 5 -->
+<h2>Screen 5. Bookmarks</h2>
+<div class="scroll"><div class="screen">
+  <div class="stage" style="right:400px"><div class="pg c1" style="width:372px;height:560px"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div></div>
+  <div class="scrim"></div>
+  <div class="panel">
+    <div class="ph"><h3>Bookmarks</h3><span class="ib"><svg><use href="#close"/></svg></span></div>
+    <div class="pb">
+      <div class="seg" style="margin-bottom:14px"><span>Everyone</span><span class="on">Mine</span></div>
+      <span class="btn out wide"><svg width="20" height="20" style="fill:none;stroke:#fff;stroke-width:1.8"><use href="#bmadd"/></svg>Bookmark this page</span>
+      <div style="height:10px"></div>
+      <div class="row"><div class="pg c1"><b class="w"></b><b></b><b class="k"></b><b class="g"></b><b class="p"></b><b></b></div><div>Page 14<small>The reveal · 9 Nov 2026</small></div><span class="ib del"><svg><use href="#trash"/></svg></span></div>
+      <div class="row"><div class="pg c3"><b class="w"></b></div><div>Page 20<small>9 Nov 2026</small></div><span class="ib del"><svg><use href="#trash"/></svg></span></div>
+    </div>
+  </div>
+  <span class="m" style="right:372px;top:64px">1</span>
+  <span class="m" style="right:372px;top:122px">2</span>
+  <span class="m" style="right:372px;top:196px">3</span>
+  <span class="m" style="right:16px;top:186px">4</span>
+</div></div>
+<ol class="notes">
+  <li>Everyone lists the bookmarks an administrator has shared with the household. Mine lists your own. The same two tabs as the player's Bookmarks panel.</li>
+  <li>Adds the page on screen to Mine.</li>
+  <li>Each bookmark shows a small picture of the page, the page number, an optional label and the date. Choosing one goes there. Under Everyone, the row also names whose it was.</li>
+  <li>Delete removes your own bookmark at once after "are you sure". Sharing, Find bookmarks and Export stay in the editor's Bookmarks tab for administrators.</li>
+</ol>
+
+<!-- 6 -->
+<h2>Screen 6. The end of an issue</h2>
+<div class="scroll"><div class="screen">
+  <div class="stage">
+    <div class="endcard">
+      <div class="pg c3"><b class="p"></b></div>
+      <div><small>Next in Saga</small><h3>Saga #13</h3>
+        <span class="btn pri">Read next</span>&nbsp; <span class="btn out">Back to Saga</span></div>
+    </div>
+  </div>
+  <div class="bar top"><span class="ib"><svg><use href="#back"/></svg></span><div class="ttl"><b>Saga</b><span>#12 · Brian K. Vaughan, Fiona Staples</span></div></div>
+  <span class="m" style="left:296px;top:210px">1</span>
+  <span class="m" style="left:478px;top:346px">2</span>
+  <span class="m" style="left:632px;top:346px">3</span>
+</div></div>
+<ol class="notes">
+  <li>Turning past the last page of a comic that belongs to a Series shows the next issue you own. If you own no later issue, nothing is shown and the last page stays.</li>
+  <li>Opens the next issue at its first page, with the same direction and layout.</li>
+  <li>Opens the Series page. PDFs and comics outside a Series never show this card.</li>
+</ol>
+
+<!-- 7 -->
+<h2>Screen 7. Phone</h2>
+<div class="phones">
+  <div class="phone">
+    <div class="stage"><div class="pg c1" style="width:360px;height:540px"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div></div>
+    <div class="bar top">
+      <span class="ib"><svg><use href="#back"/></svg></span>
+      <div class="ttl"><b>Saga</b><span>#12</span></div>
+      <span class="ib"><svg><use href="#bmadd"/></svg></span>
+      <span class="ib"><svg class="f"><use href="#more"/></svg></span>
+    </div>
+    <div class="bar bottom"><div class="rail"><i style="width:43%"></i><u style="left:43%"></u></div><span class="count">12 of 28</span></div>
+    <span class="m" style="right:14px;top:50px">1</span>
+    <span class="m" style="left:30px;top:350px">2</span>
+    <span class="m" style="left:170px;top:350px">3</span>
+    <span class="m" style="right:20px;bottom:46px">4</span>
+  </div>
+  <div class="phone">
+    <div class="stage"><div class="pg c1" style="width:360px;height:540px"><b></b><b class="w"></b><b class="g"></b><b class="p"></b><b class="k"></b><b class="w"></b></div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grip"></div>
+      <div class="ph" style="padding:0 0 4px"><h3>Settings</h3></div>
+      <div class="field">Layout</div>
+      <div class="seg"><span class="on">Auto</span><span>One page</span><span>Scrolling</span></div>
+      <div class="field">Fit</div>
+      <div class="seg"><span class="on">Page</span><span>Width</span></div>
+      <div class="field">Direction</div>
+      <div class="seg"><span class="on">Left to right</span><span>Right to left</span></div>
+      <div class="field">Background</div>
+      <div class="seg"><span class="on">Black</span><span>Dark</span><span>Light</span></div>
+      <div class="sw"><span>Show bookmarks on the bar</span><span class="tg"></span></div>
+    </div>
+    <span class="m" style="left:150px;top:236px">5</span>
+    <span class="m" style="right:14px;top:300px">6</span>
+  </div>
+</div>
+<ol class="notes">
+  <li>"..." opens a sheet with Pages, Bookmarks and Settings (and Search and Contents for a PDF). Bookmark this page stays on the top line.</li>
+  <li>Tap the left or right edge, or swipe, to turn the page.</li>
+  <li>Tap the middle to show or hide the top line and slider. Pinch or double-tap to zoom; drag to move around a zoomed page.</li>
+  <li>The count is shortened to "12 of 28" on a phone.</li>
+  <li>Every panel is a bottom sheet on a phone: swipe down, tap outside or press Back to close.</li>
+  <li>A phone has no Two pages choice. A tablet held sideways does.</li>
+</ol>
+
+<!-- 8 -->
+<h2>Screen 8. Loading and "can't open"</h2>
+<div class="scroll" style="display:flex;gap:20px">
+  <div class="screen" style="width:550px;height:320px;flex:none">
+    <div class="stage"><div class="spin"></div></div>
+    <div class="bar top"><span class="ib"><svg><use href="#back"/></svg></span><div class="ttl"><b>Saga</b><span>#12</span></div></div>
+    <span class="m" style="left:300px;top:130px">1</span>
+  </div>
+  <div class="screen" style="width:550px;height:320px;flex:none">
+    <div class="stage"><div class="state"><p>This file can't be opened. It may be damaged or protected.</p><span class="btn out">Back to Library</span></div></div>
+    <span class="m" style="left:60px;top:112px">2</span>
+  </div>
+</div>
+<ol class="notes">
+  <li>The background and the title appear at once; the page replaces the spinner as soon as it arrives. A CBR or CB7 opened for the first time shows its first pages while the rest are prepared.</li>
+  <li>A damaged file or a password-protected PDF. If only one page inside a comic is damaged, that page reads "This page can't be shown" and you can keep reading.</li>
+</ol>
+</div>
+</body>
+</html>

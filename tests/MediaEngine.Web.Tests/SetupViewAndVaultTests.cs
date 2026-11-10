@@ -233,8 +233,10 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.True(created.IncludeSubdirectories);
         Assert.True(created.IncludeInTimeline);
         Assert.Equal("Pictures", created.Name);
-        cut.WaitForAssertion(() => Assert.Equal(["Movies", "Pictures"], cut.FindAll(".setup-libs__name strong").Select(Text).ToArray()));
-        Assert.Contains("E:\\Pictures", cut.FindAll(".setup-libs__path").Select(Text));
+        // The row is named by its kind and counts its folders; the folder's own path is in the list, never in the cell (View folders spec D1, D5).
+        cut.WaitForAssertion(() => Assert.Equal(["Movies", "Photos"], cut.FindAll(".setup-libs__name strong").Select(Text).ToArray()));
+        Assert.Empty(cut.FindAll(".setup-libs__path"));
+        Assert.DoesNotContain("E:\\Pictures", Text(cut.Find("tr[data-library=photos] .setup-libs__folders")), StringComparison.Ordinal);
     }
 
     [Fact]

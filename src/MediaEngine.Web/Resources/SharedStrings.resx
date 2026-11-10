@@ -8144,6 +8144,9 @@
   <data name="SetupVaultOffer_YourPINCouldnTBe" xml:space="preserve">
     <value>Your PIN couldn't be saved. Check it and try again.</value>
   </data>
+  <data name="ProviderOnboardingDialog_TestConnection" xml:space="preserve">
+    <value>Test connection</value>
+  </data>
   <data name="ProviderOnboardingDialog_AKeyIsSaved" xml:space="preserve">
     <value>A key is saved</value>
   </data>
@@ -8746,9 +8749,6 @@
   </data>
   <data name="CreateLibraryDialog_ConnectASource" xml:space="preserve">
     <value>Connect a source</value>
-  </data>
-  <data name="SetupAreaCards_ChangeFolder" xml:space="preserve">
-    <value>Change folder</value>
   </data>
   <data name="GeneralNameAddress_NameAndAddress" xml:space="preserve">
     <value>Name and address</value>
@@ -12556,5 +12556,53 @@
   </data>
   <data name="PlaybackIdentity_ItemActions" xml:space="preserve">
     <value>Item actions</value>
+  </data>
+  <data name="AddViewFolderDialog_ManagedNote" xml:space="preserve">
+    <value>Library creates a new Managed folder called “{0}” in View's storage. The folder you picked is not changed.</value>
+  </data>
+  <data name="ViewKindEdit_Loading" xml:space="preserve">
+    <value>Reading the folders…</value>
+  </data>
+  <data name="ViewKindEdit_Skipped" xml:space="preserve">
+    <value>{0} files skipped (not {1})</value>
+  </data>
+  <data name="ViewKindEdit_RemoveFolder" xml:space="preserve">
+    <value>Remove folder</value>
+  </data>
+  <data name="ViewKindEdit_NeverDeletes" xml:space="preserve">
+    <value>Removing a folder never deletes files.</value>
+  </data>
+  <data name="ViewKindEdit_Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="ViewKindEdit_Lead" xml:space="preserve">
+    <value>The folders View reads for your {0}. Nothing changes until you press Save changes.</value>
+  </data>
+  <data name="ViewKindEdit_NameTaken" xml:space="preserve">
+    <value>You already have a folder called “{0}” here. Choose a different name.</value>
+  </data>
+  <data name="ViewKindEdit_ReviewAddManaged" xml:space="preserve">
+    <value>Create a new Managed folder called “{0}” in View's storage.</value>
+  </data>
+  <data name="ViewKindEdit_SaveFailed" xml:space="preserve">
+    <value>A folder name could not be saved. Check it and try again.</value>
+  </data>
+  <data name="ViewKindEdit_RemoveFailed" xml:space="preserve">
+    <value>A folder could not be removed. Try again.</value>
+  </data>
+  <data name="ViewKindEdit_AddFailed" xml:space="preserve">
+    <value>A folder could not be added. Check it and try again.</value>
+  </data>
+  <data name="ViewFolderFilter_Folders" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="ViewFolderFilter_AllFolders" xml:space="preserve">
+    <value>All folders</value>
+  </data>
+  <data name="ViewUploadsNotice_AddManaged" xml:space="preserve">
+    <value>Add a Managed folder</value>
+  </data>
+  <data name="ViewFoldersTab_FolderNameOptional" xml:space="preserve">
+    <value>Folder name (optional)</value>
   </data>
 </root>

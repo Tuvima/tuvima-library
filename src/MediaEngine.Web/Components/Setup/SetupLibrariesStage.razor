@@ -63,7 +63,7 @@
     private LibrariesConfigurationDto? _configuration;
     private string? _loadError;
     private IReadOnlyList<ViewSourceAdminDto>? _viewFolders;
-    private bool HasViewFolders => _viewFolders?.Any(source => source.StorageMode == "linked" && !string.IsNullOrWhiteSpace(source.Location)) == true;
+    private bool HasViewFolders => _viewFolders?.Any(source => !ViewFolderRules.IsIntake(source) && !string.IsNullOrWhiteSpace(source.Location)) == true;
 
     // The list of library kinds the setup session can read; the areas and the Create library dialog are drawn from it.
     private LibraryKindCatalog _kinds = LibraryKindCatalog.Empty;

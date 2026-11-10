@@ -137,6 +137,10 @@
                         {
                             <LibraryFoldersPopover Sources="@library.Sources" LibraryName="@row.Name" PathIssues="@PathIssues" />
                         }
+                        else if (row.IsView && ViewFolderLists?.GetValueOrDefault(row.Key) is { Count: > 0 } viewList)
+                        {
+                            <LibraryFoldersPopover Items="@viewList" LibraryName="@row.Name" />
+                        }
                         else
                         {
                             <span>@FolderWords(row)</span>
@@ -146,7 +150,7 @@
                         <LibraryStatusCell Row="@row" />
                     </td>
                     <td data-card-role="hidden" class="libs__edit">
-                        @if (!ReadOnly && row.Library is not null)
+                        @if (!ReadOnly && (row.Library is not null || row.IsView))
                         {
                             <span @onclick:stopPropagation="true">
                                 <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
@@ -189,6 +193,8 @@
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     /// <summary>View's folder count per kind; null while it is not known.</summary>
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
+    /// <summary>View's folders per kind, for the "N folders" list; null while not known.</summary>
+    [Parameter] public IReadOnlyDictionary<string, IReadOnlyList<FolderListItem>>? ViewFolderLists { get; set; }
     /// <summary>Folder path to issue; null while the folder checks have not finished (no status is claimed then).</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>A Vault-protected library is listed only while the Vault may be shown; the host decides (see <see cref="LibraryVaultAccess"/>).</summary>
@@ -342,6 +348,19 @@
     // Edit: one window for the name and folders (D4). Nothing is saved until Save changes; a changed library comes back with the page re-read.
     private async Task EditAsync(LibraryListRow row)
     {
+        if (row.IsView)
+        {
+            // A View kind's Edit window (View folders spec D3, D4): the same anatomy as a library's.
+            var viewParameters = new AppDialogParameters<ViewKindEditDialog>
+            {
+                { component => component.Kind, row.Type },
+                { component => component.Configuration, Configuration },
+            };
+            var viewDialog = await DialogService.ShowAsync<ViewKindEditDialog>(string.Empty, viewParameters, ViewKindEditDialog.DialogOptions);
+            if (await viewDialog.Result is { Canceled: false }) await FolderAdded.InvokeAsync();
+            return;
+        }
+
         if (row.Library is null) return;
         var parameters = new AppDialogParameters<LibraryEditDialog>
         {

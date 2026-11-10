@@ -19,6 +19,8 @@
 @namespace MediaEngine.Web.Components.Pages
 @inject ViewEditorHost EditorHost
 @inject ViewDropUploader DropUploader
+@inject ViewFolderGate FolderGate
+@using MediaEngine.Web.Components.Settings
 @using Microsoft.AspNetCore.Components.Forms
 @inject IStringLocalizer<SharedStrings> L
 
@@ -42,7 +44,8 @@
             }
         </HeaderActions>
         <ChildContent>
-            @if (CanDropFiles) { <ViewDropTarget OnFiles="FilesDroppedAsync" /> }
+            @if (CanDropFiles && !_uploadsOff) { <ViewDropTarget OnFiles="FilesDroppedAsync" /> }
+            @if (CanDropFiles && _uploadsOff) { <ViewUploadsNotice Noun="@ViewFolderRules.Noun(ViewContentKinds.Documents, "Documents")" /> }
             @if (_loading && !_policyKnown)
             {
                 <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewDocumentsPage_LoadingDocuments"].Value" Message="@L["ViewDocumentsPage_ReadingTheDocumentsYouCan"].Value" />
@@ -63,6 +66,7 @@
                 </AppDiscoveryFilterBar>
 
                 @* Who added the documents: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
+                <ViewFolderFilter ProfileId="@_profileId" Folders="_folders" Kind="@ViewContentKinds.Documents" Selected="_folder" SelectedChanged="FolderChangedAsync" />
                 <ViewFilterChipRow Label="@L["Common_AddedBy"].Value" Choices="_addedByChoices" Selected="_filter.AddedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
 
                 <div class="view-documents-layout">
@@ -298,6 +302,16 @@
     private readonly HashSet<Guid> _selected = [];
     private readonly HashSet<Guid> _brokenThumbnails = [];
     private readonly ViewDocumentFilterState _filter = new();
+    // The Documents folders (the Folders filter), the one chosen, and whether uploads are off for want of a Managed folder.
+    private IReadOnlyList<ViewSourceAdminDto> _folders = [];
+    private Guid? _folder;
+    private bool _uploadsOff;
+    private async Task LoadFoldersAsync()
+    {
+        _folders = await FolderGate.FoldersAsync(ViewContentKinds.Documents);
+        _uploadsOff = await FolderGate.UploadsOffAsync([ViewContentKinds.Documents]);
+    }
+    private Task FolderChangedAsync(Guid? folder) { _folder = folder; return LoadAsync(); }
     private readonly HashSet<Guid> _filing = [];
     private ViewDocumentCatalogueDto? _catalogue;
     private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
@@ -400,7 +414,7 @@
         {
             // The remembered sort has to be known before the first list is asked for.
             _filter.Sort = await ApiClient.GetViewDocumentsSortAsync();
-            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.LoadGalleriesAsync());
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.LoadGalleriesAsync(), LoadFoldersAsync());
         }
         else
         {
@@ -413,7 +427,7 @@
     private ViewAssetQueryOptions Query(string? cursor = null) => new(
         Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"],
         Lifecycle: _filter.TrashOnly ? "trashed" : "active", GalleryId: _filter.SavedViewId, Limit: PageSize, Documents: _filter.ToDto(),
-        AddedBy: _filter.AddedBy.Count > 0 ? _filter.AddedBy.ToList() : null);
+        AddedBy: _filter.AddedBy.Count > 0 ? _filter.AddedBy.ToList() : null, Sources: _folder is { } folder ? [folder] : null);
 
     private async Task LoadCatalogueAsync()
     {

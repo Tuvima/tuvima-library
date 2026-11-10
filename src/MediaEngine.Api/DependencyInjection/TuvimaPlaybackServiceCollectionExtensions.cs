@@ -57,6 +57,9 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AudiobookBookmarkRepository>();
         services.AddSingleton<BookmarkRecognitionRepository>();
         services.AddSingleton<BookmarkClosenessProvider>();
+        // Page reader (PDF and comic reader spec WP1): comic page lists and page pictures, limits from config/reader.json.
+        services.AddSingleton<MediaEngine.Api.Services.Reading.ReaderConfigurationProvider>();
+        services.AddSingleton<MediaEngine.Api.Services.Reading.IComicPageService, MediaEngine.Api.Services.Reading.ComicPageService>();
         services.AddSingleton<BookmarkSetService>();
         services.AddSingleton<EditorBookmarkRepository>();
         services.AddSingleton<PlayerBookmarkVisibility>();

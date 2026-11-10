@@ -296,8 +296,14 @@ internal sealed partial class DetailCompositionOrchestrator
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
             .ToList();
+        // A TV show's description: the show's own provider text first (stored on the show, or on its episodes' hydration),
+        // then the longer Wikipedia-style text, and only last the one-line Wikidata description.
         var longDescription = displayDescription ?? (entityType == DetailEntityType.TvShow
-            ? GetValue(values, MetadataFieldConstants.ShortDescription)
+            ? FirstText(GetValue(values, MetadataFieldConstants.Description),
+                GetValue(values, MetadataFieldConstants.ShowDescription),
+                GetValue(tvPlaybackValues, MetadataFieldConstants.ShowDescription),
+                GetValue(values, "overview"),
+                GetValue(values, MetadataFieldConstants.ShortDescription))
             : FirstText(GetValue(values, MetadataFieldConstants.Description),
                 GetValue(values, "overview"), GetValue(values, "plot_summary"), row.Description));
         var heroSummary = entityType == DetailEntityType.TvShow ? longDescription : BuildHeroSummary(values);

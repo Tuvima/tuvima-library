@@ -172,6 +172,7 @@ public sealed partial class EngineApiClient
 
         AddDocumentFilterQuery(query, options.Documents);
         AddAddedByQuery(query, options.AddedBy);
+        AddSourceQuery(query, options.Sources);
 
         AddQuery(query, "favorite", options.FavoritesOnly ? "true" : null);
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
@@ -186,6 +187,14 @@ public sealed partial class EngineApiClient
         foreach (var profileId in addedBy ?? [])
         {
             AddQuery(query, "added_by", profileId.ToString("D"));
+        }
+    }
+
+    private static void AddSourceQuery(List<string> query, IReadOnlyList<Guid>? sources)
+    {
+        foreach (var sourceId in sources ?? [])
+        {
+            AddQuery(query, "source", sourceId.ToString("D"));
         }
     }
 
@@ -233,6 +242,7 @@ public sealed partial class EngineApiClient
         AddQuery(query, "lifecycle", options.Lifecycle);
         AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
         AddAddedByQuery(query, options.AddedBy);
+        AddSourceQuery(query, options.Sources);
         foreach (var tag in options.Documents?.TagIds ?? [])
         {
             AddQuery(query, "tag", tag.ToString("D"));
