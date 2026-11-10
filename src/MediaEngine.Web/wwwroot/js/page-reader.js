@@ -1197,3 +1197,29 @@ function refineZoomPicture() {
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
+
+/** The small page pictures in the Bookmarks panel; a row already drawn for its page is left alone. */
+export function drawBookmarkPictures() {
+    if (!state) {
+        return;
+    }
+
+    for (const pic of document.querySelectorAll(".pr-bm-pic[data-page]")) {
+        const number = Number(pic.dataset.page);
+        if (pic.dataset.drawn === String(number)) {
+            continue;
+        }
+
+        pic.dataset.drawn = String(number);
+        pic.classList.add("pr-page--loading");
+        pic.replaceChildren();
+        drawThumb(pic, number);
+    }
+}
+
+/** The bookmark marks on the slider: the component says where each goes (a percentage); the script sets the left edge. */
+export function placeMarks() {
+    for (const mark of document.querySelectorAll(".pr-mark[data-left]")) {
+        mark.style.left = mark.dataset.left;
+    }
+}

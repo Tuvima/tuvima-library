@@ -125,6 +125,15 @@ public partial interface IEngineApiClient
     /// <summary>GET /read/{assetId}/next  -  the next owned issue in the comic's Series; null when there is none.</summary>
     Task<ReaderNextIssueDto?> GetReaderNextIssueAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>GET /reader/{assetId}/page-bookmarks  -  the signed-in person's page bookmarks of a comic or PDF, plus Everyone's.</summary>
+    Task<List<PageBookmarkDto>> GetPageBookmarksAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>POST /reader/{assetId}/page-bookmarks  -  bookmark a page (private until an administrator promotes it).</summary>
+    Task<PageBookmarkDto?> CreatePageBookmarkAsync(Guid assetId, int page, string? label, CancellationToken ct = default);
+
+    /// <summary>DELETE /reader/page-bookmarks/{id}  -  delete one of the person's own page bookmarks.</summary>
+    Task<bool> DeletePageBookmarkAsync(Guid bookmarkId, CancellationToken ct = default);
+
     /// <summary>GET /read/{assetId}/toc  -  table of contents.</summary>
     Task<List<EpubTocEntryDto>> GetTableOfContentsAsync(Guid assetId, CancellationToken ct = default);
 

@@ -7710,6 +7710,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetCompare
   Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | nullability=nullable | accessors=get,init
   GapSeconds: System.Double? | nullability=nullable | accessors=get,init
   GapChapters: System.Int32? | nullability=nullable | accessors=get,init
+  GapPages: System.Int32? | nullability=nullable | accessors=get,init
   Closeness: System.String | nullability=not-null | accessors=get,init
   DefaultChoice: System.String | nullability=not-null | accessors=get,init
 
@@ -7926,6 +7927,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkImpo
   ChapterTitle: System.String | nullability=nullable | accessors=get,init
   Locator: System.String | nullability=nullable | accessors=get,init
   ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  PositionKind: System.String | nullability=nullable | accessors=get,init
   FrameBase64: System.String | nullability=nullable | accessors=get,init
   Name: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
@@ -9630,6 +9632,10 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageListDto
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   AudiobookAssetId: System.Guid | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreatePageBookmarkRequestDto
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateReaderBookmarkRequestDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   CfiPosition: System.String | nullability=nullable | accessors=get,init
@@ -9664,6 +9670,16 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubTocEntryDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   FragmentId: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.List<MediaEngine.Contracts.Reading.EpubTocEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.PageBookmarkDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
+  CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   Id: System.Guid | nullability=not-null | accessors=get,init

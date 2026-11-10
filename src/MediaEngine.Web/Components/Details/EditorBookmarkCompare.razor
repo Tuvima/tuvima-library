@@ -82,6 +82,8 @@
     private string ClosenessText(BookmarkSetCompareRowDto row) => row.Closeness switch
     {
         BookmarkClosenessLabels.SameSpot => L["EditorBookmarks_SameSpot"].Value,
+        BookmarkClosenessLabels.Close when row.GapPages is > 0 => L["EditorBookmarks_PagesApart", row.GapPages].Value,
+        BookmarkClosenessLabels.Far when row.GapPages is > 0 => L["EditorBookmarks_PagesApart", row.GapPages].Value,
         BookmarkClosenessLabels.Close => L["EditorBookmarks_Close"].Value,
         BookmarkClosenessLabels.Far => L["EditorBookmarks_Far"].Value,
         _ => L["EditorBookmarks_New"].Value,
