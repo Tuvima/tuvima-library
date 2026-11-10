@@ -99,6 +99,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         builder.Services.AddSingleton<IViewResourceStore, ViewResourcePersistenceService>();
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(_ => new AllowEvaluator(() => DenyViewAccess));
         builder.Services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(new FixedEditorConfiguration());
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
         builder.Services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
@@ -591,6 +592,9 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
 
         var listed = await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>($"/view/assets?scope=mine&kind=document&galleryId={view.Id:D}");
         Assert.Equal(invoice, Assert.Single(listed!.Items).Id);
+        // A read of a gallery's photos carries the editor's limits from config/editor.json (the editor's header navigation needs them); a read with no gallery does not.
+        Assert.Equal(new ViewEditorLimitsDto(FixedEditorConfiguration.Inline, FixedEditorConfiguration.Page), listed.EditorLimits);
+        Assert.Null((await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>("/view/assets?scope=mine&kind=document"))!.EditorLimits);
         // The view and the page filters narrow each other.
         var narrowed = await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>($"/view/assets?scope=mine&kind=document&galleryId={view.Id:D}&docTo=2000-01-01");
         Assert.Empty(narrowed!.Items);
@@ -1891,6 +1895,18 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         }
 
         return directory?.FullName ?? throw new InvalidOperationException("Could not locate the repository root.");
+    }
+
+    private sealed class FixedEditorConfiguration : MediaEngine.Domain.Contracts.IEditorConfigurationSource
+    {
+        public const int Inline = 3;
+        public const int Page = 17;
+
+        public MediaEngine.Domain.Configuration.EditorConfiguration Current { get; } = new()
+        {
+            InlineSupportingFiles = Inline,
+            ItemListPageSize = Page,
+        };
     }
 
     private sealed class Person(Guid profileId, Guid libraryId, RequestAuthority authority)

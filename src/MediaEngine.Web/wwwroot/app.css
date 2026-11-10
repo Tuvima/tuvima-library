@@ -4878,6 +4878,7 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 
 /* Editor header and Universe rail drop-down lists (drawn in the top layer by AppPopover so the editor window cannot clip them; global because the surface leaves the component's DOM). */
 .tl-popover.tl-hnav__surface,
+.tl-popover.view-hnav__surface,
 .tl-popover.tl-urail__surface {
     box-sizing: border-box;
     width: 21rem;
@@ -4893,6 +4894,10 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 
 .tl-popover.tl-hnav__surface--second {
     width: 19rem;
+}
+
+.tl-popover.view-hnav__surface {
+    width: min(33rem, calc(100vw - 2rem));
 }
 
 .tl-popover.tl-hnav__surface--item {
@@ -5016,13 +5021,10 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .view-edit-body__main{flex:1 1 auto;min-width:0}
 .view-edit-body .tl-quick-facts{flex:0 0 16rem}
 @media (max-width:1180px){.view-edit-body{flex-direction:column}.view-edit-body .tl-quick-facts{flex:0 0 auto;width:100%}}
-.view-edit-body__danger{margin-top:var(--tl-space-5,1.25rem);padding-top:var(--tl-space-3);border-top:1px solid var(--tl-divider)}
 .view-edit-details{display:flex;flex-direction:column;gap:var(--tl-space-4)}
 .view-edit-details__row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2)}
 .view-edit-details__chips{display:flex;flex-wrap:wrap;gap:var(--tl-space-2);margin:var(--tl-space-2) 0 0;padding:0;list-style:none}
-.view-edit-files__list{margin:var(--tl-space-2) 0;padding:0;list-style:none}
-.view-edit-files__list li{display:flex;flex-direction:column;padding:var(--tl-space-1) 0}
-.view-edit-files__list small,.view-edit-history__list small{color:var(--tl-text-muted)}
+.view-edit-history__list small{color:var(--tl-text-muted)}
 .view-edit-history__list{display:flex;flex-direction:column;gap:var(--tl-space-3);margin:0;padding:0;list-style:none}
 .view-edit-history__list li{display:flex;align-items:center;gap:var(--tl-space-2)}
 .view-edit-contents__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(7rem,1fr));gap:var(--tl-space-3);margin:0;padding:0;list-style:none}

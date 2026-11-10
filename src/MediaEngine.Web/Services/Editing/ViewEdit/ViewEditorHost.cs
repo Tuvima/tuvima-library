@@ -45,8 +45,8 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
             return false;
         }
 
-        // Another editor window is already open: opening a second would drop its staged changes, so the person has to leave it first.
-        if (Session is { HasPendingChanges: true } open && !await open.LeaveAsync())
+        // The window is already open (home, a pick in the dropdown, or Edit on another item): moving on would drop its staged changes, so the person is asked first.
+        if (Session is { } open && !await open.ConfirmLeaveAsync())
         {
             return false;
         }
@@ -69,7 +69,7 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
             return false;
         }
 
-        if (Session is { HasPendingChanges: true } open && !await open.LeaveAsync())
+        if (Session is { } open && !await open.ConfirmLeaveAsync())
         {
             return false;
         }
@@ -88,6 +88,57 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
         Begin(new ViewEditSession(api, stage));
         await Task.CompletedTask;
         return true;
+    }
+
+    /// <summary>
+    /// The numbers the header's item dropdown follows (how many photos show inline, how many a page holds). They live in <c>config/editor.json</c>
+    /// and the Engine carries them on the photo read of a gallery, which every View profile may make, so the Dashboard holds none. Read once per
+    /// circuit; null when the Engine could not say.
+    /// </summary>
+    public async Task<ViewEditorLimits?> GetLimitsAsync(Guid galleryId)
+    {
+        if (_limits is null)
+        {
+            // One photo is enough: the numbers ride on any page of the gallery.
+            await GalleryPhotosAsync(galleryId, null, null, 1);
+        }
+
+        return _limits;
+    }
+
+    private ViewEditorLimits? _limits;
+
+    /// <summary>One page of a gallery's photos for the header's item dropdown, optionally narrowed by a search. Null when the Engine could not be reached.</summary>
+    public async Task<ViewAssetTimelinePageDto?> GalleryPhotosAsync(Guid galleryId, string? cursor, string? search, int? limit)
+    {
+        var options = new ViewAssetQueryOptions(workspace.ScopeKind, workspace.ScopeProfileId, cursor, string.IsNullOrWhiteSpace(search) ? null : search.Trim(), GalleryId: galleryId);
+        var page = await api.GetViewAssetsAsync(limit is { } size ? options with { Limit = size } : options);
+        if (page?.EditorLimits is { InlineItems: > 0, PageSize: > 0 } numbers)
+        {
+            _limits = new ViewEditorLimits(numbers.InlineItems, numbers.PageSize);
+        }
+
+        return page;
+    }
+
+    /// <summary>The home button of a photo opened from a gallery: the window moves to the gallery's own editor. Asks first when something is staged.</summary>
+    public async Task<bool> OpenGalleryByIdAsync(Guid galleryId)
+    {
+        var gallery = await api.GetViewGalleryAsync(galleryId);
+        return gallery is not null && await OpenGalleryAsync(gallery);
+    }
+
+    /// <summary>A photo picked in the dropdown of a gallery's own editor: the window moves to that photo, with the gallery as its family.</summary>
+    public async Task<bool> OpenPhotoInGalleryAsync(LocalAssetDto photo, Guid galleryId, string galleryName, int itemCount)
+    {
+        var page = await GalleryPhotosAsync(galleryId, null, null, (await GetLimitsAsync(galleryId))?.PageSize);
+        IReadOnlyList<LocalAssetDto> members = page?.Items ?? [photo];
+        if (members.All(member => member.Id != photo.Id))
+        {
+            members = [photo, .. members];
+        }
+
+        return await OpenItemsAsync([photo], new ViewEditGalleryRail(galleryId, galleryName, members, itemCount, page?.HasMore ?? false));
     }
 
     /// <summary>Opens the window and completes when it closes, with what changed (the old launcher's "applied" answer).</summary>
@@ -123,12 +174,12 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
             var remaining = rail.Members.Where(member => !ids.Contains(member.Id)).ToList();
             if (session.Active.Items.Any(item => ids.Contains(item.Id)) && remaining.Count > 0)
             {
-                session.SetRail(rail with { Members = remaining });
+                session.SetRail(Shrunk(rail, remaining));
                 session.SwitchTo([remaining[0]]);
                 return;
             }
 
-            session.SetRail(rail with { Members = remaining });
+            session.SetRail(Shrunk(rail, remaining));
         }
 
         if (session.Active.Items.Count == 0 || session.Active.Items.All(item => ids.Contains(item.Id)) || session.IsGallery)
@@ -136,6 +187,10 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
             Close();
         }
     }
+
+    // The gallery lost the deleted photos: the dropdown lists what is left and counts one fewer for each.
+    private static ViewEditGalleryRail Shrunk(ViewEditGalleryRail rail, List<LocalAssetDto> remaining) =>
+        rail with { Members = remaining, ItemCount = Math.Max(remaining.Count, rail.ItemCount - (rail.Members.Count - remaining.Count)) };
 
     /// <summary>A gallery was deleted from the window: the window closes at once.</summary>
     public void GalleryDeleted(Guid id)
@@ -152,12 +207,13 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
             return;
         }
 
-        var args = new ViewEditClosedArgs(session.ChangedWhileOpen || _deleted.Count > 0, [.. session.TouchedIds],
-            [.. _deleted], session.LastSaved, session.CreatedGalleryId);
+        var args = new ViewEditClosedArgs(_carriedChanged || session.ChangedWhileOpen || _deleted.Count > 0, [.. _carriedTouched.Concat(session.TouchedIds).Distinct()],
+            [.. _deleted], session.LastSaved ?? _carriedSaved, session.CreatedGalleryId ?? _carriedCreated);
         session.Changed -= OnChanged;
         session.CloseRequested -= Close;
         Session = null;
         _deleted.Clear();
+        ClearCarried();
         var closed = _closed;
         _closed = null;
         Changed?.Invoke();
@@ -165,9 +221,38 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
         closed?.TrySetResult(args);
     }
 
+    // What the sessions the window has already moved on from changed. The page that opened the window gets one answer, at the final close, that
+    // covers every session the window showed.
+    private bool _carriedChanged;
+    private readonly HashSet<Guid> _carriedTouched = [];
+    private string? _carriedSaved;
+    private Guid? _carriedCreated;
+
+    private void ClearCarried()
+    {
+        _carriedChanged = false;
+        _carriedTouched.Clear();
+        _carriedSaved = null;
+        _carriedCreated = null;
+    }
+
     private void Begin(ViewEditSession session)
     {
-        _closed = new TaskCompletionSource<ViewEditClosedArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (Session is { } previous)
+        {
+            // In-window navigation: the old session stops reporting, its news is carried, and the opener's pending answer stays as it is.
+            previous.Changed -= OnChanged;
+            previous.CloseRequested -= Close;
+            _carriedChanged |= previous.ChangedWhileOpen;
+            _carriedTouched.UnionWith(previous.TouchedIds);
+            _carriedSaved = previous.LastSaved ?? _carriedSaved;
+            _carriedCreated = previous.CreatedGalleryId ?? _carriedCreated;
+        }
+        else
+        {
+            _closed = new TaskCompletionSource<ViewEditClosedArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         session.ConfirmDiscard = () => ConfirmDiscard?.Invoke() ?? Task.FromResult(false);
         session.Changed += OnChanged;
         session.CloseRequested += Close;
@@ -203,3 +288,6 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
         }
     }
 }
+
+/// <summary>The item dropdown's numbers, from the Engine (<c>config/editor.json</c>): photos shown before "All photos", and the size of one page of the full list.</summary>
+public sealed record ViewEditorLimits(int InlineItems, int PageSize);

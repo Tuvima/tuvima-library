@@ -114,7 +114,16 @@ public sealed record LocalAssetPageDto(
 public sealed record ViewAssetTimelinePageDto(
     [property: JsonPropertyName("items")] IReadOnlyList<LocalAssetDto> Items,
     [property: JsonPropertyName("next_cursor")] string? NextCursor,
-    [property: JsonPropertyName("has_more")] bool HasMore);
+    [property: JsonPropertyName("has_more")] bool HasMore,
+    [property: JsonPropertyName("editor_limits"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ViewEditorLimitsDto? EditorLimits = null);
+
+/// <summary>
+/// The numbers the View editor's header dropdown follows, from <c>config/editor.json</c> (universal editor v5 D34). The Engine adds them to the
+/// asset read of a gallery (the read the editor's photo list already uses), so every View profile gets them and the Dashboard holds none.
+/// </summary>
+public sealed record ViewEditorLimitsDto(
+    [property: JsonPropertyName("inline_items")] int InlineItems,
+    [property: JsonPropertyName("page_size")] int PageSize);
 
 /// <summary>One earlier year of the On this day strip: how many photos and videos were taken on this month and day that year, and one to show.</summary>
 public sealed record ViewOnThisDayYearDto(

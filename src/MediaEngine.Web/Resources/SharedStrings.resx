@@ -7004,9 +7004,6 @@
   <data name="PlaybackSeekRail_PlaybackPosition" xml:space="preserve">
     <value>Playback position</value>
   </data>
-  <data name="PlaybackSeekRail_BookmarkAt" xml:space="preserve">
-    <value>Bookmark at {0}</value>
-  </data>
   <data name="PlaybackSeekRail_Bookmark" xml:space="preserve">
     <value>Bookmark</value>
   </data>
@@ -9215,75 +9212,6 @@
   <data name="PlaybackSettingsPage_ChapterMarksHint" xml:space="preserve">
     <value>Off for video and on for audiobooks until you choose.</value>
   </data>
-  <data name="BookmarksPanel_AddHere" xml:space="preserve">
-    <value>Bookmark at {0}</value>
-  </data>
-  <data name="BookmarksPanel_AddFailed" xml:space="preserve">
-    <value>Couldn’t save · Try again</value>
-  </data>
-  <data name="BookmarksPanel_AddNote" xml:space="preserve">
-    <value>Add a note…</value>
-  </data>
-  <data name="BookmarksPanel_HideNote" xml:space="preserve">
-    <value>Hide note</value>
-  </data>
-  <data name="BookmarksPanel_NoteLabel" xml:space="preserve">
-    <value>Note for this bookmark</value>
-  </data>
-  <data name="BookmarksPanel_Choice" xml:space="preserve">
-    <value>Show bookmarks from</value>
-  </data>
-  <data name="BookmarksPanel_Everyone" xml:space="preserve">
-    <value>Everyone · {0}</value>
-  </data>
-  <data name="BookmarksPanel_Mine" xml:space="preserve">
-    <value>Mine · {0}</value>
-  </data>
-  <data name="BookmarksPanel_Search" xml:space="preserve">
-    <value>Search bookmarks</value>
-  </data>
-  <data name="BookmarksPanel_Jump" xml:space="preserve">
-    <value>Go to {0}</value>
-  </data>
-  <data name="BookmarksPanel_EditAt" xml:space="preserve">
-    <value>Edit bookmark at {0}</value>
-  </data>
-  <data name="BookmarksPanel_DeleteAt" xml:space="preserve">
-    <value>Delete bookmark at {0}</value>
-  </data>
-  <data name="BookmarksPanel_Keep" xml:space="preserve">
-    <value>Keep</value>
-  </data>
-  <data name="BookmarksPanel_KeepAt" xml:space="preserve">
-    <value>Keep bookmark at {0}</value>
-  </data>
-  <data name="BookmarksPanel_Name" xml:space="preserve">
-    <value>Name</value>
-  </data>
-  <data name="BookmarksPanel_Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="BookmarksPanel_SaveFailed" xml:space="preserve">
-    <value>Couldn’t save · Try again</value>
-  </data>
-  <data name="BookmarksPanel_DeleteFailed" xml:space="preserve">
-    <value>Couldn’t delete · Try again</value>
-  </data>
-  <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
-    <value>No bookmarks for this title yet</value>
-  </data>
-  <data name="BookmarksPanel_EmptyMine" xml:space="preserve">
-    <value>No bookmarks of yours yet</value>
-  </data>
-  <data name="BookmarksPanel_NoMatches" xml:space="preserve">
-    <value>No bookmarks match your search</value>
-  </data>
-  <data name="BookmarksPanel_Hint" xml:space="preserve">
-    <value>Select a bookmark to jump to that moment.</value>
-  </data>
-  <data name="BookmarksPanel_ShowOnTimeline" xml:space="preserve">
-    <value>Show on timeline</value>
-  </data>
   <data name="NeedsReviewList_ShowAriaLabel" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -9502,9 +9430,6 @@
   </data>
   <data name="EditorVideoSeries_NotMatched" xml:space="preserve">
     <value>Not matched</value>
-  </data>
-  <data name="EditorRail_Label" xml:space="preserve">
-    <value>Where this item sits</value>
   </data>
   <data name="EditorRail_ChangesWaiting" xml:space="preserve">
     <value>Changes waiting</value>
@@ -9860,14 +9785,8 @@
   <data name="ViewEdit_Galleries" xml:space="preserve">
     <value>Galleries</value>
   </data>
-  <data name="ViewEdit_GalleryContentsHint" xml:space="preserve">
-    <value>Removing a photo here takes it out of the gallery only. The photo stays in your library.</value>
-  </data>
   <data name="ViewEdit_GalleryDeleted" xml:space="preserve">
     <value>Deleted gallery {0}.</value>
-  </data>
-  <data name="ViewEdit_GalleryEmpty" xml:space="preserve">
-    <value>There are no photos in this gallery yet.</value>
   </data>
   <data name="ViewEdit_HistoryAdded" xml:space="preserve">
     <value>Added to Library on {0}</value>
@@ -9889,9 +9808,6 @@
   </data>
   <data name="ViewEdit_Keep" xml:space="preserve">
     <value>Keep</value>
-  </data>
-  <data name="ViewEdit_KeepAgain" xml:space="preserve">
-    <value>Keep it</value>
   </data>
   <data name="ViewEdit_KindDocument" xml:space="preserve">
     <value>Document</value>
@@ -9947,9 +9863,6 @@
   <data name="ViewEdit_Preferred" xml:space="preserve">
     <value>Preferred</value>
   </data>
-  <data name="ViewEdit_RemoveFromGallery" xml:space="preserve">
-    <value>Remove</value>
-  </data>
   <data name="ViewEdit_ReviewChanges" xml:space="preserve">
     <value>Review changes</value>
   </data>
@@ -9965,14 +9878,8 @@
   <data name="ViewEdit_TabArtwork" xml:space="preserve">
     <value>Artwork</value>
   </data>
-  <data name="ViewEdit_TabContents" xml:space="preserve">
-    <value>Contents</value>
-  </data>
   <data name="ViewEdit_TabDetails" xml:space="preserve">
     <value>Details</value>
-  </data>
-  <data name="ViewEdit_TabFiles" xml:space="preserve">
-    <value>Files</value>
   </data>
   <data name="ViewEdit_TabHistory" xml:space="preserve">
     <value>History</value>
@@ -9991,9 +9898,6 @@
   </data>
   <data name="ViewEdit_UseOriginal" xml:space="preserve">
     <value>Use original</value>
-  </data>
-  <data name="ViewEdit_WhereChangesSave" xml:space="preserve">
-    <value>Changes save in Library</value>
   </data>
   <data name="ViewEdit_Edit" xml:space="preserve">
     <value>Edit</value>
@@ -12302,30 +12206,6 @@
   <data name="EditorBrowser_Search" xml:space="preserve">
     <value>Search places</value>
   </data>
-  <data name="ExtrasSection_SeeAll" xml:space="preserve">
-    <value>See all {0}</value>
-  </data>
-  <data name="ExtrasSection_More" xml:space="preserve">
-    <value>More</value>
-  </data>
-  <data name="SequenceEntryContent_OpenFile" xml:space="preserve">
-    <value>Open {0}</value>
-  </data>
-  <data name="VideoEndCard_HomeworkHeading" xml:space="preserve">
-    <value>Homework for this lesson</value>
-  </data>
-  <data name="VideoEndCard_Open" xml:space="preserve">
-    <value>Open</value>
-  </data>
-  <data name="VideoEndCard_OnePage" xml:space="preserve">
-    <value>1 page</value>
-  </data>
-  <data name="VideoEndCard_Pages" xml:space="preserve">
-    <value>{0} pages</value>
-  </data>
-  <data name="UniversalSearchResults_InTitle" xml:space="preserve">
-    <value>in {0}</value>
-  </data>
   <data name="EditorWikidata_SearchLabel" xml:space="preserve">
     <value>Search Wikidata</value>
   </data>
@@ -12469,6 +12349,144 @@
   </data>
   <data name="EditorWikidata_IndependentNoProvider" xml:space="preserve">
     <value>The provider match is kept separately. Linking here never changes it.</value>
+  </data>
+  <data name="ViewEdit_NavLabel" xml:space="preserve">
+    <value>Move around this gallery</value>
+  </data>
+  <data name="ViewEdit_NavChoosePhoto" xml:space="preserve">
+    <value>Choose a photo</value>
+  </data>
+  <data name="ViewEdit_NavFindPhoto" xml:space="preserve">
+    <value>Find a photo</value>
+  </data>
+  <data name="ViewEdit_NavNoPhotos" xml:space="preserve">
+    <value>No photos found</value>
+  </data>
+  <data name="ViewEdit_NavShowMore" xml:space="preserve">
+    <value>Show more photos</value>
+  </data>
+  <data name="ViewEdit_NavBack" xml:space="preserve">
+    <value>Back to the short list</value>
+  </data>
+  <data name="ViewEdit_NavBackToGallery" xml:space="preserve">
+    <value>Back to the gallery</value>
+  </data>
+  <data name="ViewEdit_NavPosition" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="ViewEdit_NavAllPhotos" xml:space="preserve">
+    <value>All photos ({0})</value>
+  </data>
+  <data name="ViewEdit_FactFile" xml:space="preserve">
+    <value>File name</value>
+  </data>
+  <data name="ViewEdit_FactParts" xml:space="preserve">
+    <value>Files in this item, for example a RAW and its JPEG</value>
+  </data>
+  <data name="ViewEdit_NavGoToGallery" xml:space="preserve">
+    <value>Go to gallery {0}</value>
+  </data>
+  <data name="ViewEdit_FactGalleryPhotos" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
+  <data name="ViewEdit_FactGalleryOnePhoto" xml:space="preserve">
+    <value>1 photo</value>
+  </data>
+  <data name="PlaybackSeekRail_BookmarkAt" xml:space="preserve">
+    <value>Bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_AddHere" xml:space="preserve">
+    <value>Bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_AddFailed" xml:space="preserve">
+    <value>Couldn’t save · Try again</value>
+  </data>
+  <data name="BookmarksPanel_AddNote" xml:space="preserve">
+    <value>Add a note…</value>
+  </data>
+  <data name="BookmarksPanel_HideNote" xml:space="preserve">
+    <value>Hide note</value>
+  </data>
+  <data name="BookmarksPanel_NoteLabel" xml:space="preserve">
+    <value>Note for this bookmark</value>
+  </data>
+  <data name="BookmarksPanel_Choice" xml:space="preserve">
+    <value>Show bookmarks from</value>
+  </data>
+  <data name="BookmarksPanel_Everyone" xml:space="preserve">
+    <value>Everyone · {0}</value>
+  </data>
+  <data name="BookmarksPanel_Mine" xml:space="preserve">
+    <value>Mine · {0}</value>
+  </data>
+  <data name="BookmarksPanel_Search" xml:space="preserve">
+    <value>Search bookmarks</value>
+  </data>
+  <data name="BookmarksPanel_Jump" xml:space="preserve">
+    <value>Go to {0}</value>
+  </data>
+  <data name="BookmarksPanel_EditAt" xml:space="preserve">
+    <value>Edit bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_DeleteAt" xml:space="preserve">
+    <value>Delete bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="BookmarksPanel_KeepAt" xml:space="preserve">
+    <value>Keep bookmark at {0}</value>
+  </data>
+  <data name="BookmarksPanel_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="BookmarksPanel_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="BookmarksPanel_SaveFailed" xml:space="preserve">
+    <value>Couldn’t save · Try again</value>
+  </data>
+  <data name="BookmarksPanel_DeleteFailed" xml:space="preserve">
+    <value>Couldn’t delete · Try again</value>
+  </data>
+  <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
+    <value>No bookmarks for this title yet</value>
+  </data>
+  <data name="BookmarksPanel_EmptyMine" xml:space="preserve">
+    <value>No bookmarks of yours yet</value>
+  </data>
+  <data name="BookmarksPanel_NoMatches" xml:space="preserve">
+    <value>No bookmarks match your search</value>
+  </data>
+  <data name="BookmarksPanel_Hint" xml:space="preserve">
+    <value>Select a bookmark to jump to that moment.</value>
+  </data>
+  <data name="BookmarksPanel_ShowOnTimeline" xml:space="preserve">
+    <value>Show on timeline</value>
+  </data>
+  <data name="ExtrasSection_SeeAll" xml:space="preserve">
+    <value>See all {0}</value>
+  </data>
+  <data name="ExtrasSection_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="SequenceEntryContent_OpenFile" xml:space="preserve">
+    <value>Open {0}</value>
+  </data>
+  <data name="VideoEndCard_HomeworkHeading" xml:space="preserve">
+    <value>Homework for this lesson</value>
+  </data>
+  <data name="VideoEndCard_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="VideoEndCard_OnePage" xml:space="preserve">
+    <value>1 page</value>
+  </data>
+  <data name="VideoEndCard_Pages" xml:space="preserve">
+    <value>{0} pages</value>
+  </data>
+  <data name="UniversalSearchResults_InTitle" xml:space="preserve">
+    <value>in {0}</value>
   </data>
   <data name="AppBrowser_Toolbar" xml:space="preserve">
     <value>Browser tools</value>
