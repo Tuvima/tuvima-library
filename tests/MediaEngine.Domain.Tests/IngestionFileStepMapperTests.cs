@@ -283,6 +283,30 @@ public sealed class IngestionFileStepMapperTests
         Assert.True(progress.IsWaiting);
     }
 
+    [Theory]
+    [InlineData(MediaOperationStatus.Pending)]
+    [InlineData(MediaOperationStatus.Queued)]
+    public void Map_AFileNobodyClaimedForTenMinutes_IsWaiting_AndDoesNotKeepTheQueueWorking(string status)
+    {
+        var stale = Row(stage: MediaOperationStage.Discovered, status: status) with { UpdatedAt = Now - IngestionFileStepMapper.StaleQueuedAfter };
+
+        var progress = IngestionFileStepMapper.Map(stale, Now);
+        var snapshot = IngestionQueueProgressCalculator.Calculate([stale], null, Now).Snapshot;
+
+        Assert.True(progress.IsWaiting);
+        Assert.Equal(IngestionFileStepMapper.UnclaimedWaitId, progress.WaitingForToolId);
+        Assert.Equal(IngestionQueueRunState.Waiting, snapshot.State);
+        Assert.Equal(1, snapshot.FilesWaiting);
+    }
+
+    [Fact]
+    public void Map_AFileQueuedJustNow_IsStillWorkAndNotWaiting()
+    {
+        var fresh = Row(stage: MediaOperationStage.Discovered, status: MediaOperationStatus.Pending) with { UpdatedAt = Now - TimeSpan.FromMinutes(9) };
+
+        Assert.False(IngestionFileStepMapper.Map(fresh, Now).IsWaiting);
+    }
+
     private static IngestionQueueFileRow Row(
         string stage,
         string status,

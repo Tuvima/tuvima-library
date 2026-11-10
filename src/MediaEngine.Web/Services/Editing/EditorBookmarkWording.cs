@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -72,6 +73,11 @@ public static class EditorBookmarkWording
     public static string IncomingPlace(BookmarkSetItemDto item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        if (PageLocator.TryParse(item.Locator) is { } page)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"Page {page}");
+        }
+
         return string.IsNullOrWhiteSpace(item.Locator)
             ? Time(item.PositionSeconds)
             : string.IsNullOrWhiteSpace(item.ChapterTitle) ? "In the text" : item.ChapterTitle!;
@@ -81,6 +87,11 @@ public static class EditorBookmarkWording
     public static string NearestPlace(BookmarkSetExistingDto near)
     {
         ArgumentNullException.ThrowIfNull(near);
+        if (PageLocator.TryParse(near.Locator) is { } page)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"Page {page}");
+        }
+
         return string.IsNullOrWhiteSpace(near.Locator) ? Time(near.PositionSeconds) : "In the text";
     }
 
@@ -92,13 +103,15 @@ public static class EditorBookmarkWording
     {
         ArgumentNullException.ThrowIfNull(row);
         var incoming = row.Incoming;
-        var isText = !string.IsNullOrWhiteSpace(incoming.Locator);
+        var isPage = PageLocator.TryParse(incoming.Locator) is not null;
+        var isText = !string.IsNullOrWhiteSpace(incoming.Locator) && !isPage;
         return new EditorBookmarkImportItem
         {
+            PositionKind = isPage ? "page" : null,
             PositionSeconds = incoming.PositionSeconds,
             EndSeconds = isText ? null : incoming.EndSeconds,
             ChapterTitle = incoming.ChapterTitle,
-            Locator = isText ? incoming.Locator : null,
+            Locator = isText || isPage ? incoming.Locator : null,
             ChapterIndex = isText ? (int)incoming.PositionSeconds : null,
             FrameBase64 = isText ? null : incoming.FrameBase64,
             Name = incoming.Note,

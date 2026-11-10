@@ -15,6 +15,8 @@
 @inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <PageTitle>@L["Common_Library", _gallery is null ? L["ViewGalleryDetailPage_GalleryTitle"].Value : _gallery.Name]</PageTitle>
 
@@ -80,7 +82,7 @@
                                    OnOpen="Open"
                                    OnToggleSelection="Toggle"
                                    OnSelectDateGroup="SelectGroup" />
-                @if (_page.HasMore) { <AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
+                @if (_page.HasMore) { <div @ref="_sentinel" aria-hidden="true"></div><AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
                 @if (_selected.Count > 0)
                 {
                     @* Smart Galleries fill from rules, so their selection only copies (Favorite); removing and editing belong to a manual Gallery you own. *@
@@ -182,6 +184,61 @@
     private Guid? _profileId;
     private bool _loading = true;
     private bool _loadingMore;
+    private ElementReference _sentinel;
+    private IJSObjectReference? _observerModule;
+    private DotNetObjectReference<ViewGalleryDetailPage>? _self;
+    private bool _observing;
+
+    // The next page loads as the end of the list nears the screen; Load more stays under the list as the fallback.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var wantObserver = _page?.HasMore == true && !_loading;
+        if (!wantObserver && !_observing) return;
+        try
+        {
+            if (wantObserver)
+            {
+                _observerModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/load-more-observer.js");
+                _self ??= DotNetObjectReference.Create(this);
+                await _observerModule.InvokeVoidAsync("observe", _sentinel, _self, new { rootMargin = "800px 0px" });
+                _observing = true;
+            }
+            else if (_observerModule is not null)
+            {
+                await _observerModule.InvokeVoidAsync("disconnect", _sentinel);
+                _observing = false;
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; nothing is left to observe.
+        }
+        catch (JSException)
+        {
+            // Load more stays under the list, so the page still works without the scroll trigger.
+        }
+    }
+
+    [JSInvokable]
+    public Task LoadMoreFromObserverAsync() => InvokeAsync(LoadMoreAsync);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_observerModule is not null)
+        {
+            try
+            {
+                await _observerModule.InvokeVoidAsync("disconnect", _sentinel);
+                await _observerModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit closed first; the browser has already released the observer.
+            }
+        }
+
+        _self?.Dispose();
+    }
     private bool _dropping;
     // Photos and videos dropped anywhere on the page are added to the Library and to this Gallery.
     private async Task DropFilesAsync(IReadOnlyList<IBrowserFile> files)

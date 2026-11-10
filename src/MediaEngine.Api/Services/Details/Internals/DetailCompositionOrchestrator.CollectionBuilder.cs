@@ -469,7 +469,7 @@ internal sealed partial class DetailCompositionOrchestrator
             _ => "Unknown",
         });
 
-    /// <summary>A section of Other videos keeps its folder name; an unnamed or numbered group is just "Videos" (details page D15).</summary>
+    /// <summary>A section of Other videos keeps its folder name; an unnamed or numbered group takes the fallback, which the details page passes as the folder's own name so the season dropdown never reads just "Videos" (details page D15, item 12a).</summary>
     internal static string VideoSectionTitle(string? groupTitle, string fallback)
     {
         var title = groupTitle?.Trim();
@@ -607,7 +607,7 @@ internal sealed partial class DetailCompositionOrchestrator
                         OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                         CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                         Key = group.Key,
-                        Title = isVideoFolder ? VideoSectionTitle(group.First().GroupTitle, labels.ItemPluralLabel) : group.First().GroupTitle ?? "Season 1",
+                        Title = isVideoFolder ? VideoSectionTitle(group.First().GroupTitle, string.IsNullOrWhiteSpace(containerTitle) || VideoFolderWording.UsesTvWording(containerTitle) ? labels.ItemPluralLabel : containerTitle) : group.First().GroupTitle ?? "Season 1",
                         EntityId = presentation?.EntityId,
                         ArtworkSmallUrl = presentation?.ArtworkSmallUrl,
                         ArtworkUrl = presentation?.ArtworkUrl,

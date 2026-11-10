@@ -7,7 +7,7 @@
     <header class="app-detail-frame__header" data-testid="app-detail-header">
         <span class="app-detail-frame__logo">@Logo</span>
         <div class="app-detail-frame__title">
-            <h2>@Title <AppStatusDot Tick="true" Tone="@StatusTone" Sentence="@StatusSentence" /></h2>
+            <h2>@Title <AppStatusDot Tick="true" Tone="@StatusTone" Sentence="@StatusSentence" />@TitleExtra</h2>
             <p data-testid="@StatusTestId">@StatusSentence</p>
         </div>
         @if (Actions is not null)
@@ -36,6 +36,9 @@
     [Parameter] public string StatusSentence { get; set; } = string.Empty;
 
     /// <summary>The switch (and any menu) at the right of the header.</summary>
+    /// <summary>Optional mark beside the name and tick, such as the Official pill.</summary>
+    [Parameter] public RenderFragment? TitleExtra { get; set; }
+
     [Parameter] public RenderFragment? Actions { get; set; }
 
     [Parameter] public IReadOnlyList<AppCountTab> Tabs { get; set; } = [];

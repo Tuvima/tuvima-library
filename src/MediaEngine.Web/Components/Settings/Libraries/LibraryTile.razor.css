@@ -1,3 +1,4 @@
 /* The tile itself is the shared choice tile (AppChoiceTile); only the host and the small "Added" note are styled here. */
 .lib-tile-host { min-width: 0; }
-.lib-tile__badge { color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
+/* "Added": a green check beside the word, with room above it so it never touches the name. */
+.lib-tile__badge { display: inline-flex; align-items: center; gap: var(--tl-space-1); margin-top: var(--tl-space-2); color: var(--tl-status-success); font-size: var(--tl-font-size-xs); }

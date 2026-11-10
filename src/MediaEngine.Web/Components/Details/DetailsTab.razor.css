@@ -66,10 +66,22 @@
 }
 
 :where(.tl-detail-page) .tl-file-facts__list {
+    /* About this (details page mock, note 9): a quiet card of small label over bold value, four across on a desktop. */
     display: grid;
-    grid-template-columns: minmax(5rem, 9rem) minmax(0, 1fr);
-    gap: 0.3rem 0.9rem;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 1rem 1.25rem;
     margin: 0;
+    min-width: 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+:where(.tl-detail-page) .tl-file-facts__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
     min-width: 0;
 }
 
@@ -83,6 +95,7 @@
     margin: 0;
     min-width: 0;
     font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -121,7 +134,7 @@
 
 @media (max-width: 600px) {
     :where(.tl-detail-page) .tl-file-facts__list {
-        grid-template-columns: minmax(4.5rem, 32%) minmax(0, 1fr);
-        gap: 0.3rem 0.7rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem 0.9rem;
     }
 }

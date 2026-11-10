@@ -13,7 +13,7 @@
     @if (ShowFileFacts)
     {
         <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailsTab_FileFacts"].Value">
-            <div class="tl-section-heading"><h2>@(_blocks.Count > 1 ? "Files" : "File")</h2></div>
+            <div class="tl-section-heading"><h2>@L["DetailPage_AboutThis"]</h2></div>
             @if (_loading)
             {
                 <p class="tl-file-facts__note" role="status">@L["DetailsTab_LoadingFileDetails"]</p>
@@ -38,13 +38,11 @@
                         <dl class="tl-file-facts__list">
                             @if (_blocks.Count == 1)
                             {
-                                <dt>@L["DetailsTab_FileName"]</dt>
-                                <dd>@block.Title</dd>
+                                <div class="tl-file-facts__cell"><dt>@L["DetailsTab_FileName"]</dt><dd>@block.Title</dd></div>
                             }
                             @foreach (var row in block.Rows)
                             {
-                                <dt>@row.Label</dt>
-                                <dd>@row.Value</dd>
+                                <div class="tl-file-facts__cell"><dt>@row.Label</dt><dd>@row.Value</dd></div>
                             }
                         </dl>
                     </div>

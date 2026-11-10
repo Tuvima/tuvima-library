@@ -87,7 +87,7 @@
       "key": "other_videos",
       "area": "watch",
       "label": "Videos",
-      "icon": "VideoLibrary",
+      "icon": "OndemandVideo",
       "format": "Videos",
       "lookup": "none",
       "grouping": "video_series_folder",

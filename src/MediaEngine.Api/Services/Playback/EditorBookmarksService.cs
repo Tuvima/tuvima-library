@@ -27,6 +27,7 @@ public sealed class EditorBookmarksService(
     BookmarkClosenessProvider closeness,
     BookmarkSetService sets,
     ReaderBookmarkSetService readerSets,
+    PageBookmarkSetService pageSets,
     BookmarkFrameService frames,
     IVaultLibraryRepository vault,
     ISystemActivityRepository activity,
@@ -83,6 +84,7 @@ public sealed class EditorBookmarksService(
         var everyone = EditorBookmarkRepository.Everyone(rows, definitive, SameSpot);
         var hasTimes = !title.Assets.Any(asset => asset.MediaType is "Books" or "Comics");
         var primary = title.Assets.OrderBy(asset => asset.AssetId).First();
+        var isPageFile = await pageSets.IsPageFileAsync(primary.AssetId, ct);
         var hasFrames = false;
         foreach (var asset in title.Assets)
         {
@@ -108,7 +110,7 @@ public sealed class EditorBookmarksService(
             ],
             AssetId = primary.AssetId,
             HasTimes = hasTimes,
-            CanExchange = hasTimes || IsBook(title),
+            CanExchange = hasTimes || IsBook(title) || isPageFile,
             HasFrames = hasFrames,
             RunningTimeSeconds = double.TryParse(primary.FileDurationSeconds, NumberStyles.Float, CultureInfo.InvariantCulture, out var length) && length > 0 ? length : null,
         };
@@ -215,6 +217,16 @@ public sealed class EditorBookmarksService(
         var title = await RequireTitleAsync(workId, ct);
         RequireFileWithinLimit(request.ContentBase64, BookmarkPackLimits.MaximumFileBytes);
         var assetId = title.Assets.OrderBy(asset => asset.AssetId).First().AssetId;
+        if (await pageSets.IsPageFileAsync(assetId, ct))
+        {
+            var pageRows = await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct);
+            return await pageSets.CompareWithEveryoneAsync(
+                assetId,
+                new BookmarkSetRequestDto { AssetId = assetId, ContentBase64 = request.ContentBase64, Mode = request.Mode },
+                pageRows,
+                ct);
+        }
+
         if (IsBook(title))
         {
             var bookRows = await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct);
@@ -246,6 +258,11 @@ public sealed class EditorBookmarksService(
     {
         var title = await RequireTitleAsync(workId, ct);
         var primary = title.Assets.OrderBy(asset => asset.AssetId).First();
+        if (await pageSets.IsPageFileAsync(primary.AssetId, ct))
+        {
+            return await pageSets.ExportEveryoneAsync(primary.AssetId, await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct), ct);
+        }
+
         if (IsBook(title))
         {
             var bookRows = await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct);
@@ -444,10 +461,12 @@ internal static class EditorBookmarkOpRules
 
                 foreach (var item in op.Items)
                 {
-                    var isText = !string.IsNullOrWhiteSpace(item.Locator);
+                    var isPage = item.PositionKind == BookmarkPooling.PageKind;
+                    var isText = !isPage && !string.IsNullOrWhiteSpace(item.Locator);
                     if (!double.IsFinite(item.PositionSeconds) || item.PositionSeconds < 0
+                        || isPage && (item.PositionSeconds < 1 || item.PositionSeconds > PageLocator.MaximumPage || item.PositionSeconds != Math.Floor(item.PositionSeconds))
                         || isText && (item.Locator!.Trim().Length > 4096 || ReaderLocation.TryParse(item.Locator.Trim()) is null)
-                        || !isText && item.EndSeconds is { } end && (!double.IsFinite(end) || end <= item.PositionSeconds)
+                        || !isText && !isPage && item.EndSeconds is { } end && (!double.IsFinite(end) || end <= item.PositionSeconds)
                         || !AudiobookBookmarkNotePolicy.TryNormalize(item.Name, out _)
                         || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(item.Description, out _))
                     {
@@ -529,6 +548,7 @@ internal static class EditorBookmarkOpRules
     private static string Label(EditorBookmarkRow row)
     {
         var place = row.PositionKind == BookmarkPooling.TimeKind ? Time(row.PositionSeconds)
+            : row.PositionKind == BookmarkPooling.PageKind ? $"page {(int)row.PositionSeconds}"
             : row.ChapterIndex is { } chapter ? $"chapter {chapter + 1}" : "a place in the book";
         return string.IsNullOrWhiteSpace(row.Name) ? place : $"{place} {row.Name}";
     }

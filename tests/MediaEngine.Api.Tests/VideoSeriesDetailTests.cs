@@ -140,6 +140,10 @@ public sealed class VideoSeriesDetailTests : IDisposable
         Assert.Equal("Section", sequence.GroupLabel);
     }
 
+    [Fact]
+    public void AnUnnamedSectionTakesTheFolderName_SoTheDropdownNeverReadsJustVideos() =>
+        Assert.Equal("Python Course", DetailCompositionOrchestrator.VideoSectionTitle(null, "Python Course"));
+
     [Theory]
     [InlineData(null, "Videos")]
     [InlineData("Season 1", "Videos")]

@@ -1,37 +1,36 @@
 @namespace MediaEngine.Web.Components.Settings.LibraryActivity
 @using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Web.Components.Navigation
+@using MediaEngine.Web.Components.Settings
 @inject IStringLocalizer<SharedStrings> L
 
-@* The one progress card (spec library-activity D5): everything Library is doing, one overall bar, the counts found by kind, when it started
-   and Review N items. Nothing per library. Its counts line uses the same words as a finished batch. When nothing runs it is replaced by the
+@* The one progress card (spec library-activity D5): everything Library is doing in one ring with its percent, the counts found by kind
+   and Review N items (Shy 10 Nov: very simple, no bar, no started line). Nothing per library. Its counts line uses the same words as a finished batch. When nothing runs it is replaced by the
    up-to-date line, which has no icon and no bar. *@
 @if (Working)
 {
     <section class="lact-summary" data-testid="activity-progress-card" aria-live="polite">
         <div class="lact-summary__head">
-            <strong class="lact-summary__title"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /> @L["LibraryActivity_Updating"]</strong>
+            @* The same ring as the top bar's spinner: it fills as the percent grows and the Sync glyph sits inside it. *@
+            <span class="lact-summary__ring" aria-hidden="true">
+                @if (Percent is { } ringValue)
+                {
+                    <AppSpinner Indeterminate="false" Value="@ringValue" Size="AppSize.Small" StrokeWidth="2" />
+                }
+                else
+                {
+                    <AppSpinner Indeterminate="true" Size="AppSize.Small" StrokeWidth="2" />
+                }
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" Size="AppIconSize.Control20" />
+            </span>
+            <strong class="lact-summary__title">@L["LibraryActivity_Updating"]</strong>
             @if (Percent is { } percent)
             {
-                <strong>@L["LibraryActivity_PercentProcessed", percent]</strong>
+                <strong data-testid="activity-progress-percent">@L["LibraryActivity_PercentProcessed", percent]</strong>
             }
         </div>
-        @if (Percent is { } value)
-        {
-            <AppProgressBar Value="@value" Decorative="true" />
-        }
-        else
-        {
-            <AppProgressBar Indeterminate="true" Decorative="true" />
-        }
         <div class="lact-summary__foot">
-            <span class="lact-summary__counts">
-                <span data-testid="activity-progress-counts">@CountsLine</span>
-                @if (Queue?.StartedAt is { } started)
-                {
-                    <small class="lact-summary__started" data-testid="activity-progress-started">@L["LibraryActivity_StartedAgo", LibraryActivityText.Ago(started, DateTimeOffset.UtcNow)]</small>
-                }
-            </span>
+            <span class="lact-summary__counts" data-testid="activity-progress-counts">@CountsLine</span>
             @if (ReviewCount > 0)
             {
                 <AppLink Href="/settings/review" Class="lact-summary__review">@(ReviewCount == 1 ? L["LibraryActivity_ReviewOneItem"] : L["LibraryActivity_ReviewItems", ReviewCount.ToString("N0")])</AppLink>
@@ -66,9 +65,8 @@ else
 
     private int Found => MediaTypes is { Count: > 0 } ? Tally.Sum(entry => entry.Files) : Queue?.FilesFound ?? Presentation?.FilesDiscovered ?? 0;
 
-    private int? Percent => Queue is { FilesFound: > 0 } queue
-        ? (int)Math.Clamp(Math.Round(queue.Progress * 100), 0, 100)
-        : null;
+    // Shared with the top bar's ring so both always say the same number (rounded down, never 100 while still working).
+    private int? Percent => Queue is { FilesFound: > 0 } queue ? IngestionQueueProgressText.Percent(queue) : null;
 
     private int ReviewCount => Presentation?.ReviewGroups ?? 0;
 

@@ -68,7 +68,7 @@
 
 /* A video with no cover art (D7, D16): the still on top, the name and one detail line below, at poster size. */
 .media-tile.is-video-still .media-tile-media { display:flex; flex-direction:column; background:var(--tl-bg-surface); }
-.media-tile-video-still { position:relative; flex:0 0 auto; width:100%; aspect-ratio:16 / 9; overflow:hidden; background:var(--tl-bg-root); }
+.media-tile-video-still { position:relative; flex:0 0 auto; width:calc(100% - 16px); margin:8px 8px 0; aspect-ratio:16 / 9; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-root); }
 .media-tile-video-still__image { display:block; width:100%; height:100%; object-fit:cover; }
 .media-tile-video-still__panel { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:44px; color:rgba(255,255,255,.28); }
 .media-tile-video-text { display:flex; flex:1 1 auto; flex-direction:column; justify-content:flex-end; gap:4px; min-height:0; padding:10px 12px; }

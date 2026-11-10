@@ -371,4 +371,23 @@ public sealed class EditorBookmarkStagingTests
         Assert.Equal($"/engine-bookmark-frame/{Opening:D}?v=42", EditorBookmarkWording.FrameSource(row));
         Assert.Null(EditorBookmarkWording.FrameSource(row with { FrameUrl = null }));
     }
+
+    [Fact]
+    public void PageBookmarks_AreWrittenAsPages_AndImportedAsPageBookmarks()
+    {
+        var row = new BookmarkSetCompareRowDto
+        {
+            Incoming = new BookmarkSetItemDto { PositionSeconds = 14, Locator = "page:14", Note = "The reveal" },
+            Yours = new BookmarkSetExistingDto { PositionSeconds = 12, Locator = "page:12" },
+            GapPages = 2,
+            Closeness = BookmarkClosenessLabels.Close,
+        };
+
+        Assert.Equal("Page 14", EditorBookmarkWording.IncomingPlace(row.Incoming));
+        Assert.Equal("Page 12", EditorBookmarkWording.NearestPlace(row.Yours));
+        var item = EditorBookmarkWording.ImportItem(row, replaceNearest: false);
+        Assert.Equal("page", item.PositionKind);
+        Assert.Equal("page:14", item.Locator);
+        Assert.Null(item.ChapterIndex);
+    }
 }

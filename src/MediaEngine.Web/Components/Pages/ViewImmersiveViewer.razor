@@ -20,6 +20,7 @@
                   OnNext="@OnNext"
                   OnFavorite="@OnFavorite"
                   OnArchive="@OnArchive"
+                  OnHide="@OnHide"
                   OnRestore="@OnRestore"
                   OnTrash="@OnTrash"
                   OnAddToGallery="@OnAddToGallery"
@@ -102,6 +103,7 @@
     [Parameter] public EventCallback OnNext { get; set; }
     [Parameter] public EventCallback OnFavorite { get; set; }
     [Parameter] public EventCallback OnArchive { get; set; }
+    [Parameter] public EventCallback OnHide { get; set; }
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
@@ -204,6 +206,7 @@
         CanArchive: Allowed.HasFlag(ViewActions.Archive),
         CanRestore: Allowed.HasFlag(ViewActions.Restore),
         CanTrash: Allowed.HasFlag(ViewActions.Trash),
+        CanHide: Allowed.HasFlag(ViewActions.Hide) && OnHide.HasDelegate,
         CanShowInfo: true,
         CanZoom: Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase),
         CanPlay: Item.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase),

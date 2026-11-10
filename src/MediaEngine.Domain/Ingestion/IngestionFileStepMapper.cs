@@ -21,6 +21,15 @@ public static class IngestionFileStepMapper
     public static readonly TimeSpan RetryGrace = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// How long a file may sit in the queue (pending or queued, no asset yet) with nothing touching it before it counts as
+    /// waiting instead of as work in progress (#708). A file nobody claims must never keep the whole queue "working".
+    /// </summary>
+    public static readonly TimeSpan StaleQueuedAfter = TimeSpan.FromMinutes(10);
+
+    /// <summary>The waiting id reported for files nobody has claimed (not a tool); the Dashboard words it as "files waiting".</summary>
+    public const string UnclaimedWaitId = "unclaimed";
+
+    /// <summary>
     /// What an intake operation records in its result summary when the file added nothing (see the pipeline). A file
     /// replaced in place with new content (<see cref="IngestionResultSummaries.ContentChanged"/>) or whose identity job
     /// was recovered (<see cref="IngestionResultSummaries.IdentityRecovered"/>) is deliberately not here: it is mapped like
@@ -85,6 +94,12 @@ public static class IngestionFileStepMapper
 
         var identity = ParseIdentityState(row.IdentityState);
         IngestionFileProgress progress;
+        if (IsUnclaimed(row, now))
+        {
+            // Queued or pending, no asset and untouched for a long time: waiting, so the run can finish without it (#708).
+            return new IngestionFileProgress(IngestionFileStep.Found, false, IngestionFileOutcome.None, UnclaimedWaitId);
+        }
+
         if (IsOperationOpen(row.Status, row.NextRetryAt, now))
         {
             // Still being worked on: the operation's own stage says where, whatever its asset's identity job says.
@@ -108,6 +123,13 @@ public static class IngestionFileStepMapper
 
         return progress;
     }
+
+    private static bool IsUnclaimed(IngestionQueueFileRow row, DateTimeOffset now)
+        => row.AssetId is null
+           && row.HeldToolId is null
+           && (string.Equals(row.Status, MediaOperationStatus.Pending, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(row.Status, MediaOperationStatus.Queued, StringComparison.OrdinalIgnoreCase))
+           && now - row.UpdatedAt >= StaleQueuedAfter;
 
     private static IngestionFileProgress MapIdentity(IdentityJobState state, IngestionQueueFileRow row) => state switch
     {

@@ -284,7 +284,7 @@
             { component => component.InitialPath, start },
             { component => component.ShowFolderName, !Import },
             { component => component.OfferHandling, !Import && !IsVault },
-            { component => component.ManagedAllowed, kind is not null && LibraryKindLook.LooksUp(kind) },
+            { component => component.ManagedAllowed, kind is not null && LibraryKindLook.ManagedOffered(kind) },
             { component => component.FolderNameChanged, EventCallback.Factory.Create<string>(this, value => _pickLabel = value) },
             { component => component.OnHandlingChanged, EventCallback.Factory.Create<string>(this, value => _pickManaged = value == FolderHandlingWords.ManagedKey) },
         };
@@ -345,7 +345,7 @@
     // A Read-only folder of a kind whose rules allow it can be switched to Managed from here (Libraries v3 D27). Setup has no files to tidy yet, Vault folders are
     // handled by the Vault, and a folder that is already Managed or busy with a job is left alone.
     private bool CanSwitchToManaged(LibrarySourceDto source) => !Import && !Scope.Embedded && !IsVault && !IsManaged(source) && !JobRunning(source)
-        && Kinds.Find(Library?.KindKey) is { } kind && LibraryKindLook.LooksUp(kind);
+        && Kinds.Find(Library?.KindKey) is { } kind && LibraryKindLook.ManagedOffered(kind);
 
     // Preview, then Review in plain words, then the Engine tidies the folder in place as a job that can be paused and cancelled; "Converting" shows until it ends.
     private async Task SwitchToManagedAsync(LibrarySourceDto source)

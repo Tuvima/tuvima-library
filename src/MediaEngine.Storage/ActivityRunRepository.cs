@@ -19,13 +19,40 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         using var connection = db.CreateConnection();
         var row = connection.QueryFirstOrDefault<RunRow>("""
             SELECT id AS Id, library_id AS LibraryId, kind AS Kind, status AS Status, is_first_run AS IsFirstRun,
-                   started_at AS StartedAt, last_activity_at AS LastActivityAt, ended_at AS EndedAt, item_count AS ItemCount
+                   started_at AS StartedAt, last_activity_at AS LastActivityAt, ended_at AS EndedAt, item_count AS ItemCount, scan_id AS ScanId
             FROM activity_runs
             WHERE library_id = @libraryId AND kind = @kind AND status = 'active' AND last_activity_at >= @notBefore
             ORDER BY started_at DESC
             LIMIT 1;
             """, new { libraryId, kind, notBefore = Iso(notBefore) });
         return Task.FromResult(row?.ToRecord());
+    }
+
+    public Task<Guid?> FindOpenScanIdAsync(string kind, DateTimeOffset notBefore, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var id = connection.QueryFirstOrDefault<Guid?>("""
+            SELECT COALESCE(scan_id, id)
+            FROM activity_runs
+            WHERE kind = @kind AND status = 'active' AND last_activity_at >= @notBefore
+            ORDER BY started_at DESC
+            LIMIT 1;
+            """, new { kind, notBefore = Iso(notBefore) });
+        return Task.FromResult(id);
+    }
+
+    public Task<DateTimeOffset?> GetInitialImportStartAsync(string libraryId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var text = connection.ExecuteScalar<string?>("""
+            SELECT MIN(started_at)
+            FROM activity_runs
+            WHERE library_id = @libraryId AND kind = 'added'
+              AND NOT EXISTS (SELECT 1 FROM activity_runs later WHERE later.library_id = @libraryId AND later.kind = 'added' AND later.is_first_run = 0);
+            """, new { libraryId });
+        return Task.FromResult<DateTimeOffset?>(text is null ? null : ParseTime(text));
     }
 
     public Task<bool> LibraryHasRunsAsync(string libraryId, CancellationToken ct = default)
@@ -42,8 +69,8 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         connection.Execute("""
-            INSERT INTO activity_runs (id, library_id, kind, status, is_first_run, started_at, last_activity_at, ended_at, item_count)
-            VALUES (@Id, @LibraryId, @Kind, @Status, @first, @started, @last, @ended, @ItemCount);
+            INSERT INTO activity_runs (id, library_id, kind, status, is_first_run, started_at, last_activity_at, ended_at, item_count, scan_id)
+            VALUES (@Id, @LibraryId, @Kind, @Status, @first, @started, @last, @ended, @ItemCount, @ScanId);
             """, new
         {
             run.Id,
@@ -55,6 +82,7 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
             last = Iso(run.LastActivityAt),
             ended = run.EndedAt is { } ended ? Iso(ended) : null,
             run.ItemCount,
+            run.ScanId,
         });
         return Task.CompletedTask;
     }
@@ -119,7 +147,7 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         using var connection = db.CreateConnection();
         var rows = connection.Query<RunRow>($"""
             SELECT r.id AS Id, r.library_id AS LibraryId, r.kind AS Kind, r.status AS Status, r.is_first_run AS IsFirstRun,
-                   r.started_at AS StartedAt, r.last_activity_at AS LastActivityAt, r.ended_at AS EndedAt, r.item_count AS ItemCount
+                   r.started_at AS StartedAt, r.last_activity_at AS LastActivityAt, r.ended_at AS EndedAt, r.item_count AS ItemCount, r.scan_id AS ScanId
             FROM activity_runs r
             WHERE {where}
             ORDER BY r.started_at {order}, r.id {order}
@@ -152,19 +180,21 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         return Task.FromResult(summaries);
     }
 
-    public Task<ActivityRunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default)
+    public Task<ActivityRunRecord?> GetRunAsync(Guid entryId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         var row = connection.QueryFirstOrDefault<RunRow>("""
             SELECT id AS Id, library_id AS LibraryId, kind AS Kind, status AS Status, is_first_run AS IsFirstRun,
-                   started_at AS StartedAt, last_activity_at AS LastActivityAt, ended_at AS EndedAt, item_count AS ItemCount
-            FROM activity_runs WHERE id = @runId;
-            """, new { runId });
+                   started_at AS StartedAt, last_activity_at AS LastActivityAt, ended_at AS EndedAt, item_count AS ItemCount, scan_id AS ScanId
+            FROM activity_runs WHERE COALESCE(scan_id, id) = @entryId
+            ORDER BY started_at
+            LIMIT 1;
+            """, new { entryId });
         return Task.FromResult(row?.ToRecord());
     }
 
-    public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
@@ -177,11 +207,11 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
                    MIN(asset_id) AS FirstAssetId,
                    COUNT(*) AS ItemCount
             FROM activity_run_items
-            WHERE run_id = @runId AND (@mediaType IS NULL OR media_type = @mediaType)
+            WHERE run_id IN (SELECT id FROM activity_runs WHERE COALESCE(scan_id, id) = @entryId) AND (@mediaType IS NULL OR media_type = @mediaType)
             GROUP BY group_key
             ORDER BY MIN(created_at), group_key
             LIMIT @limit OFFSET @offset;
-            """, new { runId, mediaType, limit = Math.Clamp(limit, 1, MaxLimit), offset = Math.Max(0, offset) });
+            """, new { entryId, mediaType, limit = Math.Clamp(limit, 1, MaxLimit), offset = Math.Max(0, offset) });
         IReadOnlyList<ActivityRunGroup> groups = rows
             .Select(row => new ActivityRunGroup(row.GroupKey, row.GroupTitle, row.MediaType, row.GroupWorkId, row.FirstWorkId, row.FirstAssetId, row.ItemCount))
             .ToList();
@@ -207,13 +237,13 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         var rows = connection.Query<HitRow>($"""
             SELECT i.group_key AS GroupKey, MIN(i.group_title) AS GroupTitle, MIN(i.media_type) AS MediaType,
                    MAX(i.group_work_id) AS GroupWorkId, MIN(i.work_id) AS FirstWorkId,
-                   r.id AS RunId, r.library_id AS LibraryId, r.kind AS Kind, r.started_at AS StartedAt, COUNT(*) AS ItemCount
+                   COALESCE(r.scan_id, r.id) AS RunId, MIN(r.library_id) AS LibraryId, r.kind AS Kind, MIN(r.started_at) AS StartedAt, COUNT(*) AS ItemCount
             FROM activity_run_items i
             INNER JOIN activity_runs r ON r.id = i.run_id
             WHERE {where}
               AND (i.title LIKE @like ESCAPE '\' OR i.group_title LIKE @like ESCAPE '\')
-            GROUP BY i.group_key, r.id
-            ORDER BY r.started_at {order}
+            GROUP BY i.group_key, COALESCE(r.scan_id, r.id), r.kind
+            ORDER BY MIN(r.started_at) {order}
             LIMIT @limit;
             """, parameters).ToList();
         IReadOnlyList<ActivityTitleHit> hits = rows
@@ -354,10 +384,11 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         public string LastActivityAt { get; set; } = string.Empty;
         public string? EndedAt { get; set; }
         public long ItemCount { get; set; }
+        public Guid? ScanId { get; set; }
 
         public ActivityRunRecord ToRecord() => new(
             Id, LibraryId, Kind, Status, IsFirstRun != 0, ParseTime(StartedAt), ParseTime(LastActivityAt),
-            EndedAt is null ? null : ParseTime(EndedAt), (int)ItemCount);
+            EndedAt is null ? null : ParseTime(EndedAt), (int)ItemCount, ScanId);
     }
 
     private sealed class CountRow

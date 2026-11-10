@@ -238,7 +238,7 @@ public sealed class ShellActivityState : IDisposable
             ShellActivityKind.Ingestion,
             "Processing library files",
             null,
-            Math.Clamp((int)Math.Round(IngestionQueueProgressText.BarValue(queue)), 0, 100),
+            IngestionQueueProgressText.Percent(queue),
             queue.UpdatedAt));
     }
 

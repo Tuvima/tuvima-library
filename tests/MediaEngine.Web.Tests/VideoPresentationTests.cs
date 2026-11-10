@@ -34,6 +34,25 @@ public sealed class VideoPresentationTests
         => Assert.Equal(expected, VideoPresentationResolver.ContextKind(tv, movie, episodes, queue));
 
     [Fact]
+    public void OwnedEpisodeProjection_CarriesTheSeasonsOwnIdSoGoToSeasonCanOpenIt()
+    {
+        var seasonId = Guid.NewGuid();
+        var episode = Guid.NewGuid();
+        var sequence = new SequencePlacementViewModel
+        {
+            Groups = [new SequenceGroupViewModel
+            {
+                Key = "season-1", Title = "Season 1", EntityId = seasonId.ToString("D"),
+                Items = [new() { Id = episode.ToString(), EntityType = DetailEntityType.TvEpisode, Title = "Pilot", IsOwned = true }],
+            }],
+        };
+
+        var owned = Assert.Single(VideoPresentationResolver.OwnedEpisodes(sequence));
+
+        Assert.Equal(seasonId, owned.SeasonId);
+    }
+
+    [Fact]
     public void OwnedEpisodeProjectionIncludesUnnumberedTvAndDoesNotUseFallbackShowArtwork()
     {
         var owned = Guid.NewGuid();
@@ -532,6 +551,21 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, false));
         Assert.Single(cut.FindAll(".video-playback-restore"));
         Assert.True(_playback.HasQueue);
+    }
+
+    [Fact]
+    public async Task TheViewerOffersHideOnlyWhenAllowedAndTellsTheHostWhenPressed()
+    {
+        var item = new MediaViewerItem("fixture", MediaViewerKind.Image, "Fixture", null, "/preview", "/original");
+        var hidden = 0;
+
+        var offered = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanHide: true))
+            .Add(x => x.OnHide, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => hidden++)));
+        await offered.Find("button[aria-label='Hide item']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.Equal(1, hidden);
+
+        var withheld = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities()));
+        Assert.Empty(withheld.FindAll("button[aria-label='Hide item']"));
     }
 
     [Fact]

@@ -581,6 +581,7 @@ public sealed class DatabaseStartupSafetyTests
             ("audiobook_listen_history", "work_id"),
             ("audiobook_listen_history", "asset_id"),
             ("activity_runs", "id"),
+            ("activity_runs", "scan_id"),
             ("activity_run_items", "id"),
             ("activity_run_items", "run_id"),
             ("activity_run_items", "work_id"),
