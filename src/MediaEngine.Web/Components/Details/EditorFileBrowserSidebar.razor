@@ -31,10 +31,13 @@
                             data-group="ungrouped" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupUngrouped))" />
     </AppBrowserSideSection>
 
-    <AppBrowserSideSection RuleAbove="true">
-        <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
-                            Link="true" data-view-switch="folders" OnClick="State.ShowFoldersAsync" />
-    </AppBrowserSideSection>
+    @if (!ReadOnly)
+    {
+        <AppBrowserSideSection RuleAbove="true">
+            <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                                Link="true" data-view-switch="folders" OnClick="State.ShowFoldersAsync" />
+        </AppBrowserSideSection>
+    }
 }
 else
 {
@@ -47,6 +50,9 @@ else
 
 @code {
     [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>The read-only browser has no Folders and files view, so no switch to it.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     // The title's own level and the seasons, sections and albums with files; single episodes and lessons are in the toolbar's dropdown only.
     private IEnumerable<SupportingFileWhereOptionDto> PlaceOptions =>

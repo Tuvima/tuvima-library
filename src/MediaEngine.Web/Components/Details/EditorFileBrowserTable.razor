@@ -17,6 +17,7 @@
                        Id="@($"{IdPrefix}-{position}")"
                        Highlighted="@(position == Highlight)"
                        Ticked="ticked"
+                       Tickable="@(!ReadOnly)"
                        TickChanged="@(_ => State.Toggle(row))"
                        TickLabel="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)"
                        BadgeType="@row.Type"
@@ -42,12 +43,21 @@
             }
         </After>
         <Menu>
-            <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
-                <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
-                <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
-                <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
-                             Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
-            </AppOverflowMenu>
+            @if (ReadOnly)
+            {
+                @* Reading only: one Open button, no menu of edits. *@
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-open-file="@row.Id"
+                           OnClick="@(() => Choose(row, preview: true))">@L["EditorBrowser_Open"]</AppButton>
+            }
+            else
+            {
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
+                    <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
+                    <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
+                    <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
+                                 Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
+                </AppOverflowMenu>
+            }
         </Menu>
     </AppBrowserItemRow>
 }
@@ -63,6 +73,9 @@
 
     /// <summary>False outside a desktop editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>Reading only (the page's Extras "See all"): no tick, and an Open button instead of the row menu.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
 
     /// <summary>The row the arrow keys are on, and the prefix of the row ids the frame names it by.</summary>
     [Parameter] public int Highlight { get; set; }

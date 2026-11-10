@@ -342,8 +342,8 @@ The rating card stays at the top left.
 it, and closes when the next item starts. Rows, top to bottom: the heading
 "Up next" and, when autoplay is on, the countdown "Starts in {0} seconds"; the
 next item's still and title with "Next episode" or "Next lesson" under it; for a
-course only, "Homework: {0}" listing the supporting files marked "Shown
-alongside" the lesson; the buttons Cancel and Play now. With autoplay off the
+course only, a "Homework for this lesson" block listing the supporting files marked
+"Shown alongside" the lesson, each with an Open button; the buttons Cancel and Play now. With autoplay off the
 card stays and has no countdown.
 
 <!-- contract-table: end-card -->
@@ -353,7 +353,7 @@ card stays and has no countdown.
 | Countdown | Starts in {0} seconds |
 | Kind (TV) | Next episode |
 | Kind (lesson) | Next lesson |
-| Homework | Homework: {0} |
+| Homework | Homework for this lesson; Open |
 | Buttons | Cancel; Play now |
 
 ## Lock screen and system controls

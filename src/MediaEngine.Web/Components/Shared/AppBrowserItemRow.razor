@@ -9,7 +9,10 @@
     aria-selected="@(Ticked ? "true" : null)"
     @attributes="AdditionalAttributes">
     <td role="gridcell" class="app-browser-item__tick" @onkeydown:stopPropagation="true">
-        <AppCheckbox Value="Ticked" ValueChanged="TickChanged" HideLabel="true" Label="@TickLabel" />
+        @if (Tickable)
+        {
+            <AppCheckbox Value="Ticked" ValueChanged="TickChanged" HideLabel="true" Label="@TickLabel" />
+        }
     </td>
     <td role="gridcell" id="@NameCellId" aria-label="@Title" class="app-browser-item__namecell">
         <div class="app-browser-item__name">
@@ -34,6 +37,9 @@
     [Parameter] public bool Highlighted { get; set; }
 
     [Parameter] public bool Ticked { get; set; }
+
+    /// <summary>False for a list that only shows and opens (the read-only browser): the cell stays so the columns line up, but holds no tick.</summary>
+    [Parameter] public bool Tickable { get; set; } = true;
 
     [Parameter] public EventCallback<bool> TickChanged { get; set; }
 

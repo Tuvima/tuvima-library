@@ -137,6 +137,9 @@ public sealed class EditorHost : IDisposable
     private int _deleting;
     private readonly HashSet<Guid> _touched = [];
 
+    /// <summary>The files browser for reading only (the details page's Extras "See all"): it never stages a change, so it gets a list of its own that is never saved.</summary>
+    public static EditorFileBrowserState CreateReadOnlyFileBrowser(IEngineApiClient api) => new(api, () => new PendingEditList());
+
     public EditorHost(
         IEngineApiClient api,
         DeviceContextService device,

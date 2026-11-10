@@ -187,15 +187,15 @@ public sealed class VideoOverlayTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EndCard_ShowsTheHomeworkLineOnlyWhenItIsGivenData()
+    public void EndCard_ShowsTheHomeworkBlockOnlyWhenItIsGivenFiles()
     {
         var without = Render<VideoEndCard>(p => p.Add(c => c.Next, NextItem()).Add(c => c.Lesson, true));
-        var blank = Render<VideoEndCard>(p => p.Add(c => c.Next, NextItem()).Add(c => c.Lesson, true).Add(c => c.Homework, "  "));
-        var with = Render<VideoEndCard>(p => p.Add(c => c.Next, NextItem()).Add(c => c.Lesson, true).Add(c => c.Homework, "Worksheet 3, Practice drills"));
+        var with = Render<VideoEndCard>(p => p.Add(c => c.Next, NextItem()).Add(c => c.Lesson, true)
+            .Add(c => c.HomeworkFiles, [new MediaEngine.Contracts.Details.DetailExtraCardViewModel { Id = Guid.NewGuid().ToString("D"), Title = "Worksheet 3", RoleLabel = "Worksheet", FileBadge = "PDF" }]));
 
         Assert.Empty(without.FindAll("[data-end-card-homework]"));
-        Assert.Empty(blank.FindAll("[data-end-card-homework]"));
-        Assert.Equal("Homework: Worksheet 3, Practice drills", with.Find("[data-end-card-homework]").TextContent);
+        Assert.Contains("Homework for this lesson", with.Find("[data-end-card-homework]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Worksheet 3", with.Find("[data-end-card-homework]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
