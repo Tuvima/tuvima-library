@@ -5,7 +5,7 @@
 // A page source gives the module pages to draw. The comic source asks the Engine for the page list and page pictures
 // through the Dashboard (/engine-book/{id}/pages); the PDF source (added in the same file) draws with PDF.js.
 
-import { buildViews, chooseWidth as pickWidth, effectiveLayout as layoutFor, isRightToLeft, keyAction, tapAction, viewIndexOf } from "./page-reader-layout.js";
+import { buildViews, chooseWidth as pickWidth, effectiveLayout as layoutFor, findHits, isRightToLeft, keyAction, normalizeForSearch, tapAction, viewIndexOf } from "./page-reader-layout.js";
 
 const STORAGE_KEY = "tuvima.pageReader.v1";
 const CHROME_HIDE_MS = 3000;
@@ -102,6 +102,24 @@ function failure(error) {
     return { ok: false, code, message, pageCount: 0, rightToLeft: false };
 }
 
+/** PDF only: the document outline as { title, level, page } items (empty when there is none). */
+export async function getOutline() {
+    return state?.source?.outline ? await state.source.outline() : [];
+}
+
+/** PDF only: starts a search; hits arrive through the component's OnSearchResults. Resolves { token, hasText }. */
+export async function searchText(query) {
+    if (!state?.source?.search) {
+        return { token: 0, hasText: false };
+    }
+
+    return await state.source.search(query);
+}
+
+export function cancelSearch() {
+    state?.source?.cancelSearch?.();
+}
+
 export function dispose() {
     if (!state) {
         return;
@@ -186,9 +204,219 @@ async function createComicSource(baseUrl) {
     };
 }
 
-// PDF pages are drawn by the PDF.js build the Dashboard already ships. Added with the PDF packet.
-async function createPdfSource() {
-    throw { code: "unsupported", message: "PDFs open in the next update." };
+// PDF pages are drawn by the PDF.js build the Dashboard already ships (vendor/pdfjs, Apache-2.0, never from a CDN). PDF.js reads
+// the file through the Dashboard's file route with range requests, so a big PDF opens without downloading all of it. Pages are
+// drawn onto canvases at the width the layout needs (rounded up to a multiple of 64, never past MAX_PDF_WIDTH). There is no
+// annotation layer, so links inside a PDF are not clickable; Contents and Search are the way to move around.
+const MAX_PDF_WIDTH = 4096;
+const MAX_PDF_PIXELS = 16 * 1024 * 1024;
+const SEARCH_HIT_LIMIT = 200;
+const OUTLINE_LIMIT = 500;
+
+async function createPdfSource(baseUrl, dotnet) {
+    const pdfjs = await import(new URL("../vendor/pdfjs/pdf.min.mjs", import.meta.url).href);
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL("../vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
+    const task = pdfjs.getDocument({ url: `${baseUrl}/file`, withCredentials: true, isEvalSupported: false, enableScripting: false });
+    let pdf;
+    try {
+        pdf = await task.promise;
+    } catch (error) {
+        throw pdfFailure(error);
+    }
+
+    const first = await pdf.getPage(1);
+    const base = first.getViewport({ scale: 1 });
+    const pages = Array.from({ length: pdf.numPages }, (_, index) => ({ number: index + 1, width: base.width, height: base.height }));
+    const renders = new WeakMap();
+    let searchToken = 0;
+    let closed = false;
+
+    async function paint(canvas, number, width) {
+        const page = await pdf.getPage(number);
+        const natural = page.getViewport({ scale: 1 });
+        pages[number - 1].width = natural.width;
+        pages[number - 1].height = natural.height;
+        let scale = Math.max(160, Math.min(MAX_PDF_WIDTH, width)) / natural.width;
+        const pixels = natural.width * scale * natural.height * scale;
+        if (pixels > MAX_PDF_PIXELS) {
+            scale *= Math.sqrt(MAX_PDF_PIXELS / pixels);
+        }
+
+        const viewport = page.getViewport({ scale });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        const render = page.render({ canvasContext: canvas.getContext("2d"), viewport });
+        renders.set(canvas, render);
+        try {
+            await render.promise;
+            return true;
+        } catch (error) {
+            if (error && error.name === "RenderingCancelledException") {
+                return false;
+            }
+            throw error;
+        } finally {
+            page.cleanup();
+        }
+    }
+
+    function newCanvas(number) {
+        const canvas = document.createElement("canvas");
+        canvas.className = "pr-img";
+        canvas.setAttribute("role", "img");
+        canvas.setAttribute("aria-label", `Page ${number}`);
+        return canvas;
+    }
+
+    return {
+        kind: "pdf",
+        pages,
+        widths: [],
+        dynamicWidth: true,
+        rightToLeft: false,
+        pictureUrl(number, width) {
+            return `pdf:${number}:${width}`;
+        },
+        async draw(holder, number, width) {
+            const canvas = newCanvas(number);
+            try {
+                const done = await paint(canvas, number, width);
+                if (done && !closed) {
+                    holder.classList.remove("pr-page--loading");
+                    holder.replaceChildren(canvas);
+                }
+                return done;
+            } catch {
+                holder.classList.remove("pr-page--loading");
+                holder.classList.add("pr-page--broken");
+                holder.replaceChildren(brokenNote());
+                return false;
+            }
+        },
+        // A sharper picture of a page that is already showing (after zooming in).
+        async sharpen(holder, number, width) {
+            const canvas = newCanvas(number);
+            try {
+                if (await paint(canvas, number, width) && !closed && holder.isConnected) {
+                    holder.replaceChildren(canvas);
+                }
+            } catch {
+                // The picture already showing stays.
+            }
+        },
+        preload(number, width) {
+            // Warm PDF.js' own page cache; nothing is drawn.
+            pdf.getPage(number).then(page => page.cleanup?.(), () => {});
+        },
+        // Contents: the PDF's own outline as a flat list { title, level, page }, or [] when it has none.
+        async outline() {
+            let raw;
+            try {
+                raw = await pdf.getOutline();
+            } catch {
+                return [];
+            }
+
+            const items = [];
+            const walk = async (nodes, level) => {
+                for (const node of nodes || []) {
+                    if (items.length >= OUTLINE_LIMIT || closed) {
+                        return;
+                    }
+
+                    const page = await resolveDestination(node.dest);
+                    if (page > 0 && node.title) {
+                        items.push({ title: String(node.title).trim(), level, page });
+                    }
+
+                    await walk(node.items, level + 1);
+                }
+            };
+
+            const resolveDestination = async dest => {
+                try {
+                    const explicit = typeof dest === "string" ? await pdf.getDestination(dest) : dest;
+                    if (!Array.isArray(explicit) || explicit.length === 0) {
+                        return 0;
+                    }
+
+                    const target = explicit[0];
+                    return typeof target === "object" ? (await pdf.getPageIndex(target)) + 1 : Number(target) + 1;
+                } catch {
+                    return 0;
+                }
+            };
+
+            await walk(raw, 0);
+            return items;
+        },
+        // Search: reports hits page by page to the component so the list fills as it goes. A newer search stops an older one.
+        async search(query) {
+            const token = ++searchToken;
+            const needle = normalizeForSearch(query);
+            if (!needle) {
+                return { token, hasText: true };
+            }
+
+            let hasText = false;
+            let total = 0;
+            for (let number = 1; number <= pdf.numPages && token === searchToken && !closed && total < SEARCH_HIT_LIMIT; number++) {
+                const page = await pdf.getPage(number);
+                const content = await page.getTextContent();
+                page.cleanup();
+                const text = content.items.map(item => item.str).join(" ").replace(/\s+/g, " ");
+                if (text.trim().length > 0) {
+                    hasText = true;
+                }
+
+                if (token !== searchToken || closed) {
+                    break;
+                }
+
+                const hits = findHits(text, needle, number).slice(0, SEARCH_HIT_LIMIT - total);
+                total += hits.length;
+                if (hits.length > 0) {
+                    await dotnet.invokeMethodAsync("OnSearchResults", token, hits, false);
+                }
+            }
+
+            if (token === searchToken) {
+                await dotnet.invokeMethodAsync("OnSearchResults", token, [], true);
+            }
+
+            return { token, hasText: hasText || pdf.numPages === 0 };
+        },
+        cancelSearch() {
+            searchToken++;
+        },
+        dispose() {
+            closed = true;
+            searchToken++;
+            task.destroy?.();
+            pdf.destroy?.();
+        },
+    };
+}
+
+function pdfFailure(error) {
+    const name = error && error.name;
+    if (name === "PasswordException" || name === "InvalidPDFException" || name === "FormatError") {
+        return { code: "damaged", message: "This file can't be opened. It may be damaged or protected." };
+    }
+
+    if (name === "MissingPDFException" || (error && error.status === 404)) {
+        return { code: "notfound", message: "This title isn't available." };
+    }
+
+    if (name === "UnexpectedResponseException" && [401, 429, 502].includes(error.status)) {
+        return { code: "offline", message: "Library can't reach the Engine. Your place is saved." };
+    }
+
+    if (name === "ResponseException" || name === "UnexpectedResponseException" || error instanceof TypeError) {
+        return { code: "offline", message: "Library can't reach the Engine. Your place is saved." };
+    }
+
+    return { code: "damaged", message: "This file can't be opened. It may be damaged or protected." };
 }
 
 function brokenNote() {
@@ -249,6 +477,11 @@ function neededWidth(page, perRow, zoom) {
 }
 
 function chooseWidth(needed) {
+    if (state.source.dynamicWidth) {
+        // A PDF is drawn at the width needed, in steps of 64 so near sizes share a picture.
+        return clamp(Math.ceil(needed / 64) * 64, 160, MAX_PDF_WIDTH);
+    }
+
     return pickWidth(state.widths, needed);
 }
 
@@ -755,7 +988,7 @@ function refineZoomPicture() {
 
     const pagesInView = state.views[state.viewIndex];
     for (const holder of state.view.querySelectorAll(".pr-page")) {
-        const img = holder.querySelector("img");
+        const img = holder.querySelector("img, canvas");
         const number = Number(holder.dataset.page);
         const page = state.pages[number - 1];
         if (!img || !page) {
@@ -764,6 +997,19 @@ function refineZoomPicture() {
 
         const wanted = state.zoom.z > 1.5 ? chooseWidth(neededWidth(page, pagesInView.length, state.zoom.z)) : chooseWidth(neededWidth(page, pagesInView.length, 1));
         const wantedUrl = state.source.pictureUrl(number, wanted);
+        if (state.source.sharpen) {
+            if (img.dataset.zoomUrl !== wantedUrl && state.zoom.z > 1) {
+                img.dataset.zoomUrl = wantedUrl;
+                state.source.sharpen(holder, number, wanted).then(() => {
+                    const replaced = holder.querySelector("canvas");
+                    if (replaced) {
+                        replaced.dataset.zoomUrl = wantedUrl;
+                    }
+                });
+            }
+            continue;
+        }
+
         if (img.dataset.zoomUrl !== wantedUrl && state.zoom.z > 1) {
             img.dataset.zoomUrl = wantedUrl;
             const sharper = new Image();

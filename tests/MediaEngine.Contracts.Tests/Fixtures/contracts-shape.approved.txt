@@ -8559,6 +8559,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ReadingSettingsDto
   FontSizePx: System.Int32 | nullability=not-null | accessors=get,set
   LineHeight: System.Decimal | nullability=not-null | accessors=get,set
   PageWidth: System.String | nullability=not-null | accessors=get,set
+  PageFit: System.String | nullability=not-null | accessors=get,set
+  PageBackground: System.String | nullability=not-null | accessors=get,set
+  ShowBookmarksOnBar: System.Boolean | nullability=not-null | accessors=get,set
+  PageLayouts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+  ComicDirections: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.RefreshTextTracksResponse
   operation_id: System.Guid? | nullability=nullable | accessors=get,init
@@ -9675,6 +9680,7 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderFormatDto
   Format: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=nullable | accessors=get,init
   Subtitle: System.String | nullability=nullable | accessors=get,init
+  Series: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   Id: System.Guid | nullability=not-null | accessors=get,init

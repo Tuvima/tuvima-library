@@ -16,7 +16,7 @@
 }
 else if (_format.Format is "comic" or "pdf")
 {
-    <PageReader @key="AssetId" AssetId="AssetId" Kind="@_format.Format" Title="@_format.Title" Subtitle="@_format.Subtitle"
+    <PageReader @key="AssetId" AssetId="AssetId" Kind="@_format.Format" Title="@_format.Title" Subtitle="@_format.Subtitle" Series="@_format.Series"
                 ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
 }
 else

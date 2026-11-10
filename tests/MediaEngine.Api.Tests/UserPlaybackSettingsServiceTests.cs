@@ -428,6 +428,41 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
         Assert.Equal(18, other.FontSizePx);
     }
 
+    [Fact]
+    public async Task UpdateAsync_KeepsPageReaderChoicesPerProfile_AndDropsUnknownOnes()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.PageFit = " WIDTH ";
+        settings.Reading.PageBackground = "purple";
+        settings.Reading.ShowBookmarksOnBar = true;
+        settings.Reading.PageLayouts = new() { ["Asset-1"] = "Two", ["asset-2"] = "diagonal" };
+        settings.Reading.ComicDirections = new() { ["Saga"] = "RTL", ["Other"] = "up" };
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Reading;
+        var other = (await _service.GetAsync(_otherProfileId)).Reading;
+
+        Assert.Equal("width", saved.PageFit);
+        Assert.Equal("black", saved.PageBackground);
+        Assert.True(saved.ShowBookmarksOnBar);
+        Assert.Equal("two", Assert.Single(saved.PageLayouts).Value);
+        Assert.Equal("rtl", saved.ComicDirections["saga"]);
+        Assert.False(saved.ComicDirections.ContainsKey("other"));
+        Assert.Empty(other.ComicDirections);
+        Assert.False(other.ShowBookmarksOnBar);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CapsHowManyPageReaderChoicesAProfileKeeps()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.PageLayouts = Enumerable.Range(0, 500).ToDictionary(i => $"asset-{i}", _ => "one");
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal(ReadingPreferenceValues.MaxPageChoices, (await _service.GetAsync(_profileId)).Reading.PageLayouts.Count);
+    }
+
     [Theory]
     [InlineData(2, 12)]
     [InlineData(11, 12)]

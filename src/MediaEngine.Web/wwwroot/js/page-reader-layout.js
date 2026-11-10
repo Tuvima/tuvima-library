@@ -106,3 +106,47 @@ export function keyAction(key, shift, rtl) {
         default: return null;
     }
 }
+
+/** Search text folded for matching: lower case, accents removed, runs of spaces made one. */
+export function normalizeForSearch(text) {
+    return String(text ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The places `needle` (already normalized) occurs in one page's `text`: { page, before, match, after } with a short piece of the
+ * surrounding words, at most `limit` per page. Matching ignores case and accents.
+ */
+export function findHits(text, needle, page, limit = 20) {
+    const hits = [];
+    if (!needle) {
+        return hits;
+    }
+
+    // Fold character by character so positions in the folded text map straight back to the original.
+    let folded = "";
+    const map = [];
+    for (let i = 0; i < text.length; i++) {
+        const piece = text[i].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        for (const ch of piece) {
+            folded += ch;
+            map.push(i);
+        }
+    }
+
+    let from = 0;
+    while (hits.length < limit) {
+        const at = folded.indexOf(needle, from);
+        if (at < 0) {
+            break;
+        }
+
+        const start = map[at];
+        const end = (map[at + needle.length - 1] ?? text.length - 1) + 1;
+        const before = text.slice(Math.max(0, start - 40), start).replace(/^\S*\s/, "");
+        const after = text.slice(end, end + 60).replace(/\s\S*$/, "");
+        hits.push({ page, before, match: text.slice(start, end), after });
+        from = at + needle.length;
+    }
+
+    return hits;
+}

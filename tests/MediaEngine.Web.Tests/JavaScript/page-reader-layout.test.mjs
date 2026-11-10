@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
     buildViews,
+    findHits,
+    normalizeForSearch,
     chooseWidth,
     effectiveLayout,
     isRightToLeft,
@@ -87,4 +89,25 @@ test("keys turn pages, jump, zoom and close; right to left swaps the arrows", ()
     assert.equal(keyAction("-", false, false), "zoom-out");
     assert.equal(keyAction("Escape", false, false), "close");
     assert.equal(keyAction("q", false, false), null);
+});
+
+test("search ignores case and accents and shows the words around each hit", () => {
+    const needle = normalizeForSearch("CAFÉ");
+    const hits = findHits("We met at the café on the corner. The Cafe was closed later.", needle, 7);
+    assert.equal(hits.length, 2);
+    assert.equal(hits[0].page, 7);
+    assert.equal(hits[0].match, "café");
+    assert.equal(hits[1].match, "Cafe");
+    assert.ok(hits[0].before.endsWith("the "));
+    assert.ok(hits[0].after.startsWith(" on"));
+});
+
+test("search with nothing typed, or nothing found, gives no hits", () => {
+    assert.deepEqual(findHits("anything", "", 1), []);
+    assert.deepEqual(findHits("anything", normalizeForSearch("zebra"), 1), []);
+    assert.equal(normalizeForSearch("  Two   Words "), "two words");
+});
+
+test("search stops at the per-page limit", () => {
+    assert.equal(findHits("a a a a a a", "a", 1, 3).length, 3);
 });

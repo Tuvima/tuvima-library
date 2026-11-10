@@ -164,7 +164,7 @@ public static class ReadEndpoints
 
             var format = ReaderFormatOf(asset.FilePathRoot);
             var title = await titles.GetAsync(assetId, format == "comic", ct);
-            return Results.Ok(new ReaderFormatDto { Format = format, Title = title.Title, Subtitle = title.Subtitle });
+            return Results.Ok(new ReaderFormatDto { Format = format, Title = title.Title, Subtitle = title.Subtitle, Series = title.Series });
         })
         .WithName("GetReaderFormat")
         .WithSummary("Says which reader opens the title: epub, comic, pdf or unsupported.")

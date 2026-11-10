@@ -12575,9 +12575,6 @@
   <data name="PageReader_ReadingSettings" xml:space="preserve">
     <value>Reading settings</value>
   </data>
-  <data name="PageReader_CloseReadingSettings" xml:space="preserve">
-    <value>Close reading settings</value>
-  </data>
   <data name="PageReader_Close" xml:space="preserve">
     <value>Close</value>
   </data>
@@ -12602,8 +12599,41 @@
   <data name="PageReader_Background" xml:space="preserve">
     <value>Background</value>
   </data>
-  <data name="PageReader_RememberedOnThisDevice" xml:space="preserve">
-    <value>These choices are remembered on this device.</value>
+  <data name="PageReader_RememberedOnProfile" xml:space="preserve">
+    <value>These choices are saved to your profile.</value>
+  </data>
+  <data name="PageReader_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="PageReader_SearchInFile" xml:space="preserve">
+    <value>Search in this file</value>
+  </data>
+  <data name="PageReader_Contents" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="PageReader_SearchHint" xml:space="preserve">
+    <value>Type at least two letters, then press Enter.</value>
+  </data>
+  <data name="PageReader_Searching" xml:space="preserve">
+    <value>Searching the file…</value>
+  </data>
+  <data name="PageReader_NothingMatches" xml:space="preserve">
+    <value>Nothing in this file matches “{0}”.</value>
+  </data>
+  <data name="PageReader_NoText" xml:space="preserve">
+    <value>This PDF has no text to search.</value>
+  </data>
+  <data name="PageReader_PlacesFound" xml:space="preserve">
+    <value>{0} places found.</value>
+  </data>
+  <data name="PageReader_PlacesTruncated" xml:space="preserve">
+    <value>Showing the first {0} places. Search for more words to narrow it down.</value>
+  </data>
+  <data name="PageReader_OnPage" xml:space="preserve">
+    <value>Page {0}</value>
+  </data>
+  <data name="PageReader_ClosePanel" xml:space="preserve">
+    <value>Close {0}</value>
   </data>
   <data name="PageReader_PageOf" xml:space="preserve">
     <value>Page {0} of {1}</value>

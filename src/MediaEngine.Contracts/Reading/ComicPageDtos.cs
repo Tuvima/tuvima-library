@@ -46,4 +46,8 @@ public sealed class ReaderFormatDto
     /// <summary>The line under the title: the author, or for a comic its Series and issue.</summary>
     [JsonPropertyName("subtitle")]
     public string? Subtitle { get; init; }
+
+    /// <summary>The Series a comic belongs to, used to remember a reading direction for the whole Series.</summary>
+    [JsonPropertyName("series")]
+    public string? Series { get; init; }
 }

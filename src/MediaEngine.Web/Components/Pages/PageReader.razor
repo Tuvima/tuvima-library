@@ -2,8 +2,11 @@
 
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Playback
 
 @inject IEngineApiClient Api
+@inject UIOrchestratorService Orchestrator
+@inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<PageReader> Logger
@@ -39,6 +42,18 @@
         @if (_state == "ready")
         {
             <div class="pr-tools" role="toolbar" aria-label="@L["PageReader_ReaderTools"].Value">
+                @if (_kind == "pdf")
+                {
+                    <AppNativeButton Class="@($"pr-ib {(_panel == "search" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
+                    </AppNativeButton>
+                    @if (_outline.Count > 0)
+                    {
+                        <AppNativeButton Class="@($"pr-ib {(_panel == "contents" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["PageReader_Contents"].Value" AriaLabel="@L["PageReader_Contents"].Value">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppIconSize.Control20" />
+                        </AppNativeButton>
+                    }
+                }
                 <AppNativeButton Class="@($"pr-ib {(_panel == "settings" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
                 </AppNativeButton>
@@ -60,14 +75,71 @@
     @if (_state == "ready" && _panel is not null)
     {
         <div class="br-scrim" role="presentation" @onclick="ClosePanelAsync"></div>
-        <AppPopout Class="br-panel" Role="dialog" AriaLabel="@L["PageReader_ReadingSettings"].Value">
+        <AppPopout Class="br-panel" Role="dialog" AriaLabel="@PanelTitle">
             <div class="br-panel-head">
-                <h2 class="br-panel-title">@L["PageReader_ReadingSettings"]</h2>
-                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["PageReader_Close"].Value" AriaLabel="@L["PageReader_CloseReadingSettings"].Value">
+                <h2 class="br-panel-title">@PanelTitle</h2>
+                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["PageReader_Close"].Value" AriaLabel="@L["PageReader_ClosePanel", PanelTitle].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppIconSize.Control20" />
                 </AppNativeButton>
             </div>
             <div class="br-panel-body">
+                @if (_panel == "contents")
+                {
+                    <ul class="br-list">
+                        @foreach (var item in _outline)
+                        {
+                            <li>
+                                <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentOutline(item) ? "br-row--current" : "")}")"
+                                                 OnClick="@(() => OpenPageFromPanelAsync(item.Page))" AriaLabel="@item.Title">
+                                    @item.Title
+                                </AppNativeButton>
+                            </li>
+                        }
+                    </ul>
+                }
+                else if (_panel == "search")
+                {
+                    <div class="br-search">
+                        <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value"
+                                        Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
+                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Tooltip="@L["PageReader_Search"].Value" AriaLabel="@L["PageReader_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
+                        </AppNativeButton>
+                    </div>
+                    @if (_searching && _searchHits.Count == 0)
+                    {
+                        <p class="br-hint" role="status">@L["PageReader_Searching"]</p>
+                    }
+                    else if (!_searchStarted)
+                    {
+                        <p class="br-hint">@L["PageReader_SearchHint"]</p>
+                    }
+                    else if (_searchNoText)
+                    {
+                        <p class="br-empty" role="status">@L["PageReader_NoText"]</p>
+                    }
+                    else if (_searchHits.Count == 0)
+                    {
+                        <p class="br-empty" role="status">@L["PageReader_NothingMatches", _searchedFor]</p>
+                    }
+                    else
+                    {
+                        <p class="br-hint" role="status">@(_searchHits.Count >= SearchHitLimit ? L["PageReader_PlacesTruncated", _searchHits.Count].Value : L["PageReader_PlacesFound", _searchHits.Count].Value)</p>
+                        <ul class="br-list">
+                            @foreach (var hit in _searchHits)
+                            {
+                                <li>
+                                    <AppNativeButton Class="br-row" OnClick="@(() => OpenPageFromPanelAsync(hit.Page))">
+                                        <span class="br-row-sub">@L["PageReader_OnPage", hit.Page]</span>
+                                        <span class="br-row-main">@hit.Before<mark class="br-search-match">@hit.Match</mark>@hit.After</span>
+                                    </AppNativeButton>
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+                else
+                {
                 <div class="br-field">
                     <div class="br-field-label">@L["PageReader_Layout"]</div>
                     <AppSegmentedControl Options="LayoutOptions" Value="@_layout" ValueChanged="SetLayoutAsync" AriaLabel="@L["PageReader_Layout"].Value" />
@@ -87,7 +159,8 @@
                     <div class="br-field-label">@L["PageReader_Background"]</div>
                     <AppSegmentedControl Options="BackgroundOptions" Value="@_background" ValueChanged="SetBackgroundAsync" AriaLabel="@L["PageReader_Background"].Value" />
                 </div>
-                <p class="br-hint">@L["PageReader_RememberedOnThisDevice"]</p>
+                <p class="br-hint">@L["PageReader_RememberedOnProfile"]</p>
+                }
             </div>
         </AppPopout>
     }
@@ -138,6 +211,7 @@
     [Parameter] public string Kind { get; set; } = "comic";
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Series { get; set; }
     [Parameter] public Guid? ReturnCollectionId { get; set; }
     [Parameter] public bool Restart { get; set; }
 
@@ -166,6 +240,34 @@
     private string _fit = "page";
     private string _direction = "auto";
     private string _background = "black";
+    private bool _showBookmarksOnBar;
+
+    // PDF contents and search
+    private const int SearchHitLimit = 200;
+    private IReadOnlyList<PdfOutlineItem> _outline = [];
+    private readonly List<PdfSearchHit> _searchHits = [];
+    private AppNativeInput? _searchInput;
+    private string _searchQuery = string.Empty;
+    private string _searchedFor = string.Empty;
+    private bool _searching;
+    private bool _searchStarted;
+    private bool _searchNoText;
+    private bool _focusSearch;
+
+    private string PanelTitle => _panel switch
+    {
+        "search" => L["PageReader_Search"].Value,
+        "contents" => L["PageReader_Contents"].Value,
+        _ => L["PageReader_ReadingSettings"].Value,
+    };
+
+    // Saved page (spec D12): the page is saved a few seconds after the last turn and when the reader closes.
+    private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(5);
+    private readonly SemaphoreSlim _profileSaveGate = new(1, 1);
+    private Timer? _saveTimer;
+    private int _savedFirst;
+    private int _savedLast;
+    private int _startPage = 1;
 
     private string CountText => _pageCount == 0
         ? string.Empty
@@ -178,17 +280,6 @@
         _subtitle = Subtitle;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender || _opened)
-        {
-            return;
-        }
-
-        _opened = true;
-        await OpenAsync();
-    }
-
     private async Task OpenAsync()
     {
         _state = "loading";
@@ -198,12 +289,13 @@
         {
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/page-reader.js");
             await LoadSettingsAsync();
+            await LoadSavedPageAsync();
             _dotNetRef ??= DotNetObjectReference.Create(this);
             var result = await _module.InvokeAsync<PageReaderOpenResult>(
                 "open",
                 _host,
                 EngineBookProxyPath.ToBookBase(AssetId),
-                new { kind = _kind, startPage = _page, layout = _layout, fit = _fit, direction = _direction, background = _background },
+                new { kind = _kind, startPage = _startPage, layout = _layout, fit = _fit, direction = _direction, background = _background },
                 _dotNetRef);
 
             if (_disposing || _disposed)
@@ -218,8 +310,14 @@
             }
 
             _pageCount = result.PageCount;
+            _page = Math.Clamp(_startPage, 1, Math.Max(1, _pageCount));
+            _lastPage = _page;
             _rtl = _direction == "rtl" || (_direction == "auto" && result.RightToLeft);
             _state = "ready";
+            if (_kind == "pdf")
+            {
+                _outline = await _module.InvokeAsync<List<PdfOutlineItem>>("getOutline");
+            }
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
         {
@@ -259,6 +357,25 @@
         _page = first;
         _lastPage = last;
         _pageCount = pageCount;
+        ScheduleSave();
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnSearchResults(int token, List<PdfSearchHit> hits, bool done)
+    {
+        if (_disposed || !_searching)
+        {
+            return Task.CompletedTask;
+        }
+
+        _searchHits.AddRange(hits.Take(Math.Max(0, SearchHitLimit - _searchHits.Count)));
+        if (done)
+        {
+            _searching = false;
+        }
+
         StateHasChanged();
         return Task.CompletedTask;
     }
@@ -280,21 +397,23 @@
         }
     }
 
-    // ---- Settings (kept on this device) -------------------------------------------------------------------------
+    // ---- Settings (kept on the profile) -------------------------------------------------------------------------
 
     private async Task LoadSettingsAsync()
     {
         try
         {
-            var saved = await _module!.InvokeAsync<PageReaderSettings>("loadSettings");
-            _layout = saved.Layout is "auto" or "one" or "two" or "scroll" ? saved.Layout : "auto";
-            _fit = saved.Fit is "page" or "width" ? saved.Fit : "page";
-            _direction = saved.Direction is "auto" or "ltr" or "rtl" ? saved.Direction : "auto";
-            _background = saved.Background is "black" or "dark" or "light" ? saved.Background : "black";
+            var profile = await PreferencesAccessor.GetAsync();
+            var choices = PageReaderProfileSettings.ChoicesFor(profile?.Reading, AssetId, Series);
+            _layout = choices.Layout is "auto" or "one" or "two" or "scroll" ? choices.Layout : "auto";
+            _fit = choices.Fit is "page" or "width" ? choices.Fit : "page";
+            _direction = _kind == "comic" && choices.Direction is "ltr" or "rtl" ? choices.Direction : "auto";
+            _background = choices.Background is "black" or "dark" or "light" ? choices.Background : "black";
+            _showBookmarksOnBar = choices.ShowBookmarksOnBar;
         }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException)
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
         {
-            Logger.LogDebug(ex, "Page reader settings could not be read from this device.");
+            Logger.LogWarning(ex, "The profile's page reader choices could not be loaded; the reader's own defaults apply.");
         }
     }
 
@@ -302,21 +421,21 @@
     {
         _layout = value;
         await CallScriptAsync("setLayout", value);
-        await CallScriptAsync("saveSettings", new { layout = value });
+        await SaveChoiceAsync(reading => PageReaderProfileSettings.SetLayout(reading, AssetId, value));
     }
 
     private async Task SetFitAsync(string value)
     {
         _fit = value;
         await CallScriptAsync("setFit", value);
-        await CallScriptAsync("saveSettings", new { fit = value });
+        await SaveChoiceAsync(reading => reading.PageFit = value);
     }
 
     private async Task SetDirectionAsync(string value)
     {
         _direction = value;
         await CallScriptAsync("setDirection", value);
-        await CallScriptAsync("saveSettings", new { direction = value });
+        await SaveChoiceAsync(reading => PageReaderProfileSettings.SetDirection(reading, Series, value));
         _rtl = value == "rtl" || (value == "auto" && _rtl);
     }
 
@@ -324,7 +443,111 @@
     {
         _background = value;
         await CallScriptAsync("setBackground", value);
-        await CallScriptAsync("saveSettings", new { background = value });
+        await SaveChoiceAsync(reading => reading.PageBackground = value);
+    }
+
+    // Reads the profile's current settings and changes only the reader choice, so nothing else is overwritten.
+    private async Task SaveChoiceAsync(Action<MediaEngine.Contracts.Playback.ReadingSettingsDto> change)
+    {
+        await _profileSaveGate.WaitAsync();
+        try
+        {
+            var current = await Orchestrator.GetPlaybackSettingsAsync();
+            if (current is null)
+            {
+                Logger.LogWarning("The page reader's choice could not be saved: the profile's settings were unavailable.");
+                return;
+            }
+
+            change(current.Reading);
+            var saved = await Orchestrator.SavePlaybackSettingsAsync(current);
+            if (saved is null)
+            {
+                Logger.LogWarning("The page reader's choice could not be saved to the profile.");
+                return;
+            }
+
+            PreferencesAccessor.UpdateCache(saved);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+        {
+            Logger.LogWarning(ex, "The page reader's choice could not be saved to the profile.");
+        }
+        finally
+        {
+            _profileSaveGate.Release();
+        }
+    }
+
+    // ---- Saved page ---------------------------------------------------------------------------------------------
+
+    private async Task LoadSavedPageAsync()
+    {
+        _startPage = 1;
+        if (Restart)
+        {
+            return;
+        }
+
+        try
+        {
+            // A title that was never read has no saved position (the Engine answers 404, which comes back as null here).
+            var progress = await Api.GetProgressAsync(AssetId);
+            if (progress is not null
+                && progress.ExtendedProperties.TryGetValue("page", out var pageText) && int.TryParse(pageText, out var saved) && saved >= 1)
+            {
+                // A finished title opens at the start again; anything else returns to its page.
+                var savedCount = progress.ExtendedProperties.TryGetValue("page_count", out var countText) && int.TryParse(countText, out var c) ? c : 0;
+                _startPage = savedCount > 0 && saved >= savedCount ? 1 : saved;
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+        {
+            Logger.LogDebug(ex, "The saved page could not be read; the reader opens at the start.");
+        }
+    }
+
+    private void ScheduleSave()
+    {
+        if (_disposing || _disposed || _pageCount == 0)
+        {
+            return;
+        }
+
+        // One timer, pushed back on every turn: the page is saved when the person pauses, not on every turn.
+        _saveTimer ??= new Timer(_ => _ = InvokeAsync(SavePageAsync), null, Timeout.Infinite, Timeout.Infinite);
+        _saveTimer.Change(SaveDelay, Timeout.InfiniteTimeSpan);
+    }
+
+    private async Task SavePageAsync()
+    {
+        if (_pageCount == 0 || (_savedFirst == _page && _savedLast == _lastPage))
+        {
+            return;
+        }
+
+        var first = _page;
+        var last = Math.Max(_lastPage, _page);
+        _savedFirst = first;
+        _savedLast = last;
+        try
+        {
+            var properties = new Dictionary<string, string>
+            {
+                ["reader"] = "page",
+                ["page"] = first.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["page_count"] = _pageCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["media_kind"] = "reading",
+            };
+
+            // Percent is the page over the pages; the last page counts as finished (100).
+            var pct = last >= _pageCount ? 100.0 : Math.Clamp((double)last / _pageCount * 100.0, 0, 100);
+            await Api.SaveProgressAsync(AssetId, progressPct: pct, extendedProperties: properties);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+        {
+            Logger.LogDebug(ex, "Failed to save page reader progress.");
+        }
     }
 
     // ---- Panels and slider --------------------------------------------------------------------------------------
@@ -338,7 +561,95 @@
         }
 
         _panel = panel;
+        _focusSearch = panel == "search";
         await CallScriptAsync("setInputPaused", true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_opened)
+        {
+            _opened = true;
+            await OpenAsync();
+        }
+
+        if (_focusSearch && _panel == "search" && _searchInput is not null)
+        {
+            _focusSearch = false;
+            try
+            {
+                await _searchInput.FocusAsync();
+            }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+            {
+                Logger.LogDebug(ex, "The search box could not be focused.");
+            }
+        }
+    }
+
+    private bool IsCurrentOutline(PdfOutlineItem item)
+    {
+        // The current section is the last contents entry at or before the page being read.
+        PdfOutlineItem? current = null;
+        foreach (var entry in _outline)
+        {
+            if (entry.Page <= _page)
+            {
+                current = entry;
+            }
+        }
+
+        return ReferenceEquals(current, item);
+    }
+
+    private async Task OpenPageFromPanelAsync(int page)
+    {
+        await ClosePanelAsync();
+        await CallScriptAsync("goTo", page);
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await RunSearchAsync();
+        }
+    }
+
+    private Task OnSearchInputAsync(ChangeEventArgs e)
+    {
+        _searchQuery = e.Value?.ToString() ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task RunSearchAsync()
+    {
+        var query = _searchQuery.Trim();
+        if (query.Length < 2 || _module is null)
+        {
+            return;
+        }
+
+        await CallScriptAsync("cancelSearch");
+        _searchHits.Clear();
+        _searchedFor = query;
+        _searchStarted = true;
+        _searchNoText = false;
+        _searching = true;
+        StateHasChanged();
+        try
+        {
+            var outcome = await _module.InvokeAsync<PdfSearchOutcome>("searchText", query);
+            _searchNoText = !outcome.HasText;
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "The PDF search could not finish.");
+        }
+        finally
+        {
+            _searching = false;
+        }
     }
 
     private async Task ClosePanelAsync()
@@ -379,6 +690,7 @@
         }
 
         _exited = true;
+        await SavePageAsync();
         if (ReturnCollectionId.HasValue)
         {
             Overlay?.OfferLastAsset(ReturnCollectionId.Value, AssetId);
@@ -398,6 +710,17 @@
         }
 
         _disposing = true;
+        if (_saveTimer is { } timer)
+        {
+            await timer.DisposeAsync();
+            _saveTimer = null;
+        }
+
+        if (!_exited)
+        {
+            await SavePageAsync();
+        }
+
         if (_module is not null)
         {
             try
@@ -424,11 +747,23 @@
         public bool RightToLeft { get; set; }
     }
 
-    private sealed class PageReaderSettings
+    private sealed class PdfOutlineItem
     {
-        public string? Layout { get; set; }
-        public string? Fit { get; set; }
-        public string? Direction { get; set; }
-        public string? Background { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int Level { get; set; }
+        public int Page { get; set; }
+    }
+
+    public sealed class PdfSearchHit
+    {
+        public int Page { get; set; }
+        public string Before { get; set; } = string.Empty;
+        public string Match { get; set; } = string.Empty;
+        public string After { get; set; } = string.Empty;
+    }
+
+    private sealed class PdfSearchOutcome
+    {
+        public bool HasText { get; set; }
     }
 }
