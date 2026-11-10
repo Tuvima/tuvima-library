@@ -77,6 +77,8 @@ public sealed record BookmarkSetCompareRowDto
     public double? GapSeconds { get; init; }
     /// <summary>For a book: how many chapters apart the two are (0 when in the same chapter). Null on a New row and for films.</summary>
     public int? GapChapters { get; init; }
+    /// <summary>For a comic or PDF: how many pages apart the two are (0 when on the same page). Null on a New row and for other kinds.</summary>
+    public int? GapPages { get; init; }
     /// <summary>See <see cref="BookmarkClosenessLabels"/>.</summary>
     public string Closeness { get; init; } = BookmarkClosenessLabels.New;
     /// <summary>The choice that is ticked when the person just presses Apply. See <see cref="BookmarkRowChoices"/>.</summary>

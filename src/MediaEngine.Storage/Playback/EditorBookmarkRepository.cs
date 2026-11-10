@@ -370,13 +370,15 @@ public sealed class EditorBookmarkRepository
                             EnsureDefinitive();
                             foreach (var item in op.Items)
                             {
-                                // A book bookmark carries a reader location; anything else is a time.
-                                var isText = !string.IsNullOrWhiteSpace(item.Locator);
-                                var locator = isText ? item.Locator!.Trim() : null;
-                                var spot = locator is null ? null : ReaderLocation.TryParse(locator);
+                                // A comic or PDF bookmark is a page; a book bookmark carries a reader location; anything else is a time.
+                                var isPage = item.PositionKind == BookmarkPooling.PageKind;
+                                var isText = !isPage && !string.IsNullOrWhiteSpace(item.Locator);
+                                var locator = isPage ? PageLocator.Format((int)item.PositionSeconds) : isText ? item.Locator!.Trim() : null;
+                                var spot = isText ? ReaderLocation.TryParse(locator!) : null;
                                 if (!double.IsFinite(item.PositionSeconds) || item.PositionSeconds < 0
+                                    || isPage && (item.PositionSeconds < 1 || item.PositionSeconds > PageLocator.MaximumPage || item.PositionSeconds != Math.Floor(item.PositionSeconds))
                                     || isText && (spot is null || locator!.Length > 4096)
-                                    || !isText && item.EndSeconds is { } itemEnd && (!double.IsFinite(itemEnd) || itemEnd <= item.PositionSeconds)
+                                    || !isText && !isPage && item.EndSeconds is { } itemEnd && (!double.IsFinite(itemEnd) || itemEnd <= item.PositionSeconds)
                                     || !AudiobookBookmarkNotePolicy.TryNormalize(item.Name, out var itemName)
                                     || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(item.Description, out var itemDescription))
                                 {
@@ -394,9 +396,9 @@ public sealed class EditorBookmarkRepository
                                     ProfileId = actingProfileId,
                                     WorkId = workId,
                                     AssetId = assetId,
-                                    PositionKind = isText ? BookmarkPooling.TextKind : BookmarkPooling.TimeKind,
+                                    PositionKind = isPage ? BookmarkPooling.PageKind : isText ? BookmarkPooling.TextKind : BookmarkPooling.TimeKind,
                                     PositionSeconds = isText ? 0 : item.PositionSeconds,
-                                    EndSeconds = isText ? null : item.EndSeconds,
+                                    EndSeconds = isText || isPage ? null : item.EndSeconds,
                                     ChapterIndex = isText ? item.ChapterIndex ?? spot!.Chapter : null,
                                     ChapterTitle = string.IsNullOrWhiteSpace(item.ChapterTitle) ? null : item.ChapterTitle.Trim(),
                                     Label = itemName,
@@ -417,7 +419,7 @@ public sealed class EditorBookmarkRepository
                                     created,
                                     tx);
                                 rows[created.Id] = created;
-                                if (!isText)
+                                if (!isText && !isPage)
                                 {
                                     added.Add((created.Id, created.AssetId, created.PositionSeconds));
                                     if (!string.IsNullOrEmpty(item.FrameBase64))

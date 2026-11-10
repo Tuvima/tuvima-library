@@ -38,8 +38,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var sets = new BookmarkSetService(scope, new BookmarkRecognitionRepository(_database), vault, closeness, frames: FrameService());
         var readerSets = new ReaderBookmarkSetService(scope, new BookmarkRecognitionRepository(_database), vault, closeness);
         var activity = new SystemActivityRepository(_database);
+        var pageSets = new PageBookmarkSetService(scope, new BookmarkRecognitionRepository(_database), vault, closeness, new MediaAssetRepository(_database));
         var service = new EditorBookmarksService(
-            scope, new EditorBookmarkRepository(_database), closeness, sets, readerSets, FrameService(), vault, activity, NullLogger<EditorBookmarksService>.Instance);
+            scope, new EditorBookmarkRepository(_database), closeness, sets, readerSets, pageSets, FrameService(), vault, activity, NullLogger<EditorBookmarksService>.Instance);
         var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, bookmarks, null!, scope, null!, null!, frames: FrameService(), bookmarkVisibility: BookmarkVisibility());
         return new EditorBookmarkKit(service, scope, activity, sets, player);
     }
