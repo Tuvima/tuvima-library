@@ -9611,6 +9611,16 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.AlignmentJobDto
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,set
   CompletedAt: System.DateTime? | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageDto
+  Number: System.Int32 | nullability=not-null | accessors=get,init
+  Width: System.Int32 | nullability=not-null | accessors=get,init
+  Height: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageListDto
+  PageCount: System.Int32 | nullability=not-null | accessors=get,init
+  RightToLeft: System.Boolean | nullability=not-null | accessors=get,init
+  Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   AudiobookAssetId: System.Guid | nullability=not-null | accessors=get,init
 

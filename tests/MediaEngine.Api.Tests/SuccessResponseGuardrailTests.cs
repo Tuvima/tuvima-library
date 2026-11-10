@@ -42,6 +42,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetAssetSubtitles",
         "GetAssetTextTrack",
         "GetBookFile",
+        "GetComicPage",
         "GetCollectionArtwork",
         "GetEntityCover",
         "GetProfileAvatar",
