@@ -15,7 +15,6 @@
 @inject PlaybackSessionController Playback
 @inject ListenContextSidebarState AudioSidebar
 @inject IAudiobookBookmarkActions BookmarkActions
-@inject AudiobookBookmarkActionService BookmarkActionOwner
 @inject IUserPlaybackPreferencesAccessor PlaybackPreferences
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject ListenAudioDragService AudioDrag
@@ -48,17 +47,6 @@
         <span>@_playbackRestoreError</span>
         <AppNativeButton Type="button" OnClick="RetryPlaybackStateRestoreAsync" AriaLabel="@L["ListenNowPlayingBar_RetryPlaybackStateRestore"].Value">@L["Common_Retry"]</AppNativeButton>
     </div>
-}
-
-@if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null)
-{
-    <AudiobookBookmarkDialog Context="@_bookmarkDialogContext"
-                             Actions="@BookmarkActions"
-                             AuthorizedAssetIds="@_bookmarkAuthorizedAssetIds"
-                             WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")"
-                             IsMobile="@IsPhonePresentation"
-                             Trigger="@_bookmarkTrigger"
-                             OnClose="DismissBookmarkDialogAsync" />
 }
 
 @if (Playback.HasQueue && Playback.CurrentItem is not null && !Playback.IsVideoMode)
@@ -188,6 +176,20 @@
                                 ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
                     <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" />
                 </ListenDockTool>
+                break;
+            case PlaybackControlKey.Bookmarks:
+                @* The Bookmarks panel (unified player v2 D21, mockup screen 11): the same panel as video, with the book's cover on each row. *@
+                <PlaybackPanel Title="@L["Glossary_Bookmarks"].Value" ToolId="audio-bookmarks" Kind="bookmarks" Surface="dock" ItemKey="@DockItemKey"
+                               OpenChanged="@(open => BookmarksPanelOpenChangedAsync(open))">
+                    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
+                    <ChildContent>
+                        <BookmarksPanel Bookmarks="@BarRailBookmarks" Position="@Playback.CurrentTimeSeconds" ScrollKey="@DockItemKey" UseFrames="false" CoverUrl="@BarArtwork.Src"
+                                        Choice="@BookmarkChoice" ChoiceChanged="ChangeBookmarkChoiceAsync"
+                                        ShowOnTimeline="@ShowBookmarksOnBar" ShowOnTimelineChanged="ChangeShowBookmarksOnBarAsync"
+                                        Add="AddAudiobookBookmarkAsync" Seek="@(bookmark => SeekOnHostAsync(bookmark.Seconds))"
+                                        Edit="EditAudiobookBookmarkAsync" Delete="DeleteAudiobookBookmarkAsync" />
+                    </ChildContent>
+                </PlaybackPanel>
                 break;
             case PlaybackControlKey.Speed:
                 @* The speed value on the bar opens the Speed panel directly (unified player v2 D15, mockup screen 5). *@
@@ -332,13 +334,7 @@
     private readonly object _nativeSleepTimerBindingGate = new();
     private PendingNativeSleepTimerBinding? _pendingNativeSleepTimerBinding;
     private NativeSleepTimerBindingRequest? _nativeSleepTimerBinding;
-    private AudiobookBookmarkActionContext? _bookmarkDialogContext;
-    private AudiobookBookmarkActionSnapshot? _bookmarkDialogSnapshot;
-    private ElementReference _bookmarkTrigger;
-    private IReadOnlySet<Guid> _bookmarkAuthorizedAssetIds = new HashSet<Guid>();
-    private string? _bookmarkWorkTitle;
     private bool _shortcutsRegistered;
-    private bool _scrollActiveChapterPending;
 
     private string PlayerShellClass
     {
@@ -402,13 +398,13 @@
         RepeatMode: Playback.RepeatMode,
         PlaybackRate: Playback.PlaybackRate,
         HasChapters: CurrentChapters.Count > 0,
-        CanBookmark: Playback.IsAudiobookMode && Playback.CurrentItem?.AssetId is not null,
+        CanBookmark: CanBookmarkCurrent,
         IsSleepTimerActive: Playback.SleepTimerState.Mode != AudiobookSleepTimerModes.Off,
         HasQueue: Playback.HasQueue,
-        ActiveSheet: IsNowPlayingPage ? "now-playing" : _bookmarkDialogContext is not null ? "bookmarks" : null);
+        ActiveSheet: IsNowPlayingPage ? "now-playing" : null);
     private static readonly IReadOnlySet<PlaybackControlKey> HostedBarTools = new HashSet<PlaybackControlKey>
     {
-        PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.History, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer,
+        PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.History, PlaybackControlKey.Bookmarks, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer,
     };
 
     // Starting playback from a click needs the browser's own gesture, so the Play button carries what the page script needs to start the stream.
@@ -438,7 +434,6 @@
 
     private Task HandleBarToolAsync(PlaybackControlActivation activation) => activation.Control.Command switch
     {
-        "open-bookmarks" => OpenBookmarkDialogAsync(activation.Trigger),
         "open-now-playing" => OpenNowPlaying(),
         "close" => ClosePlayerAsync(),
         _ => Task.CompletedTask,
@@ -513,9 +508,7 @@
         var layout = AudioSidebar.For(Playback);
         return controls.Select(control =>
         {
-            var selected = control.Sheet == "bookmark-dialog"
-                ? _bookmarkDialogContext is not null
-                : control.Sheet is { } sheet && layout.Open && layout.ActivePanelKey == sheet;
+            var selected = control.Sheet is { } sheet && layout.Open && layout.ActivePanelKey == sheet;
             return control with { IsSelected = selected };
         }).ToList();
     }
@@ -553,16 +546,22 @@
     private (Guid Profile, Guid Work, Guid Asset)? _barMarkersKey;
     private int _barMarkersVersion;
     private bool ShowBookmarksOnBar => _playerSettings?.General.ShowBookmarksOnBar == true;
+    // An audiobook with a file, or a music track with a file while a profile is active (unified player v2 D3, D21, D26): music Bookmarks are the track's
+    // own, keyed by the track's work and file.
+    private bool CanBookmarkCurrent => Playback.CurrentItem?.AssetId is { } assetId && assetId != Guid.Empty
+        && (Playback.IsAudiobookMode || (Playback.IsMusicMode && PlaybackPreferences.ActiveProfileId is { } profile && profile != Guid.Empty));
+    private string BookmarkChoice => _playerSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    private IReadOnlyList<PlaybackRailBookmark> BarRailBookmarks => PlaybackRailBookmark.From(_barBookmarks, Playback.DurationSeconds);
 
     private IReadOnlyList<PlaybackRailBookmark> BarMarkers(AudiobookChapterWindow? scope) =>
-        Playback.IsAudiobookMode && _barMarkersKey is { } key && key.Asset == Playback.CurrentItem?.AssetId
-            ? AudiobookBarMarkers.ForBar(_barBookmarks, ShowBookmarksOnBar, Playback.DurationSeconds, scope)
+        CanBookmarkCurrent && _barMarkersKey is { } key && key.Asset == Playback.CurrentItem?.AssetId
+            ? AudiobookBarMarkers.ForBar(_barBookmarks, ShowBookmarksOnBar, BookmarkChoice, Playback.DurationSeconds, scope)
             : [];
 
     /// <summary>Loads the profile's playback settings and, while the markers are on, the book file's bookmarks, once per book file (or when forced).</summary>
     private async Task RefreshBarMarkersAsync(bool force = false)
     {
-        if (_disposed || !Playback.IsAudiobookMode || Playback.CurrentItem is not { AssetId: Guid assetId } item
+        if (_disposed || !CanBookmarkCurrent || Playback.CurrentItem is not { AssetId: Guid assetId } item
             || PlaybackPreferences.ActiveProfileId is not Guid profileId)
         {
             return;
@@ -580,16 +579,14 @@
         try
         {
             _playerSettings ??= await PlaybackPreferences.GetAsync();
-            var saved = ShowBookmarksOnBar
-                ? await AudiobookBarMarkers.LoadAsync(Services.GetService<IEngineApiClient>(), workId, profileId, assetId, CancellationToken.None)
-                : [];
+            var saved = await AudiobookBarMarkers.LoadAsync(Services.GetService<IEngineApiClient>(), workId, profileId, assetId, CancellationToken.None);
             if (_disposed || version != _barMarkersVersion) return;
             _barBookmarks = saved;
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
-            Logger.LogInformation(ex, "The bookmark markers for the audiobook bar could not be loaded; the bar shows none.");
+            Logger.LogInformation(ex, "The bookmark markers for the bar could not be loaded; the bar shows none.");
         }
     }
 
@@ -617,7 +614,6 @@
         Playback.SleepTimerPauseRequested += PauseNativeSleepTimerAsync;
         Playback.SleepTimerNativeSourcePrepareRequested += PrepareNativeSleepTimerSourceAsync;
         Playback.SleepTimerNativePositionRequested += ReadNativeSleepTimerPositionAsync;
-        BookmarkActionOwner.Changed += OnBookmarkActionsChanged;
         Nav.LocationChanged += HandleLocationChanged;
         _lastPhonePresentation = IsPhonePresentation;
         DeviceContext.OnChanged += HandleDeviceContextChanged;
@@ -720,12 +716,6 @@
             await PrepareAudioSourceAsync();
             await SyncNativeSleepTimerAsync();
             await SyncAudioAsync();
-        }
-
-        if (_scrollActiveChapterPending)
-        {
-            _scrollActiveChapterPending = false;
-            await JS.InvokeVoidAsync("playbackTools.scrollActiveChapter");
         }
 
         var vaultLocked = Services.GetService<NsfwModeState>() is not { Unlocked: true };
@@ -1762,29 +1752,6 @@
         if (_shell?.ArtworkElement is { } artwork) await artwork.FocusAsync();
     }
 
-    private async Task HandleAudiobookPanelControl(PlaybackControlDefinition control)
-    {
-        if (control.IsDisabled || string.IsNullOrWhiteSpace(control.Sheet))
-        {
-            return;
-        }
-
-        if (control.Sheet == "bookmark-dialog")
-        {
-            CloseSettingsMenu();
-            await OpenBookmarkDialogAsync();
-            return;
-        }
-
-        if (control.Sheet is "chapters" or "history")
-        {
-            await OpenDockPanelAsync(control.Sheet);
-            return;
-        }
-
-        _scrollActiveChapterPending = string.Equals(control.Sheet, "chapters", StringComparison.Ordinal);
-    }
-
     private async Task SetAudiobookSpeedAsync(double rate)
     {
         await Playback.SetPlaybackRateAsync(rate);
@@ -1816,12 +1783,6 @@
         _settingsMenuOpen = true;
         _settingsMenuSurface = state.Surface;
         _transientPlaybackRequestVersion = Playback.PlaybackRequestVersion;
-
-        if (_bookmarkDialogContext is { } context)
-        {
-            await DismissBookmarkDialogAsync();
-            await BookmarkActions.CloseAsync(context);
-        }
     }
 
     private void CloseSettingsMenu()
@@ -1839,15 +1800,25 @@
         if (state.IsOpen) _settingsMenuTool = tool;
     }
 
-    private async Task OpenBookmarkDialogAsync(ElementReference trigger = default)
+    private async Task BookmarksPanelOpenChangedAsync(bool open)
     {
+        if (!open) return;
         CloseSettingsMenu();
+        await RefreshBarMarkersAsync(force: true);
+    }
+
+    /// <summary>
+    /// Saves a bookmark at the moment the button was pressed, with an optional note (unified player v2 D21). The press asks the playback owner for the
+    /// position through a fresh lease, saves it, and releases the lease, so a stale press (the book, profile or session changed) saves nothing.
+    /// </summary>
+    private async Task<bool> AddAudiobookBookmarkAsync(double seconds, string? note)
+    {
+        if (Playback.IsMusicMode) return await AddMusicBookmarkAsync(seconds, note);
         if (!Playback.IsAudiobookMode || Playback.CurrentItem is not { AssetId: Guid assetId } item
             || assetId == Guid.Empty || PlaybackPreferences.ActiveProfileId is not Guid profileId
             || Playback.AudiobookBookSessionLeaseId is not Guid sessionLeaseId)
         {
-            Snackbar.Add(L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"].Value, AppSeverity.Info);
-            return;
+            return false;
         }
 
         var context = new AudiobookBookmarkActionContext(Guid.NewGuid(), profileId,
@@ -1859,56 +1830,100 @@
             var authorized = BookmarkActions is ListenPlaybackCommandActionsClient client
                 ? client.GetAuthorizedAssetIds(context)
                 : new HashSet<Guid>();
-            if (snapshot.Draft is null || !authorized.Contains(assetId))
+            if (snapshot.Draft is not { } draft || !authorized.Contains(assetId))
             {
-                await BookmarkActions.CloseAsync(context);
-                Snackbar.Add(snapshot.Message ?? "The current audiobook position could not be captured.", AppSeverity.Info);
-                return;
+                return false;
             }
 
-            _bookmarkDialogContext = context;
-            _bookmarkDialogSnapshot = snapshot;
-            _bookmarkTrigger = trigger;
-            _bookmarkAuthorizedAssetIds = authorized;
-            _bookmarkWorkTitle = item.Title;
-            await InvokeAsync(StateHasChanged);
+            var result = await BookmarkActions.SaveWithFieldsAsync(context, draft.Generation, authorized,
+                new AudiobookBookmarkSaveFields(note, null, seconds));
+            await RefreshBarMarkersAsync(force: true);
+            return result.Outcome == AudiobookBookmarkOperationOutcome.Success;
         }
         catch (Exception ex)
         {
-            Logger.LogInformation(ex, "The bookmark dialog could not be opened by the active playback owner.");
-            Snackbar.Add(L["ListenNowPlayingBar_TheAudiobookPositionCouldNot"].Value, AppSeverity.Info);
+            Logger.LogWarning(ex, "The audiobook position could not be bookmarked by the active playback owner.");
+            return false;
+        }
+        finally
+        {
+            try { await BookmarkActions.CloseAsync(context); }
+            catch (Exception ex)
+            {
+                Logger.LogDebug(ex, "The bookmark lease could not be released; it was probably released already.");
+            }
         }
     }
 
-    private async Task HandleAudiobookDockActivationAsync(PlaybackControlActivation activation)
+    /// <summary>
+    /// Saves a bookmark on the playing music track at the moment the button was pressed. A song has no chapters and no owner lease, so the press goes
+    /// straight to the Engine, which checks the profile and the file.
+    /// </summary>
+    private async Task<bool> AddMusicBookmarkAsync(double seconds, string? note)
     {
-        if (activation.Control.Sheet == "bookmark-dialog")
+        if (!CanBookmarkCurrent || Playback.CurrentItem is not { AssetId: Guid assetId } item
+            || PlaybackPreferences.ActiveProfileId is not Guid profileId
+            || Services.GetService<IEngineApiClient>() is not { } api
+            || !double.IsFinite(seconds) || seconds < 0)
         {
-            await OpenBookmarkDialogAsync(activation.Trigger);
-            return;
+            return false;
         }
-        await HandleAudiobookPanelControl(activation.Control);
-    }
 
-    private Task DismissBookmarkDialogAsync()
-    {
-        _bookmarkDialogContext = null;
-        _bookmarkDialogSnapshot = null;
-        _bookmarkAuthorizedAssetIds = new HashSet<Guid>();
-        _bookmarkWorkTitle = null;
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private void OnBookmarkActionsChanged(Guid dialogId)
-    {
-        if (_bookmarkDialogContext?.DialogId != dialogId) return;
-        _ = InvokeAsync(async () =>
+        var duration = Playback.DurationSeconds;
+        var request = new CreateAudiobookBookmarkRequestDto
         {
-            if (_bookmarkDialogContext is not { } context) return;
-            _bookmarkDialogSnapshot = await BookmarkActions.GetSnapshotAsync(context);
-            StateHasChanged();
-            if (ShowBookmarksOnBar) _ = RefreshBarMarkersAsync(force: true);
-        });
+            ProfileId = profileId,
+            AssetId = assetId,
+            PositionSeconds = duration > 0 ? Math.Min(seconds, duration) : seconds,
+            DurationSeconds = duration > 0 ? duration : null,
+            Note = note,
+        };
+        var result = await api.CreateAudiobookBookmarkWithOutcomeAsync(item.WorkId, request, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
+    }
+
+    /// <summary>Renames the person's own bookmark and changes its note; the Engine refuses another profile's row.</summary>
+    private async Task<bool> EditAudiobookBookmarkAsync(PlaybackRailBookmark bookmark, string? name, string? note)
+    {
+        if (PlaybackPreferences.ActiveProfileId is not Guid profileId || Services.GetService<IEngineApiClient>() is not { } api) return false;
+        var result = await api.UpdateAudiobookBookmarkWithOutcomeAsync(bookmark.Id, new UpdateAudiobookBookmarkRequestDto { Label = name, Note = note }, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
+    }
+
+    private async Task<bool> DeleteAudiobookBookmarkAsync(PlaybackRailBookmark bookmark)
+    {
+        if (PlaybackPreferences.ActiveProfileId is not Guid profileId || Services.GetService<IEngineApiClient>() is not { } api) return false;
+        var result = await api.DeleteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
+    }
+
+    private async Task ChangeBookmarkChoiceAsync(string choice)
+    {
+        _playerSettings ??= new UserPlaybackSettingsDto();
+        _playerSettings.General.BookmarkFilter = choice;
+        await SaveBookmarkPreferenceAsync(settings => settings.General.BookmarkFilter = choice);
+    }
+
+    private async Task ChangeShowBookmarksOnBarAsync(bool show)
+    {
+        _playerSettings ??= new UserPlaybackSettingsDto();
+        _playerSettings.General.ShowBookmarksOnBar = show;
+        await SaveBookmarkPreferenceAsync(settings => settings.General.ShowBookmarksOnBar = show);
+    }
+
+    private async Task SaveBookmarkPreferenceAsync(Action<UserPlaybackSettingsDto> change)
+    {
+        await InvokeAsync(StateHasChanged);
+        if (Services.GetService<PlayerPreferenceService>() is not { } preferences) return;
+        try { await preferences.UpdateAsync(change); }
+        catch (OperationCanceledException) { Logger.LogDebug("Saving the bookmark choice was cancelled."); }
+        catch (Exception ex) { Logger.LogWarning(ex, "The bookmark choice could not be saved."); }
     }
 
     private async Task SetAudiobookSleepTimerSelectionAsync(AudiobookSleepTimerSelectionDto selection)
@@ -2129,14 +2144,6 @@
         Reactions.Changed -= ReactionChanged;
         TimelineScope.Changed -= TimelineScopeChanged;
         _disposed = true;
-        var bookmarkContext = _bookmarkDialogContext;
-        _bookmarkDialogContext = null;
-        if (bookmarkContext is not null)
-        {
-            try { await BookmarkActions.CloseAsync(bookmarkContext); }
-            catch (Exception exception) { Logger.LogDebug(exception, "The audiobook bookmark dialog lease was already released during playback bar disposal."); }
-        }
-
         Playback.SetTransportHostNotReady();
         Playback.Changed -= HandlePlaybackChanged;
         AudioSidebar.Changed -= HandleAudioPanelChanged;
@@ -2146,7 +2153,6 @@
         Playback.SleepTimerPauseRequested -= PauseNativeSleepTimerAsync;
         Playback.SleepTimerNativeSourcePrepareRequested -= PrepareNativeSleepTimerSourceAsync;
         Playback.SleepTimerNativePositionRequested -= ReadNativeSleepTimerPositionAsync;
-        BookmarkActionOwner.Changed -= OnBookmarkActionsChanged;
         Nav.LocationChanged -= HandleLocationChanged;
         DeviceContext.OnChanged -= HandleDeviceContextChanged;
 

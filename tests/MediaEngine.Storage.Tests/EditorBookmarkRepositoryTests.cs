@@ -158,7 +158,7 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
         await CommitAsync(Op(EditorBookmarkOpKinds.Remove, opening.Id));
 
         Assert.Empty(await EveryoneAsync());
-        var mine = await _bookmarks.GetByWorkAsync(_ada, _workId);
+        var mine = await _editor.OwnAsync(_ada, _workId);
         Assert.Equal(opening.Id, Assert.Single(mine).Id);
         Assert.False(Assert.Single(mine).IsGlobal);
     }
@@ -224,7 +224,7 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
         var everyone = await EveryoneAsync();
         Assert.Equal(["Titles", "The big chase"], everyone.Select(row => row.Name));
         Assert.DoesNotContain(everyone, row => row.Id == chase.Id);
-        Assert.Contains(await _bookmarks.GetByWorkAsync(_ben, _workId), row => row.Id == chase.Id && !row.IsGlobal);
+        Assert.Contains(await _editor.OwnAsync(_ben, _workId), row => row.Id == chase.Id && !row.IsGlobal);
     }
 
     [Fact]
@@ -240,8 +240,8 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
 
         var everyone = await EveryoneAsync();
         Assert.Equal(["Cold open"], everyone.Select(row => row.Name));
-        Assert.Contains(await _bookmarks.GetByWorkAsync(_ada, _workId), row => row.Id == standing.Id && !row.IsGlobal);
-        Assert.DoesNotContain(await _bookmarks.GetByWorkAsync(_ben, _workId), row => row.Id == personal.Id);
+        Assert.Contains(await _editor.OwnAsync(_ada, _workId), row => row.Id == standing.Id && !row.IsGlobal);
+        Assert.DoesNotContain(await _editor.OwnAsync(_ben, _workId), row => row.Id == personal.Id);
         Assert.Contains(outcome.DeletedIds, deleted => deleted.Id == personal.Id);
     }
 

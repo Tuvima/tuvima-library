@@ -114,14 +114,14 @@
                         case PlaybackControlKey.Bookmarks:
                             if (VideoControlState.CanBookmark && Playback.CurrentItem is { AssetId: not null })
                             {
-                        <PlaybackPanel Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                        <PlaybackPanel Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="bookmarks" Surface="video" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
-                                <VideoBookmarkPane OnClose="CloseSettingsAsync" Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
-                                                   Bookmarks="@_savedRail"
-                                                   Filter="@BookmarkFilter" FilterChanged="ChangeBookmarkFilterAsync"
-                                                   ShowOnBar="@ShowBookmarksOnBar" ShowOnBarChanged="ChangeShowBookmarksOnBarAsync"
-                                                   Add="AddBookmarkAsync" Play="@(seconds => JumpToBookmarkAsync(seconds, true))" Delete="DeleteBookmarkAsync" />
+                                <BookmarksPanel Bookmarks="@_savedRail" Position="@Playback.CurrentTimeSeconds" ScrollKey="@VideoInstanceKey"
+                                                Choice="@BookmarkFilter" ChoiceChanged="ChangeBookmarkFilterAsync"
+                                                ShowOnTimeline="@ShowBookmarksOnBar" ShowOnTimelineChanged="ChangeShowBookmarksOnBarAsync"
+                                                Add="AddBookmarkAsync" Seek="@(bookmark => JumpToBookmarkAsync(bookmark.Seconds, true))"
+                                                Edit="EditBookmarkAsync" Delete="DeleteBookmarkAsync" />
                             </ChildContent>
                         </PlaybackPanel>
                             }
@@ -151,11 +151,12 @@
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
             </AppNativeButton></AppTooltip>
         </div>
-        @if (_endCard.Visible && EligibleNextEpisode is { } nextEpisode)
+        @if (_endCard.Visible && (EligibleNextEpisode is not null || HomeworkFiles.Count > 0))
         {
-            @* The Homework line stays empty until the Editor's supporting-files data (files marked "Shown alongside" a lesson) feeds it. *@
-            <VideoEndCard Next="@nextEpisode" Lesson="@(IsFolderVideoNow || !IsTvEpisodeNow)" AutoAdvance="@_endCard.AutoAdvance" RemainingSeconds="@_endCard.RemainingSeconds"
-                          PlayNow="AdvanceCurrentVideoAsync" Cancel="DismissEndCard" />
+            @* A course's card also lists the files shown alongside the lesson that ended; it shows on the last lesson too (universal editor v5 D31). *@
+            <VideoEndCard Next="@EligibleNextEpisode" Lesson="@(IsFolderVideoNow || !IsTvEpisodeNow)" AutoAdvance="@_endCard.AutoAdvance" RemainingSeconds="@_endCard.RemainingSeconds"
+                          UpNextDismissed="@_endCard.UpNextDismissed" HomeworkFiles="@HomeworkFiles"
+                          PlayNow="AdvanceCurrentVideoAsync" Cancel="DismissEndCard" OpenHomework="OpenHomeworkAsync" />
         }
     }
 </section>
@@ -248,13 +249,8 @@
         ? $"Chapter {chapter.Index + 1:00} · {chapter.Title} · {FormatTimestamp(chapter.StartSeconds)}" : FormatTimestamp(seconds);
     /// <summary>Chapter ticks follow the profile's setting: off by default for video (player-controls-v3 D8).</summary>
     private IReadOnlyList<double> ShownChapterTicks => PlayerPreferenceService.ShowChapterMarks(_profileSettings, audiobook: false) ? ChapterTicks : [];
-    /// <summary>The bookmark bubbles on the bar: off by default, and following the pane's filter when on (D8a).</summary>
-    private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : BookmarkFilter switch
-    {
-        PlaybackPreferenceValues.Mine => _savedRail.Where(bookmark => !bookmark.IsGlobal).ToList(),
-        PlaybackPreferenceValues.Global => _savedRail.Where(bookmark => bookmark.IsGlobal).ToList(),
-        _ => _savedRail,
-    };
+    /// <summary>The bookmark markers on the bar: off by default, and following the list the Bookmarks panel shows, Everyone or Mine (unified player v2 D21).</summary>
+    private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : PlaybackRailBookmark.ForChoice(_savedRail, BookmarkFilter);
     private IReadOnlyList<double> ChapterTicks => Playback.DurationSeconds > 0 ? VideoChapters.Select(chapter => chapter.StartSeconds).Where(time => time >= 0 && time < Playback.DurationSeconds).Distinct().Order().ToList() : [];
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();
@@ -546,6 +542,17 @@
         if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
         await ReloadSavedBookmarksAsync(workId, profileId);
         await ShowBookmarkNoticeAsync($"Bookmark added {PlaybackSeekRail.Time(seconds)}");
+        return true;
+    }
+
+    /// <summary>Renames the person's own bookmark and changes its note. True when saved.</summary>
+    private async Task<bool> EditBookmarkAsync(PlaybackRailBookmark bookmark, string? name, string? note)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        var result = await ApiClient.UpdateAudiobookBookmarkWithOutcomeAsync(bookmark.Id, new UpdateAudiobookBookmarkRequestDto { Label = name, Note = note }, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await ReloadSavedBookmarksAsync(workId, profileId);
         return true;
     }
 
@@ -1015,7 +1022,15 @@
 
     private void ObserveEndCard() { _endCard.AutoAdvance = Playback.AutoplayNextEpisode; ObserveEndCardCore(); }
     private void ObserveEndCardCore() => _endCard.Observe(VideoPlaybackIdentity.Capture(Playback), EligibleNextEpisode?.WorkId,
-        Playback.CurrentTimeSeconds, Playback.DurationSeconds, Playback.CurrentManifest?.Segments ?? []);
+        Playback.CurrentTimeSeconds, Playback.DurationSeconds, Playback.CurrentManifest?.Segments ?? [], HomeworkFiles.Count > 0);
+    // The files shown alongside the lesson that is playing; never any for a TV episode.
+    private IReadOnlyList<DetailExtraCardViewModel> HomeworkFiles => _presentationContext is { } context && context.Identity.IsCurrent(Playback) ? context.HomeworkFiles : [];
+    // Open stops the countdown and opens the file over the course page; leaving the player minimises it to its bar (HandleLocationChanged).
+    private void OpenHomeworkAsync(DetailExtraCardViewModel file)
+    {
+        _endCard.Dismiss();
+        Nav.NavigateTo($"/extras/{Uri.EscapeDataString(file.Id)}");
+    }
     [JSInvokable] public async Task HandleEndCardTick(Guid profileId, Guid workId, Guid assetId, long requestVersion, double elapsedSeconds)
     {
         if (!new VideoPlaybackIdentity(profileId, workId, assetId, requestVersion).IsCurrent(Playback)) return;

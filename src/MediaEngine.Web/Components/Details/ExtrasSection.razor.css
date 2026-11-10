@@ -1,4 +1,4 @@
-/* The Extras row under a title's seasons and cast: a wrapping grid on desktop, a swipeable shelf on a phone. */
+/* The Extras row under a title's seasons and cast: one swipeable shelf per group. */
 .tl-extras {
     display: grid;
     gap: 0.9rem;
@@ -8,8 +8,44 @@
 .tl-extras__heading {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    gap: 0.75rem;
+}
+
+/* "See all N" sits at the end of the heading. */
+.tl-extras__see-all {
+    margin-inline-start: auto;
+}
+
+/* A group of the row: its small-caps name and count, then its own shelf. */
+.tl-extras__group {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.tl-extras__group-name {
+    margin: 0.4rem 0 0;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgba(246, 240, 232, 0.66);
+}
+
+.tl-extras__group-count {
+    font-weight: 600;
+}
+
+/* A document's card art: its file type, as the tile in the editor's lists. */
+.tl-extras-card__type {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding-inline: 0.5rem;
+    border-radius: 0.5rem;
+    background: rgba(246, 240, 232, 0.1);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
 }
 
 .tl-extras__heading h2 {
@@ -28,13 +64,22 @@
     font-weight: 600;
 }
 
+/* Each group is one horizontal shelf of 200px cards at every width (mock I): it scrolls sideways, never wraps, and never widens the page. */
 .tl-extras__shelf {
     list-style: none;
     margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    padding: 0 0 0.35rem;
+    display: flex;
     gap: clamp(0.85rem, 2vw, 1.25rem);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+}
+
+.tl-extras__item {
+    flex: 0 0 200px;
+    min-width: 0;
+    scroll-snap-align: start;
 }
 
 .tl-extras-card {
@@ -143,17 +188,8 @@ a.tl-extras-card:focus-visible .tl-extras-card__art {
 
 @media (max-width: 640px) {
     .tl-extras__shelf {
-        display: flex;
-        overflow-x: auto;
-        scroll-snap-type: x proximity;
-        padding-bottom: 0.35rem;
         margin-inline: calc(-1 * var(--page-gutter, 1rem));
         padding-inline: var(--page-gutter, 1rem);
-    }
-
-    .tl-extras__item {
-        flex: 0 0 min(72vw, 14rem);
-        scroll-snap-align: start;
     }
 }
 

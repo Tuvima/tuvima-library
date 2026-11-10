@@ -46,7 +46,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         context.RequestServices = services;
         var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
         var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
-            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, frames: FrameService());
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, frames: FrameService(), bookmarkVisibility: BookmarkVisibility());
         return (player, scope);
     }
 
@@ -80,6 +80,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var own = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 120);
         var shared = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 240, global: true);
         var theirs = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 360);
+        // The title has an administrator's set (the shared one), so another profile's personal bookmark is not in Everyone.
+        MakeDefinitive(shape.Normal.WorkId, other);
         var cache = FrameCache();
         foreach (var bookmark in new[] { own, shared, theirs })
         {
@@ -128,6 +130,24 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (locked, _) = FramePlayer(shape.Account, NewVaultSession(shape.Account));
         Assert.Null(await locked.GetBookmarkFramePathAsync(null, saved.Id));
         Assert.Empty(await locked.GetAudiobookBookmarksAsync(null, shape.Secret.WorkId));
+    }
+
+    [Fact]
+    public async Task BookmarkFrames_AnotherProfilesGlobalRow_OnAVaultVideo_IsNotFound_EvenToAnUnlockedStandardProfile()
+    {
+        // A row flagged global is not enough: a Vault file has no pooled Everyone view, so only the maker (or an administrator) may fetch its frame.
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        MakeVideo(shape.Secret.AssetId);
+        var theirs = await BookmarkOf(AddOtherProfile(), shape.Secret.WorkId, shape.Secret.AssetId, 360, global: true);
+        var mine = await BookmarkOf(VaultProfile, shape.Secret.WorkId, shape.Secret.AssetId, 90);
+        FrameCache().Write(shape.Secret.AssetId, theirs.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+        FrameCache().Write(shape.Secret.AssetId, mine.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var (player, _) = FramePlayer(shape.Account, session);
+
+        Assert.True((await player.GetBookmarkFramePathAsync(null, mine.Id))!.InVault); // unlocked: the profile's own is served
+        Assert.Null(await player.GetBookmarkFramePathAsync(null, theirs.Id));
     }
 
     [Theory]
@@ -219,7 +239,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             .BuildServiceProvider();
         var scope = new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context });
         player = new PlayerService(null!, null!, null!, null!, null!, null!, null!,
-            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, frames: FrameService());
+            new AudiobookBookmarkRepository(_database), null!, scope, null!, null!, frames: FrameService(), bookmarkVisibility: BookmarkVisibility());
         context.Request.Method = HttpMethods.Get;
         context.Request.RouteValues["bookmarkId"] = bookmarkId.ToString("D");
         // The address the list hands out carries a version; the route must not care about it.
@@ -264,6 +284,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         MakeVideo(shape.Normal.AssetId);
         var theirs = await BookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 360);
         var notMadeYet = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 90);
+        MakeDefinitive(shape.Normal.WorkId, VaultProfile);
         FrameCache().Write(shape.Normal.AssetId, theirs.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
         var endpoint = MapFrameRoute();
         var session = NewVaultSession(shape.Account);

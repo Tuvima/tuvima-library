@@ -252,7 +252,7 @@ Words with `{0}` are filled in. Items are separated by semicolons.
 | Playback speed | Audiobooks (the Speed chip); other media through Playback settings | Playback speed | Current speed | Reset to 1× |
 | Sleep timer | Audiobooks | Sleep timer | Stopping in; Playback will pause automatically.; Stopping at the end of chapter {0}; End of chapter; Custom duration… | +5 minutes; Cancel timer |
 | Playback settings | TV episodes, films, folder videos and lessons (the gear); music and audiobooks (the "..." menu) | Playback settings | Playback speed; Skip back; Skip forward; Picture-in-picture; Playback information | Reset playback preferences |
-| Bookmarks | Every media that has bookmarks | Bookmarks | Bookmarks | Show on timeline |
+| Bookmarks | Every media that has bookmarks | Bookmarks | Bookmark at {0}; Add a note…; Everyone · {0}; Mine · {0}; Search bookmarks; Edit; Delete; Keep; Name; Note; Save; Cancel; Couldn’t save · Try again; No bookmarks for this title yet; No bookmarks of yours yet; No bookmarks match your search; Select a bookmark to jump to that moment. | Show on timeline |
 
 Notes on single panels:
 
@@ -281,10 +281,9 @@ Notes on single panels:
   0.5× to 3× in steps of 0.05; a preset is ticked only when the speed equals it.
 - **Playback settings**: a row per setting; a row appears only when the media
   and the app support it (music has neither speed nor skips).
-- **Bookmarks** (written from the decision for this panel; the Dashboard is
-  rebuilding it, so its words are not in the table's checked list yet): the
-  header "Bookmarks"; a full-width button "+ Bookmark at 34:12" that saves at the
-  current time at once with no note; an "Add a note…" field; a two-way choice
+- **Bookmarks** (every word is in the table above, which the tests check): the
+  header "Bookmarks"; a full-width button "Bookmark at 34:12" with a plus
+  that saves at the time it was pressed, at once, with no note; an "Add a note…" field; a two-way choice
   **Everyone | Mine**, Everyone by default. Everyone is what the household
   bookmarked on the title (or, once an administrator curated it, only that
   curated set), each row with its maker's name. Mine is the profile's own and
@@ -343,8 +342,8 @@ The rating card stays at the top left.
 it, and closes when the next item starts. Rows, top to bottom: the heading
 "Up next" and, when autoplay is on, the countdown "Starts in {0} seconds"; the
 next item's still and title with "Next episode" or "Next lesson" under it; for a
-course only, "Homework: {0}" listing the supporting files marked "Shown
-alongside" the lesson; the buttons Cancel and Play now. With autoplay off the
+course only, a "Homework for this lesson" block listing the supporting files marked
+"Shown alongside" the lesson, each with an Open button; the buttons Cancel and Play now. With autoplay off the
 card stays and has no countdown.
 
 <!-- contract-table: end-card -->
@@ -354,7 +353,7 @@ card stays and has no countdown.
 | Countdown | Starts in {0} seconds |
 | Kind (TV) | Next episode |
 | Kind (lesson) | Next lesson |
-| Homework | Homework: {0} |
+| Homework | Homework for this lesson; Open |
 | Buttons | Cancel; Play now |
 
 ## Lock screen and system controls

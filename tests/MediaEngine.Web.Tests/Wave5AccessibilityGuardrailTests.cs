@@ -35,15 +35,17 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("<AppNativeButton Class=\"br-icon-btn\" OnClick=\"ExitReader\"", reader);
         Assert.Contains("<AppNativeButton Class=\"br-row br-row--grow\"", reader);
         Assert.DoesNotContain("<div class=\"br-row\" @onclick", reader);
-        Assert.Contains("role=\"listbox\"", folderBrowser);
-        Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
+        // The folder list is the shared browser frame's grid with one keyboard model; a folder row is its own component (Editor v5 D32).
+        Assert.Contains("role=\"grid\"", Read("src/MediaEngine.Web/Components/Shared/AppBrowserFrame.razor"));
+        Assert.Contains("<AppBrowserFolderRow", folderBrowser);
         Assert.Contains("aria-live=\"polite\"", folderBrowser);
         Assert.Contains("Label=\"@ConfirmButtonLabel\"", folderBrowser);
         Assert.Contains("ConfirmLabel { get; set; } = \"Add\"", folderBrowser);
-        // Shy's 2026-10-18 addendum (AD2) replaces open-on-click: a single click selects, a double click or the row's open button opens.
-        Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
-        Assert.Contains("aria-label=\"@($\"Select folder {folder.Name}\")\"", folderBrowser);
-        Assert.Contains("@ondblclick", folderBrowser);
+        // Editor v5 D32 (Shy, 2026-11-07) brings back open-on-click: a click on a folder row or its open button opens it, and the folder you are inside is the selection.
+        var folderRow = Read("src/MediaEngine.Web/Components/Shared/AppBrowserFolderRow.razor");
+        Assert.Contains("AriaLabel=\"@OpenLabelText\"", folderRow);
+        Assert.Contains("@onclick=\"OpenAsync\"", folderRow);
+        Assert.DoesNotContain("@ondblclick", folderBrowser);
     }
 
     [Fact]

@@ -40,7 +40,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var activity = new SystemActivityRepository(_database);
         var service = new EditorBookmarksService(
             scope, new EditorBookmarkRepository(_database), closeness, sets, readerSets, FrameService(), vault, activity, NullLogger<EditorBookmarksService>.Instance);
-        var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, bookmarks, null!, scope, null!, null!, frames: FrameService());
+        var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, bookmarks, null!, scope, null!, null!, frames: FrameService(), bookmarkVisibility: BookmarkVisibility());
         return new EditorBookmarkKit(service, scope, activity, sets, player);
     }
 

@@ -382,6 +382,31 @@ public sealed class PlayerControlsContractTests
     }
 
     [Fact]
+    public void TheBookmarksPanelRowHasItsWordsAndNeverUsesTheRetiredOnes()
+    {
+        var row = Tables.Value["panels"].Rows.Single(candidate => candidate[0] == "Bookmarks");
+        var words = SplitItems(row[3]).Concat(SplitItems(row[4])).ToList();
+
+        foreach (var required in new[]
+        {
+            "Bookmark at {0}", "Add a note…", "Everyone · {0}", "Mine · {0}", "Search bookmarks", "Edit", "Delete",
+            "No bookmarks for this title yet", "No bookmarks of yours yet", "Show on timeline",
+        })
+        {
+            Assert.Contains(required, words);
+        }
+
+        // Unified player v2 D21: no Global, Promote, Find, Import or possessive Everyone's anywhere in the player's bookmark words or notes.
+        var banned = new global::System.Text.RegularExpressions.Regex(@"\bGlobal\b|Everyone['’]s|\bPromote\b|\bFind\b|\bImport\b|\bShare\b");
+        Assert.DoesNotMatch(banned, string.Join(" ", words));
+        var markdown = ReadRepoFile(ContractPath);
+        var start = markdown.IndexOf("- **Bookmarks**", StringComparison.Ordinal);
+        Assert.True(start >= 0, "The Bookmarks note is missing from the contract.");
+        var note = markdown[start..markdown.IndexOf("### Sleep timer presets", start, StringComparison.Ordinal)];
+        Assert.DoesNotMatch(new global::System.Text.RegularExpressions.Regex(@"\bGlobal\b|\bPromote\b|\bImport\b"), note.Replace("no copy, share, import or save-to-mine action", string.Empty, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void SleepTimerPresetsMatchTheDashboardPanel()
     {
         var table = Tables.Value["sleep-timer-presets"].Rows;

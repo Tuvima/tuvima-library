@@ -2438,6 +2438,12 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailExtraCardViewM
   ScopeKey: System.String | nullability=not-null | accessors=get,init
   ScopeSource: System.String | nullability=not-null | accessors=get,init
   AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  FileBadge: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  AlongsideLabel: System.String | nullability=nullable | accessors=get,init
+  AlongsideAssetId: System.String | nullability=nullable | accessors=get,init
+  ScopeAssetId: System.String | nullability=nullable | accessors=get,init
   Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
@@ -2532,6 +2538,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   IsUnmatched: System.Boolean | nullability=not-null | accessors=get,set
   UnmatchedAssets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel> | nullability=not-null | accessors=get,set
   Extras: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailExtraCardViewModel> | nullability=not-null | accessors=get,set
+  ExtrasCardsPerGroup: System.Int32 | nullability=not-null | accessors=get,set
   CollectionInfo: MediaEngine.Contracts.Details.DetailCollectionInfoViewModel | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
@@ -7595,6 +7602,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkD
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   OwnerName: System.String | nullability=nullable | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  InEveryone: System.Boolean | nullability=not-null | accessors=get,init
   FrameUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
@@ -8635,6 +8644,10 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   IsUserOwned: System.Boolean | nullability=not-null | accessors=get,set
   IsLocallyExported: System.Boolean | nullability=not-null | accessors=get,set
   Url: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
+  Label: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegmentRequest
   Kind: System.String | nullability=nullable | accessors=get,init
