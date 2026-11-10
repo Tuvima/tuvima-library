@@ -1,0 +1,27 @@
+.app-browser-side__section {
+    display: grid;
+    gap: var(--tl-space-1);
+}
+
+.app-browser-side__heading {
+    margin: var(--tl-space-1) 0;
+    padding: 0 var(--tl-space-2);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+}
+
+.app-browser-side__list {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.app-browser-side__rule {
+    width: 100%;
+    margin: var(--tl-space-2) 0;
+    border: 0;
+    border-top: 1px solid var(--tl-border-default);
+}

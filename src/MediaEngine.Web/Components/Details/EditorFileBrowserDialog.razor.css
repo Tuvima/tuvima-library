@@ -1,37 +1,13 @@
+/* The shared browser frame fills the window's body; this file only places what the supporting-files browser puts into it. */
 .tl-fbrowser {
-    display: grid;
-    gap: var(--tl-space-3);
-    min-height: 24rem;
+    height: 100%;
+    min-width: 0;
 }
 
-.tl-fbrowser__filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--tl-space-2);
-    align-items: center;
-}
-
-.tl-fbrowser ::deep .tl-fbrowser__search {
-    flex: 1 1 14rem;
-    min-width: 12rem;
-}
-
-.tl-fbrowser ::deep .tl-fbrowser__select {
+/* The two filters sit in the frame's toolbar beside the search box; each wrapper sizes its select. */
+.tl-fbrowser__select {
     flex: 0 1 12rem;
     min-width: 9rem;
-}
-
-.tl-fbrowser__body {
-    display: grid;
-    grid-template-columns: 13.75rem minmax(0, 1fr);
-    gap: var(--tl-space-4);
-    align-items: start;
-}
-
-.tl-fbrowser__main {
-    display: grid;
-    gap: var(--tl-space-3);
-    min-width: 0;
 }
 
 .tl-fbrowser__busy {
@@ -68,10 +44,4 @@
     min-width: 3.5rem;
     text-align: center;
     font-size: var(--tl-font-size-sm);
-}
-
-@media (max-width: 840px) {
-    .tl-fbrowser__body {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }
