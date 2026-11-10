@@ -14,7 +14,7 @@
                    OnClick="@OnClick">
         @if (!string.IsNullOrWhiteSpace(Badge))
         {
-            <small class="lib-tile__badge">@Badge</small>
+            <small class="lib-tile__badge" data-added><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Inline16" Class="lib-tile__check" aria-hidden="true" />@Badge</small>
         }
     </AppChoiceTile>
 </LibraryPeek>

@@ -3,15 +3,15 @@
 /* Opens below its tile so a first row is never cut off by the top of the window; the window has room beneath a single row of tiles. */
 .lib-peek__tip {
     position: absolute;
-    inset-inline-start: 50%;
+    /* Lines up with the tile's own left edge, so the first tile of a row never pushes it past the window's edge. */
+    inset-inline-start: 0;
     top: calc(100% + 8px);
     z-index: 20;
     display: grid;
     gap: 6px;
     width: 260px;
-    max-width: 80vw;
+    max-width: min(260px, calc(100vw - 48px));
     padding: 12px 14px;
-    transform: translateX(-50%);
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-md, 10px);
     background: var(--tl-bg-surface-raised);

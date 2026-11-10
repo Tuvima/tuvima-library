@@ -73,7 +73,7 @@
                             var availability = AvailabilityOf(kind);
                             <LibraryTile Title="@LabelOf(kind)"
                                          Icon="@kind.Icon"
-                                         AreaKey="@(LibraryKindLook.LooksUp(kind) ? kind.Area.ToLowerInvariant() : null)"
+                                         AreaKey="@kind.Area.ToLowerInvariant()"
                                          About="@kind.Explainer"
                                          Examples="@kind.Examples"
                                          LibraryDoes="@kind.LibraryDoes"
@@ -258,7 +258,14 @@
             ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey && !LibraryTypeCatalog.IsHiddenFromAdd(kind))]
             : [];
 
-    private string? StepText => _step <= 3 ? $"Step {_step} of 3" : null;
+    // The folder step names the area beside the step, in the header that never scrolls (Libraries fixes, item 3b).
+    private string? StepText => _step switch
+    {
+        3 when _vaultMode && Simple => "Step 3 of 3",
+        3 => $"Step 3 of 3 · {(_vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label)}",
+        < 3 => $"Step {_step} of 3",
+        _ => null,
+    };
 
     // The name a kind goes by everywhere: the kind list's label ("Videos", "Other audio", "Photos and Videos").
     private static string LabelOf(LibraryTypeOption kind) => LibraryTypeCatalog.AddChoiceLabel(kind);
@@ -275,7 +282,7 @@
         1 => "Where does it belong?",
         2 => "What is it?",
         4 => _fit switch { FitHeadsUp => "Heads up", FitAlreadyUsed => "Already used", _ => "Looks right" },
-        _ => Kind is { } chosen && HasLibrary(chosen) ? $"Add a folder to {LibraryNameOf(chosen)}" : "Where is it?",
+        _ => Kind is { } chosen && HasLibrary(chosen) ? $"Add a folder to {LibraryNameOf(chosen)}" : Kind is { } picked ? $"Where are your {LabelOf(picked)}?" : "Where is it?",
     };
 
     private string? Lead => _step switch
@@ -353,7 +360,7 @@
     private AddFolderHandling Handling => !IsVaultChoice && _handling == FolderHandlingWords.ManagedKey && ManagedAllowed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly;
 
     // Managed is offered for kinds whose Engine rules identify, file and name their files (they look details up); a plain kind keeps files as they are.
-    private bool ManagedAllowed => !IsVaultChoice && Kind is { } kind && LibraryKindLook.LooksUp(kind);
+    private bool ManagedAllowed => !IsVaultChoice && Kind is { } kind && LibraryKindLook.ManagedOffered(kind);
 
     // The library is named for its kind and the person never types it (Libraries v3 D17). A Vault library carries the "Private" stem.
     private string LibraryNameOf(LibraryTypeOption kind) => IsVaultChoice ? VaultNameStem(LabelOf(kind)) : LibraryTypeCatalog.AddChoiceLabel(kind);

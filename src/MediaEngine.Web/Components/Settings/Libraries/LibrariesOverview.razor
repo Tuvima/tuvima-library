@@ -35,6 +35,7 @@
         <div class="libs__header">@_addLibraryAction</div>
     }
     <LibrariesSummary Rows="@everyRow" />
+    <LibraryScanCard />
 
     <div class="libs__filters">
     <LibraryAreaChips Areas="@areas" Counts="@AreaCounts(groups)" Selected="@_area" SelectedChanged="ChooseAreaAsync" />
