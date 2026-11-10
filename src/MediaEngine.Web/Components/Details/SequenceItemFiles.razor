@@ -1,0 +1,38 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
+
+@* The supporting files of one episode or lesson row (universal editor v5 D31, the chip under the row of mock D and I). The row is a link of its own, so the chips
+   are not inside it: each row is its link (or card) with a sibling line of real links under it, one per file, the first file named and the rest counted.
+   A row with no file is rendered as it was, with no wrapper. *@
+@if (Chips.Count == 0)
+{
+    @ChildContent
+}
+else
+{
+    var first = Chips[0];
+    <div class="tl-series-cell">
+        @ChildContent
+        <div class="tl-series-item__files" data-testid="alongside-chips">
+            <a class="tl-series-item__file" href="@ExtrasRowRules.ViewerHref(first.Id)" data-testid="alongside-chip"
+               aria-label="@string.Format(L["SequenceEntryContent_OpenFile"].Value, first.Title)">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Inline16" />
+                <span>@ExtrasRowRules.ChipText(first)</span>
+            </a>
+            @if (Chips.Count > 1)
+            {
+                <a class="tl-series-item__file tl-series-item__file--more" href="@ExtrasRowRules.ViewerHref(Chips[1].Id)" data-testid="alongside-more"
+                   aria-label="@string.Format(L["SequenceEntryContent_OpenFile"].Value, Chips[1].Title)">+@(Chips.Count - 1)</a>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>The row itself: its link or card.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The files of the row's episode or lesson.</summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel> Chips { get; set; } = [];
+}

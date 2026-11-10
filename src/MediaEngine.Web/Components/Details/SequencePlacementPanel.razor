@@ -124,38 +124,42 @@
                 var route = tickable ? null : SequenceItemRoute(item);
                 if (route is not null)
                 {
-                    <a class="@SequenceItemClass(item)"
-                       href="@route"
-                       aria-current="@(item.IsCurrent ? "page" : null)"
-                       aria-label="Open @SequenceItemTitle(item)">
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
-                    </a>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <a class="@SequenceItemClass(item)"
+                           href="@route"
+                           aria-current="@(item.IsCurrent ? "page" : null)"
+                           aria-label="Open @SequenceItemTitle(item)">
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </a>
+                    </SequenceItemFiles>
                 }
                 else
                 {
                     @* A tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
                        title is for after Done (a card has no row menu of its own). *@
-                    <article class="@SequenceItemClass(item)"
-                             aria-current="@(item.IsCurrent ? "page" : null)"
-                             aria-label="@SequenceItemAccessibilityLabel(item)"
-                             data-tickable="@(tickable ? "true" : null)"
-                             @onclick="@(tickable ? TickFromCard(item) : default)">
-                        @if (tickable)
-                        {
-                            <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
-                        }
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
-                    </article>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <article class="@SequenceItemClass(item)"
+                                 aria-current="@(item.IsCurrent ? "page" : null)"
+                                 aria-label="@SequenceItemAccessibilityLabel(item)"
+                                 data-tickable="@(tickable ? "true" : null)"
+                                 @onclick="@(tickable ? TickFromCard(item) : default)">
+                            @if (tickable)
+                            {
+                                <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
+                            }
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </article>
+                    </SequenceItemFiles>
                 }
             }
         </AppCssElement>
@@ -489,30 +493,34 @@ else
                 }
                 else if (route is not null)
                 {
-                    <a class="@SequenceItemClass(item)"
-                       href="@route"
-                       aria-current="@(item.IsCurrent ? "page" : null)"
-                       aria-label="Open @SequenceItemTitle(item)">
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
-                    </a>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <a class="@SequenceItemClass(item)"
+                           href="@route"
+                           aria-current="@(item.IsCurrent ? "page" : null)"
+                           aria-label="Open @SequenceItemTitle(item)">
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </a>
+                    </SequenceItemFiles>
                 }
                 else
                 {
-                    <article class="@SequenceItemClass(item)"
-                             aria-current="@(item.IsCurrent ? "page" : null)"
-                             aria-label="@SequenceItemAccessibilityLabel(item)">
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
-                    </article>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <article class="@SequenceItemClass(item)"
+                                 aria-current="@(item.IsCurrent ? "page" : null)"
+                                 aria-label="@SequenceItemAccessibilityLabel(item)">
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </article>
+                    </SequenceItemFiles>
                 }
             }
         </AppCssElement>
@@ -574,7 +582,7 @@ else
     /// <summary>The title's supporting files; one shown alongside an episode or lesson of this list gets a chip under that row (universal editor v5 D31).</summary>
     [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
 
-    private IReadOnlyList<DetailExtraCardViewModel> ChipsFor(SequenceItemViewModel item) => ExtrasRowRules.ShownAlongside(Extras, item);
+    private IReadOnlyList<DetailExtraCardViewModel> ChipsFor(SequenceItemViewModel item) => ExtrasRowRules.FilesFor(Extras, item);
 
     /// <summary>False when a shared row heading above already names the Series and its count (the details page row).</summary>
     [Parameter] public bool ShowIdentity { get; set; } = true;
@@ -1569,28 +1577,32 @@ else
         }
         @if (alsoRoute is not null)
         {
-            <a class="@SequenceItemClass(item)"
-               href="@alsoRoute"
-               aria-current="@(item.IsCurrent ? "page" : null)"
-               aria-label="Open @SequenceItemTitle(item)">
-                <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
-                                      PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
-                                      DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                      AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                      MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
-            </a>
+            <SequenceItemFiles Chips="@ChipsFor(item)">
+                <a class="@SequenceItemClass(item)"
+                   href="@alsoRoute"
+                   aria-current="@(item.IsCurrent ? "page" : null)"
+                   aria-label="Open @SequenceItemTitle(item)">
+                    <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
+                                          PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
+                                          DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                          AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                          MissingIcon="@MissingIcon" />
+                </a>
+            </SequenceItemFiles>
         }
         else
         {
-            <article class="@SequenceItemClass(item)"
-                     aria-current="@(item.IsCurrent ? "page" : null)"
-                     aria-label="@SequenceItemAccessibilityLabel(item)">
-                <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
-                                      PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
-                                      DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                      AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                      MissingIcon="@MissingIcon" Chips="@ChipsFor(item)" />
-            </article>
+            <SequenceItemFiles Chips="@ChipsFor(item)">
+                <article class="@SequenceItemClass(item)"
+                         aria-current="@(item.IsCurrent ? "page" : null)"
+                         aria-label="@SequenceItemAccessibilityLabel(item)">
+                    <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
+                                          PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
+                                          DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                          AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                          MissingIcon="@MissingIcon" />
+                </article>
+            </SequenceItemFiles>
         }
     </text>;
 

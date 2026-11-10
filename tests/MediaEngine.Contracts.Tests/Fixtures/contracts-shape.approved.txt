@@ -2443,6 +2443,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailExtraCardViewM
   PageCount: System.Int32? | nullability=nullable | accessors=get,init
   AlongsideLabel: System.String | nullability=nullable | accessors=get,init
   AlongsideAssetId: System.String | nullability=nullable | accessors=get,init
+  ScopeAssetId: System.String | nullability=nullable | accessors=get,init
   Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel

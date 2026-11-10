@@ -21,7 +21,9 @@ public sealed class DetailExtrasService(
     IExtrasConfigurationSource? rules = null,
     IEditorConfigurationSource? editorConfig = null)
 {
-    private const int MaxAssetsToLocate = 24;
+    // How many of the page's files are looked up to find the folders Extras sit in. One batched lookup, so the cost is the folder walk, not a
+    // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
+    private const int MaxAssetsToLocate = 500;
 
     private static readonly HashSet<DetailEntityType> TitleTypes =
     [
@@ -96,9 +98,16 @@ public sealed class DetailExtrasService(
         }
 
         // A file shown alongside a lesson (a video in a folder of videos) names it by path; the card carries the lesson's asset so the page's row finds it.
-        var lessonAssets = await LessonAssetsAsync(found, ct).ConfigureAwait(false);
-        detail.Extras = ExtraCardBuilder.Build(found, File.Exists, rules?.Current, extra => lessonAssets.TryGetValue(extra.Id, out var asset) ? asset : (Guid?)null);
-        detail.ExtrasCardsPerGroup = (editorConfig?.Current ?? EditorConfigurationProvider.BuiltIn).CardsPerGroup;
+        var lessons = await LessonAssetsAsync(found, ct).ConfigureAwait(false);
+        var cardsPerGroup = (editorConfig?.Current ?? EditorConfigurationProvider.BuiltIn).CardsPerGroup;
+        detail.Extras = ExtraCardBuilder.Build(
+            found, File.Exists, rules?.Current,
+            extra => extra.EffectiveAlongside is { } alongside ? lessons(extra, alongside) : null,
+            cardsPerGroup,
+            extra => lessons(extra, extra.EffectiveScope));
+
+        // An episode's or lesson's own page lists every file it has, so it has no "See all" and no cap (0); a title's page caps each group.
+        detail.ExtrasCardsPerGroup = isEpisode ? 0 : cardsPerGroup;
     }
 
     // An episode's page: the files that belong to this episode, and the files of its season or show that are shown alongside it.
@@ -118,29 +127,35 @@ public sealed class DetailExtrasService(
         return mine.Contains(extra.EffectiveScope) || (extra.EffectiveAlongside is { } alongside && mine.Contains(alongside));
     }
 
-    private async Task<IReadOnlyDictionary<Guid, Guid>> LessonAssetsAsync(IReadOnlyList<ItemExtra> found, CancellationToken ct)
+    // Finds the media asset of a lesson a file belongs to or is shown alongside (a scope at file level names it by path). The files of every
+    // folder that holds such an Extra are listed once, in batches, and indexed by their path below the title folder.
+    private async Task<Func<ItemExtra, ExtraScope, Guid?>> LessonAssetsAsync(IReadOnlyList<ItemExtra> found, CancellationToken ct)
     {
-        var wanted = found.Where(extra => extra.EffectiveAlongside is { Level: ExtraScopeLevel.File }).ToList();
+        var wanted = found.Where(extra => extra.EffectiveAlongside is { Level: ExtraScopeLevel.File } || extra.EffectiveScope.Level == ExtraScopeLevel.File).ToList();
         if (wanted.Count == 0)
         {
-            return new Dictionary<Guid, Guid>();
+            return (_, _) => null;
         }
 
         var files = await assets.ListFilesUnderFoldersAsync([.. wanted.Select(extra => extra.ItemFolder).Distinct(StringComparer.OrdinalIgnoreCase)], ct)
             .ConfigureAwait(false);
-        var result = new Dictionary<Guid, Guid>();
-        foreach (var extra in wanted)
+        var byPath = new Dictionary<(string Folder, string Path), Guid>();
+        foreach (var folder in wanted.Select(extra => extra.ItemFolder).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var key = extra.EffectiveAlongside!.Value.Path;
-            var file = files.FirstOrDefault(candidate =>
-                string.Equals(RelativePath(extra.ItemFolder, candidate.FilePath), key, StringComparison.OrdinalIgnoreCase));
-            if (file is not null)
+            foreach (var file in files)
             {
-                result[extra.Id] = file.AssetId;
+                var relative = RelativePath(folder, file.FilePath);
+                if (!relative.StartsWith("../", StringComparison.Ordinal))
+                {
+                    byPath.TryAdd((folder.ToLowerInvariant(), relative.ToLowerInvariant()), file.AssetId);
+                }
             }
         }
 
-        return result;
+        return (extra, scope) => scope.Level == ExtraScopeLevel.File
+            && byPath.TryGetValue((extra.ItemFolder.ToLowerInvariant(), (scope.Path ?? string.Empty).ToLowerInvariant()), out var asset)
+                ? asset
+                : null;
     }
 
     // The path below the title folder with forward slashes, as a lesson's scope writes it.

@@ -56,14 +56,21 @@ public static class ExtrasRowRules
         return groups;
     }
 
+    /// <summary>
+    /// How many files the row holds, the number the files browser counts: a picture folder counts its pictures, every other card is one file.
+    /// </summary>
+    public static int FileCount(IReadOnlyList<DetailExtraCardViewModel>? cards) =>
+        cards?.Sum(card => card.Kind == DetailExtraCardKinds.Pictures ? Math.Max(1, card.ItemCount) : 1) ?? 0;
+
     /// <summary>True when some group holds more cards than the row shows, so the row offers "See all".</summary>
     public static bool HasHidden(IReadOnlyList<ExtrasGroupView> groups) => groups.Any(group => group.Total > group.Shown.Count);
 
     /// <summary>
-    /// The files shown alongside this row's episode or lesson: an episode is found by its season and episode number, a lesson (a video of a
-    /// folder of videos) by its media asset, which the Engine put on the card. A missing file shows no chip.
+    /// The files of this row's episode or lesson: the ones that belong to it and the ones shown alongside it (D31), each file once. An episode is
+    /// found by its season and episode number, a lesson (a video of a folder of videos) by its media asset, which the Engine put on the card.
+    /// A missing file shows no chip.
     /// </summary>
-    public static IReadOnlyList<DetailExtraCardViewModel> ShownAlongside(IReadOnlyList<DetailExtraCardViewModel>? cards, SequenceItemViewModel row)
+    public static IReadOnlyList<DetailExtraCardViewModel> FilesFor(IReadOnlyList<DetailExtraCardViewModel>? cards, SequenceItemViewModel row)
     {
         ArgumentNullException.ThrowIfNull(row);
         if (cards is null || cards.Count == 0 || row.EpisodeContext is not { } context)
@@ -76,9 +83,25 @@ public static class ExtrasRowRules
         return
         [
             .. cards.Where(card => !card.IsMissing
-                && ((episodeKey is not null && string.Equals(card.AlongsideKey, episodeKey, StringComparison.OrdinalIgnoreCase))
-                    || (assetId is not null && string.Equals(card.AlongsideAssetId, assetId, StringComparison.OrdinalIgnoreCase)))),
+                && ((episodeKey is not null
+                        && (string.Equals(card.AlongsideKey, episodeKey, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(card.ScopeKey, episodeKey, StringComparison.OrdinalIgnoreCase)))
+                    || (assetId is not null
+                        && (string.Equals(card.AlongsideAssetId, assetId, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(card.ScopeAssetId, assetId, StringComparison.OrdinalIgnoreCase))))),
         ];
+    }
+
+    /// <summary>
+    /// True when the file is one of its lesson's or episode's own: it is shown alongside something, or it belongs to one file or one episode (not to a folder,
+    /// a season or the whole title). The lesson's Homework on the course end card lists these (D31).
+    /// </summary>
+    public static bool IsLessonFile(DetailExtraCardViewModel card)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        return card.AlongsideKey is not null
+            || card.ScopeKey.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
+            || card.ScopeKey.StartsWith("episode:", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>The chip's words: the role and the type badge ("Worksheet · PDF").</summary>

@@ -9,15 +9,16 @@
 @if (Cards.Count > 0)
 {
     var groups = ExtrasRowRules.Groups(Cards, CardsPerGroup);
+    var fileCount = ExtrasRowRules.FileCount(Cards);
     <section class="tl-extras" aria-labelledby="tl-extras-heading" data-testid="extras-section">
         <div class="tl-section-heading tl-extras__heading">
             <h2 id="tl-extras-heading">@L["Common_Extras"]</h2>
-            <span class="tl-extras__count">@Cards.Count</span>
+            <span class="tl-extras__count">@fileCount</span>
             @if (OnSeeAll.HasDelegate && ExtrasRowRules.HasHidden(groups))
             {
                 <span class="tl-extras__see-all">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-testid="extras-see-all"
-                               EndIcon="@AppMaterialIcons.Outlined.ChevronRight" OnClick="OnSeeAll">@string.Format(L["ExtrasSection_SeeAll"].Value, Cards.Count)</AppButton>
+                               EndIcon="@AppMaterialIcons.Outlined.ChevronRight" OnClick="OnSeeAll">@string.Format(L["ExtrasSection_SeeAll"].Value, fileCount)</AppButton>
                 </span>
             }
         </div>

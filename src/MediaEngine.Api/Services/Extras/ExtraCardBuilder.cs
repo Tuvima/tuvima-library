@@ -15,13 +15,14 @@ public static class ExtraCardBuilder
     /// Finds the media asset of the lesson a file is shown alongside (a folder of videos has no season or episode numbers to find it by);
     /// null when the caller cannot, or the file is shown alongside nothing.
     /// </param>
+    /// <param name="scopeAsset">Finds the media asset of the lesson a file belongs to (its scope is that one file); null when it belongs to no single file.</param>
     /// <param name="groupByFamilyAbove">
     /// When the title has more than this many cards and not one file is in a group, every card falls into the group of its kind of file
     /// ("Documents", "Videos", "Pictures", from the role families in <c>config/extras.json</c>) until a person names groups (item 17); 0 turns it off.
     /// </param>
     public static IReadOnlyList<DetailExtraCardViewModel> Build(
         IReadOnlyList<ItemExtra> extras, Func<string, bool> fileExists, ExtrasConfiguration? rules = null, Func<ItemExtra, Guid?>? alongsideAsset = null,
-        int groupByFamilyAbove = 0)
+        int groupByFamilyAbove = 0, Func<ItemExtra, Guid?>? scopeAsset = null)
     {
         ArgumentNullException.ThrowIfNull(extras);
         ArgumentNullException.ThrowIfNull(fileExists);
@@ -58,6 +59,7 @@ public static class ExtraCardBuilder
                 PageCount = document.PageCount,
                 AlongsideLabel = AlongsideLabelOf(document),
                 AlongsideAssetId = alongsideAsset?.Invoke(document)?.ToString("D"),
+                ScopeAssetId = scopeAsset?.Invoke(document)?.ToString("D"),
                 Tags = document.TagList,
             });
         }
@@ -92,6 +94,7 @@ public static class ExtraCardBuilder
                 SizeBytes = pictures.Sum(picture => picture.SizeBytes),
                 AlongsideLabel = AlongsideLabelOf(pictures[0]),
                 AlongsideAssetId = alongsideAsset?.Invoke(pictures[0])?.ToString("D"),
+                ScopeAssetId = scopeAsset?.Invoke(pictures[0])?.ToString("D"),
                 Tags = pictures[0].TagList,
             });
         }
@@ -119,6 +122,7 @@ public static class ExtraCardBuilder
                 SizeBytes = clip.SizeBytes,
                 AlongsideLabel = AlongsideLabelOf(clip),
                 AlongsideAssetId = alongsideAsset?.Invoke(clip)?.ToString("D"),
+                ScopeAssetId = scopeAsset?.Invoke(clip)?.ToString("D"),
                 Tags = clip.TagList,
             });
         }

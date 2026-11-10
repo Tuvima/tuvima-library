@@ -79,6 +79,12 @@ public sealed class DetailExtraCardViewModel
     /// </summary>
     public string? AlongsideAssetId { get; init; }
 
+    /// <summary>
+    /// The media asset of the lesson the file belongs to, when its <see cref="ScopeKey"/> is that one file of a folder of videos, so the lesson's row and
+    /// end card list it as the lesson's own file (universal editor v5 D31). An episode is found by the season and episode in <see cref="ScopeKey"/>. Null when none.
+    /// </summary>
+    public string? ScopeAssetId { get; init; }
+
     /// <summary>The tags on the file.</summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
 }

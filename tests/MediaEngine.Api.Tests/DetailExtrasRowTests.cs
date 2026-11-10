@@ -138,6 +138,79 @@ public sealed class DetailExtrasRowTests : IDisposable
         Assert.Empty(otherPage.Extras);
     }
 
+    [Fact]
+    public async Task ATitlesPage_WithMoreFilesThanTheCapAndNoNamedGroups_IsGroupedByKindOfFile()
+    {
+        var pilot = Seed(Path.Combine(_world.SeasonFolder(1), "The Last Signal S01E01.mkv"));
+        var rows = Enumerable.Range(0, 8).Select(number => _world.Row(Path.Combine(_world.Show, $"guide-{number}.pdf"), ItemExtraKinds.Document, $"Guide {number}", ExtraScope.Root))
+            .Concat(Enumerable.Range(0, 6).Select(number => _world.Row(Path.Combine(_world.Show, $"scene-{number}.mp4"), ItemExtraKinds.Clip, $"Scene {number}", ExtraScope.Root)))
+            .ToList();
+        await _world.Extras.SyncItemFolderAsync(_world.Show, rows, []);
+        var page = new DetailPageViewModel { EntityType = DetailEntityType.TvShow };
+
+        await _service.ApplyAsync(page, [pilot], CancellationToken.None);
+
+        Assert.True(page.Extras.Count > page.ExtrasCardsPerGroup);
+        Assert.Equal(["Documents", "Videos"], page.Extras.Select(card => card.Group).Distinct().Order());
+        Assert.Equal(8, page.Extras.Count(card => card.Group == "Documents"));
+    }
+
+    [Fact]
+    public async Task AnEpisodesPage_SendsNoCap_BecauseItHasNoSeeAll()
+    {
+        var episode = Seed(Path.Combine(_world.SeasonFolder(2), "The Last Signal S02E03.mkv"));
+        var rows = Enumerable.Range(0, 15).Select(number => _world.Row(Path.Combine(_world.SeasonFolder(2), $"notes-{number}.pdf"), ItemExtraKinds.Document, $"Notes {number}", ExtraScope.ForEpisode(2, 3))).ToList();
+        await _world.Extras.SyncItemFolderAsync(_world.Show, rows, []);
+        var page = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvEpisode,
+            Facts = new DetailFactsViewModel { SeasonNumber = "2", EpisodeNumber = "3" },
+        };
+
+        await _service.ApplyAsync(page, [episode], CancellationToken.None);
+
+        Assert.Equal(15, page.Extras.Count);
+        Assert.Equal(0, page.ExtrasCardsPerGroup);
+    }
+
+    [Fact]
+    public async Task AFileThatBelongsToALesson_CarriesTheLessonsAssetAsItsScopeAsset()
+    {
+        var lesson = Seed(Path.Combine(_world.Show, "Section 1", "02 Passing parameters.mkv"));
+        var notes = _world.Row(Path.Combine(_world.Show, "Section 1", "02 notes.pdf"), ItemExtraKinds.Document, "Lesson notes", ExtraScope.ForFile("Section 1/02 Passing parameters.mkv"));
+        await _world.Extras.SyncItemFolderAsync(_world.Show, [notes], []);
+        var page = new DetailPageViewModel { EntityType = DetailEntityType.TvShow };
+
+        await _service.ApplyAsync(page, [lesson], CancellationToken.None);
+
+        var card = Assert.Single(page.Extras);
+        Assert.Equal(lesson.ToString("D"), card.ScopeAssetId);
+        Assert.Null(card.AlongsideAssetId);
+    }
+
+    [Fact]
+    public async Task AFortyLessonCourse_GivesEveryLessonItsFile()
+    {
+        var lessons = new List<Guid>();
+        var rows = new List<ItemExtra>();
+        for (var number = 1; number <= 40; number++)
+        {
+            var name = $"{number:00} Lesson.mkv";
+            lessons.Add(Seed(Path.Combine(_world.Show, $"Section {number}", name)));
+            rows.Add(_world.Row(Path.Combine(_world.Show, $"Section {number}", $"{number:00} worksheet.pdf"), ItemExtraKinds.Document, $"Worksheet {number}", ExtraScope.ForFolder($"Section {number}"))
+                with
+            { InferredAlongside = ExtraScope.ForFile($"Section {number}/{name}") });
+        }
+
+        await _world.Extras.SyncItemFolderAsync(_world.Show, rows, []);
+        var page = new DetailPageViewModel { EntityType = DetailEntityType.TvShow };
+
+        await _service.ApplyAsync(page, lessons, CancellationToken.None);
+
+        Assert.Equal(40, page.Extras.Count);
+        Assert.Equal(lessons.Select(id => id.ToString("D")).Order(), page.Extras.Select(card => card.AlongsideAssetId!).Order());
+    }
+
     // A work with one media file at the path, in the test data store; returns the file's asset id.
     private Guid Seed(string filePath)
     {

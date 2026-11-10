@@ -33,7 +33,8 @@ public sealed class ExtrasRowTests : AsyncBunitContext
     }
 
     private static DetailExtraCardViewModel Card(string title, string? group = null, string kind = DetailExtraCardKinds.Document, string badge = "PDF",
-        string role = "worksheet", string roleLabel = "Worksheet", string? alongsideKey = null, string? alongsideAsset = null, int? pages = 12, long size = 840_000, bool missing = false) => new()
+        string role = "worksheet", string roleLabel = "Worksheet", string? alongsideKey = null, string? alongsideAsset = null, int? pages = 12, long size = 840_000, bool missing = false,
+        string scopeKey = "root", string? scopeAsset = null, int itemCount = 0) => new()
         {
             Id = Guid.NewGuid().ToString("D"),
             Kind = kind,
@@ -45,6 +46,9 @@ public sealed class ExtrasRowTests : AsyncBunitContext
             Group = group,
             AlongsideKey = alongsideKey,
             AlongsideAssetId = alongsideAsset,
+            ScopeKey = scopeKey,
+            ScopeAssetId = scopeAsset,
+            ItemCount = itemCount,
             PageCount = pages,
             SizeBytes = size,
             IsMissing = missing,
@@ -132,7 +136,7 @@ public sealed class ExtrasRowTests : AsyncBunitContext
         var guide = Card("Character guide", alongsideKey: "episode:2:3");
         var other = Card("Season 2 guide", alongsideKey: "episode:2:4");
 
-        var found = ExtrasRowRules.ShownAlongside([guide, other, Card("Loose")], Row(2, 3, Guid.NewGuid()));
+        var found = ExtrasRowRules.FilesFor([guide, other, Card("Loose")], Row(2, 3, Guid.NewGuid()));
 
         Assert.Equal([guide.Id], found.Select(card => card.Id));
     }
@@ -143,7 +147,7 @@ public sealed class ExtrasRowTests : AsyncBunitContext
         var asset = Guid.NewGuid();
         var worksheet = Card("Component exercises", alongsideKey: "file:Section 1/02 Passing parameters.mkv", alongsideAsset: asset.ToString("D"));
 
-        var found = ExtrasRowRules.ShownAlongside([worksheet, Card("Elsewhere", alongsideAsset: Guid.NewGuid().ToString("D"))], Row(null, null, asset));
+        var found = ExtrasRowRules.FilesFor([worksheet, Card("Elsewhere", alongsideAsset: Guid.NewGuid().ToString("D"))], Row(null, null, asset));
 
         Assert.Equal([worksheet.Id], found.Select(card => card.Id));
     }
@@ -153,40 +157,87 @@ public sealed class ExtrasRowTests : AsyncBunitContext
     {
         var missing = Card("Gone", alongsideKey: "episode:1:1", missing: true);
 
-        Assert.Empty(ExtrasRowRules.ShownAlongside([missing], Row(1, 1, Guid.NewGuid())));
+        Assert.Empty(ExtrasRowRules.FilesFor([missing], Row(1, 1, Guid.NewGuid())));
+    }
+
+    [Fact]
+    public void AnEpisodeRow_AlsoFindsTheFilesThatBelongToIt_EachFileOnce()
+    {
+        var own = Card("Episode notes", scopeKey: "episode:2:3");
+        var both = Card("Character guide", scopeKey: "episode:2:3", alongsideKey: "episode:2:3");
+
+        var found = ExtrasRowRules.FilesFor([own, both, Card("Other", scopeKey: "episode:2:4")], Row(2, 3, Guid.NewGuid()));
+
+        Assert.Equal([own.Id, both.Id], found.Select(card => card.Id));
+    }
+
+    [Fact]
+    public void ALessonRow_AlsoFindsTheFilesThatBelongToIt_EachFileOnce()
+    {
+        var asset = Guid.NewGuid().ToString("D");
+        var own = Card("Lesson notes", scopeKey: "file:Section 1/02 Intro.mkv", scopeAsset: asset);
+        var both = Card("Component exercises", scopeKey: "file:Section 1/02 Intro.mkv", scopeAsset: asset, alongsideAsset: asset);
+        var alongside = Card("Cheat sheet", alongsideAsset: asset);
+
+        var found = ExtrasRowRules.FilesFor([own, both, alongside, Card("Elsewhere", scopeAsset: Guid.NewGuid().ToString("D"))], Row(null, null, Guid.Parse(asset)));
+
+        Assert.Equal([own.Id, both.Id, alongside.Id], found.Select(card => card.Id));
+    }
+
+    [Fact]
+    public void TheLessonsHomework_IsItsOwnFilesAndTheOnesShownAlongsideIt_NotTheTitlesOthers()
+    {
+        Assert.True(ExtrasRowRules.IsLessonFile(Card("Alongside", alongsideKey: "file:Section 1/02 Intro.mkv")));
+        Assert.True(ExtrasRowRules.IsLessonFile(Card("Own", scopeKey: "file:Section 1/02 Intro.mkv")));
+        Assert.True(ExtrasRowRules.IsLessonFile(Card("Own episode", scopeKey: "episode:2:3")));
+        Assert.False(ExtrasRowRules.IsLessonFile(Card("Whole title")));
+        Assert.False(ExtrasRowRules.IsLessonFile(Card("Section", scopeKey: "folder:Section 1")));
+    }
+
+    [Fact]
+    public void TheRowsFileCount_IsTheNumberOfFiles_NotCards()
+    {
+        var count = ExtrasRowRules.FileCount([Card("A"), Card("Photos", kind: DetailExtraCardKinds.Pictures, itemCount: 9), Card("B")]);
+
+        Assert.Equal(11, count);
     }
 
     // -- The chip under a row -------------------------------------------------------------------------------------------------------
 
+    private IRenderedComponent<SequenceItemFiles> RenderRow(params DetailExtraCardViewModel[] chips) => Render<SequenceItemFiles>(p => p
+        .Add(c => c.Chips, chips)
+        .AddChildContent("<a class=\"tl-series-item\" href=\"/details/tvepisode/1\" aria-label=\"Open Echoes\">Echoes in the Dark</a>"));
+
     [Fact]
-    public void ALessonRow_ShowsItsWorksheetChip_AndOpeningItOpensTheViewer()
+    public void ALessonRow_ShowsItsWorksheetChipAsALink_ThatIsNotInsideTheRowsLink()
     {
         var worksheet = Card("Component exercises", alongsideAsset: Guid.NewGuid().ToString("D"));
-        var cut = Render<SequenceEntryContent>(p => p.Add(c => c.Item, Row(null, null, Guid.NewGuid())).Add(c => c.Chips, [worksheet]));
+        var cut = RenderRow(worksheet);
 
-        var chip = cut.Find("[data-testid=alongside-chip]");
+        var chip = cut.Find("a[data-testid=alongside-chip]");
         Assert.Equal("Worksheet · PDF", chip.TextContent.Trim());
-        chip.Click();
-
-        var navigation = Services.GetRequiredService<NavigationManager>();
-        Assert.EndsWith($"/extras/{worksheet.Id}", navigation.Uri, StringComparison.Ordinal);
+        Assert.Equal($"/extras/{worksheet.Id}", chip.GetAttribute("href"));
+        Assert.Empty(cut.FindAll("a a"));
+        Assert.Equal("/details/tvepisode/1", cut.Find("a.tl-series-item").GetAttribute("href"));
     }
 
     [Fact]
     public void SeveralFiles_ShowTheFirstChip_AndCountTheRest()
     {
-        var cut = Render<SequenceEntryContent>(p => p.Add(c => c.Item, Row(2, 3, Guid.NewGuid())).Add(c => c.Chips, [Card("One"), Card("Two"), Card("Three")]));
+        var cut = RenderRow(Card("One"), Card("Two"), Card("Three"));
 
         Assert.Single(cut.FindAll("[data-testid=alongside-chip]"));
         Assert.Equal("+2", cut.Find("[data-testid=alongside-more]").TextContent.Trim());
     }
 
     [Fact]
-    public void ARowWithNoFileAlongside_HasNoChip()
+    public void ARowWithNoFileAlongside_HasNoChipAndNoWrapper()
     {
-        var cut = Render<SequenceEntryContent>(p => p.Add(c => c.Item, Row(2, 3, Guid.NewGuid())));
+        var cut = RenderRow();
 
         Assert.Empty(cut.FindAll("[data-testid=alongside-chips]"));
+        Assert.Empty(cut.FindAll(".tl-series-cell"));
+        Assert.Single(cut.FindAll("a.tl-series-item"));
     }
 
     // -- See all: the same browser, read-only ---------------------------------------------------------------------------------------

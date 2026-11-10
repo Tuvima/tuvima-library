@@ -231,10 +231,10 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             Check();
             break;
         }
-        // The files shown alongside this lesson ride on the same page (its own Extras row); a show keeps its end card as it was.
+        // The lesson's files (those that belong to it and those shown alongside it) ride on the same page, its own Extras row; a show keeps its end card as it was.
         IReadOnlyList<DetailExtraCardViewModel> homework = IsTvEpisode(playback.CurrentItem)
             ? []
-            : [.. (page?.Extras ?? []).Where(card => !card.IsMissing && card.AlongsideKey is not null)];
+            : [.. (page?.Extras ?? []).Where(card => !card.IsMissing && MediaEngine.Web.Components.Details.ExtrasRowRules.IsLessonFile(card))];
         return new(identity, sequence?.CurrentItem.EpisodeContext?.ShowTitle, episodes, next,
             sequence?.CurrentItem.EpisodeContext?.ShowWorkId, homework);
     }

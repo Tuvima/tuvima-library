@@ -2910,8 +2910,9 @@
   PageCount: System.Int32? | json=pageCount | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AlongsideLabel: System.String | json=alongsideLabel | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AlongsideAssetId: System.String | json=alongsideAssetId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ScopeAssetId: System.String | json=scopeAssetId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Tags: System.Collections.Generic.IReadOnlyList<System.String> | json=tags | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","kind":"sample","title":"sample","subtitle":"sample","extraKind":"sample","place":"sample","badge":"sample","itemCount":7,"previewIds":[],"isMissing":true,"description":"sample","role":"sample","roleLabel":"sample","group":"sample","scopeKey":"sample","scopeSource":"sample","alongsideKey":"sample","fileBadge":"sample","sizeBytes":7,"pageCount":7,"alongsideLabel":"sample","alongsideAssetId":"sample","tags":[]}
+  sample={"id":"sample","kind":"sample","title":"sample","subtitle":"sample","extraKind":"sample","place":"sample","badge":"sample","itemCount":7,"previewIds":[],"isMissing":true,"description":"sample","role":"sample","roleLabel":"sample","group":"sample","scopeKey":"sample","scopeSource":"sample","alongsideKey":"sample","fileBadge":"sample","sizeBytes":7,"pageCount":7,"alongsideLabel":"sample","alongsideAssetId":"sample","scopeAssetId":"sample","tags":[]}
 
 [contracts] MediaEngine.Contracts.Details.DetailFactsViewModel
   kind=class | converter=default | number-handling=default | unmapped=default
