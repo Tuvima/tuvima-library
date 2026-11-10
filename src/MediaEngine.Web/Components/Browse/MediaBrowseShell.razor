@@ -261,7 +261,7 @@
                     </div>
 
                     <div class="browse-shell__display-controls @(IsTimelineGrouping ? "is-timeline" : "") @(inSheet ? "is-sheet" : "")">
-                        @if (IsTimelineGrouping) { <div class="browse-shell__timeline-grouping"><AppTimelineGroupingControl Value="@_timelineGrouping" ValueChanged="TimelineGroupingChanged" /></div> }
+                        @if (IsTimelineGrouping) { <div class="browse-shell__timeline-grouping"><AppTimelineGroupingControl Inline="true" Value="@_timelineGrouping" ValueChanged="TimelineGroupingChanged" /></div> }
                         <span class="browse-shell__sort-label">@L["Common_Sort"]</span>
                         <span class="browse-shell__display-label">@L["Common_Display"]</span>
                         <AppSelect T="string"

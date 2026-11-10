@@ -12,7 +12,7 @@
 
     <div class="app-timeline__content">
         <header class="app-timeline__header">
-            @if (ShowGroupingControl) { <AppTimelineGroupingControl Value="@Grouping" ValueChanged="ChangeGroupingAsync" /> }
+            @if (ShowGroupingControl) { <AppTimelineGroupingControl Inline="true" Value="@Grouping" ValueChanged="ChangeGroupingAsync" /> }
             <small>@YearSemantic</small>
         </header>
 

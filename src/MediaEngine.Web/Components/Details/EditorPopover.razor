@@ -340,7 +340,7 @@
                     { component => component.Family, Editor.Family },
                     { component => component.CanEdit, Editor.Mode.CanEdit },
                 },
-                new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, BackdropClick = false, CloseOnEscapeKey = true });
+                new AppDialogOptions { NoHeader = true, FullWidth = true, Size = AppWindowSize.ExtraLarge, BackdropClick = false, CloseOnEscapeKey = true });
             await reading;
             if (await dialog.Result is { Canceled: false, Data: EditorFileBrowserOutcome outcome })
             {

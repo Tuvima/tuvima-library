@@ -596,7 +596,7 @@ else if (Model is not null)
                 { component => component.ReadOnly, true },
                 { component => component.CanEdit, false },
             },
-            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, BackdropClick = false, CloseOnEscapeKey = true });
+            new AppDialogOptions { NoHeader = true, FullWidth = true, Size = AppWindowSize.ExtraLarge, BackdropClick = false, CloseOnEscapeKey = true });
         await reading;
         if (await dialog.Result is { Canceled: false, Data: EditorFileBrowserOutcome { Action: EditorFileBrowserAction.OpenFile } outcome })
         {

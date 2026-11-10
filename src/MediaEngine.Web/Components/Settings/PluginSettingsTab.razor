@@ -393,6 +393,9 @@ else
                                     SelectedTab="@tab"
                                     RootTestId="plugin-page"
                                     StatusTestId="plugin-status-sentence">
+            <TitleExtra>
+                @if (IsOfficial(plugin)) { <AppOfficialPill IconSize="16" Text="Official" /> }
+            </TitleExtra>
             <Actions>
                 @if (canChange && SwitchState(plugin, canChange) is { } on)
                 {

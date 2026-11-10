@@ -1,7 +1,7 @@
 /* Window and Sheet (Look v3 D14): one frame, three widths, 12 px corners; under 600 px every Window is a Sheet. */
 .app-native-dialog{border:0;padding:0;color:var(--tl-text-primary);background:var(--tl-bg-surface);border-radius:var(--tl-window-radius,12px);box-shadow:var(--tl-shadow-lg);width:calc(100% - 64px);max-width:var(--tl-window-s,480px);max-height:calc(100dvh - 64px);overflow:auto;margin:auto;overscroll-behavior:contain}
 .app-native-dialog::backdrop{background:var(--tl-scrim-soft)}
-.app-native-dialog--win-s{max-width:var(--tl-window-s,480px)}.app-native-dialog--win-m{max-width:var(--tl-window-m,640px)}.app-native-dialog--win-l{max-width:var(--tl-window-l,900px)}
+.app-native-dialog--win-s{max-width:var(--tl-window-s,480px)}.app-native-dialog--win-m{max-width:var(--tl-window-m,640px)}.app-native-dialog--win-l{max-width:var(--tl-window-l,900px)}.app-native-dialog--win-xl{max-width:var(--tl-window-xl,1200px)}
 .app-native-dialog--fullscreen{width:100vw;max-width:none;height:100dvh;max-height:none;border-radius:0;margin:0}
 .app-native-dialog--position-topcenter,.app-native-dialog--position-topleft,.app-native-dialog--position-topright{margin-top:32px}
 .app-native-dialog--position-bottomcenter,.app-native-dialog--position-bottomleft,.app-native-dialog--position-bottomright{margin-bottom:32px}

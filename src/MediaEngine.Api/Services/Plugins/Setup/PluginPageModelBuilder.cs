@@ -445,7 +445,7 @@ internal static class PluginPageModelBuilder
 
     private static string TrustWords(string trust) => trust switch
     {
-        "official" => "Tuvima",
+        "official" => "Official",
         "verified" => "A plugin Tuvima has checked",
         "community" => "The community, not checked",
         _ => "Added by hand",
