@@ -29,7 +29,12 @@ public sealed record ActivityRunRecord(
     DateTimeOffset StartedAt,
     DateTimeOffset LastActivityAt,
     DateTimeOffset? EndedAt,
-    int ItemCount);
+    int ItemCount,
+    Guid? ScanId = null)
+{
+    /// <summary>The History entry this run belongs to: the runs opened in the same scan share it; a run with none is its own entry.</summary>
+    public Guid EntryId => ScanId ?? Id;
+}
 
 /// <summary>One title a run touched, with the key the stacking rule groups it under (one tile per show, album, folder or title).</summary>
 public sealed record ActivityRunItemRecord(
@@ -79,6 +84,15 @@ public interface IActivityRunStore
     /// <summary>The newest active run of this kind in this library whose last item joined at or after <paramref name="notBefore"/>, or null.</summary>
     Task<ActivityRunRecord?> FindOpenRunAsync(string libraryId, string kind, DateTimeOffset notBefore, CancellationToken ct = default);
 
+    /// <summary>The scan id of the newest active run of this kind in any library whose last item joined at or after <paramref name="notBefore"/>, or null.</summary>
+    Task<Guid?> FindOpenScanIdAsync(string kind, DateTimeOffset notBefore, CancellationToken ct = default);
+
+    /// <summary>
+    /// When this library's initial import started: the start of its earliest run, provided every run it has is a first run. Null when it has no
+    /// runs, or once a later (non-first) run exists, meaning the initial import is over (D14).
+    /// </summary>
+    Task<DateTimeOffset?> GetInitialImportStartAsync(string libraryId, CancellationToken ct = default);
+
     /// <summary>True when this library has ever had a run (so the next one is not its first).</summary>
     Task<bool> LibraryHasRunsAsync(string libraryId, CancellationToken ct = default);
 
@@ -95,10 +109,10 @@ public interface IActivityRunStore
     /// <summary>The runs that match, with counts per media type, newest or oldest first.</summary>
     Task<IReadOnlyList<ActivityRunSummary>> ListRunsAsync(ActivityRunQuery query, CancellationToken ct = default);
 
-    Task<ActivityRunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default);
+    Task<ActivityRunRecord?> GetRunAsync(Guid entryId, CancellationToken ct = default);
 
-    /// <summary>One run's items as stacked groups (D12), optionally narrowed to one media type, a page at a time.</summary>
-    Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default);
+    /// <summary>One History entry's items (every run in that scan) as stacked groups (D12), optionally narrowed to one media type, a page at a time.</summary>
+    Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default);
 
     /// <summary>Every title that matches a search, with each run it appears in and how many items that run added (D18).</summary>
     Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default);

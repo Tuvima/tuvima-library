@@ -1,6 +1,6 @@
 # Spec: Library activity
 
-> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-06 (locked by Shy) · **Related docs:** [Libraries and folder picker](libraries-and-folder-picker.md) · [Libraries redesign](libraries-redesign.md) · [Library pages](library-pages.md) · [Library access](library-access.md) · [Look pass](look-pass.md) · Mockups: `../design/mockups/library-activity.html`
+> **Status:** Built, awaiting your Local checks · **Version:** 2 · **Last updated:** 2026-11-10 (v1 locked by Shy 2026-11-06; v2 changes come from Shy's own local-check decisions of 2026-11-07 and are recorded here for confirmation) · **Related docs:** [Libraries and folder picker](libraries-and-folder-picker.md) · [Libraries redesign](libraries-redesign.md) · [Library pages](library-pages.md) · [Library access](library-access.md) · [Look pass](look-pass.md) · Mockups: `../design/mockups/library-activity.html`
 
 > Shy's reference pictures (5 and 6 Nov) stay on SHY-DESKTOP and are not committed. The tile size and overlays follow the One tile design spec as it finally stands; the mockups draw its draft values (214 × 321 desktop tile).
 
@@ -52,6 +52,14 @@ All answered by Shy (5 to 6 Nov 2026).
 - **D18.** Search is an instant filter as you type. A title found in several batches appears **once** as a standard tile with the total in its bottom-left label ("12 new episodes"), and beside it that title's own vertical timeline (date bubbles on a line, with how much was added each time, under month and year headings when there are many). So searching "The Expanse" shows today's 4 episodes and the 5 from another date as one card, not as many batches. Matching follows the stacking rule (D12).
 - **D19.** History follows Vault rules: a Vault library's runs show no titles or covers outside the Vault activity list (Library pages D16, Vault D40).
 - **D20.** History is kept forever (it is mostly text), with an administrator action to purge or trim runs older than a chosen date.
+
+**Version 2 changes (from Shy's local check, built 2026-11-10)**
+- **D22. The progress card is very simple (changes D5).** One line with the top bar's ring (it fills with the percent), "Updating your library" and the percent; under it one counts line and Review N items. There is no separate bar and no "Started … ago" line.
+- **D23. A truthful percent.** The percent is rounded down and is never 100 while files are still being worked on, so 100% always means finished. The card and the top bar's ring show the same number, worked out once.
+- **D24. Working now is one live row (changes D6).** The tiles never wrap onto several rows; a long run scrolls sideways.
+- **D25. One History entry per scan across libraries.** A scan that covers Movies, Books and Audiobooks is one entry that names all its libraries and adds their counts. Each library still keeps its own run underneath (its first-run flag and the library chips depend on that); runs that open in the same scan share a scan id.
+- **D26. A library's first import can arrive in several waves (changes D14).** While the Engine has been busy without a break since the library's first run began, every run of that library counts as first and nothing is tagged New. "New" only starts once the Engine has gone quiet and a later import arrives.
+- **D27. Files nobody picks up cannot hold the page "working" (#708).** A file that is queued with no asset and has not changed for 10 minutes counts as waiting ("Some files are waiting · 3 files are waiting"), the run can finish without it, and the Libraries status line says so instead of "Adding 3 files" for hours.
 
 **Recording runs**
 - **D21.** The Engine records a run as each scan, refresh, fix or removal happens, with true duration, counts and the list of titles touched. A run starts where the Engine already lists files in one pass (the library scan) with the full count taken then. Files that arrive one by one (a watched folder, the Import folder) join the open run for that library until 5 quiet minutes pass. History starts from the first run after the build; there is no back-filling of older imports (pre-release).
@@ -132,7 +140,7 @@ The spinner's tooltip is unchanged ("Working · …" or "Idle"); clicking it ope
 ## 8. Risks and open questions
 
 - **Risks:** run recording touches the intake paths (Reliability): a missed run only loses a History line and never blocks ingestion; test it. The title search over runs must stay fast with a lot of history (Performance); keep an index. The Libraries fix build must keep View activity on the scan card.
-- **Open questions:** none. This spec depends on the Libraries scan card that the Libraries fix build and the Libraries spec revision are delivering; if that build changes the card, only WP4 is affected.
+- **Open questions:** (v2) A PDF found inside a video library is still not given a final "Unmatched / ignored" state by the Engine; D27 only stops it keeping the page busy. Confirm whether to follow up. This spec depends on the Libraries scan card that the Libraries fix build and the Libraries spec revision are delivering; if that build changes the card, only WP4 is affected.
 
 ## Plain English summary
 

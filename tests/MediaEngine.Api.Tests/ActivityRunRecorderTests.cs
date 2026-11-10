@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -74,6 +75,43 @@ public sealed class ActivityRunRecorderTests : IDisposable
     }
 
     [Fact]
+    public async Task RecordAdded_ASecondWaveOfTheInitialImport_IsStillTheFirstRun_WhileTheQueueHasNotGoneQuiet()
+    {
+        var queue = new QueueStub(_clock.GetUtcNow().AddMinutes(-1));
+        var recorder = new ActivityRunRecorder(_store, new VaultStub([VaultLibrary]), _clock, NullLogger<ActivityRunRecorder>.Instance,
+            new ServiceCollection().AddSingleton<MediaEngine.Api.Services.IIngestionQueueProgressService>(queue).BuildServiceProvider());
+        await AddMovieAsync("Wave one", recorder);
+        _clock.Advance(TimeSpan.FromMinutes(6)); // the first run closes after five quiet minutes
+        await AddMovieAsync("Wave two", recorder);
+
+        var runs = (await _real.ListRunsAsync(new ActivityRunQuery(NewestFirst: false))).Select(entry => entry.Run).ToList();
+        Assert.Equal(2, runs.Count);
+        Assert.All(runs, run => Assert.True(run.IsFirstRun));
+
+        // The queue goes quiet and starts a new period: the next import is a later one and can be New.
+        _clock.Advance(TimeSpan.FromMinutes(10));
+        queue.PeriodStart = _clock.GetUtcNow();
+        await AddMovieAsync("Much later", recorder);
+
+        Assert.False((await _real.ListRunsAsync(new ActivityRunQuery(NewestFirst: true))).First().Run.IsFirstRun);
+    }
+
+    [Fact]
+    public async Task RecordAdded_TwoLibrariesInOneScan_ShareOneHistoryEntry()
+    {
+        const string other = "22222222-2222-2222-2222-222222222222";
+        await AddMovieAsync("Movie in A");
+        var asset = Guid.NewGuid();
+        _store.Known[asset] = new ActivityAssetContext(other, "/b/book.epub");
+        await _recorder.RecordAddedAsync(Guid.NewGuid(), asset, "Books", "A Book", null, null);
+
+        var runs = (await _real.ListRunsAsync(new ActivityRunQuery())).Select(entry => entry.Run).ToList();
+        Assert.Equal(2, runs.Count);
+        Assert.Single(runs.Select(run => run.EntryId).Distinct());
+        Assert.Equal(2, (await _real.ListGroupsAsync(runs[0].EntryId, null, 0, 10)).Sum(group => group.ItemCount));
+    }
+
+    [Fact]
     public async Task RecordAdded_ForALibraryInTheVault_RecordsNothing()
     {
         var asset = Guid.NewGuid();
@@ -121,7 +159,7 @@ public sealed class ActivityRunRecorderTests : IDisposable
         }
 
         var run = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
-        var group = Assert.Single(await _real.ListGroupsAsync(run.Id, null, 0, 10));
+        var group = Assert.Single(await _real.ListGroupsAsync(run.EntryId, null, 0, 10));
         Assert.Equal(4, group.ItemCount);
         Assert.Equal("The Expanse", group.GroupTitle);
     }
@@ -136,12 +174,12 @@ public sealed class ActivityRunRecorderTests : IDisposable
         Assert.Equal("course", first.Title);
     }
 
-    private async Task<Guid> AddMovieAsync(string title)
+    private async Task<Guid> AddMovieAsync(string title, ActivityRunRecorder? recorder = null)
     {
         var work = Guid.NewGuid();
         var asset = Guid.NewGuid();
         _store.Known[asset] = new ActivityAssetContext(Library, $"/movies/{title}.mkv");
-        await _recorder.RecordAddedAsync(work, asset, "Movies", title, null, null);
+        await (recorder ?? _recorder).RecordAddedAsync(work, asset, "Movies", title, null, null);
         return work;
     }
 
@@ -198,6 +236,14 @@ public sealed class ActivityRunRecorderTests : IDisposable
         public override DateTimeOffset GetUtcNow() => _now;
     }
 
+    private sealed class QueueStub(DateTimeOffset periodStart) : MediaEngine.Api.Services.IIngestionQueueProgressService
+    {
+        public DateTimeOffset PeriodStart { get; set; } = periodStart;
+
+        public MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto Current
+            => new() { State = "working", StartedAt = PeriodStart };
+    }
+
     private sealed class VaultStub(IEnumerable<string> ids) : IVaultLibraryRepository
     {
         public Task<IReadOnlySet<string>> GetIdsAsync(CancellationToken ct = default)
@@ -225,6 +271,8 @@ public sealed class ActivityRunRecorderTests : IDisposable
 
         public Task<ActivityRunRecord?> FindOpenRunAsync(string libraryId, string kind, DateTimeOffset notBefore, CancellationToken ct = default) => inner.FindOpenRunAsync(libraryId, kind, notBefore, ct);
         public Task<bool> LibraryHasRunsAsync(string libraryId, CancellationToken ct = default) => inner.LibraryHasRunsAsync(libraryId, ct);
+        public Task<Guid?> FindOpenScanIdAsync(string kind, DateTimeOffset notBefore, CancellationToken ct = default) => inner.FindOpenScanIdAsync(kind, notBefore, ct);
+        public Task<DateTimeOffset?> GetInitialImportStartAsync(string libraryId, CancellationToken ct = default) => inner.GetInitialImportStartAsync(libraryId, ct);
         public Task InsertRunAsync(ActivityRunRecord run, CancellationToken ct = default) => inner.InsertRunAsync(run, ct);
         public Task AddItemAsync(ActivityRunItemRecord item, DateTimeOffset at, CancellationToken ct = default) => inner.AddItemAsync(item, at, ct);
         public Task<int> CompleteQuietRunsAsync(DateTimeOffset quietBefore, CancellationToken ct = default) => inner.CompleteQuietRunsAsync(quietBefore, ct);

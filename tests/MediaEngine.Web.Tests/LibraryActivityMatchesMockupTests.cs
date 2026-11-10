@@ -14,7 +14,7 @@ namespace MediaEngine.Web.Tests;
 /// <summary>
 /// The built Activity page against the approved mockup (spec library-activity, screens 2 to 4, issue 690): the Live tag, the area chips,
 /// one compact row of History controls, month headings that read "November 2026 · 3 batches", left-aligned entries with a subtitle, real
-/// pictures with a neutral stand-in, and the progress card's Started line.
+/// pictures with a neutral stand-in, and the progress card's ring.
 /// </summary>
 public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
 {
@@ -217,17 +217,29 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WhileSomethingRuns_TheProgressCardNamesWhenItStarted_AndReviewIsALinkInTheWarningColour()
+    public void WhileSomethingRuns_TheProgressCardIsOneRingWithItsPercent_AndReviewIsALinkInTheWarningColour()
     {
         var cut = Render<LibraryActivityProgressCard>(parameters => parameters
             .Add(card => card.Queue, new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 4, Progress = 0.4, StartedAt = DateTimeOffset.UtcNow.AddMinutes(-8) })
             .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, ReviewGroups = 20, ReadyGroups = 920 }));
 
-        Assert.Equal("Started 8 minutes ago", cut.Find("[data-testid='activity-progress-started']").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-testid='activity-progress-started']"));
+        Assert.NotNull(cut.Find(".lact-summary__ring"));
         Assert.Contains("40% processed", cut.Find(".lact-summary__head").TextContent, StringComparison.Ordinal);
         var review = cut.Find("a.lact-summary__review");
         Assert.Equal("/settings/review", review.GetAttribute("href"));
         Assert.Contains("Review 20 items", review.TextContent, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0.996, "working", 99)]
+    [InlineData(0.4, "working", 40)]
+    [InlineData(1.0, "idle", 100)]
+    public void ThePercent_IsRoundedDown_AndNeverHundredWhileStillWorking(double progress, string state, int expected)
+    {
+        var snapshot = new IngestionQueueProgressDto { State = state, Progress = progress, FilesFound = 10 };
+
+        Assert.Equal(expected, MediaEngine.Web.Components.Settings.IngestionQueueProgressText.Percent(snapshot));
     }
 
     [Fact]
@@ -265,3 +277,4 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
             started, started.AddMinutes(5), counts?.Sum(count => count.Count) ?? 1,
             counts ?? [new ActivityRunCountDto("Movies", 1)], covers ?? []);
 }
+

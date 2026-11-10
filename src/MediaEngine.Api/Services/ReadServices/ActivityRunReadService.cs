@@ -21,13 +21,14 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
         var page = await store.ListRunsAsync(query with { Limit = limit + 1 }, ct).ConfigureAwait(false);
         var names = LibraryNames();
 
+        // One entry per scan: the runs of different libraries that opened in the same scan are shown together (Shy 10 Nov).
         var runs = new List<ActivityRunDto>();
-        foreach (var summary in page.Take(limit))
+        foreach (var scan in page.Take(limit).GroupBy(summary => summary.Run.EntryId))
         {
-            var covers = (await store.ListGroupsAsync(summary.Run.Id, null, 0, CoversPerRun, ct).ConfigureAwait(false))
+            var covers = (await store.ListGroupsAsync(scan.Key, null, 0, CoversPerRun, ct).ConfigureAwait(false))
                 .Select(group => new ActivityCoverDto(CoverUrl(group), group.MediaType, group.GroupTitle))
                 .ToList();
-            runs.Add(ToDto(summary, names, covers));
+            runs.Add(ToDto(scan.ToList(), names, covers));
         }
 
         var last = await store.GetLastCompletedAsync(query.LibraryIds, ct).ConfigureAwait(false);
@@ -83,23 +84,34 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
             .GroupBy(library => library.Id.ToLowerInvariant(), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Name, StringComparer.Ordinal);
 
-    private static ActivityRunDto ToDto(ActivityRunSummary summary, IReadOnlyDictionary<string, string> names, IReadOnlyList<ActivityCoverDto> covers)
+    private static ActivityRunDto ToDto(IReadOnlyList<ActivityRunSummary> members, IReadOnlyDictionary<string, string> names, IReadOnlyList<ActivityCoverDto> covers)
     {
-        var run = summary.Run;
+        var first = members.OrderBy(member => member.Run.StartedAt).First().Run;
+        var active = members.Any(member => member.Run.Status == ActivityRunStatuses.Active);
+        var failed = members.Any(member => member.Run.Status == ActivityRunStatuses.Failed);
+        var libraryNames = members
+            .Select(member => names.TryGetValue(member.Run.LibraryId.ToLowerInvariant(), out var name) ? name : string.Empty)
+            .Where(name => name.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var counts = members
+            .SelectMany(member => member.CountsByMediaType)
+            .GroupBy(entry => entry.Key, StringComparer.Ordinal)
+            .Select(group => (MediaType: group.Key, Count: group.Sum(entry => entry.Value)))
+            .OrderByDescending(entry => entry.Count)
+            .ThenBy(entry => entry.MediaType, StringComparer.Ordinal)
+            .Select(entry => new ActivityRunCountDto(entry.MediaType, entry.Count))
+            .ToList();
         return new ActivityRunDto(
-            run.Id,
-            run.LibraryId,
-            names.TryGetValue(run.LibraryId.ToLowerInvariant(), out var name) ? name : string.Empty,
-            run.Kind,
-            run.Status,
-            run.StartedAt,
-            run.EndedAt,
-            run.ItemCount,
-            summary.CountsByMediaType
-                .OrderByDescending(entry => entry.Value)
-                .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-                .Select(entry => new ActivityRunCountDto(entry.Key, entry.Value))
-                .ToList(),
+            first.EntryId,
+            first.LibraryId,
+            string.Join(", ", libraryNames),
+            first.Kind,
+            active ? ActivityRunStatuses.Active : failed ? ActivityRunStatuses.Failed : ActivityRunStatuses.Completed,
+            first.StartedAt,
+            active ? null : members.Max(member => member.Run.EndedAt),
+            members.Sum(member => member.Run.ItemCount),
+            counts,
             covers);
     }
 

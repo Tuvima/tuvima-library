@@ -18,6 +18,9 @@ public static class IngestionQueueProgressText
     /// <summary>The tool id the Engine reports while it cannot find FFmpeg.</summary>
     public const string FfmpegToolId = "ffmpeg";
 
+    /// <summary>The id the Engine reports for files no worker has claimed after a while (not a tool).</summary>
+    public const string UnclaimedId = "unclaimed";
+
     public static bool IsWorking(IngestionQueueProgressDto snapshot) => HasState(snapshot, WorkingState);
 
     public static bool IsWaiting(IngestionQueueProgressDto snapshot) => HasState(snapshot, WaitingState);
@@ -26,6 +29,16 @@ public static class IngestionQueueProgressText
 
     /// <summary>The bar value, 0 to 100, taken from the Engine's 0 to 1 progress.</summary>
     public static double BarValue(IngestionQueueProgressDto snapshot) => snapshot.Progress * 100;
+
+    /// <summary>
+    /// The percent shown wherever progress is a number (the Activity card and the top bar's ring): rounded down, and never 100 while
+    /// files are still being worked on, so "100%" always means finished.
+    /// </summary>
+    public static int Percent(IngestionQueueProgressDto snapshot)
+    {
+        var value = (int)Math.Floor(Math.Clamp(snapshot.Progress, 0d, 1d) * 100);
+        return IsWorking(snapshot) ? Math.Min(value, 99) : value;
+    }
 
     /// <summary>The headline for the snapshot's state.</summary>
     public static string Headline(IngestionQueueProgressDto snapshot)
@@ -51,13 +64,20 @@ public static class IngestionQueueProgressText
     /// <summary>"Waiting for media tools", or "Waiting for {tool}" when only other tools are missing.</summary>
     public static string WaitingHeadline(IngestionQueueProgressDto snapshot)
     {
-        if (snapshot.WaitingFor.Count == 0
-            || snapshot.WaitingFor.Any(tool => string.Equals(tool, FfmpegToolId, StringComparison.OrdinalIgnoreCase)))
+        // Files nobody has claimed are not waiting for a tool; they are named by the "N files are waiting" line.
+        var tools = snapshot.WaitingFor.Where(tool => !string.Equals(tool, UnclaimedId, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (tools.Count == 0 && snapshot.WaitingFor.Count > 0)
+        {
+            return "Some files are waiting";
+        }
+
+        if (tools.Count == 0
+            || tools.Any(tool => string.Equals(tool, FfmpegToolId, StringComparison.OrdinalIgnoreCase)))
         {
             return "Waiting for media tools";
         }
 
-        return $"Waiting for {string.Join(", ", snapshot.WaitingFor)}";
+        return $"Waiting for {string.Join(", ", tools)}";
     }
 
     /// <summary>"212 movies, 140 episodes, 96 songs, 29 still being sorted", in the Engine's order; null when empty.</summary>

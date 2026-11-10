@@ -3,8 +3,9 @@
 .lact-summary--idle { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--tl-space-1); }
 .lact-summary strong { color: var(--tl-text-primary); }
 .lact-summary__head { display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-3); font-size: var(--tl-font-size-lg); }
-.lact-summary__title { display: inline-flex; align-items: center; gap: var(--tl-space-2); }
+.lact-summary__title { margin-right: auto; }
+.lact-summary__head { justify-content: flex-start; }
+.lact-summary__ring { position: relative; display: inline-grid; place-items: center; width: 2.3rem; height: 2.3rem; color: var(--tl-accent-secondary); }
 .lact-summary__foot { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--tl-space-3); }
-.lact-summary__counts { display: flex; flex-direction: column; gap: var(--tl-space-1); min-width: 0; }
-.lact-summary__started { color: var(--tl-text-muted); }
+.lact-summary__counts { min-width: 0; }
 @media (max-width: 640px) { .lact-summary__foot { flex-direction: column; } }
