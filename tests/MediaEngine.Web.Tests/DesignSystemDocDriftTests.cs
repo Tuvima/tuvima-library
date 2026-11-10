@@ -77,12 +77,11 @@ public sealed class DesignSystemDocDriftTests
             .Select(pair => $"{pair.Key}: expected '{pair.Value}', token file says '{(tokens.TryGetValue(pair.Key, out var v) ? v : "(missing)")}'")
             .ToList();
 
-        // Nothing named a font size may be written in rem or sit off the D7 ladder. --tl-font-size-lg (18 px) is the one named leftover step
-        // that the cascade cleanup packet still has to retire; no new off-ladder size may join it.
+        // Nothing named a font size may be written in rem or sit off the D7 ladder (--tl-font-size-lg is an alias of the 20 px section step).
         var ladder = new HashSet<string>(StringComparer.Ordinal) { "12px", "13px", "14px", "16px", "20px", "24px", "32px" };
         foreach (var (token, value) in tokens.Where(pair => pair.Key.Contains("font-size", StringComparison.Ordinal)))
         {
-            if (token == "--tl-font-size-lg" || value.StartsWith("var(", StringComparison.Ordinal))
+            if (value.StartsWith("var(", StringComparison.Ordinal))
             {
                 continue;
             }

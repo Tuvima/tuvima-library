@@ -1,6 +1,6 @@
 namespace MediaEngine.Web.Services.Ui;
 
-/// <summary>The Window size ladder (Look v3 D14): S 480 px, M 640 px, L 900 px. The widths are the <c>--tl-window-*</c> tokens.</summary>
+/// <summary>The Window size ladder (Look v3 D14): S 480 px, M 640 px, L 900 px, XL 1200 px (by name only). The widths are the <c>--tl-window-*</c> tokens.</summary>
 public enum AppWindowSize
 {
     /// <summary>480 px: a confirmation or a short form.</summary>
@@ -11,6 +11,9 @@ public enum AppWindowSize
 
     /// <summary>900 px: a workspace such as the artwork picker or the collection editor.</summary>
     Large = 2,
+
+    /// <summary>1200 px: the shared file browser, which needs room for its list, table and filters. Only asked for by name, never reached by a width hint.</summary>
+    ExtraLarge = 3,
 }
 
 /// <summary>Snaps a dialog's older width hints (<see cref="AppMaxWidth"/> and the shell's size name) onto the three-step Window ladder.</summary>
@@ -32,6 +35,7 @@ public static class AppWindowSizing
     {
         AppWindowSize.Small => "s",
         AppWindowSize.Medium => "m",
+        AppWindowSize.ExtraLarge => "xl",
         _ => "l",
     };
 

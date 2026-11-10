@@ -96,6 +96,17 @@ public sealed class ViewEditorGuardrailTests
     }
 
     [Fact]
+    public void AGalleryLoadsItsNextPageAsTheEndOfTheListNears()
+    {
+        var page = Web("Components/Pages/ViewGalleryDetailPage.razor");
+
+        Assert.Contains("load-more-observer.js", page, StringComparison.Ordinal);
+        Assert.Contains("LoadMoreFromObserverAsync", page, StringComparison.Ordinal);
+        // Load more stays under the list as the fallback.
+        Assert.Contains("Common_LoadMore", page, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheViewerSidePanelOnlyShowsAndOffersOneEditButton()
     {
         var viewer = Web("Components/Pages/ViewImmersiveViewer.razor");

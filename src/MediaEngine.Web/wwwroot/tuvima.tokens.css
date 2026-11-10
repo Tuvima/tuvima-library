@@ -91,7 +91,7 @@
     --tl-font-size-xs: 12px;
     --tl-font-size-sm: 14px;
     --tl-font-size-md: 16px;
-    --tl-font-size-lg: 18px;
+    --tl-font-size-lg: var(--tl-font-size-dialog-title);
     --tl-font-size-xl: 24px;
     --tl-font-size-dialog-title: 20px;
     --tl-font-size-hero: 32px;
@@ -359,6 +359,7 @@
     --tl-window-s: 480px;
     --tl-window-m: 640px;
     --tl-window-l: 900px;
+    --tl-window-xl: 1200px;
     --tl-window-radius: 12px;
     --tl-sheet-radius: 16px;
     --tl-popout-menu: 272px;

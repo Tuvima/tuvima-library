@@ -17,7 +17,7 @@ public sealed record VideoPlaybackIdentity(Guid ProfileId, Guid WorkId, Guid Ass
 
 public sealed record VideoOwnedEpisode(Guid WorkId, string Title, string? StillUrl, string? Synopsis,
     string? Runtime, string SeasonKey, string SeasonTitle, int? SeasonNumber, int? EpisodeNumber,
-    int? StillWidthPx = null, int? StillHeightPx = null, double? ProgressPercent = null);
+    int? StillWidthPx = null, int? StillHeightPx = null, double? ProgressPercent = null, Guid? SeasonId = null);
 public sealed record VideoPresentationContext(VideoPlaybackIdentity Identity, string? ShowTitle,
     IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode, Guid? ShowWorkId = null,
     IReadOnlyList<DetailExtraCardViewModel>? Homework = null)
@@ -283,6 +283,19 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             return [];
         }
         var videoFolder = VideoFolderWording.IsVideoFolderList(sequence.ContainerLabel, sequence.ItemLabel);
+        // The season's own id (the group's entity id) is what "Go to season" opens; an episode outside any season group has none.
+        var seasonByEpisode = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in sequence.Groups)
+        {
+            if (Guid.TryParse(group.EntityId, out var seasonId) && seasonId != Guid.Empty)
+            {
+                foreach (var groupItem in group.Items)
+                {
+                    seasonByEpisode.TryAdd(groupItem.Id, seasonId);
+                }
+            }
+        }
+
         return sequence.OrderedItems.Concat(sequence.Groups.SelectMany(group => group.Items))
             .Where(item => item.IsOwned && item.EntityType == DetailEntityType.TvEpisode)
             .Where(item => Guid.TryParse(item.Id, out var id) && id != Guid.Empty)
@@ -292,7 +305,8 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
                 item.GroupKey ?? item.EpisodeContext?.SeasonNumber?.ToString() ?? "owned",
                 item.GroupTitle ?? (videoFolder ? VideoFolderWording.UnnamedSectionTitle : item.EpisodeContext?.SeasonNumber is int season ? $"Season {season}" : "Owned episodes"),
                 item.EpisodeContext?.SeasonNumber, item.EpisodeContext?.EpisodeNumber,
-                item.EpisodeStillWidthPx, item.EpisodeStillHeightPx, item.ProgressPercent)).ToList();
+                item.EpisodeStillWidthPx, item.EpisodeStillHeightPx, item.ProgressPercent,
+                seasonByEpisode.TryGetValue(item.Id, out var episodeSeasonId) ? episodeSeasonId : null)).ToList();
     }
 
     /// <summary>

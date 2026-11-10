@@ -54,6 +54,8 @@ public sealed class CanonicalValueArrayRepository : ICanonicalValueArrayReposito
             throw new ArgumentException("Canonical array ordinals must be unique within an entity and key.", nameof(entries));
         }
 
+        entries = SplitJoinedGenres(key, entries);
+
         await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             // Delete existing entries for this (entity, key) pair.
@@ -85,6 +87,32 @@ public sealed class CanonicalValueArrayRepository : ICanonicalValueArrayReposito
             }
 
         }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>A provider can send a whole category list as one genre value ("Action, Drama"). Stores each genre on its own row; entries linked to Wikidata stay as they are.</summary>
+    private static IReadOnlyList<CanonicalArrayEntry> SplitJoinedGenres(string key, IReadOnlyList<CanonicalArrayEntry> entries)
+    {
+        if (!key.Equals(MetadataFieldConstants.Genre, StringComparison.OrdinalIgnoreCase)
+            || !entries.Any(entry => entry.ValueQid is null && MediaEngine.Domain.Text.GenreLabels.SplitKeepingCase(entry.Value).Count > 1))
+        {
+            return entries;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var expanded = new List<CanonicalArrayEntry>();
+        foreach (var entry in entries.OrderBy(entry => entry.Ordinal))
+        {
+            var labels = entry.ValueQid is null ? MediaEngine.Domain.Text.GenreLabels.SplitKeepingCase(entry.Value) : [entry.Value];
+            foreach (var label in labels)
+            {
+                if (seen.Add(label))
+                {
+                    expanded.Add(new CanonicalArrayEntry { Ordinal = expanded.Count, Value = label, ValueQid = entry.ValueQid });
+                }
+            }
+        }
+
+        return expanded;
     }
 
     /// <inheritdoc/>

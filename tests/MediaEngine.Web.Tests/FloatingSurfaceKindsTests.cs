@@ -62,10 +62,12 @@ public sealed class FloatingSurfaceKindsTests : AsyncBunitContext
         Assert.Contains("--tl-window-s: 480px;", tokens);
         Assert.Contains("--tl-window-m: 640px;", tokens);
         Assert.Contains("--tl-window-l: 900px;", tokens);
+        Assert.Contains("--tl-window-xl: 1200px;", tokens);
         Assert.Contains("--tl-window-radius: 12px;", tokens);
         Assert.Contains(".app-native-dialog--win-s{max-width:var(--tl-window-s,480px)}", frame);
         Assert.Contains(".app-native-dialog--win-m{max-width:var(--tl-window-m,640px)}", frame);
         Assert.Contains(".app-native-dialog--win-l{max-width:var(--tl-window-l,900px)}", frame);
+        Assert.Contains(".app-native-dialog--win-xl{max-width:var(--tl-window-xl,1200px)}", frame);
         Assert.Contains("border-radius:var(--tl-window-radius,12px)", frame);
     }
 

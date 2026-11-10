@@ -23,4 +23,18 @@ public static class GenreLabels
             .Distinct(StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>Like <see cref="Split"/> but keeps each label's own capitalisation, for storing and showing genres. Distinct ignoring case.</summary>
+    public static IReadOnlyList<string> SplitKeepingCase(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        return value
+            .Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }

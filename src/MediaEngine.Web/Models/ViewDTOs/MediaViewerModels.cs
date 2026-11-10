@@ -27,6 +27,7 @@ public sealed record MediaViewerCapabilities(
     bool CanArchive = false,
     bool CanRestore = false,
     bool CanTrash = false,
+    bool CanHide = false,
     bool CanShowInfo = true,
     bool CanZoom = true,
     bool CanPlay = false,

@@ -121,7 +121,7 @@ One interface typeface, **Inter** (variable, SIL OFL 1.1, self-hosted woff2), so
 | Merriweather | `--font-reader` | `"Merriweather", Georgia, serif` | The book reader |
 | JetBrains Mono | `--tl-font-mono` | `'JetBrains Mono', 'Cascadia Code', Consolas, monospace` | Paths, URLs, identifiers |
 
-Sizes are a ladder in pixels (the page root is 14 px, so a rem value would not be the size written here); a page picks a step and never writes its own size. Hand-typed sizes may not appear in component styles.
+`--tl-font-size-lg` is kept only as an alias of the 20 px section step. Sizes are a ladder in pixels (the page root is 14 px, so a rem value would not be the size written here); a page picks a step and never writes its own size. Hand-typed sizes may not appear in component styles.
 
 | Step | Token | Value | Used for |
 |---|---|---|---|
@@ -208,6 +208,7 @@ Everything that floats over the page is one of four kinds, each one shared part.
 | Window S | `--tl-window-s` | `480px` | A confirmation or a short form |
 | Window M | `--tl-window-m` | `640px` | A form or a picker |
 | Window L | `--tl-window-l` | `900px` | A workspace such as the editor |
+| Window XL | `--tl-window-xl` | `1200px` | The shared file browser (asked for by name) |
 | Window corners | `--tl-window-radius` | `12px` | Window corners |
 | Sheet corners | `--tl-sheet-radius` | `16px` | Top corners of a Sheet |
 | Pop-out Menu | `--tl-popout-menu` | `272px` | A menu |
@@ -330,4 +331,4 @@ Every picture asks the Engine for the copy that fits its drawn size, never the o
 ## Known gaps
 
 - `config/ui/palette.json` still feeds some chips and Universe graphs; media-type colors the Engine serves come from it. Page colors come from the tokens.
-- The token file still defines values the ladders above do not name: `--tl-font-size-lg` (1.125rem), `--tl-letter-spacing-label` (0.08em, while the overline rule says 0.06em), `--tl-line-height-relaxed`, `--tl-bg-app-gradient` and `--tl-bg-shell-gradient` (the shell is meant to carry no gradient), and `--tl-radius-lg` (equal to `--tl-radius-md`). The cascade cleanup packet decides which go.
+- The token file still defines values the ladders above do not name: `--tl-letter-spacing-label` (0.08em, while the overline rule says 0.06em), `--tl-line-height-relaxed`, `--tl-bg-app-gradient` and `--tl-bg-shell-gradient` (the shell is meant to carry no gradient), and `--tl-radius-lg` (equal to `--tl-radius-md`). The cascade cleanup packet decides which go.
