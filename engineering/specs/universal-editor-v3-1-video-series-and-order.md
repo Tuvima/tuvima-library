@@ -2,7 +2,7 @@
 
 > **Status:** Built, awaiting Local checks (Locked by Shy 2026-11-03: "Agree on all"; built 2026-11-03) · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
 
-> **Version note (2026-11-10):** parts superseded by [universal-editor-v5](universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): ordering and sections move from the Contents tab to the item dropdown's Reorder mode and the supporting-files browser (Q4).
+> **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): ordering and sections move from the Contents tab to the item dropdown's Reorder mode and the supporting-files browser (Q4).
 
 ## 1. Goal
 

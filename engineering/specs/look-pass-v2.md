@@ -2,7 +2,7 @@
 
 > **Status:** Locked · **Version:** 1.2 · **Last updated:** 2026-11-06 · **Related docs:** [Look pass](look-pass.md) · [Uniformity review](../design/look-pass/uniformity-review-2026-11-06.md) · [Mockup](../design/mockups/look-pass-v2/unified-look-mockup.html) · [Before and after](../design/mockups/look-pass-v2/settings-before-after.html) · [One tile design](one-tile-design.md) · [Design system](../design/design-system.md)
 
-> **Version note (2026-11-10):** [universal-editor-v5](universal-editor-v5-header-navigation-and-supporting-files.md) (section 9) changes nothing here: the editor keeps these tokens, and the lock and Quick facts use `--tl-accent-primary`.
+> **Version note (2026-11-10):** [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9) changes nothing here: the editor keeps these tokens, and the lock and Quick facts use `--tl-accent-primary`.
 
 ## 1. Goal
 
