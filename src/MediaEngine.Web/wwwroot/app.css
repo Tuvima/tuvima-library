@@ -5350,6 +5350,27 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     margin-inline-end: auto;
 }
 
+/* Libraries tables (setup and Settings): fixed columns, so a cell never sets the table's width. Long text is cut off with an ellipsis (its full text is the tooltip)
+   instead of pushing Status and Edit away (View folders spec D6). Phones draw cards instead of columns. */
+@media not all and (max-width: 600px) {
+    .setup-libs__table table, .libs__table table { table-layout: fixed; width: 100%; }
+    .setup-libs__table th:nth-child(1) { width: 28%; }
+    .setup-libs__table th:nth-child(2) { width: 12%; }
+    .setup-libs__table th:nth-child(3) { width: 26%; }
+    .setup-libs__table th:nth-child(4) { width: 18%; }
+    .setup-libs__table th:nth-child(5) { width: 16%; }
+    .libs__table th:nth-child(1) { width: 26%; }
+    .libs__table th:nth-child(2) { width: 11%; }
+    .libs__table th:nth-child(3) { width: 17%; }
+    .libs__table th:nth-child(4) { width: 17%; }
+    .libs__table th:nth-child(5) { width: 16%; }
+    .libs__table th:nth-child(6) { width: 13%; }
+    .setup-libs__table td, .libs__table td { min-width: 0; }
+    .setup-libs__table td:first-child, .libs__table td:first-child { overflow: hidden; }
+    .setup-libs__table td strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .libs__table .libs__link { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

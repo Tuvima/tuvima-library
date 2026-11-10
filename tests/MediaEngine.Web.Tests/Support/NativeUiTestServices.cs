@@ -18,6 +18,7 @@ internal static class NativeUiTestServices
         services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonState>();
         services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonVoice>();
         services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewDropUploader>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewFolderGate>();
         services.TryAddScoped(provider =>
         {
             var api = provider.GetService<MediaEngine.Web.Services.Integration.IEngineApiClient>() ?? EngineApiClientStub.CreateDefault();

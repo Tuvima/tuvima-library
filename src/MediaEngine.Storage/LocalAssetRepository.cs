@@ -349,7 +349,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             OnThisDayBeforeYear = query.OnThisDay?.BeforeYear.ToString("0000", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
             Take = query.Limit + 1,
         });
-        AddKindAndAddedByParameters(parameters, query);
+        AddKindAddedByAndSourceParameters(parameters, query);
         parameters.AddDynamicParams(smartRule.Parameters);
         var documentFilterPredicate = BuildDocumentFilter(query.DocumentFilter, parameters);
 
@@ -420,6 +420,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
                AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                AND (@HasAddedBy = 0 OR li.added_by_profile_id IN @AddedByIds)
+               AND (@HasSources = 0 OR EXISTS (SELECT 1 FROM local_item_files sflif
+                    JOIN local_file_sources sflfs ON sflfs.file_id = sflif.file_id AND sflfs.library_id = li.library_id
+                   WHERE sflif.item_id = li.id AND sflfs.source_id IN @SourceIds))
                AND (@GalleryId IS NULL OR EXISTS (
                     SELECT 1 FROM view_gallery_items vgi
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
@@ -528,7 +531,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             SearchExpression = searchExpression,
             query.TimelineEligibleOnly,
         });
-        AddKindAndAddedByParameters(parameters, query);
+        AddKindAddedByAndSourceParameters(parameters, query);
         if (query.WithoutLocation)
         {
             parameters.Add("SearchExpression", null);
@@ -558,6 +561,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
                AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                AND (@HasAddedBy = 0 OR li.added_by_profile_id IN @AddedByIds)
+               AND (@HasSources = 0 OR EXISTS (SELECT 1 FROM local_item_files sflif
+                    JOIN local_file_sources sflfs ON sflfs.file_id = sflif.file_id AND sflfs.library_id = li.library_id
+                   WHERE sflif.item_id = li.id AND sflfs.source_id IN @SourceIds))
                AND (@GalleryId IS NULL OR EXISTS (
                     SELECT 1 FROM view_gallery_items vgi
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
@@ -601,7 +607,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         )
         """;
 
-    private static void AddKindAndAddedByParameters(DynamicParameters parameters, LocalAssetTimelineQuery query)
+    private static void AddKindAddedByAndSourceParameters(DynamicParameters parameters, LocalAssetTimelineQuery query)
     {
         var excluded = query.ExcludedContentKinds?
             .Where(kind => !string.IsNullOrWhiteSpace(kind))
@@ -619,6 +625,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         parameters.Add("HasAddedBy", query.AddedByProfileIds is null ? 0 : 1);
         // An added_by filter that names only unknown ids matches nothing, rather than silently matching everything.
         parameters.Add("AddedByIds", addedBy.Length == 0 ? new[] { GuidSql.ToBlob(Guid.Empty) } : addedBy);
+        var sources = query.SourceIds?
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .Select(GuidSql.ToBlob)
+            .ToArray() ?? [];
+        parameters.Add("HasSources", query.SourceIds is { Count: > 0 } ? 1 : 0);
+        // Like added_by, a folder filter that names only unknown ids matches nothing; a null or empty list filters nothing.
+        parameters.Add("SourceIds", sources.Length == 0 ? new[] { GuidSql.ToBlob(Guid.Empty) } : sources);
     }
 
     public string? GetContentKind(Guid itemId, CancellationToken ct = default)
@@ -661,7 +675,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             MediaKinds = mediaKinds.Length == 0 ? [LocalAssetMediaKinds.Other] : mediaKinds,
             query.TimelineEligibleOnly,
         });
-        AddKindAndAddedByParameters(parameters, query);
+        AddKindAddedByAndSourceParameters(parameters, query);
         using var connection = database.CreateConnection();
         var rows = connection.Query<AddedByRow>(new CommandDefinition($$"""
             SELECT p.id AS ProfileId, p.display_name AS Name, COUNT(*) AS ItemCount
@@ -677,6 +691,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR (@Lifecycle = 2 AND li.trashed_at IS NOT NULL))
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
                AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+               AND (@HasSources = 0 OR EXISTS (SELECT 1 FROM local_item_files sflif
+                    JOIN local_file_sources sflfs ON sflfs.file_id = sflif.file_id AND sflfs.library_id = li.library_id
+                   WHERE sflif.item_id = li.id AND sflfs.source_id IN @SourceIds))
                AND {{TimelineEligiblePredicate}}
                AND {{MissingVisibilityPredicate}}
              GROUP BY p.id, p.display_name

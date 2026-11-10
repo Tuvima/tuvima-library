@@ -4,11 +4,10 @@
 @using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Services.Ui
 @inject IAppDialogService DialogService
-@inject LibraryFolderAddService Editor
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Libraries step's one table (first-run setup rework D4): Library, Area, Folders and Status, with one Add library button. Nothing is scanned during setup,
-   so every status says Pending and the "in your collection" figure is left out. Rename, change folder and remove sit at the end of each row. Every change saves
+   so every status says Pending and the "in your collection" figure is left out. Edit sits at the end of each row; View's kinds (Photos, Personal videos, Documents) are one row each, like Movies, and open their own Edit window. Every change saves
    through the setup session. Phones read the table but change nothing. Settings shows the same four columns once libraries are scanning. *@
 <div class="setup-libs" data-setup-libraries-table>
     @if (ReadOnly)
@@ -60,31 +59,22 @@
                     <tr @key="row.Key" data-library="@row.Key">
                         <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
                         <td data-card-role="subtitle">@row.AreaLabel</td>
-                        <td class="@(row.Library is { Sources.Count: > 0 } ? "setup-libs__folders" : "setup-libs__path")">
-                            @if (row.Library is { Sources.Count: > 0 } library)
+                        <td class="setup-libs__folders">
+                            @if (row.ViewFolders is { Count: > 0 } viewFolders)
+                            {
+                                <LibraryFoldersPopover Items="@viewFolders" LibraryName="@row.Name" />
+                            }
+                            else if (row.Library is { Sources.Count: > 0 } library)
                             {
                                 <LibraryFoldersPopover Sources="@library.Sources" LibraryName="@row.Name" />
-                            }
-                            else
-                            {
-                                @row.Path
                             }
                         </td>
                         <td data-card-role="value"><AppStatusBadge Text="@L["SetupLibraries_Pending"].Value" Tone="AppUiTone.Neutral" Icon="@AppMaterialIcons.Outlined.Schedule" /></td>
                         <td data-card-role="hidden" class="setup-libs__actions">
                             @if (!ReadOnly)
                             {
-                                @if (row.Library is not null)
-                                {
-                                    <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
-                                               aria-label="@L["LibrariesOverview_EditNamed", row.Name].Value" OnClick="@(() => EditAsync(row))" data-edit="@row.Key" />
-                                }
-                                else
-                                {
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_Rename"].Value" AriaLabel="@($"Rename {row.Name}")" OnClick="@(() => RenameAsync(row))" />
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="@L["SetupAreaCards_ChangeFolder"].Value" AriaLabel="@($"Change the folder of {row.Name}")" OnClick="@(() => ChangeFolderAsync(row))" />
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="@L["Common_Remove"].Value" AriaLabel="@($"Remove {row.Name}")" OnClick="@(() => RemoveAsync(row))" />
-                                }
+                                <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
+                                           aria-label="@L["LibrariesOverview_EditNamed", row.Name].Value" OnClick="@(() => EditAsync(row))" data-edit="@row.Key" />
                             }
                         </td>
                     </tr>
@@ -95,7 +85,7 @@
 </div>
 
 @code {
-    private sealed record Row(string Key, string Name, string AreaKey, string AreaLabel, string Path, LibraryTypeOption Type, LibraryFolderDto? Library, ViewSourceAdminDto? ViewFolder);
+    private sealed record Row(string Key, string Name, string AreaKey, string AreaLabel, LibraryTypeOption Type, LibraryFolderDto? Library, IReadOnlyList<FolderListItem>? ViewFolders);
 
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
@@ -118,6 +108,12 @@
     // Edit: the same window as Settings, saving through the setup session (nothing is scanned or moved during setup).
     private async Task EditAsync(Row row)
     {
+        if (row.ViewFolders is not null)
+        {
+            await EditViewKindAsync(row);
+            return;
+        }
+
         if (row.Library is null) return;
         var parameters = new AppDialogParameters<LibraryEditDialog>
         {
@@ -127,6 +123,23 @@
             { component => component.Scope, Scope },
         };
         var dialog = await DialogService.ShowAsync<LibraryEditDialog>(string.Empty, parameters, LibraryEditDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false })
+        {
+            _error = null;
+            await Changed.InvokeAsync();
+        }
+    }
+
+    // A View kind's Edit window (View folders spec D4): the same anatomy, saving to the Shared Library's folders.
+    private async Task EditViewKindAsync(Row row)
+    {
+        var parameters = new AppDialogParameters<ViewKindEditDialog>
+        {
+            { component => component.Kind, row.Type },
+            { component => component.Configuration, Configuration },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<ViewKindEditDialog>(string.Empty, parameters, ViewKindEditDialog.DialogOptions);
         if (await dialog.Result is { Canceled: false })
         {
             _error = null;
@@ -145,11 +158,11 @@
             {
                 if (area.Key == LibraryTypeCatalog.ViewArea)
                 {
-                    var viewKinds = Kinds.ViewKinds;
-                    foreach (var source in (ViewFolders ?? []).Where(source => source.StorageMode == "linked" && !string.IsNullOrWhiteSpace(source.Location)))
+                    // One row per View kind that has folders: Photos, Personal videos, Documents (View folders spec D1).
+                    foreach (var kind in Kinds.ViewKinds)
                     {
-                        var kind = viewKinds.FirstOrDefault(item => item.Key == source.ContentKind) ?? viewKinds.FirstOrDefault();
-                        if (kind is not null) rows.Add(new Row(source.Id.ToString("D"), source.Name, area.Key, area.Label, source.Location, kind, null, source));
+                        var folders = ViewFolderRules.ListItems(ViewFolders ?? [], kind.Key);
+                        if (folders.Count > 0) rows.Add(new Row(kind.Key, kind.Label, area.Key, area.Label, kind, null, folders));
                     }
 
                     continue;
@@ -157,39 +170,14 @@
 
                 rows.AddRange(LibraryListing.RowsFor(Kinds, area.Key, Configuration, null, null, null, showVault: false)
                     .Where(row => row.Library is not null)
-                    .Select(row => new Row(row.Key, row.Name, area.Key, area.Label, PathOf(row.Library!), row.Type, row.Library, null)));
+                    .Select(row => new Row(row.Key, row.Name, area.Key, area.Label, row.Type, row.Library, null)));
             }
 
             return rows;
         }
     }
 
-    private static string PathOf(LibraryFolderDto library)
-    {
-        var first = library.Sources.FirstOrDefault()?.Path ?? string.Empty;
-        return library.Sources.Count > 1 ? $"{first} and {library.Sources.Count - 1} more" : first;
-    }
-
     private Task AddAsync() => LibraryAddFlow.OpenAsync(
         DialogService, Configuration, Kinds, null, vaultVisible: VaultOn, setup: true, SetupSession,
         _ => { _error = null; return Changed.InvokeAsync(); });
-
-    private Task RenameAsync(Row row) => RunAsync(row.ViewFolder is { } folder
-        ? Editor.RenameSetupViewFolderAsync(folder)
-        : Editor.RenameSetupLibraryAsync(Scope, Configuration, row.Library!));
-
-    private Task ChangeFolderAsync(Row row) => RunAsync(row.ViewFolder is { } folder
-        ? Editor.ChangeSetupViewFolderAsync(Scope, folder, row.Type)
-        : Editor.ChangeSetupLibraryFolderAsync(Scope, Configuration, row.Library!, row.Type));
-
-    private Task RemoveAsync(Row row) => RunAsync(row.ViewFolder is { } folder
-        ? Editor.RemoveSetupViewFolderAsync(folder)
-        : Editor.RemoveSetupLibraryAsync(Scope, Configuration, row.Library!));
-
-    private async Task RunAsync(Task<LibraryFolderAddService.SetupRowOutcome> change)
-    {
-        var outcome = await change;
-        _error = outcome.Error;
-        if (outcome.Changed) await Changed.InvokeAsync();
-    }
 }

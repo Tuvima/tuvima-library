@@ -246,51 +246,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
     private async Task<bool> AskToRemoveAsync(string name, string folder) =>
         await AppConfirmDialog.ShowAsync(dialogs, $"Remove {name}?", $"Library stops using {folder}. Your files are not touched.", "Remove", "Keep", primaryDestructive: true) == AppConfirmResult.Primary;
 
-    /// <summary>Setup row, Rename: the small name dialog, then the whole list is saved through the setup session.</summary>
-    public async Task<SetupRowOutcome> RenameSetupLibraryAsync(FolderAddScope scope, LibrariesConfigurationDto current, LibraryFolderDto library)
-    {
-        if (await AskNameAsync("Library name", library.Name) is not { } name)
-        {
-            return SetupRowOutcome.Unchanged;
-        }
-
-        var copy = Clone(library)!;
-        copy.Name = name;
-        return await SaveLibraryAsync(scope, current, copy) is null ? Refused("That name could not be saved. Try another one.") : new(true);
-    }
-
-    /// <summary>Setup row, Change folder: the shared folder picker, and the library's first folder is replaced by the one chosen.</summary>
-    public async Task<SetupRowOutcome> ChangeSetupLibraryFolderAsync(FolderAddScope scope, LibrariesConfigurationDto current, LibraryFolderDto library, LibraryTypeOption type)
-    {
-        var old = library.Sources.FirstOrDefault();
-        var managed = old is not null ? IsManaged(old) : type.DefaultHandling == "managed";
-        var selected = await PickSetupFolderAsync(
-            scope,
-            $"Choose your {type.Label} folder",
-            $"Choose the folder on the Library server that holds {library.Name}.",
-            managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary,
-            old?.Path, library.KindKey, type.MediaTypes.FirstOrDefault());
-        if (selected is null || (old is not null && string.Equals(selected.Path, old.Path, StringComparison.OrdinalIgnoreCase)))
-        {
-            return SetupRowOutcome.Unchanged;
-        }
-
-        var copy = Clone(library)!;
-        var source = NewSource(selected, managed);
-        if (copy.Sources.Count == 0)
-        {
-            copy.Sources.Add(source);
-        }
-        else
-        {
-            // The first folder keeps its Id, handling and "New media goes here" marker; only where it points changes.
-            copy.Sources[0].Path = source.Path;
-            copy.Sources[0].Notes = source.Notes;
-        }
-
-        return await SaveLibraryAsync(scope, current, copy) is null ? Refused("That folder could not be saved. Check it and try again.") : new(true);
-    }
-
     /// <summary>Setup row, Remove: asked once, then the library leaves the setup session's list. Nothing on disk is touched.</summary>
     public async Task<SetupRowOutcome> RemoveSetupLibraryAsync(FolderAddScope scope, LibrariesConfigurationDto current, LibraryFolderDto library)
     {
@@ -301,55 +256,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
         var saved = await SaveSetupLibrariesAsync(scope, current, current.Libraries.Where(item => item.Id != library.Id));
         return saved is null ? Refused("The library could not be removed. Try again.") : new(true);
-    }
-
-    /// <summary>Setup row of View, Rename: the shared folder's name (View's folders are shared ones in setup).</summary>
-    public async Task<SetupRowOutcome> RenameSetupViewFolderAsync(ViewSourceAdminDto source)
-    {
-        if (await AskNameAsync("Folder name", source.Name) is not { } name)
-        {
-            return SetupRowOutcome.Unchanged;
-        }
-
-        var saved = await apiClient.UpdateViewSharedSourceAsync(source.Id, new UpdateViewSourceRequest(name, source.Enabled, source.IncludeInTimeline, source.ContentKind));
-        return saved is null ? Refused("That name could not be saved. Try another one.") : new(true);
-    }
-
-    /// <summary>Setup row of View, Change folder: the chosen folder is added first, then the old one is detached, so a refusal never leaves View with neither.</summary>
-    public async Task<SetupRowOutcome> ChangeSetupViewFolderAsync(FolderAddScope scope, ViewSourceAdminDto source, LibraryTypeOption kind)
-    {
-        var selected = await PickSetupFolderAsync(
-            scope,
-            $"Choose your {kind.Label} folder",
-            $"Choose the folder on the Library server that holds your {kind.PluralLabel.ToLowerInvariant()}.",
-            ServerFolderSelectionModes.PersonalSpaceExisting,
-            source.Location, null, null);
-        if (selected is null || string.Equals(selected.Path, source.Location, StringComparison.OrdinalIgnoreCase))
-        {
-            return SetupRowOutcome.Unchanged;
-        }
-
-        var created = await apiClient.CreateViewSharedSourceAsync(new CreateViewSourceRequest(
-            source.Name, "linked", selected.Path, source.IncludeSubdirectories, source.IncludeInTimeline, source.ContentKind));
-        if (created is null)
-        {
-            return Refused("That folder could not be saved. Check it and try again.");
-        }
-
-        return await apiClient.DeleteViewSharedSourceAsync(source.Id)
-            ? new(true)
-            : new(true, apiClient.LastError ?? $"The new folder was added, but {source.Location} could not be removed. Remove it from the list.");
-    }
-
-    /// <summary>Setup row of View, Remove: asked once, then the shared folder is detached. View's files are not touched.</summary>
-    public async Task<SetupRowOutcome> RemoveSetupViewFolderAsync(ViewSourceAdminDto source)
-    {
-        if (!await AskToRemoveAsync(source.Name, source.Location))
-        {
-            return SetupRowOutcome.Unchanged;
-        }
-
-        return await apiClient.DeleteViewSharedSourceAsync(source.Id) ? new(true) : Refused("The folder could not be removed. Try again.");
     }
 
     private static LibrarySourceDto NewSource(ServerFolderValidationResultDto selected, bool managed)
