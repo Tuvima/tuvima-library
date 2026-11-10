@@ -1197,6 +1197,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Render<AppDialogHost>();
         await cut.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(""));
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
+        cut.Find("[data-picker-type-path]").Click();
         cut.Find("input[aria-label='Folder path']").Input("Z:\\not-a-listed-location");
         cut.Find("[data-picker-go]").Click();
         cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));

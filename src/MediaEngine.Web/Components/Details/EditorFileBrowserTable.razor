@@ -5,87 +5,62 @@
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-@* The table of the supporting-files browser (universal editor v5 screen E, notes 3, 5 and 7): a tick, the name with its type badge and a second
-   line, where the file belongs, its type, group and role, and a row menu. Clicking a heading sorts by it. A picture folder is one row. Ticks stay
-   while the person pages or filters. The rows only report what the person chose; the dialog decides what opens. *@
-<div class="tl-fbtable" data-testid="file-browser-table">
-    <table class="tl-fbtable__table">
-        <thead>
-            <tr>
-                @if (!ReadOnly)
-                {
-                    <th class="tl-fbtable__tick">
-                        <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
-                                     Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
-                    </th>
-                }
-                <th aria-sort="@SortState(SupportingFileListDefaults.SortTitle)">@SortHeading(SupportingFileListDefaults.SortTitle, L["EditorBrowser_Name"].Value)</th>
-                <th aria-sort="@SortState(SupportingFileListDefaults.SortWhere)">@SortHeading(SupportingFileListDefaults.SortWhere, L["EditorBrowser_WhereColumn"].Value)</th>
-                <th aria-sort="@SortState(SupportingFileListDefaults.SortType)">@SortHeading(SupportingFileListDefaults.SortType, L["EditorBrowser_Type"].Value)</th>
-                <th>@L["EditorBrowser_Group"]</th>
-                <th>@L["EditorBrowser_Role"]</th>
-                <th class="tl-fbtable__menu"><span class="sr-only">@L["EditorBrowser_RowActions"]</span></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in State.Rows)
+@* The rows of the supporting-files list (universal editor v5 screen E, notes 3, 5 and 7): a tick, the name with its type badge and a second line,
+   where the file belongs, its type, group and role, and a row menu. They fill the shared browser frame's list (D32) as its item rows. A picture
+   folder is one row. Ticks stay while the person pages or filters. The rows only report what the person chose; the dialog decides what opens. *@
+@for (var index = 0; index < State.Rows.Count; index++)
+{
+    var row = State.Rows[index];
+    var position = index;
+    var ticked = State.IsTicked(row.Id);
+    <AppBrowserItemRow @key="row.Id"
+                       Id="@($"{IdPrefix}-{position}")"
+                       Highlighted="@(position == Highlight)"
+                       Ticked="ticked"
+                       Tickable="@(!ReadOnly)"
+                       TickChanged="@(_ => State.Toggle(row))"
+                       TickLabel="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)"
+                       BadgeType="@row.Type"
+                       Title="@row.Title"
+                       SubLine="@EditorFileBrowserRules.RowLine(L, row)"
+                       SubLineQuiet="@(!row.HasOwnTitle)"
+                       Cells="@CellsOf(row)"
+                       data-file-id="@row.Id">
+        <Badge>
+            @if (row.Type == SupportingFileListDefaults.TypeClip)
             {
-                var ticked = State.IsTicked(row.Id);
-                <tr @key="row.Id" class="@(ticked ? "tl-fbtable__row is-ticked" : "tl-fbtable__row")" data-file-id="@row.Id">
-                    @if (!ReadOnly)
-                    {
-                        <td class="tl-fbtable__tick">
-                            <AppCheckbox Value="ticked" ValueChanged="@(_ => State.Toggle(row))" HideLabel="true"
-                                         Label="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)" />
-                        </td>
-                    }
-                    <td>
-                        <div class="tl-fbtable__name">
-                            <span class="tl-fbtable__badge" data-type="@row.Type" aria-hidden="true">
-                                @if (row.Type == SupportingFileListDefaults.TypeClip)
-                                {
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" Size="AppIconSize.Control20" />
-                                }
-                                else
-                                {
-                                    @row.Badge
-                                }
-                            </span>
-                            <span class="tl-fbtable__text">
-                                <b data-overflow-tooltip="@row.Title">@row.Title</b>
-                                <small class="@(row.HasOwnTitle ? null : "is-quiet")">@EditorFileBrowserRules.RowLine(L, row)</small>
-                            </span>
-                            @if (row.IsMissing)
-                            {
-                                <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorNav_FileMissing"].Value" />
-                            }
-                        </div>
-                    </td>
-                    <td>@row.WhereLabel</td>
-                    <td>@row.TypeLabel</td>
-                    <td class="@(string.IsNullOrEmpty(row.Group) ? "is-quiet" : null)">@(string.IsNullOrEmpty(row.Group) ? L["EditorBrowser_Ungrouped"].Value : row.Group)</td>
-                    <td>@row.RoleLabel</td>
-                    <td class="tl-fbtable__menu">
-                        @if (ReadOnly)
-                        {
-                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-open-file="@row.Id" Disabled="@row.IsMissing"
-                                       OnClick="@(() => Choose(row, preview: true))">@L["EditorBrowser_Open"]</AppButton>
-                        }
-                        else
-                        {
-                        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
-                            <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
-                            <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
-                            <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
-                                         Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
-                        </AppOverflowMenu>
-                        }
-                    </td>
-                </tr>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" Size="AppIconSize.Control20" />
             }
-        </tbody>
-    </table>
-</div>
+            else
+            {
+                @row.Badge
+            }
+        </Badge>
+        <After>
+            @if (row.IsMissing)
+            {
+                <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorNav_FileMissing"].Value" />
+            }
+        </After>
+        <Menu>
+            @if (ReadOnly)
+            {
+                @* Reading only: one Open button, no menu of edits. *@
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-open-file="@row.Id"
+                           OnClick="@(() => Choose(row, preview: true))">@L["EditorBrowser_Open"]</AppButton>
+            }
+            else
+            {
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
+                    <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
+                    <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
+                    <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
+                                 Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
+                </AppOverflowMenu>
+            }
+        </Menu>
+    </AppBrowserItemRow>
+}
 
 @code {
     [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
@@ -99,26 +74,26 @@
     /// <summary>False outside a desktop editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
-    /// <summary>The details page's read-only "See all": no ticks, no row menu; each row has an Open button.</summary>
+    /// <summary>Reading only (the page's Extras "See all"): no tick, and an Open button instead of the row menu.</summary>
     [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>The row the arrow keys are on, and the prefix of the row ids the frame names it by.</summary>
+    [Parameter] public int Highlight { get; set; }
+
+    [Parameter] public string IdPrefix { get; set; } = "browser-row";
+
+    private IReadOnlyList<AppBrowserCell> CellsOf(SupportingFileRowDto row) =>
+    [
+        new(row.WhereLabel),
+        new(row.TypeLabel),
+        string.IsNullOrEmpty(row.Group) ? new(L["EditorBrowser_Ungrouped"].Value, Quiet: true) : new(row.Group),
+        new(row.RoleLabel),
+    ];
 
     private Task Choose(SupportingFileRowDto row, bool preview) =>
         Guid.TryParse(row.Id, out var id)
             ? OnChoose.InvokeAsync(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenFile, id, preview))
             : Task.CompletedTask;
-
-    // A heading that sorts: the arrow shows the direction of the sort in use.
-    // aria-sort belongs on the column header, not on the button inside it.
-    private string? SortState(string sort) => State.Sort == sort ? (State.Descending ? "descending" : "ascending") : null;
-
-    private RenderFragment SortHeading(string sort, string label) => __builder =>
-    {
-        var active = State.Sort == sort;
-        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Class="tl-fbtable__sort"
-                   EndIcon="@(active ? (State.Descending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward) : null)"
-                   data-sort="@sort"
-                   OnClick="@(() => State.SortByAsync(sort))">@label</AppButton>
-    };
 
     protected override void OnInitialized() => State.Changed += OnChanged;
 

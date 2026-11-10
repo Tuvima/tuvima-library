@@ -19,11 +19,6 @@
     border-radius: var(--tl-radius-md, 8px);
 }
 
-.tl-matchcard--why {
-    flex-direction: column;
-    align-items: stretch;
-}
-
 .tl-match ::deep .tl-matchcard__art {
     flex: 0 0 4rem;
     width: 4rem;
@@ -41,36 +36,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--tl-space-2);
-}
-
-.tl-matchwhy {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-matchwhy th,
-.tl-matchwhy td {
-    padding: var(--tl-space-1) var(--tl-space-2);
-    border-bottom: 1px solid var(--tl-divider);
-    text-align: left;
-}
-
-.tl-matchwhy tbody th {
-    font-weight: var(--tl-font-weight-semibold);
-}
-
-.tl-matchwhy small {
-    display: block;
-    font-weight: var(--tl-font-weight-regular);
-}
-
-.tl-matchwhy__mark[data-state="agrees"] {
-    color: var(--tl-status-success, #2e7d32);
-}
-
-.tl-matchwhy__mark[data-state="differs"] {
-    color: var(--tl-status-warning, #b26a00);
 }
 
 /* The compact search. */

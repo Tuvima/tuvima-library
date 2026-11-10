@@ -1429,10 +1429,7 @@ public static partial class ItemCanonicalEndpoints
         bool AllowsTextOnly);
 
     private static bool IsAutomationOwnedWikidataState(string? status, string? source, bool locked) =>
-        !locked
-        && !string.Equals(source, "user", StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(status, WorkWikidataStatus.UserConfirmed, StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(status, WorkWikidataStatus.UserReplaced, StringComparison.OrdinalIgnoreCase);
+        WorkWikidataStatus.IsAutomationOwned(status, source, locked);
 
     /// <summary>
     /// The canonical search behind the editor's Match tab and the older canonical-search connection point: one body so both ask the same

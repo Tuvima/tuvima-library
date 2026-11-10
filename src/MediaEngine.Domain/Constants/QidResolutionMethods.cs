@@ -12,4 +12,10 @@ public static class QidResolutionMethods
     /// title and author. Nothing was looked up outside the machine to find it.
     /// </summary>
     public const string OwnedBookNoRetail = "owned_book_no_retail";
+
+    /// <summary>
+    /// The item already holds a Wikidata item a person linked (universal editor v5, Match tab). The automatic alignment keeps it and looks
+    /// nothing up; it never replaces a link a person set.
+    /// </summary>
+    public const string PersonLinked = "person_linked";
 }

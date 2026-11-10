@@ -274,6 +274,7 @@ public sealed class ExtrasRowTests : AsyncBunitContext
 
         Assert.Equal(2, cut.FindAll("[data-file-id]").Count);
         Assert.Empty(cut.FindAll("[data-tick-page]"));
+        Assert.Empty(cut.FindAll("[data-file-id] input[type=checkbox]"));
         Assert.Empty(cut.FindAll("[data-testid=file-browser-bulk]"));
         Assert.Empty(cut.FindAll("[data-browser-edit]"));
         Assert.Empty(cut.FindAll("[data-view-switch=folders]"));
@@ -286,6 +287,7 @@ public sealed class ExtrasRowTests : AsyncBunitContext
         var (cut, _) = await OpenReadOnlyAsync(readOnly: false);
 
         Assert.NotEmpty(cut.FindAll("[data-tick-page]"));
+        Assert.Equal(2, cut.FindAll("[data-file-id] input[type=checkbox]").Count);
         Assert.NotEmpty(cut.FindAll("[data-browser-edit]"));
         Assert.Empty(cut.FindAll("[data-open-file]"));
     }

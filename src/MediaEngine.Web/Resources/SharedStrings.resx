@@ -11441,9 +11441,6 @@
   <data name="EditorMatchPanel_KindItem" xml:space="preserve">
     <value>item</value>
   </data>
-  <data name="EditorMatchPanel_MatchedToNow" xml:space="preserve">
-    <value>Matched to now</value>
-  </data>
   <data name="EditorMatchPanel_Universe" xml:space="preserve">
     <value>Universe</value>
   </data>
@@ -12200,9 +12197,6 @@
   <data name="EditorBrowser_UngroupedHint" xml:space="preserve">
     <value>Group, role, where it belongs and tags are staged until you save.</value>
   </data>
-  <data name="EditorBrowser_Up" xml:space="preserve">
-    <value>Up</value>
-  </data>
   <data name="EditorBrowser_VideoOrder" xml:space="preserve">
     <value>Video order</value>
   </data>
@@ -12367,5 +12361,206 @@
   </data>
   <data name="UniversalSearchResults_InTitle" xml:space="preserve">
     <value>in {0}</value>
+  </data>
+  <data name="EditorWikidata_SearchLabel" xml:space="preserve">
+    <value>Search Wikidata</value>
+  </data>
+  <data name="EditorWikidata_PasteLabel" xml:space="preserve">
+    <value>Paste a Wikidata link or QID</value>
+  </data>
+  <data name="EditorWikidata_CurrentLink" xml:space="preserve">
+    <value>Linked to on Wikidata</value>
+  </data>
+  <data name="EditorWikidata_NoLink" xml:space="preserve">
+    <value>No Wikidata link</value>
+  </data>
+  <data name="EditorWikidata_NotSavedYet" xml:space="preserve">
+    <value>Not saved yet</value>
+  </data>
+  <data name="EditorWikidata_Offline" xml:space="preserve">
+    <value>Wikidata did not answer, so only the saved link is shown.</value>
+  </data>
+  <data name="EditorWikidata_StagedLink" xml:space="preserve">
+    <value>Wikidata link staged: {0}. Save changes writes it.</value>
+  </data>
+  <data name="EditorWikidata_StagedRemoval" xml:space="preserve">
+    <value>Wikidata link removal staged. Save changes writes it.</value>
+  </data>
+  <data name="EditorWikidata_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="EditorWikidata_Searching" xml:space="preserve">
+    <value>Searching Wikidata</value>
+  </data>
+  <data name="EditorWikidata_SearchHint" xml:space="preserve">
+    <value>Search Wikidata or paste a link above to choose another item.</value>
+  </data>
+  <data name="EditorWikidata_FactIdentifier" xml:space="preserve">
+    <value>Identifier</value>
+  </data>
+  <data name="EditorWikidata_FactCreator" xml:space="preserve">
+    <value>Creator</value>
+  </data>
+  <data name="EditorWikidata_ParentChip" xml:space="preserve">
+    <value>Parent: {0}, not this {1}</value>
+  </data>
+  <data name="EditorWikidata_ParentReason" xml:space="preserve">
+    <value>This is {0}, not this {1}, so it cannot be its Wikidata link. Choose the {1} itself.</value>
+  </data>
+  <data name="EditorWikidata_CannotApply" xml:space="preserve">
+    <value>This item cannot be applied.</value>
+  </data>
+  <data name="EditorWikidata_LookupsOff" xml:space="preserve">
+    <value>This library does not look anything up on Wikidata.</value>
+  </data>
+  <data name="EditorWikidata_EnterWords" xml:space="preserve">
+    <value>Type what to search for, or paste a Wikidata link or QID.</value>
+  </data>
+  <data name="EditorWikidata_NotAnItem" xml:space="preserve">
+    <value>That is not a Wikidata link or QID.</value>
+  </data>
+  <data name="EditorWikidata_ItemNotFound" xml:space="preserve">
+    <value>That item wasn't found.</value>
+  </data>
+  <data name="EditorWikidata_ProviderSilent" xml:space="preserve">
+    <value>Wikidata did not answer. Try again in a moment.</value>
+  </data>
+  <data name="EditorWikidata_NothingFound" xml:space="preserve">
+    <value>Nothing found on Wikidata.</value>
+  </data>
+  <data name="EditorWikidata_CouldNotRead" xml:space="preserve">
+    <value>That item could not be read.</value>
+  </data>
+  <data name="EditorWikidata_ConflictYear" xml:space="preserve">
+    <value>Your Wikidata item is a {0}; the {1} match is from {2}. Check which is right.</value>
+  </data>
+  <data name="EditorWikidata_ConflictIdentifier" xml:space="preserve">
+    <value>Your Wikidata item is a {0} that points to a different {1} record than the one matched. Check which is right.</value>
+  </data>
+  <data name="EditorWikidata_ConflictTitle" xml:space="preserve">
+    <value>Your Wikidata item is called {0}; the {1} match is called {2}. Check which is right.</value>
+  </data>
+  <data name="EditorWikidata_ItemEpisode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="EditorWikidata_ItemSeason" xml:space="preserve">
+    <value>season</value>
+  </data>
+  <data name="EditorWikidata_ItemSong" xml:space="preserve">
+    <value>song</value>
+  </data>
+  <data name="EditorWikidata_ItemAlbum" xml:space="preserve">
+    <value>album</value>
+  </data>
+  <data name="EditorWikidata_ItemBook" xml:space="preserve">
+    <value>book</value>
+  </data>
+  <data name="EditorWikidata_ItemFilm" xml:space="preserve">
+    <value>film</value>
+  </data>
+  <data name="EditorWikidata_ItemGeneric" xml:space="preserve">
+    <value>item</value>
+  </data>
+  <data name="EditorWikidata_ParentShow" xml:space="preserve">
+    <value>the show</value>
+  </data>
+  <data name="EditorWikidata_ParentAlbum" xml:space="preserve">
+    <value>the album</value>
+  </data>
+  <data name="EditorWikidata_ParentSeries" xml:space="preserve">
+    <value>the series</value>
+  </data>
+  <data name="EditorWikidata_ParentGeneric" xml:space="preserve">
+    <value>the parent</value>
+  </data>
+  <data name="EditorWikidata_ApplyIdentity" xml:space="preserve">
+    <value>Apply identity</value>
+  </data>
+  <data name="EditorWikidata_ColumnLabel" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="EditorWikidata_ColumnDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="EditorWikidata_ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="EditorWikidata_ColumnQid" xml:space="preserve">
+    <value>QID</value>
+  </data>
+  <data name="EditorWikidata_AlignmentEvidence" xml:space="preserve">
+    <value>Alignment evidence</value>
+  </data>
+  <data name="EditorWikidata_YourItem" xml:space="preserve">
+    <value>Your item</value>
+  </data>
+  <data name="EditorWikidata_NotCheckedNote" xml:space="preserve">
+    <value>{0} was not checked.</value>
+  </data>
+  <data name="EditorWikidata_ItemIssue" xml:space="preserve">
+    <value>issue</value>
+  </data>
+  <data name="EditorWikidata_Independent" xml:space="preserve">
+    <value>The {0} match is kept separately. Linking here never changes it.</value>
+  </data>
+  <data name="EditorWikidata_IndependentNoProvider" xml:space="preserve">
+    <value>The provider match is kept separately. Linking here never changes it.</value>
+  </data>
+  <data name="AppBrowser_Toolbar" xml:space="preserve">
+    <value>Browser tools</value>
+  </data>
+  <data name="AppBrowser_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="AppBrowser_Up" xml:space="preserve">
+    <value>Up one level</value>
+  </data>
+  <data name="AppBrowser_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="AppBrowser_OpenFolder" xml:space="preserve">
+    <value>Open folder {0}</value>
+  </data>
+  <data name="EditorBrowser_Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="FolderPicker_PickALocation" xml:space="preserve">
+    <value>Pick a location</value>
+  </data>
+  <data name="FolderPicker_ServerFolders" xml:space="preserve">
+    <value>Server folders</value>
+  </data>
+  <data name="FolderPicker_SearchFolders" xml:space="preserve">
+    <value>Search folders here</value>
+  </data>
+  <data name="FolderPicker_TypeAPath" xml:space="preserve">
+    <value>Type a path…</value>
+  </data>
+  <data name="FolderPicker_PathPlaceholder" xml:space="preserve">
+    <value>For example /media/movies</value>
+  </data>
+  <data name="FolderPicker_NoFolderChosen" xml:space="preserve">
+    <value>No folder chosen yet</value>
+  </data>
+  <data name="FolderPicker_OneFolderInside" xml:space="preserve">
+    <value>1 folder inside</value>
+  </data>
+  <data name="FolderPicker_FoldersInside" xml:space="preserve">
+    <value>{0} folders inside</value>
+  </data>
+  <data name="FolderPicker_FoldersMatch" xml:space="preserve">
+    <value>{0} folders match</value>
+  </data>
+  <data name="FolderPicker_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="FolderPicker_Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="FolderPicker_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="FolderPicker_OneFolderMatches" xml:space="preserve">
+    <value>1 folder matches</value>
   </data>
 </root>

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tuvima Match tab, Wikidata side",
+  "description": "How the editor's Match tab searches Wikidata and tells an item's own record from the thing it belongs to (universal editor v5, 3c and D34). A key a person's file leaves out takes the value of the file shipped with the Engine.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+    "search_limit": {
+      "description": "The most results a Wikidata search shows.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+    },
+    "year_tolerance": {
+      "description": "How many years the provider's year and the Wikidata year may differ before the tab shows its amber line (a film's release year and its production year often differ by one).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "kinds": {
+      "description": "Per kind of item (tv_episode, tv_season, tv_show, movie, song, album, book, audiobook, comic): the Wikidata classes (Q-numbers of 'instance of') that are the item itself and the ones that are the thing it belongs to. A class in 'parent' is shown for context and can never be applied.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "direct": { "type": "array", "items": { "type": "string", "pattern": "^Q[0-9]+$" } },
+          "parent": { "type": "array", "items": { "type": "string", "pattern": "^Q[0-9]+$" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "type_words": {
+      "description": "Plain words for a class, shown as the result's type. A class not listed here is shown with the label Wikidata gives it.",
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "identifiers": {
+      "description": "The identifiers the alignment evidence compares: the item's stored id (key) against these Wikidata properties. 'provider' names the Engine's provider whose match the identifier belongs to, so the tab can tell when Wikidata and the provider name different records.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "properties"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "properties": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^P[0-9]+$" } },
+          "provider": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "year_properties": { "description": "Wikidata properties the year is read from, in order.", "type": "array", "items": { "type": "string", "pattern": "^P[0-9]+$" } },
+    "creator_properties": { "description": "Wikidata properties the creator is read from, in order.", "type": "array", "items": { "type": "string", "pattern": "^P[0-9]+$" } },
+    "series_properties": { "description": "Wikidata properties the series is read from, in order.", "type": "array", "items": { "type": "string", "pattern": "^P[0-9]+$" } },
+    "type_property": { "description": "The 'instance of' property.", "type": "string", "pattern": "^P[0-9]+$" }
+  },
+  "additionalProperties": true
+}

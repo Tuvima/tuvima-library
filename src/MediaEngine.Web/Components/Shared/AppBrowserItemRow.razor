@@ -1,0 +1,77 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* An item row of the shared browser frame (Editor v5 D32, screen E): a tick, the name with its type badge and a second line, then the host's own
+   cells (where it belongs, type, group, role) and a row menu. 56 px tall. The tick and the menu stop their keys here, so Space on a tick ticks the
+   tick and Space on the list ticks the highlighted row. *@
+<tr id="@Id"
+    role="row"
+    class="@RootClass"
+    aria-selected="@(Ticked ? "true" : null)"
+    @attributes="AdditionalAttributes">
+    <td role="gridcell" class="app-browser-item__tick" @onkeydown:stopPropagation="true">
+        @if (Tickable)
+        {
+            <AppCheckbox Value="Ticked" ValueChanged="TickChanged" HideLabel="true" Label="@TickLabel" />
+        }
+    </td>
+    <td role="gridcell" id="@NameCellId" aria-label="@Title" class="app-browser-item__namecell">
+        <div class="app-browser-item__name">
+            <span class="app-browser-item__badge" data-type="@BadgeType" aria-hidden="true">@Badge</span>
+            <span class="app-browser-item__text">
+                <b data-overflow-tooltip="@Title">@Title</b>
+                <small class="@(SubLineQuiet ? "is-quiet" : null)">@SubLine</small>
+            </span>
+            @After
+        </div>
+    </td>
+    @foreach (var cell in Cells)
+    {
+        <td role="gridcell" class="@(cell.Quiet ? "app-browser-item__cell is-quiet" : "app-browser-item__cell")">@cell.Text</td>
+    }
+    <td role="gridcell" class="app-browser-item__menu" @onkeydown:stopPropagation="true">@Menu</td>
+</tr>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+
+    [Parameter] public bool Highlighted { get; set; }
+
+    [Parameter] public bool Ticked { get; set; }
+
+    /// <summary>False for a list that only shows and opens (the read-only browser): the cell stays so the columns line up, but holds no tick.</summary>
+    [Parameter] public bool Tickable { get; set; } = true;
+
+    [Parameter] public EventCallback<bool> TickChanged { get; set; }
+
+    /// <summary>What the tick is called for a screen reader ("Tick Character guide").</summary>
+    [Parameter] public string? TickLabel { get; set; }
+
+    /// <summary>The type badge's content: three letters or an icon.</summary>
+    [Parameter] public RenderFragment? Badge { get; set; }
+
+    /// <summary>The kind of file the badge stands for; it picks the badge's tint.</summary>
+    [Parameter] public string? BadgeType { get; set; }
+
+    [Parameter] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The smaller line under the title (the file name, a length).</summary>
+    [Parameter] public string? SubLine { get; set; }
+
+    /// <summary>Draws the second line quieter, for a file with no title of its own yet.</summary>
+    [Parameter] public bool SubLineQuiet { get; set; }
+
+    /// <summary>After the name: a status badge such as "File missing".</summary>
+    [Parameter] public RenderFragment? After { get; set; }
+
+    /// <summary>The cells between the name and the menu (where it belongs, type, group, role), in column order.</summary>
+    [Parameter] public IReadOnlyList<AppBrowserCell> Cells { get; set; } = [];
+
+    /// <summary>The row menu (the "..." button).</summary>
+    [Parameter] public RenderFragment? Menu { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? NameCellId => string.IsNullOrEmpty(Id) ? null : $"{Id}-name";
+
+    private string RootClass => $"app-browser-item{(Ticked ? " is-ticked" : string.Empty)}{(Highlighted ? " is-highlighted" : string.Empty)}";
+}

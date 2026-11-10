@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* One 40 px row of the left list of the shared browser frame: a place to browse (the folder picker's Locations) or a filter (the supporting-files
+   browser's Where and Groups). A chosen row shows a check when it has no icon of its own; Link draws it in the accent colour, for the row that
+   switches the view. Any other attribute (data-*, aria-*) goes straight to the button. *@
+<li>
+    <button type="button"
+            class="@RootClass"
+            disabled="@Disabled"
+            aria-current="@(Selected ? "true" : null)"
+            @onclick="OnClick"
+            @attributes="AdditionalAttributes">
+        @if (!string.IsNullOrWhiteSpace(Icon))
+        {
+            <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Control20" />
+        }
+        else if (Selected && CheckWhenSelected)
+        {
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" />
+        }
+        <span class="app-browser-side-item__label">@Label</span>
+        @if (!string.IsNullOrWhiteSpace(Detail))
+        {
+            <span class="app-browser-side-item__detail" data-overflow-tooltip="@Detail">@Detail</span>
+        }
+        @if (!string.IsNullOrWhiteSpace(TrailingIcon))
+        {
+            <AppMaterialIcon Icon="@TrailingIcon" Size="AppIconSize.Control20" />
+        }
+    </button>
+</li>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+
+    /// <summary>Small text at the end of the row: a count ("238") or a path ("/media").</summary>
+    [Parameter] public string? Detail { get; set; }
+
+    [Parameter] public string? Icon { get; set; }
+
+    [Parameter] public string? TrailingIcon { get; set; }
+
+    [Parameter] public bool Selected { get; set; }
+
+    /// <summary>Shows a check in front of a chosen row that has no icon.</summary>
+    [Parameter] public bool CheckWhenSelected { get; set; }
+
+    /// <summary>The row that switches the view, drawn in the accent colour.</summary>
+    [Parameter] public bool Link { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass =>
+        $"app-browser-side-item{(Selected ? " is-selected" : string.Empty)}{(Link ? " is-link" : string.Empty)}";
+}

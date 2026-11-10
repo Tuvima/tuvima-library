@@ -133,16 +133,23 @@ public sealed partial class WikidataBridgeWorker
             IssueNumber: issueNumber);
 
         // An audiobook that took its Wikidata ID from an owned, confirmed book keeps it: no lookup runs.
+        // A Wikidata item a person linked is never replaced, a removed link is not brought back, and a turned-down item is never chosen.
+        var personDecision = await ReadPersonDecisionAsync(mediaType, lineage, ct).ConfigureAwait(false);
         var ownedBookQid = FindOwnedBookHandoffQid(job);
         if (ownedBookQid is not null)
         {
+            ctx.RejectedQids = personDecision.RejectedQids;
             ApplyOwnedBookHandoff(ctx, ownedBookQid);
+        }
+        else
+        {
+            ApplyPersonDecision(ctx, personDecision);
         }
 
         // Resolve QID for this single job via the unified facade.
         try
         {
-            var result = ctx.ResolvedQid is null
+            var result = ctx.ResolvedQid is null && !ctx.LookupSkipped
                 ? await reconAdapter.ResolveAsync(BuildResolveRequest(ctx, job.Id.ToString()), ct)
                 : null;
 
