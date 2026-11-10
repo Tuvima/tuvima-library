@@ -12794,4 +12794,16 @@
   <data name="ViewFoldersTab_FolderNameOptional" xml:space="preserve">
     <value>Folder name (optional)</value>
   </data>
+  <data name="LibraryScanCard_Idle" xml:space="preserve">
+    <value>Idle</value>
+  </data>
+  <data name="LibraryScanCard_Working" xml:space="preserve">
+    <value>Scanning your libraries</value>
+  </data>
+  <data name="LibraryScanCard_Progress" xml:space="preserve">
+    <value>Scan progress</value>
+  </data>
+  <data name="LibraryScanCard_ViewActivity" xml:space="preserve">
+    <value>View activity</value>
+  </data>
 </root>

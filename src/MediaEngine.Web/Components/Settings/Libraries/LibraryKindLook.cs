@@ -27,10 +27,11 @@ public static class LibraryKindLook
     /// <summary>True when the kind gets details from at least one provider; a plain kind (no provider) is shown as files as they are.</summary>
     public static bool LooksUp(LibraryTypeOption type) => type.LookupProviders is { Count: > 0 };
 
-    /// <summary>The classes of a kind's icon tile: the area's colour for a kind that looks details up, a quiet grey for a plain kind.</summary>
-    public static string TileClass(LibraryTypeOption type) => LooksUp(type)
-        ? $"lib-kind-tile lib-kind-tile--lookup lib-area--{type.Area.ToLowerInvariant()}"
-        : "lib-kind-tile";
+    /// <summary>True when the folder window offers Managed for the kind: a kind that looks details up, and plain Videos, whose files Library can file by title (Libraries fixes, item 3c).</summary>
+    public static bool ManagedOffered(LibraryTypeOption type) => LooksUp(type) || string.Equals(type.Key, "other_videos", StringComparison.Ordinal);
+
+    /// <summary>The classes of a kind's icon tile: always the area's colour, so Videos follows Watch like Movies and TV Shows (Libraries fixes, item 6b).</summary>
+    public static string TileClass(LibraryTypeOption type) => $"lib-kind-tile lib-kind-tile--lookup lib-area--{type.Area.ToLowerInvariant()}";
 
     /// <summary>What a provider supplies, from its capabilities: "matching, titles and descriptions, posters and covers".</summary>
     public static string SuppliesText(IEnumerable<string> capabilities)

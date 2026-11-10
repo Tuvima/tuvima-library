@@ -31,7 +31,7 @@ public sealed class LibraryKindsConfiguration
             LibraryKindMisfits.Unmatched, "Series with seasons and episodes, one folder per show.", 2),
         Kind("youtube", LibraryAreas.Watch, "YouTube", "PlayCircle", MediaType.Videos, ["youtube"], LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Unmatched, "Videos saved from YouTube, found by the video ID in the file name.", 3),
-        Kind("other_videos", LibraryAreas.Watch, "Videos", "VideoLibrary", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
+        Kind("other_videos", LibraryAreas.Watch, "Videos", "OndemandVideo", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Keep, "Courses, talks and downloads. Nothing is looked up.", 4),
         Kind("adult_content", LibraryAreas.Watch, "Adult content", "Slideshow", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Keep, "Adult videos and pictures. Nothing is looked up by default.", 5),

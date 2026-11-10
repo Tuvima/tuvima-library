@@ -317,7 +317,7 @@
             // The same folder window as Add library's third step (Libraries v3 D21): friendly name at the top, Read-only / Managed under the list.
             { component => component.ShowFolderName, !IsVault },
             { component => component.OfferHandling, !IsVault },
-            { component => component.ManagedAllowed, LibraryKindLook.LooksUp(kind) },
+            { component => component.ManagedAllowed, LibraryKindLook.ManagedOffered(kind) },
             { component => component.FolderNameChanged, EventCallback.Factory.Create<string>(this, value => folderLabel = value) },
             { component => component.OnHandlingChanged, EventCallback.Factory.Create<string>(this, value => managed = value == FolderHandlingWords.ManagedKey) },
         };

@@ -23,6 +23,15 @@
     min-width: 0;
 }
 
+/* In Add library's folder step the window scrolls, so the area and kind pills (and the folder name) stay at the top while the list moves under them. */
+.app-browser--inline > .app-browser__top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-block: var(--tl-space-2);
+    background: var(--tl-bg-surface-raised);
+}
+
 /* A slot the host left without any element in it takes no room. */
 .app-browser__top:not(:has(*)),
 .app-browser__inside:not(:has(*)) {

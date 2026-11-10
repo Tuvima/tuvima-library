@@ -206,6 +206,19 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
     // Local-check bug 1: the Add library tiles drew a 28px icon beside the text. They are the shared choice tile: a 48px icon above the name.
     [Fact]
+    public void PlainVideosOffersManagedAndEveryKindFollowsItsAreaColor()
+    {
+        var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn());
+        var videos = kinds.Find("other_videos")!;
+        var other = kinds.Find("music")!;
+
+        Assert.True(LibraryKindLook.ManagedOffered(videos));
+        Assert.True(LibraryKindLook.ManagedOffered(other));
+        Assert.Contains("lib-area--watch", LibraryKindLook.TileClass(videos), StringComparison.Ordinal);
+        Assert.Contains("lib-area--listen", LibraryKindLook.TileClass(other), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheAddLibraryAreaTilesUseTheChoiceTile()
     {
         await OpenAsync(noArea: true, chooseFolder: false);
@@ -262,8 +275,8 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         KindRow("TV Shows").Click();
         Next();
 
-        _dialogs.WaitForAssertion(() => Assert.Equal("Step 3 of 3", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
-        Assert.Equal("Where is it?", Text(_dialogs.Find(".app-dialog-shell__title")));
+        _dialogs.WaitForAssertion(() => Assert.Equal("Step 3 of 3 · Watch", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
+        Assert.Equal("Where are your TV Shows?", Text(_dialogs.Find(".app-dialog-shell__title")));
         _dialogs.WaitForElement(".create-library .server-folder-picker");
         Assert.Empty(_dialogs.FindAll("[data-folder-path]"));
         Assert.Contains("Library scans this folder and its subfolders. Your files are never changed.", _dialogs.Markup, StringComparison.Ordinal);

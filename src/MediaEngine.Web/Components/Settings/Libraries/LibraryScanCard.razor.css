@@ -1,0 +1,8 @@
+.lib-scan { display: flex; align-items: center; gap: var(--tl-space-3); padding: var(--tl-space-3) var(--tl-space-4); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg, 16px); background: var(--tl-bg-surface); min-width: 0; }
+.lib-scan__icon { display: inline-flex; flex: none; color: var(--tl-text-muted); }
+.lib-scan__icon.is-working { color: var(--tl-accent-primary); }
+.lib-scan__text { display: grid; flex: 1 1 auto; gap: var(--tl-space-1); min-width: 0; }
+.lib-scan__title { font-size: var(--tl-font-size-md); font-weight: 600; }
+.lib-scan__line { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); overflow-wrap: anywhere; }
+.lib-scan__link { flex: none; color: var(--tl-accent-primary); font-size: var(--tl-font-size-sm); font-weight: 600; text-decoration: none; }
+.lib-scan__link:hover { text-decoration: underline; }
