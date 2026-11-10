@@ -730,6 +730,22 @@ public sealed class RepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task CanonicalValueArray_GenreSentFromAProviderAsOneJoinedString_IsStoredAsSeparateGenres()
+    {
+        var arrays = new CanonicalValueArrayRepository(_db);
+        var entity = Guid.NewGuid();
+
+        await arrays.SetValuesAsync(entity, MetadataFieldConstants.Genre, [
+            new CanonicalArrayEntry { Ordinal = 0, Value = "Action, Drama; Science Fiction" },
+            new CanonicalArrayEntry { Ordinal = 1, Value = "drama" },
+        ]);
+
+        var stored = await arrays.GetValuesAsync(entity, MetadataFieldConstants.Genre);
+        Assert.Equal(["Action", "Drama", "Science Fiction"], stored.Select(entry => entry.Value).ToArray());
+        Assert.Equal([0, 1, 2], stored.Select(entry => entry.Ordinal).ToArray());
+    }
+
+    [Fact]
     public async Task CanonicalValueArray_BatchLookup_PreservesEntityKeyAndOrdinalGrouping()
     {
         var arrays = new CanonicalValueArrayRepository(_db);
