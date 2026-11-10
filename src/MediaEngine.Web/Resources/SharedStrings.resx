@@ -12200,9 +12200,6 @@
   <data name="EditorBrowser_UngroupedHint" xml:space="preserve">
     <value>Group, role, where it belongs and tags are staged until you save.</value>
   </data>
-  <data name="EditorBrowser_Up" xml:space="preserve">
-    <value>Up</value>
-  </data>
   <data name="EditorBrowser_VideoOrder" xml:space="preserve">
     <value>Video order</value>
   </data>
@@ -12487,5 +12484,62 @@
   </data>
   <data name="EditorWikidata_IndependentNoProvider" xml:space="preserve">
     <value>The provider match is kept separately. Linking here never changes it.</value>
+  </data>
+  <data name="AppBrowser_Toolbar" xml:space="preserve">
+    <value>Browser tools</value>
+  </data>
+  <data name="AppBrowser_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="AppBrowser_Up" xml:space="preserve">
+    <value>Up one level</value>
+  </data>
+  <data name="AppBrowser_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="AppBrowser_OpenFolder" xml:space="preserve">
+    <value>Open folder {0}</value>
+  </data>
+  <data name="EditorBrowser_Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="FolderPicker_PickALocation" xml:space="preserve">
+    <value>Pick a location</value>
+  </data>
+  <data name="FolderPicker_ServerFolders" xml:space="preserve">
+    <value>Server folders</value>
+  </data>
+  <data name="FolderPicker_SearchFolders" xml:space="preserve">
+    <value>Search folders here</value>
+  </data>
+  <data name="FolderPicker_TypeAPath" xml:space="preserve">
+    <value>Type a path…</value>
+  </data>
+  <data name="FolderPicker_PathPlaceholder" xml:space="preserve">
+    <value>For example /media/movies</value>
+  </data>
+  <data name="FolderPicker_NoFolderChosen" xml:space="preserve">
+    <value>No folder chosen yet</value>
+  </data>
+  <data name="FolderPicker_OneFolderInside" xml:space="preserve">
+    <value>1 folder inside</value>
+  </data>
+  <data name="FolderPicker_FoldersInside" xml:space="preserve">
+    <value>{0} folders inside</value>
+  </data>
+  <data name="FolderPicker_FoldersMatch" xml:space="preserve">
+    <value>{0} folders match</value>
+  </data>
+  <data name="FolderPicker_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="FolderPicker_Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="FolderPicker_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="FolderPicker_OneFolderMatches" xml:space="preserve">
+    <value>1 folder matches</value>
   </data>
 </root>

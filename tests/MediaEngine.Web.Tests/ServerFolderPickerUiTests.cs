@@ -23,7 +23,8 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("Label=\"@ConfirmButtonLabel\"", picker, StringComparison.Ordinal);
         Assert.Contains("ConfirmLabel { get; set; } = \"Add\"", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("InputFile", picker, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(275)", picker, StringComparison.Ordinal);
+        // The frame's search box waits 275 ms after the last keystroke before it reports.
+        Assert.Contains("SearchDebounce=\"275\"", picker, StringComparison.Ordinal);
         Assert.Contains("preserveSelection: true", picker, StringComparison.Ordinal);
         Assert.Contains("_browseRequest?.Cancel()", picker, StringComparison.Ordinal);
     }
@@ -34,8 +35,8 @@ public sealed class ServerFolderPickerUiTests
         var picker = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
         var engine = Read("src/MediaEngine.Api/Services/Settings/ServerFolderBrowserService.cs");
 
-        // The path box and the footer take the Engine's own text (display path / validated path), never a host-mapped one.
-        Assert.Contains("_pathText = browse.DisplayPath", picker, StringComparison.Ordinal);
+        // The line above the list and the footer take the Engine's own text (display path / validated path), never a host-mapped one.
+        Assert.Contains("_selectedPathText = browse.DisplayPath", picker, StringComparison.Ordinal);
         Assert.Contains("_selectedPathText = validation.Path", picker, StringComparison.Ordinal);
         foreach (var translation in new[] { "HostPath", "host_path", "HOST_PATH", "PathMapping", "MapToHost", "TranslatePath" })
         {
@@ -45,17 +46,21 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void Picker_PutsThePathRowAboveTheListsAndTakesAnOptionalMediaType()
+    public void Picker_HasNoPathBoxOnlyATypeAPathRowAndTakesAnOptionalMediaType()
     {
         var picker = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
 
         Assert.Contains("[Parameter] public string? MediaType", picker, StringComparison.Ordinal);
         Assert.Contains("AppMediaPresentation.IconFor(MediaType, outlined: true)", picker, StringComparison.Ordinal);
-        Assert.True(
-            picker.IndexOf("server-folder-picker__pathbar", StringComparison.Ordinal) < picker.IndexOf("server-folder-picker__body", StringComparison.Ordinal),
-            "The path row must come before the location list and browser.");
-        Assert.Contains("@ondblclick", picker, StringComparison.Ordinal);
+        // Editor v5 D32: there is no path bar; "Type a path..." is a row in the Locations list that opens a small box, and the one text box on the page besides it is the friendly name.
+        Assert.DoesNotContain("server-folder-picker__pathbar", picker, StringComparison.Ordinal);
+        Assert.DoesNotContain("@ondblclick", picker, StringComparison.Ordinal);
+        Assert.Contains("data-picker-type-path", picker, StringComparison.Ordinal);
         Assert.Contains("data-picker-go", picker, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(picker, "<input "));
+        Assert.True(
+            picker.IndexOf("data-picker-type-path", StringComparison.Ordinal) < picker.IndexOf("<input ", StringComparison.Ordinal),
+            "The only raw input is the small box that the Type a path row opens.");
     }
 
     [Theory]
@@ -175,17 +180,13 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void Picker_RowsAreRoomyAndNeverDropBelowTheTapTarget()
+    public void BrowserFrameRows_HaveTheSizesOfTheEditorMockups()
     {
-        var css = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css");
-
-        // D43: 48px location rows (44px only for a mouse and keyboard desktop) and 56px folder rows (60px under 840px).
-        Assert.Contains("@media (hover: hover) and (pointer: fine) and (min-width: 1180px)", css, StringComparison.Ordinal);
-        Assert.Contains(".server-folder-picker__location { min-height: 44px; }", css, StringComparison.Ordinal);
-        Assert.Contains("min-height: 48px;", css, StringComparison.Ordinal);
-        Assert.Contains("min-height: 56px;", css, StringComparison.Ordinal);
-        Assert.Contains(".server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 60px; }", css, StringComparison.Ordinal);
-        Assert.Contains("gap: 2px;", css, StringComparison.Ordinal);
+        // Editor v5 D32 (screens E and N): 40 px rows in the left list, 44 px folder rows and 56 px item rows, with small gaps between the left list's rows.
+        Assert.Contains("min-height: 2.5rem;", Read("src/MediaEngine.Web/Components/Shared/AppBrowserSideItem.razor.css"), StringComparison.Ordinal);
+        Assert.Contains("gap: 2px;", Read("src/MediaEngine.Web/Components/Shared/AppBrowserSideSection.razor.css"), StringComparison.Ordinal);
+        Assert.Contains("height: 2.75rem;", Read("src/MediaEngine.Web/Components/Shared/AppBrowserFolderRow.razor.css"), StringComparison.Ordinal);
+        Assert.Contains("height: 3.5rem;", Read("src/MediaEngine.Web/Components/Shared/AppBrowserItemRow.razor.css"), StringComparison.Ordinal);
     }
 
     private static string Read(string relativePath) =>

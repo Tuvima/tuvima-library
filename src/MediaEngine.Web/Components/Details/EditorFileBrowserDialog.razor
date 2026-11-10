@@ -9,65 +9,91 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The supporting-files browser (universal editor v5 WP8, screen E): "All supporting files" and the folder button open it over the editor. A dialog
-   with search and two filters on top, the left list (Where, groups, the switch to Folders and files), the table with ticks and the bulk bar, and a
-   footer with paging, Close and Edit selected. It is built from separate parts (sidebar, table, bulk bar, folders) so the shared browser frame of
-   D32 can take over the dialog, toolbar, list and footer. It answers with what the editor should do next; the ticks and filters stay in the
-   editor's EditorFileBrowserState, so "Back to the list" finds them again. *@
+   whose body is the shared browser frame (D32, WP8a): search and two filters on top, the left list (Where, groups, the switch to Folders and files),
+   the table with ticks and the bulk bar, and a footer with paging, Close and Edit selected. The "Folders and files" view is the same frame with
+   folder rows (EditorFileBrowserFolders). It answers with what the editor should do next; the ticks and filters stay in the editor's
+   EditorFileBrowserState, so "Back to the list" finds them again. *@
 <AppDialogShell Title="@L["EditorBrowser_Title"].Value"
                 Subtitle="@EditorFileBrowserRules.Subtitle(L, State.TitleName, State.List?.TotalAll ?? 0, State.MediaType)"
                 Icon="@AppMaterialIcons.Outlined.Collections"
                 Size="Large"
-                HostClass="tl-fbrowser-host"
+                HostClass="@AppBrowserFrame.HostClass"
                 OnClose="@(() => Finish(EditorFileBrowserOutcome.Closed))">
     <ChildContent>
         <div class="tl-fbrowser" data-testid="file-browser" data-view="@State.View.ToString().ToLowerInvariant()">
-            @if (State.View == EditorBrowserView.Files)
+            @if (State.View == EditorBrowserView.Folders)
             {
-                <div class="tl-fbrowser__filters">
-                    <AppSearchField Value="@State.Query" ValueChanged="@(value => State.SetQueryAsync(value))" DebounceInterval="250"
-                                    Placeholder="@L["EditorBrowser_SearchPlaceholder"].Value" Label="@L["EditorBrowser_SearchPlaceholder"].Value" HideLabel="true" Class="tl-fbrowser__search" />
-                    <AppSelect T="string" Value="@State.Where" ValueChanged="@(value => State.SetWhereAsync(value))" Options="@WhereChoices"
-                               AriaLabel="@L["EditorBrowser_Where"].Value" Class="tl-fbrowser__select" />
-                    <AppSelect T="string" Value="@(State.TypeFilter ?? EditorFileBrowserRules.AllTypes)" ValueChanged="@(value => State.SetTypeAsync(value))" Options="@TypeChoices"
-                               AriaLabel="@L["EditorBrowser_Type"].Value" Class="tl-fbrowser__select" />
-                </div>
+                <EditorFileBrowserFolders State="State" Session="Session" Subject="Subject" Family="Family" IsVideoSeries="IsVideoSeries" CanEdit="CanEdit" OnChoose="Finish" />
             }
-
-            <div class="tl-fbrowser__body">
-                <EditorFileBrowserSidebar State="State" />
-                <div class="tl-fbrowser__main">
-                    @if (State.View == EditorBrowserView.Folders)
-                    {
-                        <EditorFileBrowserFolders State="State" Session="Session" Subject="Subject" Family="Family" IsVideoSeries="IsVideoSeries" CanEdit="CanEdit" OnChoose="Finish" />
-                    }
-                    else if (State.Error is { } error && State.List is null)
-                    {
-                        <AppErrorState Message="@L[error].Value" Compact="true" Retry="@(() => State.ReloadAsync())" />
-                    }
-                    else if (State.List is null)
-                    {
-                        <div class="tl-fbrowser__busy" aria-busy="true" aria-label="@L["EditorBrowser_Loading"].Value" data-testid="file-browser-loading">
-                            <AppSkeleton Height="3rem" Width="100%" /><AppSkeleton Height="3rem" Width="100%" /><AppSkeleton Height="3rem" Width="100%" />
+            else
+            {
+                <AppBrowserFrame Kind="files"
+                                 ToolbarSpansWindow="true"
+                                 Busy="State.Loading"
+                                 Search="@State.Query"
+                                 SearchChanged="@(value => State.SetQueryAsync(value))"
+                                 SearchPlaceholder="@L["EditorBrowser_SearchPlaceholder"].Value"
+                                 SidebarLabel="@L["EditorBrowser_Filters"].Value"
+                                 SidebarTestId="file-browser-sidebar"
+                                 ListLabel="@L["EditorBrowser_Title"].Value"
+                                 ListTestId="file-browser-table"
+                                 IdPrefix="@RowIdPrefix"
+                                 RowCount="State.Rows.Count"
+                                 Highlight="_highlight"
+                                 HighlightChanged="@(index => _highlight = index)"
+                                 OnOpenRow="OpenHighlightedAsync"
+                                 OnToggleRow="ToggleHighlighted"
+                                 ShowState="ShowState">
+                    <ToolbarEnd>
+                        <div class="tl-fbrowser__select">
+                            <AppSelect T="string" Value="@State.Where" ValueChanged="@(value => State.SetWhereAsync(value))" Options="@WhereChoices"
+                                       AriaLabel="@L["EditorBrowser_Where"].Value" />
                         </div>
-                    }
-                    else if (State.List.TotalAll == 0)
-                    {
-                        <AppEmptyState Title="@L["EditorBrowser_NoFiles"].Value" Message="@L["EditorBrowser_NoFilesHint"].Value" Icon="@AppMaterialIcons.Outlined.Collections" />
-                    }
-                    else if (State.List.Total == 0)
-                    {
-                        <div class="tl-fbrowser__nothing" data-testid="file-browser-nothing">
-                            <AppEmptyState Title="@L["EditorBrowser_NothingMatches"].Value" Icon="@AppMaterialIcons.Outlined.Search">
-                                <Action>
-                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-clear-filters="true"
-                                               OnClick="@(() => State.ClearFiltersAsync())">@L["EditorBrowser_ClearFilters"]</AppButton>
-                                </Action>
-                            </AppEmptyState>
+                        <div class="tl-fbrowser__select">
+                            <AppSelect T="string" Value="@(State.TypeFilter ?? EditorFileBrowserRules.AllTypes)" ValueChanged="@(value => State.SetTypeAsync(value))" Options="@TypeChoices"
+                                       AriaLabel="@L["EditorBrowser_Type"].Value" />
                         </div>
-                    }
-                    else
-                    {
-                        @if (State.Error is { } reloadError)
+                    </ToolbarEnd>
+                    <Sidebar><EditorFileBrowserSidebar State="State" /></Sidebar>
+                    <InsideContent>
+                        @if (State.List is { Total: > 0 })
+                        {
+                            <div class="tl-fbrowser__count" data-testid="file-browser-count" aria-busy="@(State.Loading ? "true" : null)">@EditorFileBrowserRules.ShowingLine(L, State.List)</div>
+                        }
+                    </InsideContent>
+                    <Columns><EditorFileBrowserColumns State="State" /></Columns>
+                    <Rows>
+                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" Highlight="_highlight" IdPrefix="@RowIdPrefix" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
+                    </Rows>
+                    <StateContent>
+                        @if (State.Error is { } error && State.List is null)
+                        {
+                            <AppErrorState Message="@L[error].Value" Compact="true" Retry="@(() => State.ReloadAsync())" />
+                        }
+                        else if (State.List is null)
+                        {
+                            <div class="tl-fbrowser__busy" aria-busy="true" aria-label="@L["EditorBrowser_Loading"].Value" data-testid="file-browser-loading">
+                                <AppSkeleton Height="3rem" Width="100%" /><AppSkeleton Height="3rem" Width="100%" /><AppSkeleton Height="3rem" Width="100%" />
+                            </div>
+                        }
+                        else if (State.List.TotalAll == 0)
+                        {
+                            <AppEmptyState Title="@L["EditorBrowser_NoFiles"].Value" Message="@L["EditorBrowser_NoFilesHint"].Value" Icon="@AppMaterialIcons.Outlined.Collections" />
+                        }
+                        else if (State.List.Total == 0)
+                        {
+                            <div class="tl-fbrowser__nothing" data-testid="file-browser-nothing">
+                                <AppEmptyState Title="@L["EditorBrowser_NothingMatches"].Value" Icon="@AppMaterialIcons.Outlined.Search">
+                                    <Action>
+                                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-clear-filters="true"
+                                                   OnClick="@(() => State.ClearFiltersAsync())">@L["EditorBrowser_ClearFilters"]</AppButton>
+                                    </Action>
+                                </AppEmptyState>
+                            </div>
+                        }
+                    </StateContent>
+                    <AfterContent>
+                        @if (State.Error is { } reloadError && State.List is { Total: > 0 })
                         {
                             @* A list is showing but the last read failed: say so, and offer to read again. *@
                             <div class="tl-fbrowser__reload" role="alert" data-testid="file-browser-reload-error">
@@ -77,16 +103,10 @@
                             </div>
                         }
 
-                        <div class="tl-fbrowser__count" data-testid="file-browser-count" aria-busy="@(State.Loading ? "true" : null)">@EditorFileBrowserRules.ShowingLine(L, State.List)</div>
-                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
-                    }
-
-                    @if (State.View == EditorBrowserView.Files)
-                    {
                         <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" OnDelete="DeleteTickedAsync" />
-                    }
-                </div>
-            </div>
+                    </AfterContent>
+                </AppBrowserFrame>
+            }
         </div>
     </ChildContent>
     <FooterContent>
@@ -113,6 +133,10 @@
 </AppDialogShell>
 
 @code {
+    private const string RowIdPrefix = "efb-row";
+
+    private int _highlight;
+
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
 
     /// <summary>The browser's filters, page and ticks; they live in the editor so they outlast this dialog.</summary>
@@ -136,7 +160,7 @@
     [
         .. (State.List?.WhereOptions ?? []).Select(option => new AppSelectOption(
             option.Key,
-            $"{(option.ParentKey is null ? string.Empty : " ")}{option.Label} ({option.FileCount})")),
+            $"{(option.ParentKey is null ? string.Empty : " ")}{option.Label} ({option.FileCount})")),
     ];
 
     private IReadOnlyList<AppSelectOption> TypeChoices =>
@@ -148,7 +172,24 @@
         new(SupportingFileListDefaults.TypeAudio, L["EditorBrowser_TypeAudio"].Value),
     ];
 
+    // Something stands in for the list while it is read, when it failed to load, and when there is nothing to list.
+    private bool ShowState => State.List is null || State.List.TotalAll == 0 || State.List.Total == 0;
+
     private Task Finish(EditorFileBrowserOutcome outcome) => Dialog.CloseAsync(AppDialogResult.Ok(outcome));
+
+    // Enter on the highlighted row opens the file on its Preview, like Open in the row menu; Space ticks it.
+    private Task OpenHighlightedAsync(int index) =>
+        index >= 0 && index < State.Rows.Count && Guid.TryParse(State.Rows[index].Id, out var id)
+            ? Finish(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenFile, id, Preview: true))
+            : Task.CompletedTask;
+
+    private void ToggleHighlighted(int index)
+    {
+        if (index >= 0 && index < State.Rows.Count)
+        {
+            State.Toggle(State.Rows[index]);
+        }
+    }
 
     // Delete asks once and then happens at once (D29); the editor drops what was staged on the files.
     private Task DeleteTickedAsync() => DeleteAsync([.. State.Ticked]);
@@ -167,7 +208,12 @@
 
     protected override void OnInitialized() => State.Changed += OnChanged;
 
-    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+    // A new page or filter is a new list: the highlight stays on a row that still exists.
+    private void OnChanged()
+    {
+        _highlight = Math.Clamp(_highlight, 0, Math.Max(0, State.Rows.Count - 1));
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     public void Dispose() => State.Changed -= OnChanged;
 }

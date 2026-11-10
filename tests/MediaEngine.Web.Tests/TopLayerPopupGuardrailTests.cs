@@ -18,7 +18,6 @@ public sealed class TopLayerPopupGuardrailTests
         ["Components/Listen/PlaybackLyricsFooter.razor"] = "Holds the Lyrics footer's \"...\" button; PlaybackPanel draws the menu it opens in the top layer.",
         ["Components/Shared/PlaybackRowMenu.razor"] = "The \"...\" menu of a Queue or History row; PlaybackPanel draws it in the top layer, this file only holds the rows.",
         ["Components/Shared/MediaRateControl.razor"] = "Rate control flyout.",
-        ["Components/Shared/ServerFolderPicker.razor"] = "Server folder picker.",
     };
 
     [Fact]
