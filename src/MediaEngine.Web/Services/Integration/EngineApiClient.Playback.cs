@@ -793,6 +793,39 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<ReaderFormatDto?> GetReaderFormatAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"read/{assetId}/format", ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<ReaderFormatDto>(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
+    public Task<ReaderNextIssueDto?> GetReaderNextIssueAsync(Guid assetId, CancellationToken ct = default) =>
+        // No later owned issue is a normal answer (404), so it is not logged as a warning.
+        GetAsync<ReaderNextIssueDto>($"GET /read/{assetId}/next", $"read/{assetId}/next", logAsWarning: false, ct: ct);
+
+    public async Task<List<PageBookmarkDto>> GetPageBookmarksAsync(Guid assetId, CancellationToken ct = default) =>
+        await GetAsync<List<PageBookmarkDto>>($"GET /reader/{assetId}/page-bookmarks", $"reader/{assetId}/page-bookmarks", ct: ct) ?? [];
+
+    public Task<PageBookmarkDto?> CreatePageBookmarkAsync(Guid assetId, int page, string? label, CancellationToken ct = default) =>
+        PostAsync<CreatePageBookmarkRequestDto, PageBookmarkDto>(
+            $"POST /reader/{assetId}/page-bookmarks", $"reader/{assetId}/page-bookmarks", new CreatePageBookmarkRequestDto { Page = page, Label = label }, ct: ct);
+
+    public Task<bool> DeletePageBookmarkAsync(Guid bookmarkId, CancellationToken ct = default) =>
+        DeleteAsync($"DELETE /reader/page-bookmarks/{bookmarkId}", $"reader/page-bookmarks/{bookmarkId}", ct: ct);
+
     public async Task<EpubBookMetadataDto?> GetBookMetadataAsync(Guid assetId, CancellationToken ct = default)
     {
         var endpoint = $"GET /read/{assetId}/metadata";

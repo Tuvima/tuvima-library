@@ -148,6 +148,60 @@ public static class ReadEndpoints
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
         .RequireRateLimiting("reader_files");
 
+        // ── Which reader opens this title ────────────────────────────────
+
+        group.MapGet("/{assetId:guid}/format", async (
+            Guid assetId,
+            IMediaAssetRepository assetRepo,
+            IReaderTitleService titles,
+            CancellationToken ct) =>
+        {
+            var asset = await assetRepo.FindByIdAsync(assetId, ct);
+            if (asset is null)
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            var format = ReaderFormatOf(asset.FilePathRoot);
+            var title = await titles.GetAsync(assetId, format == "comic", ct);
+            return Results.Ok(new ReaderFormatDto { Format = format, Title = title.Title, Subtitle = title.Subtitle, Series = title.Series });
+        })
+        .WithName("GetReaderFormat")
+        .WithSummary("Says which reader opens the title: epub, comic, pdf or unsupported.")
+        .Produces<ReaderFormatDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
+
+        // ── Next issue (PDF and comic reader spec D13) ───────────────────
+
+        group.MapGet("/{assetId:guid}/next", async (
+            Guid assetId,
+            ClaimsPrincipal user,
+            HttpContext context,
+            IReaderNextIssueService nextIssues,
+            CancellationToken ct) =>
+        {
+            Guid? profileId = Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var profile) ? profile : null;
+            var next = await nextIssues.FindAsync(context, assetId, profileId, ct);
+            return next is null
+                ? ApiErrors.NotFound("There is no next issue.")
+                : Results.Ok(new ReaderNextIssueDto
+                {
+                    AssetId = next.AssetId,
+                    WorkId = next.WorkId,
+                    CollectionId = next.CollectionId,
+                    Series = next.Series,
+                    Title = next.Title,
+                });
+        })
+        .WithName("GetReaderNextIssue")
+        .WithSummary("Returns the next owned issue in the comic's Series, or 404 when there is none.")
+        .Produces<ReaderNextIssueDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
+
         // ── Comic pages (PDF and comic reader spec D2, D16, D18) ─────────
 
         // The page list and one page picture at a time, for CBZ, CBR and CB7 alike. Same asset gate as the file itself.
@@ -300,6 +354,21 @@ public static class ReadEndpoints
             [".cb7"] = "application/x-cb7",
             [".pdf"] = "application/pdf",
         };
+
+    internal static string ReaderFormatOf(string? filePath)
+    {
+        if (IsComic(filePath))
+        {
+            return "comic";
+        }
+
+        return Path.GetExtension(filePath ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".epub" => "epub",
+            ".pdf" => "pdf",
+            _ => "unsupported",
+        };
+    }
 
     internal static bool IsComic(string? filePath) =>
         !string.IsNullOrEmpty(filePath) && Path.IsPathRooted(filePath)

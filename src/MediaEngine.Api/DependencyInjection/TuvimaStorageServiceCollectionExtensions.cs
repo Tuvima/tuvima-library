@@ -305,6 +305,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IWikidataCandidateRepository, WikidataCandidateRepository>();
 
         services.AddSingleton<IReaderBookmarkRepository, ReaderBookmarkRepository>();
+        services.AddSingleton<IPageBookmarkRepository, PageBookmarkRepository>();
         services.AddSingleton<IReaderHighlightRepository, ReaderHighlightRepository>();
         services.AddSingleton<IReaderStatisticsRepository, ReaderStatisticsRepository>();
         services.AddSingleton<IAlignmentJobRepository, AlignmentJobRepository>();

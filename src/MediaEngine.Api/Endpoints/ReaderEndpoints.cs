@@ -6,6 +6,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -103,6 +104,95 @@ public static class ReaderEndpoints
         })
         .WithName("DeleteBookmark")
         .WithSummary("Deletes a bookmark by ID.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite);
+
+        // ── Page bookmarks (comics and PDFs) ────────────────────────────────
+
+        group.MapGet("/{assetId:guid}/page-bookmarks", async (
+            Guid assetId,
+            HttpContext context,
+            IPageBookmarkRepository repo,
+            CancellationToken ct) =>
+        {
+            var userId = ProfileUserId(context);
+            var bookmarks = await repo.ListByAssetAsync(userId, assetId, ct);
+            return Results.Ok(bookmarks.Select(bookmark => MapPageBookmark(bookmark, userId)).ToList());
+        })
+        .WithName("ListPageBookmarks")
+        .WithSummary("Lists the person's own page bookmarks on a comic or PDF, and the ones in Everyone's. Nobody else's personal bookmarks.")
+        .Produces<IReadOnlyList<PageBookmarkDto>>(StatusCodes.Status200OK)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
+
+        group.MapPost("/{assetId:guid}/page-bookmarks", async (
+            Guid assetId,
+            HttpContext context,
+            CreatePageBookmarkRequestDto request,
+            IPageBookmarkRepository repo,
+            CancellationToken ct) =>
+        {
+            if (request.Page is < 1 or > PageLocator.MaximumPage || request.Label?.Length > 500)
+            {
+                return ApiErrors.BadRequest("The bookmark page or label is not valid.");
+            }
+
+            var userId = ProfileUserId(context);
+            var bookmark = new PageBookmark
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AssetId = assetId,
+                Page = request.Page,
+                Label = string.IsNullOrWhiteSpace(request.Label) ? null : request.Label.Trim(),
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            await repo.InsertAsync(bookmark, ct);
+            return Results.Created($"/reader/page-bookmarks/{bookmark.Id}", MapPageBookmark(bookmark, userId));
+        })
+        .WithName("CreatePageBookmark")
+        .WithSummary("Adds a page bookmark to the person's own bookmarks. It stays private until an administrator promotes it.")
+        .Produces<PageBookmarkDto>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressWrite);
+
+        group.MapDelete("/page-bookmarks/{id:guid}", async (
+            Guid id,
+            HttpContext context,
+            IPageBookmarkRepository repo,
+            CatalogueResourceAuthorizationService authorization,
+            PlayerCatalogueScope scope,
+            CancellationToken ct) =>
+        {
+            var existing = await repo.FindByIdAsync(id, ct);
+            if (existing is null)
+            {
+                return ApiErrors.NotFound($"Bookmark '{id}' not found.");
+            }
+
+            // A personal bookmark is changed only by its owner; one in Everyone's only by an administrator.
+            var allowed = existing.IsGlobal
+                ? await scope.IsServerAdministratorAsync(ct)
+                : string.Equals(existing.UserId, ProfileUserId(context), StringComparison.OrdinalIgnoreCase);
+            if (!allowed)
+            {
+                return ApiErrors.NotFound("Bookmark not found for the active profile.");
+            }
+
+            if (await authorization.EvaluateAssetAsync(
+                    context, existing.AssetId, ApplicationPermissionIds.ProgressWrite, ct) != CatalogueResourceAccess.Allowed)
+            {
+                return Results.Forbid();
+            }
+
+            await repo.DeleteAsync(id, ct);
+            return Results.NoContent();
+        })
+        .WithName("DeletePageBookmark")
+        .WithSummary("Deletes a page bookmark by ID.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite);
@@ -313,6 +403,18 @@ public static class ReaderEndpoints
         context.Items.TryGetValue(ProfileOperationAccessFilter.ActiveProfileItemKey, out var value) && value is Guid profileId
             ? profileId.ToString("D")
             : throw new UnauthorizedAccessException("An authorized active profile is required.");
+
+    private static PageBookmarkDto MapPageBookmark(PageBookmark bookmark, string userId) => new()
+    {
+        Id = bookmark.Id,
+        AssetId = bookmark.AssetId,
+        Page = bookmark.Page,
+        Label = bookmark.Label,
+        IsGlobal = bookmark.IsGlobal,
+        IsYours = string.Equals(bookmark.UserId, userId, StringComparison.OrdinalIgnoreCase),
+        OwnerName = bookmark.IsGlobal ? bookmark.OwnerName : null,
+        CreatedAt = bookmark.CreatedAt,
+    };
 
     private static ReaderBookmarkDto MapBookmark(ReaderBookmark bookmark) => new()
     {

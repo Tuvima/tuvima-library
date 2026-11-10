@@ -7710,6 +7710,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetCompare
   Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | nullability=nullable | accessors=get,init
   GapSeconds: System.Double? | nullability=nullable | accessors=get,init
   GapChapters: System.Int32? | nullability=nullable | accessors=get,init
+  GapPages: System.Int32? | nullability=nullable | accessors=get,init
   Closeness: System.String | nullability=not-null | accessors=get,init
   DefaultChoice: System.String | nullability=not-null | accessors=get,init
 
@@ -7926,6 +7927,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkImpo
   ChapterTitle: System.String | nullability=nullable | accessors=get,init
   Locator: System.String | nullability=nullable | accessors=get,init
   ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  PositionKind: System.String | nullability=nullable | accessors=get,init
   FrameBase64: System.String | nullability=nullable | accessors=get,init
   Name: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
@@ -8559,6 +8561,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ReadingSettingsDto
   FontSizePx: System.Int32 | nullability=not-null | accessors=get,set
   LineHeight: System.Decimal | nullability=not-null | accessors=get,set
   PageWidth: System.String | nullability=not-null | accessors=get,set
+  PageFit: System.String | nullability=not-null | accessors=get,set
+  PageBackground: System.String | nullability=not-null | accessors=get,set
+  ShowBookmarksOnBar: System.Boolean | nullability=not-null | accessors=get,set
+  PageLayouts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+  ComicDirections: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.RefreshTextTracksResponse
   operation_id: System.Guid? | nullability=nullable | accessors=get,init
@@ -9619,10 +9626,15 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageDto
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageListDto
   PageCount: System.Int32 | nullability=not-null | accessors=get,init
   RightToLeft: System.Boolean | nullability=not-null | accessors=get,init
+  Widths: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
   Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   AudiobookAssetId: System.Guid | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreatePageBookmarkRequestDto
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateReaderBookmarkRequestDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
@@ -9659,6 +9671,16 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubTocEntryDto
   FragmentId: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.List<MediaEngine.Contracts.Reading.EpubTocEntryDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.PageBookmarkDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
+  CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   UserId: System.String | nullability=not-null | accessors=get,init
@@ -9669,6 +9691,12 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   OwnerName: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderFormatDto
+  Format: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Subtitle: System.String | nullability=nullable | accessors=get,init
+  Series: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -9682,6 +9710,13 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   Color: System.String | nullability=not-null | accessors=get,init
   NoteText: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderNextIssueDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Series: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderStatisticsDto
   Id: System.Guid | nullability=not-null | accessors=get,init

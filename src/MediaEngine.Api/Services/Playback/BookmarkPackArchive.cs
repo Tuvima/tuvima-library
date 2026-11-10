@@ -258,7 +258,7 @@ public static class BookmarkPackArchive
 
             // A book bookmark carries a reader location; one that is not a plain point in the text is not valid.
             var locator = string.IsNullOrWhiteSpace(item.Locator) ? null : item.Locator.Trim();
-            if (locator is not null && (locator.Length > 4096 || ReaderLocation.TryParse(locator) is null))
+            if (locator is not null && (locator.Length > 4096 || ReaderLocation.TryParse(locator) is null && PageLocator.TryParse(locator) is null))
             {
                 throw new BookmarkPackInvalidException("This bookmark pack has a bookmark that is not valid.");
             }

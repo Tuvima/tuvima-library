@@ -80,6 +80,7 @@ public sealed class EngineBookProxyTests
     [InlineData(HttpStatusCode.RequestedRangeNotSatisfiable, 416)]
     [InlineData(HttpStatusCode.Unauthorized, 401)]
     [InlineData(HttpStatusCode.TooManyRequests, 429)]
+    [InlineData(HttpStatusCode.UnprocessableEntity, 422)]
     [InlineData(HttpStatusCode.Forbidden, 404)]
     [InlineData(HttpStatusCode.NotFound, 404)]
     [InlineData(HttpStatusCode.InternalServerError, 502)]

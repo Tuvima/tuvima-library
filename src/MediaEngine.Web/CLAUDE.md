@@ -77,7 +77,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 |---|---|---|
 | `/` | `LibraryBrowsePage` | Home |
 | `/read`, `/read/{Tab}` | `ReadPage` | Books + comics browse |
-| `/read/{AssetId:guid}` | `EpubReader` | EPUB reader (hosts the foliate-js `BookReader` for every book) |
+| `/read/{AssetId:guid}` | `EpubReader` | The reader route. It asks the Engine's `GET /read/{id}/format`: an EPUB opens the foliate-js `BookReader`; a comic (CBZ, CBR, CB7) or a PDF opens the `PageReader` (`Components/Pages/PageReader.razor`: top line, slider, panels, wording, profile choices, saved page, page bookmarks; `wwwroot/js/page-reader.js` draws the pages and PDF.js reads PDFs; pure rules in `page-reader-layout.js`; settings in `Services/Playback/PageReaderProfileSettings.cs`; styles in `wwwroot/css/page-reader.css`). Comic pages reach the browser through the Dashboard routes `/engine-book/{id}/pages[/{n}]` |
 | `/watch`, `/watch/{Tab}` | `WatchPage` | Movies + TV browse |
 | `/watch/player/{WorkId:guid}` | `WatchPlayerPage` | Video player |
 | `/listen`, `/listen/{Tab}` | `ListenBrowsePage` | Listen discovery, Music / Audiobook browse |
