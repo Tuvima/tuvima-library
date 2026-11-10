@@ -1,9 +1,9 @@
-using Microsoft.Extensions.DependencyInjection;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
