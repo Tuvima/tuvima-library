@@ -13,7 +13,7 @@ public sealed class ActivityRunRecorder(
     IVaultLibraryRepository vaultLibraries,
     TimeProvider time,
     ILogger<ActivityRunRecorder> logger,
-    IIngestionQueueProgressService? queue = null) : IActivityRunRecorder
+    IServiceProvider? services = null) : IActivityRunRecorder
 {
     /// <summary>How long a run stays open with nothing new before it completes.</summary>
     public static readonly TimeSpan QuietWindow = TimeSpan.FromMinutes(5);
@@ -148,7 +148,8 @@ public sealed class ActivityRunRecorder(
         }
 
         // The queue's active period runs from idle to idle; the import is still the initial one while that period began before the first run did.
-        return queue?.Current is { State: "working", StartedAt: { } periodStart } && periodStart <= firstStarted;
+        // Looked up now, not at construction: the queue service sits behind the event publisher, which itself needs this recorder.
+        return services?.GetService<IIngestionQueueProgressService>()?.Current is { State: "working", StartedAt: { } periodStart } && periodStart <= firstStarted;
     }
 
     /// <summary>

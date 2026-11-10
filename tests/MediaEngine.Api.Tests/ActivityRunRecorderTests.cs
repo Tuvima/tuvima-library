@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Display;
@@ -77,7 +78,8 @@ public sealed class ActivityRunRecorderTests : IDisposable
     public async Task RecordAdded_ASecondWaveOfTheInitialImport_IsStillTheFirstRun_WhileTheQueueHasNotGoneQuiet()
     {
         var queue = new QueueStub(_clock.GetUtcNow().AddMinutes(-1));
-        var recorder = new ActivityRunRecorder(_store, new VaultStub([VaultLibrary]), _clock, NullLogger<ActivityRunRecorder>.Instance, queue);
+        var recorder = new ActivityRunRecorder(_store, new VaultStub([VaultLibrary]), _clock, NullLogger<ActivityRunRecorder>.Instance,
+            new ServiceCollection().AddSingleton<MediaEngine.Api.Services.IIngestionQueueProgressService>(queue).BuildServiceProvider());
         await AddMovieAsync("Wave one", recorder);
         _clock.Advance(TimeSpan.FromMinutes(6)); // the first run closes after five quiet minutes
         await AddMovieAsync("Wave two", recorder);
