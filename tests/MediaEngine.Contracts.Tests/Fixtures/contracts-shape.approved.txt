@@ -9619,6 +9619,7 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageDto
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageListDto
   PageCount: System.Int32 | nullability=not-null | accessors=get,init
   RightToLeft: System.Boolean | nullability=not-null | accessors=get,init
+  Widths: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
   Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
@@ -9669,6 +9670,11 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   OwnerName: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderFormatDto
+  Format: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Subtitle: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   Id: System.Guid | nullability=not-null | accessors=get,init

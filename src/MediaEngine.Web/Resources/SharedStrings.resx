@@ -12563,4 +12563,100 @@
   <data name="PlaybackIdentity_ItemActions" xml:space="preserve">
     <value>Item actions</value>
   </data>
+  <data name="PageReader_Reader" xml:space="preserve">
+    <value>Reader</value>
+  </data>
+  <data name="PageReader_BackToLibrary" xml:space="preserve">
+    <value>Back to Library</value>
+  </data>
+  <data name="PageReader_ReaderTools" xml:space="preserve">
+    <value>Reader tools</value>
+  </data>
+  <data name="PageReader_ReadingSettings" xml:space="preserve">
+    <value>Reading settings</value>
+  </data>
+  <data name="PageReader_CloseReadingSettings" xml:space="preserve">
+    <value>Close reading settings</value>
+  </data>
+  <data name="PageReader_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="PageReader_Page" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="PageReader_Opening" xml:space="preserve">
+    <value>Opening</value>
+  </data>
+  <data name="PageReader_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="PageReader_Layout" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="PageReader_Fit" xml:space="preserve">
+    <value>Fit</value>
+  </data>
+  <data name="PageReader_Direction" xml:space="preserve">
+    <value>Direction</value>
+  </data>
+  <data name="PageReader_Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="PageReader_RememberedOnThisDevice" xml:space="preserve">
+    <value>These choices are remembered on this device.</value>
+  </data>
+  <data name="PageReader_PageOf" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="PageReader_PagesOf" xml:space="preserve">
+    <value>Pages {0}–{1} of {2}</value>
+  </data>
+  <data name="PageReader_Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="PageReader_TitleInLibrary" xml:space="preserve">
+    <value>{0} - Library</value>
+  </data>
+  <data name="PageReader_LayoutAuto" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="PageReader_LayoutOne" xml:space="preserve">
+    <value>One page</value>
+  </data>
+  <data name="PageReader_LayoutTwo" xml:space="preserve">
+    <value>Two pages</value>
+  </data>
+  <data name="PageReader_LayoutScroll" xml:space="preserve">
+    <value>Scrolling</value>
+  </data>
+  <data name="PageReader_FitPage" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="PageReader_FitWidth" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="PageReader_DirectionAuto" xml:space="preserve">
+    <value>Automatic</value>
+  </data>
+  <data name="PageReader_DirectionLtr" xml:space="preserve">
+    <value>Left to right</value>
+  </data>
+  <data name="PageReader_DirectionRtl" xml:space="preserve">
+    <value>Right to left</value>
+  </data>
+  <data name="PageReader_BackgroundBlack" xml:space="preserve">
+    <value>Black</value>
+  </data>
+  <data name="PageReader_BackgroundDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="PageReader_BackgroundLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="PageReader_CantReachEngine" xml:space="preserve">
+    <value>Library can't reach the Engine. Your place is saved.</value>
+  </data>
+  <data name="PageReader_CantOpenFile" xml:space="preserve">
+    <value>This file can't be opened. It may be damaged or protected.</value>
+  </data>
 </root>

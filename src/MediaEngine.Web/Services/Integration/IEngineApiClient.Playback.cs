@@ -119,6 +119,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /read/{assetId}/metadata  -  book metadata.</summary>
     Task<EpubBookMetadataDto?> GetBookMetadataAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>GET /read/{assetId}/format  -  which reader opens the title: "epub", "comic", "pdf" or "unsupported"; plus the title lines for the top line; null when the Engine cannot say.</summary>
+    Task<ReaderFormatDto?> GetReaderFormatAsync(Guid assetId, CancellationToken ct = default);
+
     /// <summary>GET /read/{assetId}/toc  -  table of contents.</summary>
     Task<List<EpubTocEntryDto>> GetTableOfContentsAsync(Guid assetId, CancellationToken ct = default);
 

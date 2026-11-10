@@ -21,6 +21,9 @@ public static class EngineBookProxyPath
     public const int MaxPageNumber = 100_000;
     public const int MaxWidth = 4096;
 
+    /// <summary>The address the page reader's script adds <c>/pages</c> to.</summary>
+    public static string ToBookBase(Guid assetId) => $"{ProxyPrefix}/{assetId:D}";
+
     public static string ToPagesBrowserUrl(Guid assetId) => $"{ProxyPrefix}/{assetId:D}/{PagesSuffix}";
 
     public static string ToPageBrowserUrl(Guid assetId, int page, int width = 0) =>

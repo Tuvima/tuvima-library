@@ -307,6 +307,41 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Forbidden, notAllowed.StatusCode);
     }
 
+    [Theory]
+    [InlineData(".epub", "epub")]
+    [InlineData(".cbz", "comic")]
+    [InlineData(".cbr", "comic")]
+    [InlineData(".cb7", "comic")]
+    [InlineData(".pdf", "pdf")]
+    [InlineData(".azw3", "unsupported")]
+    public async Task Format_SaysWhichReaderOpensTheTitle_AndCarriesTheTopLineWords(string extension, string expected)
+    {
+        var library = Guid.NewGuid();
+        var (workId, assetId) = await InsertBookWithIdsAsync(library, extension);
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                    (@workId, 'title', 'Night Watch', CURRENT_TIMESTAMP),
+                    (@workId, 'author', 'Terry Pratchett', CURRENT_TIMESTAMP),
+                    (@workId, 'series', 'Discworld', CURRENT_TIMESTAMP),
+                    (@workId, 'series_position', '29', CURRENT_TIMESTAMP);
+                """,
+                new { workId });
+        }
+
+        await using var app = await StartAsync(library);
+
+        using var response = await app.Client.GetAsync($"/read/{assetId:D}/format");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains($"\"format\":\"{expected}\"", body);
+        Assert.Contains("\"title\":\"Night Watch\"", body);
+        Assert.Contains(expected == "comic" ? "\"subtitle\":\"Discworld #29\"" : "\"subtitle\":\"Terry Pratchett\"", body);
+    }
+
     [Fact]
     public async Task Cb7File_IsServedLikeTheOtherReadableKinds()
     {
@@ -408,6 +443,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         builder.Services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         // The other reader routes share this group; they are never called here, but their services must resolve.
         builder.Services.AddSingleton<IEpubContentService>(_ => null!);
+        builder.Services.AddSingleton<IReaderTitleService>(_ => new ReaderTitleService(_database));
         builder.Services.AddSingleton<IComicPageService>(_ => new ComicPageService(() => new ReaderConfiguration(), Path.Combine(_filesDirectory, "cache")));
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(allowedLibrary));

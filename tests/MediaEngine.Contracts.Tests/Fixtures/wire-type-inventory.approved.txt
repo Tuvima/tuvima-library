@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1542; api=0; web-client=56
+# scopes: contracts=1543; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11290,8 +11290,9 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   PageCount: System.Int32 | json=page_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RightToLeft: System.Boolean | json=right_to_left | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Widths: System.Collections.Generic.IReadOnlyList<System.Int32> | json=widths | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | json=pages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"page_count":7,"right_to_left":true,"pages":[]}
+  sample={"page_count":7,"right_to_left":true,"widths":[],"pages":[]}
 
 [contracts] MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11350,6 +11351,13 @@
   OwnerName: System.String | json=ownerName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTime | json=createdAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","userId":"sample","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"cfiPosition":"sample","label":"sample","isGlobal":true,"ownerName":"sample","createdAt":"2025-01-02T03:04:05Z"}
+
+[contracts] MediaEngine.Contracts.Reading.ReaderFormatDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Format: System.String | json=format | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Subtitle: System.String | json=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"format":"sample","title":"sample","subtitle":"sample"}
 
 [contracts] MediaEngine.Contracts.Reading.ReaderHighlightDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -12,6 +12,10 @@ public sealed class ComicPageListDto
     [JsonPropertyName("right_to_left")]
     public bool RightToLeft { get; init; }
 
+    /// <summary>The picture widths the Engine will make for a page (0, the original, is always allowed).</summary>
+    [JsonPropertyName("widths")]
+    public IReadOnlyList<int> Widths { get; init; } = [];
+
     [JsonPropertyName("pages")]
     public IReadOnlyList<ComicPageDto> Pages { get; init; } = [];
 }
@@ -27,4 +31,19 @@ public sealed class ComicPageDto
 
     [JsonPropertyName("height")]
     public int Height { get; init; }
+}
+
+/// <summary>Which reader opens a title: the book reader (<c>epub</c>), the page reader (<c>comic</c>, <c>pdf</c>) or none (<c>unsupported</c>).</summary>
+public sealed class ReaderFormatDto
+{
+    [JsonPropertyName("format")]
+    public string Format { get; init; } = "unsupported";
+
+    /// <summary>The title shown in the reader's top line, when the catalogue has one.</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    /// <summary>The line under the title: the author, or for a comic its Series and issue.</summary>
+    [JsonPropertyName("subtitle")]
+    public string? Subtitle { get; init; }
 }

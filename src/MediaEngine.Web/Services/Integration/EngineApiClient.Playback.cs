@@ -793,6 +793,25 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<ReaderFormatDto?> GetReaderFormatAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"read/{assetId}/format", ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<ReaderFormatDto>(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
     public async Task<EpubBookMetadataDto?> GetBookMetadataAsync(Guid assetId, CancellationToken ct = default)
     {
         var endpoint = $"GET /read/{assetId}/metadata";
