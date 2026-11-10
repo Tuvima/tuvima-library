@@ -1,6 +1,6 @@
 # Spec: View folders behave like every other library row
 
-**Status:** Locked
+**Status:** Built
 **Version:** 4
 **Last updated:** 2026-11-07 (locked by Shy, 08:28Z)
 **Related docs:** [Libraries v3 (fixed names, folder names)](libraries-fixed-names.md) (D17, D18, D20, D21) · [Library setup and add-folder](library-setup-add-folder.md) · [Library pages](library-pages.md) (D24, D25) · [Look pass v3](look-pass-v3.md) (D8, D13, D14, D15, D17) · [Universal editor v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (D32, WP8a) · mockups `../design/mockups/view-folders/view-folders-mockups.html` · issue #680

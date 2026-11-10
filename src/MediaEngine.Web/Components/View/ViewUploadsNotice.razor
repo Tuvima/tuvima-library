@@ -1,0 +1,14 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The page line that says why Add files and the drop zone are off (View folders spec D4c): uploads are filed into a Managed folder, and this kind has none yet. *@
+<div class="view-uploads-notice" role="status" data-uploads-off>
+    <span>@ViewFolderRules.UploadsNeedManagedLine(Noun)</span>
+    <AppButton Label="@L["ViewUploadsNotice_AddManaged"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" Href="@LibraryListing.OverviewAddress(LibraryTypeCatalog.ViewArea)" />
+</div>
+
+@code {
+    /// <summary>The kind's noun in a sentence ("photos and videos", "documents").</summary>
+    [Parameter, EditorRequired] public string Noun { get; set; } = string.Empty;
+}

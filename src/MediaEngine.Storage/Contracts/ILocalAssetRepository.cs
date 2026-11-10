@@ -153,7 +153,8 @@ public sealed record LocalAssetTimelineQuery(
     IReadOnlyCollection<Guid>? AddedByProfileIds = null,
     LocalAssetVaultScope? Vault = null,
     bool IncludeMissing = false,
-    LocalAssetOnThisDay? OnThisDay = null);
+    LocalAssetOnThisDay? OnThisDay = null,
+    IReadOnlyCollection<Guid>? SourceIds = null);
 
 /// <summary>Photos and videos taken on this month and day in an earlier year (the On this day strip).</summary>
 public sealed record LocalAssetOnThisDay(int Month, int Day, int BeforeYear);

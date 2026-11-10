@@ -131,7 +131,8 @@ public sealed record ViewAssetQueryOptions(
     ViewDocumentFilterDto? Documents = null,
     IReadOnlyList<Guid>? AddedBy = null,
     bool IncludeMissing = false,
-    string? Sort = null);
+    string? Sort = null,
+    IReadOnlyList<Guid>? Sources = null);
 
 public sealed record ViewUploadResult(bool Success, ViewUploadResponseDto? Upload = null, string? ErrorMessage = null);
 

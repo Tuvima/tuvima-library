@@ -112,6 +112,34 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task Audiobook_WithAHalfRetailMatch_TakesQidOfOwnedConfirmedBook_AndRaisesNoNeedsReviewItem()
+    {
+        await SeedBookAsync("Dune", "Frank Herbert", BookQid);
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+
+        await RunRetailAsync(new HalfMatchRetailProvider());
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(nameof(IdentityJobState.RetailMatched), job!.State);
+        Assert.Null(job.SelectedCandidateId);
+        Assert.Equal(BookQid, job.ResolvedQid);
+        Assert.Empty(await _reviews.GetPendingByEntityAsync(audiobook.AssetId));
+    }
+
+    [Fact]
+    public async Task Audiobook_WithAHalfRetailMatch_WhenNoBookIsOwned_StillGoesToNeedsReview()
+    {
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+
+        await RunRetailAsync(new HalfMatchRetailProvider());
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(nameof(IdentityJobState.RetailMatchedNeedsReview), job!.State);
+        var review = Assert.Single(await _reviews.GetPendingByEntityAsync(audiobook.AssetId));
+        Assert.Equal(ReviewTrigger.RetailMatchAmbiguous, review.Trigger);
+    }
+
+    [Fact]
     public async Task Audiobook_WithNoRetailMatch_WhenBookHasSameTitleButDifferentAuthor_StillGoesToNeedsReview()
     {
         await SeedBookAsync("Dune", "Brian Herbert", BookQid);
@@ -445,14 +473,14 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         Assert.DoesNotContain(timeline, e => e.EventType == "owned_book_matched");
     }
 
-    private async Task RunRetailAsync()
+    private async Task RunRetailAsync(IExternalMetadataProvider? provider = null)
     {
         var worker = new RetailMatchWorker(
             _jobs,
             new RetailCandidateRepository(_db),
             _outcomes,
             _timeline,
-            [new NoMatchRetailProvider()],
+            [provider ?? new NoMatchRetailProvider()],
             new RetailMatchScoringService(new FuzzyMatchingService(), _config),
             _claims,
             _canonicals,
@@ -643,6 +671,24 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
 
         public Task<IReadOnlyList<ProviderClaim>> FetchAsync(ProviderLookupRequest request, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ProviderClaim>>([]);
+    }
+
+    /// <summary>A retail answer that is the right title by the wrong author: scored "Ambiguous", needs confirmation.</summary>
+    private sealed class HalfMatchRetailProvider : IExternalMetadataProvider
+    {
+        public string Name => "apple_api";
+        public ProviderDomain Domain => ProviderDomain.Universal;
+        public IReadOnlyList<string> CapabilityTags => [];
+        public Guid ProviderId => WellKnownProviders.AppleApi;
+        public bool CanHandle(MediaType mediaType) => true;
+        public bool CanHandle(EntityType entityType) => true;
+
+        public Task<IReadOnlyList<ProviderClaim>> FetchAsync(ProviderLookupRequest request, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ProviderClaim>>(
+            [
+                new ProviderClaim(MetadataFieldConstants.Title, "Dune", 0.95),
+                new ProviderClaim(MetadataFieldConstants.Author, "Wrong Author", 0.95),
+            ]);
     }
 
     private sealed class RecordingHandler : HttpMessageHandler

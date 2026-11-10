@@ -3,10 +3,12 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Components.View
+@using MediaEngine.Web.Components.Settings
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject ViewRibbonVoice Snackbar
 @inject ViewDropUploader DropUploader
+@inject ViewFolderGate FolderGate
 @inject ViewWorkspaceService Workspace
 @inject ViewAssetDragService AssetDrag
 @inject ViewMediaGrantService MediaGrants
@@ -29,11 +31,12 @@
     {
         <AppButton Href="/view/contributions" Label="@L["Common_Contributions"].Value" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
         @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? "Done" : "Select")" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
-        @if (!Workspace.ScopeKind.CarriesProfileId()) { <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="PickedAsync" multiple disabled="@_uploading" accept="image/*,video/*" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label> }
+        @if (!Workspace.ScopeKind.CarriesProfileId()) { <AppTooltip Text="@ViewFolderRules.UploadsNeedManagedTooltip" Suppressed="@(!_uploadsOff)"><label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@(_uploading || _uploadsOff)" data-uploads-off="@(_uploadsOff ? "true" : null)"><InputFile class="view-add-media__input" OnChange="PickedAsync" multiple disabled="@(_uploading || _uploadsOff)" accept="image/*,video/*" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label></AppTooltip> }
     }
 </HeaderActions>
 <ChildContent>
-@if (!Workspace.ScopeKind.CarriesProfileId() && Workspace.CanViewPhotoTimeline && !_initializing) { <ViewDropTarget OnFiles="FilesChosenAsync" /> }
+@if (!Workspace.ScopeKind.CarriesProfileId() && Workspace.CanViewPhotoTimeline && !_initializing && !_uploadsOff) { <ViewDropTarget OnFiles="FilesChosenAsync" /> }
+@if (!Workspace.ScopeKind.CarriesProfileId() && Workspace.CanViewPhotoTimeline && !_initializing && _uploadsOff) { <ViewUploadsNotice Noun="@ViewFolderRules.Noun(ViewContentKinds.Photos, "Photos")" /> }
 @if (_initializing) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPage_LoadingPhotos"].Value" Message="@L["ViewPage_OpeningYourPersonalSpace"].Value" /> }
 else if (Workspace.Scopes is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="@L["ViewPage_TheDashboardCouldNotResolve"].Value" Retry="InitializeAsync" /> }
 else if (!Workspace.CanViewPhotoTimeline) { <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="@L["ViewPage_PhotosAreNotAvailableFor"].Value" Message="@L["ViewPage_AskAnAdministratorOfThis"].Value" Class="view-photos-denied" /> }
@@ -47,7 +50,7 @@ else
                            SearchAriaLabel="Search Photos"
                            QuickFilterAriaLabel="Photos quick filters"
                            AdvancedFilterAriaLabel="More photo filters"
-                           HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents" || _addedBy.Count > 0 || _tags.Count > 0 || _includeMissing)">
+                           HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents" || _addedBy.Count > 0 || _tags.Count > 0 || _includeMissing || _folder is not null)">
         <QuickFilters>
             @foreach (var filter in PrimaryFilters)
             {
@@ -69,6 +72,8 @@ else
             {
             <label><span>@L["ViewPage_Density"]</span><AppSelect Native="true" Value="@Workspace.Density.ToString()" ValueChanged="DensityChangedAsync" aria-label="@L["ViewPage_TimelineDensity"].Value">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppSelect></label>
             }
+            @* Which folder the items are in: only once Photos has two or more folders. *@
+            <ViewFolderFilter ProfileId="@_profileId" Folders="_folders" Kind="@ViewContentKinds.Photos" Selected="_folder" SelectedChanged="FolderChangedAsync" />
             @* Who added the items: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
             <ViewFilterChipRow Label="@L["Common_AddedBy"].Value" Choices="_addedByChoices" Selected="_addedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
             @* Photo and video tags only: they would match nothing while the Documents filter is on. *@
@@ -126,6 +131,10 @@ else
     private bool _includeMissing;
     private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
     private IReadOnlyList<ViewFilterChoice> _tagChoices = [];
+    // The Photos and Personal videos folders (the Folders filter), the one chosen, and whether uploads are off for want of a Managed folder.
+    private IReadOnlyList<ViewSourceAdminDto> _folders = [];
+    private Guid? _folder;
+    private bool _uploadsOff;
     private ViewSectionShell? _viewSectionShell;
     private ViewAssetTimelinePageDto? _page;
     private ViewTimelineIndexDto? _timelineIndex;
@@ -146,11 +155,19 @@ else
     protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
     private void DeviceChanged() => _ = InvokeAsync(() => { if (!DeviceContext.IsTouch) { _selectMode = false; } StateHasChanged(); });
     // A new profile starts with no chips and no filter: a chip or a kind filter left from the last profile could not be seen, so it could not be switched off.
-    private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _day = null; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
+    private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _folder = null; _day = null; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await LoadFoldersAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
     private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore,
-        Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null,
+        Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null, Sources: _folder is { } folder ? [folder] : null,
         IncludeMissing: _includeMissing && !string.IsNullOrWhiteSpace(_search), Sort: _filter == "recent" ? "added" : null,
         From: _day is { } day ? new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null, To: _day is { } end ? new DateTimeOffset(end.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero) : null);
+    private async Task LoadFoldersAsync()
+    {
+        var photos = await FolderGate.FoldersAsync(ViewContentKinds.Photos);
+        var videos = await FolderGate.FoldersAsync(ViewContentKinds.PersonalVideos);
+        _folders = [.. photos.Concat(videos).GroupBy(folder => folder.Id).Select(group => group.First())];
+        _uploadsOff = await FolderGate.UploadsOffAsync([ViewContentKinds.Photos, ViewContentKinds.PersonalVideos]);
+    }
+    private Task FolderChangedAsync(Guid? folder) { _folder = folder; return LoadAsync(); }
     private async Task LoadFilterChoicesAsync()
     {
         var scope = Workspace.ScopeKind;

@@ -112,6 +112,8 @@ public static class MetadataFieldConstants
     public const string MatchPinned = "match_pinned";
     public const string EpisodeTitle = "episode_title";
     public const string EpisodeDescription = "episode_description";
+    /// <summary>The description of a TV show as a whole (not one episode), read from the show provider.</summary>
+    public const string ShowDescription = "show_description";
     public const string Network = "network";
     public const string AwardReceived = "award_received";
     public const string AwardNominated = "award_nominated";
