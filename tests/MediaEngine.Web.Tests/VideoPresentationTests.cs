@@ -34,6 +34,25 @@ public sealed class VideoPresentationTests
         => Assert.Equal(expected, VideoPresentationResolver.ContextKind(tv, movie, episodes, queue));
 
     [Fact]
+    public void OwnedEpisodeProjection_CarriesTheSeasonsOwnIdSoGoToSeasonCanOpenIt()
+    {
+        var seasonId = Guid.NewGuid();
+        var episode = Guid.NewGuid();
+        var sequence = new SequencePlacementViewModel
+        {
+            Groups = [new SequenceGroupViewModel
+            {
+                Key = "season-1", Title = "Season 1", EntityId = seasonId.ToString("D"),
+                Items = [new() { Id = episode.ToString(), EntityType = DetailEntityType.TvEpisode, Title = "Pilot", IsOwned = true }],
+            }],
+        };
+
+        var owned = Assert.Single(VideoPresentationResolver.OwnedEpisodes(sequence));
+
+        Assert.Equal(seasonId, owned.SeasonId);
+    }
+
+    [Fact]
     public void OwnedEpisodeProjectionIncludesUnnumberedTvAndDoesNotUseFallbackShowArtwork()
     {
         var owned = Guid.NewGuid();

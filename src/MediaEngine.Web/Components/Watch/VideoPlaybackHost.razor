@@ -386,7 +386,7 @@
     // The episode as the presentation context lists it, for its still and its season; both are known only once that context has loaded.
     private VideoOwnedEpisode? CurrentOwnedEpisode => _presentationContext?.Episodes.FirstOrDefault(episode => episode.WorkId == Playback.CurrentItem?.WorkId);
     private Guid? BarShowWorkId => _presentationContext is { ShowWorkId: { } show } && show != Guid.Empty ? show : null;
-    private Guid? BarSeasonId => Guid.TryParse(CurrentOwnedEpisode?.SeasonKey, out var season) && season != Guid.Empty ? season : null;
+    private Guid? BarSeasonId => CurrentOwnedEpisode?.SeasonId is { } season && season != Guid.Empty ? season : null;
     private PlaybackSlotArtwork BarArtwork => PlaybackArtworkUrl.ForBarSlot(BarMedia, Playback.CurrentItem, CurrentOwnedEpisode?.StillUrl);
     private PlaybackBarIdentity BarIdentity => Playback.CurrentItem is { } item
         ? PlaybackBarIdentity.Build(BarMedia, item, _presentationContext?.ShowTitle, showWorkId: BarShowWorkId)
