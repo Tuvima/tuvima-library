@@ -398,6 +398,9 @@
         "wikidata_reconciliation",
         "tvdb"
       ],
+      "show_description": [
+        "tvdb"
+      ],
       "series": [
         "tvdb",
         "wikidata_reconciliation"
