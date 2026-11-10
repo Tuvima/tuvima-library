@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+    barKeyAction,
     buildViews,
     findHits,
     normalizeForSearch,
@@ -110,4 +111,15 @@ test("search with nothing typed, or nothing found, gives no hits", () => {
 
 test("search stops at the per-page limit", () => {
     assert.equal(findHits("a a a a a a", "a", 1, 3).length, 3);
+});
+
+test("a TV remote's Back and OK keys close and open the top line, and the arrows move between the tools", () => {
+    assert.equal(keyAction("GoBack", false, false), "close");
+    assert.equal(keyAction("BrowserBack", false, false), "close");
+    assert.equal(keyAction("Enter", false, false), "menu");
+    assert.equal(barKeyAction("ArrowLeft", "top"), "previous-tool");
+    assert.equal(barKeyAction("ArrowRight", "top"), "next-tool");
+    assert.equal(barKeyAction("ArrowDown", "top"), "to-slider");
+    assert.equal(barKeyAction("ArrowUp", "slider"), "to-tools");
+    assert.equal(barKeyAction("ArrowLeft", "slider"), null);
 });

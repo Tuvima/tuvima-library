@@ -102,7 +102,30 @@ export function keyAction(key, shift, rtl) {
         case "-":
         case "_": return "zoom-out";
         case "0": return "zoom-reset";
-        case "Escape": return "close";
+        case "Escape":
+        // A TV remote's Back key (browsers and TV platforms name it differently).
+        case "GoBack":
+        case "BrowserBack":
+        case "XF86Back": return "close";
+        // A TV remote's OK key: show the top line and move into it.
+        case "Enter": return "menu";
+        default: return null;
+    }
+}
+
+/**
+ * What a key does while focus is inside the top line or the slider (TV remote, spec section 4): left and right move between the tools,
+ * down goes to the slider, up comes back. On the slider left and right stay native (they move the page), and null means "leave it".
+ */
+export function barKeyAction(key, where) {
+    if (where === "slider") {
+        return key === "ArrowUp" ? "to-tools" : null;
+    }
+
+    switch (key) {
+        case "ArrowLeft": return "previous-tool";
+        case "ArrowRight": return "next-tool";
+        case "ArrowDown": return "to-slider";
         default: return null;
     }
 }

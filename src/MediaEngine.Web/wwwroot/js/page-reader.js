@@ -5,7 +5,7 @@
 // A page source gives the module pages to draw. The comic source asks the Engine for the page list and page pictures
 // through the Dashboard (/engine-book/{id}/pages); the PDF source (added in the same file) draws with PDF.js.
 
-import { buildViews, chooseWidth as pickWidth, effectiveLayout as layoutFor, findHits, isRightToLeft, keyAction, normalizeForSearch, tapAction, viewIndexOf } from "./page-reader-layout.js";
+import { barKeyAction, buildViews, chooseWidth as pickWidth, effectiveLayout as layoutFor, findHits, isRightToLeft, keyAction, normalizeForSearch, tapAction, viewIndexOf } from "./page-reader-layout.js";
 
 const STORAGE_KEY = "tuvima.pageReader.v1";
 const CHROME_HIDE_MS = 3000;
@@ -770,6 +770,17 @@ function wireInput() {
     on(state.shell, "pointermove", onSliderPointer);
     on(state.shell, "pointerdown", onSliderPointer);
     on(state.shell, "pointerleave", hidePeek);
+    // While focus is in the top line or slider they stay; when focus leaves, the usual fade resumes.
+    on(state.shell, "focusin", event => {
+        if (event.target?.closest?.(".pr-bar")) {
+            showChrome(true);
+        }
+    });
+    on(state.shell, "focusout", event => {
+        if (event.target?.closest?.(".pr-bar") && !event.relatedTarget?.closest?.(".pr-bar")) {
+            showChrome();
+        }
+    });
     on(document, "pointerup", hidePeek);
     on(document, "pointercancel", hidePeek);
     on(window, "resize", onResize);
@@ -946,7 +957,8 @@ function onKeyDown(event) {
     }
 
     // Esc closes the innermost thing first (a panel or the end card), even while a panel has the page keys paused.
-    if (event.key === "Escape") {
+    // (Tizen and webOS remotes send Back as a key code with no useful name.)
+    if (keyAction(event.key, false, false) === "close" || event.keyCode === 461 || event.keyCode === 10009) {
         state.dotnet.invokeMethodAsync("OnEscape");
         event.preventDefault();
         return;
@@ -957,6 +969,16 @@ function onKeyDown(event) {
     }
 
     const target = event.target;
+    // Inside the top line or slider the arrow keys move between the tools instead of turning the page (TV remote).
+    const bar = target?.closest ? target.closest(".pr-bar") : null;
+    if (bar) {
+        const where = bar.classList.contains("pr-bar--bottom") ? "slider" : "top";
+        if (moveInBar(barKeyAction(event.key, where), bar)) {
+            event.preventDefault();
+        }
+        return;
+    }
+
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
         return;
     }
@@ -971,12 +993,53 @@ function onKeyDown(event) {
         case "zoom-out": zoomBy(0.8); break;
         case "zoom-reset": resetZoom(); break;
         case "close": state.dotnet.invokeMethodAsync("OnEscape"); break;
+        case "menu":
+            // OK on a button is that button's own press; anywhere else it brings up the top line and moves into it.
+            if (target?.closest && target.closest("button, a, [role=button]")) {
+                return;
+            }
+
+            showChrome(true);
+            focusFirstTool();
+            break;
         default:
             showChrome();
             return;
     }
 
     event.preventDefault();
+}
+
+function barTools(bar) {
+    return [...bar.querySelectorAll("button, input[type=range], a[href]")].filter(element => !element.disabled && element.offsetParent !== null);
+}
+
+function focusFirstTool() {
+    const tools = barTools(state.shell.querySelector(".pr-bar--top"));
+    // The first tool after Back and the title is the reader's own (Search, Contents, Bookmark ...); Back is the fallback.
+    (tools[1] ?? tools[0])?.focus();
+}
+
+function moveInBar(action, bar) {
+    if (!action) {
+        return false;
+    }
+
+    if (action === "to-slider") {
+        state.shell.querySelector(".pr-bar--bottom input[type=range]")?.focus();
+        return true;
+    }
+
+    if (action === "to-tools") {
+        focusFirstTool();
+        return true;
+    }
+
+    const tools = barTools(bar);
+    const at = tools.indexOf(document.activeElement);
+    const to = action === "next-tool" ? Math.min(tools.length - 1, at + 1) : Math.max(0, at - 1);
+    tools[to]?.focus();
+    return true;
 }
 
 function onWheel(event) {
