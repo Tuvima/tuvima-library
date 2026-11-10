@@ -138,7 +138,7 @@
                                             <span class="br-row-sub">@BookmarkSub(mark)</span>
                                         </span>
                                     </AppNativeButton>
-                                    @if (mark.IsYours)
+                                    @if (mark.IsYours && !mark.IsGlobal)
                                     {
                                         <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["PageReader_DeleteBookmark"].Value" AriaLabel="@L["PageReader_DeleteBookmark"].Value">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppIconSize.Control20" />
@@ -340,7 +340,7 @@
         new("mine", L["PageReader_BookmarksMine"].Value),
     ];
 
-    private MediaEngine.Contracts.Reading.PageBookmarkDto? MyBookmarkOnPage => _bookmarks.FirstOrDefault(mark => mark.IsYours && mark.Page == _page);
+    private MediaEngine.Contracts.Reading.PageBookmarkDto? MyBookmarkOnPage => _bookmarks.FirstOrDefault(mark => mark.IsYours && !mark.IsGlobal && mark.Page == _page);
 
     private IReadOnlyList<MediaEngine.Contracts.Reading.PageBookmarkDto> ShownBookmarks => _bookmarks
         .Where(mark => _bookmarkTab == "everyone" ? mark.IsGlobal : mark.IsYours)
@@ -358,7 +358,9 @@
     private string BookmarkSub(MediaEngine.Contracts.Reading.PageBookmarkDto mark)
     {
         var date = mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture);
-        var who = _bookmarkTab == "everyone" && !string.IsNullOrWhiteSpace(mark.OwnerName) ? mark.OwnerName : mark.Label;
+        var who = _bookmarkTab == "everyone" && !string.IsNullOrWhiteSpace(mark.OwnerName)
+            ? (string.IsNullOrWhiteSpace(mark.Label) ? mark.OwnerName : $"{mark.Label} · {mark.OwnerName}")
+            : mark.Label;
         return string.IsNullOrWhiteSpace(who) ? date : L["PageReader_BookmarkRowSub", who, date].Value;
     }
 
@@ -687,8 +689,6 @@
 
         var first = _page;
         var last = Math.Max(_lastPage, _page);
-        _savedFirst = first;
-        _savedLast = last;
         try
         {
             var properties = new Dictionary<string, string>
@@ -702,6 +702,8 @@
             // Percent is the page over the pages; the last page counts as finished (100).
             var pct = last >= _pageCount ? 100.0 : Math.Clamp((double)last / _pageCount * 100.0, 0, 100);
             await Api.SaveProgressAsync(AssetId, progressPct: pct, extendedProperties: properties);
+            _savedFirst = first;
+            _savedLast = last;
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
         {

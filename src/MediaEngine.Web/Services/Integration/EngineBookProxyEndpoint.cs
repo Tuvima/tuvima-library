@@ -204,6 +204,12 @@ public static class EngineBookProxyEndpoint
 
     private static void CopyAllowedHeaders(HttpResponseMessage source, HttpResponse target)
     {
+        // A Vault title's pictures come back "no-store" and must stay that way, whatever the page route set before.
+        if (source.Headers.CacheControl?.NoStore == true)
+        {
+            target.Headers.CacheControl = "private, no-store";
+        }
+
         foreach (var header in source.Headers.Concat(source.Content.Headers))
         {
             if (ForwardedResponseHeaders.Contains(header.Key))
