@@ -13430,4 +13430,43 @@
   <data name="ViewFoldersTab_TidyingNow" xml:space="preserve">
     <value>Tidying {0}. New files for this library wait until it finishes.</value>
   </data>
+  <data name="ReaderFrame_Reader" xml:space="preserve">
+    <value>Reader</value>
+  </data>
+  <data name="ReaderFrame_ReaderTools" xml:space="preserve">
+    <value>Reader tools</value>
+  </data>
+  <data name="ReaderFrame_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="ReaderFrame_Contents" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="ReaderFrame_Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="ReaderFrame_BookmarkThisPage" xml:space="preserve">
+    <value>Bookmark this page</value>
+  </data>
+  <data name="ReaderFrame_RemoveBookmark" xml:space="preserve">
+    <value>Remove bookmark</value>
+  </data>
+  <data name="ReaderFrame_Bookmarks" xml:space="preserve">
+    <value>Bookmarks</value>
+  </data>
+  <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
+    <value>Reading settings</value>
+  </data>
+  <data name="ReaderFrame_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="ReaderFrame_ClosePanel" xml:space="preserve">
+    <value>Close {0}</value>
+  </data>
+  <data name="ReaderFrame_Opening" xml:space="preserve">
+    <value>Opening</value>
+  </data>
+  <data name="ReaderFrame_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
 </root>
