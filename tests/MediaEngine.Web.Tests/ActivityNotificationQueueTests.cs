@@ -98,6 +98,30 @@ public sealed class ActivityNotificationQueueTests
         Assert.Empty(queue.History);
     }
 
+    [Fact]
+    public void ARunThatEndsWithFailuresNeedsAttentionUntilItIsAcknowledgedOrALaterRunIsClean()
+    {
+        var queue = new ActivityNotificationQueue();
+        queue.Observe(Snapshot("idle"));
+        queue.Observe(Snapshot("working"));
+        queue.Observe(Snapshot("working"));
+        Assert.False(queue.NeedsAttention);
+
+        queue.Observe(Snapshot("idle", failed: 3));
+        Assert.True(queue.NeedsAttention);
+
+        queue.Acknowledge();
+        Assert.False(queue.NeedsAttention);
+
+        queue.Observe(Snapshot("working"));
+        queue.Observe(Snapshot("idle", failed: 1));
+        Assert.True(queue.NeedsAttention);
+        queue.Observe(Snapshot("working"));
+        Assert.True(queue.NeedsAttention);
+        queue.Observe(Snapshot("idle", needsReview: 2));
+        Assert.False(queue.NeedsAttention);
+    }
+
     private static IngestionQueueProgressDto Snapshot(string state, int needsReview = 0, int failed = 0, DateTimeOffset? startedAt = null) => new()
     {
         State = state,

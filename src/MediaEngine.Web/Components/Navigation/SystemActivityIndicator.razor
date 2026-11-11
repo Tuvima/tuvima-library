@@ -3,6 +3,7 @@
 
 @inject ShellActivityState Activity
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 <span class="system-activity-indicator-shell">
     <AppTooltip Text="@TooltipText" Placement="AppPlacement.Bottom">
@@ -34,15 +35,21 @@
     [Parameter] public bool CanOpenSystemActivity { get; set; }
 
     private ShellActivitySnapshot Snapshot => Activity.Current;
+
+    // The last library update ended with failures and nobody has opened Activity since: a quiet warning state (never a pop-up), shown only
+    // to someone who can open Activity, and never over the working look.
+    private bool NeedsAttention => !Snapshot.IsWorking && Snapshot.NeedsAttention && CanOpenSystemActivity;
+
     private string ButtonClass => Snapshot.IsWorking
         ? "system-activity-indicator is-working"
-        : "system-activity-indicator is-idle";
+        : NeedsAttention ? "system-activity-indicator is-attention" : "system-activity-indicator is-idle";
     private string RingClass => Snapshot.Primary is { ProgressPercent: not null } primary
         && primary.Kind is ShellActivityKind.Ingestion or ShellActivityKind.Enrichment
             ? "system-activity-indicator__ring is-animated"
             : "system-activity-indicator__ring";
 
-    private string PrimaryIcon => !Snapshot.IsWorking ? AppMaterialIcons.Outlined.Sync : Snapshot.Primary?.Kind switch
+    private string PrimaryIcon => NeedsAttention ? AppMaterialIcons.Outlined.ErrorOutline
+        : !Snapshot.IsWorking ? AppMaterialIcons.Outlined.Sync : Snapshot.Primary?.Kind switch
     {
         ShellActivityKind.Ingestion => AppMaterialIcons.Outlined.Sync,
         ShellActivityKind.Ai => AppMaterialIcons.Outlined.AutoAwesome,
@@ -53,24 +60,50 @@
     private string CountLabel => Snapshot.ActiveCount > 9 ? "9+" : Snapshot.ActiveCount.ToString();
 
     // The state is spoken and written as text, never conveyed by colour alone.
-    private string StateLabel => Snapshot.IsWorking ? SystemActivityText.WorkingState : SystemActivityText.IdleState;
+    private string StateLabel => Snapshot.IsWorking ? SystemActivityText.WorkingState
+        : NeedsAttention ? L["SystemActivityIndicator_NeedsAttentionState"].Value : SystemActivityText.IdleState;
 
     private string AriaLabel => $"{StateLabel}. {TooltipText}";
 
-    private string TooltipText => SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
+    private string TooltipText => NeedsAttention
+        ? L["SystemActivityIndicator_NeedsAttentionTooltip"].Value
+        : SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
 
-    protected override void OnInitialized() => Activity.Changed += OnActivityChanged;
+    private const string ActivityRoute = "/settings/library-activity";
+
+    protected override void OnInitialized()
+    {
+        Activity.Changed += OnActivityChanged;
+        Nav.LocationChanged += OnLocationChanged;
+        AcknowledgeWhenOnActivity();
+    }
 
     private void OnActivityChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Opening Activity by any route (the indicator, the menu, a typed address) is seeing the outcome.
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => AcknowledgeWhenOnActivity();
+
+    private void AcknowledgeWhenOnActivity()
+    {
+        if (CanOpenSystemActivity && new Uri(Nav.Uri).AbsolutePath.StartsWith(ActivityRoute, StringComparison.OrdinalIgnoreCase))
+        {
+            Activity.AcknowledgeAttention();
+        }
+    }
 
     private Task HandleClick()
     {
         if (!CanOpenSystemActivity)
             return Task.CompletedTask;
 
-        Nav.NavigateTo("/settings/library-activity");
+        Activity.AcknowledgeAttention();
+        Nav.NavigateTo(ActivityRoute);
         return Task.CompletedTask;
     }
 
-    public void Dispose() => Activity.Changed -= OnActivityChanged;
+    public void Dispose()
+    {
+        Activity.Changed -= OnActivityChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }

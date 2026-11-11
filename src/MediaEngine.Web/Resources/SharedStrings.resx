@@ -13406,4 +13406,10 @@
   <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
     <value>Listening status updated.</value>
   </data>
+  <data name="SystemActivityIndicator_NeedsAttentionState" xml:space="preserve">
+    <value>Needs attention</value>
+  </data>
+  <data name="SystemActivityIndicator_NeedsAttentionTooltip" xml:space="preserve">
+    <value>The last library update needs attention. Open Activity to see what happened.</value>
+  </data>
 </root>

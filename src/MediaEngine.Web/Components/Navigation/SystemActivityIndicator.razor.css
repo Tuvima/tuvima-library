@@ -39,6 +39,11 @@
     color: var(--tl-tone-neutral);
 }
 
+/* The last library update ended with failures and Activity has not been opened since: warning tone, with a different glyph so colour is not the only cue. */
+.system-activity-indicator-shell ::deep .system-activity-indicator.is-attention {
+    color: var(--tl-status-warning);
+}
+
 .system-activity-indicator__ring,
 .system-activity-indicator-shell ::deep .system-activity-indicator__center-icon {
     position: absolute;

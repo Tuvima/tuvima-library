@@ -29,7 +29,7 @@ public sealed record ShellActivityItem(
 /// The Library's work as the menu indicator sees it: working (blue) when any item is present, idle (green) otherwise.
 /// <see cref="Queue"/> is the Engine's latest ingestion snapshot, kept so the tooltip can use its numbers and its last-activity time.
 /// </summary>
-public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Items, IngestionQueueProgressDto? Queue = null)
+public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Items, IngestionQueueProgressDto? Queue = null, bool NeedsAttention = false)
 {
     public bool IsWorking => Items.Count > 0;
     public int ActiveCount => Items.Count;
@@ -48,6 +48,7 @@ public sealed class ShellActivityState : IDisposable
     private readonly PlaybackSessionController _playback;
     private readonly IEngineApiClient _api;
     private readonly ILogger<ShellActivityState> _logger;
+    private readonly ActivityNotificationQueue? _runs;
     private readonly Timer _expiryTimer;
     private readonly object _videoGate = new();
     private VideoPlaybackActivity? _videoPlayback;
@@ -60,20 +61,32 @@ public sealed class ShellActivityState : IDisposable
         UniverseStateContainer universeState,
         PlaybackSessionController playback,
         IEngineApiClient api,
-        ILogger<ShellActivityState> logger)
+        ILogger<ShellActivityState> logger,
+        ActivityNotificationQueue? runs = null)
     {
+        _runs = runs;
         _universeState = universeState;
         _playback = playback;
         _api = api;
         _logger = logger;
 
         _universeState.OnStateChanged += OnUniverseStateChanged;
+        // Every look at the Engine's queue is followed run by run (not only the throttled ones), so an update that ended with failures
+        // is remembered for the indicator.
+        _universeState.IngestionQueueProgressReceived += OnQueueReceived;
         _expiryTimer = new Timer(_ => OnTimerTick(), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
     public event Action? Changed;
 
     public ShellActivitySnapshot Current => BuildSnapshot(DateTimeOffset.UtcNow);
+
+    /// <summary>The person opened Activity: the last update's "needs attention" mark is cleared.</summary>
+    public void AcknowledgeAttention()
+    {
+        _runs?.Acknowledge();
+        PublishIfChanged();
+    }
 
     /// <summary>
     /// True while video or listen playback is active. Playback is not Library work, so it never appears in
@@ -200,7 +213,8 @@ public sealed class ShellActivityState : IDisposable
                 .OrderBy(item => Priority(item.Kind))
                 .ThenByDescending(item => item.UpdatedAt)
                 .ToList(),
-            _universeState.IngestionQueueProgress);
+            _universeState.IngestionQueueProgress,
+            _runs?.NeedsAttention == true);
     }
 
     private bool IsVideoPlaybackActive(DateTimeOffset now)
@@ -310,6 +324,8 @@ public sealed class ShellActivityState : IDisposable
         }
     }
 
+    private void OnQueueReceived(IngestionQueueProgressDto snapshot) => _runs?.Observe(snapshot);
+
     private void OnUniverseStateChanged()
     {
         PublishIfChanged();
@@ -347,6 +363,7 @@ public sealed class ShellActivityState : IDisposable
         var snapshot = BuildSnapshot(DateTimeOffset.UtcNow);
         var queue = snapshot.Queue;
         var signature = string.Join('|', snapshot.Items.Select(item => $"{item.Key}:{item.ProgressPercent}:{item.Label}"))
+            + $"!{snapshot.NeedsAttention}"
             + $"#{queue?.State}:{queue?.FilesFound}:{queue?.FilesDone}:{queue?.EstimatedSecondsRemaining}:{queue?.LastActivityAt:O}";
         if (string.Equals(signature, _lastSignature, StringComparison.Ordinal))
         {
@@ -432,6 +449,7 @@ public sealed class ShellActivityState : IDisposable
     {
         _disposed = true;
         _universeState.OnStateChanged -= OnUniverseStateChanged;
+        _universeState.IngestionQueueProgressReceived -= OnQueueReceived;
         _expiryTimer.Dispose();
     }
 

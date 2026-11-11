@@ -22,6 +22,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         Services.AddSingleton(api);
         Services.AddSingleton(_state);
         Services.AddSingleton(new PlaybackSessionController(null!, api));
+        Services.AddSingleton<ActivityNotificationQueue>();
         Services.AddSingleton<ShellActivityState>();
     }
 
@@ -284,7 +285,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void IndicatorStyles_UseOnlyTheBlueAndGreenTokensForState()
+    public void IndicatorStyles_UseTheBlueAndGreenTokensForStateAndTheWarningTokenOnlyForNeedsAttention()
     {
         var css = File.ReadAllText(RepoFile("SystemActivityIndicator.razor.css"));
         var markup = File.ReadAllText(RepoFile("SystemActivityIndicator.razor"));
@@ -293,7 +294,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         Assert.Contains("var(--tl-status-success)", css);
         foreach (var forbidden in new[]
                  {
-                     "is-playback", "is-warning", "is-active", "--playback-accent", "--tl-status-warning", "--tl-accent-primary",
+                     "is-playback", "is-warning", "is-active", "--playback-accent", "--tl-accent-primary",
                      "#ff9657", "amber", "orange",
                  })
         {
@@ -301,8 +302,78 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
             Assert.DoesNotContain(forbidden, markup, StringComparison.OrdinalIgnoreCase);
         }
 
+        // Needs attention (the last update ended with failures) is the one place the warning tone is used.
+        var warningUses = css.Split("--tl-status-warning").Length - 1;
+        Assert.Equal(1, warningUses);
+        Assert.Contains(".is-attention {" + (css.Contains("\r\n") ? "\r\n" : "\n") + "    color: var(--tl-status-warning);", css);
+
         Assert.DoesNotContain("ShellActivityKind.Playback", markup);
         Assert.DoesNotContain("PlaybackSessionController", markup);
+    }
+
+    // A library update that ends with failures turns the indicator amber (never a pop-up) until Activity is opened or a later update is clean.
+    private void FinishARun(int failed)
+    {
+        Services.GetRequiredService<ShellActivityState>();
+        _state.PushIngestionQueueProgress(new IngestionQueueProgressDto { State = "idle", UpdatedAt = DateTimeOffset.UtcNow });
+        _state.PushIngestionQueueProgress(Queue("working", found: 10, done: 2, progress: 0.2));
+        _state.PushIngestionQueueProgress(new IngestionQueueProgressDto
+        {
+            State = "idle",
+            UpdatedAt = DateTimeOffset.UtcNow,
+            Outcomes = new IngestionQueueOutcomesDto { Failed = failed },
+        });
+    }
+
+    [Fact]
+    public void ARunThatEndedWithFailures_TurnsTheIdleIndicatorAmberAndSaysSoInItsName()
+    {
+        FinishARun(failed: 2);
+
+        var cut = Render<SystemActivityIndicator>(p => p.Add(i => i.CanOpenSystemActivity, true));
+
+        var button = cut.Find("button.system-activity-indicator");
+        Assert.Contains("is-attention", button.ClassList);
+        Assert.DoesNotContain("is-idle", button.ClassList);
+        Assert.Equal("Needs attention", cut.Find(".sr-only").TextContent);
+        Assert.StartsWith("Needs attention. The last library update needs attention.", button.GetAttribute("aria-label"));
+        Assert.Equal("The last library update needs attention. Open Activity to see what happened.", Tooltip(cut));
+    }
+
+    [Fact]
+    public void ARunThatEndedWithFailures_ShowsNothingExtraToSomeoneWhoCannotOpenActivity()
+    {
+        FinishARun(failed: 1);
+
+        var cut = Render<SystemActivityIndicator>();
+
+        Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList);
+    }
+
+    [Fact]
+    public void OpeningActivityFromTheIndicator_ClearsTheNeedsAttentionState()
+    {
+        FinishARun(failed: 1);
+        var cut = Render<SystemActivityIndicator>(p => p.Add(i => i.CanOpenSystemActivity, true));
+        Assert.Contains("is-attention", cut.Find("button.system-activity-indicator").ClassList);
+
+        cut.Find("button.system-activity-indicator").Click();
+
+        Assert.False(Services.GetRequiredService<ActivityNotificationQueue>().NeedsAttention);
+        cut.WaitForAssertion(() => Assert.DoesNotContain("is-attention", cut.Find("button.system-activity-indicator").ClassList));
+    }
+
+    [Fact]
+    public void ALaterRunThatEndsCleanly_ClearsTheNeedsAttentionState()
+    {
+        FinishARun(failed: 1);
+        var cut = Render<SystemActivityIndicator>(p => p.Add(i => i.CanOpenSystemActivity, true));
+        Assert.Contains("is-attention", cut.Find("button.system-activity-indicator").ClassList);
+
+        _state.PushIngestionQueueProgress(Queue("working", found: 10, done: 2, progress: 0.2));
+        _state.PushIngestionQueueProgress(new IngestionQueueProgressDto { State = "idle", UpdatedAt = DateTimeOffset.UtcNow });
+
+        cut.WaitForAssertion(() => Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList));
     }
 
     private static string Tooltip(IRenderedComponent<SystemActivityIndicator> cut) =>

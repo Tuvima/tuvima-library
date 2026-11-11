@@ -18,7 +18,19 @@ public sealed class ActivityNotificationQueue
     private DateTimeOffset? _lastRunStart;
     private bool _runOpen;
     private DateTimeOffset _lastDelivery;
-    public IReadOnlyList<ActivityNotification> History => _history.ToArray();
+    private bool _needsAttention;
+    private readonly object _gate = new();
+
+    public IReadOnlyList<ActivityNotification> History { get { lock (_gate) { return _history.ToArray(); } } }
+
+    /// <summary>
+    /// True from the moment a library update ends with failures until the person opens Activity (<see cref="Acknowledge"/>) or a later
+    /// update ends without failures. The Activity indicator shows it as a quiet amber state; nothing is drawn over the page.
+    /// </summary>
+    public bool NeedsAttention { get { lock (_gate) { return _needsAttention; } } }
+
+    /// <summary>The person has opened Activity and seen the outcome.</summary>
+    public void Acknowledge() { lock (_gate) { _needsAttention = false; } }
 
     /// <summary>
     /// Follows runs, not single looks: the page looks only every few seconds, so a run is recognised by the Engine's
@@ -27,6 +39,14 @@ public sealed class ActivityNotificationQueue
     /// starts a new one, so working, waiting, idle completes once and waiting, working does not announce a second start.
     /// </summary>
     public void Observe(IngestionQueueProgressDto queue)
+    {
+        lock (_gate)
+        {
+            ObserveCore(queue);
+        }
+    }
+
+    private void ObserveCore(IngestionQueueProgressDto queue)
     {
         // A page load must not replay work already under way as a new notification.
         if (!_seen)
@@ -72,6 +92,12 @@ public sealed class ActivityNotificationQueue
             return;
         }
 
+        if (queue.State == IdleState)
+        {
+            // A finished run decides the attention state: failures raise it, a clean finish (even one that needs review) clears it.
+            _needsAttention = notification.NeedsAttention;
+        }
+
         _pending = notification; // Completion supersedes an undelivered start.
         _history.Enqueue(notification);
         while (_history.Count > 50)
@@ -81,6 +107,14 @@ public sealed class ActivityNotificationQueue
     }
 
     public ActivityNotification? Take(bool quiet, DateTimeOffset now)
+    {
+        lock (_gate)
+        {
+            return TakeCore(quiet, now);
+        }
+    }
+
+    private ActivityNotification? TakeCore(bool quiet, DateTimeOffset now)
     {
         if (quiet || _pending is null || now - _lastDelivery < TimeSpan.FromSeconds(15))
         {
