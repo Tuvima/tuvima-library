@@ -228,7 +228,7 @@ public sealed class DockerfileGuardrailTests
         var smoke = File.ReadAllText(Path.Combine(repoRoot, "tests", "container", "smoke.sh"));
 
         Assert.Contains("docker/setup-qemu-action@v4", workflow);
-        Assert.Contains("docker/setup-buildx-action@v3", workflow);
+        Assert.Contains("docker/setup-buildx-action@v4", workflow);
         Assert.Contains("linux/amd64", workflow);
         Assert.Contains("linux/arm64", workflow);
         Assert.Contains("tests/container/smoke.sh", workflow);
