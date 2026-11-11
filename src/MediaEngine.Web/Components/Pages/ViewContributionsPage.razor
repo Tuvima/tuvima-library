@@ -3,7 +3,7 @@
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Navigation
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
@@ -146,7 +146,7 @@
     {
         if (decision == "accepted" && _decisionKind == "folder" && string.IsNullOrWhiteSpace(_decisionFolder))
         {
-            Snackbar.Add(L["ViewContributionsPage_EnterASharedFolderName"].Value, AppSeverity.Error);
+            Ribbon.Add(L["ViewContributionsPage_EnterASharedFolderName"].Value, AppSeverity.Error);
             return;
         }
         var result = await ApiClient.DecideViewSharedContributionAsync(value.Id,
@@ -154,7 +154,7 @@
         Mutated(result, decision == "accepted" ? "Contribution accepted." : "Contribution declined.");
     }
     private async Task RetryAsync(ViewSharedContributionDto value) { var result = await ApiClient.RetryViewSharedContributionAsync(value.Id, value.Revision); Mutated(result, "Transfer retried."); }
-    private void Mutated(ViewSharedContributionDto? result, string success) { if (result is null) { Snackbar.Add(ApiClient.LastError ?? "The contribution could not be changed.", AppSeverity.Error); return; } _detail = result; Snackbar.Add(success, AppSeverity.Success); StartPollingIfNeeded(); StateHasChanged(); }
+    private void Mutated(ViewSharedContributionDto? result, string success) { if (result is null) { Ribbon.Add(ApiClient.LastError ?? "The contribution could not be changed.", AppSeverity.Error); return; } _detail = result; Ribbon.Add(success, AppSeverity.Success); StartPollingIfNeeded(); StateHasChanged(); }
     private void StartPollingIfNeeded()
     {
         _pollCts?.Cancel(); _pollCts?.Dispose(); _pollCts = null;

@@ -40,7 +40,6 @@ public sealed partial class UiShellRenderTests
         {
             builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), section);
             builder.CloseComponent();
@@ -116,7 +115,6 @@ public sealed partial class UiShellRenderTests
         {
             builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "recently-added");
             builder.CloseComponent();

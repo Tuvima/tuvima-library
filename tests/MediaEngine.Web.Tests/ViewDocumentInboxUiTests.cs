@@ -25,7 +25,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
 
     private readonly InboxHandler _handler = new();
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _toasts;
+    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _ribbon;
 
     public ViewDocumentInboxUiTests()
     {
@@ -41,7 +41,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
         _dialogs = Render<AppDialogHost>();
-        _toasts = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
+        _ribbon = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
         Assert.EndsWith($"/view/items/{FirstId:D}/inbox/file", _handler.LastFilePath, StringComparison.Ordinal);
         cut.WaitForAssertion(() => Assert.Contains("Inbox (1 to file)", cut.Find(".view-documents-rail").TextContent, StringComparison.Ordinal));
         Assert.True(_handler.Requests.Count(request => request.StartsWith("/view/documents/inbox-summary", StringComparison.Ordinal)) > summaries);
-        _toasts.WaitForAssertion(() => Assert.Contains("Filed.", _toasts.Markup, StringComparison.Ordinal));
+        _ribbon.WaitForAssertion(() => Assert.Contains("Filed.", _ribbon.Markup, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -223,9 +223,9 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => cut.FindAll(".view-inbox-card__file")[0].Click());
 
-        _toasts.WaitForAssertion(() => Assert.Contains("That document was already filed.", _toasts.Markup, StringComparison.Ordinal));
+        _ribbon.WaitForAssertion(() => Assert.Contains("That document was already filed.", _ribbon.Markup, StringComparison.Ordinal));
         Assert.Equal(2, cut.FindAll(".view-inbox-card").Count);
-        Assert.DoesNotContain("Filed.", _toasts.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Filed.", _ribbon.Markup, StringComparison.Ordinal);
         Assert.False(cut.FindAll(".view-inbox-card__file")[0].HasAttribute("disabled"));
     }
 

@@ -24,7 +24,6 @@
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Nav
-@inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject IJSRuntime JS
 @inject IServiceProvider Services
@@ -39,7 +38,7 @@
         <RemovedItemNotice InputLabel="@_removedInputLabel"
                            InputText="@_removedInputText"
                            LostSectionInput="_removedLostSectionInput"
-                           OnCopy="CopyRemovedInputAsync"
+                           Note="@_removedNote"
                            OnClose="CloseRemovedNoticeAsync" />
     </article>
 }
@@ -50,6 +49,16 @@ else if (Model is not null)
     <CascadingValue Value="_binding" IsFixed="true">
     <CascadingValue Value="_batch" IsFixed="true">
     <article class="tl-detail-page">
+        @if (_notice is not null)
+        {
+            @* What the last action had to say (a refusal, a failure, something left out): it stays until the next action or the close button; nothing is drawn over the page. *@
+            <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-detail-notice="true">@_notice</AppAlert>
+        }
+        @* A personal status change, with Undo; it clears by itself, on the next change and when the page moves to another item. *@
+        @if (_undoOffer is not null)
+        {
+            <AppUndoNote Offer="_undoOffer" OnCleared="ClearUndo" data-detail-undo="true" />
+        }
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
@@ -184,6 +193,7 @@ else if (Model is not null)
             ItemSwitched = AfterEditItemSwitchedAsync,
             Saved = RefreshAfterEditSavedAsync,
             SectionCommitted = RefreshAfterSectionCommitAsync,
+            DeletedWithNotice = notice => InvokeAsync(() => _disposed ? Task.CompletedTask : LeaveOrShowRemovedAsync(notice)),
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
             Trail = EditTrail,
             EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),
@@ -220,6 +230,11 @@ else if (Model is not null)
 
     protected override void OnParametersSet()
     {
+        if (_undoOffer is not null && Model?.Id != _undoModelId)
+        {
+            _undoOffer = null;
+        }
+
         UpdateEditingCatalog();
         UpdateEditingEligibility();
     }
@@ -412,11 +427,14 @@ else if (Model is not null)
             return;
         }
 
-        await CollectionMembershipFlow.RunAsync(
-            Services,
-            [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
-            DetailMenuGrouping.AddToCollectionAction.Label,
-            Model.Title);
+        if (await CollectionMembershipFlow.RunAsync(
+                Services,
+                [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
+                DetailMenuGrouping.AddToCollectionAction.Label,
+                Model.Title) is { } refusal)
+        {
+            ShowNotice(refusal, AppUiTone.Info);
+        }
     }
 
     /// <summary>
@@ -434,7 +452,7 @@ else if (Model is not null)
     private async Task ExportSetAsync()
     {
         if (Model is null || SetMenuActions is null || !Guid.TryParse(Model.Id, out var setId)
-            || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+            || RefuseEditing())
         {
             return;
         }
@@ -443,24 +461,24 @@ else if (Model is not null)
         var export = await ApiClient.ExportCollectionSetAsync(setId, profile?.Id);
         if (export is null)
         {
-            Snackbar.Add(ApiClient.LastError ?? L["DetailPage_SetActionFailed"].Value, AppSeverity.Warning);
+            ShowNotice(ApiClient.LastError ?? L["DetailPage_SetActionFailed"].Value);
             return;
         }
 
         await using var stream = new MemoryStream(CollectionSetPackFile.Write(export.File), writable: false);
         using var reference = new DotNetStreamReference(stream);
         await JS.InvokeVoidAsync("tuvimaDownloads.fromStream", CollectionSetPackFile.FileNameFor(Model.Title), reference, CollectionSetPackFile.ContentType);
-        Snackbar.Add(L["DetailPage_ExportSetSaved", Model.Title].Value, AppSeverity.Success);
+        // The file landing in the browser's downloads is the confirmation; only what was left out is worth a line.
         if (export.Omitted.Count > 0)
         {
-            Snackbar.Add(L["DetailPage_ExportSetOmitted", string.Join(", ", export.Omitted)].Value, AppSeverity.Info);
+            ShowNotice(L["DetailPage_ExportSetOmitted", string.Join(", ", export.Omitted)].Value, AppUiTone.Info);
         }
     }
 
     private async Task RemoveSetAsync()
     {
         if (Model is null || SetMenuActions is null || !Guid.TryParse(Model.Id, out var setId)
-            || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+            || RefuseEditing())
         {
             return;
         }
@@ -479,11 +497,11 @@ else if (Model is not null)
         var removed = await ApiClient.RemoveCollectionSetAsync(setId, profile?.Id);
         if (removed is null)
         {
-            Snackbar.Add(ApiClient.LastError ?? L["DetailPage_SetActionFailed"].Value, AppSeverity.Warning);
+            ShowNotice(ApiClient.LastError ?? L["DetailPage_SetActionFailed"].Value);
             return;
         }
 
-        Snackbar.Add(L["DetailPage_RemoveSetDone", removed.RemovedCollections].Value, AppSeverity.Success);
+        // The set is gone, so the page goes with it; that is the confirmation.
         _leaving = true;
         await LeaveAfterRemovalAsync();
     }
@@ -665,7 +683,7 @@ else if (Model is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The detail page could not refresh after Save changes");
-            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
+            ShowNotice(L["Common_SavedButThePageCould"].Value);
         }
     }
 
@@ -679,7 +697,7 @@ else if (Model is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The detail page could not refresh after an editing section saved a change");
-            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
+            ShowNotice(L["Common_SavedButThePageCould"].Value);
         }
     }
 
@@ -691,6 +709,7 @@ else if (Model is not null)
 
     // Someone else deleted this title while the overlay showed it: the notice stands in for the page.
     private bool _removed;
+    private string? _removedNote;
     private string? _removedInputLabel;
     private string? _removedInputText;
     private bool _removedLostSectionInput;
@@ -701,7 +720,7 @@ else if (Model is not null)
     /// </summary>
     private async Task OpenEditShortcutAsync(DetailAction action)
     {
-        if (action.IsDisabled || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar) || !CanEditMedia)
+        if (action.IsDisabled || RefuseEditing() || !CanEditMedia)
         {
             return;
         }
@@ -724,8 +743,9 @@ else if (Model is not null)
         }
 
         // The entry only shows to an administrator on a desktop; a handler never trusts that.
-        if (LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), Snackbar))
+        if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
+            ShowNotice(refusal);
             return;
         }
 
@@ -736,20 +756,20 @@ else if (Model is not null)
         }
 
         _deleting = true;
-        var outcome = LibraryItemDeletionFlowOutcome.Canceled;
+        var result = new LibraryItemDeletionFlowResult(LibraryItemDeletionFlowOutcome.Canceled);
         try
         {
-            outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Snackbar, [workId], Model.Title);
+            result = await LibraryItemDeletionFlow.RunAsync(Dialogs, [workId], Model.Title);
         }
         finally
         {
-            _leaving = outcome != LibraryItemDeletionFlowOutcome.Canceled;
+            _leaving = result.Outcome != LibraryItemDeletionFlowOutcome.Canceled;
             _deleting = false;
         }
 
         if (_leaving)
         {
-            await LeaveAfterRemovalAsync();
+            await LeaveOrShowRemovedAsync(result.Notice);
         }
         else if (_removedWhileDeleting && !_disposed)
         {
@@ -772,7 +792,7 @@ else if (Model is not null)
         LibraryItemDeletionDialogResult? answer = null;
         try
         {
-            answer = await LibraryItemDeletionFlow.RunGroupAsync(Dialogs, Snackbar, target);
+            answer = await LibraryItemDeletionFlow.RunGroupAsync(Dialogs, target);
         }
         finally
         {
@@ -782,11 +802,16 @@ else if (Model is not null)
 
         if (_leaving)
         {
-            await LeaveAfterRemovalAsync();
+            await LeaveOrShowRemovedAsync(LibraryItemDeletionFlow.NoticeFor(answer));
         }
         else if (answer?.Deleted is not null && target.Kind == LibraryGroupKinds.Season && Guid.TryParse(Model?.Id, out var showId))
         {
             // The season is gone; the show page opens on its first season again.
+            if (LibraryItemDeletionFlow.NoticeFor(answer) is { } seasonNotice)
+            {
+                ShowNotice(seasonNotice);
+            }
+
             DetailsOverlayNavigation.ReplaceAddress(Nav, Overlay, $"/details/tvshow/{showId:D}");
         }
         else if (_removedWhileDeleting && !_disposed)
@@ -831,19 +856,27 @@ else if (Model is not null)
         await HandleRemovedByAnotherAsync();
     });
 
-    // Not this page's own delete. In the overlay the person may have been typing, so it stays open with a notice (and a way to keep
-    // the typed text); a page on its own says so in a toast and goes back, as before.
-    private async Task HandleRemovedByAnotherAsync()
+    // Not this page's own delete. The person may have been typing, so the page stays with the "no longer in your library" notice in its
+    // place (and a way to keep the typed text); its Close goes back to where the person came from.
+    private Task HandleRemovedByAnotherAsync()
     {
-        if (Overlay is { IsOpen: true })
+        ShowRemovedNotice();
+        return Task.CompletedTask;
+    }
+
+    // This page's own delete worked: the page goes back at once, unless something needs saying (files left on disk, titles already gone),
+    // and then the removed notice stands in its place and carries the line.
+    private async Task LeaveOrShowRemovedAsync(string? notice)
+    {
+        if (notice is null)
         {
-            ShowRemovedNotice();
+            await LeaveAfterRemovalAsync();
             return;
         }
 
-        _leaving = true;
-        Snackbar.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
-        await LeaveAfterRemovalAsync();
+        // "Already gone" is what the notice itself says; only a different line (files left on disk) is added to it.
+        _removedNote = notice == LibraryItemDeletionText.NoLongerInLibrary ? null : notice;
+        ShowRemovedNotice();
     }
 
     // The editor closes without asking when it was open on this page (the item is gone, so there is nothing to save or discard); staged text
@@ -883,31 +916,17 @@ else if (Model is not null)
             : string.Join(Environment.NewLine, staged.Select(field => $"{Label(field)}: {field.Value}"));
     }
 
-    private async Task CopyRemovedInputAsync()
-    {
-        if (string.IsNullOrEmpty(_removedInputText))
-        {
-            return;
-        }
-
-        switch (await JS.TryCopyAsync(_removedInputText, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Snackbar.Add(L["DetailPage_Copied"].Value, AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Snackbar.Add(ClipboardInterop.FailedMessage("the text"), AppSeverity.Warning);
-                break;
-        }
-    }
-
-    // Close is the overlay's own close path; nothing typed on a deleted title needs a guard.
+    // Close is the overlay's own close path (or the way back on a page of its own); nothing typed on a deleted title needs a guard.
     private async Task CloseRemovedNoticeAsync()
     {
         if (Overlay is { IsOpen: true } overlay)
         {
             await overlay.DismissAsync(force: true);
+            return;
         }
+
+        _leaving = true;
+        await LeaveAfterRemovalAsync();
     }
 
     private bool ListsRemovedTitle(LibraryItemsRemovedEvent removed) => Model is not null
@@ -972,9 +991,39 @@ else if (Model is not null)
         }
     }
 
+    // What the last action had to say, shown at the top of the page until the next action or the close button.
+    private string? _notice;
+    private AppUiTone _noticeTone = AppUiTone.Warning;
+
+    private void ShowNotice(string text, AppUiTone tone = AppUiTone.Warning)
+    {
+        _notice = text;
+        _noticeTone = tone;
+    }
+
+    private void ClearNotice() => _notice = null;
+
+    // The Undo line after a personal status change (one at a time) and the item it was made on.
+    private UndoOffer? _undoOffer;
+    private string? _undoModelId;
+    private Task ClearUndo() { _undoOffer = null; return Task.CompletedTask; }
+
+    // Every edit handler asks the device rule again (a hidden button is never the only protection); the refusal is shown in place.
+    private bool RefuseEditing()
+    {
+        if (!EditorDeviceRule.TryRefuse(DeviceContext))
+        {
+            return false;
+        }
+
+        ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+        return true;
+    }
+
     private async Task HandleDetailActionAsync(DetailAction action)
     {
         if (Model is null) return;
+        ClearNotice();
         if (action.Key == DetailActionKeys.PlayFromBeginning)
         {
             if (IsAudiobook) { await PlayAudiobookAsync(preferResume: false); return; }
@@ -995,7 +1044,7 @@ else if (Model is not null)
                 .OrderBy(TrackSortKey).Select(ToQueueItem).Where(item => item.WorkId != Guid.Empty).ToList();
             if (action.Key == DetailActionKeys.PlayNext) tracks.Reverse();
             foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == DetailActionKeys.PlayNext);
-            Snackbar.Add($"Added {tracks.Count} tracks to the queue.", AppSeverity.Success);
+            // The queue in the player shows the added tracks; that is the confirmation.
             return;
         }
         if (action.Key == DetailActionKeys.AddToCollection)
@@ -1039,7 +1088,7 @@ else if (Model is not null)
         if (action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit)
         {
             if (action.IsDisabled) return;
-            if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
+            if (RefuseEditing()) return;
             if (!CanEditMedia) return;
 
             // Items, people, series and curated collections all edit in the pop-over, which opens at once over this page (on Match when the
@@ -1133,16 +1182,16 @@ else if (Model is not null)
                 ?? throw new InvalidOperationException("Personal status could not be loaded. Please try again.");
             var result = await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), Model.EntityType,
                 Guid.Parse(Model.Id), command, status.Revision));
-            await RefreshCurrentDetailAsync();
-            Snackbar.Add($"Status updated for {result.AffectedCount} owned item(s).", AppSeverity.Success, options => {
-                options.Action = "Undo";
-                options.OnClick = async _ => {
-                    try { await ApiClient.UndoPersonalStatusAsync(result.CommandId); await RefreshCurrentDetailAsync(); }
-                    catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
-                };
+            ClearNotice();
+            _undoModelId = Model.Id;
+            _undoOffer = new UndoOffer(L["DetailPage_StatusUpdatedForOwned", result.AffectedCount].Value, async () =>
+            {
+                await ApiClient.UndoPersonalStatusAsync(result.CommandId);
+                await RefreshCurrentDetailAsync();
             });
+            await RefreshCurrentDetailAsync();
         }
-        catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
+        catch (Exception ex) { ShowNotice(ex.Message, AppUiTone.Error); }
         finally { _changingPersonalStatus = false; }
     }
 
@@ -1188,20 +1237,19 @@ else if (Model is not null)
 
             if (failed == targets.Count)
             {
-                Snackbar.Add(L["DetailPage_ThatCouldNotBeDone"].Value, AppSeverity.Warning);
+                ShowNotice(L["DetailPage_ThatCouldNotBeDone"].Value);
             }
             else if (failed > 0)
             {
-                Snackbar.Add($"Done for {targets.Count - failed} of {targets.Count} files; {failed} could not be changed.", AppSeverity.Warning);
+                ShowNotice(L["DetailPage_UnmatchedPartlyDone", targets.Count - failed, targets.Count, failed].Value);
             }
-            else
+            else if (action.Key != DetailActionKeys.UnmatchedKeep)
             {
-                Snackbar.Add(action.Key switch
-                {
-                    DetailActionKeys.UnmatchedRetry => "Looking it up again now.",
-                    DetailActionKeys.UnmatchedKeep => "Kept as is.",
-                    _ => "Looking it up again.",
-                }, AppSeverity.Success);
+                // Looking it up again runs in the background and the page does not change at once, so this one says it started.
+                // Keep as is needs no line: the refreshed page shows the file as kept.
+                ShowNotice(
+                    action.Key == DetailActionKeys.UnmatchedRetry ? L["DetailPage_RetryStarted"].Value : L["DetailPage_LookUpAgainStarted"].Value,
+                    AppUiTone.Info);
             }
 
             await RefreshCurrentDetailAsync();
@@ -1273,20 +1321,20 @@ else if (Model is not null)
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (!TryResolveProfileEntity(out var entityKind, out var entityId))
         {
-            Snackbar.Add(L["DetailPage_ThisItemCannotBeAdded"].Value, AppSeverity.Warning);
+            ShowNotice(L["DetailPage_ThisItemCannotBeAdded"].Value);
             return;
         }
 
         if (profile is null)
         {
-            Snackbar.Add(L["DetailPage_MyListRequiresAnActive"].Value, AppSeverity.Warning);
+            ShowNotice(L["DetailPage_MyListRequiresAnActive"].Value);
             return;
         }
 
         var membership = await SavedItems.ToggleAsync(entityKind, entityId);
         if (membership is null)
         {
-            Snackbar.Add(L["DetailPage_MyListCouldNotBe"].Value, AppSeverity.Warning);
+            ShowNotice(L["DetailPage_MyListCouldNotBe"].Value);
             return;
         }
 
@@ -1294,7 +1342,7 @@ else if (Model is not null)
         SetFavoriteSelection(Model.SecondaryActions, membership.IsSaved);
         SetFavoriteSelection(Model.OverflowActions, membership.IsSaved);
         action.IsSelected = membership.IsSaved;
-        Snackbar.Add(membership.IsSaved ? "Added to My List." : "Removed from My List.", AppSeverity.Success);
+        // The heart now shows whether it is on My List; that is the confirmation.
         StateHasChanged();
         await OnActionSelected.InvokeAsync(action);
     }
@@ -1342,7 +1390,7 @@ else if (Model is not null)
     {
         if (!TryResolveProfileEntity(out var entityKind, out var workId))
         {
-            Snackbar.Add(L["DetailPage_ThisItemCannotBeRated"].Value, AppSeverity.Warning);
+            ShowNotice(L["DetailPage_ThisItemCannotBeRated"].Value);
             return;
         }
 
@@ -1401,7 +1449,7 @@ else if (Model is not null)
 
         if (tracks.Count == 0)
         {
-            Snackbar.Add(L["DetailPage_ThisAlbumHasNoPlayable"].Value, AppSeverity.Info);
+            ShowNotice(L["DetailPage_ThisAlbumHasNoPlayable"].Value, AppUiTone.Info);
             return;
         }
 
@@ -1420,7 +1468,7 @@ else if (Model is not null)
             .ToList();
         if (candidates.Count == 0)
         {
-            Snackbar.Add(L["DetailPage_ThisCollectionHasNoOwned"].Value, AppSeverity.Info);
+            ShowNotice(L["DetailPage_ThisCollectionHasNoOwned"].Value, AppUiTone.Info);
             return;
         }
 
@@ -1457,7 +1505,7 @@ else if (Model is not null)
             return;
         }
 
-        Snackbar.Add(L["DetailPage_TheSelectedItemCannotBe"].Value, AppSeverity.Warning);
+        ShowNotice(L["DetailPage_TheSelectedItemCannotBe"].Value);
     }
 
     private ListenQueueItem ToQueueItem(MediaGroupingItemViewModel item)

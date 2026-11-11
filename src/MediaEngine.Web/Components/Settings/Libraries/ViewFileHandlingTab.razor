@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
 @inject IEngineApiClient ApiClient
-@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The File handling tab of a View kind (Library pages WP11): how files are stored depending on how they are added, what Library does and
@@ -31,6 +30,7 @@
                 <AppButton Label="@L["ViewFileHandlingTab_UseTheDefault"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="UseDefaultAsync" />
                 <AppButton Label="@L["ViewFileHandlingTab_SaveLayout"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(ReadOnly || _busy || string.IsNullOrWhiteSpace(_pattern))" OnClick="SaveAsync" />
             </AppActionBar>
+            <AppSavedNote @ref="_layoutSaved" Text="@L["ViewFileHandlingTab_FilingLayoutSavedItApplies"].Value" data-layout-saved />
         </SettingsSectionPanel>
         <ViewDuplicatesPanel ReadOnly="@ReadOnly" />
     }
@@ -69,6 +69,7 @@
     private ViewFilingLayoutDto? _layout;
     private string _pattern = string.Empty;
     private string? _error;
+    private AppSavedNote? _layoutSaved;
     private bool _busy;
     private ViewMissingFileSettingsDto? _missing;
     private bool _removeAfterWhile;
@@ -126,7 +127,7 @@
         {
             var saved = await ApiClient.UpdateViewFilingLayoutAsync(pattern);
             if (saved is null) _error = ApiClient.LastError ?? "The layout could not be saved.";
-            else { _error = null; _layout = saved; _pattern = saved.Pattern; Snackbar.Add(L["ViewFileHandlingTab_FilingLayoutSavedItApplies"].Value, AppSeverity.Success); }
+            else { _error = null; _layout = saved; _pattern = saved.Pattern; _layoutSaved?.Show(); }
         }
         finally { _busy = false; }
     }

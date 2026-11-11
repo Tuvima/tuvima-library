@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* Lanes (Collections and lists spec D10): the collection rows on Home, Watch, Read and Listen. An administrator orders the
@@ -23,6 +22,11 @@
                 </Control>
             </AppSettingRow>
         </SettingsSectionPanel>
+
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-lanes-failure>@_failure</AppAlert>
+        }
 
         @if (_loading)
         {
@@ -137,6 +141,7 @@
     ];
 
     private string _place = "home";
+    private string? _failure;
     private DisplayLaneSettingsDto? _settings;
     private bool _loading = true;
 
@@ -164,12 +169,13 @@
             return;
         }
 
+        _failure = null;
         _settings = previous with { Shared = next };
         var entries = next.Select(lane => new DisplayLaneOrderEntry(lane.CollectionId, lane.Visible)).ToList();
         if (!await ApiClient.SetDisplaySharedLanesAsync(_place, entries))
         {
             _settings = previous;
-            Snackbar.Add(L["HomeLanesSettings_TheLanesCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["HomeLanesSettings_TheLanesCouldNotBe"].Value;
         }
     }
 
@@ -209,23 +215,25 @@
         }
 
         (lanes[position], lanes[target]) = (lanes[target], lanes[position]);
+        _failure = null;
         _settings = previous with { Mine = lanes };
         if (!await ApiClient.SetDisplayOwnLanesAsync(_place, lanes.Select(lane => lane.CollectionId).ToList()))
         {
             _settings = previous;
-            Snackbar.Add(L["HomeLanesSettings_YourLanesCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["HomeLanesSettings_YourLanesCouldNotBe"].Value;
         }
     }
 
     private async Task ShowAgainAsync(DisplayLaneDto lane)
     {
+        _failure = null;
         if (await ApiClient.SetDisplayLaneHiddenAsync(_place, lane.CollectionId, hidden: false))
         {
             await LoadAsync();
         }
         else
         {
-            Snackbar.Add($"{lane.Name} could not be shown again. Nothing was changed.", AppSeverity.Error);
+            _failure = $"{lane.Name} could not be shown again. Nothing was changed.";
         }
     }
 }

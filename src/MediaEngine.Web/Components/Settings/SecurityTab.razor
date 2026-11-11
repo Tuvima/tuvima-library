@@ -1,7 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @implements IAsyncDisposable
 @inject UIOrchestratorService Orchestrator
-@inject IAppToastService Snackbar
 @inject ILogger<SecurityTab> Logger
 @inject RegisteredExternalProvidersSnapshot RegisteredProviders
 @inject IStringLocalizer<SharedStrings> L
@@ -19,6 +18,10 @@
         }
         else
         {
+            @if (_failure is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-security-failure>@_failure</AppAlert>
+            }
             <h3 id="security-group-sign-in">@L["SecurityTab_HowPeopleSignIn"]</h3>
             <div class="security-settings__controls" role="group" aria-labelledby="security-group-sign-in">
                 <label class="app-field__label">@L["SecurityTab_AuthenticationMode"]</label>
@@ -51,7 +54,7 @@
             }
             @foreach (var provider in _providerEditors)
             {
-                <div class="security-settings__provider">
+                <div class="security-settings__provider @_glow.Class(provider.Id)">
                     <div class="security-settings__provider-heading">
                         <strong>@ValueOrNotConfigured(provider.DisplayName)</strong>
                         <span>@ProviderState(provider)</span>
@@ -138,6 +141,7 @@
             <div class="security-settings__actions tl-sp-mt-5">
                 <AppButton Label="@(_saving ? "Saving…" : "Save authentication settings")"
                            Disabled="@_saving" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Loading="@_saving" OnClick="SaveAsync" />
+                <AppSavedNote @ref="_savedNote" />
             </div>
         }
     </SettingsSectionPanel>
@@ -148,6 +152,11 @@
 
     private bool _authLoading = true;
     private bool _saving;
+    private string? _failure;
+    private AppSavedNote? _savedNote;
+    private readonly JustChanged _glow = new();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
     private bool _disposed;
     private readonly CancellationTokenSource _lifetime = new();
     private AuthSettingsDto? _authSettings;
@@ -195,6 +204,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _glow.Changed += OnGlowCleared;
         Apply(await Orchestrator.GetAuthSettingsAsync(_lifetime.Token));
         _authLoading = false;
     }
@@ -216,6 +226,8 @@
         _providerEditors.AddRange(value.ExternalProviders.Select(ProviderEditor.From));
     }
 
+    private void Fail(string message) => _failure = message;
+
     private void ChangeMode(string? selected)
     {
         _mode = selected ?? "Local";
@@ -225,16 +237,17 @@
     private async Task SaveAsync()
     {
         if (_saving || _disposed) return;
+        _failure = null;
         if (!int.TryParse(_invitationLifetimeHours, out var invitations) || invitations is < 1 or > 720 ||
             !int.TryParse(_sessionLifetimeHours, out var sessions) || sessions is < 1 or > 8760 ||
             !int.TryParse(_maximumActiveSessions, out var maximum) || maximum is < 1 or > 100)
         {
-            Snackbar.Add(L["SecurityTab_EnterValidInvitationAndSession"].Value, AppSeverity.Error);
+            Fail(L["SecurityTab_EnterValidInvitationAndSession"].Value);
             return;
         }
         if (!_passwordSignInEnabled && !_passkeySignInEnabled && !_externalSignInEnabled)
         {
-            Snackbar.Add(L["SecurityTab_KeepAtLeastOneAccount"].Value, AppSeverity.Error);
+            Fail(L["SecurityTab_KeepAtLeastOneAccount"].Value);
             return;
         }
 
@@ -255,17 +268,17 @@
             }, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add(L["SecurityTab_AuthenticationSettingsCouldNotBe"].Value, AppSeverity.Error);
+                Fail(L["SecurityTab_AuthenticationSettingsCouldNotBe"].Value);
                 return;
             }
             Apply(saved);
-            Snackbar.Add(L["SecurityTab_AuthenticationSettingsSavedRestartThe"].Value, AppSeverity.Success);
+            _savedNote?.Show();
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication settings save failed");
-            Snackbar.Add(L["SecurityTab_AuthenticationSettingsCouldNotBe"].Value, AppSeverity.Error);
+            Fail(L["SecurityTab_AuthenticationSettingsCouldNotBe"].Value);
         }
         finally
         {
@@ -297,9 +310,10 @@
     private async Task SaveProviderAsync(ProviderEditor provider)
     {
         if (_saving || _disposed) return;
+        _failure = null;
         if (string.IsNullOrWhiteSpace(provider.Id))
         {
-            Snackbar.Add(L["SecurityTab_EnterAStableProviderId"].Value, AppSeverity.Error);
+            Fail(L["SecurityTab_EnterAStableProviderId"].Value);
             return;
         }
 
@@ -327,7 +341,7 @@
             }, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add(L["Common_ProviderSettingsCouldNotBe"].Value, AppSeverity.Error);
+                Fail(L["Common_ProviderSettingsCouldNotBe"].Value);
                 return;
             }
             if (!string.IsNullOrWhiteSpace(provider.ClientSecret) || provider.ClearClientSecret)
@@ -335,13 +349,13 @@
                 RegisteredProviders.MarkSecretChanged();
             }
             Apply(saved);
-            Snackbar.Add(L["SecurityTab_ProviderSavedRestartTheEngine"].Value, AppSeverity.Success);
+            _glow.Mark(provider.Id);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication provider save failed");
-            Snackbar.Add(L["Common_ProviderSettingsCouldNotBe"].Value, AppSeverity.Error);
+            Fail(L["Common_ProviderSettingsCouldNotBe"].Value);
         }
         finally
         {
@@ -352,6 +366,7 @@
     private async Task DeleteProviderAsync(ProviderEditor provider)
     {
         if (_saving || _disposed) return;
+        _failure = null;
         _saving = true;
         try
         {
@@ -359,17 +374,16 @@
             var current = deleted ? await Orchestrator.GetAuthSettingsAsync(_lifetime.Token) : null;
             if (!deleted || current is null)
             {
-                Snackbar.Add(L["SecurityTab_ProviderCouldNotBeDeleted"].Value, AppSeverity.Error);
+                Fail(L["SecurityTab_ProviderCouldNotBeDeleted"].Value);
                 return;
             }
             Apply(current);
-            Snackbar.Add(L["SecurityTab_ProviderDeletedRestartTheEngine"].Value, AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication provider delete failed");
-            Snackbar.Add(L["SecurityTab_ProviderCouldNotBeDeleted"].Value, AppSeverity.Error);
+            Fail(L["SecurityTab_ProviderCouldNotBeDeleted"].Value);
         }
         finally
         {
@@ -387,6 +401,8 @@
     {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
         return ValueTask.CompletedTask;

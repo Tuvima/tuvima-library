@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Settings
 @implements IAsyncDisposable
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <AppSettingsGroup Heading="@L["Common_Documents"].Value" Helper="@L["DocumentTextSettings_ScannedPagesAndPhotosOf"].Value">
@@ -199,7 +198,6 @@
             else
             {
                 _error = null;
-                Snackbar.Add(result.Message, AppSeverity.Success);
             }
 
             await RefreshAsync();
@@ -224,7 +222,6 @@
             else
             {
                 _error = null;
-                Snackbar.Add(result.Message, AppSeverity.Success);
             }
 
             await RefreshAsync();

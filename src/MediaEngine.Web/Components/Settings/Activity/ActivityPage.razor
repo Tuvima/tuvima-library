@@ -7,7 +7,6 @@
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject DeviceContextService DeviceContext
-@inject IAppToastService Toasts
 @inject ILogger<ActivityPage> Logger
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -106,6 +105,11 @@
         </div>
 
         <AppActiveFilterSummary Items="@Chips" Remove="RemoveChipAsync" ClearAll="ClearFiltersAsync" />
+
+        @if (_songsFailure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _songsFailure = null; })" data-activity-songs-failure>@_songsFailure</AppAlert>
+        }
 
         <div class="activity-list" data-activity-list>
             @if (_loading && _items.Count == 0)
@@ -247,6 +251,10 @@
                 @if (_nextCursor is not null)
                 {
                     <div class="activity-list__more">
+                        @if (_moreFailed)
+                        {
+                            <AppAlert Tone="AppUiTone.Error" Dense="true" data-activity-more-failure>@L["ActivityPage_MoreActivityCouldnTBe"]</AppAlert>
+                        }
                         <AppButton Label="@L["Common_LoadMore"].Value"
                                    Loading="@_loadingMore"
                                    FullWidth="@DeviceContext.IsPhone"
@@ -398,6 +406,7 @@
     private bool _observeRequested;
     private ElementReference? _observed;
     private bool _moreFailed;
+    private string? _songsFailure;
     private bool _includesOthers;
     private bool _loading = true;
     private bool _loadingMore;
@@ -994,7 +1003,7 @@
             {
                 _moreFailed = true;
                 _observeRequested = true;
-                Toasts.Add("More activity couldn't be loaded. Try again.", AppSeverity.Error);
+                // The failure is drawn above the Load more button (_moreFailed) until the next try.
             }
         }
         finally
@@ -1127,6 +1136,7 @@
     private async Task LoadSongsAsync(PersonalActivityItemDto session)
     {
         _songsLoading.Add(session.Id);
+        _songsFailure = null;
         try
         {
             var upper = (ActivityListPresentation.StartedAt(session) ?? (Clock ?? TimeProvider.System).GetUtcNow()).ToUniversalTime();
@@ -1151,7 +1161,7 @@
             else
             {
                 _expanded.Remove(session.Id);
-                Toasts.Add("The songs couldn't be loaded. Try again.", AppSeverity.Error);
+                _songsFailure = L["ActivityPage_TheSongsCouldnTBeLoaded"].Value;
             }
         }
         finally
@@ -1250,9 +1260,8 @@
             switch (outcome.Status)
             {
                 case PersonalActivityOutcomeStatus.Ok:
-                    var deleted = outcome.Value!.Deleted;
                     _deleteOpen = false;
-                    Toasts.Add($"{deleted.ToString("N0", CultureInfo.CurrentCulture)} {(deleted == 1 ? "entry was" : "entries were")} deleted.", AppSeverity.Success);
+                    // The deleted entries leave the list when it is read again; that is the confirmation.
                     ResetPaging();
                     await ReloadAsync();
                     break;

@@ -8,7 +8,6 @@
 @implements IDisposable
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
-@inject IAppToastService Toasts
 @inject DeviceContextService Device
 @inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
@@ -40,6 +39,9 @@
                          FilesBatch="@Editor.FileBatch.IsOpen"
                          ChangeSuffix="@(Editor.FileBatch.IsOpen ? string.Format(L["EditorFilesBatch_FilesCount"].Value, Editor.FileBatch.Rows.Count) : null)"
                          ShowHistory="@(binding?.ShowHistory == true)"
+                         ActionNotice="@_actionNotice"
+                         ActionNoticeIsError="_actionNoticeIsError"
+                         ActionNoticeDismissed="@(() => _actionNotice = null)"
                          ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
                          FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
@@ -183,7 +185,7 @@
         try
         {
             var rows = Editor.FileBatch.Rows.ToList();
-            await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, Toasts, L);
+            await ShowAsync(await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, L));
         }
         finally
         {
@@ -212,6 +214,29 @@
 
     private bool _deleting;
 
+    // What the last Delete had to say (a refusal, a failure, a file that stayed on disk): shown at the top of the window until dismissed or the next try.
+    private string? _actionNotice;
+    private bool _actionNoticeIsError;
+
+    private async Task ShowAsync(EditorDeleteResult result)
+    {
+        if (!Editor.IsOpen)
+        {
+            // The delete closed the window (the item had no parent to move to), so there is no window to show the line in: it goes to the
+            // page the person lands on, and nothing is left here for the next time the editor opens.
+            _actionNotice = null;
+            if (result.Notice is { } notice)
+            {
+                await Editor.HandNoticeToPageAsync(notice);
+            }
+
+            return;
+        }
+
+        _actionNotice = result.Notice;
+        _actionNoticeIsError = result.NoticeIsError;
+    }
+
     private bool CanDeleteFile => EditorSupportingFileFlow.CanDelete(Editor, Device, Services.GetService<DashboardSessionAccessor>());
 
     // Delete from a supporting file's footer: asks once, naming the file and what happens to it on disk, then happens at once.
@@ -225,7 +250,7 @@
         _deleting = true;
         try
         {
-            await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+            await ShowAsync(await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -246,7 +271,7 @@
         _deleting = true;
         try
         {
-            await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+            await ShowAsync(await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -268,7 +293,7 @@
         _deleting = true;
         try
         {
-            await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+            await ShowAsync(await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -401,7 +426,20 @@
         Editor.HeaderHooks.OpenFolders = null;
     }
 
-    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+    private bool _wasOpen;
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        if (!Editor.IsOpen || !_wasOpen)
+        {
+            // A notice belongs to the window it was shown in: it goes when the window closes and when a new one opens.
+            _actionNotice = null;
+        }
+
+        _wasOpen = Editor.IsOpen;
+
+        StateHasChanged();
+    });
 
     // Open Universe (v4 D17): closes the editor, asking "Unsaved changes" first, then opens the Universe page. Staying leaves everything as it was.
     private async Task OpenUniverseAsync(EditorUniverseLink universe)

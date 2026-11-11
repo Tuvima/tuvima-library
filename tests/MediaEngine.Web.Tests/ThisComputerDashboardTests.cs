@@ -369,6 +369,18 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheSecureAccountNotice_IsWrittenOnTheRenderersOwnThread_NotOnWhicheverThreadRaisedTheEvent()
+    {
+        var layout = File.ReadAllText(RepoPath("src/MediaEngine.Web/Shared/MainLayout.razor"));
+        var start = layout.IndexOf("private void OnSecureAccountRequired()", StringComparison.Ordinal);
+        var handler = layout[start..layout.IndexOf("private bool ShouldShowEngineStatusBanner", start, StringComparison.Ordinal)];
+
+        var invoke = handler.IndexOf("InvokeAsync(", StringComparison.Ordinal);
+        Assert.True(invoke >= 0, "The handler hops to the renderer's context.");
+        Assert.True(handler.IndexOf("ShowLayoutNotice(", StringComparison.Ordinal) > invoke, "The notice is written inside InvokeAsync.");
+    }
+
+    [Fact]
     public void Ingress_IsSentOnlyForAVisitorOnThisComputerOrTheHomeNetwork()
     {
         using var here = new HttpRequestMessage();

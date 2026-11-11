@@ -19,6 +19,11 @@
     <ChildContent>
         <div class="playback-item-menu" role="menu" aria-label="@MoreLabel" data-playback-item-menu>
             <PlaybackMenuRoving />
+            @if (_notice is not null)
+            {
+                @* A status change or history that did not work stays in the menu, which stays open, until the next try. *@
+                <AppAlert Severity="AppSeverity.Error" Dense="true" data-playback-item-notice>@_notice</AppAlert>
+            }
             @foreach (var row in Rows)
             {
                 @if (row.DividerBefore)
@@ -75,6 +80,9 @@
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
 
+    /// <summary>Raised after a status change worked and the menu closed, with the sentence and what Undo does; the surface that hosts the menu shows it in place.</summary>
+    [Parameter] public EventCallback<UndoOffer> OnStatusChanged { get; set; }
+
     /// <summary>Opens the Playback settings of this player. Without a panel or a handler the row opens Settings, Playback.</summary>
     [Parameter] public EventCallback OnPlaybackSettings { get; set; }
 
@@ -98,7 +106,9 @@
     private Guid? Profile => Snapshot?.ProfileId ?? Services.GetService<PlaybackSessionController>()?.ActiveProfileId;
     private string ItemKey => $"{Item?.WorkId}:{Profile}";
     private IEngineApiClient? Api => Services.GetService<IEngineApiClient>();
-    private IAppToastService? Toasts => Services.GetService<IAppToastService>();
+
+    // Why the last status change or history did not work; shown inside the menu, which stays open for it.
+    private string? _notice;
     private bool Current() => IsCurrent?.Invoke() != false;
 
     /// <summary>The page type the Engine keeps listening, reading and watching status under for this item.</summary>
@@ -185,7 +195,8 @@
         }
         catch (Exception ex)
         {
-            Toasts?.Add(ex.Message, AppSeverity.Error);
+            _notice = ex.Message;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -194,7 +205,13 @@
     private Task ActivateAsync(PlaybackItemAction row)
     {
         if (!Current()) return Task.CompletedTask;
-        CloseMenu();
+        _notice = null;
+        if (row.Key is not (PlaybackItemActionKey.MarkDone or PlaybackItemActionKey.MarkNotDone or PlaybackItemActionKey.History))
+        {
+            // These three close the menu themselves once they worked, so a failure can be read in it.
+            CloseMenu();
+        }
+
         return row.Key switch
         {
             PlaybackItemActionKey.AddToPlaylist => AddToPlaylistAsync(),
@@ -224,19 +241,17 @@
             if (status is null || !Current() || subject != StatusSubject) return;
             var result = await api.ChangePersonalStatusAsync(new(Guid.NewGuid(), subject.Type, subject.Id, action, status.Revision));
             _status = await api.GetPersonalStatusAsync(subject.Type, subject.Id);
-            Toasts?.Add("Status updated.", AppSeverity.Success, options =>
+            // The menu's rows now offer the other choice (Mark as done or not done); the host also says so, with Undo.
+            CloseMenu();
+            await OnStatusChanged.InvokeAsync(new UndoOffer(L["Common_StatusUpdated"].Value, async () =>
             {
-                options.Action = "Undo";
-                options.OnClick = async _ =>
-                {
-                    try { await api.UndoPersonalStatusAsync(result.CommandId); }
-                    catch (Exception ex) { Toasts?.Add(ex.Message, AppSeverity.Error); }
-                };
-            });
+                await api.UndoPersonalStatusAsync(result.CommandId);
+                _status = null;
+            }));
         }
         catch (Exception ex)
         {
-            Toasts?.Add(ex.Message, AppSeverity.Error);
+            _notice = ex.Message;
         }
     }
 
@@ -247,12 +262,13 @@
         {
             var items = await api.GetPersonalHistoryAsync(subject.Type, subject.Id);
             if (!Current() || subject != StatusSubject) return;
+            CloseMenu();
             await dialogs.ShowAsync<PersonalHistoryDialog>(Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie ? "Watch history" : "Listening history",
                 new AppDialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
         }
         catch (Exception ex)
         {
-            Toasts?.Add(ex.Message, AppSeverity.Error);
+            _notice = ex.Message;
         }
     }
 

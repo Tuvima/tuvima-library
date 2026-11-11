@@ -35,7 +35,7 @@ public sealed class UnifiedContainerEditorTests
         Assert.Contains("<ViewGalleryDetailsPanel", popover, StringComparison.Ordinal);
         Assert.Contains("SoundtrackPlaylistId", File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "ViewEdit", "ViewGalleryEditStage.cs")), StringComparison.Ordinal);
         Assert.Contains("GetManagedCollectionsAsync", panel, StringComparison.Ordinal);
-        Assert.Contains("GalleryEditorLauncher.OpenAsync", page, StringComparison.Ordinal);
+        Assert.Contains("GalleryEditorLauncher.TryOpenAsync", page, StringComparison.Ordinal);
         Assert.DoesNotContain("view-gallery-editor", page, StringComparison.Ordinal);
     }
 

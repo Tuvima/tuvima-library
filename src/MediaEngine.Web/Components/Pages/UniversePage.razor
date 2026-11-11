@@ -16,7 +16,6 @@
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject IAdministratorSurfaceAccessService AdministratorAccess
-@inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject ILogger<UniversePage> Logger
 @inject IStringLocalizer<SharedStrings> L
@@ -29,6 +28,11 @@
    and description are local overrides (the Wikidata values stay untouched and come back with "Reset to canonical value"), it
    has Artwork, and it lists its Series read-only. A Universe has no Match tool. *@
 <div class="universe-page">
+    @if (_editNotice is not null)
+    {
+        <AppAlert Tone="@(_editNoticeIsError ? AppUiTone.Error : AppUiTone.Warning)" ShowCloseIcon="true" CloseIconClicked="@(() => { _editNotice = null; })" data-universe-edit-notice>@_editNotice</AppAlert>
+    }
+
     @switch (_state.Status)
     {
         case UniversePageStatus.Loading:
@@ -107,6 +111,9 @@
     private bool _canEditUniverse;
     private bool _showFandomLine;
     private bool _openingEditor;
+    // A problem opening the editor or refreshing after a save; it stays at the top of the page until dismissed or the next try.
+    private string? _editNotice;
+    private bool _editNoticeIsError;
     private bool _disposed;
 
     private string PageTitleText => _state.Page?.Detail.Name is { Length: > 0 } name ? name : "Universe";
@@ -240,11 +247,14 @@
         }
 
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
-        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        if (EditorDeviceRule.TryRefuse(DeviceContext))
         {
+            _editNotice = EditorDeviceRule.Message;
+            _editNoticeIsError = false;
             return;
         }
 
+        _editNotice = null;
         _openingEditor = true;
         try
         {
@@ -263,7 +273,8 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not open the Universe editor for {UniverseQid}", Qid);
-            Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error);
+            _editNotice = L["Common_UniverseEditingIsUnavailablePlease"].Value;
+            _editNoticeIsError = true;
         }
         finally
         {
@@ -313,7 +324,9 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The Universe page could not refresh after an edit for {UniverseQid}", Qid);
-            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
+            _editNotice = L["Common_SavedButThePageCould"].Value;
+            _editNoticeIsError = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

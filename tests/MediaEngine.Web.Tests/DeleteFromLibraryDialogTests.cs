@@ -597,7 +597,7 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFlow_ShowsTheSuccessToastAndAWarningWhenAFileCouldNotBeRemoved()
+    public async Task TheFlow_ShowsNoLineForAPlainSuccess_AndHandsBackAWarningWhenAFileCouldNotBeRemoved()
     {
         var result = new LibraryItemDeletionResultDto
         {
@@ -608,32 +608,47 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
         };
         _delete = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>.Ok(result));
         var host = Render<AppDialogHost>();
-        var toasts = Services.GetRequiredService<AppToastService>();
 
         var run = host.InvokeAsync(() => LibraryItemDeletionFlow.RunAsync(
-            Services.GetRequiredService<IAppDialogService>(), toasts, [WorkId], "Dune: Part One"));
+            Services.GetRequiredService<IAppDialogService>(), [WorkId], "Dune: Part One"));
         Ready(host);
         Button(host, "Delete from library and disk").Click();
 
-        Assert.Equal(LibraryItemDeletionFlowOutcome.Deleted, await run);
-        Assert.Equal(
-            [("Deleted \"Dune: Part One\". 61.4 GB freed.", AppSeverity.Success), ("1 file couldn't be removed and was left on disk.", AppSeverity.Warning)],
-            toasts.Toasts.Select(toast => (toast.Message, toast.Severity)));
+        var outcome = await run;
+        Assert.Equal(LibraryItemDeletionFlowOutcome.Deleted, outcome.Outcome);
+        Assert.Equal("1 file couldn't be removed and was left on disk.", outcome.Notice);
     }
 
     [Fact]
-    public async Task TheFlow_TellsTheCallerWhenThePersonCancelledAndShowsNoToast()
+    public async Task TheFlow_HandsBackNoLineWhenEveryFileWasRemoved()
     {
+        var result = new LibraryItemDeletionResultDto { DeletedWorkIds = [WorkId], Titles = ["Dune: Part One"], BytesFreed = SixtyOneGb };
+        _delete = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>.Ok(result));
         var host = Render<AppDialogHost>();
-        var toasts = Services.GetRequiredService<AppToastService>();
 
         var run = host.InvokeAsync(() => LibraryItemDeletionFlow.RunAsync(
-            Services.GetRequiredService<IAppDialogService>(), toasts, [WorkId], "Dune: Part One"));
+            Services.GetRequiredService<IAppDialogService>(), [WorkId], "Dune: Part One"));
+        Ready(host);
+        Button(host, "Delete from library and disk").Click();
+
+        var outcome = await run;
+        Assert.Equal(LibraryItemDeletionFlowOutcome.Deleted, outcome.Outcome);
+        Assert.Null(outcome.Notice);
+    }
+
+    [Fact]
+    public async Task TheFlow_TellsTheCallerWhenThePersonCancelledAndHasNothingToSay()
+    {
+        var host = Render<AppDialogHost>();
+
+        var run = host.InvokeAsync(() => LibraryItemDeletionFlow.RunAsync(
+            Services.GetRequiredService<IAppDialogService>(), [WorkId], "Dune: Part One"));
         Ready(host);
         Button(host, "Cancel").Click();
 
-        Assert.Equal(LibraryItemDeletionFlowOutcome.Canceled, await run);
-        Assert.Empty(toasts.Toasts);
+        var outcome = await run;
+        Assert.Equal(LibraryItemDeletionFlowOutcome.Canceled, outcome.Outcome);
+        Assert.Null(outcome.Notice);
     }
 
     [Fact]
@@ -641,14 +656,14 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
     {
         _delete = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.NotFound));
         var host = Render<AppDialogHost>();
-        var toasts = Services.GetRequiredService<AppToastService>();
 
         var run = host.InvokeAsync(() => LibraryItemDeletionFlow.RunAsync(
-            Services.GetRequiredService<IAppDialogService>(), toasts, [WorkId], "Dune: Part One"));
+            Services.GetRequiredService<IAppDialogService>(), [WorkId], "Dune: Part One"));
         Ready(host);
         Button(host, "Delete from library and disk").Click();
 
-        Assert.Equal(LibraryItemDeletionFlowOutcome.NoLongerInLibrary, await run);
-        Assert.Equal("This item is no longer in your library.", Assert.Single(toasts.Toasts).Message);
+        var outcome = await run;
+        Assert.Equal(LibraryItemDeletionFlowOutcome.NoLongerInLibrary, outcome.Outcome);
+        Assert.Equal("This item is no longer in your library.", outcome.Notice);
     }
 }

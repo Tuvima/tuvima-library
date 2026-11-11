@@ -14,7 +14,6 @@
 @inject ListenAudioDragService AudioDrag
 @inject CollectionEditorLauncherService CollectionEditorLauncher
 @inject NavigationManager Nav
-@inject IAppToastService Snackbar
 @inject ILogger<ListenBrowsePage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
@@ -48,6 +47,9 @@
                OnNavigationCreateCanceled="CancelPlaylistCreateAsync"
                OnNavigationCreate="CreatePlaylistAsync"
                SavedCollectionCount="@_savedCollectionCount"
+               Notice="@_notice"
+               NoticeTone="@_noticeTone"
+               NoticeDismissed="@(() => { _notice = null; })"
                OnNavigationSmartCreate="OpenSmartPlaylistAsync"
                OnNavigationItemRename="RenamePlaylistAsync"
                OnNavigationItemDelete="DeletePlaylistAsync"
@@ -309,14 +311,13 @@
         AudioDrag.Clear();
         if (added == 0)
         {
-            Snackbar.Add(L["ListenBrowsePage_ThoseSongsAreAlreadyIn"].Value, AppSeverity.Info);
+            ShowNotice(L["ListenBrowsePage_ThoseSongsAreAlreadyIn"].Value, AppUiTone.Info);
             return;
         }
 
+        // The playlist's count in the rail is the confirmation.
+        _notice = null;
         playlist.ItemCount += added;
-        Snackbar.Add(
-            added == 1 ? $"Added a song to {playlist.Name}." : $"Added {added} songs to {playlist.Name}.",
-            AppSeverity.Success);
     }
 
     private Task StageDraggedSongsForPlaylistAsync(MediaSectionNavigationCreateDropEvent createEvent)
@@ -353,15 +354,12 @@
             _activeProfileId);
         if (playlistId is null)
         {
-            Snackbar.Add(L["ListenBrowsePage_ThePlaylistCouldNotBe"].Value, AppSeverity.Error);
+            ShowNotice(L["ListenBrowsePage_ThePlaylistCouldNotBe"].Value, AppUiTone.Error);
             return false;
         }
-        var addedCount = _pendingPlaylistWorkIds.Count;
         _pendingPlaylistWorkIds.Clear();
+        _notice = null;
         await ReloadPlaylistsAsync();
-        Snackbar.Add(addedCount > 0
-            ? $"Created {createEvent.Name} with {addedCount} song(s)."
-            : $"Created {createEvent.Name}.", AppSeverity.Success);
         return true;
     }
 
@@ -372,7 +370,15 @@
         // What the editor saved is told by one quiet line; there is no toast.
         _savedCollectionCount = 0;
         var request = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
-        var changed = await CollectionEditorLauncher.OpenAsync(request);
+        var launch = await CollectionEditorLauncher.TryOpenAsync(request);
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+            return;
+        }
+
+        var changed = launch == EditorLaunchResult.Applied;
         _savedCollectionCount = request.SavedCollectionIds.Count;
         if (changed || _savedCollectionCount > 0)
             await ReloadPlaylistsAsync();
@@ -380,8 +386,21 @@
 
     private int _savedCollectionCount;
 
+    // A playlist action that failed (or did nothing) is told at the top of the page until dismissed or the next try; what worked shows in the rail.
+    private string? _notice;
+    private AppUiTone _noticeTone = AppUiTone.Error;
+
+    private void ShowNotice(string message, AppUiTone tone)
+    {
+        _notice = message;
+        _noticeTone = tone;
+        // The lane calls these handlers as plain delegates, so the page is not told to draw again by itself.
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     private async Task<bool> RenamePlaylistAsync(MediaSectionNavigationRenameEvent renameEvent)
     {
+        _notice = null;
         var succeeded = await ApiClient.UpdateCollectionAsync(
             renameEvent.Management.ContainerId,
             renameEvent.Name,
@@ -396,7 +415,7 @@
             _activeProfileId);
         if (!succeeded)
         {
-            Snackbar.Add(L["ListenBrowsePage_ThePlaylistCouldNotBe2"].Value, AppSeverity.Error);
+            ShowNotice(L["ListenBrowsePage_ThePlaylistCouldNotBe2"].Value, AppUiTone.Error);
             return false;
         }
         await ReloadPlaylistsAsync();
@@ -405,20 +424,21 @@
 
     private async Task<bool> DeletePlaylistAsync(MediaSectionNavigationManageEvent manageEvent)
     {
+        _notice = null;
         if (!await ApiClient.DeleteCollectionAsync(manageEvent.Management.ContainerId, _activeProfileId))
         {
-            Snackbar.Add(L["ListenBrowsePage_ThePlaylistCouldNotBe3"].Value, AppSeverity.Error);
+            ShowNotice(L["ListenBrowsePage_ThePlaylistCouldNotBe3"].Value, AppUiTone.Error);
             return false;
         }
         await ReloadPlaylistsAsync();
         if (new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay)).AbsolutePath.Contains(manageEvent.Management.ContainerId.ToString("D"), StringComparison.OrdinalIgnoreCase))
             Nav.NavigateTo("/listen/playlists");
-        Snackbar.Add($"Deleted {manageEvent.Item.Label}.", AppSeverity.Success);
         return true;
     }
 
     private async Task<bool> ReorderPlaylistAsync(MediaSectionNavigationReorderEvent reorderEvent)
     {
+        _notice = null;
         var orderedIds = _playlists.Select(playlist => playlist.Id).ToList();
         List<Guid> updatedOrder;
         var moved = reorderEvent.BeforeContainerId is { } targetId
@@ -433,7 +453,7 @@
                 _activeProfile.AvatarColor,
                 updatedConfig))
         {
-            Snackbar.Add(L["ListenBrowsePage_ThePlaylistOrderCouldNot"].Value, AppSeverity.Error);
+            ShowNotice(L["ListenBrowsePage_ThePlaylistOrderCouldNot"].Value, AppUiTone.Error);
             return false;
         }
         _playlistOrder = updatedOrder;

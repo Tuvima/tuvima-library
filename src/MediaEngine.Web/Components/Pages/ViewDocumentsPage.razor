@@ -11,7 +11,7 @@
 @inject ActiveProfileSessionService ActiveProfileSession
 @inject ViewMediaGrantService MediaGrants
 @inject DeviceContextService Device
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @inject IAppDialogService DialogService
 @inject IJSRuntime Js
 @using Microsoft.JSInterop
@@ -485,7 +485,7 @@
         // Remembered for this profile so the next visit, on any device, opens in the same order.
         if (!await ApiClient.SetViewDocumentsSortAsync(sort))
         {
-            Snackbar.Add(L["ViewDocumentsPage_YourSortCouldNotBe"].Value, AppSeverity.Warning);
+            Ribbon.Add(L["ViewDocumentsPage_YourSortCouldNotBe"].Value, AppSeverity.Warning);
         }
     }
 
@@ -525,16 +525,16 @@
             var created = await ApiClient.CreateViewGalleryAsync(new ViewGalleryRequest(name, ViewGalleryKind.Smart, SmartRuleJson: rule));
             if (created is null)
             {
-                Snackbar.Add(L["ViewDocumentsPage_ThisViewCouldNotBe"].Value, AppSeverity.Error);
+                Ribbon.Add(L["ViewDocumentsPage_ThisViewCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
 
             await Workspace.LoadGalleriesAsync(force: true);
-            Snackbar.Add($"Saved “{created.Name}”.", AppSeverity.Success);
+            Ribbon.Add($"Saved “{created.Name}”.", AppSeverity.Success);
         }
         catch (ArgumentException)
         {
-            Snackbar.Add(L["ViewDocumentsPage_ThisViewIsTooLarge"].Value, AppSeverity.Error);
+            Ribbon.Add(L["ViewDocumentsPage_ThisViewIsTooLarge"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -566,7 +566,7 @@
                 change.Name, view.Kind, view.Description, view.SmartRuleJson, view.CoverItemId, view.SortOrder, view.SoundtrackPlaylistId));
             if (updated is null)
             {
-                Snackbar.Add(L["ViewDocumentsPage_ThisViewCouldNotBe2"].Value, AppSeverity.Error);
+                Ribbon.Add(L["ViewDocumentsPage_ThisViewCouldNotBe2"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -605,7 +605,7 @@
         {
             if (!await ApiClient.DeleteViewGalleryAsync(view.Id))
             {
-                Snackbar.Add(L["ViewDocumentsPage_ThisViewCouldNotBe3"].Value, AppSeverity.Error);
+                Ribbon.Add(L["ViewDocumentsPage_ThisViewCouldNotBe3"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -635,14 +635,14 @@
             var result = await ApiClient.ExportViewDocumentsAsync(Query() with { Limit = 500 });
             if (!result.Success)
             {
-                Snackbar.Add(result.Error ?? "The list could not be exported. Try again.", AppSeverity.Error);
+                Ribbon.Add(result.Error ?? "The list could not be exported. Try again.", AppSeverity.Error);
                 return;
             }
 
             await using var stream = new MemoryStream(result.Bytes!, writable: false);
             using var reference = new DotNetStreamReference(stream);
             await Js.InvokeVoidAsync("tuvimaDownloads.fromStream", result.FileName, reference, "text/csv;charset=utf-8");
-            Snackbar.Add(result.Truncated
+            Ribbon.Add(result.Truncated
                 ? "Only the first 10,000 documents were exported. Narrow the list with filters or a saved view to export the rest."
                 : "Your list was exported.", result.Truncated ? AppSeverity.Warning : AppSeverity.Success);
         }
@@ -664,7 +664,7 @@
             var result = await ApiClient.FileViewDocumentFromInboxAsync(item.Id, request);
             if (!result.Success)
             {
-                Snackbar.Add(result.Error ?? "This document could not be filed. Try again.", AppSeverity.Error);
+                Ribbon.Add(result.Error ?? "This document could not be filed. Try again.", AppSeverity.Error);
                 return;
             }
 
@@ -675,7 +675,7 @@
                 _active = null;
             }
 
-            Snackbar.Add(L["ViewDocumentsPage_Filed"].Value, AppSeverity.Success);
+            Ribbon.Add(L["ViewDocumentsPage_Filed"].Value, AppSeverity.Success);
             // Names and tags the filing created, the count on this page and the badge on the Documents tab all change.
             await Task.WhenAll(LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync(), LoadCatalogueAsync());
             // A sorted list pages by position, so after a card leaves it the next page must be asked for again from the top.
@@ -918,7 +918,7 @@
         }
 
         _selected.Clear();
-        Snackbar.Add(failed == 0 ? "Added to favorites." : $"{failed} could not be added to favorites.", failed == 0 ? AppSeverity.Success : AppSeverity.Error);
+        Ribbon.Add(failed == 0 ? "Added to favorites." : $"{failed} could not be added to favorites.", failed == 0 ? AppSeverity.Success : AppSeverity.Error);
     }
 
     private void Activate(LocalAssetDto item) => Activate(item, null);
@@ -997,7 +997,7 @@
                 var result = await ApiClient.BulkEditViewDocumentsAsync(request);
                 if (!result.Success)
                 {
-                    Snackbar.Add(result.Error ?? "The change could not be made. Nothing was changed in the rest of the selection.", AppSeverity.Error);
+                    Ribbon.Add(result.Error ?? "The change could not be made. Nothing was changed in the rest of the selection.", AppSeverity.Error);
                     break;
                 }
 

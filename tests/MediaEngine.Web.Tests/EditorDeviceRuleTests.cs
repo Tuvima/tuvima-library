@@ -8,6 +8,7 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
@@ -102,10 +103,10 @@ public sealed class EditorDeviceRuleTests
         var desktopSpy = (DialogSpy)(object)desktopDialogs;
         var desktop = await DesktopAsync();
         Assert.Equal(EditorLaunchResult.Applied,
-            await new CollectionEditorLauncherService(desktopDialogs, null, desktop, new AppToastService()).TryOpenAsync(new CollectionEditorLaunchRequest()));
+            await new CollectionEditorLauncherService(desktopDialogs, null, desktop).TryOpenAsync(new CollectionEditorLaunchRequest()));
         // The gallery launcher opens the one View editor window; it answers when that window closes.
         var galleryHost = new ViewEditorHost(null!, desktop, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance);
-        var opening = new GalleryEditorLauncherService(galleryHost, desktop, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest());
+        var opening = new GalleryEditorLauncherService(galleryHost, desktop).TryOpenAsync(new GalleryEditorLaunchRequest());
         Assert.True(galleryHost.IsOpen);
         galleryHost.Close();
         Assert.Equal(EditorLaunchResult.Dismissed, await opening);
@@ -122,9 +123,27 @@ public sealed class EditorDeviceRuleTests
         var device = await DeviceFor(formFactor);
 
         Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice,
-            await new CollectionEditorLauncherService(dialogs, null, device, new AppToastService()).TryOpenAsync(new CollectionEditorLaunchRequest()));
+            await new CollectionEditorLauncherService(dialogs, null, device).TryOpenAsync(new CollectionEditorLaunchRequest()));
         Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice,
-            await new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest()));
+            await new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device).TryOpenAsync(new GalleryEditorLaunchRequest()));
+        Assert.Equal(0, spy.ShowCount);
+    }
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("tablet")]
+    public async Task AddToCollectionOffTheDesktop_OpensNothingAndReturnsTheDeviceMessageForThePageToShowInPlace(string formFactor)
+    {
+        var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
+        var spy = (DialogSpy)(object)dialogs;
+        var services = new ServiceCollection()
+            .AddSingleton(dialogs)
+            .AddSingleton(await DeviceFor(formFactor))
+            .BuildServiceProvider();
+
+        var notice = await CollectionMembershipFlow.RunAsync(services, [new CollectionEditorSeedItem(Guid.NewGuid(), "Dune", "Movies")], "Add to collection", "Dune");
+
+        Assert.Equal(EditorDeviceRule.Message, notice);
         Assert.Equal(0, spy.ShowCount);
     }
 

@@ -139,7 +139,7 @@ public sealed class ViewLibrarySurfaceTests
         var story = Read("src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor");
         var timeline = Read("src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor");
 
-        Assert.Contains("GalleryEditorLauncher.OpenAsync", galleries, StringComparison.Ordinal);
+        Assert.Contains("GalleryEditorLauncher.TryOpenAsync", galleries, StringComparison.Ordinal);
         Assert.Contains("CreateViewGalleryAsync", galleryEditor, StringComparison.Ordinal);
         Assert.Contains("ViewRuleBuilder", galleryPanel, StringComparison.Ordinal);
         Assert.Contains("ViewDiscoveryCapabilityStates", people, StringComparison.Ordinal);
@@ -250,7 +250,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("GetViewGalleryShareTargetsAsync", detail, StringComparison.Ordinal);
         Assert.Contains("GetViewGallerySharesAsync", detail, StringComparison.Ordinal);
         Assert.Contains("ReplaceViewGallerySharesAsync", detail, StringComparison.Ordinal);
-        Assert.Contains("GalleryEditorLauncher.OpenAsync", detail, StringComparison.Ordinal);
+        Assert.Contains("GalleryEditorLauncher.TryOpenAsync", detail, StringComparison.Ordinal);
         Assert.Contains("UpdateViewGalleryAsync", editor, StringComparison.Ordinal);
         Assert.Contains("DeleteViewGalleryAsync", popover, StringComparison.Ordinal);
         Assert.Contains("DeleteViewGalleryAsync", Read("src/MediaEngine.Web/Components/Pages/ViewSectionShell.razor"), StringComparison.Ordinal);

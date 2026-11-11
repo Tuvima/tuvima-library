@@ -23,6 +23,10 @@ else if (Nsfw.IsAvailable)
     <div class="vault-unlock" data-vault-unlock>
         <h1>@L["Nav_Vault"]</h1>
         <p>@(Nsfw.NeedsPin ? "Enter your profile PIN to open the Vault." : "Open the Vault for this session.")</p>
+        @if (_unlockProblem is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" data-vault-unlock-problem>@_unlockProblem</AppAlert>
+        }
         <AppButton Label="@L["Common_OpenTheVault"].Value" OnClick="UnlockAsync" />
     </div>
 }
@@ -55,7 +59,14 @@ else if (Nsfw.IsAvailable)
         }
     }
 
-    private Task UnlockAsync() => Switching.SetAsync(true);
+    // A refused or failed unlock says why here, in place (design system, Feedback after an action).
+    private string? _unlockProblem;
+
+    private async Task UnlockAsync()
+    {
+        var outcome = await Switching.TrySetAsync(true);
+        _unlockProblem = outcome.InEffect ? null : outcome.Message;
+    }
 
     public void Dispose() => Nsfw.Changed -= OnChanged;
 }

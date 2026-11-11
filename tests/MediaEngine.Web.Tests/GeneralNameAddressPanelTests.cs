@@ -20,6 +20,7 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
     private AppStoreLinks _links = new();
     private SetupServerIdentityDto? _identity = new("Shaya's Library", "shayas-library", true);
     private readonly List<SetupServerIdentityDto> _saved = [];
+    private bool _refuseSave;
 
     public GeneralNameAddressPanelTests()
     {
@@ -37,6 +38,10 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetServerIdentityAsync), _ => Task.FromResult(_identity));
             stub.SetHandler(nameof(IEngineApiClient.UpdateServerIdentityAsync), args =>
             {
+                if (_refuseSave)
+                {
+                    return Task.FromResult<SetupServerIdentityDto?>(null);
+                }
                 var requested = (SetupServerIdentityDto)args![0]!;
                 // What the Engine does: derive the network name while it follows the friendly name.
                 var host = requested.HostNameDerived ? NetworkNameRules.ToLabel(requested.ServerName) : NetworkNameRules.ToLabel(requested.HostName);
@@ -208,7 +213,22 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
         Assert.Equal("The Den Library", saved.ServerName);
         Assert.Equal("the-den-library", saved.HostName);
         Assert.Contains("the-den-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
-        Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "The Library name was saved.");
+        // Saved is told by the quiet line under the name, never by a pop-up.
+        cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-name-address-failure]"));
+    }
+
+    [Fact]
+    public void WhenTheEngineRefusesTheName_AnAlertStaysInPlace_AndNothingSaysSaved()
+    {
+        _refuseSave = true;
+        var cut = RenderPage();
+
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("The Den Library");
+        cut.Find("[data-testid='general-save-name']").Click();
+
+        Assert.Equal("The Library name could not be saved.", cut.Find("[data-name-address-failure]").TextContent.Trim());
+        Assert.DoesNotContain("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

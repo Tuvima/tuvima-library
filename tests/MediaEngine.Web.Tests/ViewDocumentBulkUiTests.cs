@@ -33,7 +33,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     private readonly Handler _handler = new();
     private readonly DeviceContextService _device;
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _toasts;
+    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _ribbon;
 
     public ViewDocumentBulkUiTests()
     {
@@ -50,7 +50,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
         _dialogs = Render<AppDialogHost>();
-        _toasts = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
+        _ribbon = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
     }
 
     // Trash asks once first (spec view-section WP1): click the bar's Trash, then answer "Move to Trash" in the dialog.
@@ -323,7 +323,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         var download = JSInterop.Invocations.Single(call => call.Identifier == "tuvimaDownloads.fromStream");
         Assert.Equal("documents-2026-10-14.csv", download.Arguments[0]);
         Assert.Equal("text/csv;charset=utf-8", download.Arguments[2]);
-        _toasts.WaitForAssertion(() => Assert.Contains("Only the first 10,000 documents were exported.", _toasts.Markup, StringComparison.Ordinal));
+        _ribbon.WaitForAssertion(() => Assert.Contains("Only the first 10,000 documents were exported.", _ribbon.Markup, StringComparison.Ordinal));
     }
 
     [Fact]

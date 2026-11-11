@@ -1,9 +1,9 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Plugins
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject IEngineApiClient Api
-@inject IAppToastService Toast
 @inject IStringLocalizer<SharedStrings> L
 @* Profile > Accounts (Plugin architecture spec C13): the accounts on other sites that this profile has linked for plugins that ask
    for one. A site that offers it is signed in to by approving a short code on another device; anything else is a token the person
@@ -29,7 +29,7 @@
             @foreach (var connection in plugin.Connections)
             {
                 var key = KeyOf(plugin.PluginId, connection.Name);
-                <section class="accounts-page__item" data-account-item="@key" aria-label="@connection.Label">
+                <section class="accounts-page__item @_glow.Class(key)" data-account-item="@key" aria-label="@connection.Label">
                     <div class="accounts-page__heading">
                         <AppText Typo="AppTypo.subtitle1">@connection.Label</AppText>
                         <AppStatusBadge Text="@(connection.Linked ? L["Accounts_Linked"].Value : L["Accounts_NotLinked"].Value)"
@@ -96,11 +96,22 @@
     private readonly Dictionary<string, CancellationTokenSource> _polls = new(StringComparer.Ordinal);
     private List<PluginConnectionsResponse>? _plugins;
     private bool _loading = true;
+    // The account that was just linked or signed out glows once; its Linked badge is the rest of the confirmation.
+    private readonly JustChanged _glow = new();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _glow.Changed += OnGlowCleared;
+        await LoadAsync();
+    }
 
     public void Dispose()
     {
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
         _disposed.Cancel();
         _disposed.Dispose();
     }
@@ -155,8 +166,8 @@
             {
                 _typed.Remove(key);
                 _agreed.Remove(key);
-                Toast.Add(L["Accounts_SignedInToast", plugin.PluginName].Value, AppSeverity.Success);
                 await LoadAsync();
+                _glow.Mark(key);
             }
             else
             {
@@ -200,8 +211,8 @@
                     if (check.Status == PluginDeviceSignInStatuses.SignedIn)
                     {
                         _agreed.Remove(key);
-                        Toast.Add(L["Accounts_SignedInToast", plugin.PluginName].Value, AppSeverity.Success);
                         await LoadAsync();
+                        _glow.Mark(key);
                     }
                     else
                     {
@@ -244,8 +255,8 @@
         {
             if (await Api.UnlinkPluginConnectionAsync(plugin.PluginId, connection.Name, _disposed.Token))
             {
-                Toast.Add(L["Accounts_SignedOutToast", plugin.PluginName].Value, AppSeverity.Success);
                 await LoadAsync();
+                _glow.Mark(key);
             }
             else
             {

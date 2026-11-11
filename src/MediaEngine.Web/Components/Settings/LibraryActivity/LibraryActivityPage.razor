@@ -135,6 +135,8 @@
     {
         Dashboard.OnChanged += OnDashboardChanged;
         Shell.Changed += OnShellChanged;
+        // Opening Activity is seeing how the last library update ended: the indicator's needs-attention mark clears.
+        Shell.AcknowledgeAttention();
         await Dashboard.InitializeAsync();
         _wasRunning = Working;
         _configuration = await Api.GetLibrariesAsync();
@@ -179,7 +181,17 @@
         });
     }
 
-    private void OnShellChanged() => _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    // While Activity is open, an update that ends with failures is seen at once: the indicator must not turn amber for someone already looking.
+    private void OnShellChanged() => _ = InvokeAsync(() =>
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        Shell.AcknowledgeAttention();
+        StateHasChanged();
+    });
 
     public async ValueTask DisposeAsync()
     {

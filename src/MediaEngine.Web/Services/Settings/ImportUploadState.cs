@@ -23,15 +23,8 @@ public sealed class ImportUploadWarning
 /// </summary>
 public sealed class ImportUploadState : IDisposable
 {
-    private readonly IAppToastService _toasts;
     private readonly List<UploadRow> _rows = [];
     private DotNetObjectReference<ImportUploadState>? _reference;
-
-    public ImportUploadState(IAppToastService toasts)
-    {
-        ArgumentNullException.ThrowIfNull(toasts);
-        _toasts = toasts;
-    }
 
     /// <summary>Raised whenever the list or a row changes, so pages can draw again.</summary>
     public event Action? Changed;
@@ -125,7 +118,7 @@ public sealed class ImportUploadState : IDisposable
                 row.Sent = row.Size;
                 row.FinalName = outcome.FileName;
                 row.Renamed = outcome.Renamed;
-                _toasts.Add($"{outcome.FileName ?? row.Name} was added to the Import folder.", AppSeverity.Success);
+                // The row's own "Added to the Import folder" line is the confirmation.
                 break;
             case "refused" when outcome.Code == ImportUploadRefusalCodes.LargeUploadNeedsConfirm:
                 // Not a failure: the person decides in the warning box. Nothing was created, so nothing is shown in the list.

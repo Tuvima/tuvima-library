@@ -9,6 +9,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Navigation;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,8 +177,35 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(1, _handler.Revokes));
         cut.WaitForAssertion(() => Assert.Contains("No other sessions", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal));
+        // The row's own status is the confirmation: no notice over the page and no alert.
+        Assert.Empty(cut.FindAll("[data-security-failure]"));
         // Only the person's own bulk route is used; the administrators' route for other people's sessions never is.
         Assert.DoesNotContain(_handler.Paths, path => path.StartsWith("/access/sessions", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Member_SignOutEverywhereElse_WhenTheEngineRefuses_ShowsAnAlertOnThePageAndKeepsTheSessions()
+    {
+        _handler.HasPassword = true;
+        _handler.RevokeFails = true;
+        _session.Set("session", _handler.Account, _handler.Profile, _handler.CurrentSession, _handler.MemberAuthority());
+        var dialogs = Render<AppDialogHost>();
+        var cut = Render<SecuritySettingsPage>();
+        cut.WaitForAssertion(() => Assert.Contains("1 other session", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal));
+
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='sign-out-others']").Click());
+        dialogs.WaitForAssertion(() => Assert.Contains("Sign out other sessions", dialogs.Markup, StringComparison.Ordinal));
+        await dialogs.InvokeAsync(() => dialogs.FindAll("button").Single(b => b.TextContent.Trim() == "Sign out other sessions").Click());
+
+        cut.WaitForAssertion(() => Assert.Equal("Other sessions could not be signed out.", cut.Find("[data-security-failure]").TextContent.Trim()));
+        Assert.Equal("alert", cut.Find("[data-security-failure]").GetAttribute("role"));
+        Assert.Contains("1 other session", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal);
+
+        // The next attempt clears the alert before it starts.
+        _handler.RevokeFails = false;
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='sign-out-others']").Click());
+        await dialogs.InvokeAsync(() => dialogs.FindAll("button").Single(b => b.TextContent.Trim() == "Sign out other sessions").Click());
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-security-failure]")));
     }
 
     [Fact]
@@ -457,6 +485,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         public string[] DismissedNotices { get; set; } = [];
         public string? Email { get; set; } = "owner@example.test";
         public int Revokes { get; private set; }
+        public bool RevokeFails { get; set; }
 
         public System.Collections.Concurrent.ConcurrentQueue<string> Paths { get; } = new();
 
@@ -476,6 +505,12 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         {
             var path = request.RequestUri!.AbsolutePath;
             Paths.Enqueue(path);
+            if (request.Method == HttpMethod.Delete && path == "/auth/sessions/others" && RevokeFails)
+            {
+                Revokes++;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+            }
+
             if (request.Method == HttpMethod.Delete && path == "/auth/sessions/others")
             {
                 Revokes++;

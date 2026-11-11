@@ -23,7 +23,7 @@ function requestCancel(state) {
 }
 function show(state) {
     state.dialog.showModal();
-    // Preserve toast/popover top-layer ordering on initial open and recovery.
+    // Preserve popover top-layer ordering on initial open and recovery.
     for (const popup of state.dialog.querySelectorAll('[popover]:popover-open')) { popup.hidePopover(); popup.showPopover(); }
 }
 function lock(dialog) {
@@ -179,9 +179,4 @@ export function detach(dialogOrFrameId) {
     const state = typeof dialogOrFrameId === 'string' ? frames.get(dialogOrFrameId) : states.get(dialogOrFrameId);
     if (!state) return;
     cleanup(state);
-}
-export function updateToastHost(host, visible) {
-    if (!(host instanceof HTMLElement)) return;
-    if (visible && !host.matches(':popover-open')) host.showPopover();
-    else if (!visible && host.matches(':popover-open')) host.hidePopover();
 }

@@ -4,8 +4,10 @@ using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -23,7 +25,7 @@ public enum AddFolderHandling
 /// of the kind, <paramref name="NewLibraryName"/> makes a new library with that name; with neither, the kind's first library is used
 /// (or a new one named for the kind when it has none yet). <paramref name="CreateNewLibrary"/> is the Create library dialog: it always makes a
 /// new library, named <paramref name="NewLibraryName"/> whatever the kind, with the given <paramref name="Access"/> (null keeps the standard one);
-/// <paramref name="SuccessMessage"/>, when given, is shown as a toast; by default nothing pops up (the new row glows).
+/// nothing pops up on success (the new row glows).
 /// </summary>
 public sealed record AddFolderPlan(
     string TypeKey,
@@ -34,7 +36,6 @@ public sealed record AddFolderPlan(
     string? NewLibraryName = null,
     bool CreateNewLibrary = false,
     string? Access = null,
-    string? SuccessMessage = null,
     string? Label = null);
 
 /// <summary>Which Engine calls to use: the signed-in Settings ones, or the first-run setup ones (which carry the setup session).</summary>
@@ -54,14 +55,17 @@ public sealed record AddFolderResult(LibrariesConfigurationDto? Configuration, L
 }
 
 /// <summary>What happened after a follow-up question (organise, merge): whether a job was queued and any notice to show.</summary>
-public sealed record FolderFollowUp(bool Started, string? Notice);
+/// <param name="Started">True when a job was queued.</param>
+/// <param name="Notice">What to tell the person in place, or null.</param>
+/// <param name="NoticeIsInfo">True when the notice is plain information (nothing went wrong), so it is not drawn as a warning.</param>
+public sealed record FolderFollowUp(bool Started, string? Notice, bool NoticeIsInfo = false);
 
 /// <summary>
 /// The one "add a folder" operation shared by the Create library dialog, a library's page and the folders panel: re-check the folder
 /// for the chosen handling, save it into the type's library, move the "New media goes here" marker when asked, and run the Convert
 /// and Merge follow-ups. It holds no state of its own; the caller owns the configuration it passes in.
 /// </summary>
-public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDialogService dialogs, IAppToastService toasts)
+public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDialogService dialogs, IStringLocalizer<SharedStrings> L)
 {
     /// <summary>An available kind, or an "other-{libraryId}" library, by key; null when there is no such type.</summary>
     public static LibraryTypeOption? ResolveType(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration, string? key) =>
@@ -144,12 +148,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             return new AddFolderResult(null, source, type, managed, notice, apiClient.LastError ?? "That change could not be saved. Check the folder and try again.", library.Id);
         }
 
-        // The new row glows on the page instead of a toast; a caller that still wants a message passes one.
-        if (plan.SuccessMessage is { } message)
-        {
-            toasts.Add(message, AppSeverity.Success);
-        }
-
+        // The new row glows on the page; nothing else says it worked.
         // The folder is only checked against the library's kind now that it is added; browsing for it read nothing inside it.
         notice = await MatchNoticeAsync(scope, type.Key, source, notice);
         var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
@@ -166,7 +165,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
                     return result with { Notice = apiClient.LastError ?? "That change could not be saved. Check the folder and try again." };
                 }
 
-                toasts.Add($"New {type.PluralLabel} will go to {source.DisplayName()}.", AppSeverity.Success);
+                // The "New media goes here" marker moving on the row is the confirmation.
                 result = result with { Configuration = moved };
             }
         }
@@ -297,17 +296,13 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var quick = await apiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
         if (quick is null)
         {
-            return new FolderFollowUp(false, quiet ? null : apiClient.LastError ?? "Library could not count the files in this folder.");
+            return new FolderFollowUp(false, quiet ? null : apiClient.LastError ?? L["LibraryFolderAddService_CouldNotCountFiles"].Value);
         }
 
         if (quick.TotalFiles == 0)
         {
-            if (!quiet)
-            {
-                toasts.Add("There are no media files in this folder to organise.", AppSeverity.Normal);
-            }
-
-            return new FolderFollowUp(false, null);
+            // Told in place by the caller's notice, and only when the person asked (not after adding a folder).
+            return new FolderFollowUp(false, quiet ? null : L["LibraryFolderAddService_NoFilesToOrganise"].Value, NoticeIsInfo: true);
         }
 
         return await AskToConvertAsync(source, quick, alreadyManaged) ? await StartConversionAsync(source) : new FolderFollowUp(false, null);
@@ -365,7 +360,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             return new FolderFollowUp(false, apiClient.LastError ?? "Library could not start organising this folder.");
         }
 
-        toasts.Add($"Library is organising {source.DisplayName()}. You can keep using Library meanwhile.", AppSeverity.Success);
+        // The folder's job status line and the Activity indicator report the organising job; nothing pops up.
         return new FolderFollowUp(true, null);
     }
 
@@ -407,8 +402,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             return new FolderFollowUp(false, apiClient.LastError ?? "Library could not start merging this folder.");
         }
 
-        var targetName = targets.FirstOrDefault(target => target.Id == request.TargetSourceId)?.DisplayName() ?? "the folder you chose";
-        toasts.Add($"Library is merging {source.DisplayName()} into {targetName}. You can keep using Library meanwhile.", AppSeverity.Success);
+        // The folder's job status line and the Activity indicator report the merge job; nothing pops up.
         return new FolderFollowUp(true, null);
     }
 

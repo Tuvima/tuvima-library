@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient Api
-@inject IAppToastService Toast
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Lookup tab of a Vault-protected library of an ordinary content type (Library pages D15; Vault sections D34): one switch, "Look up details
@@ -10,6 +9,10 @@
    the Engine fetches covers, descriptions and cast like any other library. The switch is the library's own, so Movies and Music in the Vault are set apart. Drawn only for a Vault library, which only someone
    who may see the Vault ever reaches. A phone shows the state and changes nothing. *@
 <section class="vault-lookup" aria-label="@L["Common_Lookup"].Value">
+    @if (_failure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-vault-lookup-failure>@_failure</AppAlert>
+    }
     <h3 class="vault-lookup__heading">@L["LibraryVaultLookupTab_LookUpDetailsOnline"] <AppInfoTip Text="@L["LibraryVaultLookupTab_LibraryCanFetchCoversDescriptions"].Value" Label="@L["LibraryVaultLookupTab_AboutOnlineLookup"].Value" /></h3>
     <AppSwitchRow Label="@L["LibraryVaultLookupTab_LookUpDetailsOnline"].Value"
                   Description="@(_on ? LibraryLookupRules.VaultPrivacyNote : LibraryLookupRules.VaultOffNote)"
@@ -35,6 +38,7 @@
 
     private bool _on;
     private bool _saving;
+    private string? _failure;
     private string? _syncedFor;
 
     protected override void OnParametersSet()
@@ -50,6 +54,7 @@
     {
         if (ReadOnly || _saving || value == _on) return;
         _saving = true;
+        _failure = null;
         var before = _on;
         _on = value;
         try
@@ -58,12 +63,12 @@
             if (saved is null)
             {
                 _on = before;
-                Toast.Add(Api.LastError ?? "The setting could not be saved. Try again.", AppSeverity.Error);
+                _failure = Api.LastError ?? L["LibraryVaultLookupTab_TheSettingCouldNotBe"].Value;
                 return;
             }
 
             _syncedFor = $"{saved.Id}|{saved.MetadataPolicy}";
-            Toast.Add(value ? "Online lookup is on for this library." : "Online lookup is off for this library.", AppSeverity.Success);
+            // The switch already shows the new state; that is the confirmation.
             await Changed.InvokeAsync();
         }
         finally

@@ -8,7 +8,6 @@
 @inject NsfwModeSwitching Switching
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService Dialogs
-@inject IAppToastService Toasts
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedStrings> L
 
@@ -23,6 +22,10 @@
 {
     <div data-profile-section="nsfw-mode">
         <SettingsSectionPanel Title="@L["Common_VaultMode"].Value">
+            @if (_ownNotice is not null)
+            {
+                <AppAlert Tone="_ownNoticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _ownNotice = null; })" data-vault-own-notice>@_ownNotice</AppAlert>
+            }
             <div class="vault-settings">
                 <AppSwitchRow Label="@L["Common_VaultMode"].Value"
                               Description="@ModeDescription"
@@ -65,6 +68,10 @@
             @if (!AdministratorHasPin)
             {
                 <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true" data-pin-suggestion>@VaultMessages.PinStronglySuggested</AppAlert>
+            }
+            @if (_accessFailure is not null)
+            {
+                <AppAlert Tone="AppUiTone.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _accessFailure = null; })" data-vault-access-failure>@_accessFailure</AppAlert>
             }
             <div class="vault-settings">
                 <AppSwitchRow Label="@($"Vault mode for {Person.DisplayName}")"
@@ -111,6 +118,7 @@
                 <div class="vault-settings__actions">
                     <AppButton Label="@L["VaultProfileSettings_SaveAccess"].Value" Size="AppControlSize.Compact" Disabled="@(_busy || !_chosen)" OnClick="SaveAccessAsync" />
                 </div>
+                <AppSavedNote @ref="_accessSaved" data-vault-access-saved />
             </div>
         
         </SettingsSectionPanel>
@@ -130,6 +138,10 @@
     private bool _stateRequested;
     private ProfileVaultSectionsDto? _sections;
     private bool _sectionsLoaded;
+    private string? _ownNotice;
+    private AppUiTone _ownNoticeTone = AppUiTone.Warning;
+    private string? _accessFailure;
+    private AppSavedNote? _accessSaved;
 
     /// <summary>The person whose page this is.</summary>
     [Parameter, EditorRequired] public ProfileViewModel Person { get; set; } = default!;
@@ -220,17 +232,18 @@
         }
 
         _busy = true;
+        _accessFailure = null;
         try
         {
             var call = await ApiClient.SetProfileVaultSectionsAsync(Person.Id, [.. wanted]);
             if (call.Succeeded)
             {
+                // Each section's switch shows the new state; that is the confirmation.
                 _sections = call.Value;
-                Toasts.Add("Vault sections saved.", AppSeverity.Success);
             }
             else
             {
-                Toasts.Add(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+                _accessFailure = VaultMessages.For(call) ?? VaultMessages.Unreachable;
             }
         }
         finally
@@ -259,25 +272,45 @@
 
     private async Task SwitchAsync(bool on)
     {
-        await Switching.SetAsync(on);
+        _ownNotice = null;
+        TellSwitch(await Switching.TrySetAsync(on));
+    }
+
+    private void TellSwitch(VaultSwitchOutcome outcome)
+    {
+        if (!outcome.InEffect && outcome.Message is not null)
+        {
+            TellOwn(outcome.IsWarning ? AppUiTone.Warning : AppUiTone.Info, outcome.Message);
+        }
     }
 
     private async Task NavigationAsync(bool show)
     {
+        _ownNotice = null;
         var call = await Nsfw.SetShowInNavigationAsync(show);
         if (!call.Succeeded)
         {
-            Toasts.Add(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+            TellOwn(AppUiTone.Warning, VaultMessages.For(call) ?? VaultMessages.Unreachable);
         }
     }
 
     // The Settings door to the Vault for a profile that keeps it out of the navigation bar: unlock (the PIN when asked), then go in.
     private async Task OpenVaultAsync()
     {
-        if (await Switching.SetAsync(true))
+        _ownNotice = null;
+        var outcome = await Switching.TrySetAsync(true);
+        TellSwitch(outcome);
+        if (outcome.InEffect)
         {
             Navigation.NavigateTo("/vault");
         }
+    }
+
+    // What could not be changed (or why a choice is not offered) is told at the top of the person's own Vault mode panel until it is closed or the next try.
+    private void TellOwn(AppUiTone tone, string message)
+    {
+        _ownNoticeTone = tone;
+        _ownNotice = message;
     }
 
     private Task QuickCheckAsync(bool on) => Nsfw.UpdatePreferencesAsync(preferences => preferences with { ShowQuickCheck = on });
@@ -298,17 +331,18 @@
 
         if (minutes == 0 && Nsfw.NeedsPin)
         {
-            Toasts.Add("Vault mode always turns itself off while it asks for a PIN. Choose a time instead.", AppSeverity.Info);
+            TellOwn(AppUiTone.Info, L["VaultProfileSettings_VaultModeAlwaysTurnsItself"].Value);
             return;
         }
 
         _busy = true;
+        _ownNotice = null;
         try
         {
             var call = await Nsfw.SetIdleAsync(minutes);
             if (!call.Succeeded)
             {
-                Toasts.Add(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+                TellOwn(AppUiTone.Warning, VaultMessages.For(call) ?? VaultMessages.Unreachable);
             }
         }
         finally
@@ -403,7 +437,7 @@
 
         _modeKnown = true;
         _chosen = false;
-        Toasts.Add("Vault access saved.", AppSeverity.Success);
+        _accessSaved?.Show();
         if (IsSelf)
         {
             await Nsfw.RefreshAsync(Person.Id, isKids: false);

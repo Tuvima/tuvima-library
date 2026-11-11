@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page">
@@ -12,6 +11,10 @@
 
     <SettingsSectionPanel Title="@L["OfflineDownloadsTab_EncodeJobs"].Value"
                           Description="@L["OfflineDownloadsTab_CurrentAndQueuedWorkFor"].Value">
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-encode-failure>@_failure</AppAlert>
+        }
         @if (_loading)
         {
             <AppProgressBar Indeterminate="true" />
@@ -66,6 +69,7 @@
 
 @code {
     private bool _loading;
+    private string? _failure;
     private List<EncodeJobDto> _jobs = [];
 
     protected override async Task OnInitializedAsync() => await LoadJobsAsync();
@@ -79,8 +83,10 @@
 
     private async Task CancelAsync(Guid jobId)
     {
+        _failure = null;
         var ok = await ApiClient.CancelEncodeJobAsync(jobId);
-        Snackbar.Add(ok ? "Encode job cancelled" : "Encode job could not be cancelled", ok ? AppSeverity.Success : AppSeverity.Warning);
+        // A cancelled job shows as cancelled in the list once it is read again.
+        if (!ok) _failure = L["OfflineDownloadsTab_CouldNotCancelTheEncodeJob"].Value;
         await LoadJobsAsync();
     }
 

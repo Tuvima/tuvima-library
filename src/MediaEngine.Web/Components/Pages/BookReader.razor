@@ -16,7 +16,6 @@
 @inject IJSRuntime JS
 @inject ILogger<BookReader> Logger
 @inject UIOrchestratorService Orchestrator
-@inject IAppToastService Toast
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 
 @implements IAsyncDisposable
@@ -437,7 +436,7 @@
 
             _exited = true;
             _removed = true;
-            Toast.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            // The title is gone, so the reader leaves for Home: the move itself is the news. No notice is needed.
             Nav.NavigateTo("/", replace: true);
         });
     }

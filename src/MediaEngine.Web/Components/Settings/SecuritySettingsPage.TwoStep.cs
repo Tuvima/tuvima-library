@@ -28,14 +28,15 @@ public partial class SecuritySettingsPage
         }
 
         _busy = _twoStepWorking = true;
+        _failure = null;
         try
         {
             var result = await Confirmed.RunAsync(() => Identity.BeginTwoStepSetupResultAsync(_lifetime.Token), _lifetime.Token);
             if (result.Value is not { } setup)
             {
-                Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
+                Fail(result.Failure == DashboardAccessMutationFailure.Conflict
                     ? "Two-step codes can't be set up for this account right now."
-                    : NotChangedMessage(result, "Two-step codes could not be set up."), AppSeverity.Error);
+                    : NotChangedMessage(result, "Two-step codes could not be set up."));
                 return;
             }
 
@@ -56,18 +57,19 @@ public partial class SecuritySettingsPage
         }
 
         _busy = _twoStepWorking = true;
+        _failure = null;
         try
         {
             var code = _twoStepCode.Trim();
             var result = await Confirmed.RunAsync(() => Identity.EnableTwoStepResultAsync(code, _lifetime.Token), _lifetime.Token);
             if (result.Value is not { } codes)
             {
-                Snackbar.Add(result.Failure switch
+                Fail(result.Failure switch
                 {
                     DashboardAccessMutationFailure.Unauthorized => "That code didn't match. Check the code in your app and try again.",
                     DashboardAccessMutationFailure.Transient => "Too many attempts. Wait a minute and try again.",
                     _ => NotChangedMessage(result, "Two-step codes could not be turned on."),
-                }, AppSeverity.Error);
+                });
                 return;
             }
 
@@ -76,7 +78,6 @@ public partial class SecuritySettingsPage
             _twoStepQr = string.Empty;
             _twoStepCode = string.Empty;
             _twoStepRecoveryCodes = codes.RecoveryCodes;
-            Snackbar.Add("Two-step codes are on. Save your new recovery codes.", AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         finally { _busy = _twoStepWorking = false; }
@@ -98,10 +99,11 @@ public partial class SecuritySettingsPage
         }
 
         _busy = true;
+        _failure = null;
         try
         {
             var recent = await Confirmed.RunAsync(() => Identity.CheckRecentSignInAsync(_lifetime.Token), _lifetime.Token);
-            if (!recent.Succeeded) { Snackbar.Add(NotChangedMessage(recent, "Two-step codes could not be turned off."), AppSeverity.Error); return; }
+            if (!recent.Succeeded) { Fail(NotChangedMessage(recent, "Two-step codes could not be turned off.")); return; }
             _twoStepDisableCode = string.Empty;
             _twoStepTurningOff = true;
         }
@@ -117,18 +119,19 @@ public partial class SecuritySettingsPage
         }
 
         _busy = _twoStepWorking = true;
+        _failure = null;
         try
         {
             var code = _twoStepDisableCode.Trim();
             var result = await Confirmed.RunAsync(() => Identity.DisableTwoStepResultAsync(code, _lifetime.Token), _lifetime.Token);
             if (!result.Succeeded)
             {
-                Snackbar.Add(result.Failure switch
+                Fail(result.Failure switch
                 {
                     DashboardAccessMutationFailure.Unauthorized => "That code didn't work. Each code works once, so wait for the next one in your app.",
                     DashboardAccessMutationFailure.Transient => "Too many attempts. Wait a minute and try again.",
                     _ => NotChangedMessage(result, "Two-step codes could not be turned off."),
-                }, AppSeverity.Error);
+                });
                 return;
             }
 
@@ -136,7 +139,6 @@ public partial class SecuritySettingsPage
             _twoStepTurningOff = false;
             _twoStepDisableCode = string.Empty;
             _twoStepRecoveryCodes = [];
-            Snackbar.Add("Two-step codes are off.", AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         finally { _busy = _twoStepWorking = false; }

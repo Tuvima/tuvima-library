@@ -128,12 +128,13 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));
         _detailAnswer = Page(withEdit: true, disabled: true);
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));
+        // The reason the Engine gave is kept for the list to show in place.
+        Assert.Contains("Updating details", launcher.LastNotice, StringComparison.Ordinal);
         _detailAnswer = null;
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));
 
         Assert.False(host.IsOpen);
         Assert.Equal(3, _detailReads.Count);
-        Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message.Contains("Updating details", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -163,6 +164,27 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
         Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
         popover.WaitForAssertion(() => Assert.Equal("Editing 1 song", popover.Find(".tl-editor-panel__title").TextContent.Trim()));
         Assert.Contains(_detailReads, read => read.Id == SongId);
+    }
+
+    [Fact]
+    public async Task ANoticeSink_IsWhereAClosingDeleteHandsItsLine_AndWithoutOneTheLineHasNowhereToGo()
+    {
+        await UseDevice("desktop");
+        var (launcher, host, _) = Parts();
+
+        Assert.True(await launcher.OpenAsync(Movie(), EditTool.Match));
+        Assert.False(await host.HandNoticeToPageAsync("Files stayed on disk."));
+        Assert.True(await host.RequestCloseAsync());
+
+        var handed = new List<string>();
+        Assert.True(await launcher.OpenAsync(Movie(), EditTool.Match, deletedNotice: notice =>
+        {
+            handed.Add(notice);
+            return Task.CompletedTask;
+        }));
+        Assert.True(await host.HandNoticeToPageAsync("Files stayed on disk."));
+
+        Assert.Equal(["Files stayed on disk."], handed);
     }
 
     [Fact]

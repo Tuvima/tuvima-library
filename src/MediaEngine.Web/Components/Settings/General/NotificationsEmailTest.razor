@@ -5,7 +5,6 @@
 @inject IEngineApiClient ApiClient
 @inject DashboardIdentityClient IdentityClient
 @inject PasswordResetEmailSender PasswordResetEmails
-@inject IAppToastService Snackbar
 @inject ILogger<NotificationsEmailTest> Logger
 @inject IStringLocalizer<SharedStrings> L
 @* Server > General > Notifications: send one test email to the signed-in administrator's own address through the outgoing email
@@ -23,6 +22,11 @@
                        StartIcon="@AppMaterialIcons.Outlined.MarkEmailRead"
                        Disabled="@(_sending || !_email.Ready)"
                        OnClick="SendTestEmailAsync" Class="tl-sp-mt-3" data-testid="notifications-email-test-send" />
+            <AppSavedNote @ref="_sentNote" Text="@L["NotificationsEmailTest_TestEmailSent"].Value" data-testid="notifications-email-test-sent" />
+            @if (_failure is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-testid="notifications-email-test-failure">@_failure</AppAlert>
+            }
         </div>
     </AppSettingsGroup>
 }
@@ -31,6 +35,8 @@
     private readonly CancellationTokenSource _lifetime = new();
     private PasswordResetDeliveryDto? _email;
     private bool _sending;
+    private string? _failure;
+    private AppSavedNote? _sentNote;
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
@@ -43,18 +49,19 @@
     {
         if (_sending || _disposed || _email?.Ready != true) return;
         _sending = true;
+        _failure = null;
         try
         {
             var sent = await DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync(
                 IdentityClient, PasswordResetEmails, _lifetime.Token);
-            Snackbar.Add(sent ? L["NotificationsEmailTest_TestEmailSent"].Value : L["NotificationsEmailTest_TestEmailCouldNotBe"].Value,
-                sent ? AppSeverity.Success : AppSeverity.Error);
+            if (sent) _sentNote?.Show();
+            else _failure = L["NotificationsEmailTest_TestEmailCouldNotBe"].Value;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Notifications test email failed");
-            Snackbar.Add(L["NotificationsEmailTest_TestEmailCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["NotificationsEmailTest_TestEmailCouldNotBe"].Value;
         }
         finally
         {

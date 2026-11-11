@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
@@ -65,9 +64,8 @@
 
     private async Task TestBandwidthAsync()
     {
+        // An unavailable test is told by the alert under the figures; there is nothing more to say over the page.
         _bandwidth = await ApiClient.TestNetworkBandwidthAsync();
-        if (_bandwidth?.Status == "unavailable")
-            Snackbar.Add(L["StreamingLimitsPanel_BandwidthTestingNeedsATrusted"].Value, AppSeverity.Info);
         await StatusRefreshRequested.InvokeAsync();
     }
 

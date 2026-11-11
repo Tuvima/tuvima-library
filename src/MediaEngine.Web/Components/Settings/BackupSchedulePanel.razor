@@ -1,13 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Backups
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* Backups > Backups: when Library backs itself up. Where the copies go is on the Destinations tab. *@
 @if (_settings is not null)
 {
     <AppSettingsGroup Heading="@L["BackupDestinationsSection_AutomaticBackups"].Value" data-testid="backup-schedule">
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-backup-failure>@_failure</AppAlert>
+        }
         <AppSwitchRow Label="@L["BackupDestinationsSection_BackUpAutomatically"].Value" Value="_settings.Schedule.Enabled" Disabled="@_busy" ValueChanged="SetScheduleEnabledAsync" />
         @if (_settings.Schedule.Enabled)
         {
@@ -27,6 +30,7 @@
 @code {
     private BackupSettingsResponse? _settings;
     private bool _busy;
+    private string? _failure;
 
     private IReadOnlyList<AppSelectOption> FrequencyOptions =>
     [
@@ -39,8 +43,9 @@
     private async Task SaveAsync(UpdateBackupSettingsRequest request)
     {
         _busy = true;
+        _failure = null;
         var saved = await ApiClient.UpdateBackupSettingsAsync(request);
-        if (saved is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value, AppSeverity.Error);
+        if (saved is null) _failure = L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value;
         else _settings = saved;
         _busy = false;
     }

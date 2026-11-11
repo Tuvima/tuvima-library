@@ -27,6 +27,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     private readonly List<IReadOnlyList<Guid>?> _updatedWorkIds = [];
     private IReadOnlyList<CollectionPersonalMediaSourceDto> _attachedSources = [];
     private EngineApiClientStub _stub = default!;
+    private bool _removeAccepted;
 
     public CuratedCollectionEditorTests()
     {
@@ -110,15 +111,58 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     public async Task WhenTheEngineRefusesToTakeOutTheLastItem_TheEditorShowsTheEnginesMessage()
     {
         const string engineMessage = "A collection needs at least one item. Delete the collection instead.";
+        var (editor, items) = await RemoveTheOnlyItemAsync(engineAccepts: false, engineMessage);
+
+        editor.WaitForAssertion(() => Assert.Contains(engineMessage, editor.Find("[data-editor-notice]").TextContent));
+        // The item is still listed: the Engine kept it.
+        Assert.Single(items);
+    }
+
+    [Fact]
+    public async Task WhenTheEngineTakesOutAnItem_NothingIsSaidAndNothingIsToasted()
+    {
+        var (editor, _) = await RemoveTheOnlyItemAsync(engineAccepts: true, "unused");
+
+        // The list reloading is the confirmation; there is no message to show.
+        Assert.Empty(editor.FindAll("[data-editor-notice]"));
+    }
+
+    [Fact]
+    public async Task AFailureShownInTheEditor_CanBeDismissedWithItsCloseButton()
+    {
+        var (editor, _) = await RemoveTheOnlyItemAsync(engineAccepts: false, "The Engine would not take that out.");
+        editor.WaitForAssertion(() => Assert.NotEmpty(editor.FindAll("[data-editor-notice]")));
+
+        editor.Find("[data-editor-notice] .tl-alert-close").Click();
+
+        Assert.Empty(editor.FindAll("[data-editor-notice]"));
+    }
+
+    [Fact]
+    public async Task AFailureFromTheLastTry_GoesAsSoonAsThePersonTriesTheNextActionAndItWorks()
+    {
+        var (editor, items) = await RemoveTheOnlyItemAsync(engineAccepts: false, "The Engine would not take that out.");
+        editor.WaitForAssertion(() => Assert.NotEmpty(editor.FindAll("[data-editor-notice]")));
+        _removeAccepted = true;
+
+        var remove = editor.Instance.GetType().GetMethod("RemoveManualItemAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await editor.InvokeAsync(() => (Task)remove.Invoke(editor.Instance, [items[0]])!);
+
+        editor.WaitForAssertion(() => Assert.Empty(editor.FindAll("[data-editor-notice]")));
+    }
+
+    private async Task<(IRenderedComponent<CollectionEditorShell> Editor, System.Collections.IList Items)> RemoveTheOnlyItemAsync(bool engineAccepts, string engineMessage)
+    {
         var collectionId = Guid.NewGuid();
         var itemId = Guid.NewGuid();
+        _removeAccepted = engineAccepts;
         var client = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ => Task.FromResult(new List<CollectionItemDto>
             {
                 new() { Id = itemId, WorkId = FirstWork, Title = "Arrival", MediaType = "Movies", SortOrder = 1 },
             }));
-            stub.SetHandler(nameof(IEngineApiClient.RemoveCollectionItemAsync), _ => Task.FromResult(false));
+            stub.SetHandler(nameof(IEngineApiClient.RemoveCollectionItemAsync), _ => Task.FromResult(_removeAccepted));
             stub.SetHandler("get_" + nameof(IEngineApiClient.LastError), _ => engineMessage);
         });
         _stub = (EngineApiClientStub)(object)client;
@@ -143,15 +187,12 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
             .GetField("_manualItems", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(editor.Instance) as System.Collections.IList ?? new List<object>()));
 
-        var remove = editor.Instance.GetType().GetMethod("RemoveManualItemAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var items = (System.Collections.IList)editor.Instance.GetType()
             .GetField("_manualItems", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(editor.Instance)!;
+        var remove = editor.Instance.GetType().GetMethod("RemoveManualItemAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
         await editor.InvokeAsync(() => (Task)remove.Invoke(editor.Instance, [items[0]])!);
-
-        Assert.Contains(Services.GetRequiredService<MediaEngine.Web.Services.Ui.AppToastService>().Toasts,
-            toast => toast.Message == engineMessage);
-        // The item is still listed: the Engine kept it.
-        Assert.Single(items);
+        editor.Render();
+        return (editor, items);
     }
 
     [Fact]

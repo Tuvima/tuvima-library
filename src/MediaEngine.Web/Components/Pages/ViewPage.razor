@@ -6,7 +6,7 @@
 @using MediaEngine.Web.Components.Settings
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @inject ViewDropUploader DropUploader
 @inject ViewFolderGate FolderGate
 @inject ViewWorkspaceService Workspace
@@ -242,7 +242,7 @@ else
         _observeTimeline = _page.Items.Count > 0;
     }
     private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _day = null; _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); StateHasChanged(); }); }
-    private async Task DensityChangedAsync(string? selected) { if (Enum.TryParse<ViewTimelineDensity>(selected, out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
+    private async Task DensityChangedAsync(string? selected) { if (Enum.TryParse<ViewTimelineDensity>(selected, out var density) && !await Workspace.SetDensityAsync(density)) Ribbon.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {
         _search = value?.ToString() ?? "";
@@ -331,7 +331,7 @@ else
                     To = new DateTimeOffset(date.AddDays(1), TimeSpan.Zero).AddHours(14), Limit = 500 };
                 var page = await ApiClient.GetViewAssetsAsync(query);
                 if (version != _loadVersion) return;
-                if (page is null) { Snackbar.Add(L["ViewPage_TheFullDateCouldNot"].Value, AppSeverity.Error); return; }
+                if (page is null) { Ribbon.Add(L["ViewPage_TheFullDateCouldNot"].Value, AppSeverity.Error); return; }
                 matching.UnionWith(page.Items.Where(value => (value.CapturedAt ?? value.CreatedAt).Date == date).Select(value => value.Id));
                 cursor = page.NextCursor;
             } while (cursor is not null);
@@ -372,7 +372,7 @@ else
         var files = _page.Items.Where(item => _selected.Contains(item.Id)).Select(item => new { url = AssetUrl(item, ViewMediaResourceKind.Content), name = item.FileName }).Where(file => !string.IsNullOrEmpty(file.url)).ToList();
         if (files.Count < _selected.Count)
         {
-            Snackbar.Add($"{_selected.Count - files.Count} selected items are outside the loaded photos and were not downloaded.", AppSeverity.Warning);
+            Ribbon.Add($"{_selected.Count - files.Count} selected items are outside the loaded photos and were not downloaded.", AppSeverity.Warning);
         }
 
         if (files.Count == 0)
@@ -384,9 +384,9 @@ else
         await _timelineModule.InvokeVoidAsync("downloadFiles", files);
     }
     private void BeginDrag(Guid id) => AssetDrag.Begin(_selected.Contains(id) ? _selected : [id]); private void EndDrag() => AssetDrag.Clear();
-    private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Snackbar.Add(L["ViewPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error); return; } Snackbar.Add(GalleryResult(result), AppSeverity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
+    private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Ribbon.Add(L["ViewPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error); return; } Ribbon.Add(GalleryResult(result), AppSeverity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
     private async Task CreateGalleryFromSelectionAsync() { if (_viewSectionShell is null) return; await _viewSectionShell.BeginManualGalleryCreateAsync(_selected); ClearSelection(); }
-    private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Snackbar.Add(GalleryResult(result), AppSeverity.Success); }
+    private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Ribbon.Add(GalleryResult(result), AppSeverity.Success); }
     private static string GalleryResult(AddViewGalleryItemsResponseDto result) => result.AlreadyPresent > 0 ? $"{result.Added} added · {result.AlreadyPresent} already in Gallery" : $"{result.Added} added";
     private async Task ArchiveSelectionAsync() { if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService, _selected.Count)) return; await MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, "Archived selected items."); }
     private async Task TrashSelectionAsync()
@@ -396,13 +396,13 @@ else
         var note = EmptyTrashText.ReadOnlyNote(readOnly.Count);
         if (note is not null && readOnly.Count == _selected.Count)
         {
-            Snackbar.Add(note, AppSeverity.Warning);
+            Ribbon.Add(note, AppSeverity.Warning);
             return;
         }
 
         if (!await ViewTrashConfirmation.AskTrashAsync(DialogService, _selected.Count - readOnly.Count)) return;
         await MutateSelectionAsync(ApiClient.TrashViewItemAsync, "Moved selected items to Trash.", readOnly);
-        if (note is not null) Snackbar.Add(note, AppSeverity.Warning);
+        if (note is not null) Ribbon.Add(note, AppSeverity.Warning);
     }
     // Only items on the loaded page are known; one selected from a date group that isn't loaded is left to the Engine's refusal.
     private bool IsKnownReadOnly(Guid id) => _page?.Items.FirstOrDefault(item => item.Id == id) is { CanTrash: false };
@@ -421,7 +421,7 @@ else
             foreach (var id in _selected.ToArray()) if (skip?.Contains(id) != true && !await action(id, default)) failed.Add(id);
             await LoadAsync();
             _selected.UnionWith(failed);
-            Snackbar.Add(failed.Count == 0 ? message : $"{failed.Count} items could not be updated and remain selected. Please retry.", failed.Count == 0 ? AppSeverity.Success : AppSeverity.Error);
+            Ribbon.Add(failed.Count == 0 ? message : $"{failed.Count} items could not be updated and remain selected. Please retry.", failed.Count == 0 ? AppSeverity.Success : AppSeverity.Error);
         }
         finally { _mutatingSelection = false; }
     }
@@ -441,30 +441,30 @@ else
     private async Task FavoriteItemAsync(LocalAssetDto item)
     {
         var value = !item.Favorite;
-        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { Replace(item with { Favorite = value }); Snackbar.Add(L[value ? "ViewPage_FavoriteAdded" : "ViewPage_FavoriteRemoved"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
+        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { Replace(item with { Favorite = value }); Ribbon.Add(L[value ? "ViewPage_FavoriteAdded" : "ViewPage_FavoriteRemoved"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
     }
     private async Task ArchiveItemAsync(LocalAssetDto item)
     {
         if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService)) return;
-        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { await LoadAsync(); Snackbar.Add(L["ViewPage_ItemArchived"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_ArchiveFailed"].Value, AppSeverity.Error);
+        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { await LoadAsync(); Ribbon.Add(L["ViewPage_ItemArchived"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_ArchiveFailed"].Value, AppSeverity.Error);
     }
     private async Task RestoreItemAsync(LocalAssetDto item)
     {
-        if (await ApiClient.RestoreViewItemAsync(item.Id)) { Workspace.ClearTrashFailures([item.Id]); _trashVersion++; await LoadAsync(); Snackbar.Add(L["ViewPage_ItemRestored"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_RestoreFailed"].Value, AppSeverity.Error);
+        if (await ApiClient.RestoreViewItemAsync(item.Id)) { Workspace.ClearTrashFailures([item.Id]); _trashVersion++; await LoadAsync(); Ribbon.Add(L["ViewPage_ItemRestored"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_RestoreFailed"].Value, AppSeverity.Error);
     }
     private async Task HideItemAsync(LocalAssetDto item)
     {
-        if (await ApiClient.SetViewItemHiddenAsync(item.Id, true)) { await LoadAsync(); Snackbar.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error);
+        if (await ApiClient.SetViewItemHiddenAsync(item.Id, true)) { await LoadAsync(); Ribbon.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error);
     }
     private async Task AddItemToGalleryAsync(ViewPhotoTimeline.GalleryAdd request)
     {
         var result = await ApiClient.AddViewGalleryItemsAsync(request.GalleryId, [request.Item.Id]);
-        if (result is null) { Snackbar.Add(L["ViewPage_AddToGalleryFailed"].Value, AppSeverity.Error); return; }
-        Snackbar.Add(GalleryResult(result), AppSeverity.Success);
+        if (result is null) { Ribbon.Add(L["ViewPage_AddToGalleryFailed"].Value, AppSeverity.Error); return; }
+        Ribbon.Add(GalleryResult(result), AppSeverity.Success);
         await Workspace.LoadGalleriesAsync(force: true);
     }
     private async Task DownloadItemAsync(LocalAssetDto item)
@@ -483,8 +483,8 @@ else
     private async Task TrashItemAsync(LocalAssetDto item)
     {
         if (!await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
-        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Snackbar.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Ribbon.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }
     private EventCallback EditCallback => EditorHost.CanEdit && _filter != "trash" ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
 
@@ -507,14 +507,14 @@ else
             new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
         if (await dialog.Result is not { Canceled: false, Data: ViewSharedContributionSubmitRequest request }) return;
         var contribution = await ApiClient.SubmitViewSharedContributionAsync(request);
-        if (contribution is null) { Snackbar.Add(ApiClient.LastError ?? "The contribution could not be submitted.", AppSeverity.Error); return; }
-        Snackbar.Add($"{contribution.Items.Count} items submitted to the Shared Library.", AppSeverity.Success);
+        if (contribution is null) { Ribbon.Add(ApiClient.LastError ?? "The contribution could not be submitted.", AppSeverity.Error); return; }
+        Ribbon.Add($"{contribution.Items.Count} items submitted to the Shared Library.", AppSeverity.Success);
         ClearSelection();
     }
     private Task RestoreSelectionAsync() { _trashVersion++; return MutateSelectionAsync(async (id, ct) => { var restored = await ApiClient.RestoreViewItemAsync(id, ct); if (restored) Workspace.ClearTrashFailures([id]); return restored; }, "Restored selected items to Photos."); }
     private async Task ToggleFavoriteAsync() { if (_activeItem is null) return; var value = !_activeItem.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_activeItem.Id, value)) Replace(_activeItem with { Favorite = value }); }
     private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
-    private async Task HideActiveAsync() { if (_activeItem is not null && await ApiClient.SetViewItemHiddenAsync(_activeItem.Id, true)) { Snackbar.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); await RemoveActiveAsync(); } else Snackbar.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error); }
+    private async Task HideActiveAsync() { if (_activeItem is not null && await ApiClient.SetViewItemHiddenAsync(_activeItem.Id, true)) { Ribbon.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); await RemoveActiveAsync(); } else Ribbon.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error); }
     private async Task RestoreActiveAsync() { if (_activeItem is not null && await ApiClient.RestoreViewItemAsync(_activeItem.Id)) { Workspace.ClearTrashFailures([_activeItem.Id]); _trashVersion++; await RemoveActiveAsync(); } }
     private async Task TrashActiveAsync() { if (_activeItem is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
     private async Task RemoveActiveAsync() { _activeItem = null; await LoadAsync(); }

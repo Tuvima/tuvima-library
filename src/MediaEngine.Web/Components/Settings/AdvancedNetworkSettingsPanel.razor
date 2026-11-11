@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel network-advanced">
@@ -36,6 +35,10 @@
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>@L["AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
             <AppAlert Tone="AppUiTone.Warning">@L["AdvancedNetworkSettingsPanel_PCPNATPMPAndUPnP"]</AppAlert>
+            @if (_portProblem is not null)
+            {
+                <AppAlert Tone="AppUiTone.Warning" ShowCloseIcon="true" CloseIconClicked="@(() => { _portProblem = null; })" data-network-failure>@_portProblem</AppAlert>
+            }
             <dl class="network-facts">
                 @Fact("Topology", Display(Status?.Topology))
                 @Fact("Observed gateway", Status?.RouterGateway ?? "Not detected")
@@ -111,7 +114,13 @@
            Subtitle="@L["AdvancedNetworkSettingsPanel_ThisTurnsOffRemoteAccess"].Value"
            Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Medium">
-    <ChildContent><AppAlert Tone="AppUiTone.Warning">@L["AdvancedNetworkSettingsPanel_LibraryWillAttemptToRemove"]</AppAlert></ChildContent>
+    <ChildContent>
+        @if (_resetFailure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _resetFailure = null; })" data-reset-failure>@_resetFailure</AppAlert>
+        }
+        <AppAlert Tone="AppUiTone.Warning">@L["AdvancedNetworkSettingsPanel_LibraryWillAttemptToRemove"]</AppAlert>
+    </ChildContent>
     <FooterContent>
         <AppButton Label="@L["Search_Cancel"].Value" OnClick="CloseReset" />
         <AppButton Label="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"].Value" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" OnClick="ResetAsync" />
@@ -132,6 +141,8 @@
     private string? _trustedProxyNetworkText;
     private string? _tlsPortText;
     private string? _externalPortText;
+    private string? _portProblem;
+    private string? _resetFailure;
 
     private string InternalAddress => Status?.LocalAddresses.FirstOrDefault(address => address.AddressFamily == "ipv4")?.Address
         ?? Status?.LocalAddresses.FirstOrDefault()?.Address
@@ -165,7 +176,6 @@
     {
         Settings.Local.Port = result.Port;
         _portDialogOpen = false;
-        Snackbar.Add(result.Message, AppSeverity.Success);
         await StatusRefreshRequested.InvokeAsync();
     }
 
@@ -199,9 +209,10 @@
         if (!int.TryParse(_tlsPortText, out var tlsPort) || tlsPort is < 1 or > 65535
             || !int.TryParse(_externalPortText, out var externalPort) || externalPort is < 1 or > 65535)
         {
-            Snackbar.Add(L["AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust"].Value, AppSeverity.Warning);
+            _portProblem = L["AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust"].Value;
             return false;
         }
+        _portProblem = null;
         Settings.Remote.TlsTerminationPort = tlsPort;
         Settings.Remote.ExternalPort = externalPort;
         return true;
@@ -218,7 +229,6 @@
     {
         await ApiClient.RenewNetworkRouterMappingAsync();
         await StatusRefreshRequested.InvokeAsync();
-        Snackbar.Add(L["AdvancedNetworkSettingsPanel_RouterMappingReconciliationCompleted"].Value, AppSeverity.Info);
     }
 
     private async Task TestRemoteAsync() => _ = await ApiClient.TestRemoteNetworkAsync();
@@ -228,14 +238,14 @@
 
     private async Task ResetAsync()
     {
+        _resetFailure = null;
         var replacement = await ApiClient.ResetNetworkSettingsAsync();
         if (replacement is null)
         {
-            Snackbar.Add(L["AdvancedNetworkSettingsPanel_NetworkSettingsCouldNotBe"].Value, AppSeverity.Error);
+            _resetFailure = L["AdvancedNetworkSettingsPanel_NetworkSettingsCouldNotBe"].Value;
             return;
         }
         _resetDialogOpen = false;
-        Snackbar.Add(L["AdvancedNetworkSettingsPanel_NetworkSettingsResetRemoteAccess"].Value, AppSeverity.Success);
         await SettingsReplaced.InvokeAsync(replacement);
     }
 

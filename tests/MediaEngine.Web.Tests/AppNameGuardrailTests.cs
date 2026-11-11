@@ -4,7 +4,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// The app is called Library; Tuvima is the company and brand. Every string a person can see (page titles, Settings and
-/// Setup copy, error messages, snackbars, the PWA manifest, the native apps) names the app "Library". "Tuvima" stays only
+/// Setup copy, error messages, alerts, the PWA manifest, the native apps) names the app "Library". "Tuvima" stays only
 /// where it is the company or brand, or a technical name that must not change; each of those is listed in
 /// <see cref="Allowed"/> with its reason. Code identifiers, namespaces, URLs and comments are not checked.
 /// </summary>

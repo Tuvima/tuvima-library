@@ -30,10 +30,8 @@ internal static class NativeUiTestServices
         });
         services.TryAddScoped<AppDialogService>();
         services.TryAddScoped<IAppDialogService>(provider => provider.GetRequiredService<AppDialogService>());
-        services.TryAddScoped<AppToastService>();
         // Components that vary by form factor read it; tests that care register their own, initialised service first.
         services.TryAddScoped(_ => new DeviceContextService(EngineApiClientStub.CreateDefault()));
-        services.TryAddScoped<IAppToastService>(provider => provider.GetRequiredService<AppToastService>());
         services.TryAddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
         services.TryAddScoped<MediaEngine.Web.Services.Settings.ImportUploadState>();
         // Vault mode and the Vault. The state asks the page's own IEngineApiClient; a stub that does not know the route leaves it

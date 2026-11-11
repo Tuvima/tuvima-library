@@ -28,8 +28,13 @@
             </AppTooltip>
             <span class="playback-full__from" data-playback-full-from data-overflow-tooltip="@PlayingFrom">@PlayingFrom</span>
             <PlaybackItemMenu @ref="_itemMenu" Media="@Media" Item="@item" Surface="dock" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
-                              NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows" />
+                              NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows"
+                              OnStatusChanged="ShowStatusUndo" />
         </header>
+        @if (StatusUndo is not null)
+        {
+            <AppUndoNote Offer="StatusUndo" OnCleared="ClearStatusUndo" />
+        }
         <div class="playback-full__art" data-playback-full-art>
             @if (!string.IsNullOrEmpty(PlaybackArtworkUrl.ForDrawnSize(item, 260)))
             {
@@ -94,6 +99,26 @@
 }
 
 @code {
+    // What the "..." menu's Mark as done or not done said, with Undo, drawn under the top line because the menu has closed.
+    private UndoOffer? _statusUndo;
+    private Guid? _statusUndoWorkId;
+    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; _statusUndoWorkId = Current?.WorkId; return Task.CompletedTask; }
+    private Task ClearStatusUndo() { _statusUndo = null; return Task.CompletedTask; }
+
+    // The offer belongs to the item it was made on: when the playing item changes, it is gone.
+    private UndoOffer? StatusUndo
+    {
+        get
+        {
+            if (_statusUndo is not null && _statusUndoWorkId != Current?.WorkId)
+            {
+                _statusUndo = null;
+            }
+
+            return _statusUndo;
+        }
+    }
+
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
 

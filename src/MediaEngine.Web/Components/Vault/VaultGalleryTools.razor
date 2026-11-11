@@ -5,7 +5,6 @@
 @inject IEngineApiClient ApiClient
 @inject NsfwModeState Nsfw
 @inject GalleryEditorLauncherService GalleryEditor
-@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 
 @* The buttons of the Vault's Images view (Videos spec D44): make a gallery, look for new images (administrators), and, on the page of a
@@ -31,11 +30,27 @@
         <AppButton Label="@L["VaultGalleryTools_EditGallery"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="EditAsync" />
     }
 </div>
+@if (GalleryId is null && IsAdministrator)
+{
+    @* What looking for new images found: the quiet line under the buttons, or an alert when the scan could not run. *@
+    <AppSavedNote @ref="_scanNote" Text="@_scanText" data-vault-scan-result />
+}
+@if (_deviceNotice is not null)
+{
+    <AppAlert Tone="AppUiTone.Info" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _deviceNotice = null; })" data-vault-device-notice>@_deviceNotice</AppAlert>
+}
+@if (_scanFailure is not null)
+{
+    <AppAlert Tone="AppUiTone.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _scanFailure = null; })" data-vault-scan-failure>@_scanFailure</AppAlert>
+}
 
 @code {
     private VaultImageGalleryDto? _gallery;
     private string? _loadedFor;
     private bool _scanning;
+    private AppSavedNote? _scanNote;
+    private string? _scanText;
+    private string? _scanFailure;
 
     /// <summary>The gallery whose page is open: a gallery id, or "all" / nothing on the Images view's own page.</summary>
     [Parameter] public string? GalleryId { get; set; }
@@ -65,16 +80,39 @@
 
     private async Task NewAsync()
     {
-        if (await GalleryEditor.OpenAsync(new GalleryEditorLaunchRequest { Vault = true }))
+        _deviceNotice = null;
+        var launch = await GalleryEditor.TryOpenAsync(new GalleryEditorLaunchRequest { Vault = true });
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
+        if (launch == EditorLaunchResult.Applied)
         {
             await OnChanged.InvokeAsync();
         }
     }
 
+    private string? _deviceNotice;
+
     private async Task EditAsync()
     {
-        if (_gallery is { Editable: true } gallery
-            && await GalleryEditor.OpenAsync(new GalleryEditorLaunchRequest { Vault = true, EditingVaultGallery = gallery }))
+        if (_gallery is not { Editable: true } gallery)
+        {
+            return;
+        }
+
+        _deviceNotice = null;
+        var launch = await GalleryEditor.TryOpenAsync(new GalleryEditorLaunchRequest { Vault = true, EditingVaultGallery = gallery });
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
+        if (launch == EditorLaunchResult.Applied)
         {
             _loadedFor = null;
             await OnParametersSetAsync();
@@ -90,17 +128,19 @@
         }
 
         _scanning = true;
+        _scanFailure = null;
         try
         {
             var call = await ApiClient.ScanVaultImagesAsync();
-            Toasts.Add(
-                call.Succeeded && call.Value is { } scan
-                    ? (scan.ImagesAdded == 0 ? "No new images found." : $"{scan.ImagesAdded} new images added.")
-                    : call.Message ?? "The Vault could not be scanned.",
-                call.Succeeded ? AppSeverity.Success : AppSeverity.Error);
             if (call.Succeeded)
             {
+                _scanText = call.Value is { ImagesAdded: > 0 } scan ? $"{scan.ImagesAdded} new images added." : "No new images found.";
+                _scanNote?.Show();
                 await OnChanged.InvokeAsync();
+            }
+            else
+            {
+                _scanFailure = call.Message ?? L["VaultGalleryTools_TheVaultCouldNotBe"].Value;
             }
         }
         finally

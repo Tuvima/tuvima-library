@@ -10,7 +10,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
-@inject IAppToastService Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<PlaybackSettingsPage> Logger
@@ -348,7 +347,6 @@ else if (_settings is not null)
             {
                 Logger.LogWarning("Playback settings were not saved: the profile's current settings could not be read.");
                 _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
-                Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
 
@@ -369,7 +367,6 @@ else if (_settings is not null)
             {
                 Logger.LogWarning("Playback settings could not be saved: the Engine did not accept the update.");
                 _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
-                Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
 
@@ -381,7 +378,6 @@ else if (_settings is not null)
         {
             Logger.LogWarning(ex, "Playback settings could not be saved.");
             _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
-            Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
         {
@@ -405,7 +401,6 @@ else if (_settings is not null)
             {
                 Logger.LogWarning("The spoiler setting could not be saved: the Engine did not accept the update.");
                 _saveError = L["Common_TheSpoilerSettingCouldNot"].Value;
-                Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
 
@@ -416,7 +411,6 @@ else if (_settings is not null)
         {
             Logger.LogWarning(ex, "The spoiler setting could not be saved.");
             _saveError = L["Common_TheSpoilerSettingCouldNot"].Value;
-            Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
         {

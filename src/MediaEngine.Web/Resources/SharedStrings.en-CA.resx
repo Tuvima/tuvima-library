@@ -122,4 +122,7 @@
   <data name="PlaybackIdentity_FavoritesNeedProfile" xml:space="preserve">
     <value>Favourites need an active profile.</value>
   </data>
+  <data name="VaultImageViewer_TheFavouriteMarkCouldNot" xml:space="preserve">
+    <value>The favourite mark could not be saved.</value>
+  </data>
 </root>

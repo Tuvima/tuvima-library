@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
+@implements IDisposable
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
-@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Folders tab of a View kind (Library pages WP11, D24, D25, D26): the storage base, the folders of every profile's personal space and
@@ -53,6 +54,7 @@
     }
     @if (Loading) { <p role="status">@L["ViewFoldersTab_LoadingPersonalSources"]</p> }
     @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
+    @if (_note is not null) { <AppAlert Tone="AppUiTone.Info" ShowCloseIcon="true" CloseIconClicked="@(() => { _note = null; })" data-folders-note>@_note</AppAlert> }
     @foreach (var profile in Profiles)
     {
         <div class="view-source-group">
@@ -70,7 +72,7 @@
                 <div class="view-source-head" aria-hidden="true"><span>@L["Common_Folder"]</span><span>@L["ViewFoldersTab_Management"]</span><span>@(ShowsTimeline ? "Show in Photos timeline" : string.Empty)</span><span>@L["Models_Status"]</span><span>@L["ApiKeys_Actions"]</span></div>
                 @foreach (var source in sources)
                 {
-                    <div class="view-source-row" @key="source.Id">
+                    <div class="view-source-row @_glow.Class(source.Id.ToString())" @key="@($"{source.Id}-{_glow.Version(source.Id.ToString())}")">
                         <span>
                             <strong>@source.Name</strong>
                             @if (source.AcceptsPhotosAndVideos) { <AppStatusBadge Text="@L["ViewFoldersTab_PhotosAndVideos"].Value" Tone="AppUiTone.Neutral" /> }
@@ -134,7 +136,21 @@
     [Parameter] public EventCallback RootChanged { get; set; }
 
     private bool _busy, _timeline;
-    private string? _owner, _path, _error;
+    private string? _owner, _path, _error, _note;
+    // A folder just added or given a schedule glows once; nothing else says it worked.
+    private readonly JustChanged _glow = new();
+
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
+
+    protected override void OnInitialized() => _glow.Changed += OnGlowCleared;
+
+    public void Dispose()
+    {
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
+    }
+
     private string _name = string.Empty, _mode = LinkedMode;
 
     // Documents never join the Photos timeline.
@@ -167,7 +183,7 @@
                 ViewStorage = new ViewStorageDto { StorageLocationId = selected.StorageLocationId, RelativeRoot = string.IsNullOrWhiteSpace(selected.RelativePath) ? "." : selected.RelativePath },
             });
             if (saved is null) _error = ApiClient.LastError ?? "Root could not be saved.";
-            else { _error = null; Snackbar.Add(L["ViewFoldersTab_ViewRootSaved"].Value, AppSeverity.Success); await RootChanged.InvokeAsync(); await SourcesChanged.InvokeAsync(); }
+            else { _error = null; await RootChanged.InvokeAsync(); await SourcesChanged.InvokeAsync(); }
         }
         finally { _busy = false; }
     }
@@ -193,9 +209,9 @@
             else
             {
                 _error = null; _name = ""; _path = null;
+                _glow.Mark(result.Id.ToString());
                 await AddingChanged.InvokeAsync(false);
                 await SourcesChanged.InvokeAsync();
-                Snackbar.Add(L["ViewFoldersTab_FolderSavedIndexingRunsSeparately"].Value, AppSeverity.Success);
             }
         }
         finally { _busy = false; }
@@ -214,7 +230,7 @@
             var updated = await ApiClient.UpdateViewProfileSourceAsync(owner, source.Id,
                 new UpdateViewSourceRequest(source.Name, source.Enabled, value));
             if (updated is null) _error = ApiClient.LastError ?? "Timeline setting could not be saved.";
-            else { _error = null; await SourcesChanged.InvokeAsync(); Snackbar.Add(value ? L["ViewFoldersTab_TimelineAdded"].Value : L["ViewFoldersTab_TimelineKeptOut"].Value, AppSeverity.Success); }
+            else { _error = null; await SourcesChanged.InvokeAsync(); }
         }
         finally { _busy = false; }
     }
@@ -232,12 +248,14 @@
 
     private async Task TidyAsync(ViewSourceAdminDto source)
     {
+        _note = null;
         var status = await ApiClient.GetViewTidyStatusAsync(source.Id);
         if (status is null) { _error = ApiClient.LastError ?? "This folder can't be tidied."; return; }
-        if (status.Running) { Snackbar.Add($"{source.Name} is being tidied: {status.Moved:N0} of {status.Total:N0} files done.", AppSeverity.Info); return; }
+        // What the person asked about is answered in place, above the folders, until it is closed or the next try.
+        if (status.Running) { _note = L["ViewFoldersTab_BeingTidied", source.Name, status.Moved, status.Total].Value; return; }
         if (status.WillMove == 0)
         {
-            Snackbar.Add(status.Message is { Length: > 0 } last ? $"Everything in {source.Name} is filed by date. Last time: {last}" : $"Everything in {source.Name} is already filed by date.", AppSeverity.Success);
+            _note = status.Message is { Length: > 0 } last ? L["ViewFoldersTab_FiledByDateLast", source.Name, last].Value : L["ViewFoldersTab_AlreadyFiledByDate", source.Name].Value;
             return;
         }
 
@@ -249,7 +267,7 @@
         try
         {
             if (await ApiClient.RunViewTidyAsync(source.Id) is null) _error = ApiClient.LastError ?? "The folder could not be tidied.";
-            else Snackbar.Add($"Tidying {source.Name}. New files for this library wait until it finishes.", AppSeverity.Info);
+            else _note = L["ViewFoldersTab_TidyingNow", source.Name].Value;
         }
         finally { _busy = false; }
     }
@@ -268,7 +286,7 @@
         try
         {
             if (await ApiClient.SetViewTidyScheduleAsync(source.Id, turnOn) is null) _error = ApiClient.LastError ?? "The schedule could not be saved.";
-            else Snackbar.Add(turnOn ? $"{source.Name} will be tidied every night at {hour}." : $"{source.Name} will no longer be tidied every night.", AppSeverity.Success);
+            else _glow.Mark(source.Id.ToString());
         }
         finally { _busy = false; }
     }
@@ -279,7 +297,7 @@
         _busy = true;
         try
         {
-            if (await ApiClient.DeleteViewProfileSourceAsync(owner, source.Id)) { await SourcesChanged.InvokeAsync(); Snackbar.Add(L["ViewFoldersTab_FolderDetachedFilesKept"].Value, AppSeverity.Success); }
+            if (await ApiClient.DeleteViewProfileSourceAsync(owner, source.Id)) { await SourcesChanged.InvokeAsync(); }
             else _error = ApiClient.LastError ?? "Folder could not be detached.";
         }
         finally { _busy = false; }

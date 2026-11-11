@@ -4,7 +4,6 @@
 @using Microsoft.JSInterop
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
-@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
@@ -12,6 +11,11 @@
     <div class="backup-page__toolbar">
         <AppButton Label="@L["Ingestion_Refresh"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(_busy || _loading)" OnClick="LoadAsync" />
     </div>
+
+    @if (_failure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-backup-failure>@_failure</AppAlert>
+    }
 
     @if (_loading)
     {
@@ -66,6 +70,12 @@
             <AppAlert Tone="AppUiTone.Success" Class="backup-validation-result" data-testid="restore-first-look">
                 <div><strong>@L["BackupRecoveryPanel_RestoreTestPassed"]</strong></div>
                 <BackupContentsSummary Contents="firstLook" />
+            </AppAlert>
+        }
+        else if (_lastValidation is { Valid: true })
+        {
+            <AppAlert Tone="AppUiTone.Success" Class="backup-validation-result" data-testid="restore-passed">
+                @L["BackupRecoveryPanel_RestoreTestPassedNoRestore"]
             </AppAlert>
         }
 
@@ -144,6 +154,10 @@
            Size="Small"
            OnClose="CloseRestoreDialog">
     <ChildContent>
+        @if (_restoreFailure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _restoreFailure = null; })" data-restore-failure>@_restoreFailure</AppAlert>
+        }
         <AppAlert Tone="AppUiTone.Warning">
             The selected recovery point will be validated and staged. Restart the Engine to apply it; the current library is retained as a safety copy.
         </AppAlert>
@@ -178,6 +192,8 @@
     private IReadOnlyList<BackupArchiveDto> _backups = [];
     private bool _loading = true;
     private bool _busy;
+    private string? _failure;
+    private string? _restoreFailure;
     private bool _includeKeys;
     private string _keysPin = string.Empty;
     private string _restorePin = string.Empty;
@@ -256,19 +272,19 @@
     private async Task CreateAsync()
     {
         _busy = true;
+        _failure = null;
         _notice = null;
         _restartRequired = false;
         var backup = await ApiClient.CreateBackupAsync(_includeKeys ? _keysPin : null);
         if (backup is null)
         {
-            Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["BackupRecoveryPanel_TheBackupCouldNotBe"].Value;
         }
         else
         {
             _lastCreated = backup;
             _includeKeys = false;
             _keysPin = string.Empty;
-            Snackbar.Add(L["BackupRecoveryPanel_RecoveryPointCreated"].Value, AppSeverity.Success);
             await LoadAsync();
         }
         _busy = false;
@@ -277,10 +293,11 @@
     private async Task DownloadAsync(RestoreRow backup)
     {
         _busy = true;
+        _failure = null;
         var bytes = await ApiClient.DownloadBackupAsync(backup.FileName);
         if (bytes is null)
         {
-            Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe2"].Value, AppSeverity.Error);
+            _failure = L["BackupRecoveryPanel_TheBackupCouldNotBe2"].Value;
         }
         else
         {
@@ -294,16 +311,15 @@
     private async Task ValidateAsync(RestoreRow backup)
     {
         _busy = true;
+        _failure = null;
         _lastValidation = await ApiClient.ValidateRestoreAsync(backup.FileName);
         _busy = false;
 
-        if (_lastValidation?.Valid == true)
+        // A passed test shows its first-look summary and a failed one its reason (the alerts under Backup status);
+        // only a test that could not run at all has nothing else to show.
+        if (_lastValidation is null)
         {
-            Snackbar.Add(L["BackupRecoveryPanel_RestoreTestPassedNoRestore"].Value, AppSeverity.Success);
-        }
-        else
-        {
-            Snackbar.Add(L["BackupRecoveryPanel_TheRestoreTestFailedDo"].Value, AppSeverity.Error);
+            _failure = L["BackupRecoveryPanel_TheRestoreTestFailedDo"].Value;
         }
     }
 
@@ -325,6 +341,7 @@
         if (_selectedRestore is null) return;
 
         _busy = true;
+        _restoreFailure = null;
         var result = _selectedRestore.IsLocal
             ? await ApiClient.ScheduleRestoreAsync(_selectedRestore.FileName, PinOrNull(_restorePin))
             : await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _selectedRestore.DestinationId, Name = _selectedRestore.FileName, KeysPin = PinOrNull(_restorePin) });
@@ -335,15 +352,10 @@
             _restoreDialogOpen = false;
             _selectedRestore = null;
             _restorePin = string.Empty;
-            Snackbar.Add(
-                result.RestartRequired
-                    ? "Restore scheduled. Restart the Engine when ready."
-                    : "Restore scheduled.",
-                result.RestartRequired ? AppSeverity.Warning : AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error);
+            _restoreFailure = L["Common_TheRestoreCouldNotBe"].Value;
         }
         _busy = false;
     }

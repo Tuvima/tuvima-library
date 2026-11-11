@@ -25,6 +25,11 @@
 
     <CollectionSavedNote Count="@SavedCollectionCount" />
 
+    @if (!string.IsNullOrEmpty(Notice))
+    {
+        <AppAlert Tone="NoticeTone" ShowCloseIcon="true" CloseIconClicked="NoticeDismissed" data-lane-notice>@Notice</AppAlert>
+    }
+
     @if (NoTabs)
     {
         <AppPageState Kind="AppPageStateKind.Empty"
@@ -123,6 +128,10 @@
 
     /// <summary>How many collections the editor just saved from this page; one quiet status line says so.</summary>
     [Parameter] public int SavedCollectionCount { get; set; }
+    // A warning the page could not show any other way (for example, no active profile to make a collection for); it stays until dismissed.
+    [Parameter] public string? Notice { get; set; }
+    [Parameter] public AppUiTone NoticeTone { get; set; } = AppUiTone.Warning;
+    [Parameter] public EventCallback NoticeDismissed { get; set; }
 
     // A profile that can see no library in this lane has no tabs and no rail: the lane shows its empty state, never a browse shell with nothing to browse.
     private bool NoTabs => !TabsLoading && Preset.Tabs.Count == 0;

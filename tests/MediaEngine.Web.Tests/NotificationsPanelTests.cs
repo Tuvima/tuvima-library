@@ -14,11 +14,12 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class NotificationsPanelTests : AsyncBunitContext
 {
-    private readonly AppToastService _toasts = new();
     private readonly List<UpdateNotificationSettingsRequest> _saved = [];
     private readonly List<string> _tested = [];
     private readonly List<string> _enabled = [];
     private bool _markedRead;
+    private bool _saveFails;
+    private bool _testSucceeds = true;
     private NotificationListResponse _list = new();
     private NotificationSettingsResponse _settings = Settings();
 
@@ -27,7 +28,6 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddSingleton<IAppToastService>(_toasts);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetNotificationsAsync), _ => Task.FromResult<NotificationListResponse?>(_list));
@@ -41,6 +41,11 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
             {
                 var request = (UpdateNotificationSettingsRequest)args![0]!;
                 _saved.Add(request);
+                if (_saveFails)
+                {
+                    return Task.FromResult<NotificationSettingsResponse?>(null);
+                }
+
                 foreach (var (eventId, channels) in request.Routes)
                 {
                     _settings.Events.Single(item => item.Id == eventId).Channels = channels;
@@ -61,7 +66,9 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.SendNotificationTestAsync), args =>
             {
                 _tested.Add((string)args![0]!);
-                return Task.FromResult<NotificationTestResponse?>(new NotificationTestResponse { Success = true, Message = "A test message was sent to me@example.com." });
+                return Task.FromResult<NotificationTestResponse?>(_testSucceeds
+                    ? new NotificationTestResponse { Success = true, Message = "A test message was sent to me@example.com." }
+                    : new NotificationTestResponse { Success = false, Message = "The mail server refused the message." });
             });
             stub.SetHandler(nameof(IEngineApiClient.EnableNotificationChannelAsync), args =>
             {
@@ -119,7 +126,7 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SendTest_AsksTheEngine_AndShowsItsAnswer()
+    public void SendTest_AsksTheEngine_AndShowsItsAnswerOnThatChannel()
     {
         var cut = Render<NotificationsPanel>();
         cut.WaitForAssertion(() => cut.Find("[data-channel='email']"));
@@ -127,7 +134,44 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         cut.Find("[data-channel='email']").QuerySelectorAll("button").Single(button => button.TextContent.Contains("Send test", StringComparison.Ordinal)).Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["email"], _tested));
-        Assert.Contains(_toasts.Toasts, toast => toast.Message.Contains("me@example.com", StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("me@example.com", cut.Find("[data-channel='email'] [data-channel-test]").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SendTest_ThatFails_ShowsTheEnginesReasonAsAnErrorOnThatChannel()
+    {
+        _testSucceeds = false;
+        var cut = Render<NotificationsPanel>();
+        cut.WaitForAssertion(() => cut.Find("[data-channel='email']"));
+
+        cut.Find("[data-channel='email']").QuerySelectorAll("button").Single(button => button.TextContent.Contains("Send test", StringComparison.Ordinal)).Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("tl-alert-error", cut.Find("[data-channel='email'] [data-channel-test]").ClassName));
+        Assert.Contains("The mail server refused the message.", cut.Find("[data-channel='email'] [data-channel-test]").TextContent);
+    }
+
+    [Fact]
+    public void ARouteThatCannotBeSaved_ShowsAnAlertAtTheTop_AndAToastNever()
+    {
+        _saveFails = true;
+        var cut = Render<NotificationsPanel>();
+        cut.WaitForAssertion(() => cut.Find("[data-event='backup.failed']"));
+
+        cut.Find("[data-event='backup.failed']").QuerySelectorAll("input[type='checkbox']")[1].Change(true);
+
+        cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("[data-notifications-failure]").GetAttribute("role")));
+    }
+
+    [Fact]
+    public void ARouteThatIsSaved_ShowsNoNoticeAtAll_BecauseTheTickAlreadyShowsIt()
+    {
+        var cut = Render<NotificationsPanel>();
+        cut.WaitForAssertion(() => cut.Find("[data-event='backup.failed']"));
+
+        cut.Find("[data-event='backup.failed']").QuerySelectorAll("input[type='checkbox']")[1].Change(true);
+
+        cut.WaitForAssertion(() => Assert.Single(_saved));
+        Assert.Empty(cut.FindAll("[data-notifications-failure]"));
     }
 
     [Fact]

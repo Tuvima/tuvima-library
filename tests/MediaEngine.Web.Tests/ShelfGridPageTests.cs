@@ -20,7 +20,6 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
     private const string Route = "/all/watch/recently-added";
     private static readonly DateTimeOffset Now = new(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
 
-    private readonly ToastSpy _toasts = new();
     private readonly DeviceContextService _device;
     private readonly List<GridCall> _gridCalls = [];
     private readonly List<(string RememberKey, string Sort)> _sortSaves = [];
@@ -40,7 +39,6 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
         Services.AddLogging();
         Services.AddLocalization();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        Services.AddSingleton<IAppToastService>(_toasts);
         Services.AddSupplyValueFromQueryProvider();
 
         _api = EngineApiClientStub.Create(stub =>
@@ -211,7 +209,7 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
             Assert.Equal(2, _gridCalls.Count);
             Assert.Equal(new GridCall("watch", "recently-added", "title", null, null, null, null, 0, DisplayGridValues.DefaultPageSize), _gridCalls[1]);
         });
-        Assert.Empty(_toasts.Messages);
+        Assert.Empty(cut.FindAll("[data-shelf-grid-sort-note]"));
     }
 
     [Fact]
@@ -230,7 +228,7 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AFailedSaveKeepsTheNewSortForThisVisitAndSaysSoOnce()
+    public async Task AFailedSaveKeepsTheNewSortForThisVisitAndSaysSoInPlace()
     {
         await UseAsync("desktop");
         _saveSucceeds = false;
@@ -240,7 +238,8 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => Select(cut, "Sort by").Instance.ValueChanged.InvokeAsync(DisplayGridValues.SortYear));
 
-        Assert.Equal("Your sort could not be remembered. It still applies for now.", Assert.Single(_toasts.Messages));
+        var note = cut.WaitForElement("[data-shelf-grid-sort-note]");
+        Assert.Contains("Your sort could not be remembered. It still applies for now.", note.TextContent);
         Assert.Contains("sort=year", Nav.Uri);
         cut.WaitForAssertion(() => Assert.Equal(DisplayGridValues.SortYear, _gridCalls[^1].Sort));
     }
@@ -557,22 +556,5 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
 
         Assert.Equal([(DisplayGridValues.RememberWatch, DisplayGridValues.SortTitle)], _sortSaves);
         Assert.Contains("sort=title", Nav.Uri);
-    }
-
-    private sealed class ToastSpy : IAppToastService
-    {
-        public List<string> Messages { get; } = [];
-
-        public AppToast Add(string message, AppSeverity severity = AppSeverity.Normal, Action<AppToastOptions>? configure = null)
-        {
-            Messages.Add(message);
-            return new AppToast(message, severity, new AppToastOptions());
-        }
-
-        public void Remove(AppToast toast)
-        {
-        }
-
-        public void Clear() => Messages.Clear();
     }
 }

@@ -50,6 +50,12 @@ public sealed class ListEditLauncher
     private readonly ILogger<ListEditLauncher> _logger;
     private Guid? _profileId;
 
+    /// <summary>
+    /// Why the last <see cref="OpenAsync"/> or <see cref="OpenRowAsync"/> did not open the pop-over (this device may not edit, or the Engine says the
+    /// item cannot be edited); null when it opened. The list that asked shows it in place, as an alert; nothing is drawn over the page.
+    /// </summary>
+    public string? LastNotice { get; private set; }
+
     public ListEditLauncher(
         EditorHost host,
         IEngineApiClient api,
@@ -67,12 +73,13 @@ public sealed class ListEditLauncher
     /// <summary>
     /// Opens the pop-over on <paramref name="target"/>. <paramref name="tool"/> null opens Match for an item that is not matched and Details
     /// otherwise; Fix and Identify pass <see cref="EditTool.Match"/>. False when the device or the Engine's answer refuses (the reason is
-    /// told in a toast) or the Engine could not be reached.
+    /// in <see cref="LastNotice"/>) or the Engine could not be reached. <paramref name="deletedNotice"/> is the list's own place for a line about a
+    /// delete that closed the window (files left on disk, say); without it that line would have nowhere to go.
     /// </summary>
-    public async Task<bool> OpenAsync(ListEditTarget target, EditTool? tool = null)
+    public async Task<bool> OpenAsync(ListEditTarget target, EditTool? tool = null, Func<string, Task>? deletedNotice = null)
     {
         ArgumentNullException.ThrowIfNull(target);
-        var binding = await BindAsync(target);
+        var binding = await BindAsync(target, deletedNotice);
         if (binding is null)
         {
             return false;
@@ -162,10 +169,17 @@ public sealed class ListEditLauncher
     }
 
     // One small read before opening: the Engine's own answer whether this person may edit this item, and where its editable fields live.
-    private async Task<EditorBinding?> BindAsync(ListEditTarget target)
+    private async Task<EditorBinding?> BindAsync(ListEditTarget target, Func<string, Task>? deletedNotice = null)
     {
-        if (target.EntityId == Guid.Empty || EditorDeviceRule.TryRefuse(_device, _services.GetService(typeof(IAppToastService)) as IAppToastService))
+        LastNotice = null;
+        if (target.EntityId == Guid.Empty)
         {
+            return null;
+        }
+
+        if (EditorDeviceRule.TryRefuse(_device))
+        {
+            LastNotice = EditorDeviceRule.Message;
             return null;
         }
 
@@ -183,9 +197,9 @@ public sealed class ListEditLauncher
         var editAction = page?.OverflowActions.FirstOrDefault(action => action.Key is DetailActionKeys.Edit or DetailActionKeys.EditMedia);
         if (page is null || editAction is null || editAction.IsDisabled)
         {
-            Tell(editAction?.IsDisabled == true
+            LastNotice = editAction?.IsDisabled == true
                 ? editAction.Tooltip ?? "Editing is not available right now."
-                : "Editing is not available for this item.");
+                : "Editing is not available for this item.";
             return null;
         }
 
@@ -201,6 +215,7 @@ public sealed class ListEditLauncher
             BulkMediaType = mediaType,
             IsUnmatched = page.OverflowActions.Any(action => DetailActionKeys.IsUnmatchedAction(action.Key)),
             Extras = page.Extras,
+            DeletedWithNotice = deletedNotice,
         };
         binding.Trail = () => [new EditTrailItem(target.EntityId, target.Title, "Item")];
         binding.MediaTypes = () => [mediaType];
@@ -236,13 +251,5 @@ public sealed class ListEditLauncher
         }
 
         return _profileId;
-    }
-
-    private void Tell(string message)
-    {
-        if (_services.GetService(typeof(IAppToastService)) is IAppToastService toasts)
-        {
-            toasts.Add(message, AppSeverity.Info);
-        }
     }
 }

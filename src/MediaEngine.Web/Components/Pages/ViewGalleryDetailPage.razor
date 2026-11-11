@@ -5,7 +5,7 @@
 @inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @inject ViewDropUploader DropUploader
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
@@ -33,6 +33,10 @@
         }
         else
         {
+            @if (_deviceNotice is not null)
+            {
+                <AppAlert Tone="AppUiTone.Info" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _deviceNotice = null)" data-gallery-device-notice>@_deviceNotice</AppAlert>
+            }
             <header class="view-feature-page__header">
                 <div class="view-feature-page__identity">
                     <span>@L["ViewGalleryDetailPage_Gallery", _gallery.Kind]</span>
@@ -331,10 +335,10 @@
         var result = await ApiClient.RemoveViewGalleryItemsAsync(GalleryId, _selected);
         if (result is null)
         {
-            Snackbar.Add(L["ViewGalleryDetailPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error);
+            Ribbon.Add(L["ViewGalleryDetailPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error);
             return;
         }
-        Snackbar.Add(L["ViewGalleryDetailPage_RemovedSelectedItemsFromThe"].Value, AppSeverity.Success);
+        Ribbon.Add(L["ViewGalleryDetailPage_RemovedSelectedItemsFromThe"].Value, AppSeverity.Success);
         await OnParametersSetAsync();
     }
 
@@ -387,9 +391,20 @@
     private async Task OpenEdit()
     {
         if (!IsOwner || _gallery is null) return;
-        if (await GalleryEditorLauncher.OpenAsync(new GalleryEditorLaunchRequest { EditingGallery = _gallery }))
+        _deviceNotice = null;
+        var launch = await GalleryEditorLauncher.TryOpenAsync(new GalleryEditorLaunchRequest { EditingGallery = _gallery });
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
+        if (launch == EditorLaunchResult.Applied)
             await OnParametersSetAsync();
     }
+
+    private string? _deviceNotice;
 
     private async Task OpenShareAsync()
     {
@@ -459,7 +474,7 @@
             }
 
             _shareOpen = false;
-            Snackbar.Add(shares.Count == 0 ? "Gallery sharing removed." : "Gallery sharing updated.", AppSeverity.Success);
+            Ribbon.Add(shares.Count == 0 ? "Gallery sharing removed." : "Gallery sharing updated.", AppSeverity.Success);
         }
         finally
         {

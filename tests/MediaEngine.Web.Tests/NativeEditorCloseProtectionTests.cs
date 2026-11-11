@@ -59,26 +59,6 @@ public sealed class NativeEditorCloseProtectionTests : AsyncBunitContext
         }
     }
 
-    [Fact]
-    public async Task ToastHostShowsFiveOldestMessagesAndPromotesQueuedMessageWhenDismissed()
-    {
-        var host = Render<AppToastHost>();
-        var service = Services.GetRequiredService<AppToastService>();
-        AppToast? first = null;
-        await host.InvokeAsync(() =>
-        {
-            for (var number = 1; number <= 6; number++)
-            {
-                var toast = service.Add($"Notification {number}", AppSeverity.Info, options => options.RequireInteraction = true);
-                first ??= toast;
-            }
-        });
-        host.WaitForAssertion(() => Assert.Equal(5, host.FindAll(".app-toast").Count));
-        Assert.Equal(Enumerable.Range(1, 5).Select(number => $"Notification {number}"), host.FindAll(".app-toast__message").Select(element => element.TextContent));
-        await host.InvokeAsync(() => service.Remove(first!));
-        host.WaitForAssertion(() => Assert.Equal(Enumerable.Range(2, 5).Select(number => $"Notification {number}"), host.FindAll(".app-toast__message").Select(element => element.TextContent)));
-    }
-
     private static void SetField(object target, string name, object value) =>
         target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(target, value);
     private static T GetField<T>(object target, string name) =>

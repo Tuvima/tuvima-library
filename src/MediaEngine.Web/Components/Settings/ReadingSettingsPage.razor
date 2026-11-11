@@ -9,7 +9,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
-@inject IAppToastService Snackbar
 @inject ILogger<ReadingSettingsPage> Logger
 @inject IStringLocalizer<SharedStrings> L
 
@@ -279,7 +278,6 @@ else if (_settings is not null)
             {
                 Logger.LogWarning("Reading settings were not saved: the profile's current settings could not be read.");
                 _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
-                Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
 
@@ -300,7 +298,6 @@ else if (_settings is not null)
             {
                 Logger.LogWarning("Reading settings could not be saved: the Engine did not accept the update.");
                 _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
-                Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
 
@@ -312,7 +309,6 @@ else if (_settings is not null)
         {
             Logger.LogWarning(ex, "Reading settings could not be saved.");
             _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
-            Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
         {

@@ -14,6 +14,9 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
     private readonly List<UpdateBackupSettingsRequest> _saved = [];
     private readonly List<SaveBackupDestinationRequest> _added = [];
     private readonly List<string> _removed = [];
+    private BackupSettingsResponse? _addAnswer;
+    private bool _addFails;
+    private bool _testPasses = true;
     private BackupSettingsResponse _settings = new()
     {
         KeepLast = 10,
@@ -30,7 +33,6 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddSingleton<IAppToastService>(new AppToastService());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetBackupSettingsAsync), _ => Task.FromResult<BackupSettingsResponse?>(_settings));
@@ -42,8 +44,10 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.SaveBackupDestinationAsync), args =>
             {
                 _added.Add((SaveBackupDestinationRequest)args![0]!);
-                return Task.FromResult<BackupSettingsResponse?>(_settings);
+                return Task.FromResult<BackupSettingsResponse?>(_addFails ? null : _addAnswer ?? _settings);
             });
+            stub.SetHandler(nameof(IEngineApiClient.TestBackupDestinationAsync), _ => Task.FromResult<BackupDestinationTestResponse?>(
+                new() { Success = _testPasses, Message = _testPasses ? "Copied a small file and read it back." : "The folder could not be reached." }));
             stub.SetHandler(nameof(IEngineApiClient.RemoveBackupDestinationAsync), args =>
             {
                 _removed.Add((string)args![0]!);
@@ -99,6 +103,63 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(_added));
         Assert.Equal((BackupDestinationKinds.Folder, "Spare drive", "D:\\Backups"), (_added[0].Kind, _added[0].Name, _added[0].Location));
         Assert.NotEmpty(inputs);
+    }
+
+    private void AddAFolder(IRenderedComponent<BackupDestinationsSection> cut)
+    {
+        cut.WaitForElement("[data-testid='backup-destinations']");
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Add a destination")).Click();
+        cut.FindAll("[data-testid='add-destination'] input")[0].Input("Spare drive");
+        cut.FindAll("[data-testid='add-destination'] input")[1].Input("D:\\Backups");
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Add destination")).Click();
+    }
+
+    [Fact]
+    public void AnAddedDestination_GlowsItsRowOnce_AndNothingIsShownOverThePage()
+    {
+        _addAnswer = new()
+        {
+            KeepLast = _settings.KeepLast,
+            Destinations = [.. _settings.Destinations, new() { Id = "spare", Name = "Spare drive", Kind = BackupDestinationKinds.Folder, Location = "D:\\Backups", StateLabel = "Working", IsConfigured = true }],
+        };
+        var cut = Render<BackupDestinationsSection>();
+
+        AddAFolder(cut);
+
+        cut.WaitForAssertion(() => Assert.Contains("tl-just-changed", cut.Find("[data-testid='destination-spare']").ClassName));
+        Assert.DoesNotContain("tl-just-changed", cut.Find("[data-testid='destination-webdav-1']").ClassName);
+        Assert.Empty(cut.FindAll("[data-backup-failure]"));
+    }
+
+    [Fact]
+    public void AnAddThatTheEngineRefuses_ShowsAnAlertAtTheTopUntilTheNextAttempt()
+    {
+        _addFails = true;
+        var cut = Render<BackupDestinationsSection>();
+
+        AddAFolder(cut);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.Find("[data-backup-failure]").TextContent));
+        Assert.Equal("alert", cut.Find("[data-backup-failure]").GetAttribute("role"));
+
+        _addFails = false;
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Add destination")).Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-backup-failure]")));
+    }
+
+    [Theory]
+    [InlineData(true, "tl-alert-success")]
+    [InlineData(false, "tl-alert-error")]
+    public void TestingADestination_ShowsTheAnswerUnderThatDestinationOnly(bool passes, string tone)
+    {
+        _testPasses = passes;
+        var cut = Render<BackupDestinationsSection>();
+        var row = cut.WaitForElement("[data-testid='destination-webdav-1']");
+
+        row.QuerySelectorAll("button").Single(button => button.TextContent.Contains("Test")).Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(tone, cut.Find("[data-testid='destination-webdav-1'] [data-destination-test]").ClassName));
+        Assert.Empty(cut.FindAll("[data-testid='destination-folder'] [data-destination-test]"));
     }
 
     [Fact]

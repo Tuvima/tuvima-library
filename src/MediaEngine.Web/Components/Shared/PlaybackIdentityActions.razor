@@ -22,7 +22,7 @@
     @if (ShowMore)
     {
         <PlaybackItemMenu Media="@Media" Item="@Item" Surface="@Surface" ShowWorkId="@ShowWorkId" SeasonId="@SeasonId" Snapshot="@Snapshot" Commands="@Commands"
-                          IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" />
+                          IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" OnStatusChanged="@OnStatusChanged" />
     }
 </div>
 
@@ -51,6 +51,9 @@
     [Parameter] public IPlaybackCommandSink? Commands { get; set; }
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+
+    /// <summary>Passed up from the "..." menu after a status change, so the bar or panel that hosts these actions can show the Undo line.</summary>
+    [Parameter] public EventCallback<UndoOffer> OnStatusChanged { get; set; }
     [Parameter] public EventCallback OnPlaybackSettings { get; set; }
 
     /// <summary>The Playback settings panel the host draws for music and audiobooks; the "..." menu's Playback settings row opens it.</summary>
@@ -93,9 +96,17 @@
         _ => L["MediaTile_AddToMyList"].Value,
     };
 
+    // With no active profile there is nowhere to keep a favorite: the button is off and its tooltip says why (a host that keeps the
+    // state itself, the music bar, tells the person in its own alert instead).
+    private bool NeedsProfile => !FavoriteChanged.HasDelegate && Profile is null && FavoriteSubject is not null;
+
+    private string FavoriteNeedsProfileLabel => FavoriteSubject is { Kind: ProfileEntityKind.Song }
+        ? L["PlaybackIdentity_FavoritesNeedProfile"].Value
+        : L["DetailPage_MyListRequiresAnActive"].Value;
+
     private PlaybackControlDefinition FavoriteControl => new(PlaybackControlKey.Favorite, "Favorite",
-        FavoriteLabel, PlaybackUtilityGlyphKind.Favorite, PlaybackControlPlacement.Utility, "favorite",
-        IsActive: Favorited, IsSelected: Favorited);
+        NeedsProfile ? FavoriteNeedsProfileLabel : FavoriteLabel, PlaybackUtilityGlyphKind.Favorite, PlaybackControlPlacement.Utility, "favorite",
+        IsActive: Favorited, IsDisabled: NeedsProfile, IsSelected: Favorited);
     private PlaybackControlDefinition LikeControl => new(PlaybackControlKey.Like, "Like", "Like", PlaybackUtilityGlyphKind.Like, PlaybackControlPlacement.Utility, "like",
         IsActive: Liked, IsSelected: Liked);
     private PlaybackControlDefinition DislikeControl => new(PlaybackControlKey.Dislike, "Dislike", "Dislike", PlaybackUtilityGlyphKind.Dislike, PlaybackControlPlacement.Utility, "dislike",
@@ -151,8 +162,7 @@
         var profile = Profile;
         if (profile is null)
         {
-            Services.GetService<IAppToastService>()?.Add(
-                subject.Kind == ProfileEntityKind.Song ? L["PlaybackIdentity_FavoritesNeedProfile"].Value : L["DetailPage_MyListRequiresAnActive"].Value, AppSeverity.Warning);
+            // The button is off with its reason as the tooltip; a press that still arrives does nothing.
             return;
         }
         if (!Current() || FavoriteSubject != subject || profile != Profile) return;

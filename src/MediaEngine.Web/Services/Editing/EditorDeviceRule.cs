@@ -1,6 +1,4 @@
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Theming;
-using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -26,17 +24,8 @@ public static class EditorDeviceRule
         device is not null && CanEdit(device.DeviceClass, device.FormFactor, device.HasFinePointer, device.CanHover);
 
     /// <summary>
-    /// Returns true (and shows the standard toast) when the current device may not edit.
-    /// Launchers and edit handlers call this before any other work so no editor surface ever opens.
+    /// Returns true when the current device may not edit. Launchers and edit handlers call this before any other work so no editor
+    /// surface ever opens; a handler that has room for a line shows <see cref="Message"/> in place (an alert), nothing is drawn over the page.
     /// </summary>
-    public static bool TryRefuse(DeviceContextService? device, IAppToastService? toasts)
-    {
-        if (CanEdit(device))
-        {
-            return false;
-        }
-
-        toasts?.Add(Message, AppSeverity.Info);
-        return true;
-    }
+    public static bool TryRefuse(DeviceContextService? device) => !CanEdit(device);
 }

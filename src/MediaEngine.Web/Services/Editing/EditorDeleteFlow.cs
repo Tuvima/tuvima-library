@@ -45,21 +45,25 @@ public static class EditorDeleteFlow
     }
 
     /// <summary>
-    /// Asks once, then deletes the hand-added thing being edited at once, without waiting for Save. False means nothing was deleted.
+    /// Asks once, then deletes the hand-added thing being edited at once, without waiting for Save. Deleted false means nothing was
+    /// deleted; the result's notice (a refusal or a failure) is shown in the editor window.
     /// </summary>
-    public static async Task<bool> DeleteThingAsync(
+    public static async Task<EditorDeleteResult> DeleteThingAsync(
         EditorHost editor,
         IAppDialogService dialogs,
-        IAppToastService toasts,
         DeviceContextService? device,
         DashboardSessionAccessor? session)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(dialogs);
-        ArgumentNullException.ThrowIfNull(toasts);
-        if (editor.Session.ActiveItem is not { } active || LibraryItemDeletionFlow.TryRefuse(device, session, toasts))
+        if (editor.Session.ActiveItem is not { } active)
         {
-            return false;
+            return EditorDeleteResult.Nothing;
+        }
+
+        if (LibraryItemDeletionFlow.Refusal(device, session) is { } refusal)
+        {
+            return EditorDeleteResult.Failed(refusal);
         }
 
         var answer = await AppConfirmDialog.ShowAsync(
@@ -71,17 +75,12 @@ public static class EditorDeleteFlow
             primaryDestructive: true);
         if (answer != AppConfirmResult.Primary)
         {
-            return false;
+            return EditorDeleteResult.Nothing;
         }
 
-        if (!await editor.DeleteUniverseThingAsync(active.EntityId))
-        {
-            toasts.Add($"{active.Title} could not be deleted. Nothing was changed.", AppSeverity.Error);
-            return false;
-        }
-
-        toasts.Add($"Deleted {active.Title}.", AppSeverity.Success);
-        return true;
+        return await editor.DeleteUniverseThingAsync(active.EntityId)
+            ? new EditorDeleteResult(true)
+            : EditorDeleteResult.Failed($"{active.Title} could not be deleted. Nothing was changed.");
     }
 
     /// <summary>The whole show, season, album or Series the editor is on; null for a single title.</summary>
@@ -98,35 +97,39 @@ public static class EditorDeleteFlow
     }
 
     /// <summary>
-    /// Deletes the item being edited, including a whole show, season, album or Series. False means nothing was deleted (the person said no,
-    /// or this device or person may not delete). On success the editor has moved to the item's parent, or closed when it has none.
+    /// Deletes the item being edited, including a whole show, season, album or Series. Deleted false means nothing was deleted (the person
+    /// said no, or this device or person may not delete; the notice says which). On success the editor has moved to the item's parent, or
+    /// closed when it has none; the notice then says when files stayed on disk.
     /// </summary>
-    public static async Task<bool> DeleteActiveAsync(
+    public static async Task<EditorDeleteResult> DeleteActiveAsync(
         EditorHost editor,
         IAppDialogService dialogs,
-        IAppToastService toasts,
         DeviceContextService? device,
         DashboardSessionAccessor? session)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(dialogs);
-        ArgumentNullException.ThrowIfNull(toasts);
-        if (editor.Session.ActiveItem is not { } active || LibraryItemDeletionFlow.TryRefuse(device, session, toasts))
+        if (editor.Session.ActiveItem is not { } active)
         {
-            return false;
+            return EditorDeleteResult.Nothing;
+        }
+
+        if (LibraryItemDeletionFlow.Refusal(device, session) is { } refusal)
+        {
+            return EditorDeleteResult.Failed(refusal);
         }
 
         using var deleting = editor.MarkDeleting();
         var group = ActiveGroup(editor);
         var answer = group is null
-            ? await LibraryItemDeletionFlow.RunForResultAsync(dialogs, toasts, [active.EntityId], active.Title)
-            : await LibraryItemDeletionFlow.RunGroupAsync(dialogs, toasts, group);
+            ? await LibraryItemDeletionFlow.RunForResultAsync(dialogs, [active.EntityId], active.Title)
+            : await LibraryItemDeletionFlow.RunGroupAsync(dialogs, group);
         if (answer is null)
         {
-            return false;
+            return EditorDeleteResult.Nothing;
         }
 
         await editor.ItemsDeletedAsync(EditorDeleteRules.Removed(answer, [active.EntityId], group, editor.Family.ParentOf));
-        return true;
+        return new EditorDeleteResult(true, LibraryItemDeletionFlow.NoticeFor(answer));
     }
 }

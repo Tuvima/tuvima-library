@@ -1,8 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
-@inject IJSRuntime JS
-@inject IAppToastService Snackbar
-@inject ILogger<ManualPortForwardingDialog> Logger
 @inject IStringLocalizer<SharedStrings> L
 
 <AppDialog Visible="@Visible" VisibleChanged="@VisibleChanged"
@@ -19,8 +16,12 @@
         </dl>
         <div class="network-manual-rule__summary">
             <code>@RuleSummary</code>
-            <AppButton Label="@L["ManualPortForwardingDialog_CopyRule"].Value" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAsync" />
+            <AppCopyButton Label="@L["ManualPortForwardingDialog_CopyRule"].Value" Text="@RuleSummary" What="the rule" CopyFailed="ShowCopyFailure" />
         </div>
+        @if (_copyFailure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _copyFailure = null; })" data-copy-failure>@_copyFailure</AppAlert>
+        }
         <AppAlert Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.HomeWork">
             <strong>@L["ManualPortForwardingDialog_KeepThisServerAtThe"]</strong>
             <span>@L["ManualPortForwardingDialog_YourRouterMayAssignA", InternalAddress]</span>
@@ -52,17 +53,7 @@
         await VisibleChanged.InvokeAsync(false);
         await TestAgain.InvokeAsync();
     }
-    private async Task CopyAsync()
-    {
-        switch (await JS.TryCopyAsync(RuleSummary, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Snackbar.Add(L["ManualPortForwardingDialog_PortForwardingRuleCopied"].Value, AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Snackbar.Add(ClipboardInterop.FailedMessage("the rule"), AppSeverity.Warning);
-                break;
-        }
-    }
+    private string? _copyFailure;
+    private void ShowCopyFailure(string message) => _copyFailure = message;
     private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

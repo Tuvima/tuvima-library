@@ -1,7 +1,4 @@
 @namespace MediaEngine.Web.Components.Shared
-@inject IJSRuntime JS
-@inject IAppToastService Snackbar
-@inject ILogger<RecoveryCodesDisplay> Logger
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="recovery-codes-display" aria-live="polite">
@@ -15,10 +12,15 @@
               readonly
               spellcheck="false">@CodesOnlyText</textarea>
     <small id="@_helpId">@L["RecoveryCodesDisplay_CopyOrDownloadTheseOne"]</small>
+    @if (_copyFailure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _copyFailure = null)" data-recovery-codes-copy-failed="true">@_copyFailure</AppAlert>
+    }
     <div class="recovery-codes-display__actions">
-        <AppButton Label="@L["RecoveryCodesDisplay_CopyAll"].Value"
-                   StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
-                   OnClick="CopyAsync" />
+        <AppCopyButton Label="@L["RecoveryCodesDisplay_CopyAll"].Value"
+                       Text="@CodesText"
+                       What="the codes"
+                       CopyFailed="@(message => _copyFailure = message)" />
         <AppButton Label="@L["RecoveryCodesDisplay_DownloadTxt"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.Download"
                    Href="@DownloadUri"
@@ -37,16 +39,5 @@
     private string CodesText => $"{Heading}{Environment.NewLine}Created: {DateTimeOffset.Now:g}{Environment.NewLine}{Environment.NewLine}{string.Join(Environment.NewLine, Codes)}{Environment.NewLine}";
     private string DownloadUri => $"data:text/plain;charset=utf-8,{Uri.EscapeDataString(CodesText)}";
 
-    private async Task CopyAsync()
-    {
-        switch (await JS.TryCopyAsync(CodesText, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Snackbar.Add(L["RecoveryCodesDisplay_RecoveryCodesCopied"].Value, AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Snackbar.Add(ClipboardInterop.FailedMessage("the codes"), AppSeverity.Warning);
-                break;
-        }
-    }
+    private string? _copyFailure;
 }

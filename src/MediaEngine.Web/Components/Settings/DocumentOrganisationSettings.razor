@@ -1,7 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
@@ -262,7 +261,6 @@
                 return;
             }
 
-            Snackbar.Add($"Removed {row.Name}.", AppSeverity.Success);
             await LoadAsync();
         }
         finally

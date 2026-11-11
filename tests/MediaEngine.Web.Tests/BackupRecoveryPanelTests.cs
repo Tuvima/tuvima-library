@@ -276,6 +276,47 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(
             "Backup created: tuvima-backup-20261022-080000.zip, 3.0 MB.",
             cut.Find("[data-testid='backup-created']").TextContent));
+        // That line is the one confirmation: no second notice, no failure.
+        Assert.Empty(cut.FindAll("[data-backup-failure]"));
+    }
+
+    [Fact]
+    public void CreatingABackup_WhenTheEngineCannotMakeOne_ShowsAnAlertInPlace_AndNoCreatedLine()
+    {
+        _created = null;
+        var cut = Render<BackupRecoveryPanel>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='backup-note']")));
+
+        cut.FindAll("button").First(button => button.TextContent.Contains("Create backup", StringComparison.Ordinal)).Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("[data-backup-failure]").GetAttribute("role")));
+        Assert.Contains("could not", cut.Find("[data-backup-failure]").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll("[data-testid='backup-created']"));
+    }
+
+    [Fact]
+    public void TestRestoreThatCannotRun_ShowsTheFailureAlertInPlace()
+    {
+        _validation = null;
+        var cut = Render<BackupRecoveryPanel>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button")));
+
+        cut.FindAll("button").First(button => button.TextContent.Contains("Test restore", StringComparison.Ordinal)).Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("restore test failed", cut.Find("[data-backup-failure]").TextContent, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void TestRestoreThatPasses_IsToldByItsOwnAlert_AndNeverByAToast()
+    {
+        _validation = new RestoreValidationResultDto(true, Archive.FileName, DateTimeOffset.UtcNow, "Restore test passed.");
+        var cut = Render<BackupRecoveryPanel>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button")));
+
+        cut.FindAll("button").First(button => button.TextContent.Contains("Test restore", StringComparison.Ordinal)).Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='restore-passed']")));
+        Assert.Empty(cut.FindAll("[data-backup-failure]"));
     }
 
     [Theory]

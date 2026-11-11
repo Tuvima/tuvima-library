@@ -11,7 +11,6 @@
 @inject DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
 @inject CollectionEditorLauncherService CollectionEditorLauncher
-@inject IAppToastService Snackbar
 @implements IDisposable
 
 @namespace MediaEngine.Web.Components.Pages
@@ -38,6 +37,8 @@
                EmptyMessage="@L["ReadPage_AddReadingMaterialToYour"].Value"
                Retry="LoadLandingAsync"
                SavedCollectionCount="@_savedCollectionCount"
+               Notice="@_notice"
+               NoticeDismissed="@(() => { _notice = null; })"
                OnNavigationSmartCreate="OpenCollectionFlowAsync" />
 
 @code {
@@ -71,18 +72,27 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (profile is null)
         {
-            Snackbar.Add(L["Common_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
+            _notice = L["Common_AnActiveProfileIsRequired"].Value;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
+        _notice = null;
         // What the editor saved is told by one quiet line; there is no toast.
         _savedCollectionCount = 0;
         var request = CollectionEditorEntryPoints.For(flow.Area, profile.Id);
-        await CollectionEditorLauncher.OpenAsync(request);
+        if (await CollectionEditorLauncher.TryOpenAsync(request) == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _notice = EditorDeviceRule.Message;
+            return;
+        }
+
         _savedCollectionCount = request.SavedCollectionIds.Count;
     }
 
     private int _savedCollectionCount;
+    private string? _notice;
 
     private string ActiveReadMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
 

@@ -3,7 +3,6 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
-@inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 @if (_status is { OwnedCount: > 0 } status)
@@ -23,6 +22,12 @@
     [Parameter] public Guid? ProfileId { get; set; }
     private (Guid Work, Guid? Profile)? _loadedSubject;
     [Parameter] public Func<bool>? IsCurrent { get; set; }
+
+    /// <summary>Raised with the reason when a change or the history could not be done; the host shows it in place (an alert).</summary>
+    [Parameter] public EventCallback<string> OnFailed { get; set; }
+
+    /// <summary>Raised after a status change worked, with the sentence and what Undo does; the host shows it in place (<c>AppUndoNote</c>) because this menu closes.</summary>
+    [Parameter] public EventCallback<UndoOffer> OnChanged { get; set; }
     private bool Current => IsCurrent?.Invoke() != false;
     private PersonalStatusInfo? _status;
     protected override async Task OnParametersSetAsync() {
@@ -42,15 +47,14 @@
             if (!Current || subject != (WorkId, ProfileId)) return;
             var status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId);
             if (!Current || subject != (WorkId, ProfileId)) return;
+            // The menu now offers the other choice (Mark as listened or unlistened); the host also says so, with Undo.
             _status = status;
-            Snackbar.Add(L["PersonalStatusMenuItems_ListeningStatusUpdated"].Value, AppSeverity.Success, options => {
-                options.Action = "Undo";
-                options.OnClick = async _ => {
-                    try { await Api.UndoPersonalStatusAsync(result.CommandId); }
-                    catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
-                };
-            });
-        } catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
+            await OnChanged.InvokeAsync(new UndoOffer(L["PersonalStatusMenuItems_ListeningStatusUpdated"].Value, async () => {
+                await Api.UndoPersonalStatusAsync(result.CommandId);
+                // Reload so the menu offers the choice it did before the change.
+                if (subject == (WorkId, ProfileId)) { _status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId); await InvokeAsync(StateHasChanged); }
+            }));
+        } catch (Exception ex) { await OnFailed.InvokeAsync(ex.Message); }
     }
     private async Task HistoryAsync() {
         if (!Current) return;
@@ -59,7 +63,7 @@
             var items = await Api.GetPersonalHistoryAsync(DetailEntityType.MusicAlbum, subject.WorkId);
             if (!Current || subject != (WorkId, ProfileId)) return;
             await Dialogs.ShowAsync<PersonalHistoryDialog>("Listening history",new AppDialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
-        } catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
+        } catch (Exception ex) { await OnFailed.InvokeAsync(ex.Message); }
     }
     private Task PlaylistAsync() => !Current ? Task.CompletedTask : Dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist",new AppDialogParameters<MediaMembershipDialog> {
         { d => d.Playlist, true }, { d => d.WorkIds, new[] { WorkId } },

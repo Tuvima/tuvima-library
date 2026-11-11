@@ -18,7 +18,6 @@
 @inject IEngineApiClient ApiClient
 @inject IServiceProvider ServiceProvider
 @inject UIOrchestratorService Orchestrator
-@inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject ILogger<CollectionEditorShell> Logger
 @inject IStringLocalizer<SharedStrings> L
@@ -755,7 +754,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load libraryItems: {ex.Message}", AppSeverity.Error);
+            ShowNotice(L["CollectionEditorShell_FailedToLoadLibraryItems", ex.Message].Value, AppUiTone.Error);
         }
         finally
         {
@@ -823,7 +822,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load saved items: {ex.Message}", AppSeverity.Error);
+            ShowNotice(L["CollectionEditorShell_FailedToLoadSavedItems", ex.Message].Value, AppUiTone.Error);
         }
         finally
         {
@@ -839,10 +838,12 @@
         if (file is null)
             return;
 
+        ClearNotice();
+
         var slot = IsPlaylistDialog ? "poster" : _activeArtworkSlot;
         if (slot == "logo" && !string.Equals(Path.GetExtension(file.Name), ".png", StringComparison.OrdinalIgnoreCase))
         {
-            Snackbar.Add(L["CollectionEditorShell_CollectionLogosMustBeTransparent"].Value, AppSeverity.Warning);
+            ShowNotice(L["CollectionEditorShell_CollectionLogosMustBeTransparent"].Value, AppUiTone.Warning);
             return;
         }
         _artworkFiles[slot] = file;
@@ -860,7 +861,7 @@
         {
             _artworkFiles.Remove(slot);
             _artworkPreviewUrls.Remove(slot);
-            Snackbar.Add(L["CollectionEditorShell_ArtworkPreviewCouldNotBe"].Value, AppSeverity.Warning);
+            ShowNotice(L["CollectionEditorShell_ArtworkPreviewCouldNotBe"].Value, AppUiTone.Warning);
         }
     }
 
@@ -887,12 +888,14 @@
         if (SelectedWorkIds.Contains(work.WorkId))
             return;
 
+        // Every action starts clean: a failure from the last try goes as soon as the person tries again.
+        ClearNotice();
         if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add(L["CollectionEditorShell_FailedToAddTheItem"].Value, AppSeverity.Error);
+                ShowNotice(L["CollectionEditorShell_FailedToAddTheItem"].Value, AppUiTone.Error);
                 return;
             }
 
@@ -918,17 +921,18 @@
 
     private async Task RemoveManualItemAsync(ManualCollectionItem item)
     {
+        ClearNotice();
         if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.RemoveCollectionItemAsync(EditingCollection.Id, item.Id, Request.ActiveProfileId);
             if (!ok)
             {
                 // The Engine says why when it refuses, for example when this is the collection's last item.
-                Snackbar.Add(
+                ShowNotice(
                     string.IsNullOrWhiteSpace(ApiClient.LastError)
-                        ? "Failed to remove the item from this collection."
+                        ? L["CollectionEditorShell_FailedToRemoveTheItem"].Value
                         : ApiClient.LastError,
-                    AppSeverity.Error);
+                    AppUiTone.Error);
                 return;
             }
 
@@ -944,6 +948,7 @@
 
     private async Task MoveManualItemAsync(ManualCollectionItem item, int direction)
     {
+        ClearNotice();
         var ordered = _manualItems.OrderBy(existing => existing.SortOrder).ToList();
         var index = ordered.FindIndex(existing => existing.Id == item.Id && existing.WorkId == item.WorkId);
         var targetIndex = index + direction;
@@ -966,7 +971,7 @@
             var ok = await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, itemIds, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppSeverity.Error);
+                ShowNotice(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppUiTone.Error);
                 await LoadManualItemsAsync();
                 return;
             }
@@ -1209,6 +1214,7 @@
     // away again, so a half-made collection never stays behind.
     private async Task SaveListCollectionsAsync()
     {
+        ClearNotice();
         if (_listDraft.Recognition is not { } source || !ListReady)
         {
             ShowNotice(L["CollectionEditor_ListNeedsOwned"].Value, AppUiTone.Warning);
@@ -1530,15 +1536,17 @@
     {
         if (EditingCollection is null)
             return;
+
+        ClearNotice();
         if (!await ApiClient.DeleteCollectionArtworkAsync(EditingCollection.Id, _activeArtworkSlot, Request.ActiveProfileId))
         {
-            Snackbar.Add(L["CollectionEditorShell_ArtworkCouldNotBeRemoved"].Value, AppSeverity.Error);
+            ShowNotice(L["CollectionEditorShell_ArtworkCouldNotBeRemoved"].Value, AppUiTone.Error);
             return;
         }
         _artworkFiles.Remove(_activeArtworkSlot);
         _artworkPreviewUrls.Remove(_activeArtworkSlot);
         _removedArtworkSlots.Add(_activeArtworkSlot);
-        Snackbar.Add(_activeArtworkSlot == "poster" ? "Automatic stacked artwork restored." : $"{ArtworkSlotTitle} removed.", AppSeverity.Success);
+        // The preview now shows the automatic stack (or the empty slot): that is the confirmation.
     }
 
     private CollectionRuleDefinitionViewModel BuildPersistableDefinition() => CollectionRuleSentence.ToWire(new()
@@ -1561,6 +1569,7 @@
         if (!CanDeleteCollection || EditingCollection is null)
             return;
 
+        ClearNotice();
         if (!await ConfirmDeleteCollectionAsync(EditingCollection.Name))
             return;
 
@@ -1569,12 +1578,11 @@
         {
             if (!await ApiClient.DeleteCollectionAsync(EditingCollection.Id, Request.ActiveProfileId))
             {
-                Snackbar.Add(L["CollectionEditorShell_TheCollectionCouldNotBe"].Value, AppSeverity.Error);
+                ShowNotice(L["CollectionEditorShell_TheCollectionCouldNotBe"].Value, AppUiTone.Error);
                 return;
             }
 
             _hasUnsavedChanges = false;
-            Snackbar.Add($"Collection \"{EditingCollection.Name}\" deleted.", AppSeverity.Success);
             await CloseEditorAsync(applied: true);
         }
         finally
@@ -1661,6 +1669,7 @@
 
     private async Task CreatePacksAsync()
     {
+        ClearNotice();
         if (_selectedPacks.Count == 0)
         {
             ShowNotice(L["CollectionPack_TickFirst"].Value, AppUiTone.Warning);
@@ -1800,7 +1809,7 @@
         }
         @if (_noticeText is { } notice)
         {
-            <AppAlert Tone="@_noticeTone" Dense="true" data-editor-notice>@notice</AppAlert>
+            <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-editor-notice>@notice</AppAlert>
         }
     </text>;
 

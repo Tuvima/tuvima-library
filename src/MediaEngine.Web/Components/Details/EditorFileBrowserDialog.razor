@@ -5,7 +5,6 @@
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject IAppDialogService Dialogs
-@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 
 @* The supporting-files browser (universal editor v5 WP8, screen E): "All supporting files" and the folder button open it over the editor. A dialog
@@ -20,6 +19,11 @@
                 HostClass="@AppBrowserFrame.HostClass"
                 OnClose="@(() => Finish(EditorFileBrowserOutcome.Closed))">
     <ChildContent>
+        @if (_deleteNotice is not null)
+        {
+            @* Some files could not be deleted: the reason stays at the top of the browser until the next try or the close button. *@
+            <AppAlert Severity="AppSeverity.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _deleteNotice = null)" data-file-browser-delete-notice="true">@_deleteNotice</AppAlert>
+        }
         <div class="tl-fbrowser" data-testid="file-browser" data-view="@State.View.ToString().ToLowerInvariant()">
             @if (State.View == EditorBrowserView.Folders)
             {
@@ -211,8 +215,11 @@
             return;
         }
 
-        await EditorFileBrowserDeleteFlow.DeleteAsync(State, rows, Dialogs, Toasts, L);
+        var result = await EditorFileBrowserDeleteFlow.DeleteAsync(State, rows, Dialogs, L);
+        _deleteNotice = result.Notice;
     }
+
+    private string? _deleteNotice;
 
     protected override void OnInitialized() => State.Changed += OnChanged;
 

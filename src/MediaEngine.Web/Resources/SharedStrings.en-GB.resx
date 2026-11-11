@@ -206,4 +206,7 @@
   <data name="FolderStep_ScanLineManaged" xml:space="preserve">
     <value>Library scans this folder and its subfolders, and keeps it organised.</value>
   </data>
+  <data name="VaultImageViewer_TheFavouriteMarkCouldNot" xml:space="preserve">
+    <value>The favourite mark could not be saved.</value>
+  </data>
 </root>

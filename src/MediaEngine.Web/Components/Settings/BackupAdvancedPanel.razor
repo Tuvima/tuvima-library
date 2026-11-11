@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Backups
 @using MediaEngine.Contracts.System
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* Backups > Advanced: how long restored progress waits for its files, the monthly restore check and facts about the archive.
@@ -19,6 +18,10 @@
         @if (_state is { } state)
         {
             <AppSettingsGroup Heading="@L["BackupRecoveryPanel_RestoredProgress"].Value" Class="backup-action-card">
+                @if (_failure is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-backup-failure>@_failure</AppAlert>
+                }
                 <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="@L["BackupRecoveryPanel_KeepRestoredProgressWaitingFor"].Value" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                            Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
             </AppSettingsGroup>
@@ -46,6 +49,7 @@
     private BackupSettingsResponse? _settings;
     private bool _loading = true;
     private bool _busy;
+    private string? _failure;
     private int _waitingPeriodRenderKey;
 
     private static readonly int[] StandardWaitingDays = [30, 60, 90, 180, 365];
@@ -77,10 +81,11 @@
         }
 
         _busy = true;
+        _failure = null;
         var updated = await ApiClient.SetBackupWaitingPeriodAsync(days);
         if (updated is null)
         {
-            Snackbar.Add(L["BackupRecoveryPanel_TheWaitingPeriodCouldNot"].Value, AppSeverity.Error);
+            _failure = L["BackupRecoveryPanel_TheWaitingPeriodCouldNot"].Value;
             // The browser kept the choice that was not saved; a new key redraws the field with the stored value.
             _waitingPeriodRenderKey++;
         }

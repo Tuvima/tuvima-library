@@ -7,20 +7,26 @@
 <section class="tl-removed-notice" role="alert" aria-labelledby="tl-removed-notice-title">
     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppIconSize.Tile32" />
     <h2 id="tl-removed-notice-title" class="tl-removed-notice__title">@Heading</h2>
+    @if (!string.IsNullOrWhiteSpace(Note))
+    {
+        <AppAlert Severity="AppSeverity.Warning" Dense="true" data-removed-notice-note="true">@Note</AppAlert>
+    }
     @if (!string.IsNullOrEmpty(InputText))
     {
         <div class="tl-removed-notice__input">
             <p class="tl-removed-notice__input-label">@(string.IsNullOrWhiteSpace(InputLabel) ? "What you were typing" : $"What you were typing in {InputLabel}")</p>
             <pre class="tl-removed-notice__input-text" tabindex="0" aria-label="@L["RemovedItemNotice_YourUnsavedText"].Value">@InputText</pre>
             <div class="tl-removed-notice__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                           Tone="AppUiTone.Neutral"
-                           StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
-                           Class="tl-removed-notice__copy"
-                           OnClick="OnCopy">
-                    @L["Common_Copy"]
-                </AppButton>
+                <AppCopyButton Label="@L["Common_Copy"].Value"
+                               Text="@InputText"
+                               What="the text"
+                               Class="tl-removed-notice__copy"
+                               CopyFailed="@(message => _copyFailure = message)" />
             </div>
+            @if (_copyFailure is not null)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _copyFailure = null)" data-removed-notice-copy-failed="true">@_copyFailure</AppAlert>
+            }
         </div>
     }
     @if (LostSectionInput)
@@ -48,7 +54,10 @@
     /// <summary>True when an open section held unsaved changes that cannot be shown here.</summary>
     [Parameter] public bool LostSectionInput { get; set; }
 
-    [Parameter] public EventCallback OnCopy { get; set; }
+    /// <summary>A line to show with the notice (files a delete left on disk); empty when there is nothing to add.</summary>
+    [Parameter] public string? Note { get; set; }
+
+    private string? _copyFailure;
 
     [Parameter] public EventCallback OnClose { get; set; }
 }

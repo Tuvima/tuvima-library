@@ -119,26 +119,6 @@ public sealed class AppOverlayServiceTests
     }
 
     [Fact]
-    public async Task ToastActionRunsAsynchronouslyOnceAndRemovesMessage()
-    {
-        using var service = new AppToastService();
-        var action = new TaskCompletionSource();
-        var calls = 0;
-        var toast = service.Add("Status updated", AppSeverity.Success, options =>
-        {
-            options.Action = "Undo";
-            options.OnClick = async _ => { calls++; await action.Task; };
-        });
-        var pending = service.InvokeActionAsync(toast);
-        await service.InvokeActionAsync(toast);
-        Assert.Equal(1, calls);
-        Assert.Single(service.Toasts);
-        action.SetResult();
-        await pending;
-        Assert.Empty(service.Toasts);
-    }
-
-    [Fact]
     public async Task CloseGuardRegistrationReleasesOnlyItsOwnGuard()
     {
         using var service = new AppDialogService();
@@ -168,21 +148,5 @@ public sealed class AppOverlayServiceTests
         Assert.Equal(parent, service.ActiveFrameId);
         service.SetFrameVisibility(parent, false);
         Assert.Null(service.ActiveFrameId);
-    }
-
-    [Fact]
-    public void ToastDefaultsRetainBaselineTimingOpacityAndDuplicateSuppression()
-    {
-        using var service = new AppToastService();
-        var toast = service.Add("Saved", AppSeverity.Success);
-        var duplicate = service.Add("Saved", AppSeverity.Success);
-        Assert.Same(toast, duplicate);
-        Assert.Single(service.Toasts);
-        Assert.Equal(5000, toast.Options.VisibleStateDuration);
-        Assert.Equal(1000, toast.Options.ShowTransitionDuration);
-        Assert.Equal(2000, toast.Options.HideTransitionDuration);
-        Assert.Equal(95, toast.Options.MaximumOpacity);
-        Assert.True(toast.Options.ShowCloseIcon);
-        Assert.Null(toast.Options.RequireInteraction);
     }
 }

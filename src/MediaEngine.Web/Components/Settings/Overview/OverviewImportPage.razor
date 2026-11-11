@@ -35,6 +35,10 @@
         </Actions>
     </ImportPanel>
     <CollectionSavedNote Count="@_savedCollectionCount" />
+    @if (_deviceNotice is not null)
+    {
+        <AppAlert Tone="AppUiTone.Info" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _deviceNotice = null)" data-import-device-notice>@_deviceNotice</AppAlert>
+    }
     @if (_packMessage is not null)
     {
         <AppAlert Tone="@(_packAdded ? AppUiTone.Success : AppUiTone.Warning)" Dense="true" data-import-pack-result>@_packMessage</AppAlert>
@@ -51,7 +55,7 @@
 
     private async Task AddPackAsync(ImportRecognition recognition)
     {
-        if (_addingPack || EditorDeviceRule.TryRefuse(Device, null) || !CollectionAuthoringRule.CanCreate(Session))
+        if (_addingPack || EditorDeviceRule.TryRefuse(Device) || !CollectionAuthoringRule.CanCreate(Session))
         {
             return;
         }
@@ -101,11 +105,18 @@
             InitialImport = recognition,
             InitialTitle = string.Empty,
         };
-        await CollectionEditorLauncher.OpenAsync(request);
+        _deviceNotice = null;
+        if (await CollectionEditorLauncher.TryOpenAsync(request) == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
 
         // What the editor saved is told by one quiet line; there is no toast.
         _savedCollectionCount = request.SavedCollectionIds.Count;
     }
 
     private int _savedCollectionCount;
+    private string? _deviceNotice;
 }

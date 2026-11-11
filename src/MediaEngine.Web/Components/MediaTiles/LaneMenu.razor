@@ -1,14 +1,22 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The "..." menu on a collection lane's header (Collections and lists spec D10): "Hide this lane" for the active profile.
    Shown on every device, phone and TV included. Renders nothing for any other shelf. *@
 @if (MediaTileShelfKeys.TryGetLaneCollectionId(ShelfKey, out _))
 {
-    <AppRowMenu AriaLabel="@($"More actions for {Title}")" Title="@Title" Items="@_items" />
+    <span class="lane-menu">
+        <AppRowMenu AriaLabel="@($"More actions for {Title}")" Title="@Title" Items="@_items" />
+        @if (_failure is not null)
+        {
+            @* The lane could not be hidden: said under the menu, in place, until the next try or the close button. *@
+            <span class="lane-menu__notice" data-lane-menu-notice>
+                <AppAlert Severity="AppSeverity.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _failure = null)">@_failure</AppAlert>
+            </span>
+        }
+    </span>
 }
 
 @code {
@@ -21,6 +29,7 @@
     [Parameter] public EventCallback<string> OnHidden { get; set; }
 
     private IReadOnlyList<AppRowMenuItem> _items = [];
+    private string? _failure;
 
     protected override void OnInitialized() =>
         _items = [new AppRowMenuItem { Label = L["LaneMenu_HideThisLane"].Value, OnClick = EventCallback.Factory.Create(this, HideAsync) }];
@@ -32,13 +41,14 @@
             return;
         }
 
+        _failure = null;
         if (await ApiClient.SetDisplayLaneHiddenAsync(Place, collectionId, hidden: true))
         {
             await OnHidden.InvokeAsync(ShelfKey);
         }
         else
         {
-            Snackbar.Add(L["LaneMenu_ThatLaneCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["LaneMenu_ThatLaneCouldNotBe"].Value;
         }
     }
 }

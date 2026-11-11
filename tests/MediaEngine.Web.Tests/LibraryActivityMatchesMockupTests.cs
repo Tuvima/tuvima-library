@@ -58,8 +58,28 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         });
         Services.AddSingleton(provider => new IngestionLiveDashboardState(api, provider.GetRequiredService<UIOrchestratorService>(), _state));
         Services.AddSingleton(new PlaybackSessionController(null!, api));
+        Services.AddSingleton<ActivityNotificationQueue>();
         Services.AddSingleton<ShellActivityState>();
         Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
+    }
+
+    [Fact]
+    public void AnUpdateThatEndsWithFailuresWhileActivityIsOpen_DoesNotTurnTheIndicatorAmber()
+    {
+        var queue = Services.GetRequiredService<ActivityNotificationQueue>();
+        Services.GetRequiredService<ShellActivityState>();
+        var cut = Render<LibraryActivityPage>();
+
+        _state.PushIngestionQueueProgress(new IngestionQueueProgressDto { State = "idle", UpdatedAt = DateTimeOffset.UtcNow });
+        _state.PushIngestionQueueProgress(new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 2, Progress = 0.2, UpdatedAt = DateTimeOffset.UtcNow });
+        _state.PushIngestionQueueProgress(new IngestionQueueProgressDto
+        {
+            State = "idle",
+            UpdatedAt = DateTimeOffset.UtcNow,
+            Outcomes = new IngestionQueueOutcomesDto { Failed = 1 },
+        });
+
+        cut.WaitForAssertion(() => Assert.False(queue.NeedsAttention));
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -249,6 +250,9 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         Assert.Equal("keep_original_names", saved.OrganizationPolicy.Mode);
         Assert.Equal("keep_original_names", _mutations[0].ExpectedLibrary!.OrganizationPolicy.Mode);
         Assert.Equal(1, _changed);
+        // A saved tab says so with the quiet line, not a pop-up, and shows no alert.
+        cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-saved-note]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-handling-failure]"));
     }
 
     [Fact]
@@ -311,6 +315,9 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(_mutations));
         Assert.Equal(0, _changed);
         Assert.NotEmpty(cut.FindAll(".app-save-bar"));
+        // The Engine's sentence stays at the top of the tab as an alert until the next try; nothing says Saved.
+        Assert.Equal(_mutationError, Text(cut.Find("[data-handling-failure]")));
+        Assert.DoesNotContain("Saved", cut.Find("[data-saved-note]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

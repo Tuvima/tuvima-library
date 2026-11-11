@@ -13,7 +13,6 @@
 @inject ProtectedLocalStorage Storage
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
-@inject IAppToastService Snackbar
 @inject SignInAttemptLimiter SignInLimiter
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject Microsoft.JSInterop.IJSRuntime JS
@@ -55,6 +54,10 @@
             <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" ShowVault="@ShowVault" StepSelected="GoToStepAsync" />
         </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">
+            @if (_stageNotice is not null)
+            {
+                <AppAlert Tone="_stageNoticeTone" ShowCloseIcon="true" CloseIconClicked="@(() => { _stageNotice = null; })" data-setup-notice>@_stageNotice</AppAlert>
+            }
             @switch (CurrentStep)
             {
                 case "welcome" when ShowIntro:
@@ -118,6 +121,11 @@
     private string? _preflightError;
     private SetupBackupInspectionDto? _backup;
     private string? _backupError;
+
+    // Something a setup action could not do (or an installer has started); it stays at the top of the step until dismissed or the next try.
+    private string? _stageNotice;
+    private AppUiTone _stageNoticeTone = AppUiTone.Error;
+    private void ShowStageNotice(string message, AppUiTone tone) { _stageNotice = message; _stageNoticeTone = tone; }
     private SetupMediaLocationsDto? _media;
     private LibrariesConfigurationDto? _setupLibraries;
     private SetupReadinessDto? _readiness;
@@ -408,16 +416,17 @@
     private async Task SaveWelcomeAsync()
     {
         _busy = true;
+        _stageNotice = null;
         try
         {
             if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
             {
-                Snackbar.Add(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppSeverity.Error);
+                ShowStageNotice(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppUiTone.Error);
                 return;
             }
 
             var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName, _hostDerived), _setupSession);
-            if (saved is null) { Snackbar.Add(L["SetupPage_TheServerNameCouldNot"].Value, AppSeverity.Error); return; }
+            if (saved is null) { ShowStageNotice(L["SetupPage_TheServerNameCouldNot"].Value, AppUiTone.Error); return; }
             _serverName = saved.ServerName;
             _hostName = saved.HostName;
             _hostDerived = saved.HostNameDerived;
@@ -534,8 +543,8 @@
     private void RestoreFromIntro() { _introDismissed = true; _showRestore = true; }
     private string _restorePin = string.Empty;
     private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; _restorePin = string.Empty; }
-    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
-    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession, _restorePin.Length == 4 && _restorePin.All(char.IsAsciiDigit) ? _restorePin : null); _busy = false; if (result is null) Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error); else Snackbar.Add(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppSeverity.Info); }
+    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; } } finally { _busy = false; } }
+    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession, _restorePin.Length == 4 && _restorePin.All(char.IsAsciiDigit) ? _restorePin : null); _busy = false; if (result is null) ShowStageNotice(L["Common_TheRestoreCouldNotBe"].Value, AppUiTone.Error); else ShowStageNotice(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppUiTone.Info); }
     // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
     // proxy may be relaying. The Engine checks all of this again.
     private bool ThisComputerAvailable =>
@@ -548,8 +557,9 @@
     private Task SignInModeChangedAsync(string mode) { _signInMode = mode; _signInNotice = null; return Task.CompletedTask; }
     private async Task CreateAdministratorAsync()
     {
-        if (_setupSession is null || !PasswordsMatch) { Snackbar.Add(L["SetupPage_EnterTheSamePasswordTwice"].Value, AppSeverity.Error); return; }
-        if (!TryCountGuess()) { Snackbar.Add(_guessRefusal, AppSeverity.Error); return; }
+        _stageNotice = null;
+        if (_setupSession is null || !PasswordsMatch) { ShowStageNotice(L["SetupPage_EnterTheSamePasswordTwice"].Value, AppUiTone.Error); return; }
+        if (!TryCountGuess()) { ShowStageNotice(_guessRefusal, AppUiTone.Error); return; }
         _busy = true;
         var outcome = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
         {
@@ -564,7 +574,7 @@
         if (result is null)
         {
             if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = L["SetupPage_StartingWithoutAPasswordOnly"].Value;
-            else Snackbar.Add(L["SetupPage_TheAdministratorCouldNotBe"].Value, AppSeverity.Error);
+            else ShowStageNotice(L["SetupPage_TheAdministratorCouldNotBe"].Value, AppUiTone.Error);
         }
         else
         {
@@ -629,9 +639,10 @@
     private async Task RefreshProvidersAsync() { _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); }
     private async Task SaveProviderResultAsync()
     {
+        _stageNotice = null;
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
         {
-            Snackbar.Add(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppSeverity.Error);
+            ShowStageNotice(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppUiTone.Error);
             return;
         }
         await DecideStepAsync("metadata", "passed", "Language and provider setup reviewed.");
@@ -639,14 +650,15 @@
     private Task DeferMediaAsync() => DecideStepAsync("libraries", "deferred", "Media folders can be added later in Settings · Libraries.");
     private async Task DeferProviderResultAsync()
     {
+        _stageNotice = null;
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
         {
-            Snackbar.Add(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppSeverity.Error);
+            ShowStageNotice(L["SetupPage_LanguageSettingsCouldNotBe"].Value, AppUiTone.Error);
             return;
         }
         await DecideStepAsync("metadata", "deferred", "Languages saved; optional provider credentials deferred.");
     }
-    private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add(L["SetupPage_TheSetupChoiceCouldNot"].Value, AppSeverity.Error); else await EnsureCurrentStageDataAsync(); }
+    private async Task DecideStepAsync(string step, string status, string detail) { _stageNotice = null; _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) ShowStageNotice(L["SetupPage_TheSetupChoiceCouldNot"].Value, AppUiTone.Error); else await EnsureCurrentStageDataAsync(); }
     private async Task LoadReadinessAsync()
     {
         _busy = true;
@@ -674,19 +686,20 @@
     private async Task RunToolInstallerAsync(ToolRequirementDto tool)
     {
         bool started;
+        _stageNotice = null;
         try { started = (await ApiClient.RunToolInstallerAsync(tool.Id)).Success; }
         catch (Exception) { started = false; }
-        if (started) Snackbar.Add($"The {tool.Name} installer is running. Finish it, then check again.", AppSeverity.Info);
-        else Snackbar.Add($"The {tool.Name} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.", AppSeverity.Warning);
+        if (started) ShowStageNotice(L["SetupPage_InstallerRunning", tool.Name].Value, AppUiTone.Info);
+        else ShowStageNotice(L["SetupPage_InstallerCouldNotStart", tool.Name].Value, AppUiTone.Warning);
         _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
-    private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add(L["SetupPage_RequiredSetupChecksAreStill"].Value, AppSeverity.Error); }
+    private async Task CompleteAsync() { _stageNotice = null; _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else ShowStageNotice(L["SetupPage_RequiredSetupChecksAreStill"].Value, AppUiTone.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
     private bool CanNavigateTo(string key) => (key != "vault" || VaultOpen)
         && (Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred");
     private async Task GoToStepAsync(string key)
     {
-        if (CanNavigateTo(key)) { _selectedStep = key; if (key == "done") _readiness = null; await EnsureCurrentStageDataAsync(); }
+        if (CanNavigateTo(key)) { _stageNotice = null; _selectedStep = key; if (key == "done") _readiness = null; await EnsureCurrentStageDataAsync(); }
     }
     private async Task GoNextAsync() { var index = Math.Min(NavigableSteps.Length - 1, CurrentIndex + 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
     private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }

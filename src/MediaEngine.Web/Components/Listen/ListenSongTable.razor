@@ -15,6 +15,16 @@
 @inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 
+@if (_notice is not null)
+{
+    @* A delete or a status change that did not work, or files a delete left on disk: it stays above the songs until the next try or the close button. *@
+    <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-listen-song-notice="true">@_notice</AppAlert>
+}
+@* A listened or unlistened change, with Undo, in place above the songs because the row's menu has closed. *@
+@if (_statusUndo is not null)
+{
+    <AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" data-listen-song-undo="true" />
+}
 @if (DeviceContext.IsPhone)
 {
     var phoneTracks = DisplayTracks;
@@ -246,7 +256,7 @@ else
                                     </span>
                                 }
                                 <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
-                                    <PersonalStatusMenuItems WorkId="track.Id" />
+                                    <PersonalStatusMenuItems WorkId="track.Id" OnFailed="ShowNotice" OnChanged="ShowStatusUndo" />
                                     <AppMenuItem Label="@L["ListenSongTable_OpenAlbum"].Value"
                                                  Icon="@AppMaterialIcons.Outlined.Album"
                                                  Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
@@ -335,7 +345,7 @@ else
     private bool _sortDescending;
 
     // Delete from library (spec delete-from-library D13, D25): desktop administrators get a checkbox on each row and "Delete from library…" as the last, red item of the row's "..." menu (one-look spec WP6, F45).
-    // The rule, the dialog and the toasts are LibraryItemDeletionFlow's; this table only collects the songs and hides them once gone.
+    // The rule and the dialog are LibraryItemDeletionFlow's; this table only collects the songs and hides them once gone.
     private readonly HashSet<Guid> _selected = [];
     private readonly HashSet<Guid> _removed = [];
     private UIOrchestratorService? _orchestrator;
@@ -402,6 +412,15 @@ else
             _selected.Remove(id);
         }
     }
+
+    // What the last delete or status change had to say in place (a refusal, a failure, files left on disk).
+    private string? _notice;
+
+    private void ShowNotice(string message) => _notice = message;
+
+    private UndoOffer? _statusUndo;
+    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; return Task.CompletedTask; }
+    private Task ClearStatusUndo() { _statusUndo = null; return Task.CompletedTask; }
 
     // Desktop administrators only. A phone renders cards and never reaches this; touch-only and tablet devices fail CanEdit.
     private bool _showDelete;
@@ -473,18 +492,20 @@ else
         }
 
         // The icon and checkbox only show to an administrator on a desktop; a handler never trusts that.
-        var toasts = Services.GetRequiredService<IAppToastService>();
-        if (LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), toasts))
+        if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
+            _notice = refusal;
             return;
         }
 
+        _notice = null;
         _deleting = true;
         try
         {
-            var outcome = await LibraryItemDeletionFlow.RunAsync(Services.GetRequiredService<IAppDialogService>(), toasts, workIds, title);
-            if (outcome != LibraryItemDeletionFlowOutcome.Canceled)
+            var result = await LibraryItemDeletionFlow.RunAsync(Services.GetRequiredService<IAppDialogService>(), workIds, title);
+            if (result.Outcome != LibraryItemDeletionFlowOutcome.Canceled)
             {
+                _notice = result.Notice;
                 MarkRemoved(workIds);
             }
         }
