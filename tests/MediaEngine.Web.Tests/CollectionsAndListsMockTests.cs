@@ -430,8 +430,13 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
 
     private static CollectionListItemViewModel RuleDrivenCollection(Guid id) => new()
     {
-        Id = id, Name = "Existing", CollectionType = "Custom", Resolution = "query", MembershipMode = "Smart",
-        OwnerKind = "Library", Audience = "Everyone",
+        Id = id,
+        Name = "Existing",
+        CollectionType = "Custom",
+        Resolution = "query",
+        MembershipMode = "Smart",
+        OwnerKind = "Library",
+        Audience = "Everyone",
         RuleJson = """{"version":1,"groups":[{"joinWithPrevious":"and","matchMode":"all","conditions":[{"field":"genre","op":"eq","value":"Horror"}]}]}""",
     };
 

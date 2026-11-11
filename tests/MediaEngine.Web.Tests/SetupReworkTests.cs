@@ -116,7 +116,11 @@ public sealed class SetupReworkTests : AsyncBunitContext
     public void TheIntroAnimationStyleHasNoHandTypedColors()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
         var css = File.ReadAllText(Path.Combine(directory!.FullName, "src", "MediaEngine.Web", "Components", "Setup", "IntroAnimation.razor.css"));
 
         Assert.DoesNotContain("#f2f8fc", css, StringComparison.OrdinalIgnoreCase);

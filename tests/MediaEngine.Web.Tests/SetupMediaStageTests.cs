@@ -52,7 +52,11 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), args =>
             {
                 _setupSessions.Add((string?)args![0]);
-                if (_loadGate is not null) return _loadGate.Task;
+                if (_loadGate is not null)
+                {
+                    return _loadGate.Task;
+                }
+
                 return Task.FromResult<LibrariesConfigurationDto?>(_failLoads ? null : _configuration);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibraryKindsAsync), _ =>

@@ -1,8 +1,8 @@
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Resources;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.Extensions.Localization;
-using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Resources;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -28,7 +28,11 @@ public static class LibraryFolderStep
     // "Movies" reads "movies" in the middle of a sentence; "TV shows" and "YouTube" keep their capitals, and the "Other" kinds just say files.
     public static string Plural(LibraryTypeOption? kind)
     {
-        if (kind is null || kind.Key.StartsWith("other", StringComparison.Ordinal)) return "files";
+        if (kind is null || kind.Key.StartsWith("other", StringComparison.Ordinal))
+        {
+            return "files";
+        }
+
         var label = kind.PluralLabel;
         var firstWord = label.Split(' ')[0];
         return firstWord.Skip(1).Any(char.IsUpper) ? label : char.ToLowerInvariant(label[0]) + label[1..];
