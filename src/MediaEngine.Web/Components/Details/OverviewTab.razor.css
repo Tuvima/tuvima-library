@@ -62,7 +62,7 @@
     line-clamp: 5;
 }
 
-:where(.tl-detail-page) .tl-overview-section__more {
+:where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-overview-section__more {
     margin-top: 0.5rem;
 }
 

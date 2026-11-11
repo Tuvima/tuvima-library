@@ -46,11 +46,11 @@
         @if (_state == "ready")
         {
             <div class="br-actions" role="toolbar" aria-label="@L["BookReader_ReaderTools"].Value">
-                <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "search" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value" />
-                <AppIconButton Icon="@AppMaterialIcons.Filled.Toc" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "search" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("search"))" aria-expanded="@(_panel == "search" ? "true" : "false")" Tooltip="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Toc" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "contents" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("contents"))" aria-expanded="@(_panel == "contents" ? "true" : "false")" Tooltip="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value" />
                 <AppIconButton Icon="@AppMaterialIcons.Filled.BookmarkAdd" ButtonStyle="AppButtonStyle.Text" OnClick="AddBookmarkAsync" Tooltip="@L["BookReader_BookmarkThisPage"].Value" AriaLabel="@L["BookReader_BookmarkThisPage"].Value" />
-                <AppIconButton Icon="@AppMaterialIcons.Filled.Bookmark" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "saved" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("saved"))" Tooltip="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Tune" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "settings" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Bookmark" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "saved" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("saved"))" aria-expanded="@(_panel == "saved" ? "true" : "false")" Tooltip="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Tune" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "settings" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("settings"))" aria-expanded="@(_panel == "settings" ? "true" : "false")" Tooltip="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value" />
             </div>
         }
     </header>
