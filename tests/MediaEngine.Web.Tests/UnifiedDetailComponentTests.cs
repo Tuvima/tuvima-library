@@ -838,7 +838,7 @@ public sealed class UnifiedDetailComponentTests
             Environment.NewLine,
             ReadSource("src/MediaEngine.Web/Services/Navigation/MediaNavigation.cs"),
             BrowseShellSource.ReadAll(),
-            ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs"),
+            ListenPageSource(),
             ReadSequenceMarkup(),
             ReadSource("src/MediaEngine.Api/Services/Display/DisplayCardBuilder.cs"),
             ReadSource("src/MediaEngine.Api/Services/ReadServices/UniversalSearchReadService.cs"),
@@ -1048,7 +1048,7 @@ public sealed class UnifiedDetailComponentTests
         var contextPanel = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Player/ChaptersPanel.razor");
         var phonePlayer = fullPlayer + contextPanel + LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
-        var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
+        var listenPage = ListenPageSource();
         var playbackService = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs");
         var playbackModels = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackModels.cs");
         var detailStyles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
@@ -1639,6 +1639,10 @@ public sealed class UnifiedDetailComponentTests
     private static string ReadSequenceMarkup() =>
         ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor") + "\n" +
         ReadSource("src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor");
+
+    // ListenPage keeps its code in partial files beside the markup; the code text of all of them is what these checks pin.
+    private static string ListenPageSource() =>
+        SplitComponentSource.ReadAll(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Pages/ListenPage.razor"));
 
     private static string ReadSource(string relativePath)
     {

@@ -52,11 +52,12 @@ public sealed class EditorEntryPointGuardrailTests
     [Theory]
     [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor")]
     [InlineData("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor")]
-    [InlineData("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs")]
+    [InlineData("src/MediaEngine.Web/Components/Pages/ListenPage.razor")]
     [InlineData("src/MediaEngine.Web/Components/Player/PlaybackLyricsFooter.razor")]
     public void AListsEntryPoint_OpensThePopOverThroughTheLauncher_AndNeverSendsThePersonToAnItemsPageToEdit(string file)
     {
-        var text = Read(file);
+        // A component with partial code files is read as one text (SplitComponentSource); the others are single files.
+        var text = SplitComponentSource.ReadAll(Path.Combine(Root, file));
 
         Assert.Contains("ListEditLauncher", text, StringComparison.Ordinal);
         Assert.DoesNotContain("OfferEditResume", text, StringComparison.Ordinal);

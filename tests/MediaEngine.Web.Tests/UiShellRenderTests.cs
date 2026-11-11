@@ -1442,7 +1442,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void ListenPage_RouteParametersReloadListenStateWithRaceGuard()
     {
-        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
+        var source = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var markup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.css"));
 
@@ -1575,7 +1575,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void PlaylistCreation_StaysInPlaceAndOverflowMenusOwnIndependentState()
     {
-        var legacySource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
+        var legacySource = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var legacyMarkup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var browseSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenBrowsePage.razor"));
         var menuSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "AppOverflowMenu.razor"));
