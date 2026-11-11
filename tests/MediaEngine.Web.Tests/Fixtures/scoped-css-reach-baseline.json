@@ -74,9 +74,6 @@
       "tl-urail__img",
       "tl-urail__option"
     ],
-    "src/MediaEngine.Web/Components/Details/OverviewTab.razor": [
-      "tl-overview-section__more"
-    ],
     "src/MediaEngine.Web/Components/Import/ImportPreviewFrame.razor": [
       "import-frame__facts"
     ],
