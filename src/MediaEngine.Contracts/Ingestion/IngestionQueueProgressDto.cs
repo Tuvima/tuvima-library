@@ -91,7 +91,7 @@ public sealed class IngestionQueueOutcomesDto
     public int Unmatched { get; set; }
 }
 
-/// <summary>How many files of one media type are in the queue.</summary>
+/// <summary>How many files of one media type are in the queue, and how far along they are.</summary>
 public sealed class IngestionQueueTypeTallyDto
 {
     /// <summary>The media type name (for example "Movies").</summary>
@@ -100,4 +100,16 @@ public sealed class IngestionQueueTypeTallyDto
 
     [JsonPropertyName("files")]
     public int Files { get; set; }
+
+    /// <summary>Files of this type that are finished.</summary>
+    [JsonPropertyName("files_done")]
+    public int FilesDone { get; set; }
+
+    /// <summary>Nine steps per file of this type.</summary>
+    [JsonPropertyName("steps_total")]
+    public long StepsTotal { get; set; }
+
+    /// <summary>The sum of the step numbers of this type's files.</summary>
+    [JsonPropertyName("steps_completed")]
+    public long StepsCompleted { get; set; }
 }

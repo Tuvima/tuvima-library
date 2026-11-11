@@ -15,6 +15,8 @@ public sealed class LibraryActivityHistoryTests : AsyncBunitContext
 {
     private Func<CancellationToken, Task<ActivityRunsDto?>> _runs = _ => Task.FromResult<ActivityRunsDto?>(new ActivityRunsDto([], false, null));
     private int _runCalls;
+    private DateTimeOffset? _lastFrom;
+    private DateTimeOffset? _lastTo;
     private DateTimeOffset? _lastCompleted;
     private bool _lastCompletedReported;
 
@@ -25,6 +27,8 @@ public sealed class LibraryActivityHistoryTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetActivityRunsAsync), args =>
             {
                 Interlocked.Increment(ref _runCalls);
+                _lastFrom = (DateTimeOffset?)args![2];
+                _lastTo = (DateTimeOffset?)args[3];
                 return _runs((CancellationToken)args![8]!);
             })));
     }
@@ -67,6 +71,63 @@ public sealed class LibraryActivityHistoryTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("Nothing has been added in this time", cut.Markup, StringComparison.Ordinal));
         Assert.DoesNotContain("Nothing has been added yet", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid='lact-entry']"));
+    }
+
+    [Fact]
+    public void TheTypeFilterStartsWithAllTypes_AndTheDateRangeOffersTodaySevenThirtyYearAndCustomOnly()
+    {
+        var cut = RenderHistory();
+
+        var selects = cut.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>();
+        Assert.Equal(["All types", "Added", "Updated", "Fixed", "Removed"], selects[0].Instance.Options!.Select(option => option.Label).ToArray());
+        Assert.Equal(["Today", "Last 7 days", "Last 30 days", "This year", "Custom"], selects[1].Instance.Options!.Select(option => option.Label).ToArray());
+    }
+
+    [Fact]
+    public void ChoosingACustomRange_ShowsFromAndToDates_AndAsksForThoseDays()
+    {
+        var cut = RenderHistory();
+        Assert.Empty(cut.FindAll("[data-testid='lact-custom-dates']"));
+
+        var range = cut.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>()[1];
+        cut.InvokeAsync(() => range.Instance.ValueChanged.InvokeAsync("custom"));
+
+        var group = cut.WaitForElement("[data-testid='lact-custom-dates']");
+        Assert.Equal("Dates", group.GetAttribute("aria-label"));
+        var dates = group.QuerySelectorAll("input[type='date']");
+        Assert.Equal(2, dates.Length);
+
+        dates[0].Input("2026-11-01");
+        cut.Find("[data-testid='lact-custom-dates']").QuerySelectorAll("input[type='date']")[1].Input("2026-11-05");
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 11, 1))), _lastFrom);
+            Assert.Equal(new DateTimeOffset(2026, 11, 6, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 11, 6))), _lastTo);
+        });
+    }
+
+    [Fact]
+    public void WithNoLibraries_TheEmptyStateOffersAddLibrary_ThatRaisesTheCallback()
+    {
+        var clicked = 0;
+        var cut = Render<LibraryActivityHistory>(parameters => parameters
+            .Add(history => history.NoLibraries, true)
+            .Add(history => history.OnAddLibrary, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => clicked++)));
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing has been added yet", cut.Markup, StringComparison.Ordinal));
+        cut.Find("button:contains('Add library')").Click();
+
+        Assert.Equal(1, clicked);
+    }
+
+    [Fact]
+    public void WithNoLibrariesButNoWayToAddOne_ThePhone_TheEmptyStateHasNoAddLibraryButton()
+    {
+        var cut = Render<LibraryActivityHistory>(parameters => parameters.Add(history => history.NoLibraries, true));
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing has been added yet", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("button:contains('Add library')"));
     }
 
     [Fact]

@@ -203,7 +203,7 @@ else
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
                             case SettingsSection.RecentlyAdded:
-                                <LibraryActivityPage />
+                                <LibraryActivityPage ShowTitle="false" />
                                 break;
                             case SettingsSection.Review:
                                 <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" Show="@Query.String("show")" />

@@ -16,8 +16,11 @@ public enum IngestionQueueRunState
 /// <summary>How many finished files ended each way.</summary>
 public sealed record IngestionQueueOutcomes(int Added, int NeedsReview, int Failed, int Skipped, int Unmatched = 0);
 
-/// <summary>How many files of one media type are in the queue.</summary>
-public sealed record IngestionQueueTypeTally(string MediaType, int Files);
+/// <summary>
+/// How many files of one media type are in the queue, how many of them are finished, and the steps possible and completed for
+/// them (so a library area can work out its own percent from the types it holds).
+/// </summary>
+public sealed record IngestionQueueTypeTally(string MediaType, int Files, int FilesDone = 0, long StepsTotal = 0, long StepsCompleted = 0);
 
 /// <summary>
 /// The live ingestion numbers, worked out once from the per-file work rows. The Dashboard shows them and never

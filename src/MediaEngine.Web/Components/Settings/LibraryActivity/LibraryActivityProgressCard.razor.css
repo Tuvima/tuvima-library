@@ -8,4 +8,5 @@
 .lact-summary__ring { position: relative; display: inline-grid; place-items: center; width: 2.3rem; height: 2.3rem; color: var(--tl-accent-secondary); }
 .lact-summary__foot { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--tl-space-3); }
 .lact-summary__counts { min-width: 0; }
-@media (max-width: 640px) { .lact-summary__foot { flex-direction: column; } }
+.lact-waiting { margin: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+@media (max-width: 600px) { .lact-summary__foot { flex-direction: column; } }

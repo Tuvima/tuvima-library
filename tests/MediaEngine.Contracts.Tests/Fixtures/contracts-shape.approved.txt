@@ -4377,6 +4377,7 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresent
   ActiveOperations: System.Int32 | nullability=not-null | accessors=get,set
   QueuedOperations: System.Int32 | nullability=not-null | accessors=get,set
   RetryWaitingOperations: System.Int32 | nullability=not-null | accessors=get,set
+  ByType: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionPresentationTypeDto> | nullability=not-null | accessors=get,set
   StartedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   LastActivityAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   CurrentMedia: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionMediaGroupDto> | nullability=not-null | accessors=get,set
@@ -4385,6 +4386,13 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresent
   RecentDays: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionRecentDayDto> | nullability=not-null | accessors=get,set
   PersonalMediaInProgress: MediaEngine.Contracts.Ingestion.IngestionPersonalMediaProgressDto | nullability=not-null | accessors=get,set
   GeneratedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresentationTypeDto
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  ReadyGroups: System.Int32 | nullability=not-null | accessors=get,set
+  ReviewGroups: System.Int32 | nullability=not-null | accessors=get,set
+  ActiveOperations: System.Int32 | nullability=not-null | accessors=get,set
+  QueuedOperations: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionProgressGateDto
   Key: System.String | nullability=not-null | accessors=get,set
@@ -4439,6 +4447,9 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueuePr
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueTypeTallyDto
   MediaType: System.String | nullability=not-null | accessors=get,set
   Files: System.Int32 | nullability=not-null | accessors=get,set
+  FilesDone: System.Int32 | nullability=not-null | accessors=get,set
+  StepsTotal: System.Int64 | nullability=not-null | accessors=get,set
+  StepsCompleted: System.Int64 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionRecentDayDto
   Date: System.DateOnly | nullability=not-null | accessors=get,set

@@ -129,7 +129,14 @@ public static class IngestionQueueProgressDtoMapper
             Unmatched = snapshot.Outcomes.Unmatched,
         },
         Tally = snapshot.Tally
-            .Select(entry => new IngestionQueueTypeTallyDto { MediaType = entry.MediaType, Files = entry.Files })
+            .Select(entry => new IngestionQueueTypeTallyDto
+            {
+                MediaType = entry.MediaType,
+                Files = entry.Files,
+                FilesDone = entry.FilesDone,
+                StepsTotal = entry.StepsTotal,
+                StepsCompleted = entry.StepsCompleted,
+            })
             .ToList(),
         FilesUnsorted = snapshot.FilesUnsorted,
         StepsTotal = snapshot.StepsTotal,

@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings.LibraryActivity
 @using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient Api
 @inject IStringLocalizer<SharedStrings> L
 @implements IDisposable
@@ -31,6 +32,16 @@
                               Adornment="AppAdornment.Start"
                               AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
             </div>
+            @if (_range == CustomRange)
+            {
+                @* Custom date range (D16): From and To beside the search, the same pair as the personal Activity page. *@
+                <div class="lact-controls__dates" role="group" aria-label="@L["Common_Dates"].Value" data-testid="lact-custom-dates">
+                    <span class="lact-controls__date-word" aria-hidden="true">@L["Common_From"]</span>
+                    <AppTextField Label="@L["Common_From"].Value" HideLabel="true" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-testid="lact-date-from" />
+                    <span class="lact-controls__date-word" aria-hidden="true">@L["Common_To"]</span>
+                    <AppTextField Label="@L["Common_To"].Value" HideLabel="true" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-testid="lact-date-to" />
+                </div>
+            }
             <div class="lact-controls__select lact-controls__select--type">
                 <AppSelect Label="@L["LibraryActivity_Type"].Value" HideLabel="true" Value="@_kind" ValueChanged="OnKindChanged" Options="KindOptions" />
             </div>
@@ -107,19 +118,32 @@
             </div>
         }
     }
-    else if (_runs.Count == 0 && Narrowed)
+    else if (_runs.Count == 0 && NoLibraries)
     {
+        @* No libraries at all: nothing has been added yet, and the way forward is Add library (administrators on a computer only). *@
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Icon="@AppMaterialIcons.Outlined.History"
+                      Title="@L["LibraryActivity_Empty"].Value"
+                      Message="@L["LibraryActivity_EmptyHelp"].Value">
+            <Actions>
+                @if (OnAddLibrary.HasDelegate)
+                {
+                    <AppButton Label="@L["Common_AddLibrary"].Value"
+                               StartIcon="@AppMaterialIcons.Outlined.Add"
+                               ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               OnClick="OnAddLibrary" />
+                }
+            </Actions>
+        </AppPageState>
+    }
+    else if (_runs.Count == 0)
+    {
+        @* The date range always narrows the list, so an empty answer means "none in this time", not "never". *@
         <AppPageState Kind="AppPageStateKind.Empty"
                       Icon="@AppMaterialIcons.Outlined.History"
                       Title="@L["LibraryActivity_NoBatches"].Value"
                       Message="@L["LibraryActivity_NoBatchesHelp"].Value" />
-    }
-    else if (_runs.Count == 0)
-    {
-        <AppPageState Kind="AppPageStateKind.Empty"
-                      Icon="@AppMaterialIcons.Outlined.History"
-                      Title="@L["LibraryActivity_Empty"].Value"
-                      Message="@L["LibraryActivity_EmptyHelp"].Value" />
     }
     else
     {
@@ -163,15 +187,18 @@
 @code {
     private const int PageSize = 50;
 
-    private static readonly IReadOnlyList<AppSelectOption> KindOptions =
+    private const string CustomRange = "custom";
+
+    // D16: the type list reads "All types" first; the date range is Today, 7 days, 30 days, year or custom (no "All time").
+    private IReadOnlyList<AppSelectOption> KindOptions =>
     [
-        new("all", "All"), new(ActivityRunKindNames.Added, "Added"), new(ActivityRunKindNames.Updated, "Updated"),
+        new("all", L["LibraryActivity_AllTypes"].Value), new(ActivityRunKindNames.Added, "Added"), new(ActivityRunKindNames.Updated, "Updated"),
         new(ActivityRunKindNames.Fixed, "Fixed"), new(ActivityRunKindNames.Removed, "Removed"),
     ];
 
-    private static readonly IReadOnlyList<AppSelectOption> RangeOptions =
+    private IReadOnlyList<AppSelectOption> RangeOptions =>
     [
-        new("today", "Today"), new("7", "Last 7 days"), new("30", "Last 30 days"), new("year", "This year"), new("all", "All time"),
+        new("today", "Today"), new("7", "Last 7 days"), new("30", "Last 30 days"), new("year", "This year"), new(CustomRange, L["LibraryActivity_Custom"].Value),
     ];
 
     // More dated markers than this on one searched title group under month headings.
@@ -188,6 +215,12 @@
     /// <summary>The newest completed scan time, for the "Everything is up to date" card.</summary>
     [Parameter] public EventCallback<DateTimeOffset?> LastCompletedChanged { get; set; }
 
+    /// <summary>True when the Library has no libraries at all, so an empty History offers Add library.</summary>
+    [Parameter] public bool NoLibraries { get; set; }
+
+    /// <summary>Opens the Add library window. Left unset when the person cannot add one (a phone), which hides the button.</summary>
+    [Parameter] public EventCallback OnAddLibrary { get; set; }
+
     private readonly List<ActivityRunDto> _runs = [];
     private readonly HashSet<string> _toggled = [];
     private IReadOnlyList<ActivityTitleCardDto>? _titles;
@@ -195,6 +228,8 @@
     private string? _search;
     private string _kind = "all";
     private string _range = "30";
+    private string? _fromDate;
+    private string? _toDate;
     private string _sort = "newest";
     private bool _loading = true;
     private bool _failed;
@@ -204,9 +239,6 @@
     private int _lastRefresh;
 
     private bool Searching => !string.IsNullOrWhiteSpace(_search);
-
-    // A type or date range is narrowing the list, so an empty answer means "none in this period", not "nothing was ever added".
-    private bool Narrowed => _kind != "all" || _range != "all";
 
     private sealed record MonthGroupModel(string Key, string Heading, int Count, bool OpenByDefault, IReadOnlyList<ActivityRunDto> Runs);
     private sealed record YearGroupModel(string Key, string Year, int Count, bool Wrap, bool OpenByDefault, IReadOnlyList<MonthGroupModel> Months);
@@ -305,8 +337,10 @@
 
     private Task OnSearchDebounced(string _) => ReloadAsync();
     private Task OnKindChanged(string? value) { _kind = value ?? "all"; return ReloadAsync(); }
-    private Task OnRangeChanged(string? value) { _range = value ?? "all"; return ReloadAsync(); }
+    private Task OnRangeChanged(string? value) { _range = value ?? "30"; return ReloadAsync(); }
     private Task OnSortChanged(string? value) { _sort = value ?? "newest"; return ReloadAsync(); }
+    private Task OnFromChanged(string? value) { _fromDate = string.IsNullOrWhiteSpace(value) ? null : value; return ReloadAsync(); }
+    private Task OnToChanged(string? value) { _toDate = string.IsNullOrWhiteSpace(value) ? null : value; return ReloadAsync(); }
 
     private (DateTimeOffset? From, DateTimeOffset? To) Dates()
     {
@@ -317,6 +351,7 @@
             "7" => (now.AddDays(-7), null),
             "30" => (now.AddDays(-30), null),
             "year" => (new DateTimeOffset(new DateTime(now.Year, 1, 1), now.Offset), null),
+            CustomRange => (ActivityListPresentation.StartOfLocalDay(_fromDate), ActivityListPresentation.EndOfLocalDay(_toDate)),
             _ => (null, null),
         };
     }

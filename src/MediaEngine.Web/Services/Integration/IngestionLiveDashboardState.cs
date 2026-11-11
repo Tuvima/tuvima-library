@@ -180,7 +180,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
             value.Progress,
             value.EstimatedSecondsRemaining,
             string.Join(',', value.WaitingFor),
-            string.Join(',', value.Tally.Select(entry => $"{entry.MediaType}:{entry.Files}")),
+            string.Join(',', value.Tally.Select(entry => $"{entry.MediaType}:{entry.Files}:{entry.FilesDone}:{entry.StepsCompleted}")),
             value.UpdatedAt.ToString("O"));
     }
 
@@ -200,6 +200,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
             value.ActiveOperations,
             value.QueuedOperations,
             value.RetryWaitingOperations,
+            string.Join(',', value.ByType.Select(type => $"{type.MediaType}:{type.ReadyGroups}:{type.ReviewGroups}:{type.ActiveOperations}:{type.QueuedOperations}")),
             string.Join(',', value.CurrentMedia.Select(item => string.Join(':',
                 item.GroupId.ToString("N"),
                 item.Availability,

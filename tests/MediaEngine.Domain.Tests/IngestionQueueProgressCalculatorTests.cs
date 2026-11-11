@@ -181,6 +181,24 @@ public sealed class IngestionQueueProgressCalculatorTests
     }
 
     [Fact]
+    public void Tally_CarriesEachTypesFinishedFilesAndSteps_SoAnAreaCanWorkOutItsOwnPercent()
+    {
+        var sim = QueueSim.Empty(Base);
+        sim.Add(4, "Movies", QueueSim.Variant.Normal, Base);
+        sim.Add(6, "Music", QueueSim.Variant.Normal, Base);
+        sim.SetPhaseForAll(3);
+
+        var snapshot = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base.AddSeconds(1)).Snapshot;
+
+        var movies = snapshot.Tally.Single(entry => entry.MediaType == "Movies");
+        var music = snapshot.Tally.Single(entry => entry.MediaType == "Music");
+        Assert.Equal(4 * 9, movies.StepsTotal);
+        Assert.Equal(6 * 9, music.StepsTotal);
+        Assert.Equal(snapshot.StepsCompleted, movies.StepsCompleted + music.StepsCompleted);
+        Assert.Equal(snapshot.FilesDone, movies.FilesDone + music.FilesDone);
+    }
+
+    [Fact]
     public void TallyOrder_PutsOtherTypesAfterTheSixKnownOnes()
     {
         var sim = QueueSim.Empty(Base);

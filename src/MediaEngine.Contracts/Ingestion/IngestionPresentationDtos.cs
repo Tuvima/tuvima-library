@@ -37,6 +37,13 @@ public sealed class IngestionPresentationSnapshotDto
     [JsonPropertyName("retry_waiting_operations")]
     public int RetryWaitingOperations { get; set; }
 
+    /// <summary>
+    /// The same ready, review, active and queued numbers split by media type, so a page filtered to some library areas can add up
+    /// only its own. Types with nothing to report are left out.
+    /// </summary>
+    [JsonPropertyName("by_type")]
+    public List<IngestionPresentationTypeDto> ByType { get; set; } = [];
+
     [JsonPropertyName("started_at")]
     public DateTimeOffset? StartedAt { get; set; }
 
@@ -63,6 +70,26 @@ public sealed class IngestionPresentationSnapshotDto
 
     [JsonPropertyName("generated_at")]
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>One media type's share of the live snapshot's ready, review, active and queued numbers.</summary>
+public sealed class IngestionPresentationTypeDto
+{
+    /// <summary>The media type name (for example "Movies"), as in <see cref="IngestionQueueTypeTallyDto.MediaType"/>.</summary>
+    [JsonPropertyName("media_type")]
+    public string MediaType { get; set; } = "";
+
+    [JsonPropertyName("ready_groups")]
+    public int ReadyGroups { get; set; }
+
+    [JsonPropertyName("review_groups")]
+    public int ReviewGroups { get; set; }
+
+    [JsonPropertyName("active_operations")]
+    public int ActiveOperations { get; set; }
+
+    [JsonPropertyName("queued_operations")]
+    public int QueuedOperations { get; set; }
 }
 
 /// <summary>The keys that appear in <see cref="IngestionMediaGroupDto.WaitingFor"/>.</summary>
