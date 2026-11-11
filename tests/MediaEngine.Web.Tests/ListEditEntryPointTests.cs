@@ -135,7 +135,6 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
 
         Assert.False(host.IsOpen);
         Assert.Equal(3, _detailReads.Count);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

@@ -82,8 +82,6 @@ builder.Services.Configure<RequestLocalizationOptions>(opts =>
 builder.Services.AddScoped<AppPopoverService>();
 builder.Services.AddScoped<AppDialogService>();
 builder.Services.AddScoped<IAppDialogService>(services => services.GetRequiredService<AppDialogService>());
-builder.Services.AddScoped<AppToastService>();
-builder.Services.AddScoped<IAppToastService>(services => services.GetRequiredService<AppToastService>());
 builder.Services.AddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddResponseCompression(options =>

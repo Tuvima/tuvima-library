@@ -51,7 +51,7 @@ public sealed class NativeUiDependencyGuardrailTests
         foreach (var layout in new[] { "MainLayout", "ReaderLayout", "SetupWizardLayout" })
         {
             var source = File.ReadAllText(Path.Combine(WebRoot, "Shared", layout + ".razor"));
-            foreach (var host in new[] { "AppThemeProvider", "AppPopoverHost", "AppDialogHost", "AppToastHost" })
+            foreach (var host in new[] { "AppThemeProvider", "AppPopoverHost", "AppDialogHost" })
             {
                 Assert.Contains("<" + host, source, StringComparison.Ordinal);
             }
@@ -70,7 +70,7 @@ public sealed class NativeUiDependencyGuardrailTests
         }
         Assert.DoesNotContain("_content/MudBlazor", assets, StringComparison.OrdinalIgnoreCase);
         var registration = File.ReadAllText(Path.Combine(WebRoot, "Program.cs"));
-        foreach (var service in new[] { "AppPopoverService", "AppDialogService", "AppToastService", "IAppDialogService", "IAppToastService" })
+        foreach (var service in new[] { "AppPopoverService", "AppDialogService", "IAppDialogService" })
         {
             Assert.Contains("AddScoped<" + service + ">", registration, StringComparison.Ordinal);
         }

@@ -68,7 +68,6 @@ public sealed class ViewLibraryFeedbackTests : AsyncBunitContext
         await cut.ClickAsync("button[aria-label='Tidy Camera']");
 
         cut.WaitForAssertion(() => Assert.Equal("Everything in Camera is already filed by date.", Text(cut.Find("[data-folders-note]"))));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -80,7 +79,6 @@ public sealed class ViewLibraryFeedbackTests : AsyncBunitContext
         await cut.ClickAsync("button[aria-label='Tidy Camera']");
 
         cut.WaitForAssertion(() => Assert.Equal("Camera is being tidied: 4 of 10 files done.", Text(cut.Find("[data-folders-note]"))));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -94,7 +92,6 @@ public sealed class ViewLibraryFeedbackTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".view-source-row.tl-just-changed")));
         Assert.Empty(cut.FindAll("[data-folders-note]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     private IRenderedComponent<ViewImportPanel> RenderImport() => Render<ViewImportPanel>(parameters => parameters.Add(x => x.Kind, "photos"));
@@ -109,7 +106,6 @@ public sealed class ViewLibraryFeedbackTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => Text(button).Contains("Scan now", StringComparison.Ordinal)).Click());
 
         cut.WaitForAssertion(() => Assert.Equal("3 files were filed.", Text(cut.Find("[data-import-scan-note]"))));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -135,6 +131,5 @@ public sealed class ViewLibraryFeedbackTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => Text(button).Contains("Look for duplicates", StringComparison.OrdinalIgnoreCase)).Click());
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-alert")));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 }

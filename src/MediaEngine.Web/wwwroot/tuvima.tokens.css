@@ -307,7 +307,6 @@
     --tl-tile-mark-shadow: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
     --tl-layer-menu: var(--tl-z-dropdown);
     --tl-layer-dialog: var(--tl-z-modal);
-    --tl-layer-toast: var(--tl-z-toast);
     --tl-layer-popover: var(--tl-z-popover);
     --tl-layer-player: 1700;
 

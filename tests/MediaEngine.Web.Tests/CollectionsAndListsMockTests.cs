@@ -86,7 +86,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         }));
     }
 
-    private IReadOnlyList<AppToast> Toasts => Services.GetRequiredService<AppToastService>().Toasts;
 
     // ── Save feedback without toasts ───────────────────────────────────────────────
 
@@ -101,7 +100,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await Next(editor);
 
         editor.WaitForAssertion(() => Assert.Equal([true], closed));
-        Assert.Empty(Toasts);
         Assert.Equal([_createdId], request.SavedCollectionIds);
     }
 
@@ -116,7 +114,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await editor.InvokeAsync(() => editor.FindAll(".collection-editor-footer-actions button").Last().Click());
 
         editor.WaitForAssertion(() => Assert.Equal([true], closed));
-        Assert.Empty(Toasts);
         Assert.Equal([collectionId], request.SavedCollectionIds);
     }
 
@@ -130,7 +127,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await editor.InvokeAsync(() => editor.FindAll(".collection-editor-footer-actions button").Last().Click());
 
         editor.WaitForAssertion(() => Assert.NotEmpty(editor.FindAll("[data-editor-notice]")));
-        Assert.Empty(Toasts);
         Assert.Empty(request.SavedCollectionIds);
     }
 
@@ -142,7 +138,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await Next(editor);
 
         editor.WaitForAssertion(() => Assert.Contains("name", editor.Find("[data-editor-notice]").TextContent, StringComparison.OrdinalIgnoreCase));
-        Assert.Empty(Toasts);
         Assert.Equal("3", editor.Find(".collection-flow").GetAttribute("data-flow-step"));
     }
 
@@ -164,7 +159,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await Next(editor);
 
         editor.WaitForAssertion(() => Assert.Equal([true], closed));
-        Assert.Empty(Toasts);
         Assert.Equal([first, second], request.SavedCollectionIds);
     }
 
@@ -183,7 +177,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await Next(editor);
 
         editor.WaitForAssertion(() => Assert.Contains("Nothing new was created.", editor.Find("[data-editor-notice]").TextContent));
-        Assert.Empty(Toasts);
         Assert.Empty(closed);
     }
 
@@ -210,7 +203,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         Assert.Contains("2000s: Not enough titles.", summary.TextContent);
         Assert.Equal("status", summary.GetAttribute("role"));
         Assert.Empty(closed);
-        Assert.Empty(Toasts);
 
         await editor.InvokeAsync(() => editor.Find("[data-save-summary-done]").Click());
 
@@ -249,7 +241,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         editor.WaitForAssertion(() => Assert.Single(editor.FindAll("[data-save-summary]")));
         Assert.Contains("1 made; 1 not:", editor.Find("[data-save-summary]").TextContent);
         Assert.Empty(closed);
-        Assert.Empty(Toasts);
 
         await editor.InvokeAsync(() => editor.Find("[data-save-summary-done]").Click());
 
@@ -272,7 +263,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
             Assert.Contains(text!, cut.Find("[data-collection-saved]").TextContent);
         }
 
-        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -303,7 +293,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await cut.FindAll("button").First(button => button.TextContent.Contains("Match again", StringComparison.Ordinal)).ClickAsync();
 
         cut.WaitForAssertion(() => Assert.Contains("you own 9, 1 still unmatched", cut.Find("[data-list-section-status]").TextContent));
-        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -316,7 +305,6 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         await cut.FindAll("button").First(button => button.TextContent.Contains("Match again", StringComparison.Ordinal)).ClickAsync();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-list-section-status]")));
-        Assert.Empty(Toasts);
     }
 
     [Fact]

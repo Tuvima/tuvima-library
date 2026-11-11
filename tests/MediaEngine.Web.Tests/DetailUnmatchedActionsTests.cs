@@ -106,7 +106,6 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
     private static void Choose(IRenderedComponent<DetailPage> cut, string label) =>
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == label).Click();
 
-    private IReadOnlyList<string> Toasts => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
 
     [Fact]
     public async Task AnAdministratorPageWithAnUnmatchedFileThatIsNotKept_OffersRetryNowAndKeepAsIs()
@@ -133,7 +132,6 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(1, _detailLoads));
         Assert.Equal([$"retry:{OpenAsset}"], _calls);
         cut.WaitForAssertion(() => Assert.Equal("Looking it up again now.", cut.Find("[data-detail-notice]").TextContent.Trim()));
-        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -156,7 +154,6 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         Assert.Equal([$"keep:{OpenAsset}"], _calls);
         // The refreshed page shows the file as kept; there is nothing more to say and nothing to toast.
         Assert.Empty(cut.FindAll("[data-detail-notice]"));
-        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -231,6 +228,5 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("That could not be done. Try again in a moment.", cut.Find("[data-detail-notice]").TextContent.Trim()));
         Assert.DoesNotContain("Looking it up again now.", cut.Markup);
-        Assert.Empty(Toasts);
     }
 }

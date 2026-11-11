@@ -178,7 +178,6 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(1, _handler.Revokes));
         cut.WaitForAssertion(() => Assert.Contains("No other sessions", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal));
         // The row's own status is the confirmation: no notice over the page and no alert.
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
         Assert.Empty(cut.FindAll("[data-security-failure]"));
         // Only the person's own bulk route is used; the administrators' route for other people's sessions never is.
         Assert.DoesNotContain(_handler.Paths, path => path.StartsWith("/access/sessions", StringComparison.Ordinal));
@@ -201,7 +200,6 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("Other sessions could not be signed out.", cut.Find("[data-security-failure]").TextContent.Trim()));
         Assert.Equal("alert", cut.Find("[data-security-failure]").GetAttribute("role"));
         Assert.Contains("1 other session", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
 
         // The next attempt clears the alert before it starts.
         _handler.RevokeFails = false;

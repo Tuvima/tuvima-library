@@ -38,7 +38,10 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetServerIdentityAsync), _ => Task.FromResult(_identity));
             stub.SetHandler(nameof(IEngineApiClient.UpdateServerIdentityAsync), args =>
             {
-                if (_refuseSave) return Task.FromResult<SetupServerIdentityDto?>(null);
+                if (_refuseSave)
+                {
+                    return Task.FromResult<SetupServerIdentityDto?>(null);
+                }
                 var requested = (SetupServerIdentityDto)args![0]!;
                 // What the Engine does: derive the network name while it follows the friendly name.
                 var host = requested.HostNameDerived ? NetworkNameRules.ToLabel(requested.ServerName) : NetworkNameRules.ToLabel(requested.HostName);
@@ -212,7 +215,6 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
         Assert.Contains("the-den-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
         // Saved is told by the quiet line under the name, never by a pop-up.
         cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
         Assert.Empty(cut.FindAll("[data-name-address-failure]"));
     }
 
@@ -227,7 +229,6 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
 
         Assert.Equal("The Library name could not be saved.", cut.Find("[data-name-address-failure]").TextContent.Trim());
         Assert.DoesNotContain("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

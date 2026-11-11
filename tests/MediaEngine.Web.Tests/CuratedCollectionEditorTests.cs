@@ -113,7 +113,6 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         var (editor, items) = await RemoveTheOnlyItemAsync(engineAccepts: false, engineMessage);
 
         editor.WaitForAssertion(() => Assert.Contains(engineMessage, editor.Find("[data-editor-notice]").TextContent));
-        Assert.Empty(Services.GetRequiredService<MediaEngine.Web.Services.Ui.AppToastService>().Toasts);
         // The item is still listed: the Engine kept it.
         Assert.Single(items);
     }
@@ -125,7 +124,6 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
 
         // The list reloading is the confirmation; there is no message to show.
         Assert.Empty(editor.FindAll("[data-editor-notice]"));
-        Assert.Empty(Services.GetRequiredService<MediaEngine.Web.Services.Ui.AppToastService>().Toasts);
     }
 
     private async Task<(IRenderedComponent<CollectionEditorShell> Editor, System.Collections.IList Items)> RemoveTheOnlyItemAsync(bool engineAccepts, string engineMessage)

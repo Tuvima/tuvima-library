@@ -24,7 +24,7 @@ internal static partial class TypedWordingScanner
     [GeneratedRegex(@">([^<>{}]*)(?=<)")] private static partial Regex TextPattern();
     [GeneratedRegex(@"(?<![\w@:-])(" + AttributeNames + @")=""([^""@<>]*)""")] private static partial Regex AttributePattern();
     [GeneratedRegex(@"[A-Za-z]{2,}")] private static partial Regex WordPattern();
-    [GeneratedRegex(@"Snackbar\.Add\(\s*""([^""\\{}]*[A-Za-z]{2,}[^""\\{}]*)""")] private static partial Regex SnackbarPattern();
+    [GeneratedRegex(@"Ribbon\.Add\(\s*""([^""\\{}]*[A-Za-z]{2,}[^""\\{}]*)""")] private static partial Regex RibbonPattern();
     [GeneratedRegex(@"(?<![\w.])(_?[A-Za-z]*(?:[Ee]rror|[Ss]tatus|[Mm]essage|[Nn]otice|[Ff]ailure|[Ww]arning|[Hh]eading|[Tt]itle|[Ll]abel|[Tt]ext|[Dd]escription|[Ss]ubtitle|[Hh]int|[Cc]aption|[Pp]laceholder|[Tt]ooltip)[A-Za-z]*)\s*=\s*""([A-Z][^""\\{}]*)""(?=\s*[;,\n}])")] private static partial Regex AssignmentPattern();
     [GeneratedRegex(@"\b(static|const|readonly)\b|\[Parameter")] private static partial Regex StaticOrParameter();
     [GeneratedRegex(@"(;|=>|==|!=|&&|\|\||\{|\}|\bcase\b|\bbreak\b|\breturn\b|^\s*(else|var|if|for|foreach|switch|while|default)\b)")] private static partial Regex CodeLike();
@@ -101,7 +101,7 @@ internal static partial class TypedWordingScanner
         foreach (var (start, end) in CodeBlocks(source))
         {
             var block = source[start..end];
-            foreach (var (pattern, group) in new[] { (SnackbarPattern(), 1), (AssignmentPattern(), 2) })
+            foreach (var (pattern, group) in new[] { (RibbonPattern(), 1), (AssignmentPattern(), 2) })
             {
                 foreach (Match match in pattern.Matches(block))
                 {

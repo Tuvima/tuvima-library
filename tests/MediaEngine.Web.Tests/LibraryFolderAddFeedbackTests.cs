@@ -41,7 +41,6 @@ public sealed class LibraryFolderAddFeedbackTests : AsyncBunitContext
 
         Assert.False(followUp.Started);
         Assert.Equal("There are no media files in this folder to organise.", followUp.Notice);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -62,7 +61,6 @@ public sealed class LibraryFolderAddFeedbackTests : AsyncBunitContext
 
         Assert.True(followUp.Started);
         Assert.Null(followUp.Notice);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

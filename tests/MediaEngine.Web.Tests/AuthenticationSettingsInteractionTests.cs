@@ -183,7 +183,6 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Assert.False(button.HasAttribute("disabled"));
         // Told once, in place, at the top of the section; never as a pop-up notice.
         Assert.Equal("alert", cut.Find("[data-security-failure]").GetAttribute("role"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -202,7 +201,6 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Assert.Equal("status", saved.GetAttribute("role"));
         Assert.Contains("Saved", saved.TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-security-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

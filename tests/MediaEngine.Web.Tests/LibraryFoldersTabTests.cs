@@ -309,10 +309,9 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddFolderAddsToThisLibraryGlowsTheNewRowAndShowsNoToastAndAsksNothingElse()
+    public async Task AddFolderAddsToThisLibraryGlowsTheNewRowAndAsksNothingElse()
     {
         var dialogs = Render<AppDialogHost>();
-        var toasts = Render<AppToastHost>();
         var cut = OpenPage();
         var before = _configuration.Libraries.Count;
 
@@ -328,7 +327,6 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
         Assert.Contains(_mutations[0].Library!.Sources, source => source.Path == "G:\\More\\Movies");
         Assert.Equal("movies-main", _mutations[0].Library!.PrimaryDestinationSourceId);
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr[data-highlighted=true]")));
-        Assert.DoesNotContain("Added", toasts.Markup, StringComparison.Ordinal);
         dialogs.WaitForAssertion(() => Assert.DoesNotContain("Organise", dialogs.Markup));
         Assert.DoesNotContain("go to", dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(dialogs.FindAll("[role=dialog] button"));

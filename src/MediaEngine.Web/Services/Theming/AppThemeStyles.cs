@@ -213,7 +213,6 @@ internal static class AppThemeStyles
 --tl-zindex-appbar: 1300;
 --tl-zindex-dialog: 1400;
 --tl-zindex-popover: 1200;
---tl-zindex-snackbar: 1500;
 --tl-zindex-tooltip: 1600;
 --tl-native-html-color-scheme: dark;
 }
@@ -430,7 +429,6 @@ internal static class AppThemeStyles
 --tl-zindex-appbar: 1300;
 --tl-zindex-dialog: 1400;
 --tl-zindex-popover: 1200;
---tl-zindex-snackbar: 1500;
 --tl-zindex-tooltip: 1600;
 --tl-native-html-color-scheme: light;
 }

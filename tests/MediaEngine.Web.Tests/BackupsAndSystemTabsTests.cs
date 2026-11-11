@@ -38,7 +38,6 @@ public sealed class BackupsAndSystemTabsTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddSingleton<IAppToastService>(new AppToastService());
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetBackupsAsync), _ => Task.FromResult<IReadOnlyList<BackupArchiveDto>>([Archive]));

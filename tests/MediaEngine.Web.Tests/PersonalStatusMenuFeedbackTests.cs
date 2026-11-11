@@ -1,10 +1,9 @@
 using Bunit;
-using Microsoft.AspNetCore.Components;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Services.Integration;
-using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -57,7 +56,6 @@ public sealed class PersonalStatusMenuFeedbackTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Mark as listened"));
         Assert.Empty(failures);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -71,6 +69,5 @@ public sealed class PersonalStatusMenuFeedbackTests : AsyncBunitContext
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Mark as listened").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["The Engine could not change the listening status."], failures));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 }

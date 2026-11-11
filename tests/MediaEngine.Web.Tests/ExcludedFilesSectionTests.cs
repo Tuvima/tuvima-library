@@ -128,7 +128,6 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
         var dune = File("Dune.mkv", "Movies", DateTimeOffset.UtcNow.AddHours(-2));
         var arrival = File("Arrival.mkv", "Movies", DateTimeOffset.UtcNow.AddHours(-1));
         _files.AddRange([dune, arrival]);
-        var toast = Services.GetRequiredService<AppToastService>();
         var cut = Open();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tbody tr").Count));
 
@@ -136,7 +135,6 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(["Arrival.mkv"], cut.FindAll("tbody tr td:first-child").Select(cell => cell.TextContent.Trim())));
         Assert.Equal([dune.Id], _addedBack);
-        Assert.Empty(toast.Toasts);
         Assert.Empty(cut.FindAll("[data-excluded-note]"));
         Assert.Empty(cut.FindAll("[data-excluded-failure]"));
     }
@@ -158,7 +156,6 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
     {
         _files.Add(File("Gone.mkv", "Movies", DateTimeOffset.UtcNow));
         _addBackAnswer = new() { Queued = false, Message = "The file is no longer on disk." };
-        var toast = Services.GetRequiredService<AppToastService>();
         var cut = Open();
         cut.WaitForElement(".excluded-files");
 
@@ -166,7 +163,6 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".excluded-files")));
         Assert.Equal("The file is no longer on disk.", cut.Find("[data-excluded-note]").TextContent.Trim());
-        Assert.Empty(toast.Toasts);
     }
 
     [Fact]
@@ -174,14 +170,12 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
     {
         _files.Add(File("Dune.mkv", "Movies", DateTimeOffset.UtcNow));
         _addBackAnswer = null;
-        var toast = Services.GetRequiredService<AppToastService>();
         var cut = Open();
         cut.WaitForElement(".excluded-files");
 
         cut.Find("tbody tr button").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Dune.mkv could not be added back", cut.Find("[data-excluded-failure]").TextContent));
-        Assert.Empty(toast.Toasts);
         Assert.Single(cut.FindAll("tbody tr"));
         Assert.False(cut.Find("tbody tr button").HasAttribute("disabled"));
     }

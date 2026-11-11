@@ -36,7 +36,7 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
         Services.AddScoped(provider =>
         {
             var device = provider.GetRequiredService<DeviceContextService>();
-            return new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device, new AppToastService());
+            return new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device);
         });
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
@@ -82,7 +82,6 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
 
         Assert.Equal("The favorite mark could not be saved.", Text(cut.Find("[data-vault-viewer-failure]")));
         Assert.Contains(cut.FindAll("button"), button => Text(button) == "Favourite");
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -94,7 +93,6 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Saved", Text(cut.Find("[data-vault-tags-saved]"))));
         Assert.Empty(cut.FindAll("[data-vault-viewer-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -107,7 +105,6 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
 
         Assert.Equal("Tags can't be longer than 40 letters.", Text(cut.Find("[data-vault-viewer-failure]")));
         Assert.DoesNotContain("Saved", Text(cut.Find("[data-vault-tags-saved]")));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -119,7 +116,6 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
 
         Assert.Equal(1, _closed);
         Assert.Equal(1, _changed);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -151,7 +147,6 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("3 new images added.", Text(cut.Find("[data-vault-scan-result]"))));
         Assert.Equal(1, _changed);
         Assert.Empty(cut.FindAll("[data-vault-scan-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

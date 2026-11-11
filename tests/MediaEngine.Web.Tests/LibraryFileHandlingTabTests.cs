@@ -253,7 +253,6 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         // A saved tab says so with the quiet line, not a pop-up, and shows no alert.
         cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-saved-note]").TextContent, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll("[data-handling-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -319,7 +318,6 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         // The Engine's sentence stays at the top of the tab as an alert until the next try; nothing says Saved.
         Assert.Equal(_mutationError, Text(cut.Find("[data-handling-failure]")));
         Assert.DoesNotContain("Saved", cut.Find("[data-saved-note]").TextContent, StringComparison.Ordinal);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

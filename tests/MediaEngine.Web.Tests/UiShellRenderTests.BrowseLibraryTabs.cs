@@ -84,8 +84,6 @@ public sealed partial class UiShellRenderTests
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
             builder.OpenComponent<TPage>(3);
             if (tab is not null)
             {

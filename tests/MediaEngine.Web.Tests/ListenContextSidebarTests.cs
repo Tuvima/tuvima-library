@@ -239,7 +239,6 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         await cut.Find("button[aria-label='Add song to Favorites']").ClickAsync();
 
         cut.WaitForAssertion(() => Assert.Equal("Favorites require an active profile.", cut.Find("[data-listen-player-notice] span").TextContent.Trim()));
-        Assert.Empty(Services.GetRequiredService<MediaEngine.Web.Services.Ui.AppToastService>().Toasts);
 
         cut.Find("[data-listen-player-notice] button").Click();
 
@@ -252,7 +251,6 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var (cut, _, _, _) = RenderMusicBarWithBookmarks();
 
         Assert.Empty(cut.FindAll("[data-listen-player-notice]"));
-        Assert.Empty(Services.GetRequiredService<MediaEngine.Web.Services.Ui.AppToastService>().Toasts);
     }
 
     [Fact]

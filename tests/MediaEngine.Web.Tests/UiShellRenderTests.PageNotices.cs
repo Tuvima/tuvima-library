@@ -41,7 +41,6 @@ public sealed partial class UiShellRenderTests
 
         Assert.False(result);
         cut.WaitForAssertion(() => Assert.Contains("could not be deleted", cut.Find("[data-lane-notice]").TextContent, StringComparison.Ordinal));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
 
         // The alert goes away when dismissed.
         cut.Find("[data-lane-notice] button").Click();
@@ -60,6 +59,5 @@ public sealed partial class UiShellRenderTests
 
         Assert.True(result);
         Assert.Empty(cut.FindAll("[data-lane-notice]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 }
