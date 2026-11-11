@@ -73,15 +73,15 @@
         {
             @if (_toc.Count == 0)
             {
-                <p class="br-empty">@L["BookReader_ThisBookHasNoContents"]</p>
+                <p class="rf-empty">@L["BookReader_ThisBookHasNoContents"]</p>
             }
             else
             {
-                <ul class="br-list">
+                <ul class="rf-list">
                     @foreach (var item in _toc)
                     {
                         <li>
-                            <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentSection(item) ? "br-row--current" : "")}")"
+                            <AppNativeButton Class="@($"rf-row rf-row--level{Math.Min(item.Level, 3)} {(IsCurrentSection(item) ? "rf-row--current" : "")}")"
                                              OnClick="@(() => OpenTocItemAsync(item))" AriaLabel="@item.Label">
                                 @item.Label
                             </AppNativeButton>
@@ -92,40 +92,40 @@
         }
         else if (openTool == ReaderTool.Search)
         {
-            <div class="br-search">
-                <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value"
+            <div class="rf-search">
+                <AppNativeInput @ref="_searchInput" Type="search" Class="rf-search-input" Placeholder="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value"
                                 Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
                 <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" OnClick="RunSearchAsync" Tooltip="@L["Nav_Search"].Value" AriaLabel="@L["Nav_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)" />
             </div>
             @if (_searching)
             {
-                <p class="br-hint" role="status">@L["BookReader_SearchingTheBook"]</p>
+                <p class="rf-hint" role="status">@L["BookReader_SearchingTheBook"]</p>
             }
             else if (_searchResult is null)
             {
-                <p class="br-hint">@L["BookReader_TypeAtLeastTwoLetters"]</p>
+                <p class="rf-hint">@L["BookReader_TypeAtLeastTwoLetters"]</p>
             }
             else if (_searchResult.Failed && _searchResult.Hits.Count == 0)
             {
-                <p class="br-empty" role="status">@L["BookReader_TheSearchCouldNotFinish"]</p>
+                <p class="rf-empty" role="status">@L["BookReader_TheSearchCouldNotFinish"]</p>
             }
             else if (_searchResult.Hits.Count == 0)
             {
-                <p class="br-empty" role="status">@L["BookReader_NothingInThisBookMatches", _searchedFor]</p>
+                <p class="rf-empty" role="status">@L["BookReader_NothingInThisBookMatches", _searchedFor]</p>
             }
             else
             {
-                <p class="br-hint" role="status">@(_searchResult.Truncated ? $"Showing the first {_searchResult.Hits.Count} places. Search for more words to narrow it down." : _searchResult.Hits.Count == 1 ? "1 place found." : $"{_searchResult.Hits.Count} places found.")</p>
-                <ul class="br-list">
+                <p class="rf-hint" role="status">@(_searchResult.Truncated ? $"Showing the first {_searchResult.Hits.Count} places. Search for more words to narrow it down." : _searchResult.Hits.Count == 1 ? "1 place found." : $"{_searchResult.Hits.Count} places found.")</p>
+                <ul class="rf-list">
                     @foreach (var hit in _searchResult.Hits)
                     {
                         <li>
-                            <AppNativeButton Class="br-row" OnClick="@(() => OpenSearchHitAsync(hit))">
+                            <AppNativeButton Class="rf-row" OnClick="@(() => OpenSearchHitAsync(hit))">
                                 @if (!string.IsNullOrWhiteSpace(hit.Label))
                                 {
-                                    <span class="br-row-sub">@hit.Label</span>
+                                    <span class="rf-row-sub">@hit.Label</span>
                                 }
-                                <span class="br-row-main">@hit.Pre<mark class="br-search-match">@hit.Match</mark>@hit.Post</span>
+                                <span class="rf-row-main">@hit.Pre<mark class="rf-search-match">@hit.Match</mark>@hit.Post</span>
                             </AppNativeButton>
                         </li>
                     }
@@ -141,17 +141,17 @@
             </AppButton>
             @if (ShownBookmarks.Count == 0)
             {
-                <p class="br-empty">@(_savedTab == "everyone" ? L["PageReader_NoBookmarksEveryone"].Value : L["PageReader_NoBookmarksMine"].Value)</p>
+                <p class="rf-empty">@(_savedTab == "everyone" ? L["ReaderFrame_NoBookmarksEveryone"].Value : L["ReaderFrame_NoBookmarksMine"].Value)</p>
             }
             else
             {
-                <ul class="br-list">
+                <ul class="rf-list">
                     @foreach (var mark in ShownBookmarks)
                     {
-                        <li class="br-item" @key="mark.Id">
-                            <AppNativeButton Class="br-row br-row--grow" OnClick="@(() => OpenBookmarkAsync(mark))" AriaLabel="@($"Go to bookmark {mark.Label}")">
-                                <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)</span>
-                                <span class="br-row-sub">@(string.IsNullOrWhiteSpace(mark.OwnerName) ? null : mark.OwnerName + " · ")@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                        <li class="rf-item" @key="mark.Id">
+                            <AppNativeButton Class="rf-row rf-row--grow" OnClick="@(() => OpenBookmarkAsync(mark))" AriaLabel="@($"Go to bookmark {mark.Label}")">
+                                <span class="rf-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)</span>
+                                <span class="rf-row-sub">@(string.IsNullOrWhiteSpace(mark.OwnerName) ? null : mark.OwnerName + " · ")@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
                             </AppNativeButton>
                             @if (CanChange(mark))
                             {
@@ -163,22 +163,22 @@
             }
             @if (_savedTab == "mine")
             {
-                <h3 class="br-subhead">@L["BookReader_Highlights"]</h3>
+                <h3 class="rf-subhead">@L["BookReader_Highlights"]</h3>
                 @if (_highlights.Count == 0)
                 {
-                    <p class="br-empty">@L["BookReader_NoHighlightsYetSelectSome"]</p>
+                    <p class="rf-empty">@L["BookReader_NoHighlightsYetSelectSome"]</p>
                 }
                 else
                 {
-                    <ul class="br-list">
+                    <ul class="rf-list">
                         @foreach (var mark in _highlights)
                         {
-                            <li class="br-item">
-                                <AppNativeButton Class="br-row br-row--grow" OnClick="@(() => OpenHighlightAsync(mark))" AriaLabel="@($"Go to highlight {mark.SelectedText}")">
-                                    <span class="br-row-main br-row-main--quote" data-color="@mark.Color">@mark.SelectedText</span>
+                            <li class="rf-item">
+                                <AppNativeButton Class="rf-row rf-row--grow" OnClick="@(() => OpenHighlightAsync(mark))" AriaLabel="@($"Go to highlight {mark.SelectedText}")">
+                                    <span class="rf-row-main br-row-main--quote" data-color="@mark.Color">@mark.SelectedText</span>
                                     @if (!string.IsNullOrWhiteSpace(mark.NoteText))
                                     {
-                                        <span class="br-row-sub">@mark.NoteText</span>
+                                        <span class="rf-row-sub">@mark.NoteText</span>
                                     }
                                 </AppNativeButton>
                             </li>
@@ -189,34 +189,34 @@
         }
         else
         {
-            <div class="br-field">
-                <div class="br-field-label">@L["Common_Theme"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["Common_Theme"]</div>
                 <AppSegmentedControl Options="ThemeOptions" Value="@_settings.Theme" ValueChanged="SetThemeAsync" AriaLabel="@L["BookReader_ReadingTheme"].Value" />
             </div>
-            <div class="br-field">
-                <div class="br-field-label">@L["Common_TextSize"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["Common_TextSize"]</div>
                 <AppSlider Value="@_settings.FontSize" ValueChanged="SetFontSizeAsync" Min="12" Max="32" Step="1" Immediate="false" Label="@L["Common_TextSize"].Value" />
             </div>
-            <div class="br-field">
-                <div class="br-field-label">@L["Common_LineSpacing"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["Common_LineSpacing"]</div>
                 <AppSlider Value="@((int)Math.Round(_settings.LineHeight * 10))" ValueChanged="SetLineHeightAsync" Min="12" Max="24" Step="1" Immediate="false" Label="@L["Common_LineSpacing"].Value" />
             </div>
-            <div class="br-field">
-                <div class="br-field-label">@L["Common_Typeface"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["Common_Typeface"]</div>
                 <AppSegmentedControl Options="FontOptions" Value="@_settings.Font" ValueChanged="SetFontAsync" AriaLabel="@L["Common_Typeface"].Value" />
             </div>
-            <div class="br-field">
-                <div class="br-field-label">@L["Common_PageWidth"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["Common_PageWidth"]</div>
                 <AppSegmentedControl Options="WidthOptions" Value="@_settings.PageWidth" ValueChanged="SetPageWidthAsync" AriaLabel="@L["Common_PageWidth"].Value" />
             </div>
-            <div class="br-field">
-                <div class="br-field-label">@L["Common_Layout"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["Common_Layout"]</div>
                 <AppSegmentedControl Options="FlowOptions" Value="@_settings.Flow" ValueChanged="SetFlowAsync" AriaLabel="@L["Common_Layout"].Value" />
             </div>
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ResetToProfileDefaultsAsync">
                 @L["BookReader_ResetToMyDefaults"]
             </AppButton>
-            <p class="br-hint">@L["BookReader_TheseChoicesAreRememberedOn"]</p>
+            <p class="rf-hint">@L["BookReader_TheseChoicesAreRememberedOn"]</p>
         }
     </PanelContent>
 
@@ -325,8 +325,8 @@
 
     private IReadOnlyList<AppSelectOption> BookmarkTabOptions =>
     [
-        new("mine", L["PageReader_BookmarksMine"].Value),
-        new("everyone", L["PageReader_BookmarksEveryone"].Value),
+        new("mine", L["ReaderFrame_BookmarksMine"].Value),
+        new("everyone", L["ReaderFrame_BookmarksEveryone"].Value),
     ];
     private static readonly IReadOnlyList<AppSelectOption> ThemeOptions =
     [

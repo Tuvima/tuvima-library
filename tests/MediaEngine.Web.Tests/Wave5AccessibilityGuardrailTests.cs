@@ -35,8 +35,8 @@ public sealed class Wave5AccessibilityGuardrailTests
         // The top line is the reader frame's: Close (never a Back arrow) leaves the reader.
         Assert.Contains("OnClose=\"ExitReader\"", reader);
         Assert.DoesNotContain("ArrowBack", reader);
-        Assert.Contains("<AppNativeButton Class=\"br-row br-row--grow\"", reader);
-        Assert.DoesNotContain("<div class=\"br-row\" @onclick", reader);
+        Assert.Contains("<AppNativeButton Class=\"rf-row rf-row--grow\"", reader);
+        Assert.DoesNotContain("<div class=\"rf-row\" @onclick", reader);
         // The folder list is the shared browser frame's grid with one keyboard model; a folder row is its own component (Editor v5 D32).
         Assert.Contains("role=\"grid\"", Read("src/MediaEngine.Web/Components/Shared/AppBrowserFrame.razor"));
         Assert.Contains("<AppBrowserFolderRow", folderBrowser);

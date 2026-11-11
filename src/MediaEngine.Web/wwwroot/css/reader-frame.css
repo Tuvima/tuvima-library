@@ -1,7 +1,7 @@
 /* ============================================================================
    Reader frame (spec music-table-and-reader-frame, D12-D19) - Tuvima Library
    The one frame every reader sits in: the shell, the stage slot, the top line (title, tools, Close), the bottom line, the
-   auto-hide, the side panel with its dim, the phone "..." sheet and the opening and "can't open" states. Drawn by
+   auto-hide, the side panel with its dim and the rows, search box and fields inside it, the phone "..." sheet and the opening and "can't open" states. Drawn by
    Components/Reader/ReaderFrame.razor. Everything here is prefixed rf-.
 
    A reader reads three colours from the shell and sets them through its own class (a book theme, a page background):
@@ -244,6 +244,132 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+/* ── Panel contents (rows, search, fields) shared by every reader ─────── */
+
+.rf-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.rf-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.rf-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    inline-size: 100%;
+    min-block-size: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 0;
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.rf-row--grow {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+}
+
+.rf-row:hover {
+    background: var(--tl-bg-surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.rf-row:focus-visible {
+    outline: 2px solid var(--rf-accent);
+    outline-offset: 2px;
+}
+
+.rf-row--current {
+    color: var(--rf-accent);
+    font-weight: 600;
+}
+
+.rf-row--level1 { padding-inline-start: 1.5rem; }
+.rf-row--level2 { padding-inline-start: 2.25rem; }
+.rf-row--level3 { padding-inline-start: 3rem; }
+
+.rf-row-main,
+.rf-row-sub {
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rf-row-main {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.rf-row-sub {
+    font-size: var(--tl-font-size-xs, 0.75rem);
+    color: var(--tl-text-muted, #9aa0aa);
+    white-space: nowrap;
+}
+
+.rf-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rf-search-input {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    min-block-size: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.18));
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.rf-search-input:focus-visible {
+    outline: 2px solid var(--rf-accent);
+    outline-offset: 2px;
+}
+
+.rf-search-match {
+    padding: 0 0.125rem;
+    border-radius: 0.125rem;
+    background: rgba(234, 179, 8, 0.35);
+    color: inherit;
+}
+
+.rf-empty,
+.rf-hint {
+    margin: 0;
+    font-size: var(--tl-font-size-sm, 0.875rem);
+    color: var(--tl-text-muted, #9aa0aa);
+}
+
+.rf-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.rf-field-label,
+.rf-subhead {
+    margin: 0;
+    font-size: var(--tl-font-size-sm, 0.875rem);
+    font-weight: 600;
 }
 
 /* ── Phones: shorter bars, and the panel is a sheet from the bottom ────── */

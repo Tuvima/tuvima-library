@@ -889,6 +889,18 @@
   <data name="ReaderFrame_Bookmarks" xml:space="preserve">
     <value>Signets</value>
   </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Les miens</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Tout le monde</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>Vous n’avez pas encore de signet. Utilisez « Ajouter un signet à cette page » pour en ajouter un.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Rien n’a encore été partagé avec tout le monde.</value>
+  </data>
   <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
     <value>Réglages de lecture</value>
   </data>
