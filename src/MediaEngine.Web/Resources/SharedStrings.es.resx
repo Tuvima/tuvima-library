@@ -865,4 +865,43 @@
   <data name="Common_Time" xml:space="preserve">
     <value>Tiempo</value>
   </data>
+  <data name="ReaderFrame_Reader" xml:space="preserve">
+    <value>Lector</value>
+  </data>
+  <data name="ReaderFrame_ReaderTools" xml:space="preserve">
+    <value>Herramientas de lectura</value>
+  </data>
+  <data name="ReaderFrame_Search" xml:space="preserve">
+    <value>Buscar</value>
+  </data>
+  <data name="ReaderFrame_Contents" xml:space="preserve">
+    <value>Contenido</value>
+  </data>
+  <data name="ReaderFrame_Pages" xml:space="preserve">
+    <value>Páginas</value>
+  </data>
+  <data name="ReaderFrame_BookmarkThisPage" xml:space="preserve">
+    <value>Marcar esta página</value>
+  </data>
+  <data name="ReaderFrame_RemoveBookmark" xml:space="preserve">
+    <value>Quitar marcador</value>
+  </data>
+  <data name="ReaderFrame_Bookmarks" xml:space="preserve">
+    <value>Marcadores</value>
+  </data>
+  <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
+    <value>Ajustes de lectura</value>
+  </data>
+  <data name="ReaderFrame_Close" xml:space="preserve">
+    <value>Cerrar</value>
+  </data>
+  <data name="ReaderFrame_ClosePanel" xml:space="preserve">
+    <value>Cerrar {0}</value>
+  </data>
+  <data name="ReaderFrame_Opening" xml:space="preserve">
+    <value>Abriendo</value>
+  </data>
+  <data name="ReaderFrame_TryAgain" xml:space="preserve">
+    <value>Intentar de nuevo</value>
+  </data>
 </root>
