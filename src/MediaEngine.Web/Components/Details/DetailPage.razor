@@ -55,7 +55,10 @@ else if (Model is not null)
             <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-detail-notice="true">@_notice</AppAlert>
         }
         @* A personal status change, with Undo; it clears by itself, on the next change and when the page moves to another item. *@
-        <AppUndoNote Offer="_undoOffer" OnCleared="ClearUndo" data-detail-undo="true" />
+        @if (_undoOffer is not null)
+        {
+            <AppUndoNote Offer="_undoOffer" OnCleared="ClearUndo" data-detail-undo="true" />
+        }
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"

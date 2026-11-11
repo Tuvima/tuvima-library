@@ -31,7 +31,10 @@
                               NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows"
                               OnStatusChanged="ShowStatusUndo" />
         </header>
-        <AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" />
+        @if (_statusUndo is not null)
+        {
+            <AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" />
+        }
         <div class="playback-full__art" data-playback-full-art>
             @if (!string.IsNullOrEmpty(PlaybackArtworkUrl.ForDrawnSize(item, 260)))
             {

@@ -1027,7 +1027,12 @@
     private void OnSecureAccountRequired()
     {
         if (_disposed) return;
-        ShowLayoutNotice(L["MainLayout_AddAPasswordFirst"].Value, needsPassword: true);
+        // The session raises this from whatever thread the Engine call finished on; the notice fields are written on the renderer's own.
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            ShowLayoutNotice(L["MainLayout_AddAPasswordFirst"].Value, needsPassword: true);
+        });
     }
 
     private bool ShouldShowEngineStatusBanner =>

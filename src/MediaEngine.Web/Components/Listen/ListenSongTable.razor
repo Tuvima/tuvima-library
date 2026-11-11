@@ -21,7 +21,10 @@
     <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-listen-song-notice="true">@_notice</AppAlert>
 }
 @* A listened or unlistened change, with Undo, in place above the songs because the row's menu has closed. *@
-<AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" data-listen-song-undo="true" />
+@if (_statusUndo is not null)
+{
+    <AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" data-listen-song-undo="true" />
+}
 @if (DeviceContext.IsPhone)
 {
     var phoneTracks = DisplayTracks;
