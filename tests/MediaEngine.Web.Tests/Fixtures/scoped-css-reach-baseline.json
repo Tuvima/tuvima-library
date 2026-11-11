@@ -135,10 +135,8 @@
       "home-discovery-seed-button"
     ],
     "src/MediaEngine.Web/Components/Pages/ListenPage.razor": [
-      "listen-detail__more-menu",
       "listen-filter-input",
       "listen-filter-select",
-      "listen-playlist-track-list__head",
       "listen-rail__add",
       "listen-rail__drag",
       "listen-rail__more",

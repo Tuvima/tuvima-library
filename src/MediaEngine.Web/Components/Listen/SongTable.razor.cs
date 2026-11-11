@@ -58,6 +58,7 @@ public partial class SongTable
 
     private SongRow? _draggingOut;
     private string? _dragKey;
+    private string? _focusRowKey;
     private string? _dropBeforeKey;
     private bool _dropAtEnd;
 
@@ -265,7 +266,11 @@ public partial class SongTable
         UpdateLayout();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender) => await LoadChoiceAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await LoadChoiceAsync();
+        await FocusMovedRowAsync();
+    }
 
     public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
 
@@ -274,6 +279,8 @@ public partial class SongTable
     // ---- Rows, sort and layout ---------------------------------------------------------------------------------
 
     private static string RowKey(SongRow row) => row.PlaylistItemId?.ToString("D") ?? row.Id;
+
+    private static string RowDomId(SongRow row) => $"song-table-row-{RowKey(row)}";
 
     private void RebuildShown()
     {
@@ -785,6 +792,8 @@ public partial class SongTable
         {
             if (ReorderEnabled)
             {
+                // The moved row is drawn again in its new place; keyboard focus follows it so the next Alt+Arrow moves the same song.
+                _focusRowKey = RowKey(row);
                 await MoveByAsync(row, args.Key == "ArrowUp" ? -1 : 1);
             }
 
@@ -794,6 +803,28 @@ public partial class SongTable
         if (args.Key is "Enter" or " ")
         {
             await PlayAsync(row);
+        }
+    }
+
+    private async Task FocusMovedRowAsync()
+    {
+        if (_focusRowKey is not { } key)
+        {
+            return;
+        }
+
+        _focusRowKey = null;
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaFocusById", $"song-table-row-{key}");
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException)
+        {
+            Logger.LogWarning(exception, "Could not return focus to the song row that was moved.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before focus could return to the song row that was moved.");
         }
     }
 
