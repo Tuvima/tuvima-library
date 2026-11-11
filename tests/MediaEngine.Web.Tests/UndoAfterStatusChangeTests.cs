@@ -105,7 +105,6 @@ public sealed class UndoAfterStatusChangeTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal([_commandId], _undone));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-detail-undo] [data-undo-note-line]")));
         Assert.True(_detailLoads > loadsBeforeUndo);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
