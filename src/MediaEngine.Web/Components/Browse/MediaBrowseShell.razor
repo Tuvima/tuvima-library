@@ -39,7 +39,7 @@
     @if (_notice is not null)
     {
         @* What the last action had to say (a refusal, a failure): it stays at the top of the list until the next action or the close button. *@
-        <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-browse-notice="true">@_notice</AppAlert>
+        <AppAlert Tone="@_noticeTone" Urgent="_noticeUrgent" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-browse-notice="true">@_notice</AppAlert>
     }
     <div class="browse-shell__toolbar-anchor">
         <div class="browse-shell__toolbar-panel">
@@ -1796,11 +1796,14 @@
     // What the last action had to say, shown at the top of the list until the next action or the close button.
     private string? _notice;
     private AppUiTone _noticeTone = AppUiTone.Warning;
+    private bool _noticeUrgent;
 
-    private void ShowNotice(string text, AppUiTone tone)
+    // urgent: a warning that says an action just failed is announced at once, like an error.
+    private void ShowNotice(string text, AppUiTone tone, bool urgent = false)
     {
         _notice = text;
         _noticeTone = tone;
+        _noticeUrgent = urgent;
     }
 
     private void ClearNotice() => _notice = null;
@@ -1810,7 +1813,7 @@
         ClearNotice();
         if (!_activeProfileId.HasValue)
         {
-            ShowNotice(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppUiTone.Warning);
+            ShowNotice(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
         var kind = IsMusicSongsGrouping ? ProfileEntityKind.Song : ProfileEntityKindForBrowse();
@@ -1818,7 +1821,7 @@
         var membership = await SavedItems.ToggleAsync(kind, workId);
         if (membership is null)
         {
-            ShowNotice(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppUiTone.Warning);
+            ShowNotice(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
 

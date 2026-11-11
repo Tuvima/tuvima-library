@@ -13394,4 +13394,40 @@
   <data name="MainLayout_AddAPasswordFirst" xml:space="preserve">
     <value>Add a password to your account first.</value>
   </data>
+  <data name="Common_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Common_StatusUpdated" xml:space="preserve">
+    <value>Status updated.</value>
+  </data>
+  <data name="DetailPage_StatusUpdatedForOwned" xml:space="preserve">
+    <value>Status updated for {0} owned item(s).</value>
+  </data>
+  <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
+    <value>Listening status updated.</value>
+  </data>
+  <data name="SystemActivityIndicator_NeedsAttentionState" xml:space="preserve">
+    <value>Needs attention</value>
+  </data>
+  <data name="SystemActivityIndicator_NeedsAttentionTooltip" xml:space="preserve">
+    <value>The last library update needs attention. Open Activity to see what happened.</value>
+  </data>
+  <data name="LibraryFolderAddService_CouldNotCountFiles" xml:space="preserve">
+    <value>Library could not count the files in this folder.</value>
+  </data>
+  <data name="LibraryFolderAddService_NoFilesToOrganise" xml:space="preserve">
+    <value>There are no media files in this folder to organise.</value>
+  </data>
+  <data name="ViewFoldersTab_BeingTidied" xml:space="preserve">
+    <value>{0} is being tidied: {1:N0} of {2:N0} files done.</value>
+  </data>
+  <data name="ViewFoldersTab_FiledByDateLast" xml:space="preserve">
+    <value>Everything in {0} is filed by date. Last time: {1}</value>
+  </data>
+  <data name="ViewFoldersTab_AlreadyFiledByDate" xml:space="preserve">
+    <value>Everything in {0} is already filed by date.</value>
+  </data>
+  <data name="ViewFoldersTab_TidyingNow" xml:space="preserve">
+    <value>Tidying {0}. New files for this library wait until it finishes.</value>
+  </data>
 </root>

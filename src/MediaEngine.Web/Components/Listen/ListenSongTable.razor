@@ -20,6 +20,11 @@
     @* A delete or a status change that did not work, or files a delete left on disk: it stays above the songs until the next try or the close button. *@
     <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-listen-song-notice="true">@_notice</AppAlert>
 }
+@* A listened or unlistened change, with Undo, in place above the songs because the row's menu has closed. *@
+@if (_statusUndo is not null)
+{
+    <AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" data-listen-song-undo="true" />
+}
 @if (DeviceContext.IsPhone)
 {
     var phoneTracks = DisplayTracks;
@@ -251,7 +256,7 @@ else
                                     </span>
                                 }
                                 <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
-                                    <PersonalStatusMenuItems WorkId="track.Id" OnFailed="ShowNotice" />
+                                    <PersonalStatusMenuItems WorkId="track.Id" OnFailed="ShowNotice" OnChanged="ShowStatusUndo" />
                                     <AppMenuItem Label="@L["ListenSongTable_OpenAlbum"].Value"
                                                  Icon="@AppMaterialIcons.Outlined.Album"
                                                  Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
@@ -412,6 +417,10 @@ else
     private string? _notice;
 
     private void ShowNotice(string message) => _notice = message;
+
+    private UndoOffer? _statusUndo;
+    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; return Task.CompletedTask; }
+    private Task ClearStatusUndo() { _statusUndo = null; return Task.CompletedTask; }
 
     // Desktop administrators only. A phone renders cards and never reaches this; touch-only and tablet devices fail CanEdit.
     private bool _showDelete;

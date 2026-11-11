@@ -49,11 +49,14 @@ public partial class ListenPage
     // already shown by the list, the rail or the player.
     private string? _notice;
     private AppUiTone _noticeTone = AppUiTone.Error;
+    private bool _noticeUrgent;
 
-    private void ShowNotice(string message, AppUiTone tone)
+    // urgent: a warning that says an action just failed is announced at once, like an error.
+    private void ShowNotice(string message, AppUiTone tone, bool urgent = false)
     {
         _notice = message;
         _noticeTone = tone;
+        _noticeUrgent = urgent;
     }
     [Inject] private ILogger<ListenPage> Logger { get; set; } = default!;
 
@@ -460,8 +463,17 @@ public partial class ListenPage
         new("All Playlists", PlaylistsRoute, AppMaterialIcons.Outlined.QueueMusic),
     ];
 
+    private string? _noticeSection;
+
     protected override async Task OnParametersSetAsync()
     {
+        // A notice belongs to the section it was raised in: moving to another Listen section starts clean.
+        if (!string.Equals(_noticeSection, Section, StringComparison.OrdinalIgnoreCase))
+        {
+            _noticeSection = Section;
+            _notice = null;
+        }
+
         ApplyAudiobookQueryState();
         await LoadAsync();
     }
@@ -948,7 +960,15 @@ public partial class ListenPage
             InitialMembershipMode = isSmart ? "Smart" : "Manual",
             InitialTitle = string.Empty,
         };
-        var changed = await CollectionEditorLauncher.OpenAsync(request);
+        var launch = await CollectionEditorLauncher.TryOpenAsync(request);
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+            return;
+        }
+
+        var changed = launch == EditorLaunchResult.Applied;
         _savedCollectionCount = request.SavedCollectionIds.Count;
 
         if (changed || _savedCollectionCount > 0)
@@ -979,7 +999,7 @@ public partial class ListenPage
         }
         else
         {
-            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning);
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
         }
     }
 
@@ -2350,7 +2370,7 @@ public partial class ListenPage
 
         if (!saved)
         {
-            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning);
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
 
@@ -2373,7 +2393,7 @@ public partial class ListenPage
         var removed = await ApiClient.RemoveCollectionItemAsync(ActivePlaylistCollection.Id, itemId, _activeProfileId);
         if (!removed)
         {
-            ShowNotice(L["ListenPage_SongRemoveFailed"].Value, AppUiTone.Warning);
+            ShowNotice(L["ListenPage_SongRemoveFailed"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
 

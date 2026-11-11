@@ -135,6 +135,8 @@
     {
         Dashboard.OnChanged += OnDashboardChanged;
         Shell.Changed += OnShellChanged;
+        // Opening Activity is seeing how the last library update ended: the indicator's needs-attention mark clears.
+        Shell.AcknowledgeAttention();
         await Dashboard.InitializeAsync();
         _wasRunning = Working;
         _configuration = await Api.GetLibrariesAsync();

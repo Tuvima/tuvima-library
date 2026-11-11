@@ -838,6 +838,8 @@
         if (file is null)
             return;
 
+        ClearNotice();
+
         var slot = IsPlaylistDialog ? "poster" : _activeArtworkSlot;
         if (slot == "logo" && !string.Equals(Path.GetExtension(file.Name), ".png", StringComparison.OrdinalIgnoreCase))
         {
@@ -886,6 +888,8 @@
         if (SelectedWorkIds.Contains(work.WorkId))
             return;
 
+        // Every action starts clean: a failure from the last try goes as soon as the person tries again.
+        ClearNotice();
         if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
@@ -917,6 +921,7 @@
 
     private async Task RemoveManualItemAsync(ManualCollectionItem item)
     {
+        ClearNotice();
         if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.RemoveCollectionItemAsync(EditingCollection.Id, item.Id, Request.ActiveProfileId);
@@ -943,6 +948,7 @@
 
     private async Task MoveManualItemAsync(ManualCollectionItem item, int direction)
     {
+        ClearNotice();
         var ordered = _manualItems.OrderBy(existing => existing.SortOrder).ToList();
         var index = ordered.FindIndex(existing => existing.Id == item.Id && existing.WorkId == item.WorkId);
         var targetIndex = index + direction;
@@ -1208,6 +1214,7 @@
     // away again, so a half-made collection never stays behind.
     private async Task SaveListCollectionsAsync()
     {
+        ClearNotice();
         if (_listDraft.Recognition is not { } source || !ListReady)
         {
             ShowNotice(L["CollectionEditor_ListNeedsOwned"].Value, AppUiTone.Warning);
@@ -1529,6 +1536,8 @@
     {
         if (EditingCollection is null)
             return;
+
+        ClearNotice();
         if (!await ApiClient.DeleteCollectionArtworkAsync(EditingCollection.Id, _activeArtworkSlot, Request.ActiveProfileId))
         {
             ShowNotice(L["CollectionEditorShell_ArtworkCouldNotBeRemoved"].Value, AppUiTone.Error);
@@ -1560,6 +1569,7 @@
         if (!CanDeleteCollection || EditingCollection is null)
             return;
 
+        ClearNotice();
         if (!await ConfirmDeleteCollectionAsync(EditingCollection.Name))
             return;
 
@@ -1659,6 +1669,7 @@
 
     private async Task CreatePacksAsync()
     {
+        ClearNotice();
         if (_selectedPacks.Count == 0)
         {
             ShowNotice(L["CollectionPack_TickFirst"].Value, AppUiTone.Warning);
@@ -1798,7 +1809,7 @@
         }
         @if (_noticeText is { } notice)
         {
-            <AppAlert Tone="@_noticeTone" Dense="true" data-editor-notice>@notice</AppAlert>
+            <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-editor-notice>@notice</AppAlert>
         }
     </text>;
 

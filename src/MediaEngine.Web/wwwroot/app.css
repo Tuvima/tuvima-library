@@ -5091,7 +5091,8 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-saved-ribbon__reason{flex:1 1 100%;margin:0;color:var(--tl-status-warning,#b26a00)}
 @keyframes tl-just-changed{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--tl-accent-primary,#8852FC) 70%,transparent)}35%{box-shadow:0 0 .75rem .35rem color-mix(in srgb,var(--tl-accent-primary,#8852FC) 55%,transparent)}100%{box-shadow:0 0 0 0 transparent}}
 .tl-just-changed{animation:tl-just-changed 3.4s ease-out 1}
-@media (prefers-reduced-motion:reduce){.tl-just-changed{animation:none;outline:2px solid var(--tl-accent-primary,#8852FC);outline-offset:2px}}
+@keyframes tl-just-changed-quiet{0%,70%{outline-color:var(--tl-accent-primary)}100%{outline-color:transparent}}
+@media (prefers-reduced-motion:reduce){.tl-just-changed{animation:tl-just-changed-quiet 3.4s linear 1;outline:2px solid transparent;outline-offset:2px}}
 .tl-match__happen{margin:0;font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}
 /* Match & Identity for one item (editor v4, WP7): what it is matched to now, confidence, before and after, Universe. */
 .tl-match__section-heading{margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);font-weight:var(--tl-font-weight-semibold)}

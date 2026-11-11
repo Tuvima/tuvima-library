@@ -22,7 +22,7 @@
     @if (ShowMore)
     {
         <PlaybackItemMenu Media="@Media" Item="@Item" Surface="@Surface" ShowWorkId="@ShowWorkId" SeasonId="@SeasonId" Snapshot="@Snapshot" Commands="@Commands"
-                          IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" />
+                          IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" SettingsPanel="@SettingsPanel" ExtraRows="@ExtraMenuRows" OnStatusChanged="@OnStatusChanged" />
     }
 </div>
 
@@ -51,6 +51,9 @@
     [Parameter] public IPlaybackCommandSink? Commands { get; set; }
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+
+    /// <summary>Passed up from the "..." menu after a status change, so the bar or panel that hosts these actions can show the Undo line.</summary>
+    [Parameter] public EventCallback<UndoOffer> OnStatusChanged { get; set; }
     [Parameter] public EventCallback OnPlaybackSettings { get; set; }
 
     /// <summary>The Playback settings panel the host draws for music and audiobooks; the "..." menu's Playback settings row opens it.</summary>

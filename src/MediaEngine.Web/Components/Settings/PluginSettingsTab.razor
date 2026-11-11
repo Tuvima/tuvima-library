@@ -122,6 +122,8 @@ else
 
     private string? _actionFailure;
     private readonly JustChanged _glow = new();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
 
     // A failed switch, save or removal is told at the top of the page until the next attempt or until dismissed.
     private void Fail(string message) => _actionFailure = message;
@@ -1125,6 +1127,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        _glow.Changed += OnGlowCleared;
         await LoadAsync();
     }
 
@@ -1202,6 +1205,8 @@ else
 
     public void Dispose()
     {
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
         _disposed.Cancel();
         _disposed.Dispose();
     }

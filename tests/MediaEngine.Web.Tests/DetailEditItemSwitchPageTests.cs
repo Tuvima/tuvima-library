@@ -58,6 +58,20 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ =>
                 Task.FromResult((new List<LibraryItemHistoryDto>(), (string?)null)));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDeletionPreviewAsync), args =>
+            {
+                var ids = (IReadOnlyList<Guid>)args![0]!;
+                return Task.FromResult(LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>.Ok(new MediaEngine.Contracts.Items.LibraryItemDeletionPreview
+                {
+                    Items = [.. ids.Select(id => new MediaEngine.Contracts.Items.LibraryItemDeletionItemDto { WorkId = id, Title = "Le Continental", MediaType = "TV", FileCount = 1 })],
+                    Files = [.. ids.Select(id => new MediaEngine.Contracts.Items.LibraryItemDeletionFileDto { WorkId = id, AssetId = Guid.NewGuid(), FolderLabel = "TV", FileName = "Episode.mkv", SizeBytes = 1_073_741_824, Outcome = MediaEngine.Contracts.Items.LibraryItemDeletionOutcomes.Delete })],
+                    BytesFreed = 1_073_741_824L * ids.Count,
+                    Fingerprint = "fp-delete",
+                }));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.DeleteLibraryItemsAsync), args =>
+                Task.FromResult(LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Ok(
+                    new MediaEngine.Contracts.Items.LibraryItemDeletionResultDto { DeletedWorkIds = [.. (IReadOnlyList<Guid>)args![0]!], Titles = ["Le Continental"], FilesLeftOnDisk = 1, FilesFailed = [new MediaEngine.Contracts.Items.LibraryItemDeletionFailedFileDto { FileName = "Dune.mkv", FolderLabel = "Movies", Reason = "The file is in use" }] })));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetFileWriteScheduleAsync), _ => Task.FromResult<FileWriteScheduleDto?>(new FileWriteScheduleDto { Enabled = true }));
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(new LibrariesConfigurationDto
@@ -421,6 +435,33 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         _editor.WaitForAssertion(() => Assert.Equal("writebackoff", _editor.Find("[data-footer-status]").GetAttribute("data-footer-status")));
         Assert.DoesNotContain("tl-editor-window__where--warn", _editor.Find(".tl-editor-window__where").ClassList);
+    }
+
+    [Fact]
+    public async Task DeletingAMovieFromTheFooter_ClosesTheWindow_AndShowsTheLeftOnDiskLineOnThePageNotInTheClosedWindow()
+    {
+        var administrator = Guid.NewGuid();
+        Services.GetRequiredService<DashboardSessionAccessor>().Set("test-session-token", administrator, administrator, Guid.NewGuid(),
+            new DashboardAuthorityResponse(administrator, administrator, true, true, 1, 1, true, true, null, 1, [], [], []));
+        var movie = new DetailPageViewModel
+        {
+            Id = EditingModeTestData.MovieId.ToString("D"),
+            EntityType = DetailEntityType.Movie,
+            Title = "Dune: Part One",
+            Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
+            OverflowActions = [new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" }],
+        };
+        var cut = await StartEditingAsync(movie);
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll("button.tl-editor-window__delete")));
+
+        _editor.Find("button.tl-editor-window__delete").Click();
+        _dialogs.WaitForAssertion(() => Assert.Equal(2, _dialogs.FindAll("footer button").Count));
+        _dialogs.FindAll("footer button").Last().Click();
+
+        // The window closed because a movie has nothing above it, so its line is where the person lands: the page's own notice.
+        cut.WaitForAssertion(() => Assert.Contains("left on disk", cut.Find("[data-removed-notice-note]").TextContent));
+        Assert.Empty(_editor.FindAll(".tl-editor-window"));
+        Assert.Empty(_editor.FindAll("[data-editor-action-notice]"));
     }
 
     [Fact]

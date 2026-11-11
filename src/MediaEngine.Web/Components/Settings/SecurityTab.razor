@@ -155,6 +155,8 @@
     private string? _failure;
     private AppSavedNote? _savedNote;
     private readonly JustChanged _glow = new();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
     private bool _disposed;
     private readonly CancellationTokenSource _lifetime = new();
     private AuthSettingsDto? _authSettings;
@@ -202,6 +204,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _glow.Changed += OnGlowCleared;
         Apply(await Orchestrator.GetAuthSettingsAsync(_lifetime.Token));
         _authLoading = false;
     }
@@ -398,6 +401,8 @@
     {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
         return ValueTask.CompletedTask;

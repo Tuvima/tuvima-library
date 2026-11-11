@@ -27,6 +27,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     private readonly List<IReadOnlyList<Guid>?> _updatedWorkIds = [];
     private IReadOnlyList<CollectionPersonalMediaSourceDto> _attachedSources = [];
     private EngineApiClientStub _stub = default!;
+    private bool _removeAccepted;
 
     public CuratedCollectionEditorTests()
     {
@@ -126,17 +127,42 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         Assert.Empty(editor.FindAll("[data-editor-notice]"));
     }
 
+    [Fact]
+    public async Task AFailureShownInTheEditor_CanBeDismissedWithItsCloseButton()
+    {
+        var (editor, _) = await RemoveTheOnlyItemAsync(engineAccepts: false, "The Engine would not take that out.");
+        editor.WaitForAssertion(() => Assert.NotEmpty(editor.FindAll("[data-editor-notice]")));
+
+        editor.Find("[data-editor-notice] .tl-alert-close").Click();
+
+        Assert.Empty(editor.FindAll("[data-editor-notice]"));
+    }
+
+    [Fact]
+    public async Task AFailureFromTheLastTry_GoesAsSoonAsThePersonTriesTheNextActionAndItWorks()
+    {
+        var (editor, items) = await RemoveTheOnlyItemAsync(engineAccepts: false, "The Engine would not take that out.");
+        editor.WaitForAssertion(() => Assert.NotEmpty(editor.FindAll("[data-editor-notice]")));
+        _removeAccepted = true;
+
+        var remove = editor.Instance.GetType().GetMethod("RemoveManualItemAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await editor.InvokeAsync(() => (Task)remove.Invoke(editor.Instance, [items[0]])!);
+
+        editor.WaitForAssertion(() => Assert.Empty(editor.FindAll("[data-editor-notice]")));
+    }
+
     private async Task<(IRenderedComponent<CollectionEditorShell> Editor, System.Collections.IList Items)> RemoveTheOnlyItemAsync(bool engineAccepts, string engineMessage)
     {
         var collectionId = Guid.NewGuid();
         var itemId = Guid.NewGuid();
+        _removeAccepted = engineAccepts;
         var client = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ => Task.FromResult(new List<CollectionItemDto>
             {
                 new() { Id = itemId, WorkId = FirstWork, Title = "Arrival", MediaType = "Movies", SortOrder = 1 },
             }));
-            stub.SetHandler(nameof(IEngineApiClient.RemoveCollectionItemAsync), _ => Task.FromResult(engineAccepts));
+            stub.SetHandler(nameof(IEngineApiClient.RemoveCollectionItemAsync), _ => Task.FromResult(_removeAccepted));
             stub.SetHandler("get_" + nameof(IEngineApiClient.LastError), _ => engineMessage);
         });
         _stub = (EngineApiClientStub)(object)client;

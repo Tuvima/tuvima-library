@@ -54,6 +54,11 @@ else if (Model is not null)
             @* What the last action had to say (a refusal, a failure, something left out): it stays until the next action or the close button; nothing is drawn over the page. *@
             <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-detail-notice="true">@_notice</AppAlert>
         }
+        @* A personal status change, with Undo; it clears by itself, on the next change and when the page moves to another item. *@
+        @if (_undoOffer is not null)
+        {
+            <AppUndoNote Offer="_undoOffer" OnCleared="ClearUndo" data-detail-undo="true" />
+        }
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
@@ -188,6 +193,7 @@ else if (Model is not null)
             ItemSwitched = AfterEditItemSwitchedAsync,
             Saved = RefreshAfterEditSavedAsync,
             SectionCommitted = RefreshAfterSectionCommitAsync,
+            DeletedWithNotice = notice => InvokeAsync(() => _disposed ? Task.CompletedTask : LeaveOrShowRemovedAsync(notice)),
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
             Trail = EditTrail,
             EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),
@@ -224,6 +230,11 @@ else if (Model is not null)
 
     protected override void OnParametersSet()
     {
+        if (_undoOffer is not null && Model?.Id != _undoModelId)
+        {
+            _undoOffer = null;
+        }
+
         UpdateEditingCatalog();
         UpdateEditingEligibility();
     }
@@ -416,11 +427,14 @@ else if (Model is not null)
             return;
         }
 
-        await CollectionMembershipFlow.RunAsync(
-            Services,
-            [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
-            DetailMenuGrouping.AddToCollectionAction.Label,
-            Model.Title);
+        if (await CollectionMembershipFlow.RunAsync(
+                Services,
+                [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
+                DetailMenuGrouping.AddToCollectionAction.Label,
+                Model.Title) is { } refusal)
+        {
+            ShowNotice(refusal, AppUiTone.Info);
+        }
     }
 
     /// <summary>
@@ -989,6 +1003,11 @@ else if (Model is not null)
 
     private void ClearNotice() => _notice = null;
 
+    // The Undo line after a personal status change (one at a time) and the item it was made on.
+    private UndoOffer? _undoOffer;
+    private string? _undoModelId;
+    private Task ClearUndo() { _undoOffer = null; return Task.CompletedTask; }
+
     // Every edit handler asks the device rule again (a hidden button is never the only protection); the refusal is shown in place.
     private bool RefuseEditing()
     {
@@ -1161,9 +1180,15 @@ else if (Model is not null)
             };
             var status = await ApiClient.GetPersonalStatusAsync(Model.EntityType, Guid.Parse(Model.Id))
                 ?? throw new InvalidOperationException("Personal status could not be loaded. Please try again.");
-            await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), Model.EntityType,
+            var result = await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), Model.EntityType,
                 Guid.Parse(Model.Id), command, status.Revision));
-            // The refreshed page shows the new status (the menu offers the other choice); that is the confirmation.
+            ClearNotice();
+            _undoModelId = Model.Id;
+            _undoOffer = new UndoOffer(L["DetailPage_StatusUpdatedForOwned", result.AffectedCount].Value, async () =>
+            {
+                await ApiClient.UndoPersonalStatusAsync(result.CommandId);
+                await RefreshCurrentDetailAsync();
+            });
             await RefreshCurrentDetailAsync();
         }
         catch (Exception ex) { ShowNotice(ex.Message, AppUiTone.Error); }

@@ -1,0 +1,120 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+@* The in-place line after a change that can be taken back (design system, Feedback after an action: there are no pop-up notices). It says what
+   happened and offers Undo. It goes away when Undo is pressed, when the host hands it a newer offer or none, or after Delay. A new offer
+   (a different object) restarts the timer. If Undo itself fails, the reason replaces the line until the next offer or the close button. *@
+<div class="app-undo-note" data-undo-note @attributes="AdditionalAttributes">
+    @if (_error is not null)
+    {
+        <AppAlert Severity="AppSeverity.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="Clear" data-undo-note-error>@_error</AppAlert>
+    }
+    else if (_offer is not null)
+    {
+        <AppAlert Severity="AppSeverity.Success" Dense="true" data-undo-note-line>
+            <span class="app-undo-note__text">@_offer.Message</span>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Label="@L["Common_Undo"].Value" OnClick="UndoAsync" data-undo-note-action />
+        </AppAlert>
+    }
+</div>
+
+@code {
+    /// <summary>The change to offer taking back; null shows nothing.</summary>
+    [Parameter] public UndoOffer? Offer { get; set; }
+
+    /// <summary>How long the line stays when nobody acts on it.</summary>
+    [Parameter] public TimeSpan Delay { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>Raised when the line has gone (Undo done, timer ended, closed), so the host can drop its copy of the offer.</summary>
+    [Parameter] public EventCallback OnCleared { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private CancellationTokenSource? _timer;
+    private UndoOffer? _offer;
+    private UndoOffer? _lastOffer;
+    private string? _error;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Offer, _lastOffer))
+        {
+            return;
+        }
+
+        _lastOffer = Offer;
+        _error = null;
+        Stop();
+        _offer = Offer;
+        if (_offer is not null)
+        {
+            _timer = new CancellationTokenSource();
+            _ = ClearAfterDelayAsync(_timer.Token);
+        }
+    }
+
+    private async Task UndoAsync()
+    {
+        var offer = _offer;
+        if (offer is null)
+        {
+            return;
+        }
+
+        Stop();
+        _offer = null;
+        try
+        {
+            await offer.UndoAsync();
+        }
+        catch (Exception ex)
+        {
+            // Undo did not work: say why in the same place, and leave it until the next offer or the close button.
+            _error = ex.Message;
+            return;
+        }
+
+        await OnCleared.InvokeAsync();
+    }
+
+    private void Clear()
+    {
+        _error = null;
+        _offer = null;
+        _ = OnCleared.InvokeAsync();
+    }
+
+    private async Task ClearAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(Delay, token);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer offer, Undo or disposal took over this timer.
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _offer = null;
+            await OnCleared.InvokeAsync();
+            StateHasChanged();
+        });
+    }
+
+    private void Stop()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    public void Dispose() => Stop();
+}

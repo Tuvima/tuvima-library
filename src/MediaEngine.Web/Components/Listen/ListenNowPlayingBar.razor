@@ -87,7 +87,8 @@
                 @* Music: Favorite, Like, Dislike and More. Audiobooks: Favorite and More (unified player v2 D5, D23). *@
                 <PlaybackIdentityActions Media="@BarMedia" Item="@Playback.CurrentItem" Surface="dock"
                                          IsFavorite="@BarIsFavorite" FavoriteChanged="@BarFavoriteChanged"
-                                         Snapshot="@dockSnapshot" Commands="@PanelCommands" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))">
+                                         Snapshot="@dockSnapshot" Commands="@PanelCommands" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))"
+                                         OnStatusChanged="ShowStatusUndo">
                     <SettingsPanel Context="anchor">
                         @* Playback settings from the "..." menu (unified player v2 D14): speed and skip lengths for audiobooks, only Playback information for music. *@
                         <PlaybackSettingsPanel Media="@BarMedia" Surface="dock" ShowTrigger="false" Trigger="@anchor.Trigger" Open="@anchor.Open" OpenChanged="@anchor.OpenChanged"
@@ -100,6 +101,8 @@
             <TimelineContent>@DockTimeline</TimelineContent>
             <ToolContent Context="tool">@DockTool(tool)</ToolContent>
         </PlaybackShell>
+        @* What the "..." menu's Mark as done or not done said, with Undo: in place above the bar, since the menu has closed. *@
+        <div class="listen-player__undo"><AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" /></div>
         <PlaybackPanel @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
                          Kind="@CompactPanelKind(_compactPanelKey, Playback.IsMusicMode)" Trigger="@_compactToolTrigger" ShowHeading="@CompactIsList"
                          OpenChanged="@(open => DockToolChangedAsync(_compactPanelKey, open))">
@@ -129,6 +132,10 @@
 }
 
 @code {
+    private UndoOffer? _statusUndo;
+    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; return Task.CompletedTask; }
+    private Task ClearStatusUndo() { _statusUndo = null; return Task.CompletedTask; }
+
     // The timeline and the tool panels are drawn by the bar and, on a phone, by the expanded player too (unified player v2 D26), so both share these two fragments.
     private RenderFragment DockTimeline => @<text>
         @* The timeline above the row (unified player v2 D9): elapsed, the rail, the time left. An audiobook with chapters adds its label between the

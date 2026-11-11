@@ -4,8 +4,10 @@ using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -53,14 +55,17 @@ public sealed record AddFolderResult(LibrariesConfigurationDto? Configuration, L
 }
 
 /// <summary>What happened after a follow-up question (organise, merge): whether a job was queued and any notice to show.</summary>
-public sealed record FolderFollowUp(bool Started, string? Notice);
+/// <param name="Started">True when a job was queued.</param>
+/// <param name="Notice">What to tell the person in place, or null.</param>
+/// <param name="NoticeIsInfo">True when the notice is plain information (nothing went wrong), so it is not drawn as a warning.</param>
+public sealed record FolderFollowUp(bool Started, string? Notice, bool NoticeIsInfo = false);
 
 /// <summary>
 /// The one "add a folder" operation shared by the Create library dialog, a library's page and the folders panel: re-check the folder
 /// for the chosen handling, save it into the type's library, move the "New media goes here" marker when asked, and run the Convert
 /// and Merge follow-ups. It holds no state of its own; the caller owns the configuration it passes in.
 /// </summary>
-public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDialogService dialogs)
+public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDialogService dialogs, IStringLocalizer<SharedStrings> L)
 {
     /// <summary>An available kind, or an "other-{libraryId}" library, by key; null when there is no such type.</summary>
     public static LibraryTypeOption? ResolveType(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration, string? key) =>
@@ -291,13 +296,13 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var quick = await apiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
         if (quick is null)
         {
-            return new FolderFollowUp(false, quiet ? null : apiClient.LastError ?? "Library could not count the files in this folder.");
+            return new FolderFollowUp(false, quiet ? null : apiClient.LastError ?? L["LibraryFolderAddService_CouldNotCountFiles"].Value);
         }
 
         if (quick.TotalFiles == 0)
         {
             // Told in place by the caller's notice, and only when the person asked (not after adding a folder).
-            return new FolderFollowUp(false, quiet ? null : "There are no media files in this folder to organise.");
+            return new FolderFollowUp(false, quiet ? null : L["LibraryFolderAddService_NoFilesToOrganise"].Value, NoticeIsInfo: true);
         }
 
         return await AskToConvertAsync(source, quick, alreadyManaged) ? await StartConversionAsync(source) : new FolderFollowUp(false, null);

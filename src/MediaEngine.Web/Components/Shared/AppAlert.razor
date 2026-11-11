@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IStringLocalizer<SharedStrings> L
-<div class="@RootClass" style="@(InlineStyle ?? Style)" role="@(ResolvedSeverity == AppSeverity.Error ? "alert" : "status")" @attributes="AdditionalAttributes">
+<div class="@RootClass" style="@(InlineStyle ?? Style)" role="@(ResolvedSeverity == AppSeverity.Error || Urgent ? "alert" : "status")" @attributes="AdditionalAttributes">
     @if (!NoIcon)
     {
         <AppMaterialIcon Icon="@ResolvedIcon" Class="tl-alert-icon" />
@@ -22,6 +22,9 @@
     [Parameter] public bool NoIcon { get; set; }
     [Parameter] public bool Dense { get; set; }
     [Parameter] public bool ShowCloseIcon { get; set; }
+
+    /// <summary>Announce it at once (role "alert") even though it is not an Error tone: for a warning that says an action just failed. Left false, only Error alerts interrupt.</summary>
+    [Parameter] public bool Urgent { get; set; }
     [Parameter] public EventCallback CloseIconClicked { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }

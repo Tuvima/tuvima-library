@@ -185,7 +185,7 @@
         try
         {
             var rows = Editor.FileBatch.Rows.ToList();
-            Show(await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, L));
+            await ShowAsync(await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, L));
         }
         finally
         {
@@ -218,8 +218,21 @@
     private string? _actionNotice;
     private bool _actionNoticeIsError;
 
-    private void Show(EditorDeleteResult result)
+    private async Task ShowAsync(EditorDeleteResult result)
     {
+        if (!Editor.IsOpen)
+        {
+            // The delete closed the window (the item had no parent to move to), so there is no window to show the line in: it goes to the
+            // page the person lands on, and nothing is left here for the next time the editor opens.
+            _actionNotice = null;
+            if (result.Notice is { } notice)
+            {
+                await Editor.HandNoticeToPageAsync(notice);
+            }
+
+            return;
+        }
+
         _actionNotice = result.Notice;
         _actionNoticeIsError = result.NoticeIsError;
     }
@@ -237,7 +250,7 @@
         _deleting = true;
         try
         {
-            Show(await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
+            await ShowAsync(await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -258,7 +271,7 @@
         _deleting = true;
         try
         {
-            Show(await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
+            await ShowAsync(await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -280,7 +293,7 @@
         _deleting = true;
         try
         {
-            Show(await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
+            await ShowAsync(await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -413,13 +426,17 @@
         Editor.HeaderHooks.OpenFolders = null;
     }
 
+    private bool _wasOpen;
+
     private void OnChanged() => _ = InvokeAsync(() =>
     {
-        if (!Editor.IsOpen)
+        if (!Editor.IsOpen || !_wasOpen)
         {
-            // A notice belongs to the window it was shown in; the next opening starts clean.
+            // A notice belongs to the window it was shown in: it goes when the window closes and when a new one opens.
             _actionNotice = null;
         }
+
+        _wasOpen = Editor.IsOpen;
 
         StateHasChanged();
     });
