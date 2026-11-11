@@ -357,6 +357,8 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<UniverseStateContainer>();
 builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
 builder.Services.AddScoped<CompanionState>();
+// The song table's remembered columns and widths per profile and place (music table spec D4): this browser only, nothing goes to the Engine.
+builder.Services.AddScoped<ISongTablePreferenceStore, BrowserSongTablePreferenceStore>();
 
 // Vault mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
 builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>();

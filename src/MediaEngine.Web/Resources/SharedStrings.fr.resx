@@ -865,4 +865,52 @@
   <data name="Common_Time" xml:space="preserve">
     <value>Durée</value>
   </data>
+  <data name="SongTable_DateAdded" xml:space="preserve">
+    <value>Date d’ajout</value>
+  </data>
+  <data name="SongTable_Plays" xml:space="preserve">
+    <value>Lectures</value>
+  </data>
+  <data name="SongTable_Genre" xml:space="preserve">
+    <value>Genre</value>
+  </data>
+  <data name="SongTable_Status" xml:space="preserve">
+    <value>Statut</value>
+  </data>
+  <data name="SongTable_Owned" xml:space="preserve">
+    <value>Possédé</value>
+  </data>
+  <data name="SongTable_Missing" xml:space="preserve">
+    <value>Manquant</value>
+  </data>
+  <data name="SongTable_ResetColumns" xml:space="preserve">
+    <value>Réinitialiser les colonnes</value>
+  </data>
+  <data name="SongTable_ResizeColumn" xml:space="preserve">
+    <value>Redimensionner la colonne {0}</value>
+  </data>
+  <data name="SongTable_SelectRow" xml:space="preserve">
+    <value>Sélectionner {0}</value>
+  </data>
+  <data name="SongTable_ActionsFor" xml:space="preserve">
+    <value>Actions pour {0}</value>
+  </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Ajouter aux favoris</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Retirer des favoris</value>
+  </data>
+  <data name="SongTable_PlayTitle" xml:space="preserve">
+    <value>Lire {0}</value>
+  </data>
+  <data name="SongTable_AddTitleToQueue" xml:space="preserve">
+    <value>Ajouter {0} à la file d’attente</value>
+  </data>
+  <data name="SongTable_UpdatingDetails" xml:space="preserve">
+    <value>Mise à jour des détails</value>
+  </data>
+  <data name="SongTable_MovedTo" xml:space="preserve">
+    <value>{0} déplacé à la position {1} sur {2}.</value>
+  </data>
 </root>

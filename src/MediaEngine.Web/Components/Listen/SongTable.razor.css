@@ -1,0 +1,440 @@
+/* The one song table (spec music-table-and-reader-frame). Rows are 48 px, art 36 px, targets 44 px (Look v3). The column template and the
+   table's smallest width come in as --song-table-columns and --song-table-min-width from the wrapper the component draws around it. */
+
+.song-table {
+    width: 100%;
+    overflow-x: auto;
+    font-size: var(--tl-font-size-sm);
+}
+
+.song-table__head,
+.song-table__row {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--song-table-columns);
+    align-items: center;
+    column-gap: 8px;
+    min-width: var(--song-table-min-width, 760px);
+    padding: 0 8px;
+}
+
+.song-table__head {
+    min-height: 44px;
+    border-bottom: 1px solid var(--tl-divider);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+}
+
+/* ---- Header ---- */
+
+.song-table__head-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 44px;
+}
+
+.song-table__head-cell--favorite { justify-content: center; }
+.song-table__head-cell--number { justify-content: center; }
+.song-table__head-cell--end { justify-content: flex-end; }
+.song-table__head-cell--actions { justify-content: flex-end; }
+
+.song-table__head-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.song-table__head-cell:not(.song-table__head-cell--actions) button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.song-table__head-cell:not(.song-table__head-cell--actions) button:hover {
+    color: var(--tl-text-primary);
+}
+
+.song-table__resizer {
+    position: absolute;
+    top: 0;
+    right: -6px;
+    bottom: 0;
+    width: 10px;
+    cursor: col-resize;
+}
+
+.song-table__resizer::after {
+    content: "";
+    position: absolute;
+    top: 10px;
+    right: 4px;
+    bottom: 10px;
+    width: 1px;
+    background: var(--tl-border-default);
+}
+
+.song-table__resizer:hover::after,
+.song-table__resizer:focus-visible::after {
+    width: 2px;
+    background: var(--tl-accent-primary);
+}
+
+.song-table__resizer:focus-visible {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 1px;
+}
+
+.song-table__columns-menu {
+    min-width: 220px;
+}
+
+/* ---- Rows ---- */
+
+.song-table__row {
+    min-height: 48px;
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-secondary);
+    cursor: pointer;
+}
+
+.song-table__row:hover,
+.song-table__row:focus-visible {
+    background: var(--tl-bg-surface-hover);
+}
+
+.song-table__row.is-playing {
+    background: var(--tl-accent-primary-soft);
+}
+
+.song-table__row.is-selected {
+    background: var(--tl-accent-primary-soft);
+}
+
+.song-table__row.is-missing {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.song-table__row.is-dragging {
+    opacity: 0.45;
+}
+
+.song-table__row--skeleton {
+    cursor: default;
+}
+
+.song-table__cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.song-table__cell--tick,
+.song-table__cell--favorite {
+    justify-content: center;
+}
+
+.song-table__cell--number {
+    position: relative;
+    justify-content: center;
+    color: var(--tl-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.song-table__cell--song {
+    gap: 12px;
+}
+
+.song-table__cell--actions {
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.song-table__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.song-table__meta--end {
+    justify-content: flex-end;
+    font-variant-numeric: tabular-nums;
+}
+
+.song-table__meta a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.song-table__meta a:hover,
+.song-table__meta a:focus-visible {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+}
+
+/* The accent shows the song that is playing: the equalizer takes the number's place and the title turns purple. */
+.song-table__mark {
+    --playback-blue: var(--tl-accent-primary-hover);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.song-table__title {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.song-table__title.is-current,
+.song-table__ptitle.is-current {
+    color: var(--tl-accent-primary-hover);
+}
+
+.song-table__chip {
+    flex: 0 0 auto;
+    padding: 1px 8px;
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+.song-table__chip--missing {
+    background: var(--tl-status-warning-soft);
+    color: var(--tl-status-warning);
+}
+
+/* ---- Art ---- */
+
+.song-table__art,
+.song-table__play-only {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-muted);
+}
+
+.song-table__art {
+    border: 1px solid var(--tl-border-subtle);
+}
+
+.song-table__art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.song-table__row:hover .song-table__art.is-updating {
+    box-shadow: 0 0 0 2px var(--tl-status-warning);
+}
+
+.song-table__art-play {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+}
+
+.song-table__art:hover .song-table__art-play,
+.song-table__art:focus-within .song-table__art-play {
+    opacity: 1;
+}
+
+.song-table__art-play button,
+.song-table__play-only button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: var(--tl-bg-overlay);
+    color: var(--tl-text-primary);
+    cursor: pointer;
+}
+
+.song-table__play-only button {
+    background: transparent;
+    color: var(--tl-text-muted);
+}
+
+.song-table__play-only button:hover,
+.song-table__play-only button:focus-visible {
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-text-primary);
+}
+
+/* ---- Actions: the queue shows on hover or keyboard focus, before the "..." menu ---- */
+
+.song-table__queue {
+    opacity: 0;
+}
+
+.song-table__row:hover .song-table__queue,
+.song-table__row:focus-within .song-table__queue,
+.song-table__row.is-playing .song-table__queue {
+    opacity: 1;
+}
+
+/* ---- Playlist order: the handle takes the number's place on hover, a purple line shows the drop spot ---- */
+
+.song-table__grip {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--tl-text-muted);
+    cursor: grab;
+}
+
+.song-table__row.is-reorderable:hover .song-table__grip,
+.song-table__row.is-reorderable:focus-within .song-table__grip {
+    display: inline-flex;
+}
+
+.song-table__row.is-reorderable:hover .song-table__position,
+.song-table__row.is-reorderable:hover .song-table__mark,
+.song-table__row.is-reorderable:focus-within .song-table__position,
+.song-table__row.is-reorderable:focus-within .song-table__mark {
+    display: none;
+}
+
+.song-table__drop-line {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: -2px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--tl-accent-primary);
+    pointer-events: none;
+}
+
+.song-table__end-zone {
+    position: relative;
+    min-width: var(--song-table-min-width, 760px);
+    height: 16px;
+}
+
+.song-table__end-zone.is-drop-target::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 0;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--tl-accent-primary);
+}
+
+.song-table__group {
+    min-width: var(--song-table-min-width, 760px);
+    padding: 16px 8px 6px;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+}
+
+/* ---- Phone: a plain, flat list (no card boxes), 64 px rows ---- */
+
+.song-table--phone {
+    overflow-x: visible;
+}
+
+.song-table__prow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: var(--tl-row-h-media, 64px);
+    padding: 6px 4px;
+    color: var(--tl-text-secondary);
+    cursor: pointer;
+}
+
+.song-table__prow.is-missing {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.song-table__prow:active {
+    background: var(--tl-bg-surface-hover);
+}
+
+.song-table__art--phone {
+    width: 48px;
+    height: 48px;
+}
+
+.song-table__pnumber {
+    flex: 0 0 auto;
+    min-width: 28px;
+    padding-left: 4px;
+    color: var(--tl-text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.song-table__ptext {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.song-table__ptitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--tl-text-primary);
+    font-weight: 500;
+}
+
+.song-table__ptitle-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.song-table__psub {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.song-table__pmenu {
+    display: inline-flex;
+    flex: 0 0 auto;
+}

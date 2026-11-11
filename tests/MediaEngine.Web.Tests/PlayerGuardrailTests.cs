@@ -210,6 +210,7 @@ public sealed class PlayerGuardrailTests
     private static readonly Dictionary<string, string> NotPlayerFiles = new(StringComparer.Ordinal)
     {
         ["ListenSongTable"] = "the song list of the Listen library pages (a table of tracks with sort and row menus), not part of the player",
+        ["SongTable"] = "the one song table that replaces ListenSongTable on the Songs, Albums, album and playlist pages (spec music-table-and-reader-frame), not part of the player",
         ["ListenNavigationSection"] = "the Listen page's side navigation (Library, Formats, Your library), not part of the player",
     };
 
