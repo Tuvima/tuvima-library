@@ -38,6 +38,7 @@
                EmptyTitle="@L["WatchPage_NoMoviesOrShowsYet"].Value"
                EmptyMessage="@L["WatchPage_AddVideoToYourLibrary"].Value"
                Retry="LoadLandingAsync"
+               SavedCollectionCount="@_savedCollectionCount"
                OnNavigationSmartCreate="OpenCollectionFlowAsync" />
 
 @code {
@@ -76,8 +77,14 @@
             return;
         }
 
-        await CollectionEditorLauncher.OpenAsync(CollectionEditorEntryPoints.For(flow.Area, profile.Id));
+        // What the editor saved is told by one quiet line; there is no toast.
+        _savedCollectionCount = 0;
+        var request = CollectionEditorEntryPoints.For(flow.Area, profile.Id);
+        await CollectionEditorLauncher.OpenAsync(request);
+        _savedCollectionCount = request.SavedCollectionIds.Count;
     }
+
+    private int _savedCollectionCount;
 
     private string ActiveWatchMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
 

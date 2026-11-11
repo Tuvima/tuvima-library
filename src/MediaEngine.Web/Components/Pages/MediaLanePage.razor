@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Web.Components.Browse
+@using MediaEngine.Web.Components.Collections
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IStringLocalizer<SharedStrings> L
@@ -21,6 +22,8 @@
                           Modes="@ShownModes"
                           ActiveMode="@ActiveMode"
                           Loading="@TabsLoading" />
+
+    <CollectionSavedNote Count="@SavedCollectionCount" />
 
     @if (NoTabs)
     {
@@ -117,6 +120,9 @@
     [Parameter] public string UnsupportedTitle { get; set; } = "Page not found";
     [Parameter] public string UnsupportedMessage { get; set; } = "Choose another library section.";
     [Parameter] public EventCallback Retry { get; set; }
+
+    /// <summary>How many collections the editor just saved from this page; one quiet status line says so.</summary>
+    [Parameter] public int SavedCollectionCount { get; set; }
 
     // A profile that can see no library in this lane has no tabs and no rail: the lane shows its empty state, never a browse shell with nothing to browse.
     private bool NoTabs => !TabsLoading && Preset.Tabs.Count == 0;
