@@ -25,7 +25,8 @@ public sealed partial class RetailMatchWorker
         WorkLineage? lineage,
         CancellationToken ct)
     {
-        var title = hints.GetValueOrDefault(MetadataFieldConstants.Title);
+        // A leading number ("5.5 - ...") is a position hint, not part of the title the book is found by.
+        var title = LeadingNumberTitleCleaner.Strip(hints.GetValueOrDefault(MetadataFieldConstants.Title), out _);
         // The author only: a narrator is not the author, so it never stands in for one.
         var author = hints.GetValueOrDefault(MetadataFieldConstants.Author);
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(author))

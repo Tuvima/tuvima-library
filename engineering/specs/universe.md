@@ -406,3 +406,5 @@ Source: Shy's direction during the local check (issue 892, example: The Vital Ab
 ## Gaps and drift (audit 2026-11-03)
 
 - U-WP15 (AI feasibility report) has no report in engineering/reports. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.
+
+**Built so far (2026-11-11):** the leading number is cleaned off the audiobook title for the owned-book match and for the Wikidata search (the audiobook search already accepts book entries, so this is also the book backup search). The number pattern is in code (`LeadingNumberTitleCleaner`), not config. Not built: using the file or folder number as a position hint, and accepting a half match by anything beyond the existing owned-book rule; both listed as follow-ups.
