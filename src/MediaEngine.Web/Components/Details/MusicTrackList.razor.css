@@ -1,0 +1,39 @@
+/* The album page's track list: a line with the track count and the Show missing tracks switch above the one song table. */
+.tl-music-tracks {
+    min-width: 0;
+}
+
+.tl-music-tracks__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    min-height: 2.5rem;
+    padding-bottom: 0.55rem;
+    color: rgba(225, 231, 242, 0.64);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-music-tracks__leading {
+    min-width: 0;
+}
+
+.tl-detail-track-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: rgba(246, 240, 232, 0.76);
+    white-space: nowrap;
+}
+
+.tl-detail-track-toggle input {
+    width: 1.05rem;
+    height: 1.05rem;
+    accent-color: var(--tl-detail-primary, var(--tl-accent-primary));
+}
+
+.tl-detail-track-empty {
+    padding: 1rem 0 1.2rem;
+    color: rgba(246, 240, 232, 0.58);
+    font-size: var(--tl-font-size-sm);
+}

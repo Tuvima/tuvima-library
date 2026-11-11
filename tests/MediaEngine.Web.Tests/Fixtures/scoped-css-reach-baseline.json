@@ -38,9 +38,6 @@
       "companion__row",
       "companion__spoiler-control"
     ],
-    "src/MediaEngine.Web/Components/Details/AudioItemTable.razor": [
-      "tl-detail-track-row__play"
-    ],
     "src/MediaEngine.Web/Components/Details/DetailHeroSkeleton.razor": [
       "tl-detail-skeleton__artwork",
       "tl-detail-skeleton__button",
