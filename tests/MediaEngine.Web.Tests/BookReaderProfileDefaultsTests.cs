@@ -5,6 +5,7 @@ using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -52,6 +53,7 @@ public sealed class BookReaderProfileDefaultsTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.UpdatePlaybackSettingsAsync), args => PutAsync(args));
         });
         Services.AddSingleton(api);
+        Services.AddSingleton(new DeviceContextService(api));
         var profiles = new ActiveProfileSessionService(null!, api, authenticationStateProvider: new ProfileAuthentication(ActiveId));
         Services.AddSingleton(profiles);
         Services.AddSingleton(new UIOrchestratorService(api, new UniverseStateContainer(), profiles, new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance));

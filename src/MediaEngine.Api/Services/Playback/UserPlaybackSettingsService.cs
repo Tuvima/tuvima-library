@@ -323,6 +323,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Watching.PreferredVideoQuality = NormalizeToken(settings.Watching.PreferredVideoQuality);
         settings.Listening.DefaultSleepTimer = NormalizeToken(settings.Listening.DefaultSleepTimer);
         settings.Listening.OutputPreference = NormalizeToken(settings.Listening.OutputPreference);
+        settings.Listening.SongTableColumns = CleanSongTableColumns(settings.Listening.SongTableColumns);
         settings.Reading.ReadingMode = NormalizeToken(settings.Reading.ReadingMode);
         settings.Reading.LineSpacing = NormalizeToken(settings.Reading.LineSpacing);
         settings.Reading.Margins = NormalizeToken(settings.Reading.Margins);
@@ -484,6 +485,31 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
 
         return clean;
     }
+
+    // Keeps the remembered song table columns for the four known places and the phone Songs sort only, each a short text of the
+    // table's own plain characters, so a profile's settings cannot grow without bound or carry markup.
+    private static Dictionary<string, string> CleanSongTableColumns(Dictionary<string, string>? columns)
+    {
+        var clean = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in columns ?? [])
+        {
+            var place = (key ?? string.Empty).Trim().ToLowerInvariant();
+            var text = (value ?? string.Empty).Trim().ToLowerInvariant();
+            if (!PlaybackPreferenceValues.SongTableKeys.Contains(place, StringComparer.Ordinal)
+                || text.Length is 0 or > PlaybackPreferenceValues.MaxSongTableColumnsLength
+                || !text.All(IsSongTableTextCharacter))
+            {
+                continue;
+            }
+
+            clean[place] = text;
+        }
+
+        return clean;
+    }
+
+    private static bool IsSongTableTextCharacter(char c) =>
+        c is >= 'a' and <= 'z' or >= '0' and <= '9' or ',' or ';' or ':' or '=' or '-' or '_';
 
     private static string NormalizeToken(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();

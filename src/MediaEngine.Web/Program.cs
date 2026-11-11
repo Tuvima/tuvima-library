@@ -357,6 +357,11 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<UniverseStateContainer>();
 builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
 builder.Services.AddScoped<CompanionState>();
+// The song table's remembered columns and widths per profile and place (music table spec D4) and the phone Songs sort (D21) live on
+// the profile, so they follow the person across devices; one shared writer keeps the two from overwriting each other.
+builder.Services.AddScoped<SongTableProfileSettings>();
+builder.Services.AddScoped<ISongTablePreferenceStore, ProfileSongTablePreferenceStore>();
+builder.Services.AddScoped<ISongSortPreferenceStore, ProfileSongSortPreferenceStore>();
 
 // Vault mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
 builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>();

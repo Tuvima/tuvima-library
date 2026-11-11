@@ -262,13 +262,13 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
         Services.AddSingleton(device);
 
         var cut = Render<AppRowMenu>(parameters => parameters
-            .Add(component => component.Class, "pr-ib pr-more")
+            .Add(component => component.Class, "rf-ib rf-more")
             .Add(component => component.Plain, true)
             .Add(component => component.Icon, AppMaterialIcons.Outlined.MoreHoriz)
             .Add(component => component.AriaLabel, "More actions"));
 
-        var trigger = cut.Find("button.pr-more");
-        Assert.Contains("pr-ib", trigger.ClassList);
+        var trigger = cut.Find("button.rf-more");
+        Assert.Contains("rf-ib", trigger.ClassList);
         Assert.DoesNotContain("app-overflow-menu__trigger", trigger.ClassList);
         var horizontal = Render<AppMaterialIcon>(parameters => parameters.Add(icon => icon.Icon, AppMaterialIcons.Outlined.MoreHoriz).Add(icon => icon.Size, AppIconSize.Control20));
         Assert.Equal(horizontal.Find("svg").InnerHtml, trigger.QuerySelector("svg")!.InnerHtml);
@@ -289,9 +289,9 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ThePageReadersMoreButton_AsksForPlainHorizontalDots()
+    public void TheReaderFramesMoreButton_AsksForPlainHorizontalDots()
     {
-        Assert.Contains("Class=\"pr-ib pr-more\" Plain=\"true\" Icon=\"@AppMaterialIcons.Outlined.MoreHoriz\"", Read("Components", "Pages", "PageReader.razor"), StringComparison.Ordinal);
+        Assert.Contains("Class=\"rf-ib rf-more\" Plain=\"true\" Icon=\"@AppMaterialIcons.Outlined.MoreHoriz\"", Read("Components", "Reader", "ReaderFrame.razor"), StringComparison.Ordinal);
     }
 
     // ---- Rules files: no older hero size lines ----
