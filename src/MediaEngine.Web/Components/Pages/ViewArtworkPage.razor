@@ -4,7 +4,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
 @using MediaEngine.Web.Services.Navigation
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
 
@@ -43,7 +43,7 @@
         var context = asset.DisplayContext ?? asset.Contexts.FirstOrDefault();
         if (context is null)
         {
-            Snackbar.Add(L["ViewArtworkPage_ThisImageHasNoAccessible"].Value, AppSeverity.Info);
+            Ribbon.Add(L["ViewArtworkPage_ThisImageHasNoAccessible"].Value, AppSeverity.Info);
             return;
         }
 
@@ -80,7 +80,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Artwork editor could not open: {ex.Message}", AppSeverity.Error);
+            Ribbon.Add($"Artwork editor could not open: {ex.Message}", AppSeverity.Error);
         }
     }
 }

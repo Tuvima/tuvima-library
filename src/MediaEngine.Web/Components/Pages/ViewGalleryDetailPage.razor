@@ -5,7 +5,7 @@
 @inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @inject ViewDropUploader DropUploader
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
@@ -331,10 +331,10 @@
         var result = await ApiClient.RemoveViewGalleryItemsAsync(GalleryId, _selected);
         if (result is null)
         {
-            Snackbar.Add(L["ViewGalleryDetailPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error);
+            Ribbon.Add(L["ViewGalleryDetailPage_TheSelectedItemsCouldNot"].Value, AppSeverity.Error);
             return;
         }
-        Snackbar.Add(L["ViewGalleryDetailPage_RemovedSelectedItemsFromThe"].Value, AppSeverity.Success);
+        Ribbon.Add(L["ViewGalleryDetailPage_RemovedSelectedItemsFromThe"].Value, AppSeverity.Success);
         await OnParametersSetAsync();
     }
 
@@ -459,7 +459,7 @@
             }
 
             _shareOpen = false;
-            Snackbar.Add(shares.Count == 0 ? "Gallery sharing removed." : "Gallery sharing updated.", AppSeverity.Success);
+            Ribbon.Add(shares.Count == 0 ? "Gallery sharing removed." : "Gallery sharing updated.", AppSeverity.Success);
         }
         finally
         {

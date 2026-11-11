@@ -6,7 +6,7 @@
 @inject ViewWorkspaceService Workspace
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
-@inject ViewRibbonVoice Snackbar
+@inject ViewRibbonVoice Ribbon
 @inject IAppDialogService DialogService
 @inject ViewEditorHost EditorHost
 @inject DeviceContextService DeviceContext
@@ -74,7 +74,7 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
         foreach (var item in SelectedItems.ToArray())
         {
             if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { _selected.Remove(item.Id); ReplaceItem(item with { Favorite = value }); }
-            else Snackbar.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
+            else Ribbon.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
         }
     }
     private void ReplaceItem(LocalAssetDto item) { if (_active?.Id == item.Id) _active = item; if (_media is not null) _media = _media with { Items = _media.Items.Select(value => value.Id == item.Id ? item : value).ToList() }; }
@@ -82,20 +82,20 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     {
         if (_active is not { } item) return;
         var value = !item.Favorite;
-        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { ReplaceItem(item with { Favorite = value }); Snackbar.Add(L[value ? "ViewPage_FavoriteAdded" : "ViewPage_FavoriteRemoved"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
+        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { ReplaceItem(item with { Favorite = value }); Ribbon.Add(L[value ? "ViewPage_FavoriteAdded" : "ViewPage_FavoriteRemoved"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
     }
     private async Task ArchiveActiveAsync()
     {
         if (_active is not { } item || !await ViewTrashConfirmation.AskArchiveAsync(DialogService)) return;
-        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { RemoveItem(item); Snackbar.Add(L["ViewPage_ItemArchived"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_ArchiveFailed"].Value, AppSeverity.Error);
+        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { RemoveItem(item); Ribbon.Add(L["ViewPage_ItemArchived"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_ArchiveFailed"].Value, AppSeverity.Error);
     }
     private async Task TrashActiveAsync()
     {
         if (_active is not { } item || !await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
-        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { RemoveItem(item); Snackbar.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
-        else Snackbar.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { RemoveItem(item); Ribbon.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
+        else Ribbon.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }
     private void RemoveItem(LocalAssetDto item) { _active = null; _selected.Remove(item.Id); if (_media is not null) _media = _media with { Items = _media.Items.Where(value => value.Id != item.Id).ToList() }; }
     private void ToggleSelection(Guid id) { if (!_selected.Add(id)) _selected.Remove(id); }
