@@ -87,28 +87,6 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HeroProgressBlock_UsesStructuredListeningProgressSemantics()
-    {
-        var cut = Render<HeroProgressBlock>(parameters => parameters
-            .Add(component => component.Progress, new ProgressViewModel
-            {
-                Kind = DetailProgressKind.Listening,
-                Percent = 13,
-                Label = "Continue listening",
-                ContextLabel = "Track 6 of 50",
-                PercentLabel = "13% complete",
-                RemainingLabel = "11h 46m remaining",
-                SecondaryLabel = "44 tracks remaining",
-            }));
-
-        var progressbar = cut.Find("[role='progressbar']");
-        Assert.Equal("13", progressbar.GetAttribute("aria-valuenow"));
-        Assert.Equal("Continue listening", progressbar.GetAttribute("aria-label"));
-        Assert.Contains("Track 6 of 50", cut.Markup);
-        Assert.Contains("44 tracks remaining", cut.Markup);
-    }
-
-    [Fact]
     public void HeroActionRow_KeepsMusicModeExplicit()
     {
         var cut = Render<HeroActionRow>(parameters => parameters
@@ -141,9 +119,9 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData(false, "Add to My List", null)]
-    [InlineData(true, "Remove from My List", "true")]
-    public void HeroActionRow_MyListIsAHeart_FilledOnlyOnceSaved(bool saved, string expectedLabel, string? expectedFilled)
+    [InlineData(false, "Add to My List", "Add")]
+    [InlineData(true, "Remove from My List", "Check")]
+    public void HeroActionRow_MyListIsAPlus_ATickOnceSaved(bool saved, string expectedLabel, string expectedGlyph)
     {
         // The page flips IsSelected in place after a save, so the name must follow it rather than the original label.
         var cut = Render<HeroActionRow>(parameters => parameters
@@ -156,8 +134,8 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
         var glyph = circle.QuerySelector("svg.playback-utility-glyph")!;
         Assert.Equal(expectedLabel, circle.GetAttribute("aria-label"));
         Assert.Equal(saved ? "true" : "false", circle.GetAttribute("aria-pressed"));
-        Assert.Equal("Favorite", glyph.GetAttribute("data-playback-glyph"));
-        Assert.Equal(expectedFilled, glyph.GetAttribute("data-filled"));
+        // My List is a plus, then a tick; the heart is only for Favourites (Home, detail and tiles spec D6).
+        Assert.Equal(expectedGlyph, glyph.GetAttribute("data-playback-glyph"));
     }
 
     [Fact]

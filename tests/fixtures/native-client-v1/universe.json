@@ -123,7 +123,9 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
-            "isSettling": false
+            "isNew": false,
+            "isSettling": false,
+            "universeQid": null
           },
           {
             "id": "6f0c2a3e-0000-0000-0000-000000000004",
@@ -227,7 +229,9 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
-            "isSettling": false
+            "isNew": false,
+            "isSettling": false,
+            "universeQid": null
           }
         ],
         "seeAllRoute": "/api/v1/display/groups/6f0c2a3e-0000-0000-0000-000000000001"
@@ -346,7 +350,9 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
-            "isSettling": false
+            "isNew": false,
+            "isSettling": false,
+            "universeQid": null
           },
           {
             "id": "6f0c2a3e-0000-0000-0000-000000000009",
@@ -450,7 +456,9 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
-            "isSettling": false
+            "isNew": false,
+            "isSettling": false,
+            "universeQid": null
           }
         ],
         "seeAllRoute": "/api/v1/display/groups/6f0c2a3e-0000-0000-0000-000000000006"
@@ -576,7 +584,9 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
-            "isSettling": false
+            "isNew": false,
+            "isSettling": false,
+            "universeQid": null
           }
         ],
         "seeAllRoute": null

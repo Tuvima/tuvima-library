@@ -238,7 +238,7 @@ public sealed class ShellActivityState : IDisposable
             ShellActivityKind.Ingestion,
             "Processing library files",
             null,
-            Math.Clamp((int)Math.Round(IngestionQueueProgressText.BarValue(queue)), 0, 100),
+            IngestionQueueProgressText.Percent(queue),
             queue.UpdatedAt));
     }
 
@@ -391,6 +391,8 @@ public sealed class ShellActivityState : IDisposable
         "view.document_text_read" => "Reading document text",
         "view.document_ocr" => "Reading scanned documents",
         "writeback.metadata" => "Writing media metadata",
+        "playback.scrub_previews" => "Preparing scrub previews",
+        "playback.bookmark_frame" => "Making bookmark pictures",
         "organise_folder" => "Organising a folder",
         _ => operationKind?.ToLowerInvariant() switch
         {

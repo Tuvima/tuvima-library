@@ -5,8 +5,7 @@ namespace MediaEngine.Web.Services.Navigation;
 public sealed record DetailTabRouteResolution(
     string ActiveTab,
     bool HasRequestedTab,
-    bool IsRequestedTabValid,
-    bool ShouldRedirect);
+    bool IsRequestedTabValid);
 
 public static class DetailTabNavigation
 {
@@ -18,34 +17,21 @@ public static class DetailTabNavigation
 
         if (!hasRequested)
         {
-            return new DetailTabRouteResolution(fallback, false, true, false);
+            return new DetailTabRouteResolution(fallback, false, true);
         }
 
-        var requested = Normalize(requestedTab!);
-        var match = visibleTabs.FirstOrDefault(tab => string.Equals(Normalize(tab.Key), requested, StringComparison.OrdinalIgnoreCase));
-        if (match is null)
-        {
-            return new DetailTabRouteResolution(fallback, true, false, true);
-        }
-
-        var isCanonical = string.Equals(requestedTab, match.Key, StringComparison.Ordinal);
-        return new DetailTabRouteResolution(match.Key, true, true, !isCanonical);
+        // A tab that is not spelled as one of the page's tabs is not found: the first tab shows and the address stays as it is.
+        var requested = requestedTab!.Trim();
+        var match = visibleTabs.FirstOrDefault(tab => string.Equals(tab.Key, requested, StringComparison.OrdinalIgnoreCase));
+        return match is null
+            ? new DetailTabRouteResolution(fallback, true, false)
+            : new DetailTabRouteResolution(match.Key, true, true);
     }
 
     public static IReadOnlyList<DetailTab> GetVisibleTabs(DetailPageViewModel model) =>
         model.Tabs
             .Where(tab => HasRenderableContent(model, tab.Key))
             .ToList();
-
-    private static string Normalize(string value)
-    {
-        var chars = value
-            .Trim()
-            .Where(char.IsLetterOrDigit)
-            .ToArray();
-
-        return new string(chars).ToLowerInvariant();
-    }
 
     private static bool HasRenderableContent(DetailPageViewModel model, string key)
     {

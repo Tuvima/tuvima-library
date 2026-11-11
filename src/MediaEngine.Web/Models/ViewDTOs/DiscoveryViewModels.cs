@@ -47,6 +47,9 @@ public sealed class DiscoveryHeroViewModel
     public IReadOnlyList<string> Genres { get; init; } = [];
     public IReadOnlyList<ArtworkStackItem> PreviewItems { get; init; } = [];
     public int? PreviewTotalCount { get; init; }
+
+    /// <summary>Cover addresses for the "Recently added music" collage slide; empty for every other slide.</summary>
+    public IReadOnlyList<string> CollageUrls { get; init; } = [];
     public MediaTileSurfaceKind SurfaceKind { get; init; } = MediaTileSurfaceKind.BannerLandscape;
     public string PrimaryActionLabel { get; init; } = "Open";
     public string PrimaryNavigationUrl { get; init; } = "/";

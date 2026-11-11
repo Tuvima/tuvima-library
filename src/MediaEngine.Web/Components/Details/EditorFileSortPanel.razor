@@ -1,0 +1,570 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Domain.Models
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorFileSortPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* "What is this file?" in Match & Identity (universal editor v4, D20), for a file the Engine could not place or any single file you open:
+   an episode, track or book (the normal Match above), an Extra of its own title with a kind and a place, a file that belongs to another
+   title, or a file to ignore. The kind and place are guessed from the file name and only pre-fill the picker. The folder's other unsorted
+   files are listed below so they can be sorted in one pass. Everything here only stages a change; Review changes shows it and Save changes
+   does it. A show's own Extras clips can also be moved to an episode here (Extras spec). *@
+@if (Subject is not null)
+{
+    @if (_sorting is { CanSort: true } sorting)
+    {
+        <section class="tl-filesort" data-testid="file-sort" aria-label="@L["EditorFileSort_Heading"].Value">
+            <h3 class="tl-filesort__heading">@L["EditorFileSort_Heading"]</h3>
+            <p class="tl-filesort__file" data-testid="file-sort-name">@sorting.FileName</p>
+
+            @if (StagedChoice is { } staged)
+            {
+                <div class="tl-filesort__row tl-filesort__row--staged" data-testid="file-sort-staged">
+                    <span>@L["EditorFileSort_StagedAs", Pending?.Label(staged.Id) ?? string.Empty]</span>
+                    <AppButton Label="@L["EditorFileSort_Undo"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               OnClick="@(() => Unstage(staged))" />
+                </div>
+            }
+            else
+            {
+                <div class="tl-filesort__choices" role="group" aria-label="@L["EditorFileSort_Heading"].Value">
+                    <AppChoiceTile Label="@EditorFileSortRules.MainFileNoun(sorting.TitleKind)" Description="@L["EditorFileSort_MainFileHint"].Value" Icon="@AppMaterialIcons.Outlined.CheckCircle"
+                                   Selected="@(_choice == SortChoice.Match)" Disabled="@(!CanChange)" OnClick="@(() => Pick(SortChoice.Match))" />
+                    <AppChoiceTile Label="@L["EditorFileSort_Extra"].Value" Icon="@AppMaterialIcons.Outlined.Extension"
+                                   Description="@(sorting.CanBeExtra ? L["EditorFileSort_ExtraHint"].Value : L["EditorFileSort_OnlyFilesCanBeExtras"].Value)"
+                                   Selected="@(_choice == SortChoice.Extra)" Disabled="@(!CanChange || !sorting.CanBeExtra)" OnClick="@(() => Pick(SortChoice.Extra))" />
+                    <AppChoiceTile Label="@L["EditorFileSort_Another"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileMove"
+                                   Description="@(sorting.CanBeExtra ? L["EditorFileSort_AnotherHint"].Value : L["EditorFileSort_OnlyFilesCanBeExtras"].Value)"
+                                   Selected="@(_choice == SortChoice.Attach)" Disabled="@(!CanChange || !sorting.CanBeExtra)" OnClick="@(() => Pick(SortChoice.Attach))" />
+                    <AppChoiceTile Label="@L["EditorFileSort_Ignore"].Value" Description="@L["EditorFileSort_IgnoreHint"].Value" Icon="@AppMaterialIcons.Outlined.VisibilityOff"
+                                   Selected="@(_choice == SortChoice.Ignore)" Disabled="@(!CanChange)" OnClick="@(() => Pick(SortChoice.Ignore))" />
+                </div>
+
+                @switch (_choice)
+                {
+                    case SortChoice.Match:
+                        <p class="tl-filesort__hint">@L["EditorFileSort_MatchAbove"]</p>
+                        break;
+                    case SortChoice.Extra:
+                        @ExtraForm(sorting)
+                        break;
+                    case SortChoice.Attach:
+                        @AttachForm(sorting)
+                        break;
+                    case SortChoice.Ignore:
+                        <div class="tl-filesort__form">
+                            <p class="tl-filesort__hint">@L["EditorFileSort_IgnoreExplained"]</p>
+                            <div class="tl-filesort__actions">
+                                <AppButton Label="@L["EditorFileSort_IgnoreThisFile"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                           Disabled="@(!CanChange)" OnClick="StageIgnore" />
+                            </div>
+                        </div>
+                        break;
+                }
+            }
+
+            @FolderFiles(sorting)
+        </section>
+    }
+
+    @if (ShowClips.Count > 0)
+    {
+        <section class="tl-filesort tl-filesort--clips" data-testid="extras-moves">
+            <h3 class="tl-filesort__heading">@L["EditorFileSort_ShowExtras"]</h3>
+            @foreach (var clip in ShowClips)
+            {
+                var staged = Pending?.FindExtraMove(Subject.EntityId, clip.Id);
+                <div class="tl-filesort__row @(staged is not null ? "tl-filesort__row--staged" : null)">
+                    <span class="tl-filesort__name">@clip.Title</span>
+                    @if (!string.IsNullOrWhiteSpace(clip.Badge))
+                    {
+                        <span class="tl-filesort__tag">@clip.Badge</span>
+                    }
+                    @if (staged is not null)
+                    {
+                        <span>@StagedMoveText(staged)</span>
+                        <AppButton Label="@L["EditorFileSort_Undo"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => UnstageClip(clip.Id))" />
+                    }
+                    else if (_openClip == clip.Id)
+                    {
+                        <label class="tl-filesort__number">@L["Common_Season"]
+                            <AppNumericField Min="0" Max="@EditSessionExtraMove.MaxSeason" @bind-Value="_clipSeason" FullWidth="false" />
+                        </label>
+                        <label class="tl-filesort__number">@L["Common_Episode"]
+                            <AppNumericField Min="1" Max="@EditSessionExtraMove.MaxEpisode" @bind-Value="_clipEpisode" FullWidth="false" />
+                        </label>
+                        <AppButton Label="@L["EditorExtrasMovePanel_Move"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                   Disabled="@(!ValidClipNumbers)" OnClick="@(() => StageClip(clip))" />
+                        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CloseClip" />
+                    }
+                    else
+                    {
+                        <AppButton Label="@L["EditorExtrasMovePanel_MoveToEpisode"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   Disabled="@(!CanChange)" OnClick="@(() => OpenClip(clip.Id))" />
+                    }
+                </div>
+            }
+        </section>
+    }
+}
+
+@code {
+    private enum SortChoice { Match, Extra, Attach, Ignore }
+
+    private readonly record struct AttachTarget(Guid Id, string Title, string? Detail);
+
+    private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _searchCts;
+    private Guid _loadedFor;
+    private EditorFileSortingDto? _sorting;
+    private SortChoice _choice = SortChoice.Match;
+
+    // The Extra form. Pre-filled from the file name's guess; nothing is decided until the person stages it.
+    private string _kind = ExtraKinds.OtherClip;
+    private ExtraPlaceMode _place = ExtraPlaceMode.Whole;
+    private int _season = 1;
+    private int _episode = 1;
+    private int _track = 1;
+
+    // The "belongs to another title" form.
+    private string _query = string.Empty;
+    private bool _searching;
+    private string? _searchProblem;
+    private IReadOnlyList<AttachTarget> _results = [];
+    private AttachTarget? _target;
+    private bool _searched;
+
+    // The show's own clips that can move to an episode.
+    private string? _openClip;
+    private int _clipSeason = 1;
+    private int _clipEpisode = 1;
+
+    /// <summary>The item being matched; null until the editor's fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>The Extras row of the page (a show lists its video clips; other cards cannot become episodes).</summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
+
+    [Parameter] public EditSessionState? Session { get; set; }
+
+    [Parameter] public bool CanEdit { get; set; }
+
+    private PendingEditList? Pending => Session?.Pending;
+
+    private bool CanChange => CanEdit && Session is { IsActive: true };
+
+    private EditSessionChange? StagedChoice => Subject is null ? null : Pending?.FindFileChoice(Subject.EntityId);
+
+    private IReadOnlyList<DetailExtraCardViewModel> ShowClips =>
+        Subject is not null
+        && string.Equals(Subject.MediaType, "TV", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(Subject.ScopeId, "series", StringComparison.OrdinalIgnoreCase)
+            ? (Extras ?? []).Where(card => card.Kind == DetailExtraCardKinds.Clip && !card.IsMissing).ToList()
+            : [];
+
+    private bool ValidClipNumbers => _clipSeason is >= 0 and <= EditSessionExtraMove.MaxSeason && _clipEpisode is >= 1 and <= EditSessionExtraMove.MaxEpisode;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Subject is null || _loadedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        _loadedFor = Subject.EntityId;
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        var cts = _loadCts = new CancellationTokenSource();
+        _sorting = null;
+        _choice = SortChoice.Match;
+        _target = null;
+        _results = [];
+        _query = string.Empty;
+        _searched = false;
+        _searchProblem = null;
+        _openClip = null;
+
+        try
+        {
+            var sorting = await Api.GetEditorFileSortingAsync(Subject.EntityId, cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _sorting = sorting;
+            Prefill(sorting);
+        }
+        catch (OperationCanceledException)
+        {
+            // The editor moved to another item before the answer came; nothing to show for this one.
+        }
+        catch (Exception ex)
+        {
+            // The question is an extra: the Match tool still works without it, so a failed read only hides this section.
+            Logger.LogWarning(ex, "Could not read what to ask about the file of item {EntityId}", Subject.EntityId);
+            _sorting = null;
+        }
+    }
+
+    // The guess only pre-fills: the kind, and the place when the title has one.
+    private void Prefill(EditorFileSortingDto? sorting)
+    {
+        if (sorting is not { CanBeExtra: true })
+        {
+            return;
+        }
+
+        var kinds = EditorFileSortRules.KindsFrom(sorting.ExtraKinds);
+        _kind = sorting.Guess is { } guess && kinds.Contains(guess.ExtraKind) ? guess.ExtraKind : kinds.FirstOrDefault() ?? ExtraKinds.OtherClip;
+        var place = EditorFileSortRules.PlaceFromGuess(sorting.TitleKind, sorting.Guess);
+        (_place, _season, _episode, _track) = place;
+    }
+
+    private void Pick(SortChoice choice) => _choice = choice;
+
+    private IReadOnlyList<AppSelectOption> KindOptions(EditorFileSortingDto sorting) =>
+        [.. EditorFileSortRules.KindsFrom(sorting.ExtraKinds).Select(kind => new AppSelectOption(kind, ExtraKinds.Label(kind)))];
+
+    private IReadOnlyList<AppSelectOption> PlaceOptions(EditorFileSortingDto sorting) =>
+        [.. EditorFileSortRules.PlacesFor(sorting.TitleKind).Select(mode => new AppSelectOption(mode.ToString(), EditorFileSortRules.PlaceLabel(sorting.TitleKind, mode)))];
+
+    private ExtraFileChoice? CurrentExtraChoice() => EditorFileSortRules.ExtraChoice(_kind, _place, _season, _episode, _track);
+
+    // ----- staging --------------------------------------------------------------------------------------------------------------
+
+    private void StageExtra()
+    {
+        if (!CanChange || Subject is null || _sorting is null || CurrentExtraChoice() is not { } choice)
+        {
+            return;
+        }
+
+        Pending?.SetFileChoice(Subject.EntityId, choice, EditorFileSortRules.Describe(choice, null), _sorting.FileName);
+    }
+
+    private void StageAttach()
+    {
+        if (!CanChange || Subject is null || _sorting is null || _target is not { } target
+            || EditorFileSortRules.AttachChoice(_kind, target.Id) is not { } choice)
+        {
+            return;
+        }
+
+        Pending?.SetFileChoice(Subject.EntityId, choice, EditorFileSortRules.Describe(choice, target.Title), _sorting.FileName);
+    }
+
+    private void StageIgnore()
+    {
+        if (CanChange && Subject is not null && _sorting is not null)
+        {
+            Pending?.SetFileChoice(Subject.EntityId, EditorFileSortRules.IgnoreChoice, EditorFileSortRules.Describe(EditorFileSortRules.IgnoreChoice, null), _sorting.FileName);
+        }
+    }
+
+    private void Unstage(EditSessionChange staged) => Pending?.Remove(staged.Id);
+
+    private void StageFolderFile(EditorFolderFileDto file, bool ignore)
+    {
+        if (!CanChange || _sorting is null)
+        {
+            return;
+        }
+
+        var choice = ignore ? EditorFileSortRules.IgnoreChoice : GuessedChoice(_sorting, file);
+        if (choice is not null)
+        {
+            Pending?.SetFileChoice(file.EntityId, choice, EditorFileSortRules.Describe(choice, null), file.FileName);
+        }
+    }
+
+    // Each sibling is sorted as its own name guesses, kept to the places this title offers; a file that cannot be filed under its title is not.
+    private static ExtraFileChoice? GuessedChoice(EditorFileSortingDto sorting, EditorFolderFileDto file)
+    {
+        if (!sorting.InTitleFolder || !file.CanBeExtra || file.Guess is not { } guess)
+        {
+            return null;
+        }
+
+        var (mode, season, episode, track) = EditorFileSortRules.PlaceFromGuess(sorting.TitleKind, guess);
+        return EditorFileSortRules.ExtraChoice(guess.ExtraKind, mode, season, episode, track);
+    }
+
+    private void StageAllGuessed()
+    {
+        if (_sorting is null)
+        {
+            return;
+        }
+
+        foreach (var file in _sorting.FolderFiles.Where(file => Pending?.FindFileChoice(file.EntityId) is null))
+        {
+            StageFolderFile(file, ignore: false);
+        }
+    }
+
+    // ----- attach search --------------------------------------------------------------------------------------------------------
+
+    private async Task SearchAsync()
+    {
+        var query = _query.Trim();
+        if (query.Length < 2 || Subject is null)
+        {
+            return;
+        }
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        var cts = _searchCts = new CancellationTokenSource();
+        _searching = true;
+        _searchProblem = null;
+        _target = null;
+        StateHasChanged();
+        try
+        {
+            var response = await Api.GetUniversalSearchAsync(query, 30, cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (response is null)
+            {
+                _searchProblem = L["EditorFileSort_SearchFailed"].Value;
+                _results = [];
+            }
+            else
+            {
+                var found = response.Sections.SelectMany(section => section.Results);
+                if (response.TopResult is { } top)
+                {
+                    found = found.Prepend(top);
+                }
+
+                _results =
+                [
+                    .. found
+                        .Where(result => result.Id != Subject.EntityId && EditorFileSortRules.CanAttachTo(result.EntityType))
+                        .DistinctBy(result => result.Id)
+                        .Take(12)
+                        .Select(result => new AttachTarget(result.Id, result.Title, DetailText(result.Subtitle, result.Year))),
+                ];
+            }
+
+            _searched = true;
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer search replaced this one.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Library title search for an attached file failed");
+            _searchProblem = L["EditorFileSort_SearchFailed"].Value;
+            _results = [];
+        }
+        finally
+        {
+            if (ReferenceEquals(_searchCts, cts))
+            {
+                _searching = false;
+            }
+        }
+    }
+
+    private Task OnQueryKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private static string? DetailText(string? subtitle, string? year)
+    {
+        var parts = new[] { subtitle, year }.Where(part => !string.IsNullOrWhiteSpace(part)).ToList();
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    // ----- the show's own clips -------------------------------------------------------------------------------------------------
+
+    private void OpenClip(string extraId)
+    {
+        _openClip = extraId;
+        _clipSeason = 1;
+        _clipEpisode = 1;
+    }
+
+    private void CloseClip() => _openClip = null;
+
+    private void StageClip(DetailExtraCardViewModel clip)
+    {
+        if (!CanChange || !ValidClipNumbers || Subject is null || Pending is null)
+        {
+            return;
+        }
+
+        var label = _clipSeason == 0 ? $"Specials, episode {_clipEpisode}" : $"Season {_clipSeason}, episode {_clipEpisode}";
+        Pending.SetExtraMove(Subject.EntityId, clip.Id, EditSessionExtraMove.ToEpisodeToken(_clipSeason, _clipEpisode), $"{clip.Title}: {label}");
+        _openClip = null;
+    }
+
+    private void UnstageClip(string extraId)
+    {
+        if (Subject is not null && Pending?.FindExtraMove(Subject.EntityId, extraId) is { } staged)
+        {
+            Pending.Remove(staged.Id);
+        }
+    }
+
+    private static string StagedMoveText(EditSessionChange change) =>
+        EditSessionExtraMove.TryParseEpisode(change.Token, out var season, out var episode)
+            ? (season == 0 ? $"Moves to Specials, episode {episode} when you save." : $"Moves to season {season}, episode {episode} when you save.")
+            : "Moves when you save.";
+
+    public void Dispose()
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+
+    // ----- pieces ---------------------------------------------------------------------------------------------------------------
+
+    private RenderFragment ExtraForm(EditorFileSortingDto sorting) => __builder =>
+    {
+        @if (!sorting.InTitleFolder)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorFileSort_NotInTitleFolder"]</AppAlert>
+        }
+        else
+        {
+            var places = EditorFileSortRules.PlacesFor(sorting.TitleKind);
+            <div class="tl-filesort__form" data-testid="file-sort-extra">
+                <AppSelect T="string" Label="@L["EditorFileSort_Kind"].Value" Value="@_kind" ValueChanged="@(value => _kind = value ?? _kind)"
+                           Options="@KindOptions(sorting)" Disabled="@(!CanChange)" AriaLabel="@L["EditorFileSort_Kind"].Value" />
+                @if (places.Count > 1)
+                {
+                    <AppSelect T="string" Label="@L["EditorFileSort_Where"].Value" Value="@_place.ToString()"
+                               ValueChanged="@(value => _place = Enum.TryParse<ExtraPlaceMode>(value, out var mode) ? mode : ExtraPlaceMode.Whole)"
+                               Options="@PlaceOptions(sorting)" Disabled="@(!CanChange)" AriaLabel="@L["EditorFileSort_Where"].Value" />
+                    <div class="tl-filesort__numbers">
+                        @if (_place is ExtraPlaceMode.Season or ExtraPlaceMode.Episode)
+                        {
+                            <label class="tl-filesort__number">@L["Common_Season"]
+                                <AppNumericField Min="0" Max="@EditSessionExtraMove.MaxSeason" @bind-Value="_season" FullWidth="false" Disabled="@(!CanChange)" />
+                            </label>
+                        }
+                        @if (_place == ExtraPlaceMode.Episode)
+                        {
+                            <label class="tl-filesort__number">@L["Common_Episode"]
+                                <AppNumericField Min="1" Max="@EditSessionExtraMove.MaxEpisode" @bind-Value="_episode" FullWidth="false" Disabled="@(!CanChange)" />
+                            </label>
+                        }
+                        @if (_place == ExtraPlaceMode.Track)
+                        {
+                            <label class="tl-filesort__number">@L["EditorFileSort_Track"]
+                                <AppNumericField Min="1" Max="@EditSessionExtraMove.MaxEpisode" @bind-Value="_track" FullWidth="false" Disabled="@(!CanChange)" />
+                            </label>
+                        }
+                    </div>
+                }
+                <div class="tl-filesort__actions">
+                    @if (CurrentExtraChoice() is { } choice)
+                    {
+                        <span class="tl-filesort__summary" data-testid="file-sort-summary">@EditorFileSortRules.Describe(choice, null)</span>
+                    }
+                    <AppButton Label="@L["EditorFileSort_MakeExtra"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Disabled="@(!CanChange || CurrentExtraChoice() is null)" OnClick="StageExtra" />
+                </div>
+            </div>
+        }
+    };
+
+    private RenderFragment AttachForm(EditorFileSortingDto sorting) => __builder =>
+    {
+        <div class="tl-filesort__form" data-testid="file-sort-attach">
+            <div class="tl-filesort__searchrow">
+                <AppTextField Label="@L["EditorFileSort_SearchTitles"].Value" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
+                              Placeholder="@L["EditorFileSort_SearchTitles"].Value" Immediate="true" OnKeyDown="OnQueryKey"
+                              aria-label="@L["EditorFileSort_SearchTitles"].Value" />
+                <AppButton Label="@L["EditorFileSort_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
+                           Disabled="@(_searching || _query.Trim().Length < 2)" OnClick="SearchAsync" />
+            </div>
+            @if (_searchProblem is not null)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true">@_searchProblem</AppAlert>
+            }
+            else if (_searching)
+            {
+                <div aria-busy="true" aria-label="@L["EditorFileSort_Searching"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            }
+            else
+            {
+                <div class="tl-filesort__results" role="list">
+                    @foreach (var result in _results)
+                    {
+                        <div role="listitem">
+                            <AppChoiceRow Title="@result.Title" Description="@result.Detail" Selected="@(_target?.Id == result.Id)" OnClick="@(() => _target = result)" />
+                        </div>
+                    }
+                    @if (_searched && _results.Count == 0)
+                    {
+                        <p class="tl-filesort__hint">@L["EditorFileSort_NothingMatches"]</p>
+                    }
+                </div>
+            }
+
+            @if (_target is { } target)
+            {
+                <AppSelect T="string" Label="@L["EditorFileSort_Kind"].Value" Value="@_kind" ValueChanged="@(value => _kind = value ?? _kind)"
+                           Options="@KindOptions(sorting)" Disabled="@(!CanChange)" AriaLabel="@L["EditorFileSort_Kind"].Value" />
+                <div class="tl-filesort__actions">
+                    <AppButton Label="@L["EditorFileSort_AttachTo", target.Title].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Disabled="@(!CanChange)" OnClick="StageAttach" />
+                </div>
+            }
+        </div>
+    };
+
+    private RenderFragment FolderFiles(EditorFileSortingDto sorting) => __builder =>
+    {
+        @if (sorting.FolderFiles.Count > 0)
+        {
+            <div class="tl-filesort__folder" data-testid="file-sort-folder">
+                <h4 class="tl-filesort__subheading">@L["EditorFileSort_FolderFiles"]</h4>
+                @foreach (var file in sorting.FolderFiles)
+                {
+                    var staged = Pending?.FindFileChoice(file.EntityId);
+                    var guessed = GuessedChoice(sorting, file);
+                    <div class="tl-filesort__row @(staged is not null ? "tl-filesort__row--staged" : null)">
+                        <span class="tl-filesort__name" data-overflow-tooltip="@file.FileName">@file.FileName</span>
+                        @if (staged is not null)
+                        {
+                            <span>@L["EditorFileSort_StagedAs", Pending?.Label(staged.Id) ?? string.Empty]</span>
+                            <AppButton Label="@L["EditorFileSort_Undo"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                       OnClick="@(() => Unstage(staged))" />
+                        }
+                        else
+                        {
+                            @if (guessed is not null)
+                            {
+                                <AppButton Label="@L["EditorFileSort_SortAs", EditorFileSortRules.Describe(guessed, null)].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                                           Size="AppControlSize.Compact" Disabled="@(!CanChange)" OnClick="@(() => StageFolderFile(file, ignore: false))" />
+                            }
+                            <AppButton Label="@L["EditorFileSort_IgnoreThisFile"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                                       Size="AppControlSize.Compact" Disabled="@(!CanChange)" OnClick="@(() => StageFolderFile(file, ignore: true))" />
+                        }
+                    </div>
+                }
+                @if (sorting.InTitleFolder && sorting.FolderFiles.Any(file => file.CanBeExtra))
+                {
+                    <div class="tl-filesort__actions">
+                        <AppButton Label="@L["EditorFileSort_SortAllGuessed"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                                   Disabled="@(!CanChange)" OnClick="StageAllGuessed" />
+                    </div>
+                }
+            </div>
+        }
+    };
+}

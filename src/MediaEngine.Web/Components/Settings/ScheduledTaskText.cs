@@ -86,8 +86,8 @@ public static class ScheduledTaskText
 
         return task.Key switch
         {
-            "scheduled_backup" => ("Backups", SettingsNav.RouteFor(SettingsSection.Server)),
-            "adaptive_streaming_cleanup" => ("Streaming", SettingsNav.RouteFor(SettingsSection.Delivery, "optimized-copies")),
+            "scheduled_backup" => ("Backups", SettingsNav.RouteFor(SettingsSection.Backups)),
+            "adaptive_streaming_cleanup" => ("Playback", SettingsNav.RouteFor(SettingsSection.Playback, SettingsNav.AdvancedSubsection)),
             "retag_sweep" => ("Libraries", SettingsNav.RouteFor(SettingsSection.Libraries)),
             "plugin_segment_detection" => ("Plugins", SettingsNav.RouteFor(SettingsSection.Plugins)),
             _ => null,

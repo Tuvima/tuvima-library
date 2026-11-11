@@ -13,17 +13,14 @@
 
 .sme-tag-editor__label-row > label {
     color: rgba(213, 222, 239, 0.74);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 500;
 }
 
+/* The surface (position, width, border, background) is drawn by AppPopover in the top layer; its styles are global in app.css. */
 .sme-tag-editor__suggestions {
     display: grid;
     padding: 0.3rem;
-    border: 1px solid rgba(151, 170, 205, 0.2);
-    border-radius: 0.5rem;
-    background: rgb(10, 20, 36);
-    box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.35);
 }
 
 .sme-tag-editor__suggestions button {
@@ -47,11 +44,11 @@
     align-items: center;
     gap: 0.45rem;
     padding: 0.4rem 0.55rem;
-    border: 1px solid color-mix(in srgb, var(--tl-palette-warning) 32%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-status-warning) 32%, transparent);
     border-radius: 0.45rem;
-    background: color-mix(in srgb, var(--tl-palette-warning) 8%, transparent);
+    background: color-mix(in srgb, var(--tl-status-warning) 8%, transparent);
     color: var(--tl-text-secondary);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .sme-tag-editor__confirmation span {

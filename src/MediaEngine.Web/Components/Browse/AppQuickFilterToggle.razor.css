@@ -13,7 +13,7 @@
     background: transparent;
     color: rgba(234, 239, 248, 0.88);
     font: inherit;
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     cursor: pointer;
 }
@@ -21,7 +21,7 @@
 .app-quick-filter-host ::deep .app-quick-filter:hover,
 .app-quick-filter-host ::deep .app-quick-filter:focus-visible {
     border-color: rgba(167, 139, 250, 0.58);
-    color: #fff;
+    color: var(--tl-text-on-accent);
     outline: none;
 }
 
@@ -32,7 +32,7 @@
 .app-quick-filter-host ::deep .app-quick-filter.is-selected {
     border-color: rgba(167, 139, 250, 0.22);
     background: rgba(91, 33, 182, 0.12);
-    color: #f5f0ff;
+    color: var(--tl-text-primary);
 }
 
 .app-quick-filter__indicator {
@@ -41,7 +41,7 @@
     height: 17px;
     flex: 0 0 30px;
     border: 1px solid rgba(148, 163, 184, 0.5);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(71, 85, 105, 0.5);
     transition: border-color 140ms ease, background-color 140ms ease;
 }
@@ -53,14 +53,14 @@
     width: 11px;
     height: 11px;
     border-radius: 50%;
-    background: #f8fafc;
+    background: var(--tl-text-primary);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.34);
     content: "";
     transition: transform 140ms ease;
 }
 
 .app-quick-filter-host ::deep .app-quick-filter.is-selected .app-quick-filter__indicator {
-    border-color: #c4b5fd;
+    border-color: var(--tl-accent-primary-hover);
     background: var(--tl-accent-primary);
     box-shadow: 0 0 8px rgba(136, 82, 252, 0.58);
 }
@@ -71,5 +71,5 @@
 
 .app-quick-filter__count {
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
 }

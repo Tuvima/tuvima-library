@@ -35,4 +35,10 @@ public enum EntityType
 
     /// <summary>An important fictional object or artifact in a narrative universe.</summary>
     Object,
+
+    /// <summary>A fictional species or race in a narrative universe.</summary>
+    Species,
+
+    /// <summary>A lore concept or glossary term in a narrative universe.</summary>
+    Concept,
 }

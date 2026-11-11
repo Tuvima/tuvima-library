@@ -1,5 +1,4 @@
 using MediaEngine.Contracts.Settings;
-using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -28,10 +27,11 @@ public static class LibraryKindLook
     /// <summary>True when the kind gets details from at least one provider; a plain kind (no provider) is shown as files as they are.</summary>
     public static bool LooksUp(LibraryTypeOption type) => type.LookupProviders is { Count: > 0 };
 
-    /// <summary>The classes of a kind's icon tile: the area's colour for a kind that looks details up, a quiet grey for a plain kind.</summary>
-    public static string TileClass(LibraryTypeOption type) => LooksUp(type)
-        ? $"lib-kind-tile lib-kind-tile--lookup lib-area--{type.Area.ToLowerInvariant()}"
-        : "lib-kind-tile";
+    /// <summary>True when the folder window offers Managed for the kind: a kind that looks details up, and plain Videos, whose files Library can file by title (Libraries fixes, item 3c).</summary>
+    public static bool ManagedOffered(LibraryTypeOption type) => LooksUp(type) || string.Equals(type.Key, "other_videos", StringComparison.Ordinal);
+
+    /// <summary>The classes of a kind's icon tile: always the area's colour, so Videos follows Watch like Movies and TV Shows (Libraries fixes, item 6b).</summary>
+    public static string TileClass(LibraryTypeOption type) => $"lib-kind-tile lib-kind-tile--lookup lib-area--{type.Area.ToLowerInvariant()}";
 
     /// <summary>What a provider supplies, from its capabilities: "matching, titles and descriptions, posters and covers".</summary>
     public static string SuppliesText(IEnumerable<string> capabilities)
@@ -46,9 +46,4 @@ public static class LibraryKindLook
         var supplies = SuppliesText(capabilities);
         return supplies.Length == 0 ? name : $"{name}: {supplies}";
     }
-
-    /// <summary>The tooltip of the amber Unmatched count.</summary>
-    public static string UnmatchedText(int count) => count == 1
-        ? "1 file couldn't be matched. It stays where it is and is tried again."
-        : $"{DisplayFormat.FormatCount(count)} files couldn't be matched. They stay where they are and are tried again.";
 }

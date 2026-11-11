@@ -134,7 +134,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task VaultHandlers_TheCastAuthorizer_NeverAllowsAVaultFile_ToACastGrantOrALockedPerson()
+    public async Task VaultHandlers_TheCastAuthorizer_NeverAllowsAVaultFile_ToAnyoneLockedOrUnlocked()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
@@ -148,12 +148,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.Human), shape.Secret.AssetId));
         Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.DelegatedUserClient), shape.Secret.AssetId));
 
-        // Unlocked, a cast grant is still never a person on their own device session.
+        // Unlocked, a cast grant is still never a person on their own device session, and never a Vault file.
         await UnlockVaultAsync(session);
         Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.DelegatedUserClient), shape.Secret.AssetId));
         Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.ServiceApplication), shape.Secret.AssetId));
         Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.Anonymous), shape.Secret.AssetId));
-        Assert.True(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.Human), shape.Secret.AssetId));
+        // A Vault item never casts, even to the person who unlocked it: the receiver is a TV or speaker, not their unlocked session.
+        Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.Human), shape.Secret.AssetId));
         Assert.True(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.Human), shape.Normal.AssetId));
     }
 

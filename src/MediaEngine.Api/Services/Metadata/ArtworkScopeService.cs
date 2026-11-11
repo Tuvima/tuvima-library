@@ -78,7 +78,7 @@ internal sealed class ArtworkScopeService(
 
             // Structural shelves render their owned stack unless they have a managed cover.
             // A representative child's detail cover must never become a synthetic shelf override.
-            var automaticGroup = scope.ScopeId == "series" && scope.MediaType != "TV";
+            var automaticGroup = IsAutomaticGroupScope(scope.ScopeId, scope.MediaType);
             var preferredUrl = automaticGroup ? null : GetArtworkCanonicalValue(canonicals, assetType)
                                ?? GetArtworkDetailUrl(detail, assetType);
 
@@ -101,6 +101,13 @@ internal sealed class ArtworkScopeService(
 
         return new ArtworkEditorEnvelope(scope.ArtworkOwnerEntityId.Value, payload);
     }
+
+    /// <summary>
+    /// True when a series scope shows its owned stack instead of a picture of its own (book, comic and film series). A TV show has a
+    /// picture of its own, and so does a folder of videos (its cover is a frame taken from one of its videos).
+    /// </summary>
+    public static bool IsAutomaticGroupScope(string scopeId, string mediaType) =>
+        scopeId == "series" && mediaType is not ("TV" or "Videos");
 
     public static IReadOnlyList<string> GetScopedArtworkSlots(string mediaType, string scopeId) =>
         (MetadataEndpoints.NormalizeEditorMediaType(mediaType), scopeId) switch
@@ -522,6 +529,12 @@ internal sealed class ArtworkScopeService(
         CancellationToken ct)
     {
         var canonicalKey = GetArtworkCanonicalKey(assetType);
+
+        if (preferredAsset is not null && string.Equals(assetType, "EpisodeStill", StringComparison.OrdinalIgnoreCase))
+        {
+            // A real picture (from TheTVDB or chosen by a person) replaces the stand-in with no confirmation.
+            await canonicalRepo.DeleteByKeyAsync(entityId, MetadataFieldConstants.EpisodeStillStandIn, ct);
+        }
 
         if (preferredAsset is null)
         {

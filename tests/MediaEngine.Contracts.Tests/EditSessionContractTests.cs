@@ -29,10 +29,69 @@ public sealed class EditSessionContractTests
         var json = JsonSerializer.Serialize(request);
         var roundTrip = JsonSerializer.Deserialize<EditSessionRequest>(json)!;
 
-        Assert.StartsWith("{\"preview_only\":true,\"changes\":[{\"id\":\"c1\",\"kind\":\"details\",\"entity_id\":\"" + item.ToString("D") + "\",\"fields\":[{\"key\":\"title\",\"value\":\"Orbital\"}],\"target_id\":null,\"slot\":null,\"token\":null}", json, StringComparison.Ordinal);
+        Assert.StartsWith("{\"preview_only\":true,\"changes\":[{\"id\":\"c1\",\"kind\":\"details\",\"entity_id\":\"" + item.ToString("D") + "\",\"fields\":[{\"key\":\"title\",\"value\":\"Orbital\"}],\"target_id\":null,\"slot\":null,\"token\":null,\"ordered_ids\":[]}", json, StringComparison.Ordinal);
         Assert.True(roundTrip.PreviewOnly);
         Assert.Equal(2, roundTrip.Changes.Count);
         Assert.Equal("t", roundTrip.Changes[1].Token);
+    }
+
+    [Fact]
+    public void VideoOrderChange_CarriesTheOrderedIdsByTheirWireName_AndTheNewKindsAreKnown()
+    {
+        var parent = Guid.NewGuid();
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var change = new EditSessionChange { Id = "o1", Kind = EditSessionChangeKinds.VideoOrder, EntityId = parent, OrderedIds = [second, first] };
+
+        var json = JsonSerializer.Serialize(change);
+        var roundTrip = JsonSerializer.Deserialize<EditSessionChange>(json)!;
+
+        Assert.Contains("\"kind\":\"video_order\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"ordered_ids\":[\"" + second.ToString("D") + "\",\"" + first.ToString("D") + "\"]", json, StringComparison.Ordinal);
+        Assert.Equal([second, first], roundTrip.OrderedIds);
+        Assert.All(
+            new[] { "video_series", "video_order", "video_rename" },
+            kind => Assert.True(EditSessionChangeKinds.IsKnown(kind)));
+    }
+
+    [Fact]
+    public void SupportingFilesChange_CarriesTheFilesAndTheChangeByTheirWireNames_AndLeavesTheNameOutWhenThereIsNone()
+    {
+        var title = Guid.NewGuid();
+        var change = new EditSessionChange
+        {
+            Id = "s1",
+            Kind = EditSessionChangeKinds.SupportingFiles,
+            EntityId = title,
+            SupportingFiles = new MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest
+            {
+                Ids = ["a", "b"],
+                Changes = new MediaEngine.Contracts.Details.SupportingFileBulkChangesDto { GroupName = "Homework", ScopeKey = "season:2", AddTags = ["maths"] },
+            },
+        };
+
+        var json = JsonSerializer.Serialize(change);
+        var roundTrip = JsonSerializer.Deserialize<EditSessionChange>(json)!;
+
+        Assert.Contains("\"kind\":\"supporting_files\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"supporting_files\":{\"ids\":[\"a\",\"b\"],\"changes\":{\"groupName\":\"Homework\"", json, StringComparison.Ordinal);
+        Assert.Equal(["a", "b"], roundTrip.SupportingFiles!.Ids);
+        Assert.Equal("season:2", roundTrip.SupportingFiles.Changes.ScopeKey);
+        Assert.Equal(["maths"], roundTrip.SupportingFiles.Changes.AddTags);
+        Assert.True(EditSessionChangeKinds.IsKnown("supporting_files"));
+        Assert.True(EditSessionChangeKinds.IsDataChange(EditSessionChangeKinds.SupportingFiles));
+        Assert.DoesNotContain("supporting_files\":null", JsonSerializer.Serialize(new EditSessionChange { Id = "d", Kind = EditSessionChangeKinds.Details, EntityId = title }), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void VideoSeriesTargets_AreReadFromTheTokenOrTheTargetId()
+    {
+        Assert.Equal("new:Garden talks", EditSessionVideo.NewSeriesToken("  Garden talks "));
+        Assert.True(EditSessionVideo.TryParseNewSeries("new:Garden talks", out var name));
+        Assert.Equal("Garden talks", name);
+        Assert.False(EditSessionVideo.TryParseNewSeries("new:  ", out _));
+        Assert.False(EditSessionVideo.TryParseNewSeries("none", out _));
+        Assert.True(EditSessionVideo.IsNoSeries(EditSessionVideo.NoSeriesToken));
     }
 
     [Fact]

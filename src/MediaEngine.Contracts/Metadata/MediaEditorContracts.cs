@@ -56,6 +56,14 @@ public sealed class MediaEditorContextDto
 
     [JsonPropertyName("scopes")]
     public List<MediaEditorScopeDto> Scopes { get; set; } = [];
+
+    /// <summary>
+    /// What the editor's header needs beyond the fields (universal editor v5): the way around the family, the cover's colours, the file
+    /// facts and the numbers and per-kind rules from config/editor.json. Null only when the Engine could not build it.
+    /// </summary>
+    [JsonPropertyName("header")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Editing.EditorHeaderDto? Header { get; set; }
 }
 
 public sealed class MediaEditorTargetSummaryDto
@@ -359,6 +367,14 @@ public sealed class MediaEditorNavigatorNodeDto
 
     [JsonPropertyName("quarantine_count")]
     public int QuarantineCount { get; set; }
+
+    /// <summary>"matched" or "unmatched": whether this item (or the parent it sits under) carries a provider identity. Used by the editor's family tree.</summary>
+    [JsonPropertyName("match_state")]
+    public string MatchState { get; set; } = "matched";
+
+    /// <summary>Why the item is not matched, in plain words; null when it is matched.</summary>
+    [JsonPropertyName("match_reason")]
+    public string? MatchReason { get; set; }
 }
 
 /// <summary>
@@ -451,6 +467,15 @@ public sealed class MediaEditorOwnedChildDto
     [JsonPropertyName("match_state")]
     public string MatchState { get; set; } = "unmatched";
 
+    /// <summary>Why the file is not matched, in plain words (for example the file name has no season and episode number); null when it is matched.</summary>
+    [JsonPropertyName("match_reason")]
+    public string? MatchReason { get; set; }
+
+    /// <summary>The file's size in bytes when the Engine already holds it (the hash cache); null when unknown. The editor's Contents tab shows it.</summary>
+    [JsonPropertyName("file_size_bytes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? FileSizeBytes { get; set; }
+
     [JsonPropertyName("file_state")]
     public string FileState { get; set; } = "unknown";
 
@@ -499,6 +524,14 @@ public sealed class MediaEditorAssetSelectorDto
     [JsonPropertyName("container")] public string? Container { get; set; }
     [JsonPropertyName("audio_tracks")] public List<MediaEditorAssetAudioTrackDto> AudioTracks { get; set; } = [];
     [JsonPropertyName("subtitle_languages")] public List<string> SubtitleLanguages { get; set; } = [];
+
+    /// <summary>The folder the file sits in (no file name); the editor's Files tab shows it.</summary>
+    [JsonPropertyName("folder")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Folder { get; set; }
+
+    /// <summary>True when the file is in a Read-only library folder (or outside every library folder), so Tuvima will not change or delete it.</summary>
+    [JsonPropertyName("read_only")] public bool ReadOnly { get; set; }
 }
 
 /// <summary>One audio track stored for a file, as recorded by its last playback inspection.</summary>

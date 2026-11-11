@@ -241,4 +241,8 @@ public sealed class RestoreFromDestinationRequest
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
+    /// <summary>Four digits; needed only when the backup holds sealed keys.</summary>
+    [JsonPropertyName("keys_pin")]
+    public string? KeysPin { get; set; }
 }

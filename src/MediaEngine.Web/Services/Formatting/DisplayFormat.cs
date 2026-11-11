@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MediaEngine.Web.Services.Playback;
 
 namespace MediaEngine.Web.Services.Formatting;
 
@@ -135,38 +136,27 @@ public static class DisplayFormat
     // ---- Playback speed -----------------------------------------------------
 
     /// <summary>
-    /// "{rate}x" clamped to 0.5-32x with up to two decimal places (invariant
+    /// "{rate}×" clamped to 0.5-32x with up to two decimal places (invariant
     /// culture). Originally duplicated (byte-identical) in
     /// Components/Listen/ListenNowPlayingBar.razor and
-    /// Components/Listen/ListenTransportControls.razor.
+    /// a transport control that no longer exists.
     /// </summary>
     public static string FormatSpeedListen(double rate)
-        => $"{Math.Clamp(rate, 0.5d, 32d).ToString("0.##", CultureInfo.InvariantCulture)}x";
+        => $"{Math.Clamp(rate, 0.5d, 32d).ToString("0.##", CultureInfo.InvariantCulture)}×";
 
     /// <summary>
-    /// "{rate}x" with up to two decimal places, current culture, no clamping.
+    /// "{rate}×" with up to two decimal places, current culture, no clamping.
     /// Takes a <see cref="decimal"/> settings value directly. Originally private
     /// in Components/Settings/PlaybackTab.razor.
     /// </summary>
-    public static string FormatSpeedSetting(decimal value) => $"{value:0.##}x";
+    public static string FormatSpeedSetting(decimal value) => $"{value:0.##}×";
 
     /// <summary>
-    /// "{rate}x" clamped to 0.5-3x with one required and one optional decimal,
-    /// using invariant culture for stable playback-control labels.
-    /// Originally private in Components/Shared/PlaybackControlCatalog.cs.
+    /// The speed as the bar's chip and the player panels print it: "1×", "1.25×" (two decimals at most, invariant culture), the same
+    /// writing as <see cref="PlaybackSpeedChoices.Format"/>.
     /// </summary>
     public static string FormatSpeedControl(double rate)
-        => FormatPlaybackRate(rate);
-
-    private static string FormatPlaybackRate(double rate)
-    {
-        var exact = rate.ToString("R", CultureInfo.InvariantCulture);
-        if (!exact.Contains('.', StringComparison.Ordinal))
-        {
-            exact += ".0";
-        }
-        return $"{exact}x";
-    }
+        => PlaybackSpeedChoices.Format(rate);
 
     // ---- File facts ---------------------------------------------------------
 

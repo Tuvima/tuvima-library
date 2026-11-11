@@ -21,7 +21,16 @@ public sealed record AudiobookBookmarkActionSnapshot(
     bool SaveOutcomeUnknown = false);
 
 /// <summary>What a person typed when saving: the short note, the optional longer description, and whether to share with everyone.</summary>
-public sealed record AudiobookBookmarkSaveFields(string? Note, string? Description = null, bool ShareWithEveryone = false);
+/// <summary>
+/// The fields a save adds to the captured draft. <paramref name="PositionSeconds"/> is the moment the person pressed Add, when it differs
+/// from the instant the playback owner answered the lease; it must stay within <see cref="AudiobookBookmarkSaveFields.MaximumPressDriftSeconds"/>
+/// of the capture so the chapter facts of the draft still describe it.
+/// </summary>
+public sealed record AudiobookBookmarkSaveFields(string? Note, string? Description = null, double? PositionSeconds = null)
+{
+    /// <summary>How far the pressed moment may sit from the captured one before the press is treated as stale.</summary>
+    public const double MaximumPressDriftSeconds = 5;
+}
 
 /// <summary>
 /// The shared main-window bookmark owner. Popup hosts will later adapt this interface
@@ -318,6 +327,14 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
                 return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed("This bookmark dialog is no longer active.");
             }
 
+            if (fields.PositionSeconds is double pressed && state.DraftLease.Current is { } captured
+                && (!double.IsFinite(pressed) || pressed < 0
+                    || Math.Abs(pressed - captured.PositionSeconds) > AudiobookBookmarkSaveFields.MaximumPressDriftSeconds
+                    || (captured.DurationSeconds is double length && pressed > length)))
+            {
+                return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed("The pressed position is no longer close to the captured one.");
+            }
+
             if (state.SaveOutcomeUnknownGeneration == draftGeneration)
             {
                 return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown(
@@ -325,7 +342,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             }
 
             if (!state.DraftLease.TryBeginSave(draftGeneration, context.ProfileId, context.WorkId,
-                    context.SessionLeaseId, authorizedAssetIds, note, out attempt, fields.Description, fields.ShareWithEveryone))
+                    context.SessionLeaseId, authorizedAssetIds, note, out attempt, fields.Description))
             {
                 return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed(
                     "The captured bookmark is no longer valid or is already being saved.");
@@ -339,13 +356,14 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         Changed?.Invoke(context.DialogId);
         var draft = attempt!.Draft;
         var attemptStartedAt = DateTimeOffset.UtcNow;
+        var position = fields.PositionSeconds ?? draft.PositionSeconds;
         var request = new CreateAudiobookBookmarkRequestDto
         {
             ProfileId = context.ProfileId,
             AssetId = draft.AssetId,
             ChapterIndex = draft.ChapterIndex,
             ChapterTitle = draft.ChapterTitle,
-            PositionSeconds = draft.PositionSeconds,
+            PositionSeconds = position,
             DurationSeconds = draft.DurationSeconds,
             Note = attempt.Note,
             Description = attempt.Description,
@@ -367,7 +385,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             var responseMatchesCapture = result.Value is { } responseBookmark
                 && responseBookmark.WorkId == context.WorkId
                 && responseBookmark.AssetId == draft.AssetId
-                && responseBookmark.PositionSeconds == draft.PositionSeconds;
+                && responseBookmark.PositionSeconds == position;
             if (result.Outcome == AudiobookBookmarkOperationOutcome.Success && responseMatchesCapture)
             {
                 var saved = result.Value!;

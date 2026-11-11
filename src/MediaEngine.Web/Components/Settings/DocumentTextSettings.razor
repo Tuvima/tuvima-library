@@ -5,7 +5,7 @@
 @inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="@L["Common_Documents"].Value" Description="@L["DocumentTextSettings_ScannedPagesAndPhotosOf"].Value">
+<AppSettingsGroup Heading="@L["Common_Documents"].Value" Helper="@L["DocumentTextSettings_ScannedPagesAndPhotosOf"].Value">
     <Actions>
         @if (_status is { Installed: true })
         {
@@ -92,7 +92,7 @@
         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
     }
     </ChildContent>
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     [Parameter] public bool ReadOnly { get; set; }

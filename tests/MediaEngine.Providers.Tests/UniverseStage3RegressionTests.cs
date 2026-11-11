@@ -23,11 +23,30 @@ public sealed class UniverseStage3RegressionTests
     [InlineData(EntityType.Organization)]
     [InlineData(EntityType.Event)]
     [InlineData(EntityType.Object)]
+    [InlineData(EntityType.Species)]
     public void ReconciliationAdapter_CanHandle_Stage3FictionalEntityTypes(EntityType entityType)
     {
         var adapter = CreateAdapter();
 
         Assert.True(adapter.CanHandle(entityType));
+    }
+
+    [Fact]
+    public void ReconciliationAdapter_AsksWikidataForASpeciesWithItsOwnPropertyGroup()
+    {
+        var config = new ReconciliationProviderConfig();
+        config.DataExtension.SpeciesProperties.Core.AddRange(["P31", "P1441", "P18"]);
+        var adapter = new ReconciliationAdapter(
+            config,
+            new StubHttpClientFactory(),
+            NullLogger<ReconciliationAdapter>.Instance,
+            new StubFuzzyMatchingService());
+        var method = typeof(ReconciliationAdapter).GetMethod("GetFictionalEntityPropertyGroup", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        var group = Assert.IsType<DataExtensionPropertyGroup>(method!.Invoke(adapter, ["Species"]));
+
+        Assert.Equal(["P31", "P1441", "P18"], group.Core);
     }
 
     [Fact]

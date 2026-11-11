@@ -43,7 +43,7 @@
 
 .network-test-dialog__check strong {
     color: var(--tl-text-primary);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .network-test-dialog__check span {
@@ -52,11 +52,11 @@
 }
 
 .network-test-dialog__check.is-passed ::deep > .tl-icon-root {
-    color: var(--tl-palette-success);
+    color: var(--tl-status-success);
 }
 
 .network-test-dialog__check.is-failed ::deep > .tl-icon-root {
-    color: var(--tl-palette-error);
+    color: var(--tl-status-danger);
 }
 
 .network-test-dialog__check.is-skipped ::deep > .tl-icon-root {

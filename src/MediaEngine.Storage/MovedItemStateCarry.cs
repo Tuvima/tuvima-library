@@ -27,7 +27,7 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
                 "SELECT profile_id AS ProfileId, session_key AS SessionKey, experience AS Experience, started_at AS StartedAt, updated_at AS UpdatedAt, progress_pct AS ProgressPct FROM consumption_history WHERE asset_id = @assetId;",
                 new { assetId })],
             Bookmarks = [.. connection.Query<BookmarkRow>(
-                "SELECT user_id AS UserId, chapter_index AS ChapterIndex, cfi_position AS CfiPosition, label AS Label, created_at AS CreatedAt FROM reader_bookmarks WHERE asset_id = @assetId;",
+                "SELECT profile_id AS ProfileId, chapter_index AS ChapterIndex, locator AS CfiPosition, label AS Label, is_global AS IsGlobal, created_at AS CreatedAt FROM audiobook_bookmarks WHERE asset_id = @assetId AND position_kind = 'text';",
                 new { assetId })],
             Highlights = [.. connection.Query<HighlightRow>(
                 "SELECT user_id AS UserId, chapter_index AS ChapterIndex, start_offset AS StartOffset, end_offset AS EndOffset, cfi_range AS CfiRange, selected_text AS SelectedText, color AS Color, note_text AS NoteText, created_at AS CreatedAt FROM reader_highlights WHERE asset_id = @assetId;",
@@ -84,11 +84,14 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
             {
                 connection.Execute(
                     """
-                    INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index, cfi_position, label, created_at)
-                    SELECT @id, @UserId, @newAssetId, @ChapterIndex, @CfiPosition, @Label, @CreatedAt
-                    WHERE NOT EXISTS (SELECT 1 FROM reader_bookmarks WHERE user_id = @UserId AND asset_id = @newAssetId AND chapter_index IS @ChapterIndex AND cfi_position IS @CfiPosition AND created_at IS @CreatedAt);
+                    INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, chapter_index, label, is_global, created_at, position_kind, locator)
+                    SELECT @id, @ProfileId, e.work_id, @newAssetId, @ChapterIndex, @Label, @IsGlobal, @CreatedAt, 'text', @CfiPosition
+                    FROM media_assets ma JOIN editions e ON e.id = ma.edition_id
+                    WHERE ma.id = @newAssetId
+                      AND EXISTS (SELECT 1 FROM profiles WHERE id = @ProfileId)
+                      AND NOT EXISTS (SELECT 1 FROM audiobook_bookmarks WHERE profile_id = @ProfileId AND asset_id = @newAssetId AND position_kind = 'text' AND locator IS @CfiPosition AND created_at IS @CreatedAt);
                     """,
-                    new { id = Guid.NewGuid(), row.UserId, newAssetId, row.ChapterIndex, row.CfiPosition, row.Label, row.CreatedAt }, transaction);
+                    new { id = Guid.NewGuid(), row.ProfileId, newAssetId, row.ChapterIndex, row.CfiPosition, row.Label, row.IsGlobal, row.CreatedAt }, transaction);
             }
 
             foreach (var row in snapshot.Highlights)
@@ -172,8 +175,9 @@ public sealed class MovedItemStateCarry(IDatabaseConnection database) : IMovedIt
 
     private sealed class BookmarkRow
     {
-        public string UserId { get; set; } = string.Empty;
-        public int ChapterIndex { get; set; }
+        public Guid ProfileId { get; set; }
+        public bool IsGlobal { get; set; }
+        public int? ChapterIndex { get; set; }
         public string? CfiPosition { get; set; }
         public string? Label { get; set; }
         public string CreatedAt { get; set; } = string.Empty;

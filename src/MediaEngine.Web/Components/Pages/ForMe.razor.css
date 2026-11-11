@@ -11,10 +11,8 @@
 
 .for-me-page__eyebrow {
     color: var(--tl-accent-primary);
-    font-size: .75rem;
-    font-weight: 800;
-    letter-spacing: .12em;
-    text-transform: uppercase;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
 }
 
 .for-me-page__header h1 {
@@ -47,13 +45,13 @@
 
 .for-me-page__view-heading h2 {
     margin: 0 0 .35rem;
-    font-size: 1.75rem;
+    font-size: var(--tl-font-size-xl);
 }
 
 .for-me-page__count {
     padding: .55rem .85rem;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
     white-space: nowrap;
 }

@@ -94,6 +94,17 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         PlaybackPreferenceValues.HighContrast,
         PlaybackPreferenceValues.Shadowed);
 
+    private static readonly HashSet<string> SubtitleFontValues = BuildSet(
+        PlaybackPreferenceValues.FontDefault,
+        PlaybackPreferenceValues.FontSerif,
+        PlaybackPreferenceValues.FontMono);
+    private static readonly HashSet<string> SubtitleColorValues = BuildSet([.. PlaybackPreferenceValues.SubtitleColors]);
+    private static readonly HashSet<string> BookmarkFilterValues = BuildSet(
+        PlaybackPreferenceValues.All,
+        PlaybackPreferenceValues.Mine,
+        PlaybackPreferenceValues.Global,
+        PlaybackPreferenceValues.Everyones);
+
     private readonly IDatabaseConnection _db;
     private readonly IProfileRepository _profiles;
 
@@ -255,6 +266,18 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         }
     }
 
+    /// <summary>Cyan (the old fourth colour) is now Teal; a blank value falls back to the default so older saved profiles keep loading.</summary>
+    private static string NormalizeSubtitleColor(string? value, string fallback = PlaybackPreferenceValues.ColorWhite)
+    {
+        var token = NormalizeToken(value);
+        if (token.Length == 0)
+        {
+            return fallback;
+        }
+
+        return string.Equals(token, "Cyan", StringComparison.OrdinalIgnoreCase) ? PlaybackPreferenceValues.ColorTeal : token;
+    }
+
     private static UserPlaybackSettingsDto Normalize(UserPlaybackSettingsDto settings, Guid profileId)
     {
         settings.ProfileId = profileId;
@@ -308,11 +331,21 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Reading.Font = NormalizeToken(settings.Reading.Font).ToLowerInvariant();
         settings.Reading.PageWidth = NormalizeToken(settings.Reading.PageWidth).ToLowerInvariant();
         settings.Reading.FontSizePx = Math.Clamp(settings.Reading.FontSizePx, ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx);
+        settings.Reading.PageFit = OneOf(settings.Reading.PageFit, ReadingPreferenceValues.PageFitPage, ReadingPreferenceValues.PageFitPage, ReadingPreferenceValues.PageFitWidth);
+        settings.Reading.PageBackground = OneOf(settings.Reading.PageBackground, ReadingPreferenceValues.PageBackgroundBlack, ReadingPreferenceValues.PageBackgroundBlack, ReadingPreferenceValues.PageBackgroundDark, ReadingPreferenceValues.PageBackgroundLight);
+        settings.Reading.PageLayouts = CleanChoices(settings.Reading.PageLayouts, ReadingPreferenceValues.LayoutAuto, ReadingPreferenceValues.LayoutOne, ReadingPreferenceValues.LayoutTwo, ReadingPreferenceValues.LayoutScroll);
+        settings.Reading.ComicDirections = CleanChoices(settings.Reading.ComicDirections, ReadingPreferenceValues.DirectionLtr, ReadingPreferenceValues.DirectionRtl);
         settings.Reading.LineHeight = Math.Clamp(settings.Reading.LineHeight, ReadingPreferenceValues.MinLineHeight, ReadingPreferenceValues.MaxLineHeight);
         settings.Subtitles.ForcedSubtitlesMode = NormalizeToken(settings.Subtitles.ForcedSubtitlesMode);
         settings.Subtitles.SubtitleSize = NormalizeToken(settings.Subtitles.SubtitleSize);
         settings.Subtitles.SubtitlePosition = NormalizeToken(settings.Subtitles.SubtitlePosition);
         settings.Subtitles.SubtitleStyle = NormalizeToken(settings.Subtitles.SubtitleStyle);
+        settings.Subtitles.SubtitleFont = NormalizeToken(settings.Subtitles.SubtitleFont);
+        settings.Subtitles.SubtitleColor = NormalizeSubtitleColor(settings.Subtitles.SubtitleColor);
+        settings.Subtitles.SubtitleBackgroundColor = NormalizeSubtitleColor(settings.Subtitles.SubtitleBackgroundColor, PlaybackPreferenceValues.ColorBlack);
+        settings.Subtitles.SubtitleTextOpacity = Math.Clamp(settings.Subtitles.SubtitleTextOpacity, PlaybackPreferenceValues.MinTextOpacity, 100);
+        settings.Subtitles.SubtitleBackgroundOpacity = Math.Clamp(settings.Subtitles.SubtitleBackgroundOpacity, 0, 100);
+        settings.General.BookmarkFilter = NormalizeToken(settings.General.BookmarkFilter);
         settings.Subtitles.DefaultSubtitleLanguage = NormalizeLanguage(settings.Subtitles.DefaultSubtitleLanguage);
         settings.Subtitles.AudioLanguage = NormalizeLanguage(settings.Subtitles.AudioLanguage);
         settings.Subtitles.AlternateSubtitleLanguages = NormalizeAlternates(settings.Subtitles.AlternateSubtitleLanguages, settings.Subtitles.DefaultSubtitleLanguage);
@@ -368,6 +401,10 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.Subtitles.SubtitleSize, SubtitleSizeValues, nameof(settings.Subtitles.SubtitleSize));
         RequireAllowed(settings.Subtitles.SubtitlePosition, SubtitlePositionValues, nameof(settings.Subtitles.SubtitlePosition));
         RequireAllowed(settings.Subtitles.SubtitleStyle, SubtitleStyleValues, nameof(settings.Subtitles.SubtitleStyle));
+        RequireAllowed(settings.Subtitles.SubtitleFont, SubtitleFontValues, nameof(settings.Subtitles.SubtitleFont));
+        RequireAllowed(settings.Subtitles.SubtitleColor, SubtitleColorValues, nameof(settings.Subtitles.SubtitleColor));
+        RequireAllowed(settings.Subtitles.SubtitleBackgroundColor, SubtitleColorValues, nameof(settings.Subtitles.SubtitleBackgroundColor));
+        RequireAllowed(settings.General.BookmarkFilter, BookmarkFilterValues, nameof(settings.General.BookmarkFilter));
 
         if (settings.Listening.MusicCrossfade)
         {
@@ -418,6 +455,35 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
 
     private static HashSet<string> BuildSet(params string[] values) =>
         new(values, StringComparer.OrdinalIgnoreCase);
+
+    private static string OneOf(string? value, string fallback, params string[] allowed)
+    {
+        var token = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return allowed.Contains(token, StringComparer.Ordinal) ? token : fallback;
+    }
+
+    // Keeps only known choices and at most MaxPageChoices of them, so a profile's settings cannot grow without bound.
+    private static Dictionary<string, string> CleanChoices(Dictionary<string, string>? choices, params string[] allowed)
+    {
+        var clean = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in choices ?? [])
+        {
+            var name = (key ?? string.Empty).Trim().ToLowerInvariant();
+            var choice = (value ?? string.Empty).Trim().ToLowerInvariant();
+            if (name.Length is 0 or > 200 || !allowed.Contains(choice, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            clean[name] = choice;
+            if (clean.Count >= ReadingPreferenceValues.MaxPageChoices)
+            {
+                break;
+            }
+        }
+
+        return clean;
+    }
 
     private static string NormalizeToken(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();

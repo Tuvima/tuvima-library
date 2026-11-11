@@ -141,7 +141,10 @@ public static class BackupArchiveFormat
                 }
 
                 if (skipBackupFileParts
-                    && (string.Equals(name, "manifest.json", StringComparison.Ordinal) || name.StartsWith("config/", StringComparison.Ordinal)))
+                    && (string.Equals(name, "manifest.json", StringComparison.Ordinal)
+                        // The optional sealed keys entry (Encrypted keys EK2) is read by the Engine, not by the data reader.
+                        || string.Equals(name, "keys.sealed", StringComparison.Ordinal)
+                        || name.StartsWith("config/", StringComparison.Ordinal)))
                 {
                     continue;
                 }

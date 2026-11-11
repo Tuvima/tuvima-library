@@ -62,7 +62,7 @@ public partial interface IEngineApiClient
     /// <summary>GET /system/resources — Engine version, uptime, processor, memory and disk space; <c>null</c> when the Engine could not be asked.</summary>
     Task<SystemResourcesDto?> GetSystemResourcesAsync(CancellationToken ct = default);
 
-    Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default);
+    Task<BackupArchiveDto?> CreateBackupAsync(string? keysPin = null, CancellationToken ct = default);
 
     Task<byte[]?> DownloadBackupAsync(string fileName, CancellationToken ct = default);
 
@@ -78,7 +78,7 @@ public partial interface IEngineApiClient
     /// <summary>PUT /system/backups/waiting-period: how many days restored progress waits for its files. Returns the new state, or <c>null</c> when it was not saved.</summary>
     Task<BackupStateDto?> SetBackupWaitingPeriodAsync(int days, CancellationToken ct = default);
 
-    Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, CancellationToken ct = default);
+    Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, string? keysPin = null, CancellationToken ct = default);
 
     Task<IReadOnlyList<PluginSummaryResponse>> GetPluginsAsync(CancellationToken ct = default);
 
@@ -213,6 +213,12 @@ public partial interface IEngineApiClient
     /// <summary>PUT /settings/server-general — save server name and regional settings.</summary>
     Task<bool> UpdateServerGeneralAsync(ServerGeneralSettingsDto settings, CancellationToken ct = default);
 
+    /// <summary>GET /settings/server-identity — the Library's friendly name and its network name (server administrators).</summary>
+    Task<MediaEngine.Contracts.Setup.SetupServerIdentityDto?> GetServerIdentityAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /settings/server-identity — save the friendly name; the Engine derives the network name unless it was set by hand. Null when it was refused.</summary>
+    Task<MediaEngine.Contracts.Setup.SetupServerIdentityDto?> UpdateServerIdentityAsync(MediaEngine.Contracts.Setup.SetupServerIdentityDto identity, CancellationToken ct = default);
+
     /// <summary>GET /settings/libraries — complete schema 4 library, storage-root, and incoming-source configuration.</summary>
     Task<LibrariesConfigurationDto?> GetLibrariesAsync(CancellationToken ct = default);
     Task<ViewStorageSummaryDto?> GetViewStorageSummaryAsync(CancellationToken ct = default);
@@ -220,6 +226,23 @@ public partial interface IEngineApiClient
     /// <summary>GET /settings/library-kinds — every library kind (type of library) in order, built-in and from switched-on plugins; null when the Engine could not be read.</summary>
     Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default);
+
+    /// <summary>GET /library/activity/runs: the Activity page's History, one entry per batch (administrators); null when the Engine refused or it could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.ActivityRunsDto?> GetActivityRunsAsync(
+        IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
+        string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default);
+
+    /// <summary>GET /library/activity/runs/{entryId}/groups: one opened batch as stacked tiles, a page at a time.</summary>
+    Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
+        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default);
+
+    /// <summary>GET /library/activity/titles: the instant title search, each title once with its own dated markers.</summary>
+    Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(
+        string search, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
+        CancellationToken ct = default);
+
+    /// <summary>POST /library/activity/purge: removes History that started before the date (administrators).</summary>
+    Task<MediaEngine.Contracts.Library.ActivityPurgeResultDto?> PurgeActivityRunsAsync(DateTimeOffset olderThan, CancellationToken ct = default);
 
     /// <summary>GET /library/libraries/{libraryId}/activity — what has happened in one library, newest first, in plain sentences (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
     Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default);

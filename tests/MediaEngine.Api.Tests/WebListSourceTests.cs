@@ -84,6 +84,9 @@ public sealed class WebListSourceTests : IDisposable
     private readonly RoutedHandler _handler = new();
     private readonly LimiterSpy _limiter = new();
     private readonly TraktTokenSpy _trakt = new();
+    private readonly TraktSettingsSpy _traktSettings = new();
+    private readonly Guid _ana = Guid.NewGuid();
+    private readonly Guid _ben = Guid.NewGuid();
 
     public WebListSourceTests() => Directory.CreateDirectory(Path.Combine(_root, "config", "providers"));
 
@@ -347,15 +350,15 @@ public sealed class WebListSourceTests : IDisposable
             ",",
             Enumerable.Range(from, count).Select(i => "{ \"rank\": " + i + ", \"type\": \"movie\", \"movie\": { \"title\": \"Film " + i + "\", \"year\": 2000, \"ids\": { \"tmdb\": " + i + " } } }")) + "]";
 
-    private TraktListSource Trakt(IConfigurationLoader loader) =>
-        new(loader, _handler.Factory, _limiter, NullLogger<TraktListSource>.Instance, _trakt);
+    private TraktListSource Trakt() =>
+        new(_traktSettings, _handler.Factory, _limiter, NullLogger<TraktListSource>.Instance, _trakt);
 
     [Fact]
     public async Task APublicTraktList_IsReadWithTheClientIdInHeaders_AndKeepsMoviesAndShowsWithTheirIds()
     {
         _handler.Route("/users/someuser/lists/top-sci-fi/items", _ => TraktListItems);
         _handler.Route("/users/someuser/lists/top-sci-fi", _ => TraktListInfo);
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
         var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/top-sci-fi"))!, CancellationToken.None);
 
@@ -390,7 +393,7 @@ public sealed class WebListSourceTests : IDisposable
         _handler.Route("/users/someuser/lists/big/items", request =>
             request.RequestUri!.Query.Contains("page=1&", StringComparison.Ordinal) ? TraktPage(1, 100) : TraktPage(101, 5));
         _handler.Route("/users/someuser/lists/big", _ => """{ "name": "Big" }""");
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
         var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/big"))!, CancellationToken.None);
 
@@ -405,7 +408,7 @@ public sealed class WebListSourceTests : IDisposable
         _handler.Route("/lists/oscars/items", _ => TraktListItems);
         _handler.Route("/lists/oscars", _ => """{ "name": "Oscars" }""");
         _handler.Route("/users/someuser/watchlist", _ => TraktListItems);
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
         var official = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/lists/official/oscars"))!, CancellationToken.None);
         var watchlist = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/watchlist"))!, CancellationToken.None);
@@ -421,7 +424,7 @@ public sealed class WebListSourceTests : IDisposable
     public async Task APrivateTraktList_NeedsASignIn_NotAGuess()
     {
         _handler.RouteStatus("/users/someuser/lists/secret", HttpStatusCode.Unauthorized);
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
         var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/secret"))!, CancellationToken.None);
 
@@ -432,7 +435,7 @@ public sealed class WebListSourceTests : IDisposable
     [Fact]
     public async Task APersonsOwnTraktList_WithNoAccountLinked_IsRefusedWithoutAskingTrakt()
     {
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
         var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/watchlist"))!, CancellationToken.None);
 
@@ -443,17 +446,19 @@ public sealed class WebListSourceTests : IDisposable
     [Fact]
     public async Task APersonsOwnTraktList_WithAnAccountLinked_IsReadAsThatPerson_AndTheTokenGoesToTraktOnly()
     {
-        _trakt.Token = "approved-token";
+        _trakt.Tokens[_ana] = "approved-token";
         _handler.Route("/users/me/lists/favourites/items", _ => TraktListItems);
         _handler.Route("/users/me/lists/favourites", _ => """{ "name": "Favourites" }""");
         _handler.Route("/users/me/watchlist", _ => TraktListItems);
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
-        var list = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/lists/favourites"))!, CancellationToken.None);
-        var watchlist = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/watchlist"))!, CancellationToken.None);
+        var list = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/lists/favourites"))!, _ana, CancellationToken.None);
+        var watchlist = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/watchlist"))!, _ana, CancellationToken.None);
 
         Assert.Equal("Favourites", list.List!.Name);
         Assert.Equal("Trakt watchlist", watchlist.List!.Name);
+        Assert.Equal(_ana, list.List.ConnectionProfileId);
+        Assert.Equal(_ana, watchlist.List.ConnectionProfileId);
         Assert.All(_handler.Requests, request =>
         {
             Assert.Equal("api.trakt.tv", request.RequestUri!.Host);
@@ -461,6 +466,125 @@ public sealed class WebListSourceTests : IDisposable
             Assert.Equal("approved-token", request.Headers.Authorization.Parameter);
             Assert.DoesNotContain("approved-token", request.RequestUri.ToString(), StringComparison.Ordinal);
         });
+    }
+
+    [Fact]
+    public async Task APersonsOwnTraktList_IsReadWithThatProfilesTokenOnly_NeverAnotherProfilesOrNone()
+    {
+        _trakt.Tokens[_ana] = "ana-token";
+        _trakt.Tokens[_ben] = "ben-token";
+        _handler.Route("/users/me/watchlist", _ => TraktListItems);
+        var source = Trakt();
+        var address = source.Recognise(new Uri("https://trakt.tv/users/me/watchlist"))!;
+
+        var forBen = await source.FetchAsync(address, _ben, CancellationToken.None);
+        var forNobody = await source.FetchAsync(address, null, CancellationToken.None);
+        var forCara = await source.FetchAsync(address, Guid.NewGuid(), CancellationToken.None);
+
+        Assert.Equal(_ben, forBen.List!.ConnectionProfileId);
+        Assert.All(_handler.Requests, request => Assert.Equal("ben-token", request.Headers.Authorization!.Parameter));
+        Assert.Equal(WebListFailure.SignInNeeded, forNobody.Failure);
+        Assert.Equal(WebListFailure.SignInNeeded, forCara.Failure);
+        Assert.DoesNotContain(_ana, _trakt.Asked.OfType<Guid>());
+    }
+
+    [Fact]
+    public async Task APublicTraktList_IsReadWithNoAccount_EvenForAProfileThatSignedIn()
+    {
+        _trakt.Tokens[_ana] = "ana-token";
+        _handler.Route("/users/someuser/lists/top-sci-fi/items", _ => TraktListItems);
+        _handler.Route("/users/someuser/lists/top-sci-fi", _ => TraktListInfo);
+        var source = Trakt();
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/top-sci-fi"))!, _ana, CancellationToken.None);
+
+        Assert.Null(fetch.List!.ConnectionProfileId);
+        Assert.All(_handler.Requests, request => Assert.Null(request.Headers.Authorization));
+        Assert.Empty(_trakt.Asked);
+    }
+
+    [Fact]
+    public async Task APrivateTraktList_IsReadAsTheProfile_OnceTraktSaysItIsPrivate()
+    {
+        _trakt.Tokens[_ana] = "ana-token";
+        _handler.RouteAnswer("/users/someuser/lists/secret/items", PrivateTo(TraktListItems));
+        _handler.RouteAnswer("/users/someuser/lists/secret", PrivateTo("""{ "name": "Secret" }"""));
+        var source = Trakt();
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/secret"))!, _ana, CancellationToken.None);
+
+        Assert.Equal("Secret", fetch.List!.Name);
+        Assert.Equal(_ana, fetch.List.ConnectionProfileId);
+        Assert.Equal("ana-token", _handler.Requests[^1].Headers.Authorization!.Parameter);
+    }
+
+    [Fact]
+    public async Task APrivateTraktList_StaysRefused_WhenTheProfileHasNotSignedIn()
+    {
+        _handler.RouteStatus("/users/someuser/lists/secret", HttpStatusCode.Unauthorized);
+        var source = Trakt();
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/secret"))!, _ben, CancellationToken.None);
+
+        Assert.Equal(WebListFailure.SignInNeeded, fetch.Failure);
+    }
+
+    [Fact]
+    public async Task ARefreshOfAListReadAsAProfile_ReadsItAsThatProfileAgain()
+    {
+        _trakt.Tokens[_ana] = "ana-token";
+        _trakt.Tokens[_ben] = "ben-token";
+        _handler.Route("/users/someuser/lists/secret/items", _ => TraktListItems);
+        _handler.Route("/users/someuser/lists/secret", _ => """{ "name": "Secret" }""");
+        var source = Trakt();
+        var stored = new CollectionListSource
+        {
+            SourceKind = ListSourceKinds.TraktList,
+            SourceAddress = "https://trakt.tv/users/someuser/lists/secret",
+            ConnectionProfileId = _ana,
+        };
+
+        var fresh = await source.FetchAsync(stored, CancellationToken.None);
+
+        Assert.Equal(2, fresh!.Entries.Count);
+        Assert.Equal(_ana, fresh.ConnectionProfileId);
+        Assert.All(_handler.Requests, request => Assert.Equal("ana-token", request.Headers.Authorization!.Parameter));
+        Assert.Equal([_ana], _trakt.Asked.OfType<Guid>().Distinct().ToArray());
+    }
+
+    [Fact]
+    public async Task ARefreshOfAListWhoseProfileSignedOut_WaitsAndAsksForASignIn_NeverUsesAnotherProfile()
+    {
+        _trakt.Tokens[_ben] = "ben-token";
+        _handler.RouteStatus("/users/me/watchlist", HttpStatusCode.Unauthorized);
+        var source = Trakt();
+        var stored = new CollectionListSource
+        {
+            SourceKind = ListSourceKinds.TraktWatchlist,
+            SourceAddress = "https://trakt.tv/users/me/watchlist",
+            ConnectionProfileId = _ana,
+        };
+
+        var fresh = await source.FetchAsync(stored, CancellationToken.None);
+
+        Assert.Null(fresh);
+        Assert.Empty(_handler.Requests);
+        Assert.True(await source.NeedsSignInAsync(stored, CancellationToken.None));
+        _trakt.Tokens[_ana] = "ana-token";
+        Assert.False(await source.NeedsSignInAsync(stored, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AListThatNeededNoAccount_IsNeverAskedToSignIn()
+    {
+        var source = Trakt();
+        var stored = new CollectionListSource
+        {
+            SourceKind = ListSourceKinds.TraktList,
+            SourceAddress = "https://trakt.tv/users/someuser/lists/top-sci-fi",
+        };
+
+        Assert.False(await source.NeedsSignInAsync(stored, CancellationToken.None));
     }
 
     [Theory]
@@ -472,7 +596,7 @@ public sealed class WebListSourceTests : IDisposable
     public async Task ATraktAnswerThatIsNotAList_GivesAPlainFailure_NeverAnException(HttpStatusCode status, WebListFailure expected)
     {
         _handler.RouteStatus("/users/someuser/lists/top-sci-fi", status);
-        var source = Trakt(Fixture());
+        var source = Trakt();
 
         var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/top-sci-fi"))!, CancellationToken.None);
 
@@ -482,7 +606,8 @@ public sealed class WebListSourceTests : IDisposable
     [Fact]
     public async Task ATraktSourceWithNoClientId_AsksNothingFromTrakt()
     {
-        var source = Trakt(Fixture(traktKey: ""));
+        _traktSettings.ClientId = null;
+        var source = Trakt();
 
         var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/lists/2144562"))!, CancellationToken.None);
 
@@ -493,13 +618,14 @@ public sealed class WebListSourceTests : IDisposable
     [Fact]
     public async Task TraktSwitchedOff_RefusesOnlyTraktAddresses_WithALinkToPlugins()
     {
-        var resolver = Resolver(Fixture(traktEnabled: false));
+        _traktSettings.PluginOn = false;
+        var resolver = Resolver(Fixture());
 
         var refused = await Assert.ThrowsAsync<WebListRefusedException>(
             () => resolver.ResolveAsync(Bytes("https://trakt.tv/users/someuser/lists/top-sci-fi"), CancellationToken.None));
 
         Assert.Equal("Trakt lists are switched off. Turn the source on in Settings → Plugins.", refused.Message);
-        Assert.Equal("/settings/plugins", refused.LinkHref);
+        Assert.Equal("/settings/plugins/tuvima.trakt/settings", refused.LinkHref);
         Assert.Empty(_handler.Requests);
     }
 
@@ -514,6 +640,40 @@ public sealed class WebListSourceTests : IDisposable
 
         Assert.Contains("signed in to Trakt", refused.Message, StringComparison.Ordinal);
         Assert.Contains("public address", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Settings → Profile → Accounts", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("/settings/overview/accounts", refused.LinkHref);
+        Assert.Equal("Sign in to Trakt", refused.LinkLabel);
+    }
+
+    [Fact]
+    public async Task APrivateListPasted_IsReadAsTheProfileWhoPastedIt_AndNotKeptForSomeoneElse()
+    {
+        _trakt.Tokens[_ana] = "ana-token";
+        _handler.RouteAnswer("/users/someuser/lists/secret/items", PrivateTo(TraktListItems));
+        _handler.RouteAnswer("/users/someuser/lists/secret", PrivateTo("""{ "name": "Secret" }"""));
+        var resolver = Resolver(Fixture());
+        var address = Bytes("https://trakt.tv/users/someuser/lists/secret");
+
+        var forAna = await resolver.ResolveAsync(address, _ana, CancellationToken.None);
+        var cached = await resolver.ResolveAsync(address, _ana, CancellationToken.None);
+        var forBen = await Assert.ThrowsAsync<WebListRefusedException>(() => resolver.ResolveAsync(address, _ben, CancellationToken.None));
+
+        Assert.Equal("Secret", forAna!.Name);
+        Assert.Equal(_ana, forAna.ConnectionProfileId);
+        Assert.Same(forAna, cached);
+        Assert.Contains("signed in to Trakt", forBen.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASourceWithNoSignIn_SaysSoWhenAListNeedsOne_AndNeverPointsToAnAccountsPage()
+    {
+        _handler.RouteStatus("/lists/someuser/top-sci-fi", HttpStatusCode.NotFound);
+        var resolver = Resolver(Fixture());
+
+        var refused = await Assert.ThrowsAsync<WebListRefusedException>(
+            () => resolver.ResolveAsync(Bytes("https://mdblist.com/lists/someuser/top-sci-fi"), CancellationToken.None));
+
+        Assert.Contains("Only public lists can be read", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -532,7 +692,8 @@ public sealed class WebListSourceTests : IDisposable
     [Fact]
     public async Task ATraktExportFile_IsNotAnAddress_SoItStillImportsAsAFileWithTraktSwitchedOff()
     {
-        var resolver = Resolver(Fixture(traktEnabled: false));
+        _traktSettings.PluginOn = false;
+        var resolver = Resolver(Fixture());
 
         var fromFile = await resolver.ResolveAsync(Bytes("title,year,imdb\nHeat,1995,tt0113277"), CancellationToken.None);
 
@@ -544,7 +705,7 @@ public sealed class WebListSourceTests : IDisposable
     {
         _handler.Route("/users/someuser/lists/top-sci-fi/items", _ => TraktListItems);
         _handler.Route("/users/someuser/lists/top-sci-fi", _ => TraktListInfo);
-        var source = Trakt(Fixture());
+        var source = Trakt();
         var stored = new CollectionListSource
         {
             SourceKind = ListSourceKinds.TraktList,
@@ -554,15 +715,16 @@ public sealed class WebListSourceTests : IDisposable
         Assert.True(source.CanFetch(stored));
         Assert.Equal(2, (await source.FetchAsync(stored, CancellationToken.None))!.Entries.Count);
 
-        // The provider file is read fresh each time, so switching the source off on the Plugins page applies at once.
-        Fixture(traktEnabled: false);
+        // The plugin's switch is read fresh each time, so switching it off on the Plugins page applies at once.
+        _traktSettings.PluginOn = false;
         Assert.Null(await source.FetchAsync(stored, CancellationToken.None));
     }
 
     [Fact]
-    public async Task WithNoTraktAccountLinked_TheShippedTokenSourceGivesNone()
+    public async Task WithNoTraktPlugin_TheFallbackTokenSourceGivesNone()
     {
-        Assert.Null(await new UnlinkedTraktAccessTokens().TokenAsync(CancellationToken.None));
+        Assert.Null(await new UnlinkedTraktAccessTokens().TokenAsync(_ana, CancellationToken.None));
+        Assert.False(await new UnlinkedTraktAccessTokens().HasAccountAsync(_ana, CancellationToken.None));
     }
 
 
@@ -842,13 +1004,8 @@ public sealed class WebListSourceTests : IDisposable
         Assert.Contains("Book lists", openLibrary.Supplies);
         Assert.False(openLibrary.Access.AudienceIsDefault);
 
-        var trakt = sources["trakt"];
-        Assert.Equal("Trakt", trakt.DisplayName);
-        Assert.True(trakt.RequiresKey);
-        Assert.Equal("administrators", trakt.Access.Audience);
-        Assert.False(trakt.Access.AudienceIsDefault);
-        Assert.Equal("Your key, this address and the list's identifiers go to api.trakt.tv", trakt.Access.DataLeaving);
-        Assert.Contains("Movie lists", trakt.Supplies);
+        // Trakt is a plugin of its own, not a metadata source file.
+        Assert.False(sources.ContainsKey("trakt"));
 
         Assert.Contains("Movie lists", sources["tmdb"].Supplies);
         Assert.Contains("Music lists", sources["musicbrainz"].Supplies);
@@ -860,7 +1017,7 @@ public sealed class WebListSourceTests : IDisposable
     public void TheShippedProviderFiles_ForTheWebSources_NameTheirSitesAndKeepTheKeyOutOfTheFile()
     {
         var providers = Path.Combine(FindRepoRoot(), "config", "providers");
-        foreach (var name in new[] { "mdblist", "openlibrary", "trakt" })
+        foreach (var name in new[] { "mdblist", "openlibrary" })
         {
             var text = File.ReadAllText(Path.Combine(providers, name + ".json"));
             Assert.Contains("\"lists\"", text, StringComparison.Ordinal);
@@ -872,7 +1029,13 @@ public sealed class WebListSourceTests : IDisposable
 
     private static byte[] Bytes(string text) => Encoding.UTF8.GetBytes(text);
 
-    private WebListResolver Resolver(IConfigurationLoader loader) => new(Sources(loader), loader);
+    /// <summary>Answers a request that carries an account's token with the body, and one that carries none with Trakt's 401 for a private list.</summary>
+    private static Func<HttpRequestMessage, HttpResponseMessage> PrivateTo(string body) => request =>
+        request.Headers.Authorization is null
+            ? new HttpResponseMessage(HttpStatusCode.Unauthorized) { Content = new StringContent("{}", Encoding.UTF8, "application/json") }
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
+    private WebListResolver Resolver(IConfigurationLoader loader) => new(Sources(loader));
 
     private List<IWebListSource> Sources(IConfigurationLoader loader) =>
     [
@@ -880,18 +1043,17 @@ public sealed class WebListSourceTests : IDisposable
         new MdbListSource(loader, _handler.Factory, _limiter, NullLogger<MdbListSource>.Instance),
         new OpenLibraryListSource(loader, _handler.Factory, _limiter, NullLogger<OpenLibraryListSource>.Instance),
         new MusicBrainzCollectionSource(loader, _handler.Factory, _limiter, NullLogger<MusicBrainzCollectionSource>.Instance),
-        new TraktListSource(loader, _handler.Factory, _limiter, NullLogger<TraktListSource>.Instance, _trakt),
+        Trakt(),
     ];
 
     /// <summary>A config folder holding the four provider files, each on or off and with or without its key.</summary>
-    private ConfigurationDirectoryLoader Fixture(bool tmdbEnabled = true, string tmdbKey = "test-key", string mdblistKey = "test-key", bool mdblistEnabled = true, bool traktEnabled = true, string traktKey = "client-id-1")
+    private ConfigurationDirectoryLoader Fixture(bool tmdbEnabled = true, string tmdbKey = "test-key", string mdblistKey = "test-key", bool mdblistEnabled = true)
     {
         var dir = Path.Combine(_root, "config", "providers");
         Write(dir, "tmdb", tmdbEnabled, "https://api.themoviedb.org/3", tmdbKey, rate: 20);
         Write(dir, "mdblist", mdblistEnabled, "https://api.mdblist.com", mdblistKey, rate: 2);
         Write(dir, "openlibrary", true, "https://openlibrary.org", null, rate: 1);
         Write(dir, "musicbrainz", true, "https://musicbrainz.org/ws/2", null, rate: 1);
-        Write(dir, "trakt", traktEnabled, "https://api.trakt.tv", traktKey, rate: 2);
         return new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
     }
 
@@ -939,6 +1101,9 @@ public sealed class WebListSourceTests : IDisposable
         public void Route(string path, Func<HttpRequestMessage, string> body) =>
             _routes.Insert(0, (path, request => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body(request), Encoding.UTF8, "application/json") }));
 
+        public void RouteAnswer(string path, Func<HttpRequestMessage, HttpResponseMessage> answer) =>
+            _routes.Insert(0, (path, answer));
+
         public void RouteStatus(string path, HttpStatusCode status) =>
             _routes.Insert(0, (path, _ => new HttpResponseMessage(status) { Content = new StringContent("{}", Encoding.UTF8, "application/json") }));
 
@@ -971,9 +1136,29 @@ public sealed class WebListSourceTests : IDisposable
     /// <summary>Hands back the Trakt token a test sets, or none: the stand-in for a linked Trakt account.</summary>
     private sealed class TraktTokenSpy : ITraktAccessTokens
     {
-        public string? Token { get; set; }
+        /// <summary>The token each profile has, by profile. A profile not listed has not signed in.</summary>
+        public Dictionary<Guid, string> Tokens { get; } = [];
 
-        public Task<string?> TokenAsync(CancellationToken ct) => Task.FromResult(Token);
+        /// <summary>Every profile a token was asked for, in order.</summary>
+        public List<Guid?> Asked { get; } = [];
+
+        public Task<string?> TokenAsync(Guid? profileId, CancellationToken ct)
+        {
+            Asked.Add(profileId);
+            return Task.FromResult(profileId is { } id && Tokens.TryGetValue(id, out var token) ? token : null);
+        }
+
+        public Task<bool> HasAccountAsync(Guid profileId, CancellationToken ct) => Task.FromResult(Tokens.ContainsKey(profileId));
+    }
+
+    /// <summary>The Trakt plugin's switch and client ID, as a test sets them.</summary>
+    private sealed class TraktSettingsSpy : ITraktSettings
+    {
+        public bool PluginOn { get; set; } = true;
+
+        public string? ClientId { get; set; } = "client-id-1";
+
+        public Task<TraktSetup> LoadAsync(CancellationToken ct) => Task.FromResult(new TraktSetup(PluginOn, ClientId));
     }
 
     /// <summary>Runs each request straight away and remembers which source asked and at what rate limit.</summary>

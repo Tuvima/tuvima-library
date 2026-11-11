@@ -7,8 +7,8 @@ public sealed class TypographySystemGuardTests
     {
         var tokens = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
 
-        Assert.Contains("--font-ui: \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system,", tokens, StringComparison.Ordinal);
-        Assert.Contains("--font-brand: \"Tuvima Sans\", \"Montserrat\", sans-serif;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--font-ui: \"Inter\", system-ui, -apple-system, sans-serif;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--font-brand: \"Tuvima Sans\", sans-serif;", tokens, StringComparison.Ordinal);
         Assert.Contains("--media-identity-font-family: var(--font-ui);", tokens, StringComparison.Ordinal);
     }
 
@@ -18,21 +18,18 @@ public sealed class TypographySystemGuardTests
         var styles = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/app.css");
 
         Assert.Contains("font-family: var(--font-ui);", styles, StringComparison.Ordinal);
-        Assert.Contains("--app-font-sans: var(--font-ui);", styles, StringComparison.Ordinal);
-        Assert.Contains("--app-font-brand: var(--font-brand);", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("fonts.googleapis.com", styles, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Nunito", styles, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void NativeTheme_UsesTheCompleteSystemUiStack()
+    public void NativeTheme_FallsBackToTheSystemUiStack()
     {
         var theme = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
 
         foreach (var family in new[]
                  {
-                     "Segoe UI Variable", "Segoe UI", "system-ui", "-apple-system",
-                     "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif",
+                     "Inter", "system-ui", "-apple-system", "sans-serif",
                  })
         {
             Assert.Contains(family, theme, StringComparison.Ordinal);
@@ -42,12 +39,11 @@ public sealed class TypographySystemGuardTests
     }
 
     [Fact]
-    public void Montserrat_IsLimitedToBrandTokensFontLoadingAndReaderChoice()
+    public void Montserrat_IsNoLongerShippedOrNamedBeyondTheTuvimaSansNoteAndReaderChoice()
     {
         var webRoot = RepoPath(@"src/MediaEngine.Web");
         var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "wwwroot/tuvima.tokens.css",
             "wwwroot/app.css",
             "Components/Playback/ReaderSettingsPanel.razor",
             "Components/Pages/EpubReader.razor",
@@ -101,6 +97,56 @@ public sealed class TypographySystemGuardTests
             .ToArray();
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void TheInterfaceFontIsInterShippedAsAWoff2FileThatExists()
+    {
+        var css = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/app.css");
+        var tokens = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
+
+        var face = System.Text.RegularExpressions.Regex.Match(css, "@font-face\\s*\\{[^}]*font-family:\\s*\"Inter\"[^}]*\\}");
+        Assert.True(face.Success, "app.css must declare an Inter @font-face.");
+        var file = System.Text.RegularExpressions.Regex.Match(face.Value, "url\\(\"(?<path>[^\"]+\\.woff2)\"\\)\\s*format\\(\"woff2\"\\)");
+        Assert.True(file.Success, "The Inter face must load a woff2 file.");
+        Assert.True(File.Exists(RepoPath(@"src/MediaEngine.Web/wwwroot/" + file.Groups["path"].Value)), "The Inter woff2 file is missing from wwwroot.");
+        Assert.True(File.Exists(RepoPath(@"src/MediaEngine.Web/wwwroot/fonts/Inter-OFL.txt")), "The Inter licence must sit beside the font.");
+        Assert.Matches("--font-ui:\\s*\"Inter\"", tokens);
+    }
+
+    [Fact]
+    public void EveryFontFaceLoadsAWoff2FileThatExists()
+    {
+        var css = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/app.css");
+        var urls = System.Text.RegularExpressions.Regex.Matches(css, "@font-face\\s*\\{[^}]*\\}")
+            .SelectMany(face => System.Text.RegularExpressions.Regex.Matches(face.Value, "url\\(\"(?<path>[^\"]+)\"\\)").Select(m => m.Groups["path"].Value))
+            .ToList();
+
+        Assert.NotEmpty(urls);
+        Assert.All(urls, url =>
+        {
+            Assert.EndsWith(".woff2", url, StringComparison.Ordinal);
+            Assert.True(File.Exists(RepoPath(@"src/MediaEngine.Web/wwwroot/" + url)), $"{url} is missing.");
+        });
+        Assert.Empty(Directory.EnumerateFiles(RepoPath(@"src/MediaEngine.Web/wwwroot/fonts"), "*.ttf"));
+    }
+
+    // 700 is for page and hero titles only (Look pass v3 D7); everything else is 600 or lighter. The count may only go down.
+    private const int BoldWeightCeiling = 18;
+
+    [Fact]
+    public void NoStyleUsesWeight800Or900OrBolder_AndBoldIsOnlyForPageAndHeroTitles()
+    {
+        var all = EnumerateApplicationStyleSources()
+            .Where(path => path.EndsWith(".css", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
+            .Select(path => File.ReadAllText(path))
+            .ToList();
+
+        var heavy = all.Sum(text => System.Text.RegularExpressions.Regex.Matches(text, @"font-weight:\s*(?:800|900|bolder)\b").Count);
+        var bold = all.Sum(text => System.Text.RegularExpressions.Regex.Matches(text, @"font-weight:\s*(?:700\b|bold\b|var\(--tl-font-weight-bold\))").Count);
+
+        Assert.Equal(0, heavy);
+        Assert.True(bold <= BoldWeightCeiling, $"Weight 700 rose to {bold} (ceiling {BoldWeightCeiling}). 700 is for page and hero titles only; use 600 for card, row and group titles and 500 for labels.");
     }
 
     [Fact]

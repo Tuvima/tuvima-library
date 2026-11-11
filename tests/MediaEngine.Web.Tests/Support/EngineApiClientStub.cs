@@ -269,6 +269,63 @@ internal class EngineApiClientStub : DispatchProxy
                 ? list.ContinueWith(task => new ReviewListAttempt(task.Result, null), TaskScheduler.Default)
                 : Task.FromResult(new ReviewListAttempt([], null));
 
+        // By default the merged Needs Review list mirrors the pending lists above (whole queue, or one library's), as review rows. A kind
+        // filter narrows by the same rule the Engine uses: a failed retail match is "not matched", every other trigger is "not sure".
+        _handlers[nameof(IEngineApiClient.GetNeedsReviewListAsync)] =
+            args =>
+            {
+                var kind = args?[0] as string;
+                var library = args?[1] as string;
+                var pending = string.IsNullOrWhiteSpace(library)
+                    ? _handlers[nameof(IEngineApiClient.GetPendingReviewsAttemptAsync)](new object?[] { int.MaxValue, CancellationToken.None })
+                    : _handlers.TryGetValue(nameof(IEngineApiClient.GetPendingReviewsForLibraryAttemptAsync), out var forLibrary)
+                        ? forLibrary(new object?[] { library, int.MaxValue, CancellationToken.None })
+                        : _handlers[nameof(IEngineApiClient.GetPendingReviewsAttemptAsync)](new object?[] { int.MaxValue, CancellationToken.None });
+                return ((Task<ReviewListAttempt>)pending!).ContinueWith(task =>
+                {
+                    var attempt = task.Result;
+                    if (attempt.Items is null)
+                    {
+                        return new NeedsReviewListAttempt(null, attempt.Error);
+                    }
+
+                    var rows = attempt.Items.Select(item => new MediaEngine.Contracts.Review.NeedsReviewRowDto
+                    {
+                        Key = $"review:{item.Id:D}",
+                        Kind = item.Trigger == "RetailMatchFailed" ? MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched : MediaEngine.Contracts.Review.NeedsReviewKinds.NotSure,
+                        LastTriedAt = item.CreatedAt,
+                        Review = new MediaEngine.Contracts.Review.ReviewItemDto
+                        {
+                            Id = item.Id,
+                            EntityId = item.EntityId,
+                            EntityType = item.EntityType,
+                            Trigger = item.Trigger,
+                            Status = item.Status,
+                            ConfidenceScore = item.ConfidenceScore,
+                            CandidatesJson = item.CandidatesJson,
+                            Detail = item.Detail,
+                            CreatedAt = item.CreatedAt,
+                            MediaType = item.MediaType,
+                            EntityTitle = item.EntityTitle,
+                            CoverUrl = item.CoverUrl,
+                            BridgeIdentifiers = item.BridgeIdentifiers,
+                            DetectedFacts = item.DetectedFacts,
+                            FromImportFolder = item.FromImportFolder,
+                            FromMerge = item.FromMerge,
+                        },
+                    }).ToList();
+                    var shown = rows.Where(row => string.IsNullOrWhiteSpace(kind) || kind == "all" || row.Kind == kind).ToList();
+                    return new NeedsReviewListAttempt(new MediaEngine.Contracts.Review.NeedsReviewListDto
+                    {
+                        Items = shown,
+                        Total = shown.Count,
+                        NotMatchedTotal = rows.Count(row => row.Kind == MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched),
+                        NotSureTotal = rows.Count(row => row.Kind == MediaEngine.Contracts.Review.NeedsReviewKinds.NotSure),
+                        Take = 500,
+                    }, null);
+                }, TaskScheduler.Default);
+            };
+
         _handlers[nameof(IEngineApiClient.GetSystemStatusAsync)] =
             _ => Task.FromResult<SystemStatusViewModel?>(new SystemStatusViewModel
             {

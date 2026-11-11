@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
 
 @* The square tile for a playlist, so playlists sit beside albums in Listen. A playlist's own cover (chosen
    artwork, or the Engine's 2x2 mosaic of album covers) fills the square; without one, the member covers are
-   laid out as a 2x2 mosaic. Name and the shared count line sit below, with the small word naming the kind. *@
+   laid out as a 2x2 mosaic. The name is on the art, the kind is the status label and the count the bottom label (One tile design). *@
 <article class="media-square-tile" aria-label="@Item.Title">
     <a class="media-square-tile__link"
        href="@Url"
@@ -35,11 +36,13 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" />
                 </span>
             }
-        </span>
+        <span class="media-square-tile__scrim" aria-hidden="true"></span>
+        <span class="media-square-tile__kind media-tile-label media-tile-label--status">@L["MediaSquareTile_Playlist"]</span>
+        @if (MediaTileLabels.GroupCount(Item) is { } count)
+        {
+            <span class="media-square-tile__count media-tile-label media-tile-label--bottom">@count</span>
+        }
         <span class="media-square-tile__name">@Item.Title</span>
-        <span class="media-square-tile__meta">
-            <MediaCountLine Counts="@Item.MediaCounts" />
-            <span class="media-square-tile__kind">@L["MediaSquareTile_Playlist"]</span>
         </span>
     </a>
 </article>

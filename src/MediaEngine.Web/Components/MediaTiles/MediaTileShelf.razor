@@ -5,7 +5,7 @@
 
 @if (Shelf.Items.Count > 0)
 {
-    <section class="media-tile-shelf @RowClass @(!KeepCurrentTileSize ? "media-tile-shelf--compact" : null)">
+    <section class="media-tile-shelf @RowClass">
         @if (ShowHeader)
         {
             <div class="media-tile-shelf-header">
@@ -34,21 +34,11 @@
                     {
                         @if (UseContinueWatchingOrListeningTiles)
                         {
-                            <ContinueWatchingOrListeningTile Item="@item" IsHomeSurface="@IsHomeSurface"
-                                                             HoverMode="@(HoverMode ?? MediaTileHoverPolicy.ForShelf(item))"
-                                                             HideMediaKindBadge="@HideMediaKindBadges"
-                                                             HideSourceBadge="@HideSourceBadges"
-                                                             @key="item.RenderKey" />
+                            <ContinueWatchingOrListeningTile Item="@item" @key="item.RenderKey" />
                         }
                         else
                         {
-                            <MediaTile Item="@item" IsHomeSurface="@IsHomeSurface"
-                                       HoverMode="@(HoverMode ?? MediaTileHoverPolicy.ForShelf(item))"
-                                       HideMediaKindBadge="@HideMediaKindBadges"
-                                       HideSourceBadge="@HideSourceBadges"
-                                       HideGroupIndicators="@HideGroupIndicators"
-                                       HideGroupKind="@HideGroupKind"
-                                       ShowCompactCaption="@ShowCompactCaptions"
+                            <MediaTile Item="@item"
                                        EagerArtwork="@(index < EagerItemCount)"
                                        @key="item.RenderKey" />
                         }
@@ -57,7 +47,7 @@
                     {
                         @* The last item of the row: opens the whole shelf as a grid. A plain link, so keys and TV remotes reach it like any tile. *@
                         <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-view-all" aria-label="@($"View all {Shelf.Title}")" data-shelf-view-all>
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Large" aria-hidden="true" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppIconSize.Tile32" aria-hidden="true" />
                             <span class="media-tile-shelf-view-all-text">@L["Common_ViewAll"]</span>
                         </a>
                     }
@@ -79,16 +69,8 @@ else if (ShowHeader && !string.IsNullOrWhiteSpace(EmptyMessage))
 
 @code {
     [Parameter, EditorRequired] public MediaTileShelfViewModel Shelf { get; set; } = default!;
-    [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
-    [Parameter] public bool IsHomeSurface { get; set; }
-    [Parameter] public bool HideMediaKindBadges { get; set; }
-    [Parameter] public bool HideSourceBadges { get; set; }
-    [Parameter] public bool HideGroupIndicators { get; set; }
-    [Parameter] public bool HideGroupKind { get; set; }
     [Parameter] public bool ShowHeader { get; set; } = true;
-    [Parameter] public bool ShowCompactCaptions { get; set; }
     [Parameter] public bool UseContinueWatchingOrListeningTiles { get; set; }
-    [Parameter] public bool KeepCurrentTileSize { get; set; }
     [Parameter] public int EagerItemCount { get; set; }
     /// <summary>When set, an empty shelf keeps its header and shows this helper text instead of disappearing.</summary>
     [Parameter] public string? EmptyMessage { get; set; }

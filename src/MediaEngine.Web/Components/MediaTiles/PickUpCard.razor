@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
 <article class="pickup-card" aria-label="@Title">
     <a class="pickup-art" href="@ResumeUrl" tabindex="-1" aria-hidden="true">
         @if (!string.IsNullOrWhiteSpace(ArtworkUrl))
@@ -8,7 +9,7 @@
         }
     </a>
     <div class="pickup-body">
-        <span class="pickup-kind"><AppMaterialIcon Icon="@PhoneContinueLogic.TypeIcon(Item.MediaKind)" Size="AppSize.Small" aria-hidden="true" />@PhoneContinueLogic.ActionWord(Item.MediaKind)</span>
+        <span class="pickup-kind"><AppMaterialIcon Icon="@PhoneContinueLogic.TypeIcon(Item.MediaKind)" Size="AppIconSize.Control20" aria-hidden="true" />@PhoneContinueLogic.ActionWord(Item.MediaKind)</span>
         <a class="pickup-title" href="@(Item.DetailsNavigationUrl ?? Item.NavigationUrl)">@Title</a>
         @if (!string.IsNullOrWhiteSpace(Subtitle))
         {
@@ -29,6 +30,6 @@
     private string? ArtworkUrl => Item.PreviewImageUrl ?? Item.TileImageUrl;
     private string ResumeUrl => Item.PrimaryNavigationUrl ?? Item.NavigationUrl;
     private string? Subtitle => Item.EpisodeContext is { } episode
-        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}"
+        ? MediaTileLabels.EpisodeHeading(Item, episode)
         : Item.Creator ?? Item.Subtitle;
 }

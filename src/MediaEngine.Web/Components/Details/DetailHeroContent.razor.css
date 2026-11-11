@@ -29,7 +29,7 @@
     width: min(47.5rem, 100%);
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.25rem, 6vw, 6.35rem);
     font-weight: 500;
     line-height: 0.94;
@@ -89,7 +89,7 @@
     margin: 0 0 0.42rem;
     color: rgba(255, 255, 255, 0.94);
     font-family: var(--font-ui);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1.35;
     letter-spacing: 0.01em;
@@ -164,11 +164,11 @@
 
 :where(.tl-detail-hero__inner:not(.tl-detail-person-hero__content)) ::deep .tl-detail-watch-metadata-item .tl-icon-root {
     color: rgba(255, 255, 255, 0.62);
-    font-size: 1rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 ::deep .tl-detail-watch-metadata-item--rating .tl-icon-root {
-    color: #f6c64f;
+    color: var(--tl-accent-collection-hover);
 }
 
 ::deep .tl-detail-actions {
@@ -181,27 +181,6 @@
     width: min(32.5rem, 100%);
     display: grid;
     gap: 0.72rem;
-}
-
-::deep .tl-detail-hero-progress__label {
-    color: rgba(255, 255, 255, 0.86);
-    font-size: 0.92rem;
-    font-weight: 600;
-}
-
-::deep .tl-detail-hero-progress__track {
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
-    overflow: hidden;
-}
-
-::deep .tl-detail-hero-progress__fill {
-    display: block;
-    width: var(--hero-progress, 0%);
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(to right, rgba(var(--hero-accent-rgb, 136, 82, 252), 0.92), rgba(255, 224, 150, 0.96));
 }
 
 @media (max-width: 1180px) {
@@ -285,22 +264,20 @@
 :where(.tl-detail-page) .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1 {
     max-width: 16ch;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(4rem, 7.1vw, 7.8rem);
     font-weight: 500;
     line-height: 0.92;
     letter-spacing: 0;
-    text-transform: uppercase;
     text-wrap: pretty;
 }
 
 :where(.tl-detail-page) .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 88%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 88%, var(--tl-text-on-accent));
     font-size: clamp(1.2rem, 2vw, 1.85rem);
     font-weight: 600;
     letter-spacing: 0.38em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-detail-hero__inner {
@@ -342,7 +319,7 @@
 :where(.tl-detail-page) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero__tagline {
     color: rgba(246, 240, 232, 0.78);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.6;
     max-width: 42rem;
 }
@@ -402,7 +379,6 @@
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__copy h1 {
     font-size: clamp(4.8rem, 8.1vw, 9rem);
     line-height: 0.86;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy {
@@ -438,7 +414,7 @@
 :where(.tl-detail-page) .tl-detail-hero__tagline {
     order: 5;
     margin: 0;
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font-size: clamp(0.94rem, 1.1vw, 1.05rem);
     line-height: 1.55;
 }
@@ -452,9 +428,9 @@
 
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
     margin: -0.2rem 0 0;
-    color: color-mix(in srgb, rgb(var(--hero-text-rgb, 246, 240, 232)) 76%, var(--tl-detail-primary, #c9922e));
+    color: color-mix(in srgb, rgb(var(--hero-text-rgb, 246, 240, 232)) 76%, var(--tl-detail-primary, var(--tl-accent-collection)));
     font-size: clamp(1.05rem, 1.8vw, 1.55rem);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 @media (width < 840px) {
@@ -478,7 +454,7 @@
 
 @media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
-        font-size: 1.02rem;
+        font-size: var(--tl-font-size-md);
     }
 }
 
@@ -544,7 +520,7 @@
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1 {
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.25rem, 6vw, 6.35rem);
     font-weight: 500;
     line-height: .94;
@@ -635,7 +611,7 @@
     margin: 0 0 0.42rem;
     color: rgba(255, 255, 255, 0.94);
     font-family: var(--font-ui);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1.35;
     letter-spacing: 0.01em;
@@ -770,7 +746,7 @@
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-hero__copy h1 {
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.6rem, 4vw, 4.75rem);
     font-weight: 500;
     line-height: 0.94;
@@ -871,7 +847,7 @@
 
 @media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-hero__subtitle {
-        color: #e7c36d;
+        color: var(--tl-accent-collection-hover);
     }
 }
 
@@ -916,7 +892,7 @@
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--person .tl-detail-person-hero__copy h1 {
     max-width: 15ch;
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-reader);
     font-size: clamp(3.6rem, 4vw, 4.75rem);
     font-weight: 500;
     line-height: .94;
@@ -983,23 +959,4 @@
         line-height: 0.96;
         text-wrap: balance;
     }
-}
-
-/* Editing Mode: the hero drops its reserved headroom above the title so open field editors still fit. */
-.tl-detail-hero__inner--editing .tl-detail-hero__identity:not(#a) {
-    height: auto;
-    min-height: 0;
-}
-
-/* Editing Mode: an open field editor adds height, so the copy scrolls inside the hero instead of being clipped by it. */
-.tl-detail-hero__inner--editing .tl-detail-hero__copy {
-    max-height: calc(95svh - 12rem);
-    overflow-y: auto;
-    padding-inline-end: var(--tl-space-2);
-    scrollbar-width: thin;
-}
-
-/* Editing Mode: the title pencil sits under the title or logo, and the slot disappears when there is no pencil. */
-.tl-detail-hero__edit-slot:empty {
-    display: none;
 }

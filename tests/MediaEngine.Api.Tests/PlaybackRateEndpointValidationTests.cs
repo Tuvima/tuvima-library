@@ -58,7 +58,7 @@ public sealed class PlaybackRateEndpointValidationTests
         builder.Services.AddSingleton<PlayerService>(player);
         builder.Services.AddSingleton<PlayerCatalogueScope>(scope);
         builder.Services.AddSingleton<AudiobookChapterNamingService>(_ => null!);
-        builder.Services.AddSingleton<BookmarkPackService>(_ => null!);
+        builder.Services.AddSingleton<BookmarkSetService>(_ => null!);
         await using var app = builder.Build();
         app.MapPlayerEndpoints();
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources

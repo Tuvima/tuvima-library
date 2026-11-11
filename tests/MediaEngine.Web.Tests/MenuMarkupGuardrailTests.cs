@@ -13,10 +13,11 @@ public sealed class MenuMarkupGuardrailTests
         ["Components/Shared/AppRowMenu.razor"] = "The shared row menu (its phone sheet).",
         ["Components/Details/ManageActionsMenu.razor"] = "The shared details action list (icons, left-aligned, destructive last).",
         ["Components/Details/OverflowActionMenu.razor"] = "Phone bottom sheet of the details actions; keeps the sheet behaviour.",
-        ["Components/Cinematic/PhoneHeroCard.razor"] = "Phone bottom sheet of the hero actions; keeps the sheet behaviour.",
         ["Components/Navigation/TopNavAccountMenu.razor"] = "Account panel with a header and a secure-account card, not a plain action list.",
         ["Components/Shared/MediaRateControl.razor"] = "Two thumb icons that open on hover, not a text menu.",
-        ["Components/Listen/SongActions.razor"] = "The player's song menu, a playback popover (Group E); it uses the shared menu items.",
+        ["Components/Shared/PlaybackItemMenu.razor"] = "The persistent bar's item actions menu (unified player v2 D23): rows live inside a PlaybackPanel popover and follow the player mockup, not the app menu look.",
+        ["Components/Listen/PlaybackLyricsMenu.razor"] = "The Lyrics footer's \"...\" menu (unified player v2 D17): rows live inside a PlaybackPanel popover and follow the player mockup, like the item actions menu.",
+        ["Components/Shared/PlaybackRowMenu.razor"] = "The \"...\" menu on a Queue or History row (unified player v2 D18): rows live inside a PlaybackPanel popover and follow the player mockup (screen 8), not the app menu look.",
     };
 
     [Fact]

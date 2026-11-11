@@ -20,8 +20,8 @@ public sealed class MediaEditorNavigationReadService(
     IHierarchyAlignmentService hierarchyAlignment,
     IExternalLookupGuard? lookupGuard = null) : IMediaEditorNavigationReadService, IMediaEditorMembershipReadService
 {
-    public async Task<MediaEditorNavigatorEnvelope?> GetNavigatorAsync(Guid entityId, CancellationToken ct) =>
-        await BuildMediaEditorNavigatorCoreAsync(entityId, db, ct);
+    public async Task<MediaEditorNavigatorEnvelope?> GetNavigatorAsync(Guid entityId, CancellationToken ct, bool structureOnly = false) =>
+        await BuildMediaEditorNavigatorCoreAsync(entityId, db, ct, structureOnly);
 
     public async Task<IReadOnlyList<MembershipSuggestionEnvelope>> GetSuggestionsAsync(
         Guid entityId,
@@ -210,7 +210,8 @@ public sealed class MediaEditorNavigationReadService(
     private static async Task<MediaEditorNavigatorEnvelope?> BuildMediaEditorNavigatorCoreAsync(
         Guid entityId,
         IDatabaseConnection db,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool structureOnly = false)
     {
         var launch = await ResolveEditorLaunchContextAsync(entityId, db, ct);
         if (launch is null)
@@ -242,11 +243,22 @@ public sealed class MediaEditorNavigationReadService(
                 Nodes: []);
         }
 
+        if (structureOnly)
+        {
+            // The family tree pages the files in itself (owned-children), so only the root and the parents (seasons, albums, series) are read here.
+            treeRows = treeRows
+                .Where(row => row.Depth == 0 || string.Equals(row.WorkKind, "parent", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         var valueMap = QueryNavigatorValues(conn, treeRows);
         var descendantOwnedCounts = ComputeNavigatorOwnedCounts(treeRows, valueMap);
         var orderedRows = OrderNavigatorRows(treeRows, valueMap);
+        var matched = QueryNavigatorMatchedIds(conn, treeRows);
+        var parentOf = treeRows.ToDictionary(row => row.WorkId, row => row.ParentWorkId);
         var nodes = orderedRows
             .Select(row => BuildNavigatorNodeEnvelope(mediaType, row, valueMap, descendantOwnedCounts))
+            .Select(node => WithMatchState(mediaType, node, parentOf, matched))
             .ToList();
 
         var rootNode = nodes.FirstOrDefault(node => node.IsRoot)
@@ -261,6 +273,60 @@ public sealed class MediaEditorNavigationReadService(
             ContainerTitle: rootNode?.Title ?? string.Empty,
             ContainerSubtitle: rootNode?.Subtitle,
             Nodes: nodes);
+    }
+
+    private static readonly string[] NavigatorIdentityKeys =
+    [
+        "tmdb_id", "tvdb_id", "musicbrainz_release_id", "musicbrainz_recording_id",
+        "comicvine_issue_id", "openlibrary_work_id", "wikidata_qid",
+    ];
+
+    // The works in the tree that carry a provider identity of their own.
+    private static HashSet<Guid> QueryNavigatorMatchedIds(SqliteConnection conn, IReadOnlyList<NavigatorTreeRow> rows)
+    {
+        var hexes = rows.Select(row => row.WorkId.ToString("N")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (hexes.Length == 0)
+        {
+            return [];
+        }
+
+        return conn.Query<Guid>("""
+            SELECT DISTINCT cv.entity_id FROM canonical_values cv
+            WHERE LOWER(HEX(cv.entity_id)) IN @hexes
+              AND cv.key IN @keys AND NULLIF(cv.value, '') IS NOT NULL;
+            """, new { hexes, keys = NavigatorIdentityKeys }).ToHashSet();
+    }
+
+    // A node is matched when it, or the show / album / series it sits under, carries a provider identity (a season rarely has its own).
+    private static MediaEditorNavigatorNodeEnvelope WithMatchState(
+        string mediaType,
+        MediaEditorNavigatorNodeEnvelope node,
+        IReadOnlyDictionary<Guid, Guid?> parentOf,
+        HashSet<Guid> matched)
+    {
+        // A series of videos and its sections are never "not matched": videos have no provider record, and a video's own mark is its series.
+        if (string.Equals(mediaType, "Videos", StringComparison.Ordinal))
+        {
+            return node;
+        }
+
+        Guid? current = node.NodeId;
+        var guard = 0;
+        while (current is { } id && guard++ < 8)
+        {
+            if (matched.Contains(id))
+            {
+                return node;
+            }
+
+            current = parentOf.GetValueOrDefault(id);
+        }
+
+        return node with
+        {
+            MatchState = "unmatched",
+            MatchReason = MediaEditorOwnedChildReadService.BuildMatchReason("unmatched", mediaType, "1", 1),
+        };
     }
 
     private static async Task<IReadOnlyList<MembershipSuggestionEnvelope>> BuildMembershipSuggestionsAsync(
@@ -487,11 +553,18 @@ public sealed class MediaEditorNavigationReadService(
                    CAST(pic.file_size AS TEXT) AS InspectionFileSize,
                    CAST(pic.container AS TEXT) AS InspectionContainer,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
+                   COALESCE(
                    (SELECT ea.id FROM entity_assets ea WHERE ea.entity_id = w.id
                     AND ea.asset_type = CASE WHEN w.media_type = 'TV' AND w.work_kind != 'parent' THEN 'EpisodeStill'
                         WHEN w.media_type = 'TV' AND w.parent_work_id IS NOT NULL THEN 'SeasonPoster' ELSE 'CoverArt' END
                     AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
-                    ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1) AS ArtworkId,
+                    ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1),
+                   -- A season has no picture of its own any more (editor and details revision D9): it shows its show's poster.
+                   (SELECT ea.id FROM entity_assets ea WHERE ea.entity_id = w.parent_work_id
+                    AND w.media_type = 'TV' AND w.work_kind = 'parent'
+                    AND ea.asset_type = 'CoverArt'
+                    AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
+                    ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1)) AS ArtworkId,
                    (SELECT ea.aspect_class FROM entity_assets ea WHERE ea.entity_id = w.id
                     AND ea.asset_type = 'CoverArt' AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
                     ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1) AS ArtworkShape,
@@ -516,7 +589,7 @@ public sealed class MediaEditorNavigationReadService(
         {
             "TV" or "Music" => true,
             "Movies" => true,
-            "Books" or "Audiobooks" or "Comics" => rows.Count > 1,
+            "Books" or "Audiobooks" or "Comics" or "Videos" => rows.Count > 1,
             _ => false,
         };
 

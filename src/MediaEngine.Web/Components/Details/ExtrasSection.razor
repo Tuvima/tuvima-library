@@ -2,75 +2,107 @@
 @using MediaEngine.Contracts.Details
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Extras row on a title's page: guidebooks, picture folders and clips found beside it. Hidden when there are none. A picture
-   folder is one card however many pictures it holds. Every card is a link, so it works with a remote, a keyboard and a finger. *@
+@* The Extras row on a title's page: supporting files found beside it, grouped by the groups a person named (universal editor v5 item 16). Each group
+   shows at most the Engine's cards-per-group, with a "See all" that opens the whole list read-only; a title with no group is one plain row with no
+   headings, as before. A picture folder is one card however many pictures it holds. Every card is a link, so it works with a remote, a keyboard and a
+   finger. On an episode or lesson page the same row lists the files shown alongside it. *@
 @if (Cards.Count > 0)
 {
+    var groups = ExtrasRowRules.Groups(Cards, CardsPerGroup);
+    var fileCount = ExtrasRowRules.FileCount(Cards);
     <section class="tl-extras" aria-labelledby="tl-extras-heading" data-testid="extras-section">
         <div class="tl-section-heading tl-extras__heading">
             <h2 id="tl-extras-heading">@L["Common_Extras"]</h2>
-            <span class="tl-extras__count">@Cards.Count</span>
-        </div>
-        <ul class="tl-extras__shelf">
-            @foreach (var card in Cards)
+            <span class="tl-extras__count">@fileCount</span>
+            @if (OnSeeAll.HasDelegate && ExtrasRowRules.HasHidden(groups))
             {
-                <li class="tl-extras__item">
-                    @if (card.IsMissing)
+                <span class="tl-extras__see-all">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-testid="extras-see-all"
+                               EndIcon="@AppMaterialIcons.Outlined.ChevronRight" OnClick="OnSeeAll">@string.Format(L["ExtrasSection_SeeAll"].Value, fileCount)</AppButton>
+                </span>
+            }
+        </div>
+        @foreach (var group in groups)
+        {
+            <div class="tl-extras__group" data-testid="extras-group">
+                @if (group.Name is not null)
+                {
+                    <h3 class="tl-extras__group-name" data-testid="extras-group-name">@(group.Name.Length == 0 ? L["ExtrasSection_More"].Value : group.Name)<span class="tl-extras__group-count"> · @group.Total</span></h3>
+                }
+                <ul class="tl-extras__shelf">
+                    @foreach (var card in group.Shown)
                     {
-                        <div class="tl-extras-card tl-extras-card--missing" data-kind="@card.Kind" aria-disabled="true">
-                            <div class="tl-extras-card__art" aria-hidden="true">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
-                            </div>
-                            <div class="tl-extras-card__text">
-                                <span class="tl-extras-card__title">@card.Title</span>
-                                <span class="tl-extras-card__subtitle">@L["ExtrasSection_FileNotFound"]</span>
-                            </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <a class="tl-extras-card" href="@ViewerHref(card)" data-kind="@card.Kind">
-                            <div class="tl-extras-card__art" aria-hidden="true">
-                                @if (card.Kind == DetailExtraCardKinds.Pictures && card.PreviewIds.Count > 0)
-                                {
-                                    <div class="tl-extras-card__mosaic" data-count="@Math.Min(4, card.PreviewIds.Count)">
-                                        @foreach (var previewId in card.PreviewIds.Take(4))
+                        <li class="tl-extras__item">
+                            @if (card.IsMissing)
+                            {
+                                <div class="tl-extras-card tl-extras-card--missing" data-kind="@card.Kind" aria-disabled="true">
+                                    <div class="tl-extras-card__art" aria-hidden="true">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppIconSize.Row24" />
+                                    </div>
+                                    <div class="tl-extras-card__text">
+                                        <span class="tl-extras-card__title">@card.Title</span>
+                                        <span class="tl-extras-card__subtitle">@L["ExtrasSection_FileNotFound"]</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <a class="tl-extras-card" href="@ExtrasRowRules.ViewerHref(card.Id)" data-kind="@card.Kind">
+                                    <div class="tl-extras-card__art" aria-hidden="true">
+                                        @if (card.Kind == DetailExtraCardKinds.Pictures && card.PreviewIds.Count > 0)
                                         {
-                                            <img src="@ThumbnailSrc(previewId)" alt="" loading="lazy" decoding="async" />
+                                            <div class="tl-extras-card__mosaic" data-count="@Math.Min(4, card.PreviewIds.Count)">
+                                                @foreach (var previewId in card.PreviewIds.Take(4))
+                                                {
+                                                    <img src="@ThumbnailSrc(previewId)" alt="" loading="lazy" decoding="async" />
+                                                }
+                                            </div>
+                                        }
+                                        else if (card.Kind == DetailExtraCardKinds.Clip)
+                                        {
+                                            <img src="@ThumbnailSrc(card.Id)" alt="" loading="lazy" decoding="async" />
+                                            <span class="tl-extras-card__play"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayCircle" Size="AppIconSize.Row24" /></span>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(card.FileBadge))
+                                        {
+                                            <span class="tl-extras-card__type" data-testid="extras-type">@card.FileBadge</span>
+                                        }
+                                        else
+                                        {
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Row24" />
                                         }
                                     </div>
-                                }
-                                else if (card.Kind == DetailExtraCardKinds.Clip)
-                                {
-                                    <img src="@ThumbnailSrc(card.Id)" alt="" loading="lazy" decoding="async" />
-                                    <span class="tl-extras-card__play"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayCircle" Size="AppSize.Medium" /></span>
-                                }
-                                else
-                                {
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppSize.Medium" />
-                                }
-                            </div>
-                            <div class="tl-extras-card__text">
-                                <span class="tl-extras-card__title">@card.Title</span>
-                                @if (!string.IsNullOrWhiteSpace(card.Subtitle))
-                                {
-                                    <span class="tl-extras-card__subtitle">@card.Subtitle</span>
-                                }
-                            </div>
-                        </a>
+                                    <div class="tl-extras-card__text">
+                                        <span class="tl-extras-card__title">@card.Title</span>
+                                        @if (!string.IsNullOrWhiteSpace(card.Badge))
+                                        {
+                                            <span class="tl-extras-card__badge" data-testid="extras-badge">@card.Badge</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(card.Subtitle))
+                                        {
+                                            <span class="tl-extras-card__subtitle">@card.Subtitle</span>
+                                        }
+                                    </div>
+                                </a>
+                            }
+                        </li>
                     }
-                </li>
-            }
-        </ul>
+                </ul>
+            </div>
+        }
     </section>
 }
 
 @code {
     [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
 
-    private IReadOnlyList<DetailExtraCardViewModel> Cards => Extras ?? [];
+    /// <summary>How many cards one group shows before "See all" (<c>cards_per_group</c>, sent by the Engine); 0 shows every card.</summary>
+    [Parameter] public int CardsPerGroup { get; set; }
 
-    private static string ViewerHref(DetailExtraCardViewModel card) => $"/extras/{Uri.EscapeDataString(card.Id)}";
+    /// <summary>Raised by "See all"; the page opens the whole list read-only. Without a handler the row offers no "See all".</summary>
+    [Parameter] public EventCallback OnSeeAll { get; set; }
+
+    private IReadOnlyList<DetailExtraCardViewModel> Cards => Extras ?? [];
 
     private static string ThumbnailSrc(string extraId) => $"/engine-extra/{Uri.EscapeDataString(extraId)}/thumbnail";
 }

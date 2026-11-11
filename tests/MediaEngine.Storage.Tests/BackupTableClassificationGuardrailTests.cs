@@ -16,8 +16,6 @@ public sealed class BackupTableClassificationGuardrailTests
     /// </summary>
     private static readonly HashSet<string> TablesWithoutOwnerColumn = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Rows belong to a bookmark pack and take their owner from bookmark_packs.profile_id.
-        "bookmark_pack_items",
     };
 
     [Fact]

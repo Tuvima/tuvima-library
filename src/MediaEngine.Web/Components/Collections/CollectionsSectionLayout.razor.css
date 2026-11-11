@@ -32,24 +32,21 @@
     padding-inline: var(--collections-content-gutter);
 }
 
-.collections-section ::deep .collections-results-heading,
-.collections-section ::deep .collections-people-heading {
+.collections-section ::deep .collections-results-heading{
     padding-inline: var(--collections-content-gutter);
 }
 
-.collections-section ::deep .collections-results-heading h1,
-.collections-section ::deep .collections-people-heading h1 {
+.collections-section ::deep .collections-results-heading h1{
     margin: 0;
     font-size: clamp(1.6rem, 1.7vw + 1rem, 2.65rem);
     line-height: 1.04;
 }
 
-.collections-section ::deep .collections-results-heading p,
-.collections-section ::deep .collections-people-heading p {
+.collections-section ::deep .collections-results-heading p{
     max-width: 760px;
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: 0.98rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.55;
 }
 
@@ -96,8 +93,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.collections-section ::deep .collections-results-heading,
-.collections-section ::deep .collections-people-heading {
+.collections-section ::deep .collections-results-heading{
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -105,8 +101,7 @@
     margin: 6px 0 20px;
 }
 
-.collections-section ::deep .collections-results-heading__copy,
-.collections-section ::deep .collections-people-heading__copy {
+.collections-section ::deep .collections-results-heading__copy{
     display: grid;
     gap: 7px;
 }
@@ -148,11 +143,10 @@
 .collections-section ::deep .browse-shell__sort-label,
 .collections-section ::deep .browse-shell__display-label {
     color: rgba(215, 224, 240, 0.72);
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
     letter-spacing: 0.08em;
     line-height: 1;
-    text-transform: uppercase;
 }
 
 .collections-section ::deep .collections-filter-selects {
@@ -205,24 +199,6 @@
     min-width: 205px;
 }
 
-.collections-section ::deep .collections-tile-size {
-    display: grid;
-    gap: 5px;
-    min-width: 150px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-}
-
-.collections-section ::deep .collections-display-controls .collections-tile-size {
-    grid-column: 2;
-    grid-row: 2;
-}
-
-.collections-section ::deep .collections-tile-size input {
-    width: 100%;
-}
-
 .collections-section ::deep .collections-load-more {
     display: flex;
     justify-content: center;
@@ -244,7 +220,7 @@
 .collections-section ::deep .collections-result-count {
     flex: 0 0 auto;
     color: var(--tl-text-muted);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
 }
 
@@ -272,8 +248,7 @@
 }
 
 @media (max-width: 900px) {
-    .collections-section ::deep .collections-results-heading,
-    .collections-section ::deep .collections-people-heading {
+    .collections-section ::deep .collections-results-heading{
         align-items: flex-start;
         flex-direction: column;
     }
@@ -282,8 +257,7 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .collections-section ::deep .browse-shell__display-label,
-    .collections-section ::deep .collections-display-controls .collections-tile-size {
+    .collections-section ::deep .browse-shell__display-label {
         grid-column: 1;
         grid-row: auto;
     }

@@ -34,17 +34,17 @@
         <p class="library-folders__phone-note">@PhoneNote</p>
         @if (_unknownType)
         {
-            <AppCard Class="library-folders__detail">
+            <div class="library-folders__detail">
                 <div class="library-folders__empty">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
                     <strong>@L["LibraryFoldersPanel_ThisLibraryTypeDoesNot"]</strong>
                     <span><a href="/settings/libraries">@L["Common_BackToLibraries"]</a></span>
                 </div>
-            </AppCard>
+            </div>
         }
         else if (ImportSelected)
         {
-            <AppCard Class="library-folders__detail">
+            <div class="library-folders__detail">
                 <header class="library-folders__detail-header">
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
@@ -82,7 +82,7 @@
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                                 <span class="library-folders__name-text">
                                     <strong>@L["Common_ImportFolder"]</strong>
-                                    <span class="library-folders__path" title="@ImportStatus.Path">@ImportStatus.Path</span>
+                                    <span class="library-folders__path" data-overflow-tooltip="@ImportStatus.Path">@ImportStatus.Path</span>
                                 </span>
                             </div>
                             <div role="cell"><span class="library-folders__chip">@L["Common_Import"]</span></div>
@@ -118,7 +118,7 @@
                                 }
                                 else
                                 {
-                                    <span class="library-folders__destination-path" title="@destination.Path">&rarr; @DestinationName(destination) &middot; @destination.Path</span>
+                                    <span class="library-folders__destination-path" data-overflow-tooltip="@destination.Path">&rarr; @DestinationName(destination) &middot; @destination.Path</span>
                                     @if (unavailable)
                                     {
                                         <span class="library-folders__status library-folders__status--warning">@L["LibraryFoldersPanel_FolderUnavailable"]</span>
@@ -137,11 +137,11 @@
                         <p class="library-folders__hint library-folders__hint--merge">@L["LibraryFoldersPanel_ToBringInAWhole"]</p>
                     }
                 }
-            </AppCard>
+            </div>
         }
         else
         {
-            <AppCard Class="library-folders__detail">
+            <div class="library-folders__detail">
                 @* Dropping files on this type's page puts them in the Import folder (Library setup D44). *@
                 <LibraryUploadZone Kinds="@Kinds"
                                    Configuration="@_configuration"
@@ -170,7 +170,6 @@
                                                    AriaLabel="@($"Rename {NameOf(library)}")"
                                                    Disabled="@(_saving || ReadOnly)"
                                                    OnClick="@(() => RenameLibraryAsync(library))" />
-                                    @UnmatchedBar(library)
                                 </div>
                             </header>
                             @LibraryBody(library, library.Id == BinLibraryId)
@@ -179,15 +178,10 @@
                 }
                 else
                 {
-                    @if (SelectedLibrary is { UnmatchedCount: > 0 })
-                    {
-                        <div class="library-folders__detail-actions">@UnmatchedBar(SelectedLibrary)</div>
-                    }
-
                     @LibraryBody(SelectedLibrary, true)
                 }
                 </LibraryUploadZone>
-            </AppCard>
+            </div>
         }
 
     }
@@ -275,7 +269,17 @@
     private async Task RefreshPathIssuesAsync()
     {
         if (_configuration is null) return;
-        _pathIssues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
+        var issues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
+        try
+        {
+            issues = LibraryFolderHealth.WithHeldKinds(issues, _configuration, LibraryFolderHealth.HeldKinds(await ApiClient.GetPluginsAsync()));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // The plugin list could not be read: keep the plain folder check.
+        }
+
+        _pathIssues = issues;
         _pathsChecked = true;
         await InvokeAsync(StateHasChanged);
     }
@@ -390,14 +394,6 @@
         var library = LibraryHolding(source);
         if (library is null || _saving) return;
         await AfterFollowUpAsync(await AddService.MergeIntoAsync(Scope, library, source));
-    }
-
-    // Row menu "Change what this folder is" (and the paused first-check line): the dialog asks what the folder is instead, shows the impact and queues the job.
-    private async Task ChangeKindAsync(LibrarySourceDto source)
-    {
-        var library = LibraryHolding(source);
-        if (library is null || _configuration is null || _saving || ReadOnly) return;
-        await AfterFollowUpAsync(await AddService.ChangeKindAsync(Scope, Kinds, _configuration, library, source));
     }
 
     // A follow-up that queued a job reloads the folders and starts watching the job; anything it has to say stays on screen.
@@ -527,12 +523,12 @@
         if (library is null || target is null || _saving) return;
         var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
         {
-            { component => component.Label, "Folder label" },
+            { component => component.Label, "Folder name" },
             { component => component.Value, target.DisplayName() },
         }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
         if (await dialog.Result is not { Canceled: false, Data: string label }) return;
-        target.Notes = label;
-        await SaveAsync(library, "Label saved.");
+        target.Label = label.Trim();
+        await SaveAsync(library, "Name saved.");
     }
 
     private async Task ChooseImportFolderAsync()
@@ -546,13 +542,7 @@
             { component => component.InitialPath, ImportStatus.Configured ? ImportStatus.Path : SuggestedImportPath },
             { component => component.HelpText, "Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders." },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
-        });
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
         await SaveImportFolderAsync(selected.Path, "Import folder saved.");
     }
@@ -562,7 +552,7 @@
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove the import folder?",
             "Library stops importing from it. Files in the folder stay on disk.",
-            yesText: "Remove", cancelText: "Keep");
+            yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed == true) await SaveImportFolderAsync(null, "Import folder removed.");
     }
 
@@ -618,8 +608,8 @@
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
             $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk."
-                + (IsVideosSelected ? " To move it to Photos and personal videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
-            yesText: "Remove", cancelText: "Keep");
+                + (IsVideosSelected ? " To move it to Photos and Videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
+            yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
         await SaveAsync(library, "Folder removed.");
@@ -676,14 +666,6 @@
         await SaveAsync(library, answer.Override is null
             ? $"{target.DisplayName()} follows the library's file handling."
             : $"File handling saved for {target.DisplayName()}.");
-    }
-
-    private async Task SetRecycleBinAsync(LibraryFolderDto source, bool value)
-    {
-        var library = Clone(source);
-        if (library is null || _saving) return;
-        library.RecycleBin = value;
-        await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
     }
 
     private async Task SetRecycleBinDaysAsync(LibraryFolderDto source, int days)
@@ -828,11 +810,11 @@
                 ? await DialogService.ShowMessageBoxAsync(
                     $"Stop merging {request.Source.DisplayName()}?",
                     "What was already copied stays in the target folder, and the rest stays in this folder. Nothing is undone. The log lists what remains.",
-                    yesText: "Stop merging", cancelText: "Keep going")
+                    yesText: "Stop merging", cancelText: "Keep going", options: AppDialogOptions.DestructiveConfirm)
                 : await DialogService.ShowMessageBoxAsync(
                     $"Stop organising {request.Source.DisplayName()}?",
                     "The folder stays Managed with the work done so far. Files already renamed keep their new names, and the rest will be tidied gradually by normal scans.",
-                    yesText: "Stop organising", cancelText: "Keep going");
+                    yesText: "Stop organising", cancelText: "Keep going", options: AppDialogOptions.DestructiveConfirm);
             if (confirmed != true) return;
         }
 
@@ -885,7 +867,6 @@
                                    OnSetDestination="SetDestinationAsync"
                                    OnSetScan="SetScanAsync"
                                    OnOverride="OverrideFileHandlingAsync"
-                                   OnChangeKind="@(EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))"
                                    OnRemove="RemoveFolderAsync"
                                    OnChangeHandling="ChangeModeAsync"
                                    OnLabel="LabelFolderAsync"
@@ -911,8 +892,7 @@
                                 Jobs="@_jobs"
                                 OnJobControl="ControlJobAsync"
                                 OnOrganiseNow="OrganiseNowAsync"
-                                OnMerge="MergeIntoAsync"
-                                OnChangeKind="@(EventCallback.Factory.Create<LibrarySourceDto>(this, ChangeKindAsync))" />
+                                OnMerge="MergeIntoAsync" />
             }
             if (!library.Sources.Any(IsManaged))
             {
@@ -926,46 +906,21 @@
             <ExcludedFilesSection LibraryId="@library.Id" ReadOnly="@ReadOnly" />
         }
 
-        // Pinned to the bottom of the pane, so the switch sits in the same place for every library. What is in the bin lists above it.
-        if (library is not null)
+        // What is in the bin, and how long it is kept, sit at the bottom of the pane while the bin is on. The on/off switch itself is
+        // the library's File handling tab (one switch, not two).
+        if (library is not null && library.RecycleBin)
         {
             <div class="library-folders__recycle">
-                @if (library.RecycleBin && showBin)
+                @if (showBin)
                 {
                     <RecycleBinSection />
                 }
-                <AppSwitchRow Label="Recycle bin"
-                              Icon="@AppMaterialIcons.Outlined.DeleteOutline"
-                              Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
-                              Value="@library.RecycleBin"
-                              Disabled="@(_saving || ReadOnly)"
-                              ValueChanged="@((bool value) => SetRecycleBinAsync(library, value))" />
-                @if (library.RecycleBin)
-                {
-                    <AppNumericField Label="Keep deleted files for (days, 0 keeps them until the bin is emptied)"
-                                     Value="@library.RecycleBinDays" Min="0" Max="3650"
-                                     Disabled="@(_saving || ReadOnly)"
-                                     ValueChanged="@((int value) => SetRecycleBinDaysAsync(library, value))" />
-                }
+                <AppNumericField Label="Keep deleted files for (days, 0 keeps them until the bin is emptied)"
+                                 Value="@library.RecycleBinDays" Min="0" Max="3650"
+                                 Disabled="@(_saving || ReadOnly)"
+                                 ValueChanged="@((int value) => SetRecycleBinDaysAsync(library, value))" />
             </div>
         }
-    };
-
-    // The amber Unmatched count with Retry now and Keep all as they are.
-    private RenderFragment UnmatchedBar(LibraryFolderDto library) => __builder =>
-    {
-        if (library.UnmatchedCount <= 0) return;
-        <LibraryUnmatchedCount Count="@library.UnmatchedCount" />
-        <AppButton Label="Retry now"
-                   ButtonStyle="AppButtonStyle.Outlined"
-                   Disabled="@(_saving || ReadOnly)"
-                   aria-label="@($"Retry now for {NameOf(library)}")"
-                   OnClick="@(() => RetryUnmatchedAsync(library))" />
-        <AppButton Label="Keep all as they are"
-                   ButtonStyle="AppButtonStyle.Text"
-                   Disabled="@(_saving || ReadOnly)"
-                   aria-label="@($"Keep all unmatched files in {NameOf(library)} as they are")"
-                   OnClick="@(() => KeepAllUnmatchedAsync(library))" />
     };
 
     // The libraries of the selected kind when it holds several named ones and has any; otherwise the one library (or none yet).
@@ -999,55 +954,6 @@
         copy.Name = name;
         await SaveAsync(copy, "Library renamed.");
     }
-
-    // Retry now: the Engine makes the library's Unmatched files due and looks them up in the background.
-    private async Task RetryUnmatchedAsync(LibraryFolderDto library)
-    {
-        if (_saving) return;
-        // Busy while the request runs, so a double click sends one.
-        _saving = true;
-        try
-        {
-            var result = await ApiClient.RetryUnmatchedLibraryAsync(library.Id);
-            await AfterUnmatchedActionAsync(result, affected => $"Trying {affected} again in {NameOf(library)}.");
-        }
-        finally { _saving = false; }
-    }
-
-    // Keep all as they are stops the retries and clears them from the count; it asks first, because it ends the lookups for those files.
-    private async Task KeepAllUnmatchedAsync(LibraryFolderDto library)
-    {
-        if (_saving) return;
-        // Busy from the question to the answer, so a double click asks and sends once.
-        _saving = true;
-        try
-        {
-            var confirmed = await DialogService.ShowMessageBoxAsync(
-                $"Stop trying to match {FilesText(library.UnmatchedCount)} in {NameOf(library)}?",
-                "You can look them up again later.",
-                yesText: "Keep all as they are", cancelText: "Cancel");
-            if (confirmed != true) return;
-            var result = await ApiClient.KeepAllUnmatchedLibraryAsync(library.Id);
-            await AfterUnmatchedActionAsync(result, affected => $"Kept {affected} in {NameOf(library)} as they are.");
-        }
-        finally { _saving = false; }
-    }
-
-    // The toast says how many files the action touched; the counts are read again.
-    private async Task AfterUnmatchedActionAsync(MediaEngine.Contracts.Library.UnmatchedActionResultDto? result, Func<string, string> message)
-    {
-        if (result is null)
-        {
-            _notice = ApiClient.LastError ?? "That could not be done. Try again in a moment.";
-            return;
-        }
-
-        Snackbar.Add(message(FilesText(result.Affected)), AppSeverity.Success);
-        await ReloadConfigurationAsync();
-        await Changed.InvokeAsync();
-    }
-
-    private static string FilesText(int count) => count == 1 ? "1 file" : $"{DisplayFormat.FormatCount(count)} files";
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
         ? null

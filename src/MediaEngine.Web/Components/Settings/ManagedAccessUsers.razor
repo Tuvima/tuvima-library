@@ -11,7 +11,7 @@
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-<SettingsSectionPanel Title="@L["ManagedAccessUsers_UsersAndSignIn"].Value" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
+<SettingsSectionPanel Title="@L["ManagedAccessUsers_UsersAndSignIn"].Value" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles.">
     @if (!CanManage)
     {
         <AppAlert Severity="AppSeverity.Warning">@L["ManagedAccessUsers_AdministratorAccessIsRequiredTo"]</AppAlert>
@@ -386,7 +386,7 @@
             return;
         if (await Dialogs.ShowMessageBoxAsync($"Turn off two-step codes for {UserLabel(user)}?",
                 "They can sign in with just their password until they turn two-step codes on again. This is recorded in the activity log.",
-                yesText: "Turn off", cancelText: "Cancel") != true)
+                yesText: "Turn off", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true)
             return;
         if (!TryBeginMutation(out var generation))
             return;

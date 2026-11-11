@@ -26,15 +26,22 @@ public static class BulkEditStager
     /// unchanged" (nothing is staged); on a field every item agrees on, an empty box sends the items back to the provider's value, as the
     /// single Details tool does.
     /// </summary>
-    public static BulkStageResult StageScalar(PendingEditList pending, BulkFieldView field, string? typed)
+    public static BulkStageResult StageScalar(PendingEditList pending, BulkFieldView field, string? typed, string? noun = null)
     {
         ArgumentNullException.ThrowIfNull(pending);
         ArgumentNullException.ThrowIfNull(field);
         var value = (typed ?? string.Empty).Trim();
+        if (BulkEditRules.IsIdentifying(field.Key))
+        {
+            // A field that names one item is never set for several: giving them one value would make them collide.
+            var count = field.Eligible.Count();
+            return new BulkStageResult(0, field.Items.Count, BulkEditRules.CollisionReason(field.Key, count, noun ?? "items", value) ?? $"{field.Label} belongs to one item and can't be set for several.");
+        }
+
         var staged = 0;
         foreach (var item in field.Eligible)
         {
-            var current = item.Text.Trim();
+            var current = BulkEditRules.NormalizeForCompare(field.Key, item.Text.Trim());
             var leaveAlone = string.Equals(value, current, StringComparison.Ordinal) || (value.Length == 0 && (field.IsMixed || current.Length == 0));
             if (leaveAlone)
             {
@@ -42,7 +49,7 @@ public static class BulkEditStager
                 continue;
             }
 
-            pending.SetField(item.EntityId, field.Key, value);
+            pending.SetField(item.EntityId, field.Key, value, before: BeforeText(item));
             staged++;
         }
 
@@ -87,7 +94,7 @@ public static class BulkEditStager
             }
             else
             {
-                pending.SetField(item.EntityId, field.Key, BatchEditFieldCatalog.ToOverrideValue(catalog, next));
+                pending.SetField(item.EntityId, field.Key, BatchEditFieldCatalog.ToOverrideValue(catalog, next), before: BeforeText(item));
                 staged++;
             }
         }
@@ -96,6 +103,13 @@ public static class BulkEditStager
             ? $"{kept} {(kept == 1 ? "item keeps" : "items keep")} its {field.Label.ToLowerInvariant()}: the list can't be left empty."
             : SkippedNote(field);
         return new BulkStageResult(staged, field.Locked.Count + kept, note);
+    }
+
+    // What the item holds now, for Review's Before.
+    private static string BeforeText(BulkFieldItem item)
+    {
+        var text = string.Join("; ", item.Values.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()));
+        return text.Length == 0 ? EditReviewRows.NotSet : text;
     }
 
     /// <summary>Takes every staged value of one field back out for the ticked items (the person set the field back to "No change").</summary>
@@ -224,5 +238,32 @@ public static class BulkEditStager
 
         var reason = locked.Select(item => item.LockedReason).FirstOrDefault(text => !string.IsNullOrWhiteSpace(text))?.TrimEnd('.');
         return $"{locked.Count} of {field.Items.Count} can't take this change{(reason is null ? string.Empty : $" ({reason})")} and will be left as they are.";
+    }
+
+    /// <summary>
+    /// Stages every ticked video into one series (universal editor v3.1): an existing series or section by id, or a new one by name. One entry
+    /// per video, so Review lists each one and the Engine's check flags any that cannot join. Returns how many were staged.
+    /// </summary>
+    public static int PutInSeries(PendingEditList pending, IReadOnlyList<BulkEditRow> rows, Guid? seriesId, string? newSeriesName, string label)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        ArgumentNullException.ThrowIfNull(rows);
+        var name = newSeriesName?.Trim();
+        if (seriesId is null && string.IsNullOrWhiteSpace(name))
+        {
+            return 0;
+        }
+
+        foreach (var row in rows)
+        {
+            pending.SetTarget(
+                EditSessionChangeKinds.VideoSeries,
+                row.Id,
+                seriesId?.ToString(),
+                seriesId is null ? EditSessionVideo.NewSeriesToken(name!) : null,
+                label);
+        }
+
+        return rows.Count;
     }
 }

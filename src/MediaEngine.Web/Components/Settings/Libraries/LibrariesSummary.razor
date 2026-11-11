@@ -1,0 +1,35 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
+
+@* "In your collection" (Libraries and folder picker, item 2): one count per kind of library, each in its area's color. A kind whose count is not known shows its
+   folder count instead, and a kind with nothing in it is left out. Photos and videos are counted by their folders. *@
+@if (Items.Count > 0)
+{
+    <section class="lib-summary" aria-label="@L["LibrariesSummary_InYourCollection"].Value" data-lib-summary>
+        <h3 class="lib-summary__heading">@L["LibrariesSummary_InYourCollection"]</h3>
+        <ul class="lib-summary__list">
+            @foreach (var item in Items)
+            {
+                <li class="lib-summary__item lib-area--@item.Area" data-kind="@item.Key">
+                    <span class="lib-summary__icon"><AppMaterialIcon Icon="@item.Icon" /></span>
+                    <span class="lib-summary__count">@DisplayFormat.FormatCount(item.Count)</span>
+                    <span class="lib-summary__label">@item.Label</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LibraryListRow> Rows { get; set; } = [];
+
+    private sealed record Item(string Key, string Area, string Icon, string Label, int Count);
+
+    // Titles when the Engine counts them for the kind, else folders ("2 folders"); rows with nothing in them are left out.
+    private IReadOnlyList<Item> Items => [.. Rows
+        .Select(row => row.Titles is { } titles
+            ? new Item(row.Key, row.Area.ToLowerInvariant(), row.Type.Icon, row.Type.PluralLabel, titles)
+            : new Item(row.Key, row.Area.ToLowerInvariant(), row.Type.Icon, L["LibrariesSummary_KindFolders", row.Type.PluralLabel].Value, row.Folders ?? 0))
+        .Where(item => item.Count > 0)];
+}

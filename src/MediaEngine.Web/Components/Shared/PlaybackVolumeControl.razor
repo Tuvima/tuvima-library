@@ -1,0 +1,158 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using MediaEngine.Web.Services.Theming
+@implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@inject IServiceProvider Services
+
+@* The one volume control for the video, audiobook and music players (unified player v2 D10; mockup screen 2): one speaker glyph with three states
+   (loud, quiet, muted with a cross). Click mutes; clicking again restores the level from before. Hovering or focusing the speaker reveals a short
+   horizontal slider (96 px, the same thin rail and small handle as the timeline) to its right, which stays while the pointer or focus is on it and for
+   400 ms after (playback-volume.js; CSS reads data-open so the busy player never has to re-render for it). The slot the slider opens into is always
+   in the markup and has no width until it opens; the tools zone is right-aligned, so the bar's other zones never move.
+   On touch the speaker opens a small Volume panel (Menu size) instead, with mute inside it. When the device cannot set the volume in software
+   (Supported is false) there is no slider and the speaker only mutes. *@
+<span class="@RootClass" @ref="_root" data-chrome-hold data-playback-volume data-volume-level="@LevelName" data-volume-mode="@(UsesPanel ? "panel" : "hover")">
+    @if (UsesPanel)
+    {
+        <PlaybackPanel Title="@L["Common_Volume"].Value" Kind="menu" Size="menu" Surface="@PanelSurface" TriggerClass="playback-volume__trigger">
+            <TriggerContent>
+                <PlaybackUtilityGlyph Glyph="@SpeakerGlyph" />
+            </TriggerContent>
+            <ChildContent>
+                <div class="playback-volume-panel" role="group" aria-label="@L["Common_Volume"].Value">
+                    <PlaybackIconButton Control="@Control" Surface="panel" Size="@Size" Appearance="bare" GlyphOverride="@SpeakerGlyph" OnClick="OnToggleMute" />
+                    <span class="playback-volume-panel__slider">
+                        <AppRangeSlider Min="0" Max="1" Step="@Step" Value="@Volume" ShowTicks="false" CommitOnChange="@CommitOnChange"
+                                        Surface="player" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolume" ValueChanged="OnVolumeChanged" />
+                    </span>
+                    <output class="playback-volume-panel__value" aria-hidden="true">@FormatVolume(Volume)</output>
+                </div>
+            </ChildContent>
+        </PlaybackPanel>
+    }
+    else
+    {
+        <span class="playback-volume__button" @onkeydown="HandleKeyAsync" data-volume-keys="@(Supported ? "true" : null)">
+            <PlaybackIconButton Control="@Control" Surface="@Surface" Size="@Size" Appearance="@Appearance" GlyphOverride="@SpeakerGlyph" OnClick="OnToggleMute" />
+        </span>
+        <span class="playback-volume__slot" data-volume-slot>
+            @if (Supported)
+            {
+                <span class="playback-volume__panel" role="group" aria-label="@L["Common_Volume"].Value">
+                    <AppRangeSlider Min="0" Max="1" Step="@Step" Value="@Volume" ShowTicks="false" CommitOnChange="@CommitOnChange"
+                                    Surface="player" Class="playback-volume__slider" AriaLabel="@L["Common_Volume"].Value"
+                                    ValueFormatter="FormatVolume" ValueChanged="OnVolumeChanged" />
+                </span>
+            }
+        </span>
+    }
+</span>
+
+@code {
+    /// <summary>Volume from 0 to 1.</summary>
+    [Parameter] public double Volume { get; set; }
+    [Parameter] public bool IsMuted { get; set; }
+    /// <summary>False when the device can only change its volume with its own buttons; the slider is then not drawn.</summary>
+    [Parameter] public bool Supported { get; set; } = true;
+    [Parameter] public string Surface { get; set; } = "video";
+    [Parameter] public string Size { get; set; } = "compact";
+    [Parameter] public string Appearance { get; set; } = "standard";
+    [Parameter] public bool CommitOnChange { get; set; }
+    /// <summary>The size of one arrow-key step (5 percent by default).</summary>
+    [Parameter] public double Step { get; set; } = 0.05;
+
+    /// <summary>
+    /// True when the primary input is touch: tapping the speaker then opens the Volume panel instead of muting. Left unset, the browser's report
+    /// (<see cref="DeviceContextService.IsTouch"/>) decides.
+    /// </summary>
+    [Parameter] public bool? Touch { get; set; }
+    [Parameter] public EventCallback<double> OnVolumeChanged { get; set; }
+    [Parameter] public EventCallback OnToggleMute { get; set; }
+
+    /// <summary>Below this level the speaker shows its quiet form (one wave).</summary>
+    public const double QuietBelow = 0.5d;
+
+    private ElementReference _root;
+    private IJSObjectReference? _module;
+    private DeviceContextService? _device;
+    private bool _disposed, _attached;
+
+    private bool UsesPanel => Supported && (Touch ?? _device?.IsTouch ?? false);
+    private string RootClass => $"playback-volume playback-volume--{Surface}";
+    private string PanelSurface => Surface is "dock" or "phone" or "expanded" or "popup" or "video" ? Surface : "panel";
+
+    /// <summary>Which of the speaker's three states shows: "muted" (crossed), "quiet" (one wave) or "loud" (two waves).</summary>
+    public static string Level(bool isMuted, double volume) => isMuted ? "muted" : volume < QuietBelow ? "quiet" : "loud";
+
+    private string LevelName => Level(IsMuted, Volume);
+
+    private PlaybackUtilityGlyphKind SpeakerGlyph => LevelName switch
+    {
+        "muted" => PlaybackUtilityGlyphKind.Mute,
+        "quiet" => PlaybackUtilityGlyphKind.VolumeLow,
+        _ => PlaybackUtilityGlyphKind.Volume,
+    };
+
+    private PlaybackControlDefinition Control => new(
+        PlaybackControlKey.Mute,
+        IsMuted ? "Unmute" : "Mute",
+        IsMuted ? "Unmute" : "Mute",
+        IsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume,
+        PlaybackControlPlacement.Utility,
+        "toggle-mute",
+        IsActive: IsMuted);
+
+    private static string FormatVolume(double value) => $"{Math.Clamp((int)Math.Round(value * 100d), 0, 100)}%";
+
+    protected override void OnInitialized()
+    {
+        _device = Services.GetService(typeof(DeviceContextService)) as DeviceContextService;
+        if (_device is not null) _device.OnChanged += DeviceChanged;
+    }
+
+    private void DeviceChanged()
+    {
+        if (!_disposed) _ = InvokeAsync(StateHasChanged);
+    }
+
+    // Arrow keys on the speaker button itself step the volume too, so the control works before the slider has focus. The page must not scroll
+    // under them: a handler here runs after the browser has acted, so playback-volume.js cancels the keys' default for the speaker (data-volume-keys).
+    // (A key pressed on the slider is handled by the slider's own range input, which sits outside this handler.)
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (!Supported || args.Key is not ("ArrowUp" or "ArrowDown")) return;
+        var next = Math.Clamp(Volume + (args.Key == "ArrowUp" ? Step : -Step), 0d, 1d);
+        await OnVolumeChanged.InvokeAsync(Math.Round(next, 2));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-volume.js");
+            if (_module is null) return;
+            // The reveal only exists in the hover form; the touch form opens a panel and has nothing to reveal.
+            if (UsesPanel && _attached) { await _module.InvokeVoidAsync("detach", _root); _attached = false; }
+            else if (!UsesPanel && !_attached) { await _module.InvokeVoidAsync("attach", _root); _attached = true; }
+        }
+        catch (InvalidOperationException) { }
+        catch (JSDisconnectedException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_device is not null) _device.OnChanged -= DeviceChanged;
+        if (_module is null) return;
+        try
+        {
+            if (_attached) await _module.InvokeVoidAsync("detach", _root);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

@@ -44,6 +44,8 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetPluginsAsync), _ =>
                 Task.FromResult<IReadOnlyList<PluginSummaryResponse>>(_plugins.ToList()));
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginSetupPageAsync), args =>
+                Task.FromResult<PluginSetupPageResponse?>(new PluginSetupPageResponse { PluginId = (string)args![0]!, Cards = [new PluginSetupCardDto { Key = "about", Title = "About" }] }));
             stub.SetHandler(nameof(IEngineApiClient.GetAiUsageAsync), _ => Task.FromResult<AiUsageResponse?>(_usage));
             stub.SetHandler(nameof(IEngineApiClient.SetPluginEnabledAsync), args =>
             {
@@ -155,10 +157,9 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         var card = cut.Find("[data-state-card=plugin]");
-        Assert.Contains("Needs FFmpeg", card.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Engine-written line", card.TextContent, StringComparison.Ordinal);
+        // The permission lines left the tile (v4 D30); they are on the plugin's own page.
+        Assert.DoesNotContain("Needs FFmpeg", card.TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Reads your media files", card.TextContent, StringComparison.Ordinal);
-        Assert.Equal("No", cut.Find("[data-state-card=plugin] [data-testid=sends-data]").TextContent.Trim());
     }
 
     [Fact]
@@ -180,7 +181,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             var line = cut.Find("[data-testid=plugin-approval]").TextContent;
-            Assert.Contains("Turned on by Avery on", line, StringComparison.Ordinal);
+            Assert.Contains("By Avery on", line, StringComparison.Ordinal);
             Assert.Contains("2026", line, StringComparison.Ordinal);
         });
     }
@@ -218,20 +219,28 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
             ],
         };
 
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "usage"));
+        // Status lists the plugins with this hour's counts and no table.
+        var status = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "status"));
 
-        cut.WaitForAssertion(() => Assert.Contains("Vibe tags", cut.Markup, StringComparison.Ordinal));
-        Assert.Contains("Smart labelling", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("130 of 120 requests this hour", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Needs attention", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins?plugin=tuvima.ai-vibe-tags");
-        Assert.Contains("Classify", cut.Find("table").TextContent, StringComparison.Ordinal);
+        status.WaitForAssertion(() => Assert.Contains("Vibe tags", status.Markup, StringComparison.Ordinal));
+        Assert.Contains("Plugins using Local AI", status.Markup, StringComparison.Ordinal);
+        Assert.Contains("Smart labelling", status.Markup, StringComparison.Ordinal);
+        Assert.Contains("130 of 120 requests this hour", status.Markup, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", status.Markup, StringComparison.Ordinal);
+        Assert.Contains(status.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins?plugin=tuvima.ai-vibe-tags");
+        Assert.Empty(status.FindAll("table"));
+
+        // Advanced holds the detailed usage table and not the plugin list.
+        var advanced = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
+
+        advanced.WaitForAssertion(() => Assert.Contains("Classify", advanced.Find("table").TextContent, StringComparison.Ordinal));
+        Assert.DoesNotContain("Plugins using Local AI", advanced.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
     public void LocalAiBudget_ShowsTheDefaultPluginAllowance_AndSavesWhatTheAdministratorChanges()
     {
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "budget"));
+        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
 
         cut.WaitForAssertion(() => Assert.Contains("Plugin allowance", cut.Markup, StringComparison.Ordinal));
         Assert.Contains("Requests per hour", cut.Markup, StringComparison.Ordinal);
@@ -250,7 +259,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
 
         var card = cut.Find("[data-state-card=plugin]");
         Assert.Equal("needsattention", card.GetAttribute("data-health"));
-        Assert.Contains("Needs approval: its permissions changed", card.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Needs approval: its permissions changed", card.InnerHtml, StringComparison.Ordinal);
         Assert.False(cut.Find("[data-state-card=plugin] input[role=switch]").HasAttribute("checked"));
 
         cut.Find("[data-state-card=plugin] input[role=switch]").Change(true);

@@ -1197,7 +1197,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     }
 
     [Fact]
-    public async Task UniverseDetailListsOnlyVisibleItemsAndOffersOnlyOverviewAndDetails()
+    public async Task UniverseDetailListsOnlyVisibleItemsAndOffersOnlyOverview()
     {
         var collectionId = Guid.NewGuid();
         var visibleCharacter = Guid.NewGuid();
@@ -1251,7 +1251,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             ]);
 
         Assert.NotNull(detail);
-        Assert.Equal(["overview", "details"], detail!.Tabs.Select(tab => tab.Key));
+        Assert.Equal(["overview"], detail!.Tabs.Select(tab => tab.Key));
         Assert.Empty(detail.ContributorGroups);
         var items = detail.MediaGroups.SelectMany(group => group.Items).ToList();
         Assert.Contains(items, item => item.Title == "Visible universe work");
@@ -1893,6 +1893,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch { }
+        DisposeBookmarkFrameFolder();
     }
 
     private sealed class RecentAdditionRow

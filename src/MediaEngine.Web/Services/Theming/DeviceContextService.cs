@@ -253,6 +253,24 @@ public sealed class DeviceContextService
     /// <summary>Whether the form factor is a phone (below 600 px).</summary>
     public bool IsPhone => FormFactor == "phone";
 
+    /// <summary>The browser window's width in CSS pixels as the player last reported it, or null before it has. Only the player reads it (<see cref="MediaEngine.Web.Services.Playback.PlaybackFormFactor"/>).</summary>
+    public double? ViewportWidth { get; private set; }
+
+    /// <summary>Records the window width. Listeners are told only when the width crosses the player's phone width, so a window being dragged does not re-render every page.</summary>
+    public void SetViewportWidth(double width)
+    {
+        if (!double.IsFinite(width) || width <= 0)
+        {
+            return;
+        }
+        var before = MediaEngine.Web.Services.Playback.PlaybackFormFactor.IsPhoneWidth(ViewportWidth);
+        ViewportWidth = width;
+        if (before != MediaEngine.Web.Services.Playback.PlaybackFormFactor.IsPhoneWidth(width))
+        {
+            OnChanged?.Invoke();
+        }
+    }
+
     /// <summary>Whether the form factor is a tablet (600 to 1023 px).</summary>
     public bool IsTablet => FormFactor == "tablet";
 

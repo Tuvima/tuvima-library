@@ -1,0 +1,90 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one Audio & subtitles tool of a TV or movie player (unified player v2 D12, D13; mockup screens 3, 4 and 15). A wide panel (560 px) opened from the
+   speech-bubble-with-sound-waves button, with Audio and Subtitles side by side. The footer opens two nested views in the same panel: Subtitle appearance
+   (and, one level deeper, Custom appearance) and Find subtitles. On a phone it is a bottom sheet with Audio and Subtitles as tabs. *@
+<PlaybackPanel @ref="_panel" Title="@L["AudioSubtitles_Title"].Value" ToolId="@ToolId" Size="wide" Surface="@Surface" ItemKey="@ItemKey"
+               TriggerClass="@TriggerClass" OpenChanged="OpenChanged" Footer="@MainFooter">
+    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.AudioSubtitles" /></TriggerContent>
+    <ChildContent>
+        <AudioSubtitlesChoicesView Audio="@Audio" Subtitles="@Subtitles" Position="@Position" OnSwitch="OnSwitch" Notice="@Notice" />
+    </ChildContent>
+</PlaybackPanel>
+
+@code {
+    [Parameter] public string ToolId { get; set; } = "video-captions";
+    [Parameter] public string Surface { get; set; } = "video";
+    [Parameter] public string? ItemKey { get; set; }
+    [Parameter] public string? TriggerClass { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>The Audio rows (see <see cref="AudioSubtitlesChoices.BuildAudio"/>).</summary>
+    [Parameter] public IReadOnlyList<AudioChoice> Audio { get; set; } = [];
+
+    /// <summary>The Subtitles rows, Off first.</summary>
+    [Parameter] public IReadOnlyList<SubtitleChoice> Subtitles { get; set; } = [];
+
+    /// <summary>The second the video is at now, handed to the host with every switch so it resumes there (acceptance A9).</summary>
+    [Parameter] public double Position { get; set; }
+
+    [Parameter] public EventCallback<TrackSwitchRequest> OnSwitch { get; set; }
+
+    /// <summary>A line under the lists saying why a choice did not happen (for example, audio could not be switched).</summary>
+    [Parameter] public string? Notice { get; set; }
+
+    /// <summary>The profile's subtitle look and the way to change it (applied to the playing video at once, then saved on the profile).</summary>
+    [Parameter] public SubtitleLanguageSettingsDto? Look { get; set; }
+    [Parameter] public Func<Action<SubtitleLanguageSettingsDto>, Task>? StyleChanged { get; set; }
+
+    /// <summary>Find subtitles: whether a source is switched on, whether a search is running, what it last said, and the preferred-version action.</summary>
+    [Parameter] public bool NoSubtitleSource { get; set; }
+    [Parameter] public bool IsAdministrator { get; set; }
+    [Parameter] public bool SearchLoading { get; set; }
+    [Parameter] public string? SearchStatus { get; set; }
+    [Parameter] public bool CanSetPreferred { get; set; }
+    [Parameter] public EventCallback OnSearch { get; set; }
+    [Parameter] public EventCallback OnSetPreferred { get; set; }
+
+    private PlaybackPanel? _panel;
+
+    private RenderFragment MainFooter => @<AudioSubtitlesActions OnAppearance="OpenAppearance" OnFind="OpenFind" />;
+
+    private RenderFragment AppearanceBody => @<SubtitleAppearanceView Look="@Look" StyleChanged="StyleChanged" OnCustom="OpenCustom" />;
+
+    private RenderFragment CustomBody => @<SubtitleCustomAppearanceView Look="@Look" StyleChanged="StyleChanged" />;
+
+    private RenderFragment FindBody => @<SubtitleFindView NoSource="@NoSubtitleSource" IsAdministrator="@IsAdministrator" Loading="@SearchLoading" Status="@SearchStatus"
+                                                          CanSetPreferred="@CanSetPreferred" OnSearch="OnSearch" OnSetPreferred="OnSetPreferred" />;
+
+    // Footer of the two appearance views (mockup screen 4): Reset to default at the left, the saving note at the right.
+    private RenderFragment AppearanceFooter =>
+        @<div class="asp-footer" data-subtitle-appearance-footer>
+            <AppNativeButton Type="button" Class="asp-footer__reset" data-asp-action="reset" OnClick="ResetAppearanceAsync">@L["SubtitleAppearance_Reset"]</AppNativeButton>
+            <span class="asp-footer__spacer"></span>
+            <span class="asp-footer__note">@L["SubtitleAppearance_Saved"]</span>
+        </div>;
+
+    private Task OpenAppearance()
+    {
+        _panel?.Navigator.Push(L["AudioSubtitles_SubtitleAppearance"].Value, AppearanceBody, AppearanceFooter);
+        return Task.CompletedTask;
+    }
+
+    private Task OpenCustom()
+    {
+        _panel?.Navigator.Push(L["SubtitleAppearance_Custom"].Value, CustomBody, AppearanceFooter);
+        return Task.CompletedTask;
+    }
+
+    private Task OpenFind()
+    {
+        _panel?.Navigator.Push(L["AudioSubtitles_FindTitle"].Value, FindBody);
+        return Task.CompletedTask;
+    }
+
+    private Task ResetAppearanceAsync() => StyleChanged is null ? Task.CompletedTask : StyleChanged(SubtitleAppearance.Reset);
+}

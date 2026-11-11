@@ -14,7 +14,7 @@
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-xl, 12px);
     background: var(--tl-bg-surface-raised, #151E2F);
-    transition: border-color var(--tl-motion-fast, 140ms) ease, background-color var(--tl-motion-fast, 140ms) ease;
+    transition: border-color var(--tl-motion-duration-fast, 140ms) ease, background-color var(--tl-motion-duration-fast, 140ms) ease;
     --kind-accent: var(--tl-accent-primary);
 }
 
@@ -84,7 +84,7 @@
     align-items: center;
     gap: 6px;
     color: var(--kind-accent);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: var(--tl-font-weight-semibold);
 }
 
@@ -99,7 +99,7 @@
 .overview-continue__subtitle {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -117,7 +117,7 @@
 
 .overview-continue__percent {
     color: var(--tl-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-variant-numeric: tabular-nums;
 }
 

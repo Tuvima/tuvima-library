@@ -74,9 +74,9 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     private LibraryTypeOption Kind(string key) => LibraryKindsTestData.Catalog.Find(key)!;
 
     // The wrapped list stands in for the page's own list.
-    private IRenderedComponent<LibraryUploadZone> RenderZone(LibraryTypeOption? type = null, LibraryGroup? group = null, bool readOnly = false) =>
+    private IRenderedComponent<LibraryUploadZone> RenderZone(LibraryTypeOption? type = null, LibraryGroup? group = null, bool readOnly = false, LibraryKindCatalog? kinds = null) =>
         Render<LibraryUploadZone>(parameters => parameters
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.Kinds, kinds ?? LibraryKindsTestData.Catalog)
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.Type, type)
             .Add(x => x.Group, group)
@@ -172,9 +172,10 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         Assert.Contains("Movies", cards);
         Assert.Contains("TV Shows", cards);
         Assert.DoesNotContain("Music", cards);
-        // The usual kind card: tile, Metadata icons and the (i).
+        // The usual kind card: tile and Metadata icons, with a hover card instead of an (i) (Libraries v3 D24).
         Assert.NotEmpty(_dialogs.FindAll(".lib-choice__kind .lib-meta"));
-        Assert.NotEmpty(_dialogs.FindAll(".lib-choice__info"));
+        Assert.Empty(_dialogs.FindAll(".lib-choice__info"));
+        Assert.NotEmpty(_dialogs.FindAll(".lib-choice__kind .lib-peek"));
         Assert.Contains("a.mkv", Text(_dialogs.Find(".upload-dialog__section .lib-choice__lead")));
 
         _dialogs.Find(".lib-choice__kind-option[data-type=movies]").Click();
@@ -218,11 +219,16 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
     [Fact]
     public async Task APlainKindAsksWhichLibrary_AndNewCustomLibraryOpensCreateLibraryInsteadOfSending()
     {
-        var cut = RenderZone(group: LibraryKindsTestData.Catalog.TryGetGroup("watch"));
+        // Libraries are fixed names, one per kind (Libraries v3 D17); only a kind added in config can hold several, so the question appears for one of those.
+        var podcasts = LibraryKindsTestData.Podcasts();
+        podcasts.AllowsMultiple = true;
+        podcasts.MaxLibraries = 5;
+        var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(podcasts));
+        var cut = RenderZone(group: kinds.TryGetGroup("listen"), kinds: kinds);
 
-        var drop = Choose(cut, File("f1", "clip.mp4"));
+        var drop = Choose(cut, File("f1", "episode.mp3"));
         _dialogs.WaitForElement(".upload-dialog");
-        _dialogs.Find(".lib-choice__kind-option[data-type=other_videos]").Click();
+        _dialogs.Find(".lib-choice__kind-option[data-type=podcasts]").Click();
 
         _dialogs.WaitForElement("[data-library=new]");
         Assert.NotNull(_dialogs.Find("#upload-dialog-0-library"));

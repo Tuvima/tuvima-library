@@ -7,7 +7,7 @@ namespace MediaEngine.Storage.Playback;
 /// <summary>
 /// Saved spots in a video or an audiobook (Videos spec D43). The table and class keep their audiobook names because the
 /// stored data is unchanged; a row works for any playable file. A personal bookmark belongs to the profile that made it;
-/// a global one (<c>is_global</c>) is seen by everybody who can see the title and changed only by a server administrator.
+/// a global one (<c>is_global</c>) is in the title's Everyone list and changed only in the editor by a server administrator.
 /// </summary>
 public sealed class AudiobookBookmarkRepository
 {
@@ -19,48 +19,127 @@ public sealed class AudiobookBookmarkRepository
     }
 
     /// <summary>
-    /// The profile's own bookmarks for the title plus every global one, newest first, limited to the files the caller may see
-    /// (null means no limit). A file the caller cannot see (a Vault file without an unlocked session) contributes nothing.
+    /// One timed bookmark by id with no visibility check, for the Engine's own housekeeping (bookmark frames). Never hand the result to a
+    /// caller without the checks of <see cref="GetVisibleAsync"/>.
     /// </summary>
-    public Task<IReadOnlyList<AudiobookBookmarkDto>> GetByWorkAsync(
-        Guid profileId,
-        Guid workId,
-        CancellationToken ct = default,
-        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    public Task<AudiobookBookmarkDto?> GetByIdAsync(Guid bookmarkId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        var rows = conn.Query<BookmarkRow>(
+        var row = conn.QuerySingleOrDefault<BookmarkRow>(
             """
-            SELECT id AS Id,
-                   profile_id AS ProfileId,
-                   work_id AS WorkId,
-                   asset_id AS AssetId,
-                   chapter_index AS ChapterIndex,
-                   chapter_title AS ChapterTitle,
-                   position_seconds AS PositionSeconds,
-                   duration_seconds AS DurationSeconds,
-                   end_seconds AS EndSeconds,
-                   label AS Label,
-                   note AS Note,
-                   description AS Description,
-                   is_global AS IsGlobal,
-                   created_at AS CreatedAt
+            SELECT id AS Id, profile_id AS ProfileId, work_id AS WorkId, asset_id AS AssetId, chapter_index AS ChapterIndex,
+                   chapter_title AS ChapterTitle, position_seconds AS PositionSeconds, duration_seconds AS DurationSeconds,
+                   end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
+                   is_global AS IsGlobal, created_at AS CreatedAt
             FROM audiobook_bookmarks
-            WHERE (profile_id = @profileId OR is_global = 1)
-              AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
-              AND work_id = @workId
-            ORDER BY created_at DESC;
+            WHERE id = @bookmarkId AND position_kind = 'time';
+            """,
+            new { bookmarkId });
+        return Task.FromResult(row is null ? null : ToDto(row));
+    }
+
+    /// <summary>
+    /// One timed bookmark the caller owns, on a file the caller may see (<paramref name="authorizedAssetIds"/>; null means no limit). A row
+    /// flagged global is not visible just for that: whether someone else's bookmark is in a title's Everyone list is decided by the player's
+    /// visibility rule (a Vault file and a merged-away duplicate are not). With <paramref name="seesEveryones"/> (a server administrator,
+    /// who works on every profile's bookmarks in the editor) any profile's bookmark on such a file is visible.
+    /// </summary>
+    public Task<AudiobookBookmarkDto?> GetVisibleAsync(
+        Guid profileId,
+        Guid bookmarkId,
+        bool seesEveryones,
+        IReadOnlySet<Guid>? authorizedAssetIds,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var row = conn.QuerySingleOrDefault<BookmarkRow>(
+            """
+            SELECT id AS Id, profile_id AS ProfileId, work_id AS WorkId, asset_id AS AssetId, chapter_index AS ChapterIndex,
+                   chapter_title AS ChapterTitle, position_seconds AS PositionSeconds, duration_seconds AS DurationSeconds,
+                   end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
+                   is_global AS IsGlobal, created_at AS CreatedAt
+            FROM audiobook_bookmarks
+            WHERE id = @bookmarkId AND position_kind = 'time'
+              AND (profile_id = @profileId OR @seesEveryones = 1)
+              AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
             """,
             new
             {
+                bookmarkId,
                 profileId,
-                workId,
+                seesEveryones = seesEveryones ? 1 : 0,
                 unrestricted = authorizedAssetIds is null ? 1 : 0,
                 allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
-            }).ToList();
+            });
+        return Task.FromResult(row is null ? null : ToDto(row));
+    }
 
-        return Task.FromResult<IReadOnlyList<AudiobookBookmarkDto>>(rows.Select(ToDto).ToList());
+    /// <summary>Which of these bookmark ids still exist (the orphan sweep of bookmark frames).</summary>
+    public Task<IReadOnlySet<Guid>> ExistingIdsAsync(IReadOnlyCollection<Guid> bookmarkIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var found = new HashSet<Guid>();
+        using var conn = _db.CreateConnection();
+        foreach (var chunk in bookmarkIds.Chunk(400))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var id in conn.Query<Guid>(
+                "SELECT id FROM audiobook_bookmarks WHERE id IN @ids;",
+                new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }))
+            {
+                found.Add(id);
+            }
+        }
+
+        return Task.FromResult<IReadOnlySet<Guid>>(found);
+    }
+
+    /// <summary>A timed bookmark on a video file, as the frame back-fill needs to see it.</summary>
+    public sealed record VideoBookmarkRef(Guid Id, Guid AssetId, double PositionSeconds);
+
+    /// <summary>
+    /// A page of timed bookmarks whose file is a video (<paramref name="videoExtensions"/> are lower-case with the dot), oldest first, so
+    /// the gradual pass that gives older bookmarks a frame visits each once per round.
+    /// </summary>
+    public Task<IReadOnlyList<VideoBookmarkRef>> ListVideoBookmarksAsync(
+        IReadOnlyCollection<string> videoExtensions,
+        int offset,
+        int limit,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (videoExtensions.Count == 0 || limit <= 0)
+        {
+            return Task.FromResult<IReadOnlyList<VideoBookmarkRef>>([]);
+        }
+
+        var clauses = new List<string>();
+        var parameters = new DynamicParameters();
+        var index = 0;
+        foreach (var extension in videoExtensions)
+        {
+            var name = $"@ext{index++}";
+            clauses.Add($"LOWER(ma.file_path_root) LIKE {name}");
+            parameters.Add(name, "%" + extension.ToLowerInvariant());
+        }
+
+        parameters.Add("@offset", Math.Max(0, offset));
+        parameters.Add("@limit", Math.Clamp(limit, 1, 1000));
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<VideoBookmarkRef>(
+            $"""
+            SELECT b.id AS Id, b.asset_id AS AssetId, b.position_seconds AS PositionSeconds
+            FROM audiobook_bookmarks b
+            INNER JOIN media_assets ma ON ma.id = b.asset_id
+            WHERE b.position_kind = 'time'
+              AND ({string.Join(" OR ", clauses)})
+            ORDER BY b.created_at ASC, b.id ASC
+            LIMIT @limit OFFSET @offset;
+            """,
+            parameters).ToList();
+        return Task.FromResult<IReadOnlyList<VideoBookmarkRef>>(rows);
     }
 
     /// <summary>Saves a bookmark. The caller has already checked that a global one may be made (a server administrator).</summary>
@@ -155,8 +234,41 @@ public sealed class AudiobookBookmarkRepository
         }, ct);
     }
 
+    /// <summary>
+    /// Renames the profile's own personal bookmark and changes its note. Another profile's bookmark, a global one (changed only in the
+    /// editor's Bookmarks tab) and one on a file the caller cannot see are left alone and reported as not found.
+    /// </summary>
+    public Task<bool> UpdateOwnAsync(Guid profileId, Guid bookmarkId, string? label, string? note, CancellationToken ct = default,
+        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var affected = conn.Execute(
+                """
+                UPDATE audiobook_bookmarks
+                SET label = @label, note = @note
+                WHERE id = @bookmarkId AND is_global = 0 AND profile_id = @profileId AND position_kind = 'time'
+                  AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
+                """,
+                new
+                {
+                    profileId,
+                    bookmarkId,
+                    label = BlankToNull(label),
+                    note = BlankToNull(note),
+                    unrestricted = authorizedAssetIds is null ? 1 : 0,
+                    allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+                },
+                tx);
+            return affected > 0;
+        }, ct);
+    }
+
     private static AudiobookBookmarkDto ToDto(BookmarkRow row) => new()
     {
+        OwnerName = row.OwnerName,
         Id = row.Id,
         ProfileId = row.ProfileId,
         WorkId = row.WorkId,
@@ -192,5 +304,6 @@ public sealed class AudiobookBookmarkRepository
         public string? Description { get; init; }
         public bool IsGlobal { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
+        public string? OwnerName { get; init; }
     }
 }

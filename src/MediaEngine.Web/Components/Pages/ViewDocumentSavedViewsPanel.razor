@@ -19,9 +19,9 @@
                     @if (_renamingId == view.Id)
                     {
                         <form class="view-documents-saved__form" @onsubmit="RenameAsync" @onsubmit:preventDefault>
-                            <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="@($"New name for {view.Name}")" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
-                            <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">@L["Common_Save"]</AppNativeButton>
-                            <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">@L["Search_Cancel"]</AppNativeButton>
+                            <AppTextField Label="@($"New name for {view.Name}")" HideLabel="true" MaxLength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
+                            <AppButton ButtonType="AppButtonType.Submit" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))" Label="@L["Common_Save"].Value" />
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => CancelEdit())" Label="@L["Search_Cancel"].Value" />
                         </form>
                     }
                     else
@@ -32,6 +32,10 @@
                             <small class="view-documents-saved__count">@view.ItemCount</small>
                         </AppNativeButton>
                         <AppOverflowMenu AriaLabel="@($"Actions for {view.Name}")" Class="view-documents-saved__menu" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
+                            @if (OnEdit.HasDelegate)
+                            {
+                                <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Tune" OnClick="@(() => OnEdit.InvokeAsync(view))" />
+                            }
                             <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => BeginRename(view))" />
                             <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnDelete.InvokeAsync(view))" />
                         </AppOverflowMenu>
@@ -46,9 +50,9 @@
         @if (_saving)
         {
             <form class="view-documents-saved__form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
-                <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="@L["ViewDocumentSavedViewsPanel_NameForThisView"].Value" Placeholder="@L["ViewDocumentSavedViewsPanel_NameThisView"].Value" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
-                <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">@L["Common_Save"]</AppNativeButton>
-                <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">@L["Search_Cancel"]</AppNativeButton>
+                <AppTextField Label="@L["ViewDocumentSavedViewsPanel_NameForThisView"].Value" HideLabel="true" Placeholder="@L["ViewDocumentSavedViewsPanel_NameThisView"].Value" MaxLength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
+                <AppButton ButtonType="AppButtonType.Submit" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))" Label="@L["Common_Save"].Value" />
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => CancelEdit())" Label="@L["Search_Cancel"].Value" />
             </form>
         }
         else
@@ -73,6 +77,9 @@
     [Parameter] public EventCallback<string> OnSave { get; set; }
     [Parameter] public EventCallback<(Guid Id, string Name)> OnRename { get; set; }
     [Parameter] public EventCallback<ViewGalleryDto> OnDelete { get; set; }
+
+    /// <summary>Opens the saved view in the one editor window (name and description). Left unset off a computer.</summary>
+    [Parameter] public EventCallback<ViewGalleryDto> OnEdit { get; set; }
 
     private Guid? _renamingId;
     private bool _saving;

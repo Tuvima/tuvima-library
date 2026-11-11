@@ -1,4 +1,4 @@
-/* The frame owns the one content column (centred in the space beside the menu), its width and the vertical rhythm for every Settings page.
+/* The frame owns the one content column (fills the space beside the menu up to the max width, left-aligned to it), its width and the vertical rhythm for every Settings page.
    Pages never set their own outer width, margin or padding; they read these properties if they need the measure. */
 .settings-frame {
     --settings-frame-max-width: 1180px;
@@ -13,8 +13,8 @@
     width: 100%;
     min-width: 0;
     max-width: var(--settings-frame-max-width);
-    /* Centred, so a wide screen leaves equal space on both sides; at or below the max width it fills the space. */
-    margin: 0 auto;
+    /* Left-aligned to the rail, never centred: it fills the space beside the rail up to the max width. */
+    margin: 0;
     flex-direction: column;
     gap: var(--settings-frame-gap);
 }
@@ -84,10 +84,10 @@
 
 .settings-frame__header ::deep .settings-breadcrumbs .tl-icon-root {
     flex: 0 0 auto;
-    width: 15px;
-    height: 15px;
-    color: var(--tl-text-faint);
-    font-size: 15px;
+    width: var(--tl-icon-size-xs);
+    height: var(--tl-icon-size-xs);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-icon-size-xs);
 }
 
 .settings-frame__header ::deep .sidebar-page-header {
@@ -100,17 +100,9 @@
     .settings-frame__header ::deep .sidebar-page-header { flex-direction: column; align-items: stretch; }
 }
 
-.settings-frame__header ::deep .sidebar-page-header .app-page-header__eyebrow {
-    margin-bottom: 4px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 700;
-    letter-spacing: .11em;
-}
-
 .settings-frame__header ::deep .sidebar-page-header h1 {
-    font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
-    font-size: clamp(2rem, 2.4vw, 2.25rem);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-title);
     font-weight: 600;
     line-height: 1.15;
     letter-spacing: -.015em;
@@ -125,6 +117,8 @@
 }
 
 .settings-frame__header ::deep .sidebar-page-header .app-page-header__actions {
+    /* A page's header action (Libraries' Add library) sits at the top right, level with the title. */
+    align-self: flex-start;
     align-items: center;
     padding-bottom: 2px;
 }

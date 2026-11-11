@@ -80,6 +80,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ContextSidebarPreferences>();
         Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
         Services.AddScoped<ListenContextSidebarState>();
+        Services.AddScoped<NowPlayingLauncher>();
         Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
@@ -128,7 +129,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             DurationSeconds = 600,
             PlaybackRate = 1.25,
             PlaybackRequestVersion = 9,
-            IsPopupOpen = true,
             SleepTimerState = new()
             {
                 ProfileId = profile,
@@ -181,7 +181,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Equal(before.SleepTimerState, playback.SleepTimerState);
         Assert.Equal(deadline, playback.SleepTimerState.DeadlineUtc);
         Assert.Equal(lease, playback.AudiobookBookSessionLeaseId);
-        Assert.True(playback.IsPopupOpen);
         Assert.Equal(0, transportCommands);
     }
 
@@ -344,15 +343,19 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css);
         Assert.Contains("grid-column: 2;", css);
         Assert.Contains("font-family: var(--font-ui);", accountCss);
-        Assert.Contains("z-index: var(--tl-z-popover, 1600);", accountCss);
+        // The menu is drawn in the top layer by the shared popover; its surface rules are global.
+        var appCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        Assert.Contains("<AppPopover", accountSource);
+        Assert.DoesNotContain("top: calc(100% + 0.75rem);", accountCss);
+        Assert.Contains(".tl-popover.top-nav-account-menu__surface", appCss);
         Assert.Contains(".top-nav-account-menu__panel ::deep .top-nav-account-menu__item", accountCss);
         Assert.Contains("display: flex;", accountCss);
         Assert.Contains("width: 100%;", accountCss);
-        Assert.Contains("border-radius: var(--tl-radius-lg, 12px);", accountCss);
+        Assert.Contains("border-radius: var(--tl-radius-lg, 12px) !important;", appCss);
     }
 
     [Fact]
-    public async Task MainLayoutInvalidatesChangedBookmarkLeasesWhileSuccessfulReplayDismissesAndRestoresFocus()
+    public async Task MainLayoutInvalidatesChangedBookmarkLeasesWhileSuccessfulReplayInvalidatesTheReplayedLease()
     {
         var profileId = Guid.NewGuid();
         var otherProfileId = Guid.NewGuid();
@@ -428,34 +431,22 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         var layoutOwner = new ReplayInvalidatingBookmarkActions(actions, playback, currentContext,
             sourceItem with { AssetId = replayAssetId, StreamUrl = "https://media.invalid/source-b.mp3" });
-        var sheetModule = JSInterop.SetupModule("./js/playback-tool-sheet.js");
-        sheetModule.SetupVoid("attachModal");
-        sheetModule.SetupVoid("restoreFocus");
-        var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder =>
-        {
-            builder.OpenComponent<BookmarkDialogTestHost>(0);
-            builder.AddAttribute(1, nameof(BookmarkDialogTestHost.Context), currentContext);
-            builder.AddAttribute(2, nameof(BookmarkDialogTestHost.Actions), layoutOwner);
-            builder.AddAttribute(3, nameof(BookmarkDialogTestHost.AuthorizedAssetIds),
-                new HashSet<Guid> { firstAssetId, replayAssetId });
-            builder.AddAttribute(4, nameof(BookmarkDialogTestHost.WorkTitle), "A Test Audiobook");
-            builder.CloseComponent();
-        }));
+        var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder => { }));
 
         typeof(MainLayout).GetField("_activeProfileId", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(layout.Instance, profileId);
 
-        await layout.Find("button.audiobook-bookmark-dialog__tab:not(.is-selected)").ClickAsync();
-        await layout.Find("button.audiobook-bookmark-dialog__replay").ClickAsync();
+        var replayed = await layoutOwner.ReplayAsync(currentContext, bookmark.Id, new HashSet<Guid> { firstAssetId, replayAssetId });
+        Assert.Equal(AudiobookBookmarkOperationOutcome.Success, replayed.Outcome);
 
         Assert.Equal("Playback changed. This captured bookmark is no longer active.", layoutOwner.InvalidatedReplayMessage);
         Assert.Contains("Playback changed", actions.GetSnapshot(subjectContext.DialogId).Message ?? string.Empty);
         Assert.Contains("Playback changed", actions.GetSnapshot(profileContext.DialogId).Message ?? string.Empty);
+        Assert.Null((await actions.GetSnapshotAsync(currentContext)).Draft);
+        await layoutOwner.CloseAsync(currentContext);
         var closedContextSnapshot = await actions.GetSnapshotAsync(currentContext);
         Assert.Null(closedContextSnapshot.Draft);
         Assert.Equal("This bookmark dialog is no longer active.", closedContextSnapshot.Message);
-        Assert.Empty(layout.FindAll(".audiobook-bookmark-dialog-layer"));
-        Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "restoreFocus");
     }
 
     [Fact]
@@ -517,12 +508,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
-            // Recently Added is no longer a menu row: Library and Ingestion is shaded amber, with no count bubble.
-            var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
-            var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
+            // Activity is a tab, not a menu row: Libraries is shaded amber when items wait, with no count bubble.
+            var libraries = cut.FindAll(".media-section-shell__tree-link")
+                .First(item => item.TextContent.Trim() == "Libraries");
+            var reviewNotification = libraries.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(reviewNotification);
-            // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
+            // System opens on the resources summary.
             Assert.Single(cut.FindAll("[data-settings-system-summary]"));
             Assert.DoesNotContain("System exceptions", cut.Markup);
             Assert.Empty(cut.FindAll(".admin-library-summary"));
@@ -546,7 +537,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
-            builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
             builder.CloseComponent();
         });
 
@@ -755,7 +745,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     // The Libraries levels are real addresses: a library's own page must not be redirected to the overview or /not-found.
     [Theory]
     [InlineData("/settings/libraries/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null)]
-    [InlineData("/settings/libraries/import", "import", null)]
     [InlineData("/settings/libraries/view/photos", "view", "photos")]
     public async Task SettingsPage_OnALibrariesLevelAddress_StaysOnThatAddress(string address, string subsection, string? detail)
     {
@@ -780,7 +769,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Theory]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies - Watch - Library")]
     [InlineData("view", "photos", "Photos - View - Library")]
-    [InlineData("import", null, "Import folder - Library")]
+    [InlineData("import", null, "Libraries - Library")]
     [InlineData("watch", null, "Libraries - Library")]
     [InlineData("watch", "movies", "Libraries - Library")]
     [InlineData("vault", null, "Libraries - Library")]
@@ -792,21 +781,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(expectedTitle, (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!));
     }
 
-    // The earlier group address is redirected by the Libraries page to the matching tab of the overview.
-    [Fact]
-    public void SettingsPage_OnAnEarlierGroupAddress_RedirectsToThatAreasTab()
-    {
-        RenderLibraries("watch", null);
-
-        Assert.EndsWith("/settings/libraries?area=watch", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
-    }
-
     // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
     [Theory]
     [InlineData(null, null, "Libraries", "Libraries", true)]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
     [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
-    [InlineData("import", null, "Import folder", "Libraries|Import folder", false)]
     public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
     {
         var cut = RenderLibraries(subsection, detail);
@@ -884,105 +863,17 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".settings-shell-content"));
         Assert.Empty(cut.FindAll(".profiles-tab__card"));
         Assert.Empty(cut.FindAll("[data-settings-overview]"));
-        Assert.Empty(cut.FindAll("[data-settings-overview-apps]"));
+        Assert.Empty(cut.FindAll("[data-testid='general-name-address']"));
         Assert.Empty(cut.FindAll(".settings-playback-page"));
     }
 
     [Fact]
-    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPageInSource()
+    public void TheRetiredRecentlyAddedRedirects_AreGoneFromTheSettingsPage()
     {
         var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
-        Assert.Contains("SettingsNav.RouteFor(SettingsSection.Review)", source, StringComparison.Ordinal);
-        Assert.Contains("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void LibrarySummary_CompositionSegmentsReflectEachCategoryShareOfTheWhole()
-    {
-        var apiClient = EngineApiClientStub.Create(stub =>
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ =>
-                Task.FromResult<LibraryOverviewDto?>(new LibraryOverviewDto
-                {
-                    TotalItems = 4,
-                    MediaTypeCounts = new Dictionary<string, int>
-                    {
-                        ["Books"] = 2,
-                        ["Movies"] = 1,
-                        ["TV"] = 1,
-                    },
-                })));
-        Services.AddSingleton<IEngineApiClient>(apiClient);
-
-        var cut = Render(builder =>
-        {
-            builder.OpenComponent<AppPopoverHost>(0);
-            builder.CloseComponent();
-            builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
-            builder.OpenComponent<LibrarySummary>(3);
-            builder.CloseComponent();
-        });
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal(7, cut.FindAll(".library-summary__media").Count);
-            var segments = cut.FindAll(".library-summary__segment");
-            Assert.Equal(3, segments.Count);
-            Assert.Contains("width:50%", segments[0].GetAttribute("style"), StringComparison.Ordinal);
-            Assert.Contains("width:25%", segments[1].GetAttribute("style"), StringComparison.Ordinal);
-            Assert.Contains("width:25%", segments[2].GetAttribute("style"), StringComparison.Ordinal);
-            Assert.Contains("Books 2, 50%", cut.Find(".library-summary__composition").GetAttribute("aria-label"), StringComparison.Ordinal);
-        });
-    }
-
-    [Fact]
-    public void LibrarySummary_ShowsItsTilesWithoutWaitingForTheStorageChecks_AndAsksOnlyForTheStorageChecks()
-    {
-        // Bug B17: the tiles waited for the full readiness report, which scans the whole data store.
-        var storageChecks = new TaskCompletionSource<MediaEngine.Contracts.System.StartupReadinessResponse?>();
-        EngineApiClientStub? stub = null;
-        var apiClient = EngineApiClientStub.Create(configured =>
-        {
-            stub = configured;
-            configured.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ =>
-                Task.FromResult<LibraryOverviewDto?>(new LibraryOverviewDto
-                {
-                    TotalItems = 3,
-                    MediaTypeCounts = new Dictionary<string, int> { ["Books"] = 2, ["Movies"] = 1 },
-                }));
-            configured.SetHandler(nameof(IEngineApiClient.GetStorageReadinessAsync), _ => storageChecks.Task);
-        });
-        Services.AddSingleton<IEngineApiClient>(apiClient);
-
-        var cut = Render(builder =>
-        {
-            builder.OpenComponent<LibrarySummary>(0);
-            builder.CloseComponent();
-        });
-
-        cut.WaitForAssertion(() => Assert.Equal(7, cut.FindAll(".library-summary__media").Count));
-        Assert.Empty(cut.FindAll("[data-testid='library-summary-storage']"));
-
-        storageChecks.SetResult(new MediaEngine.Contracts.System.StartupReadinessResponse
-        {
-            Status = "degraded",
-            Checks =
-            [
-                new MediaEngine.Contracts.System.StartupReadinessCheckResponse
-                {
-                    Name = "watch_folders",
-                    Category = "storage",
-                    Status = "degraded",
-                    Description = "A watch folder is missing.",
-                },
-            ],
-        });
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='library-summary-storage'] .library-summary__issue")));
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetStartupReadinessAsync), stub!.Calls);
+        Assert.DoesNotContain("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/recently-added", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_legacyRedirectIssued", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1006,12 +897,13 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
-            Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
+            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11); skips and subtitle look moved to the player.
+            Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
-            Assert.NotEmpty(cut.FindAll(".settings-section-header"));
-            Assert.NotEmpty(cut.FindAll(".playback-preference-row"));
-            Assert.Contains("Autoplay", cut.Markup);
+            Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
+            Assert.NotEmpty(cut.FindAll(".app-setting-row"));
+            // Unified player v2 D19: Autoplay next episode moved into the Episodes panel.
+            Assert.DoesNotContain("Autoplay", cut.Markup);
             Assert.Contains("Resume", cut.Markup);
             Assert.DoesNotContain("Subtitles &amp; Languages", cut.Markup);
             Assert.DoesNotContain("Theme", cut.Markup);
@@ -1047,7 +939,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Equal("overview", cut.Find(".settings-playback-page").GetAttribute("data-playback-section"));
-            Assert.Contains("Autoplay next episode", cut.Markup);
+            Assert.DoesNotContain("Autoplay next episode", cut.Markup);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
@@ -1077,7 +969,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("data-playback-section=\"overview\"", source);
         Assert.Contains("Size=\"AppControlSize.Compact\"", source);
         Assert.DoesNotContain("settings-field--compact", source);
-        Assert.Contains("playback-preference-row", source);
+        Assert.Contains("AppSettingRow", source);
         Assert.Contains("UpdateAndSaveAsync", source);
         Assert.DoesNotContain("Default playback speed", source);
         Assert.DoesNotContain("Audiobook default speed", source);
@@ -1086,7 +978,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("ShortIntroLabel", source);
         Assert.DoesNotContain("NormalizeIntroLabel", source);
         Assert.Contains("<AppSelect", source);
-        Assert.Contains("<AppIntSelect", source);
         Assert.Contains("Orchestrator.SavePlaybackSettingsAsync", source);
         Assert.DoesNotContain("Reading.Theme", source);
         Assert.DoesNotContain("ThemeOptions", source);
@@ -1137,8 +1028,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("Local AI is partially available", source);
         // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.
         var runtime = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiRuntimePanel.razor"));
-        Assert.DoesNotContain("<ModelsTab />", source);
-        Assert.Single(Regex.Matches(runtime, "<ModelsTab />"));
+        Assert.Single(Regex.Matches(source, "<ModelsTab />"));
+        Assert.DoesNotContain("<ModelsTab />", runtime);
         Assert.DoesNotContain("TODO: Persist AI limits", source);
     }
 
@@ -1164,7 +1055,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var nav = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "SettingsNav.cs"));
 
         Assert.Contains("SettingsSection.LocalAi", nav);
-        Assert.Contains("SettingsSection.Delivery", nav);
+        Assert.Contains("SettingsSection.Playback", nav);
         Assert.Contains("SettingsSection.Plugins", nav);
         Assert.Contains("SettingsSection.Access", nav);
         Assert.Contains("SettingsStatusKind.Partial", nav);
@@ -1230,7 +1121,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains(">Curated<", cut.Markup);
             Assert.Contains(">Shelves<", cut.Markup);
             Assert.Contains(">People<", cut.Markup);
-            Assert.Contains("Broader worlds Library found by connecting trusted relationships", cut.Markup);
+            Assert.Contains("Whole worlds your Library holds more than one Series of", cut.Markup);
             Assert.DoesNotContain(">Playlists<", cut.Markup);
             Assert.DoesNotContain("CROSS-MEDIA COLLECTIONS", cut.Markup);
             Assert.DoesNotContain("WATCH COLLECTIONS", cut.Markup);
@@ -1739,9 +1630,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("listen-player-shell--listen-route", hostSource, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell--listen-route {", hostCss, StringComparison.Ordinal);
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns:minmax(0,1fr) 300px minmax(0,1fr)", hostCss, StringComparison.Ordinal);
-        Assert.Contains("height:calc(104px", hostCss, StringComparison.Ordinal);
-        Assert.Contains("border-radius:0", hostCss, StringComparison.Ordinal);
+        var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css"));
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellCss, StringComparison.Ordinal);
+        Assert.Contains("min-height: 60px;", shellCss, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1776,9 +1667,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         var markup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Browse", "MediaBrowseShell.razor"));
         Assert.Contains("<MediaTileGrid Items=\"@_cards\"", markup, StringComparison.Ordinal);
-        Assert.Contains("ShowCompactCaptions=\"true\"", markup, StringComparison.Ordinal);
-        Assert.Contains("TileSizePx=\"@TileSizePx\"", markup, StringComparison.Ordinal);
-        Assert.Contains("\"Music\" => 136", markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1878,13 +1766,13 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var tokens = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
 
         Assert.Contains("--tl-control-height-sm: 36px;", tokens);
-        Assert.Contains("--tl-control-height-md: 42px;", tokens);
+        Assert.Contains("--tl-control-height-md: 44px;", tokens);
         Assert.Contains("--tl-control-height-lg: 48px;", tokens);
         Assert.Contains("--tl-control-radius: 10px;", tokens);
         Assert.Contains("--tl-form-row-gap: 16px;", tokens);
         Assert.Contains("--tl-form-section-gap: 24px;", tokens);
         Assert.Contains("--tl-card-padding: 20px;", tokens);
-        Assert.Contains("--tl-text-faint:", tokens);
+        Assert.DoesNotContain("--tl-text-faint:", tokens);
         Assert.Contains("--tl-font-mono:", tokens);
     }
 
@@ -1897,7 +1785,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains(".tl-form", css);
         Assert.Contains(".tl-card--flush", css);
         Assert.Contains(".app-select", css);
-        Assert.Contains(".search-result-row", css);
         Assert.Contains("border-right: 1px solid var(--tl-divider)", css);
         Assert.DoesNotContain("Legacy settings shared UI components", css);
     }
@@ -2247,39 +2134,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         LibraryVisibility = "visible",
         Confidence = 0.92,
     };
-
-    private sealed class BookmarkDialogTestHost : ComponentBase
-    {
-        [Parameter, EditorRequired] public AudiobookBookmarkActionContext Context { get; set; } = default!;
-        [Parameter, EditorRequired] public IAudiobookBookmarkActions Actions { get; set; } = default!;
-        [Parameter, EditorRequired] public IReadOnlySet<Guid> AuthorizedAssetIds { get; set; } = default!;
-        [Parameter] public string WorkTitle { get; set; } = string.Empty;
-
-        private bool _open = true;
-
-        protected override void BuildRenderTree(RenderTreeBuilder builder)
-        {
-            if (!_open)
-            {
-                return;
-            }
-
-            builder.OpenComponent<AudiobookBookmarkDialog>(0);
-            builder.AddAttribute(1, nameof(AudiobookBookmarkDialog.Context), Context);
-            builder.AddAttribute(2, nameof(AudiobookBookmarkDialog.Actions), Actions);
-            builder.AddAttribute(3, nameof(AudiobookBookmarkDialog.AuthorizedAssetIds), AuthorizedAssetIds);
-            builder.AddAttribute(4, nameof(AudiobookBookmarkDialog.WorkTitle), WorkTitle);
-            builder.AddAttribute(5, nameof(AudiobookBookmarkDialog.IsMobile), true);
-            builder.AddAttribute(6, nameof(AudiobookBookmarkDialog.OnClose), EventCallback.Factory.Create(this, CloseAsync));
-            builder.CloseComponent();
-        }
-
-        private Task CloseAsync()
-        {
-            _open = false;
-            return InvokeAsync(StateHasChanged);
-        }
-    }
 
     private sealed class ReplayInvalidatingBookmarkActions(
         AudiobookBookmarkActionService inner,

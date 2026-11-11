@@ -3,6 +3,7 @@
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Components.View
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient ApiClient
@@ -10,12 +11,17 @@
 @inject ActiveProfileSessionService ActiveProfileSession
 @inject ViewMediaGrantService MediaGrants
 @inject DeviceContextService Device
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject IAppDialogService DialogService
 @inject IJSRuntime Js
 @using Microsoft.JSInterop
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
+@inject ViewEditorHost EditorHost
+@inject ViewDropUploader DropUploader
+@inject ViewFolderGate FolderGate
+@using MediaEngine.Web.Components.Settings
+@using Microsoft.AspNetCore.Components.Forms
 @inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@L["ViewDocumentsPage_DocumentsLibrary"]</PageTitle>
@@ -24,7 +30,7 @@
         <HeaderActions>
             @if (CanBrowse && !Device.IsPhone)
             {
-                @ScopePicker
+                
                 @LayoutPicker
                 @if (!Device.IsTv)
                 {
@@ -38,6 +44,8 @@
             }
         </HeaderActions>
         <ChildContent>
+            @if (CanDropFiles && !_uploadsOff) { <ViewDropTarget OnFiles="FilesDroppedAsync" /> }
+            @if (CanDropFiles && _uploadsOff) { <ViewUploadsNotice Noun="@ViewFolderRules.Noun(ViewContentKinds.Documents, "Documents")" /> }
             @if (_loading && !_policyKnown)
             {
                 <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewDocumentsPage_LoadingDocuments"].Value" Message="@L["ViewDocumentsPage_ReadingTheDocumentsYouCan"].Value" />
@@ -52,20 +60,21 @@
                     <QuickFilters>
                         @if (Device.IsPhone)
                         {
-                            <AppNativeButton Type="button" Class="view-documents-sheet-button" aria-haspopup="dialog" OnClick="@(_ => _sheetOpen = true)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />View options@(_filter.IsActive ? $" ({_filter.ActiveCount})" : string.Empty)</AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Tune" data-view-options="true" aria-haspopup="dialog" OnClick="@(() => _sheetOpen = true)" Label="@("View options" + (_filter.IsActive ? $" ({_filter.ActiveCount})" : string.Empty))" />
                         }
                     </QuickFilters>
                 </AppDiscoveryFilterBar>
 
                 @* Who added the documents: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
+                <ViewFolderFilter ProfileId="@_profileId" Folders="_folders" Kind="@ViewContentKinds.Documents" Selected="_folder" SelectedChanged="FolderChangedAsync" />
                 <ViewFilterChipRow Label="@L["Common_AddedBy"].Value" Choices="_addedByChoices" Selected="_filter.AddedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
 
                 <div class="view-documents-layout">
                 @if (!Device.IsPhone)
                 {
-                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync"
+                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                                                   ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
-                                                                  OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
+                                                                  OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync" OnEditView="@EditViewCallback"
                                                                   OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" /></aside>
                 }
                 <div class="view-documents-results">
@@ -152,7 +161,7 @@
                                 <ViewDocumentInboxCard Item="item" ThumbnailUrl="@ThumbnailUrl(item)"
                                                        ShowPicture="@(ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))"
                                                        OnPictureError="@(() => _brokenThumbnails.Add(item.Id))"
-                                                       CanFile="CanFileInbox" Note="@InboxNote" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
+                                                       CanFile="CanFileInbox" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
                                                        Busy="@_filing.Contains(item.Id)"
                                                        Correspondents="@CorrespondentNames" DocumentTypes="@DocumentTypeNames" Tags="@TagNames"
                                                        OnFile="@(request => FileFromInboxAsync(item, request))"
@@ -250,11 +259,11 @@
 {
     <AppDialogFrame Open="true" Title="@L["ViewDocumentsPage_ViewOptions"].Value" DialogOptions="SheetOptions" Class="view-documents-sheet" OnCancel="@(() => _sheetOpen = false)">
         <div class="view-documents-sheet__body">
-            @ScopePicker
+            
             @LayoutPicker
-            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync"
+            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                     ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
-                                    OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
+                                    OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync" OnEditView="@EditViewCallback"
                                     OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" />
             <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
         </div>
@@ -293,6 +302,16 @@
     private readonly HashSet<Guid> _selected = [];
     private readonly HashSet<Guid> _brokenThumbnails = [];
     private readonly ViewDocumentFilterState _filter = new();
+    // The Documents folders (the Folders filter), the one chosen, and whether uploads are off for want of a Managed folder.
+    private IReadOnlyList<ViewSourceAdminDto> _folders = [];
+    private Guid? _folder;
+    private bool _uploadsOff;
+    private async Task LoadFoldersAsync()
+    {
+        _folders = await FolderGate.FoldersAsync(ViewContentKinds.Documents);
+        _uploadsOff = await FolderGate.UploadsOffAsync([ViewContentKinds.Documents]);
+    }
+    private Task FolderChangedAsync(Guid? folder) { _folder = folder; return LoadAsync(); }
     private readonly HashSet<Guid> _filing = [];
     private ViewDocumentCatalogueDto? _catalogue;
     private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
@@ -312,20 +331,63 @@
     // Bumped after a bulk restore, so the Trash header reads the Trash size again. Empty Trash refreshes it itself; a new visit to Trash reads it fresh.
     private int _trashVersion;
 
+    private bool _dropping;
+
+    // The whole page takes files in your own space and the Shared Library on a pointer or touch screen, never on a television.
+    private bool CanDropFiles => CanBrowse && _policyKnown && !Device.IsTv && !Workspace.ScopeKind.CarriesProfileId();
+
+    // Documents upload here. A picture is asked about once (it belongs in Photos); "Don't ask again" is remembered for this profile.
+    // Cancelling skips only the pictures, and anything else in the same drop still goes through.
+    private async Task FilesDroppedAsync(IReadOnlyList<IBrowserFile> files)
+    {
+        if (_dropping || files.Count == 0) return;
+        _dropping = true;
+        try
+        {
+            var pictures = files.Where(file => ViewDropUploader.IsPicture(file.Name)).ToList();
+            var toPhotos = false;
+            if (pictures.Count > 0)
+            {
+                toPhotos = await ApiClient.GetViewDocumentsPicturesToPhotosAsync();
+                if (!toPhotos)
+                {
+                    var dialog = await DialogService.ShowAsync<ViewDocumentsPictureDialog>(string.Empty,
+                        new AppDialogParameters<ViewDocumentsPictureDialog>
+                        {
+                            { component => component.PictureCount, pictures.Count },
+                            { component => component.FirstName, pictures[0].Name },
+                        },
+                        new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+                    if (await dialog.Result is { Canceled: false, Data: bool remember })
+                    {
+                        toPhotos = true;
+                        if (remember) await ApiClient.SetViewDocumentsPicturesToPhotosAsync(true);
+                    }
+                }
+            }
+
+            var chosen = files.Where(file => toPhotos || !ViewDropUploader.IsPicture(file.Name)).ToList();
+            if (chosen.Count == 0) return;
+            var result = await DropUploader.UploadAsync(chosen, accepts: name => ViewDropUploader.IsDocument(name) || (toPhotos && ViewDropUploader.IsPicture(name)));
+            DropUploader.Report(result, notAddedKey: "ViewDrop_NotAddedToDocuments");
+            if (result.ItemIds.Count > 0) await LoadAsync();
+        }
+        finally { _dropping = false; }
+    }
+
     // A profile that may not see Documents gets the plain "not available" page. Until the scopes load the answer is unknown.
     private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;
     // Choosing and favoriting documents is for your own space on a pointer or touch screen, never on a television.
     private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Editing a document's details is for your own space on a desktop with a mouse (EditorDeviceRule); other devices only read and filter.
-    private bool CanEditDetails => Device.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine;
-    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads. The Shared Library
-    // Inbox is filed by a household or server administrator; everyone else reads it.
-    private bool CanFileInbox => !Device.IsTv
+    // In the Shared Library anyone who may use Documents and open Shared can tag and edit a document too: shared documents have no Inbox and wait for no one.
+    private bool CanEditDetails => Device.CanEdit
         && (Workspace.ScopeKind == ViewScopeKind.Mine
-            || Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanFileSharedInbox == true);
-    private string? InboxNote => Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanFileSharedInbox != true
-        ? "Filed by a household administrator"
-        : null;
+            || Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanEditSharedDocuments == true);
+    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads. Shared has no Inbox.
+    // Shared documents have no Inbox, so the Inbox mode, its count and its card list exist only in a personal scope.
+    private bool HasInbox => Workspace.ScopeKind != ViewScopeKind.Shared;
+    private bool CanFileInbox => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Saved views belong to the person's own documents on a screen that can pick and name them (not a television).
     private bool CanUseSavedViews => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     private bool CanSaveView => CanUseSavedViews && ViewDocumentSavedViews.CanSave(_filter, _search);
@@ -338,12 +400,12 @@
     private string ListClass => $"view-documents-grid{(_list ? " view-documents-grid--list" : string.Empty)}";
     private int ActiveIndex => _active is null ? -1 : _items.FindIndex(item => item.Id == _active.Id);
 
-    private RenderFragment ScopePicker => @<label class="view-documents-scope"><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Documents scope"><ViewScopeOptions Scopes="@(Workspace.Scopes?.AvailableScopes ?? [])" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>;
     private RenderFragment LayoutPicker => @<AppSegmentedControl Options="LayoutOptions" Value="@(_list ? "list" : "grid")" ValueChanged="LayoutChanged" AriaLabel="Documents layout" Class="view-documents-layout" />;
 
     protected override async Task OnInitializedAsync()
     {
         Device.OnChanged += DeviceChanged;
+        Workspace.ScopeChanged += ScopeSwitchedAsync;
         _profileId = (await ActiveProfileSession.GetActiveProfileAsync())?.Id;
         // The View shell owns loading the View settings; this page only waits for them.
         await Workspace.WhenReadyAsync();
@@ -352,7 +414,7 @@
         {
             // The remembered sort has to be known before the first list is asked for.
             _filter.Sort = await ApiClient.GetViewDocumentsSortAsync();
-            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.LoadGalleriesAsync());
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.LoadGalleriesAsync(), LoadFoldersAsync());
         }
         else
         {
@@ -365,7 +427,7 @@
     private ViewAssetQueryOptions Query(string? cursor = null) => new(
         Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"],
         Lifecycle: _filter.TrashOnly ? "trashed" : "active", GalleryId: _filter.SavedViewId, Limit: PageSize, Documents: _filter.ToDto(),
-        AddedBy: _filter.AddedBy.Count > 0 ? _filter.AddedBy.ToList() : null);
+        AddedBy: _filter.AddedBy.Count > 0 ? _filter.AddedBy.ToList() : null, Sources: _folder is { } folder ? [folder] : null);
 
     private async Task LoadCatalogueAsync()
     {
@@ -396,6 +458,12 @@
 
     private async Task LoadInboxCountAsync()
     {
+        if (!HasInbox)
+        {
+            _inboxCount = null;
+            return;
+        }
+
         var summary = await ApiClient.GetViewDocumentInboxSummaryAsync(Workspace.ScopeKind, Workspace.ScopeProfileId);
         if (summary is not null)
         {
@@ -474,6 +542,15 @@
         }
     }
 
+    // Edit opens a saved view in the one editor window on a computer; its name and description change there, its filters on this page.
+    private EventCallback<ViewGalleryDto> EditViewCallback => EditorHost.CanEdit ? EventCallback.Factory.Create<ViewGalleryDto>(this, EditViewAsync) : default;
+    private async Task EditViewAsync(ViewGalleryDto view)
+    {
+        if (!await EditorHost.OpenGalleryAsync(view)) return;
+        var closed = await EditorHost.WhenClosedAsync();
+        if (closed.Changed) await Workspace.LoadGalleriesAsync(force: true);
+    }
+
     private async Task RenameViewAsync((Guid Id, string Name) change)
     {
         var view = SavedViews.FirstOrDefault(value => value.Id == change.Id);
@@ -517,7 +594,7 @@
             $"Delete “{view.Name}”?",
             "Only the saved view is removed. Your documents and their details stay exactly as they are.",
             yesText: "Delete view",
-            cancelText: "Keep it");
+            cancelText: "Keep it", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;
@@ -626,27 +703,32 @@
             return;
         }
 
-        var dialog = await DialogService.ShowAsync<ViewDocumentDetailsDialog>(string.Empty,
-            new AppDialogParameters<ViewDocumentDetailsDialog>
-            {
-                { component => component.Item, item },
-                { component => component.ScopeKind, Workspace.ScopeKind },
-                { component => component.ScopeProfileId, Workspace.ScopeProfileId },
-            },
-            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
-        if (await dialog.Result is not { Canceled: false, Data: LocalAssetDocumentInfoDto })
+        await OpenEditorAsync([item]);
+    }
+
+    // Edit opens the one editor window (spec photos-documents-editor): one document shows all its fields, several show only what they share.
+    // Afterward only the documents it touched are read again, and the lists that count tags, correspondents and types are refreshed.
+    private async Task OpenEditorAsync(IReadOnlyList<LocalAssetDto> items)
+    {
+        if (items.Count == 0 || !await EditorHost.OpenItemsAsync(items))
         {
             return;
         }
 
-        // Take the saved details (and any new title or tags) from the Engine, then refresh the lists that count them.
-        var refreshed = await ApiClient.GetViewItemAsync(item.Id, Workspace.ScopeKind, Workspace.ScopeProfileId);
-        if (refreshed is not null)
+        var closed = await EditorHost.WhenClosedAsync();
+        if (!closed.Changed)
         {
-            ItemUpdated(refreshed);
+            return;
         }
 
-        Snackbar.Add(L["ViewDocumentsPage_DetailsSaved"].Value, AppSeverity.Success);
+        foreach (var id in closed.ItemIds)
+        {
+            if (await ApiClient.GetViewItemAsync(id, Workspace.ScopeKind, Workspace.ScopeProfileId) is { } refreshed)
+            {
+                ItemUpdated(refreshed);
+            }
+        }
+
         await LoadCatalogueAsync();
     }
 
@@ -726,24 +808,16 @@
         }
     }
 
-    private async Task ScopeChangedAsync(ChangeEventArgs args)
+    private async Task ScopeSwitchedAsync()
     {
-        var parts = args.Value?.ToString()?.Split(':', 2) ?? [];
-        if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind))
-        {
-            return;
-        }
-
-        Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
-        if (await Workspace.SelectScopeAsync(kind, profile))
+        await InvokeAsync(async () =>
         {
             _selectMode = false;
             _filter.Clear();
             await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync());
-        }
+            StateHasChanged();
+        });
     }
-
-    private string SelectedScopeValue => $"{Workspace.ScopeKind}:{(Workspace.ScopeKind.CarriesProfileId() ? Workspace.ScopeProfileId?.ToString("D") : null)}";
 
     private Task LayoutChanged(string value)
     {
@@ -877,17 +951,13 @@
 
     private RenderFragment BulkToolbar => @<ViewSelectionToolbar Count="@_selected.Count" AriaLabel="Selected document actions"
                                                                   OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())"
-                                                                  ShowTrash="@(!_filter.TrashOnly && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
+                                                                  ShowTrash="@(!_filter.TrashOnly && !Device.IsPhone && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
                                                                   ShowRestore="_filter.TrashOnly" OnRestore="@(() => BulkAsync(ViewDocumentBulkOperations.Restore))">
         @if (!_filter.TrashOnly)
         {
             <AppOverflowMenu Label="Organise" Icon="@AppMaterialIcons.Outlined.LocalOffer" AriaLabel="Organise the selected documents"
                              Class="view-selection-toolbar__gallery" Disabled="_bulkBusy" AnchorOrigin="AppOrigin.TopLeft" TransformOrigin="AppOrigin.BottomLeft">
-                <AppMenuItem Label="Add tags…" Icon="@AppMaterialIcons.Outlined.LocalOffer" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.AddTags))" />
-                <AppMenuItem Label="Remove tags…" Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.RemoveTags))" />
-                <AppMenuItem Label="Set correspondent…" Icon="@AppMaterialIcons.Outlined.PersonOutline" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetCorrespondent))" />
-                <AppMenuItem Label="Set type…" Icon="@AppMaterialIcons.Outlined.Description" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetDocumentType))" />
-                <AppMenuItem Label="Set date…" Icon="@AppMaterialIcons.Outlined.CalendarToday" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetDocumentDate))" />
+                <AppMenuItem Label="@(_selected.Count == 1 ? L["ViewEdit_Edit"].Value : L["ViewEdit_EditItems", _selected.Count].Value)" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="EditSelectionAsync" Disabled="@(!EditorHost.CanEdit)" />
                 <AppMenuItem Label="Mark filed" Icon="@AppMaterialIcons.Outlined.CheckCircleOutline" DividerBefore="true" OnClick="@(() => BulkAsync(ViewDocumentBulkOperations.MarkFiled))" />
             </AppOverflowMenu>
         }
@@ -899,31 +969,18 @@
     private string? TrashNote(LocalAssetDto item) =>
         _filter.TrashOnly && Workspace.TrashFailureReason(item.Id) is { } reason ? EmptyTrashText.FailureNote(reason) : null;
 
-    private async Task AskThenBulkAsync(string operation)
-    {
-        if (_selected.Count == 0)
-        {
-            return;
-        }
-
-        var dialog = await DialogService.ShowAsync<ViewDocumentBulkDialog>(string.Empty,
-            new AppDialogParameters<ViewDocumentBulkDialog>
-            {
-                { component => component.Operation, operation },
-                { component => component.Count, _selected.Count },
-                { component => component.Catalogue, _catalogue },
-            },
-            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
-        if (await dialog.Result is { Canceled: false, Data: ViewDocumentBulkRequest answer })
-        {
-            await BulkAsync(operation, answer);
-        }
-    }
+    private Task EditSelectionAsync() =>
+        OpenEditorAsync([.. _items.Where(item => _selected.Contains(item.Id))]);
 
     // One call changes at most 500 documents, so a longer selection goes in batches and is reported as one result.
     private async Task BulkAsync(string operation, ViewDocumentBulkRequest? answer = null)
     {
         if (_bulkBusy || _selected.Count == 0)
+        {
+            return;
+        }
+
+        if (operation == ViewDocumentBulkOperations.MoveToTrash && !await ViewTrashConfirmation.AskTrashAsync(DialogService, _selected.Count))
         {
             return;
         }
@@ -1038,6 +1095,7 @@
     public void Dispose()
     {
         Device.OnChanged -= DeviceChanged;
+        Workspace.ScopeChanged -= ScopeSwitchedAsync;
         PressEnded();
         _searchCts?.Cancel();
         _searchCts?.Dispose();

@@ -52,7 +52,7 @@
 
 .tl-detail-person-fact ::deep .tl-icon-root {
     color: rgba(255, 255, 255, 0.62);
-    font-size: 1rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 @media (max-width: 1180px) {
@@ -82,42 +82,16 @@
     align-items: center;
     gap: 0.55rem;
     width: fit-content;
-    color: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-text-on-accent));
     font-size: clamp(0.78rem, 0.9vw, 0.95rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.35;
     letter-spacing: 0.12em;
-    text-transform: uppercase;
     min-height: 1.35rem;
 }
 
 :where(.tl-detail-page) .tl-detail-hero__not-matched {
     margin: 0.35rem 0 0;
-}
-
-:where(.tl-detail-page) .tl-detail-hero__universe-link {
-    margin: 0.35rem 0 0;
-    font-size: clamp(0.82rem, 0.9vw, 0.95rem);
-    line-height: 1.4;
-}
-
-:where(.tl-detail-page) .tl-detail-hero__universe-link a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tl-tap-target-min, 44px);
-    color: color-mix(in srgb, var(--tl-text-primary, #fff) 78%, transparent);
-    text-decoration: none;
-}
-
-:where(.tl-detail-page) .tl-detail-hero__universe-link a:hover,
-:where(.tl-detail-page) .tl-detail-hero__universe-link a:focus-visible {
-    color: var(--tl-text-primary, #fff);
-    text-decoration: underline;
-}
-
-:where(.tl-detail-page) .tl-detail-hero__universe-link a:focus-visible {
-    outline: 2px solid var(--tl-focus-ring);
-    outline-offset: 2px;
 }
 
 :where(.tl-detail-page) .tl-detail-hero-credit-stack {
@@ -134,15 +108,14 @@
 }
 
 :where(.tl-detail-page) .tl-detail-hero-credit-stack__label {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 78%, var(--tl-text-on-accent));
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.18em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-detail-hero-credit-stack__value {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 62%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 62%, var(--tl-text-on-accent));
     font-size: clamp(0.98rem, 1.35vw, 1.28rem);
     font-weight: 600;
     letter-spacing: 0.03em;
@@ -176,11 +149,11 @@
     align-items: center;
     gap: 0.42rem;
     color: rgba(246, 240, 232, 0.70);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 :where(.tl-detail-page) .tl-detail-person-fact ::deep .tl-icon-root {
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 78%, var(--tl-text-on-accent));
 }
 
 :where(.tl-detail-page) .tl-detail-person-link,
@@ -193,17 +166,17 @@
     border: 1px solid rgba(255,255,255,0.16);
     border-radius: 0.42rem;
     background: rgba(255,255,255,0.065);
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 86%, var(--tl-text-on-accent));
     text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     transition: background 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 :where(.tl-detail-page) .tl-detail-person-link:hover,
 :where(.tl-detail-page) :where(.tl-detail-person-links) ::deep .tl-detail-person-link:hover {
     background: rgba(255,255,255,0.12);
-    color: #fff8eb;
+    color: var(--tl-text-primary);
     transform: translateY(-1px);
 }
 
@@ -218,18 +191,16 @@
 :where(.tl-detail-page) .tl-detail-hero__eyebrow {
     width: fit-content;
     padding-bottom: 0.42rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--tl-detail-primary, #c9922e) 72%, transparent);
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    border-bottom: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 72%, transparent);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 86%, var(--tl-text-on-accent));
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__eyebrow {
     padding-bottom: 0;
     border-bottom: 0;
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 92%, #ffe7a7);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 92%, var(--tl-accent-collection-hover));
     font-size: clamp(0.86rem, 1vw, 1.02rem);
     letter-spacing: 0.02em;
 }
@@ -259,12 +230,12 @@
     display: inline-flex;
     align-items: center;
     padding: 0.32rem 0.72rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #c9922e) 46%, rgba(255,255,255,0.26));
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 46%, rgba(255,255,255,0.26));
     border-radius: 0.5rem;
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.48);
     color: rgba(var(--hero-text-rgb, 246, 240, 232), 0.88);
-    font-size: 0.82rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
     backdrop-filter: blur(10px);
 }
 
@@ -296,15 +267,15 @@
 :where(.tl-detail-page) .tl-detail-hero__overview-link {
     display: inline-block;
     margin-top: 0.45rem;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 82%, #fff);
-    font-size: 0.86rem;
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 82%, var(--tl-text-on-accent));
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     text-decoration: none;
 }
 
 :where(.tl-detail-page) .tl-detail-hero__overview-link:hover,
 :where(.tl-detail-page) .tl-detail-hero__overview-link:focus-visible {
-    color: #fff;
+    color: var(--tl-text-on-accent);
     text-decoration: underline;
     text-underline-offset: 0.2em;
 }
@@ -436,22 +407,6 @@
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-person-links > a.tl-detail-person-link:focus-visible {
     border-color: var(--tl-secondary-action-border-hover) !important;
     background: var(--tl-secondary-action-bg-hover) !important;
-    color: #fff !important;
+    color: var(--tl-text-on-accent) !important;
     box-shadow: var(--tl-shadow-focus) !important;
-}
-
-/* Editing Mode: the Edit / Done controls float at the top right of the hero, above the hero content. */
-.tl-editing-hero-controls {
-    position: absolute;
-    /* The detail hero runs full-bleed behind the fixed top bar, so the controls start below it. */
-    top: calc(var(--app-topbar-height, 65px) + var(--tl-space-3));
-    right: clamp(1rem, 3vw, 2.5rem);
-    z-index: 7;
-    display: grid;
-    justify-items: end;
-    gap: var(--tl-space-2);
-}
-
-.tl-editing-hero-controls:empty {
-    display: none;
 }

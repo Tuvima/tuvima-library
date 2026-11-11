@@ -4,6 +4,7 @@
 @* Injected here so the overlay state exists, and watches location changes, before the Router does: its answer for a new
    address is then ready when the Router renders. *@
 @inject DetailsOverlayState Overlay
+@inject Microsoft.JSInterop.IJSRuntime Js
 <CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
 <CascadingValue Name="ClientAddress" Value="ClientAddress" IsFixed="true">
 <CascadingValue Name="ClientSignInRefusal" Value="ClientSignInRefusal" IsFixed="true">
@@ -35,6 +36,16 @@
 </CascadingValue>
 
 @code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try { await Js.InvokeVoidAsync("tuvimaDismissLaunchSplash"); }
+        catch (Exception ex) when (ex is Microsoft.JSInterop.JSException or InvalidOperationException or TaskCanceledException)
+        {
+            // The splash also removes itself after a few seconds, so a failed call leaves nothing stuck.
+        }
+    }
+
     /// <summary>The Dashboard's classification of this visitor, set once by the host page and shared with every screen.</summary>
     [Parameter] public string ClientIngress { get; set; } = MediaEngine.Contracts.Authentication.ClientIngressValues.Remote;
 

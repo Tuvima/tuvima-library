@@ -1,0 +1,261 @@
+<title>Look Pass Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one dark page, six screens. Each screen is drawn exactly as the app will show it; numbered markers sit on the screen, notes sit below. */
+:root{
+  color-scheme:dark;
+  --bg:#05070F; --page:#0B1020; --surface:#111827; --raised:#151E2F; --hover:#1A2438; --elevated:#1D2940;
+  --text:#F5F7FB; --text2:#B6C2D6; --muted:#94A3B8; --border:rgba(148,163,184,.22); --border-strong:rgba(182,194,214,.46);
+  --accent:#8852FC; --accent-hover:#A46FFF; --accent-soft:rgba(136,82,252,.16); --accent-border:rgba(136,82,252,.42);
+  --danger:#F87171; --danger-soft:rgba(239,68,68,.14); --danger-border:rgba(248,113,113,.6);
+  --warn:#F59E0B; --warn-soft:rgba(245,158,11,.14); --warn-border:rgba(245,158,11,.42);
+  --ok:#22C55E; --info:#38BDF8;
+  --watch:#FB7185; --listen:#FBBF24; --read:#60A5FA; --view:#2DD4BF; --vault:#D6A84F;
+  --pill:3px; --ctl:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:48px}
+h1{font-size:24px;margin:0 0 6px;text-wrap:balance}
+.lede{color:var(--text2);margin:0;max-width:70ch}
+h2{font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+.stage{background:linear-gradient(160deg,#0d0a24,#0B1020 60%);border:1px solid var(--border);border-radius:12px;padding:28px;overflow-x:auto}
+.notes{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px;max-width:84ch}
+.notes li{display:flex;gap:10px;color:var(--text2);font-size:13px}
+.n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+.mk{position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;color:#111;font-size:11px;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 2px var(--accent);z-index:5}
+.rel{position:relative}
+.row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+svg{display:block}
+/* dialog */
+.dlg{width:460px;max-width:100%;background:#0F1626;border:1px solid var(--border);border-radius:14px;padding:22px 24px 22px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.dlg-h{display:flex;align-items:center;gap:14px}
+.tile{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;flex:none}
+.tile.warn{background:var(--warn-soft);border:1px solid var(--warn-border);color:var(--warn)}
+.tile.dang{background:var(--danger-soft);border:1px solid var(--danger-border);color:var(--danger)}
+.tile.info{background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent-hover)}
+.dlg h3{margin:0;font-size:20px;font-weight:700;flex:1}
+.x{color:var(--muted);width:36px;height:36px;display:grid;place-items:center;border-radius:var(--ctl)}
+.dlg p{margin:14px 0 0;font-size:16px;color:var(--text2)}
+.dlg-f{display:flex;justify-content:flex-end;gap:12px;margin-top:22px}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border-radius:var(--ctl);font:600 16px/1 inherit;font-family:inherit;border:1px solid transparent;cursor:pointer;color:#fff;background:transparent}
+.btn.primary{background:var(--accent);border-color:var(--accent)}
+.btn.secondary{border-color:var(--border-strong);color:var(--text)}
+.btn.danger{border-color:var(--danger-border);color:var(--danger)}
+.btn.dangerfill{background:#DC2626;border-color:#DC2626}
+.btn.quiet{color:var(--text2);padding:0 12px}
+.btn.s{height:36px;font-size:14px;padding:0 14px}
+.btn.l{height:48px;font-size:18px;padding:0 28px}
+.btn.focus{outline:3px solid #A78BFA;outline-offset:2px}
+.ib{width:48px;height:48px;border-radius:var(--ctl);border:1px solid var(--border-strong);display:grid;place-items:center;color:#fff;background:rgba(15,22,38,.6)}
+.ib.hov{background:rgba(255,255,255,.12);border-color:#fff}
+/* hero */
+.hero{border-radius:12px;background:linear-gradient(90deg,#0B1020 0 35%,rgba(11,16,32,.2)),linear-gradient(135deg,#3a2468,#1a1036 60%,#0b0920);padding:28px;min-height:230px;display:flex;flex-direction:column;justify-content:flex-end;gap:14px}
+.hero .meta{color:var(--text2);font-size:14px;display:flex;gap:10px;align-items:center}
+.hero .acts{display:flex;gap:10px;align-items:center}
+.resume{position:relative;overflow:hidden}
+.resume i{position:absolute;left:0;bottom:0;height:3px;width:34%;background:var(--accent-hover)}
+.resume b{position:absolute;left:0;bottom:0;height:3px;width:100%;background:rgba(255,255,255,.28);z-index:0}
+.resume i{z-index:1}
+/* menu */
+.menu{width:272px;background:#0F1626;border:1px solid var(--border);border-radius:12px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.55)}
+.mi{display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border-radius:8px;font-size:16px;font-weight:500;color:var(--text)}
+.mi svg{flex:none}
+.mi.on{background:var(--hover)}
+.mi.dang{color:var(--danger)}
+.mi small{margin-left:auto;color:var(--muted);font-size:13px;font-weight:400}
+.sep{height:1px;background:var(--border);margin:6px 8px}
+/* tiles */
+.shelf{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.tl{width:150px}
+.cv{position:relative;height:225px;border-radius:8px;overflow:hidden;border:2px solid transparent}
+.cv.sq{width:225px}
+.tl.sqw{width:225px}
+.cv.hover{border-color:#fff;box-shadow:0 0 0 3px var(--accent)}
+.tl .t{margin-top:8px;font-size:14px;font-weight:600}
+.tl .s{font-size:13px;color:var(--muted)}
+.dots{position:absolute;right:8px;bottom:8px;width:36px;height:36px;border-radius:var(--ctl);background:rgba(8,10,20,.78);display:grid;place-items:center;color:#fff}
+.badge{position:absolute;left:8px;top:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;padding:2px 7px;border-radius:var(--pill)}
+.ph1{background:linear-gradient(160deg,#7c3aed,#1e1b4b)}.ph2{background:linear-gradient(160deg,#be123c,#2a0f1d)}.ph3{background:linear-gradient(160deg,#0369a1,#0b2236)}.ph4{background:linear-gradient(160deg,#b45309,#2a1a08)}.ph5{background:linear-gradient(160deg,#0f766e,#0a2321)}
+/* libraries */
+.lib{background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:640px}
+.lr{display:grid;grid-template-columns:52px 1.4fr 110px 90px 120px 90px;gap:16px;align-items:center;padding:12px 16px;border-top:1px solid var(--border);font-size:14px}
+.lr:first-child{border-top:0}
+.ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center}
+.tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:var(--pill);text-transform:uppercase}
+.chips{display:flex;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.chip{height:32px;padding:0 12px;border-radius:var(--pill);display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;border:1px solid var(--border);color:var(--text2)}
+.chip.on{color:#fff}
+.stat{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+/* swatches */
+.sw{display:flex;gap:12px;flex-wrap:wrap}
+.sw div{width:150px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--surface)}
+.sw span{display:block;height:54px}
+.sw em{display:block;font-style:normal;padding:8px 10px;font-size:12px;color:var(--text2)}
+.sw b{color:var(--text);font-size:13px;display:block}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Look pass: one look for the whole app</h1>
+  <p class="lede">Six screens, drawn exactly as the app will show them once the rules are built. Numbered dots sit on the screen; what each one means is listed underneath. Colors and shapes are the app's own; the sizes are the new standard.</p>
+</header>
+
+<!-- 1 DIALOGS -->
+<section>
+  <h2>1. Dialogs</h2>
+  <p class="sub">Three dialogs, one anatomy. Every dialog in the app uses it.</p>
+  <div class="stage"><div class="row">
+    <div class="dlg rel">
+      <span class="mk" style="left:-10px;top:12px">1</span><span class="mk" style="left:196px;top:-10px">2</span><span class="mk" style="right:-10px;top:12px">3</span><span class="mk" style="left:-10px;top:86px">4</span><span class="mk" style="right:60px;bottom:-10px">5</span><span class="mk" style="right:210px;bottom:-10px">6</span>
+      <div class="dlg-h"><div class="tile warn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v5M12 17.5v.5" stroke-linecap="round"/></svg></div><h3>Discard unsaved changes?</h3><div class="x"><svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg></div></div>
+      <p>Your changes haven’t been saved. Leaving now will discard them.</p>
+      <div class="dlg-f"><span class="btn danger">Discard changes</span><span class="btn primary focus">Keep editing</span></div>
+    </div>
+    <div class="dlg rel">
+      <span class="mk" style="left:-10px;top:12px">7</span>
+      <div class="dlg-h"><div class="tile dang"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></div><h3>Delete Dune Part One?</h3><div class="x"><svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg></div></div>
+      <p>The file and its details are removed from your Library. Nothing else changes.</p>
+      <div class="dlg-f"><span class="btn danger">Delete</span><span class="btn primary focus">Cancel</span></div>
+    </div>
+    <div class="dlg rel">
+      <span class="mk" style="left:-10px;top:12px">8</span>
+      <div class="dlg-h"><div class="tile info"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div><h3>Save changes to 3 items?</h3><div class="x"><svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg></div></div>
+      <p>You will see exactly what changes before anything is saved.</p>
+      <div class="dlg-f"><span class="btn secondary">Cancel</span><span class="btn primary">Review changes</span></div>
+    </div>
+  </div></div>
+  <ul class="notes">
+    <li><span class="n">1</span>Icon tile in the color of the situation: amber for a warning, red for something that removes things, purple for an ordinary question. Same 44 px tile everywhere.</li>
+    <li><span class="n">2</span>Title in 20 px bold. A question for confirmations (“Delete Dune Part One?”), a plain label for forms.</li>
+    <li><span class="n">3</span>A close X at the top right of every dialog. Closing is the same as the safe choice, never the destructive one.</li>
+    <li><span class="n">4</span>Body text is 16 px, one to two short lines, saying what happens and what stays.</li>
+    <li><span class="n">5</span>The safe action is always the filled purple button on the far right and has keyboard focus when the dialog opens.</li>
+    <li><span class="n">6</span>The destructive action is outlined red, never filled, and sits to its left. This is the only place red is used on a button.</li>
+    <li><span class="n">7</span>Delete asks once and then happens at once. “Delete” is outlined red, “Cancel” is the filled safe button.</li>
+    <li><span class="n">8</span>A normal question has a secondary Cancel (outlined) beside one filled purple action.</li>
+  </ul>
+</section>
+
+<!-- 2 BUTTONS -->
+<section>
+  <h2>2. Buttons</h2>
+  <p class="sub">Three levels, three heights. Nothing else.</p>
+  <div class="stage rel">
+    <div class="row" style="align-items:center">
+      <span class="btn primary l rel"><span class="mk" style="left:-10px;top:-10px">1</span>▶ Play</span>
+      <span class="btn primary l resume rel"><span class="mk" style="left:-10px;top:-14px;z-index:6">2</span><b></b><i></i>▶ Resume</span>
+      <span class="ib rel"><span class="mk" style="left:-10px;top:-10px">3</span><svg width="22" height="22" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="ib hov rel"><span class="mk" style="left:-10px;top:-10px">4</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 11v9H4v-9h3Zm0 0 4-8c1.5 0 2.3 1.2 2 2.8L12.6 9H19a2 2 0 0 1 2 2.4l-1.5 7A2 2 0 0 1 17.5 20H7"/></svg></span>
+    </div>
+    <div class="row" style="margin-top:28px;align-items:center">
+      <span class="btn primary rel"><span class="mk" style="left:-10px;top:-10px">5</span>Save changes</span>
+      <span class="btn secondary rel"><span class="mk" style="left:-10px;top:-10px">6</span>Cancel</span>
+      <span class="btn quiet rel"><span class="mk" style="left:-10px;top:-10px">7</span>Skip for now</span>
+      <span class="btn danger rel"><span class="mk" style="left:-10px;top:-10px">8</span>Delete</span>
+      <span class="btn secondary s rel"><span class="mk" style="left:-10px;top:-10px">9</span>Edit</span>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span class="n">1</span>Hero Play, Read, Watch and Listen: 48 px tall, 18 px text, one line. Wide enough for its word, never cramped.</li>
+    <li><span class="n">2</span>Resume is the same size as Play and says only “Resume”. Progress is a thin bar along the bottom edge of the button.</li>
+    <li><span class="n">3</span>Icon buttons next to Play (My List, rate, “...”) are 48 px squares with the same corners as every control.</li>
+    <li><span class="n">4</span>The hover highlight is exactly the button’s own box, so there is no bigger invisible circle.</li>
+    <li><span class="n">5</span>Primary: filled purple, one per screen, 44 px.</li>
+    <li><span class="n">6</span>Secondary: clearly outlined, for Back, Cancel and Check again.</li>
+    <li><span class="n">7</span>Quiet: text only, for the least important choice.</li>
+    <li><span class="n">8</span>Destructive: outlined red, always the less prominent of a pair.</li>
+    <li><span class="n">9</span>Small (36 px) is for dense rows and tables on desktop only.</li>
+  </ul>
+</section>
+
+<!-- 3 MENU -->
+<section>
+  <h2>3. The “...” menu</h2>
+  <p class="sub">Larger text, colored icons, thin dividers. Shown for a Continue Watching movie, in the order from the tile menu plan.</p>
+  <div class="stage"><div class="row">
+    <div class="menu rel">
+      <span class="mk" style="left:-10px;top:10px">1</span><span class="mk" style="right:-10px;top:10px">2</span><span class="mk" style="left:-10px;top:100px">3</span><span class="mk" style="left:-10px;top:236px">4</span><span class="mk" style="left:-10px;bottom:56px">5</span>
+      <div class="mi on"><svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent-hover)"><path d="M7 4l13 8-13 8z"/></svg>Resume<small>42:10</small></div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hover)" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart</div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hover)" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to My List</div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>Movie Details</div>
+      <div class="sep"></div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linejoin="round"><path d="M7 11v9H4v-9h3Zm0 0 4-8c1.5 0 2.3 1.2 2 2.8L12.6 9H19a2 2 0 0 1 2 2.4l-1.5 7A2 2 0 0 1 17.5 20H7"/></svg>Like</div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linejoin="round" style="transform:scaleY(-1)"><path d="M7 11v9H4v-9h3Zm0 0 4-8c1.5 0 2.3 1.2 2 2.8L12.6 9H19a2 2 0 0 1 2 2.4l-1.5 7A2 2 0 0 1 17.5 20H7"/></svg>Dislike</div>
+      <div class="sep"></div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>Remove from Continue Watching</div>
+      <div class="sep"></div>
+      <div class="mi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--listen)" stroke-width="2" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z"/></svg>Edit</div>
+      <div class="mi dang"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Delete</div>
+    </div>
+  </div></div>
+  <ul class="notes">
+    <li><span class="n">1</span>Rows are 44 px tall with 16 px text, up from 14 px. The menu is 272 px wide so nothing wraps awkwardly.</li>
+    <li><span class="n">2</span>A short hint on the right (“42:10”) tells you what the main action will do.</li>
+    <li><span class="n">3</span>Every row has an icon in the app’s colors: purple for actions on the item, blue for information, grey for rating. Same icon, same color, every menu in the app.</li>
+    <li><span class="n">4</span>Thin dividers group the menu: play, rate, remove from Continue, then edit and delete.</li>
+    <li><span class="n">5</span>Delete is red text and icon, always last. Edit and Delete only appear on a computer, for people allowed to use them.</li>
+  </ul>
+</section>
+
+<!-- 4 TILES -->
+<section>
+  <h2>4. Tiles</h2>
+  <p class="sub">Same height in every row, one small badge, “...” always visible, one hover that stays on the cover.</p>
+  <div class="stage"><div class="shelf">
+    <div class="tl rel"><span class="mk" style="left:-8px;top:-8px">1</span><div class="cv ph1"><span class="badge">New</span><span class="dots"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span></div><div class="t">The Expanse</div><div class="s">TV show · 6 seasons</div></div>
+    <div class="tl rel"><div class="cv ph2 hover"><span class="dots"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span></div><span class="mk" style="left:60px;top:-8px">2</span><div class="t">Dune Part One</div><div class="s">Movie · 2021</div></div>
+    <div class="tl sqw rel"><div class="cv sq ph4"><span class="dots"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span><span class="mk" style="right:-10px;bottom:-10px">3</span></div><div class="t">Kind of Blue</div><div class="s">Album · Miles Davis</div></div>
+    <div class="tl rel"><div class="cv ph3"><span class="dots"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span></div><div class="t">Project Hail Mary</div><div class="s">Book · Andy Weir</div></div>
+  </div></div>
+  <ul class="notes">
+    <li><span class="n">1</span>At most one small square badge per tile (“New”), top left. No overlapping badges, no type badge.</li>
+    <li><span class="n">2</span>One hover everywhere: a bold white border with a purple ring around the cover only. The title underneath is never covered and nothing grows.</li>
+    <li><span class="n">3</span>Every tile on a row is the same height. A square album is wider than a portrait cover but equally tall. The “...” button sits bottom right of the cover on every tile, always visible, never hidden until hover.</li>
+  </ul>
+</section>
+
+<!-- 5 LIBRARIES + ICON COLOR -->
+<section>
+  <h2>5. Icon colors: the Libraries page</h2>
+  <p class="sub">Every icon takes its color from what it is. Watch, Listen, Read and View each have one color, used everywhere that area appears.</p>
+  <div class="stage"><div class="lib rel">
+    <div class="chips"><span class="mk" style="left:-10px;top:8px">1</span>
+      <span class="chip on" style="background:var(--accent);border-color:var(--accent)">All</span>
+      <span class="chip" style="color:var(--watch);border-color:rgba(251,113,133,.45)">▶ Watch</span>
+      <span class="chip" style="color:var(--listen);border-color:rgba(251,191,36,.45)">♪ Listen</span>
+      <span class="chip" style="color:var(--read);border-color:rgba(96,165,250,.45)">▤ Read</span>
+      <span class="chip" style="color:var(--view);border-color:rgba(45,212,191,.45)">◫ View</span></div>
+    <div class="lr"><div class="ic rel" style="background:rgba(251,113,133,.14);color:var(--watch)"><span class="mk" style="left:-12px;top:-8px">2</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor"/></svg></div><div><b>Movies</b><div style="color:var(--muted);font-size:13px">8,412 titles</div></div><div><span class="tag" style="background:rgba(251,113,133,.14);color:var(--watch)">Watch</span></div><div><span style="color:var(--info);font-weight:600;text-decoration:underline">1 folder</span></div><div class="stat" style="color:var(--ok)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg>Healthy</div><div style="text-align:right"><span class="btn secondary s">Edit</span></div></div>
+    <div class="lr"><div class="ic" style="background:rgba(251,191,36,.14);color:var(--listen)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg></div><div><b>Music</b><div style="color:var(--muted);font-size:13px">31,980 tracks</div></div><div><span class="tag" style="background:rgba(251,191,36,.14);color:var(--listen)">Listen</span></div><div><span style="color:var(--info);font-weight:600;text-decoration:underline">2 folders</span></div><div class="stat" style="color:var(--accent-hover)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/></svg>Scanning</div><div style="text-align:right"><span class="btn secondary s">Edit</span></div></div>
+    <div class="lr"><div class="ic" style="background:rgba(96,165,250,.14);color:var(--read)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z"/><path d="M8 7h7"/></svg></div><div><b>Books</b><div style="color:var(--muted);font-size:13px">1,204 books</div></div><div><span class="tag" style="background:rgba(96,165,250,.14);color:var(--read)">Read</span></div><div><span style="color:var(--info);font-weight:600;text-decoration:underline">1 folder</span></div><div class="stat" style="color:var(--ok)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg>Healthy</div><div style="text-align:right"><span class="btn secondary s">Edit</span></div></div>
+    <div class="lr"><div class="ic" style="background:rgba(45,212,191,.14);color:var(--view)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg></div><div><b>Photos and Videos</b><div style="color:var(--muted);font-size:13px">12,030 items</div></div><div><span class="tag" style="background:rgba(45,212,191,.14);color:var(--view)">View</span></div><div><span style="color:var(--info);font-weight:600;text-decoration:underline">1 folder</span></div><div class="stat" style="color:var(--ok)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg>Healthy</div><div style="text-align:right"><span class="btn secondary s">Edit</span></div></div>
+  </div></div>
+  <ul class="notes">
+    <li><span class="n">1</span>Area filter chips wear their area color. The selected chip is filled, the others are outlined in their color.</li>
+    <li><span class="n">2</span>Each library’s icon sits in a soft tile in its area color, and the same color is used for its small area label. Rose is Watch, amber is Listen, blue is Read, teal is View.</li>
+  </ul>
+  <p class="sub" style="margin-top:14px">Green appears only for “Healthy” and success ticks, and the app’s own controls use purple. The page and menu surfaces take on a faint purple tint from the intro animation.</p>
+</section>
+
+<!-- 6 PALETTE -->
+<section>
+  <h2>6. The color set</h2>
+  <p class="sub">What each color means. Anything not on this list does not appear in the app’s chrome.</p>
+  <div class="stage"><div class="sw rel">
+    <div><span style="background:#8852FC"></span><em><b>Purple</b>The app’s own controls, selected, focus, progress</em></div>
+    <div><span style="background:linear-gradient(90deg,#0B1020,#1a1036)"></span><em><b>Violet-navy</b>Page and panel surfaces, slightly warmer than today</em></div>
+    <div><span style="background:#FB7185"></span><em><b>Rose</b>Watch</em></div>
+    <div><span style="background:#FBBF24"></span><em><b>Amber</b>Listen, and warnings</em></div>
+    <div><span style="background:#60A5FA"></span><em><b>Blue</b>Read, and information</em></div>
+    <div><span style="background:#2DD4BF"></span><em><b>Teal</b>View</em></div>
+    <div><span style="background:#D6A84F"></span><em><b>Gold</b>Vault and collections</em></div>
+    <div><span style="background:#22C55E"></span><em><b>Green</b>Healthy and done only</em></div>
+    <div><span style="background:#EF4444"></span><em><b>Red</b>Delete and broken only</em></div>
+  </div></div>
+</section>
+</div>

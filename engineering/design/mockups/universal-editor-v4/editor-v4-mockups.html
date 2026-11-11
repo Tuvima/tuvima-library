@@ -1,0 +1,684 @@
+<title>Editor v4 Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a stack of 1440-wide app screens, each in its own sideways-scrolling frame, numbered notes beneath. Single dark look on purpose: it is the app's own look. */
+:root{
+  --page:#05070d; --app:#070A12; --win:#0F1626; --panel:#0C1322; --line:#1E293B; --line2:#243049;
+  --fg:#F5F7FB; --fg2:#B6C2D6; --fg3:#8593AA; --accent:#8852FC; --accent2:#C4A1FF; --accentbg:#221a3e;
+  --ok:#4ade80; --okbg:#12351f; --warn:#fbbf24; --warnbg:#3a2c0b; --bad:#f87171; --badbg:#3b1414;
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.4;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.intro{max-width:880px;margin:0 auto 28px}
+.intro h1{font-size:26px;margin:0 0 8px;text-wrap:balance}
+.intro p{color:var(--fg2);margin:0 0 8px;max-width:70ch}
+section.shot{max-width:1460px;margin:0 auto 44px}
+section.shot h2{font-size:18px;margin:0 0 4px}
+section.shot .sub{color:var(--fg3);margin:0 0 12px}
+.frame{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--app)}
+.notes{max-width:880px;margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li{display:grid;grid-template-columns:26px 1fr;gap:10px;color:var(--fg2)}
+.notes li b{color:var(--fg)}
+
+/* screen */
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:var(--app)}
+.bgpage{position:absolute;inset:0;background:linear-gradient(180deg,#1a1532 0,#0B1020 380px)}
+.bgpage .topnav{height:56px;border-bottom:1px solid var(--line);background:#0B1020;display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--fg2)}
+.bgpage .topnav b{color:var(--fg);letter-spacing:.08em}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.7)}
+.win{position:absolute;left:80px;top:20px;width:1280px;height:860px;background:var(--win);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.rail{height:58px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+.crumb{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);min-width:210px}
+.crumb.on{border-color:var(--accent);background:#17132b}
+.crumb .t{width:30px;height:30px;border-radius:5px;flex:none}
+.crumb small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.crumb span{font-weight:600;font-size:13px}
+.crumb .v{margin-left:auto;color:var(--fg3)}
+.sep{color:var(--fg3)}
+.x{margin-left:auto;color:var(--fg2);font-size:22px;width:36px;text-align:center}
+.head{height:168px;flex:none;display:flex;gap:22px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 35%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.head .cover{width:88px;height:132px;border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.head .cover.land{width:200px;height:113px;align-self:center}
+.head .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.head h3{font-size:28px;margin:4px 0 4px}
+.head .facts{color:var(--fg2)}
+.head .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.lnk{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+.more{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 12px;font-weight:700}
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);flex:none}
+.tab{padding:13px 16px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent}
+.tab.on{color:var(--fg);border-color:var(--accent)}
+.body{flex:1;min-height:0;display:flex;gap:20px;padding:20px 24px;overflow:hidden}
+.form{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;align-content:start}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.w{grid-column:1/-1}
+.f label{font-size:12px;color:var(--fg2);font-weight:600}
+.in{height:38px;border:1px solid var(--line2);border-radius:7px;background:#0B1020;display:flex;align-items:center;padding:0 10px;gap:8px}
+.in.tall{height:64px;align-items:flex-start;padding-top:9px}
+.in.changed{border-color:var(--accent)}
+.in .ico{margin-left:auto;color:var(--fg3);font-size:13px}
+.in .rev{color:var(--accent2)}
+.ro{color:var(--fg3)}
+.qf{width:300px;flex:none;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:14px 16px;align-self:start}
+.qf h4{margin:0 0 8px;font-size:15px}
+.qf .r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.qf .r:first-of-type{border-top:0}
+.qf .i{width:34px;height:34px;border-radius:50%;background:var(--accentbg);color:var(--accent2);display:grid;place-items:center;font-size:14px;flex:none}
+.qf b{display:block;font-size:16px}.qf small{color:var(--fg2)}
+.foot{height:64px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;background:#0C1220}
+.foot .where b{display:block;font-size:13px}.foot .where small{color:var(--fg3)}
+.foot .cnt{margin-left:auto;color:var(--fg2)}
+.btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);display:inline-flex;align-items:center;font-weight:600;background:transparent;color:var(--fg)}
+.btn.p{background:var(--accent);border-color:var(--accent)}
+.btn.d{background:#b42318;border-color:#b42318}
+.btn.sm{height:30px;padding:0 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:4px;font-size:12px;background:#1E293B;color:var(--fg2)}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.warn{background:var(--warnbg);color:var(--warn)}.chip.ac{background:var(--accentbg);color:var(--accent2)}
+.mk{position:absolute;width:24px;height:24px;border-radius:50%;background:#ffd84d;color:#1a1300;font-weight:800;font-size:13px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(0,0,0,.6);z-index:5}
+.th{border-radius:5px;flex:none}
+.g1{background:linear-gradient(150deg,#c0603a,#3a1d2f 60%,#121a33)}
+.g2{background:linear-gradient(150deg,#3d5a8a,#14203a)}
+.g3{background:linear-gradient(150deg,#5a4a8a,#1a1538)}
+.g4{background:linear-gradient(150deg,#8a6a3a,#2a1a10)}
+.g5{background:linear-gradient(150deg,#2a6a6a,#0c2224)}
+.g6{background:linear-gradient(150deg,#7a3a5a,#200c18)}
+.g7{background:linear-gradient(150deg,#d8a24a,#5a2a12 70%)}
+.g8{background:linear-gradient(150deg,#4a7a3a,#10200c)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;color:var(--fg3);font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr.sel td{background:#151a30}
+.cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--fg3);display:inline-block;vertical-align:middle}
+.cb.on{background:var(--accent);border-color:var(--accent);position:relative}
+.cb.on::after{content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.bar{display:inline-block;width:70px;height:6px;border-radius:3px;background:#1E293B;vertical-align:middle;margin-right:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.lo i{background:var(--warn)}
+.num{font-variant-numeric:tabular-nums}
+.card{border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.dd{position:absolute;background:#111a2c;border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:8px;z-index:4}
+.dd .s{height:34px;border:1px solid var(--line2);border-radius:7px;background:#0B1020;display:flex;align-items:center;padding:0 10px;color:var(--fg3);margin-bottom:6px}
+.dd .o{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px}
+.dd .o.on{background:#1D2940}
+.dd .o small{color:var(--fg3);display:block;font-size:11px}
+.dd .o .m{margin-left:auto;font-size:12px}
+.modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:#121a2b;border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.7);padding:22px;z-index:6}
+.modal h3{margin:0 0 10px;font-size:19px}
+.modal p{color:var(--fg2);margin:0 0 10px}
+.modal ul{margin:0 0 14px;padding-left:18px;color:var(--fg2)}
+.modal .acts{display:flex;justify-content:flex-end;gap:10px}
+.scrim{position:absolute;inset:0;background:rgba(3,5,10,.55);z-index:5}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="intro">
+  <h1>Editor v4 mockups</h1>
+  <p>Each screen shows exactly what the Dashboard would show at 1440 px wide. Yellow numbers mark the parts explained underneath. Pictures are stand-in colour blocks; the real editor shows the real artwork.</p>
+  <p>Scroll each screen sideways on a narrow window.</p>
+</div>
+
+<!-- 1 FILM DETAILS -->
+<section class="shot">
+  <h2>1. A film: Details with Quick Facts</h2>
+  <p class="sub">Dune (2021), opened from its page with "..." then Edit. No family, so no rail.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"><div class="topnav"><b>LIBRARY</b><span>Read</span><span style="color:#fff">Watch</span><span>Listen</span><span>View</span></div></div>
+    <div class="dim"></div>
+    <div class="win">
+      <div class="head" style="--herobg:linear-gradient(120deg,#3a2a14,#7a5226 70%,#c9954a)">
+        <div class="cover g7"></div>
+        <div><div class="kicker">Film</div><h3>Dune</h3><div class="facts">2021 · 2h 35m · Science fiction · PG-13</div>
+          <div style="display:flex;gap:8px;margin-top:12px"><span class="chip ok">✓ Matched</span></div></div>
+        <div class="links"><span class="lnk">TMDB ↗</span><span class="lnk">Wikidata ↗</span><span class="more">···</span><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on">Details</span><span class="tab">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body">
+        <div class="form">
+          <div class="f w"><label>Title</label><div class="in">Dune<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Sort title</label><div class="in">Dune<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Year</label><div class="in">2021<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Overview</label><div class="in tall changed">A mythic journey of a gifted young man, Paul Atreides, destined for a war over the galaxy's most valuable resource.<span class="ico"><span class="rev">↺</span> 🔒</span></div></div>
+          <div class="f"><label>Genres</label><div class="in"><span class="chip">Science fiction ✕</span><span class="chip">Adventure ✕</span><span class="ico">＋</span></div></div>
+          <div class="f"><label>Content rating</label><div class="in">PG-13<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Tags</label><div class="in"><span class="chip">Desert ✕</span><span class="ico">＋</span></div></div>
+          <div class="f"><label>Explicit</label><div class="in">Off</div></div>
+        </div>
+        <div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">⏱</span><div><b>2h 35m</b><small>Runtime</small></div></div>
+          <div class="r"><span class="i">▣</span><div><b>4K HDR</b><small>Best quality you own</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>58.2 GB</b><small>2 files</small></div></div>
+          <div class="r"><span class="i">◎</span><div><b>Dune</b><small>Universe</small></div></div>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>File write-back on</small></div><span class="cnt">1 change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:50px;top:30px">1</span>
+    <span class="mk" style="left:1150px;top:30px">2</span>
+    <span class="mk" style="left:50px;top:200px">3</span>
+    <span class="mk" style="left:880px;top:345px">4</span>
+    <span class="mk" style="left:1064px;top:226px">5</span>
+    <span class="mk" style="left:50px;top:818px">6</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Header.</b> The item's own picture, kind, title and a line of facts, so you always know what you are editing.</span></li>
+    <li><b>2</b><span><b>Provider links and "...".</b> Links open the provider's page. "..." holds Delete (screen 9) and Refresh from provider.</span></li>
+    <li><b>3</b><span><b>Tabs.</b> A film has five. Shows, seasons, albums and series also get Contents (screen 3).</span></li>
+    <li><b>4</b><span><b>Lock and revert.</b> The lock keeps your value when the provider refreshes. The arrow appears on a changed field and puts it back. A changed field has a purple edge.</span></li>
+    <li><b>5</b><span><b>Quick Facts</b> suit the type and can't be edited here. The Universe line is the editor's way to the Universe (also in Match &amp; Identity).</span></li>
+    <li><b>6</b><span><b>Footer.</b> Where changes go, how many are waiting, Discard and Save changes. Save opens Review changes first, as today.</span></li>
+  </ol>
+</section>
+
+<!-- 2 EPISODE WITH RAIL -->
+<section class="shot">
+  <h2>2. An episode: the rail of dropdowns</h2>
+  <p class="sub">The Expanse, Season 2, episode 3. The episode dropdown is open.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail">
+        <div class="crumb"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb"><span class="t g2"></span><div><small>Season</small><span>Season 2</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb on"><span class="t g3"></span><div><small>Episode 3</small><span>Static</span></div><span class="v">▾</span></div>
+        <span class="x">✕</span>
+      </div>
+      <div class="head" style="height:150px;--herobg:linear-gradient(120deg,#14203a,#3d5a8a)">
+        <div class="cover land g3"></div>
+        <div><div class="kicker">The Expanse · Episode</div><h3>S02E03 · Static</h3><div class="facts">Aired 8 Feb 2017 · 42 min</div><div style="margin-top:10px"><span class="chip ok">✓ Matched</span></div></div>
+        <div class="links"><span class="lnk">TheTVDB ↗</span><span class="more">···</span></div>
+      </div>
+      <div class="tabs"><span class="tab on">Details</span><span class="tab">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body">
+        <div class="form">
+          <div class="f w"><label>Title</label><div class="in">Static<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Season</label><div class="in ro">2 · change in Match &amp; Identity</div></div>
+          <div class="f"><label>Episode</label><div class="in ro">3 · change in Match &amp; Identity</div></div>
+          <div class="f w"><label>Overview</label><div class="in tall">Holden and the crew of the Rocinante investigate the growing crisis on Eros.<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Air date</label><div class="in">8 February 2017<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Tags</label><div class="in"><span class="ico">＋</span></div></div>
+        </div>
+        <div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">⏱</span><div><b>42 min</b><small>Runtime</small></div></div>
+          <div class="r"><span class="i">▣</span><div><b>1080p</b><small>Quality</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>1.4 GB</b><small>1 file</small></div></div>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">2 changes on 2 episodes</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <div class="dd" style="left:584px;top:72px;width:330px">
+      <div class="s">⌕ Find an episode</div>
+      <div class="o"><span class="th g4" style="width:52px;height:30px"></span><div>1 · Safe<small>Aired 1 Feb 2017</small></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o"><span class="th g5" style="width:52px;height:30px"></span><div>2 · Doors &amp; Corners<small>Aired 1 Feb 2017</small></div><span class="m" style="color:var(--accent2)">● 1 change</span></div>
+      <div class="o on"><span class="th g3" style="width:52px;height:30px"></span><div>3 · Static<small>Aired 8 Feb 2017</small></div><span class="m" style="color:var(--accent2)">● 1 change</span></div>
+      <div class="o"><span class="th g6" style="width:52px;height:30px"></span><div>4 · Godspeed<small>Not matched</small></div><span class="m" style="color:var(--warn)">⚠</span></div>
+      <div class="o"><span class="th g8" style="width:52px;height:30px"></span><div>5 · Home<small>Aired 22 Feb 2017</small></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o" style="color:var(--fg3)">Showing 5 of 13 · scroll for more</div>
+    </div>
+    <span class="mk" style="left:50px;top:28px">1</span>
+    <span class="mk" style="left:920px;top:110px">2</span>
+    <span class="mk" style="left:560px;top:420px">3</span>
+    <span class="mk" style="left:1020px;top:820px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The rail</b> appears only when the item has a family. Each level is a dropdown with a picture, so you can jump to the show, another season or another episode without closing.</span></li>
+    <li><b>2</b><span><b>Each dropdown</b> lists siblings with a picture, a tick when matched, a warning when not, and a purple dot when changes are waiting. Long lists are searchable and load as you scroll.</span></li>
+    <li><b>3</b><span><b>Season and episode numbers</b> are shown but changed in Match &amp; Identity, because changing them means choosing a different episode.</span></li>
+    <li><b>4</b><span><b>Changes on several items</b> stay staged while you move between them, and Save covers them all.</span></li>
+  </ol>
+</section>
+
+<!-- 3 SEASON CONTENTS -->
+<section class="shot">
+  <h2>3. A season: Contents with ticked episodes</h2>
+  <p class="sub">Season 2 of The Expanse. Three episodes are ticked.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail">
+        <div class="crumb"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb on"><span class="t g2"></span><div><small>Season</small><span>Season 2</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb"><span class="t" style="background:#1E293B"></span><div><small>Episode</small><span style="color:var(--fg3)">Choose an episode</span></div><span class="v">▾</span></div>
+        <span class="x">✕</span>
+      </div>
+      <div class="head" style="height:140px;--herobg:linear-gradient(120deg,#14203a,#5a3a2a)">
+        <div class="cover g2" style="width:70px;height:105px"></div>
+        <div><div class="kicker">The Expanse · Season</div><h3>Season 2</h3><div class="facts">2017 · 13 episodes · 12 matched, 1 not matched</div></div>
+        <div class="links"><span class="lnk">TheTVDB ↗</span><span class="more">···</span></div>
+      </div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab on">Contents</span><span class="tab">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 24px;border-bottom:1px solid var(--line);background:#151a30">
+        <span class="cb on"></span><b>3 selected</b><span class="btn sm">Edit 3 episodes</span><span class="btn sm">Match 3 episodes</span><span class="btn sm" style="color:#fca5a5;border-color:#5a2020">Delete 3…</span><span style="margin-left:auto;color:var(--fg2)">Clear</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:0 24px">
+        <table class="t">
+          <tr><th style="width:30px"><span class="cb"></span></th><th style="width:90px"></th><th>#</th><th>Title</th><th>Status</th><th>Aired</th><th class="num">Runtime</th><th class="num">Size</th><th>Quality</th></tr>
+          <tr class="sel"><td><span class="cb on"></span></td><td><span class="th g4" style="display:block;width:72px;height:40px"></span></td><td class="num">1</td><td>Safe</td><td><span class="chip ok">✓ Matched</span></td><td>1 Feb 2017</td><td class="num">43 min</td><td class="num">1.5 GB</td><td>1080p</td></tr>
+          <tr class="sel"><td><span class="cb on"></span></td><td><span class="th g5" style="display:block;width:72px;height:40px"></span></td><td class="num">2</td><td>Doors &amp; Corners</td><td><span class="chip ok">✓ Matched</span></td><td>1 Feb 2017</td><td class="num">43 min</td><td class="num">1.4 GB</td><td>1080p</td></tr>
+          <tr class="sel"><td><span class="cb on"></span></td><td><span class="th g3" style="display:block;width:72px;height:40px"></span></td><td class="num">3</td><td>Static</td><td><span class="chip ok">✓ Matched</span></td><td>8 Feb 2017</td><td class="num">42 min</td><td class="num">1.4 GB</td><td>1080p</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th" style="display:block;width:72px;height:40px;background:#1E293B"></span></td><td class="num">?</td><td>S02E04.mkv</td><td><span class="chip warn">⚠ Not matched</span></td><td>–</td><td class="num">44 min</td><td class="num">1.5 GB</td><td>1080p</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g8" style="display:block;width:72px;height:40px"></span></td><td class="num">5</td><td>Home</td><td><span class="chip ok">✓ Matched</span></td><td>22 Feb 2017</td><td class="num">44 min</td><td class="num">1.5 GB</td><td>1080p</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g6" style="display:block;width:72px;height:40px"></span></td><td class="num">6</td><td>Paradigm Shift</td><td><span class="chip ok">✓ Matched</span></td><td>1 Mar 2017</td><td class="num">43 min</td><td class="num">1.4 GB</td><td>1080p</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g1" style="display:block;width:72px;height:40px"></span></td><td class="num">7</td><td>The Seventh Man</td><td><span class="chip ok">✓ Matched</span></td><td>8 Mar 2017</td><td class="num">42 min</td><td class="num">1.4 GB</td><td>1080p</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g2" style="display:block;width:72px;height:40px"></span></td><td class="num">8</td><td>Pyre</td><td><span class="chip ok">✓ Matched</span></td><td>15 Mar 2017</td><td class="num">43 min</td><td class="num">1.4 GB</td><td>1080p</td></tr>
+        </table>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:420px;top:320px">1</span>
+    <span class="mk" style="left:50px;top:375px">2</span>
+    <span class="mk" style="left:660px;top:530px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Selection bar.</b> Ticking rows offers Edit (screen 8), Match (screen 5) and Delete (screen 9) for just those rows.</span></li>
+    <li><b>2</b><span><b>Contents</b> is the one place to see every child's status at once. The rail only moves you to one item at a time.</span></li>
+    <li><b>3</b><span><b>A file with no episode</b> is listed in place with "Not matched". Clicking the row opens it on Match &amp; Identity.</span></li>
+  </ol>
+</section>
+
+<!-- 4 MATCH ONE EPISODE -->
+<section class="shot">
+  <h2>4. Match &amp; Identity: one episode, before and after</h2>
+  <p class="sub">The unmatched file S02E04.mkv. The editor opened straight on this tab.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail">
+        <div class="crumb"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb"><span class="t g2"></span><div><small>Season</small><span>Season 2</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb on"><span class="t" style="background:#1E293B"></span><div><small>Not matched</small><span>S02E04.mkv</span></div><span class="v">▾</span></div>
+        <span class="x">✕</span>
+      </div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab">Artwork</span><span class="tab on">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body" style="flex-direction:column;gap:14px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="in" style="width:170px">Search by: Show title<span class="ico">▾</span></div>
+          <div class="in" style="flex:1">⌕ The Expanse<span class="ico">✕</span></div>
+          <div class="in" style="width:160px">Season 2<span class="ico">▾</span></div>
+          <div class="in" style="width:200px;color:var(--fg3)">Episode title or number</div>
+          <span class="chip">From the folder and file name</span>
+        </div>
+        <div class="card" style="padding:16px;display:grid;grid-template-columns:1fr 40px 1fr;gap:12px;align-items:center">
+          <div><div style="color:var(--fg3);font-size:12px;font-weight:600;margin-bottom:8px">YOUR FILE</div>
+            <div style="display:flex;gap:12px;align-items:center"><span class="th" style="width:140px;height:79px;background:#1E293B;display:grid;place-items:center;color:var(--fg3)">no picture</span>
+              <div class="num"><b>S02E04.mkv</b><br><span style="color:var(--fg2)">Season 2 · Episode 4 (from name)<br>44 min · 1080p</span></div></div></div>
+          <div style="text-align:center;font-size:22px;color:var(--accent2)">→</div>
+          <div><div style="color:var(--fg3);font-size:12px;font-weight:600;margin-bottom:8px">WILL BECOME</div>
+            <div style="display:flex;gap:12px;align-items:center"><span class="th g6" style="width:140px;height:79px"></span>
+              <div class="num"><b>S02E04 · Godspeed</b><br><span style="color:var(--fg2)">Season 2 · Episode 4 ✓<br>44 min ✓ · Aired 15 Feb 2017</span></div></div></div>
+        </div>
+        <div class="card" style="flex:1;overflow:hidden">
+          <table class="t">
+            <tr><th style="width:120px"></th><th>Episode</th><th>Title</th><th>Aired</th><th class="num">Runtime</th><th>Confidence</th><th></th></tr>
+            <tr class="sel"><td><span class="th g6" style="display:block;width:96px;height:54px"></span></td><td class="num">S02E04</td><td><b>Godspeed</b> <span class="chip ac">Best guess</span></td><td>15 Feb 2017</td><td class="num">44 min</td><td><span class="bar"><i style="width:96%"></i></span><span class="num">96%</span> <span style="color:var(--fg3)">ⓘ</span></td><td><span class="btn sm p">Selected</span></td></tr>
+            <tr><td><span class="th g8" style="display:block;width:96px;height:54px"></span></td><td class="num">S02E05</td><td>Home</td><td>22 Feb 2017</td><td class="num">44 min</td><td><span class="bar lo"><i style="width:41%"></i></span><span class="num">41%</span></td><td><span class="btn sm">Pick</span></td></tr>
+            <tr><td><span class="th g3" style="display:block;width:96px;height:54px"></span></td><td class="num">S02E03</td><td>Static <span class="chip">Already in library</span></td><td>8 Feb 2017</td><td class="num">42 min</td><td><span class="bar lo"><i style="width:30%"></i></span><span class="num">30%</span></td><td><span class="btn sm">Pick</span></td></tr>
+          </table>
+          <div style="padding:10px 14px;color:var(--fg2);display:flex;gap:16px;border-top:1px solid var(--line)"><span>Different season or show? <u>Search all of The Expanse</u> · <u>Search another show</u></span><span style="margin-left:auto">Universe: <b style="color:var(--fg)">The Expanse</b> <u>Open Universe</u></span></div>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>The file stays in its folder</small></div><span class="cnt">1 change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:200px;top:142px">1</span>
+    <span class="mk" style="left:50px;top:190px">2</span>
+    <span class="mk" style="left:1010px;top:356px">3</span>
+    <span class="mk" style="left:1330px;top:598px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Search starts from your folder and file names.</b> "Search by" also offers a provider ID or pasted link (TheTVDB, IMDb), year, air date (daily shows) and absolute number (anime). Each type lists only the options it can use. The last box narrows to an episode by title words or number.</span></li>
+    <li><b>2</b><span><b>Before and after.</b> Only the facts that decide the pick: episode number, title, runtime, air date and still. A tick shows where your file agrees.</span></li>
+    <li><b>3</b><span><b>Confidence.</b> The (i) says why in words, for example "Episode number and runtime match". An episode you already own is marked so you don't pick it twice.</span></li>
+    <li><b>4</b><span><b>Open Universe</b> takes you to the Universe page (asking about unsaved changes first).</span></li>
+  </ol>
+</section>
+
+<!-- 5 MATCH SEASON TABLE -->
+<section class="shot">
+  <h2>5. Matching a season of files in one go</h2>
+  <p class="sub">"Match 13 episodes" from Contents. Step 1 is done; step 2 lines your files up.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail">
+        <div class="crumb"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb on"><span class="t g2"></span><div><small>Season</small><span>Season 2</span></div><span class="v">▾</span></div>
+        <span class="x">✕</span>
+      </div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab">Contents</span><span class="tab">Artwork</span><span class="tab on">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body" style="flex-direction:column;gap:12px">
+        <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span class="chip ac">1</span><span class="th g1" style="width:40px;height:60px"></span>
+          <div><b>The Expanse</b> (2015) <span class="chip ok">✓ Chosen</span><br><span style="color:var(--fg2)">TheTVDB · 6 seasons · 62 episodes</span></div>
+          <span class="btn sm" style="margin-left:auto">Change show</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px"><span class="chip ac">2</span><b>Line up your files with Season 2</b><span style="color:var(--fg2)">11 ready · 1 needs your choice · 1 already right</span>
+          <div class="in" style="margin-left:auto;width:220px">Apply to: All 13 files<span class="ico">▾</span></div></div>
+        <div class="card" style="flex:1;overflow:hidden">
+          <table class="t">
+            <tr><th style="width:30px"><span class="cb on"></span></th><th>Your file</th><th class="num">Length</th><th style="width:30px"></th><th>Will become</th><th class="num">Length</th><th>Confidence</th><th>Status</th></tr>
+            <tr><td><span class="cb on"></span></td><td>The.Expanse.S02E01.mkv</td><td class="num">43 min</td><td style="color:var(--accent2)">→</td><td class="num">S02E01 · Safe</td><td class="num">43 min</td><td><span class="bar"><i style="width:99%"></i></span>99%</td><td><span class="chip ok">Ready</span></td></tr>
+            <tr><td><span class="cb on"></span></td><td>The.Expanse.S02E02.mkv</td><td class="num">43 min</td><td style="color:var(--accent2)">→</td><td class="num">S02E02 · Doors &amp; Corners</td><td class="num">43 min</td><td><span class="bar"><i style="width:98%"></i></span>98%</td><td><span class="chip ok">Ready</span></td></tr>
+            <tr><td><span class="cb on"></span></td><td>The.Expanse.S02E03.mkv</td><td class="num">42 min</td><td style="color:var(--accent2)">→</td><td class="num">S02E03 · Static</td><td class="num">42 min</td><td><span class="bar"><i style="width:99%"></i></span>99%</td><td><span class="chip">Already right</span></td></tr>
+            <tr class="sel"><td><span class="cb on"></span></td><td>S02E04.mkv</td><td class="num">44 min</td><td style="color:var(--accent2)">→</td><td class="num">S02E04 · Godspeed</td><td class="num">44 min</td><td><span class="bar"><i style="width:96%"></i></span>96%</td><td><span class="chip ok">Ready</span></td></tr>
+            <tr><td><span class="cb on"></span></td><td>expanse 2x05 home.mkv</td><td class="num">44 min</td><td style="color:var(--accent2)">→</td><td class="num">S02E05 · Home</td><td class="num">44 min</td><td><span class="bar"><i style="width:91%"></i></span>91%</td><td><span class="chip ok">Ready</span></td></tr>
+            <tr><td><span class="cb on"></span></td><td>bonus.mkv</td><td class="num">12 min</td><td style="color:var(--accent2)">→</td><td><div class="in" style="height:30px;width:230px;border-color:var(--warn)">Choose episode or Extra<span class="ico">▾</span></div></td><td class="num">–</td><td><span class="bar lo"><i style="width:18%"></i></span>18%</td><td><span class="chip warn">⚠ Needs choice</span></td></tr>
+            <tr><td><span class="cb on"></span></td><td>The.Expanse.S02E06.mkv</td><td class="num">43 min</td><td style="color:var(--accent2)">→</td><td class="num">S02E06 · Paradigm Shift</td><td class="num">43 min</td><td><span class="bar"><i style="width:98%"></i></span>98%</td><td><span class="chip ok">Ready</span></td></tr>
+          </table>
+        </div>
+        <div style="color:var(--fg2)">ⓘ Your files stay in their folders. Turn on "Move and rename files" in Files if you want them tidied.</div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">12 changes · 1 needs your choice</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:50px;top:136px">1</span>
+    <span class="mk" style="left:50px;top:208px">2</span>
+    <span class="mk" style="left:510px;top:268px">3</span>
+    <span class="mk" style="left:50px;top:520px">4</span>
+    <span class="mk" style="left:1080px;top:820px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Step 1: the show.</b> Already chosen from the folder name; Change show if it's wrong.</span></li>
+    <li><b>2</b><span><b>Step 2: line up.</b> A one-line summary of how many are ready, and Apply to: all files or only the ticked ones.</span></li>
+    <li><b>3</b><span><b>Side by side on one line:</b> your file and its length, an arrow, then the episode and its length. Lengths sit in matching columns so a mismatch stands out.</span></li>
+    <li><b>4</b><span><b>Needs choice.</b> Low confidence is never guessed. You pick the episode or mark it as an Extra.</span></li>
+    <li><b>5</b><span><b>Save counts what's left.</b> Review changes lists any row still needing a choice, and that row is left as it is.</span></li>
+  </ol>
+</section>
+
+<!-- 5b WHAT IS THIS FILE -->
+<section class="shot">
+  <h2>5b. "What is this file?" for a trailer in a season folder</h2>
+  <p class="sub">"Season 1 trailer.mkv" sits in The Expanse/Season 1/. It isn't an episode, so the editor opens on Match &amp; Identity.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail">
+        <div class="crumb"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb"><span class="t g4"></span><div><small>Season</small><span>Season 1</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb on"><span class="t" style="background:#1E293B"></span><div><small>Not sorted</small><span>Season 1 trailer.mkv</span></div><span class="v">▾</span></div>
+        <span class="x">✕</span>
+      </div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab on">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body" style="flex-direction:column;gap:14px">
+        <div class="card" style="padding:12px 14px;display:flex;gap:14px;align-items:center">
+          <span class="th g4" style="width:120px;height:68px"></span>
+          <div class="num"><b>Season 1 trailer.mkv</b><br><span style="color:var(--fg2)">2 min 14 s · 1080p · The Expanse/Season 1/</span></div>
+        </div>
+        <b style="font-size:15px">What is this file?</b>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div class="card" style="padding:12px"><b>An episode</b><br><span style="color:var(--fg2);font-size:13px">Match it to an episode of this show</span></div>
+          <div class="card" style="padding:12px;border-color:var(--accent);background:#17132b"><b>An extra</b> <span class="chip ac">Our guess</span><br><span style="color:var(--fg2);font-size:13px">Trailer, featurette, document…</span></div>
+          <div class="card" style="padding:12px"><b>Belongs to another title</b><br><span style="color:var(--fg2);font-size:13px">A film or show in the wrong folder</span></div>
+          <div class="card" style="padding:12px"><b>Ignore it</b><br><span style="color:var(--fg2);font-size:13px">Hide it; the file stays on disk</span></div>
+        </div>
+        <div class="card" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="f"><label>Kind</label><div style="display:flex;flex-wrap:wrap;gap:6px"><span class="chip ac">✓ Trailer</span><span class="chip">Featurette</span><span class="chip">Behind the scenes</span><span class="chip">Deleted scene</span><span class="chip">Interview</span><span class="chip">Document</span><span class="chip">Other clip</span></div></div>
+          <div class="f"><label>Belongs to</label><div style="display:flex;gap:8px"><div class="in" style="flex:1">The Expanse<span class="ico">▾</span></div><div class="in" style="flex:1">Season 1<span class="ico">▾</span></div><div class="in" style="flex:1;color:var(--fg3)">Whole season<span class="ico">▾</span></div></div></div>
+          <div class="f"><label>Title</label><div class="in">Season 1 trailer<span class="ico">🔓</span></div></div>
+          <div style="color:var(--fg2);align-self:end">ⓘ Shows under Extras on The Expanse page, with Season 1. Never counted as an episode.</div>
+        </div>
+        <div class="card" style="flex:1;overflow:hidden">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--line)"><b>Other files in this show that aren't sorted</b> <span style="color:var(--fg3)">2</span></div>
+          <table class="t">
+            <tr><td style="width:36%">Inside the Rocinante - featurette.mkv</td><td style="color:var(--fg2)">14 min · Season 2/</td><td><div class="in" style="height:30px;width:190px">Extra: Featurette<span class="ico">▾</span></div></td><td><div class="in" style="height:30px;width:170px">Season 2<span class="ico">▾</span></div></td><td><span class="chip ac">Our guess</span></td></tr>
+            <tr><td>sample.mkv</td><td style="color:var(--fg2)">30 s · Season 1/</td><td><div class="in" style="height:30px;width:190px">Ignore it<span class="ico">▾</span></div></td><td style="color:var(--fg3)">–</td><td><span class="chip ac">Our guess</span></td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>Files stay where they are</small></div><span class="cnt">3 changes</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:50px;top:290px">1</span>
+    <span class="mk" style="left:50px;top:420px">2</span>
+    <span class="mk" style="left:740px;top:420px">3</span>
+    <span class="mk" style="left:50px;top:620px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Four plain choices.</b> The file name gives the guess ("trailer" and "Season 1"), which only pre-fills. Episode goes to the normal Match. Belongs to another title searches the whole Library. Ignore hides it and keeps it out of future scans; Settings lists ignored files with Add back.</span></li>
+    <li><b>2</b><span><b>Kind of extra.</b> A PDF in a course like Stephen Curry's MasterClass would be a Document; a booklet beside an album the same.</span></li>
+    <li><b>3</b><span><b>Where it belongs:</b> the whole show, a season, or one episode (for a film, the film; for an album, the album or a track).</span></li>
+    <li><b>4</b><span><b>The rest of the show's unsorted files</b> are listed here, each with a guess, so you can sort them all in one go.</span></li>
+  </ol>
+</section>
+
+<!-- 6 ARTWORK -->
+<section class="shot">
+  <h2>6. Artwork: roles, versions and a large preview</h2>
+  <p class="sub">The Expanse (the show), Background chosen.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail"><div class="crumb on"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span><div class="crumb"><span class="t" style="background:#1E293B"></span><div><small>Season</small><span style="color:var(--fg3)">Choose a season</span></div><span class="v">▾</span></div><span class="x">✕</span></div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab">Contents</span><span class="tab on">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body" style="flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center"><span class="th g1" style="width:46px;height:69px"></span><div><b>Poster</b><br><span style="color:var(--accent2);font-size:12px">Preferred chosen</span><br><span style="color:var(--fg3);font-size:12px">3 versions</span></div></div>
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center;border-color:var(--accent);background:#17132b"><span class="th g2" style="width:96px;height:54px"></span><div><b>Background</b><br><span style="color:var(--accent2);font-size:12px">Preferred chosen</span><br><span style="color:var(--fg3);font-size:12px">2 versions</span></div></div>
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center"><span class="th" style="width:96px;height:36px;background:#1E293B"></span><div><b>Logo</b><br><span style="color:var(--fg3);font-size:12px">No artwork</span><br><span style="color:var(--fg3);font-size:12px">0 versions</span></div></div>
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center"><span class="th g5" style="width:46px;height:69px"></span><div><b>Season posters</b><br><span style="color:var(--fg3);font-size:12px">5 of 6 seasons</span><br><span style="color:var(--fg3);font-size:12px">Opens each season</span></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 330px;gap:14px;flex:1;min-height:0">
+          <div class="card" style="padding:14px;position:relative;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:8px;justify-content:flex-end"><span class="btn sm">＋ Zoom</span><span class="btn sm">－</span><span class="btn sm">⛶ Full screen</span></div>
+            <div class="g2" style="flex:1;border-radius:8px;background:linear-gradient(160deg,#5a3a2a,#1a2a4a 55%,#05070d)"></div>
+            <div style="color:var(--fg2)">ⓘ Changes the show's background. Seasons without their own background use it too.</div>
+          </div>
+          <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <span class="btn p" style="justify-content:center">＋ Add artwork ▾</span>
+            <span class="btn">↻ Replace</span><span class="btn" style="color:#fca5a5">🗑 Delete this version</span>
+            <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;grid-template-columns:110px 1fr;gap:6px;color:var(--fg2)" class="num">
+              <span>Source</span><b style="color:var(--fg)">TheTVDB</b><span>Dimensions</span><b style="color:var(--fg)">3840 × 2160</b><span>Shape</span><b style="color:var(--fg)">Landscape 16:9</b><span>File size</span><b style="color:var(--fg)">2.4 MB</b><span>Type</span><b style="color:var(--fg)">JPEG</b><span>Language</span><b style="color:var(--fg)">None (no text)</b>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="position:relative"><span class="th g2" style="display:block;width:160px;height:90px;outline:2px solid var(--accent)"></span><span class="chip ac" style="position:absolute;left:6px;bottom:6px">★ Preferred</span></div>
+          <span class="th g6" style="display:block;width:160px;height:90px"></span>
+          <span class="th g5" style="display:block;width:160px;height:90px"></span>
+          <span style="width:160px;height:90px;border:1px dashed var(--line2);border-radius:5px;display:grid;place-items:center;color:var(--fg2)">＋ Add version</span>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>Artwork write-back on</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:50px;top:136px">1</span>
+    <span class="mk" style="left:830px;top:260px">2</span>
+    <span class="mk" style="left:50px;top:640px">3</span>
+    <span class="mk" style="left:1340px;top:420px">4</span>
+    <span class="mk" style="left:50px;top:730px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Role cards.</b> One per role this item has, each drawn at its real shape, with how many versions you own and whether one is Preferred. A show also links to its seasons' posters.</span></li>
+    <li><b>2</b><span><b>Large preview</b> at the picture's real shape, with zoom and full screen, so you can judge it properly.</span></li>
+    <li><b>3</b><span><b>What it reaches,</b> in words, before you save.</span></li>
+    <li><b>4</b><span><b>Actions and file facts:</b> source, dimensions, shape, size, type and language.</span></li>
+    <li><b>5</b><span><b>Versions strip.</b> Click any version to make it Preferred. It moves to the front; the others keep the order they were added in. There's no separate "Set preferred" button.</span></li>
+  </ol>
+</section>
+
+<!-- 7 ADD ARTWORK -->
+<section class="shot">
+  <h2>7. Add artwork from a provider</h2>
+  <p class="sub">"Add artwork" on the Poster role of Dune.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="head" style="height:110px;--herobg:linear-gradient(120deg,#3a2a14,#c9954a)"><div class="cover g7" style="width:56px;height:84px"></div><div><div class="kicker">Film</div><h3 style="font-size:24px">Dune</h3><div class="facts">2021</div></div><div class="links"><span class="more">···</span><span class="x" style="margin:0">✕</span></div></div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab on">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div class="body" style="flex-direction:column;gap:12px">
+        <div style="display:flex;gap:10px;align-items:center">
+          <b style="font-size:16px">Add a poster</b><span style="color:var(--fg3)">Poster · portrait 2:3</span>
+          <div style="margin-left:auto;display:flex;gap:6px"><span class="btn sm p">From TMDB</span><span class="btn sm">From Fanart</span><span class="btn sm">Upload</span><span class="btn sm">Paste a link</span></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="in" style="width:200px">Language: English<span class="ico">▾</span></div>
+          <div class="in" style="width:220px">Size: Large (2000 px +)<span class="ico">▾</span></div>
+          <span style="color:var(--fg2)">18 posters · sorted by size</span>
+          <span class="btn sm" style="margin-left:auto">← Back to Poster</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:14px">
+          <div><div class="th g7" style="aspect-ratio:2/3;outline:2px solid var(--accent);position:relative"><span class="chip ac" style="position:absolute;right:6px;top:6px">✓</span></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">2000 × 3000 · English</div></div>
+          <div><div class="th g4" style="aspect-ratio:2/3"></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">2000 × 3000 · English</div></div>
+          <div><div class="th g1" style="aspect-ratio:2/3"></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">1400 × 2100 · English</div></div>
+          <div><div class="th g5" style="aspect-ratio:2/3"></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">2000 × 3000 · No text</div></div>
+          <div><div class="th g6" style="aspect-ratio:2/3"></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">1382 × 2048 · English</div></div>
+          <div><div class="th g2" style="aspect-ratio:2/3"></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">1000 × 1500 · English</div></div>
+          <div><div class="th g8" style="aspect-ratio:2/3;opacity:.7"></div><div class="num" style="color:var(--fg2);font-size:12px;margin-top:4px">680 × 1000 · <span style="color:var(--warn)">Small</span></div></div>
+        </div>
+        <div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:14px;margin-top:auto">
+          <span class="th g7" style="width:40px;height:60px"></span><div><b>Selected: 2000 × 3000, English, TMDB</b><br><span style="color:var(--fg2)">Added as a new version. Only this film's poster changes.</span></div>
+          <label style="margin-left:auto;display:flex;gap:8px;align-items:center"><span class="cb on"></span> Make it the Preferred poster</label>
+          <span class="btn p">Add version</span>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>Artwork write-back on</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:820px;top:182px">1</span>
+    <span class="mk" style="left:50px;top:228px">2</span>
+    <span class="mk" style="left:1300px;top:290px">3</span>
+    <span class="mk" style="left:50px;top:740px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Sources:</b> the providers enabled for films, Upload, or Paste a link.</span></li>
+    <li><b>2</b><span><b>Filters:</b> language (yours first) and size. The role's shape is stated, so you know what fits.</span></li>
+    <li><b>3</b><span><b>Thumbnails at the real shape,</b> with size and language underneath. Pictures too small to look good are marked "Small".</span></li>
+    <li><b>4</b><span><b>Adds a version</b> and can make it Preferred in the same step. It still waits for Save changes like everything else.</span></li>
+  </ol>
+</section>
+
+<!-- 8 TWELVE SONGS -->
+<section class="shot">
+  <h2>8. Editing 12 songs at once</h2>
+  <p class="sub">Twelve songs ticked in the Songs list, then Edit.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail" style="gap:10px"><b style="font-size:16px">Editing 12 songs</b>
+        <div style="display:flex;gap:4px;margin-left:10px"><span class="th g7" style="width:28px;height:28px"></span><span class="th g1" style="width:28px;height:28px"></span><span class="th g5" style="width:28px;height:28px"></span><span class="th g3" style="width:28px;height:28px"></span><span class="chip">+8</span></div>
+        <span style="color:var(--fg2)">From 2 albums</span><span class="x">✕</span></div>
+      <div class="tabs"><span class="tab on">Details</span><span class="tab">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">History</span></div>
+      <div class="body">
+        <div class="form">
+          <div class="f"><label>Album</label><div class="in" style="color:var(--fg3)">Mixed, leave unchanged<span class="ico">▾</span></div></div>
+          <div class="f"><label>Album artist</label><div class="in changed">Daft Punk<span class="ico"><span class="rev">↺</span></span></div></div>
+          <div class="f"><label>Artist</label><div class="in">Daft Punk</div></div>
+          <div class="f"><label>Year</label><div class="in" style="color:var(--fg3)">Mixed, leave unchanged</div></div>
+          <div class="f"><label>Genres</label><div class="in"><span class="chip">Electronic ✕</span><span class="ico">＋ add to all</span></div></div>
+          <div class="f"><label>Disc number</label><div class="in" style="color:var(--fg3)">Mixed, leave unchanged</div></div>
+          <div class="f"><label>Tags</label><div class="in"><span class="ico">＋ add to all</span></div></div>
+          <div class="f"><label>Explicit</label><div class="in">Off for all</div></div>
+          <div class="f w card" style="padding:12px 14px;flex-direction:row;gap:10px;align-items:center;color:var(--fg2)">ⓘ Title, track number and lyrics belong to one song each, so they're left out here. Open a single song to change them.</div>
+          <div class="f w card" style="padding:12px 14px;flex-direction:row;gap:10px;align-items:center;color:var(--fg2);border-color:#5a4a1a">⚠ 2 songs are in a read-only library. They stay ticked but won't change. <u>Show them</u></div>
+        </div>
+        <div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">♪</span><div><b>12 songs</b><small>2 albums · 1 artist</small></div></div>
+          <div class="r"><span class="i">⏱</span><div><b>58 min</b><small>Total length</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>412 MB</b><small>FLAC and MP3</small></div></div>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>Tags written to 10 files</small></div><span class="cnt">1 change on 10 songs</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:50px;top:30px">1</span>
+    <span class="mk" style="left:640px;top:156px">2</span>
+    <span class="mk" style="left:50px;top:398px">3</span>
+    <span class="mk" style="left:50px;top:458px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>No rail for a selection.</b> The top shows how many items and a few pictures. Contents and Files are left out for mixed selections.</span></li>
+    <li><b>2</b><span><b>Mixed values</b> are left alone unless you type a new one. Lists such as genres and tags can add to all or remove from all.</span></li>
+    <li><b>3</b><span><b>Fields that belong to one item</b> (title, track number, lyrics) are left out, and the editor says why.</span></li>
+    <li><b>4</b><span><b>Items that can't change</b> stay in the selection, and the footer counts only the ones that will.</span></li>
+  </ol>
+</section>
+
+<!-- 9 DELETE -->
+<section class="shot">
+  <h2>9. Delete: one confirmation, then it happens</h2>
+  <p class="sub">"Delete 3…" on the ticked episodes in Contents.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail"><div class="crumb"><span class="t g1"></span><div><small>Show</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span><div class="crumb on"><span class="t g2"></span><div><small>Season</small><span>Season 2</span></div><span class="v">▾</span></div><span class="x">✕</span></div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab on">Contents</span><span class="tab">Artwork</span><span class="tab">Match &amp; Identity</span><span class="tab">Files</span><span class="tab">History</span></div>
+      <div style="flex:1"></div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">1 change waiting</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="modal">
+      <h3>Delete 3 episodes?</h3>
+      <p>Safe, Doors &amp; Corners and Static from The Expanse, Season 2.</p>
+      <ul>
+        <li>3 files are removed from disk and can't be recovered. Frees 4.3 GB.</li>
+        <li>Watch progress for 2 profiles is removed too.</li>
+        <li>"Sci-fi night", a collection you made, loses 1 episode.</li>
+      </ul>
+      <p style="color:var(--fg3)">Your unsaved change to Static is dropped. Other changes stay.</p>
+      <div class="acts"><span class="btn">Cancel</span><span class="btn d">Delete 3 episodes</span></div>
+    </div>
+    <span class="mk" style="left:440px;top:330px;z-index:7">1</span>
+    <span class="mk" style="left:440px;top:420px;z-index:7">2</span>
+    <span class="mk" style="left:960px;top:592px;z-index:7">3</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Names what goes.</b> The same box appears for a single file (in Files), an episode, a season, a whole show, or from the editor's "...".</span></li>
+    <li><b>2</b><span><b>Plain consequences:</b> space freed, whether files can come back (they go to the Recycle bin if that media type has it switched on), progress and hand-picked collections. In a read-only folder it says "Removed from the Library. The files stay where they are."</span></li>
+    <li><b>3</b><span><b>It happens straight away</b> and does not wait for Save. If you delete the item you're on, the editor moves to its parent.</span></li>
+  </ol>
+</section>
+
+<!-- 10 UNIVERSE -->
+<section class="shot">
+  <h2>10. A Universe: giving a faction a logo</h2>
+  <p class="sub">The Expanse Universe, Factions, Outer Planets Alliance, Pictures tab. The Factions dropdown is open.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="rail">
+        <div class="crumb" style="min-width:180px"><span class="t g1"></span><div><small>Universe</small><span>The Expanse</span></div><span class="v">▾</span></div><span class="sep">›</span>
+        <div class="crumb" style="min-width:140px"><span class="t g6"></span><div><small>Characters</small><span>142</span></div><span class="v">▾</span></div>
+        <div class="crumb" style="min-width:120px"><span class="t g2"></span><div><small>Places</small><span>58</span></div><span class="v">▾</span></div>
+        <div class="crumb on" style="min-width:130px"><span class="t g4"></span><div><small>Factions</small><span>31</span></div><span class="v">▾</span></div>
+        <div class="crumb" style="min-width:120px"><span class="t g3"></span><div><small>Events</small><span>24</span></div><span class="v">▾</span></div>
+        <div class="crumb" style="min-width:120px"><span class="t g5"></span><div><small>Objects</small><span>17</span></div><span class="v">▾</span></div>
+        <div class="crumb" style="min-width:120px"><span class="t g8"></span><div><small>Species</small><span>3</span></div><span class="v">▾</span></div>
+        <span class="x">✕</span>
+      </div>
+      <div class="head" style="height:120px;--herobg:linear-gradient(120deg,#2a1a10,#8a6a3a)">
+        <div class="cover" style="width:80px;height:80px;background:#1E293B;display:grid;place-items:center;color:var(--fg3);font-size:12px;text-align:center">No logo</div>
+        <div><div class="kicker">The Expanse · Faction</div><h3>Outer Planets Alliance</h3><div class="facts">Appears in 21 Works you own · 14 members</div></div>
+        <div class="links"><span class="lnk">Wikidata ↗</span><span class="more">···</span></div>
+      </div>
+      <div class="tabs"><span class="tab">Details</span><span class="tab on">Pictures</span><span class="tab">Match</span><span class="tab">History</span></div>
+      <div class="body" style="flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center"><span class="th g4" style="width:46px;height:62px"></span><div><b>Main picture</b><br><span style="color:var(--fg3);font-size:12px">From Wikidata</span></div></div>
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center;border-color:var(--accent);background:#17132b"><span class="th" style="width:62px;height:62px;background:#1E293B"></span><div><b>Logo</b><br><span style="color:var(--fg3);font-size:12px">No picture</span></div></div>
+          <div class="card" style="padding:10px;display:flex;gap:12px;align-items:center"><span class="th" style="width:96px;height:54px;background:#1E293B"></span><div><b>Background</b><br><span style="color:var(--fg3);font-size:12px">No picture</span></div></div>
+        </div>
+        <div class="card" style="flex:1;display:grid;place-items:center;text-align:center;padding:30px">
+          <div><div style="font-size:16px;font-weight:600;margin-bottom:6px">No logo yet</div>
+          <div style="color:var(--fg2);margin-bottom:14px">The logo shows on the faction's card and next to its members.</div>
+          <div style="display:flex;gap:8px;justify-content:center"><span class="btn p">Choose from providers</span><span class="btn">From a file</span><span class="btn">From a web address</span></div></div>
+        </div>
+      </div>
+      <div class="foot"><div class="where"><b>Changes save to Library</b><small>Your pictures always win over provider ones</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <div class="dd" style="left:578px;top:72px;width:320px">
+      <div class="o" style="color:var(--accent2);font-weight:600">＋ Add faction</div>
+      <div class="s">⌕ Find a faction</div>
+      <div class="o"><span class="th g2" style="width:30px;height:30px"></span><div>Earth Navy<small>From Wikidata</small></div></div>
+      <div class="o"><span class="th g6" style="width:30px;height:30px"></span><div>Martian Congressional Republic<small>From Wikidata</small></div></div>
+      <div class="o on"><span class="th" style="width:30px;height:30px;background:#1E293B"></span><div>Outer Planets Alliance<small>From Wikidata · no logo</small></div></div>
+      <div class="o"><span class="th" style="width:30px;height:30px;background:#1E293B"></span><div>Protogen<small>Added by you</small></div></div>
+      <div class="o" style="color:var(--fg3)">Showing 4 of 31 · scroll for more</div>
+    </div>
+    <span class="mk" style="left:50px;top:28px">1</span>
+    <span class="mk" style="left:906px;top:84px">2</span>
+    <span class="mk" style="left:50px;top:220px">3</span>
+    <span class="mk" style="left:50px;top:310px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Same layout as everything else.</b> The Universe, then one dropdown per kind with its count. Concepts appear when Fandom Lore is on.</span></li>
+    <li><b>2</b><span><b>Each kind's dropdown</b> is searchable, starts with "Add faction" (or character, place...), and marks things you added yourself.</span></li>
+    <li><b>3</b><span><b>Tabs:</b> Details (name, kind, description, aliases, belongs to), Pictures, Match (Wikidata, or "Not on Wikidata, added by you") and History. The Timeline is a view on the Universe page, not edited here.</span></li>
+    <li><b>4</b><span><b>Pictures:</b> main picture, logo and background, each shown large when chosen, with Replace and Remove. Like everything except Delete, it waits for Save changes.</span></li>
+  </ol>
+</section>

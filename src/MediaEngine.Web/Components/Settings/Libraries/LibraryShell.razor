@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Components.Settings.LibraryActivity
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -36,14 +37,6 @@
 
         <div class="libpage__header">
             <div class="libpage__facts">
-                @if (CanRename)
-                {
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
-                                   Tooltip="@L["Common_Rename"].Value"
-                                   AriaLabel="@($"Rename {row.Name}")"
-                                   Disabled="@_renaming"
-                                   OnClick="RenameAsync" />
-                }
                 <span class="libpage__type"><AppMaterialIcon Icon="@row.Type.Icon" />@row.Type.Label</span>
                 @if (row.Access == LibraryListing.Vault)
                 {
@@ -112,7 +105,7 @@
                     <div class="libpage__strip-line" data-strip="unidentified">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
                         <span>@L["LibraryShell_CouldNotBeIdentified", LibraryListing.UnidentifiedText(row.Unidentified)]</span>
-                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.UnidentifiedAddress(row.Key)" />
+                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NotIdentifiedAddress(row.Key)" />
                     </div>
                 }
                 @if (row.NeedsReview > 0)
@@ -168,10 +161,6 @@
                                                 ReadOnly="@ReadOnly"
                                                 Changed="ChangedAsync" />
                     }
-                    else if (tab.Slug == UnidentifiedTab)
-                    {
-                        <LibraryUnidentifiedTab Library="@Library" Kinds="@Kinds" Configuration="@Configuration" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
-                    }
                     else if (tab.Slug == ActivityTab && IsVault)
                     {
                         @* A Vault library's activity is listed in the Vault, never here (Vault sections D40), so nothing about it is read from this page. *@
@@ -179,7 +168,7 @@
                     }
                     else if (tab.Slug == ActivityTab)
                     {
-                        <LibraryActivityTab Library="@Library" />
+                        <LibraryActivityPage LibraryId="@Library.Id" />
                     }
                     else if (tab.Slug == LookupTab && IsVault)
                     {
@@ -208,7 +197,6 @@
     public const string FileHandlingTab = "file-handling";
     public const string ActivityTab = "activity";
     public const string LookupTab = "lookup";
-    public const string UnidentifiedTab = "unidentified";
 
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
@@ -265,12 +253,8 @@
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };
-            // The Engine's unmatched files get their own tab only while there are some (Libraries redesign D5); a Vault library never lists them here.
-            if (Library.UnmatchedCount > 0 && !IsVault)
-            {
-                tabs.Add(new(UnidentifiedTab, $"Unidentified ({Library.UnmatchedCount:N0})"));
-            }
-
+            // The files the Engine could not match are not a tab here: they sit in Needs Review beside the items it is unsure about, and the
+            // strip above links there filtered to this library (universal editor v3 D9).
             if (LibraryLookupRules.HasLookupTab(Library, Kinds.Find(Library.KindKey)))
             {
                 tabs.Add(new(LookupTab, "Lookup"));
@@ -318,18 +302,24 @@
     {
         var kind = Kinds.Find(Library.KindKey);
         if (kind is null) return;
-        var managed = kind.DefaultHandling == "managed";
         var managedVault = false;
+        string? folderLabel = null;
+        var managed = false;
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.Title, $"Choose your {kind.Label} folder" },
             { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row_name()}." },
             { component => component.ConfirmLabel, "Choose folder" },
-            { component => component.SelectionMode, managed && !IsVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.KindKey, Library.KindKey },
+            { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
             { component => component.MediaType, kind.MediaTypes.FirstOrDefault() },
             { component => component.OfferManagedChoice, IsVault },
             { component => component.OnManagedChoiceChanged, EventCallback.Factory.Create<bool>(this, value => managedVault = value) },
+            // The same folder window as Add library's third step (Libraries v3 D21): friendly name at the top, Read-only / Managed under the list.
+            { component => component.ShowFolderName, !IsVault },
+            { component => component.OfferHandling, !IsVault },
+            { component => component.ManagedAllowed, LibraryKindLook.ManagedOffered(kind) },
+            { component => component.FolderNameChanged, EventCallback.Factory.Create<string>(this, value => folderLabel = value) },
+            { component => component.OnHandlingChanged, EventCallback.Factory.Create<string>(this, value => managed = value == FolderHandlingWords.ManagedKey) },
         };
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
@@ -344,7 +334,8 @@
             selected,
             managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly,
             MarkNewMediaHere: false,
-            LibraryId: Library.Id);
+            LibraryId: Library.Id,
+            Label: string.IsNullOrWhiteSpace(folderLabel) ? null : folderLabel.Trim());
         var result = await AddService.AddAsync(plan, Kinds, Configuration, FolderAddScope.Settings);
         if (!result.Saved)
         {
@@ -450,41 +441,6 @@
 
     // A library can be renamed from its own header (the pencil), except the ones whose name is the kind's (View) or the Vault's. The Engine's refusal (a name
     // already in use, a name that reads as another kind) is shown as it comes.
-    private bool CanRename => !ReadOnly && !IsVault && !string.Equals(Library.Area, "view", StringComparison.OrdinalIgnoreCase);
-
-    private bool _renaming;
-
-    private async Task RenameAsync()
-    {
-        if (_renaming) return;
-        var copy = System.Text.Json.JsonSerializer.Deserialize<LibraryFolderDto>(System.Text.Json.JsonSerializer.Serialize(Library));
-        if (copy is null) return;
-        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
-        {
-            { component => component.Label, "Library name" },
-            { component => component.Value, Library.Name ?? string.Empty },
-        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
-        if (await dialog.Result is not { Canceled: false, Data: string name } || string.Equals(name, Library.Name, StringComparison.Ordinal)) return;
-
-        _renaming = true;
-        try
-        {
-            copy.Name = name;
-            var saved = await AddService.SaveLibraryAsync(FolderAddScope.Settings, Configuration, copy);
-            if (saved is null)
-            {
-                _addError = Api.LastError ?? "The library could not be renamed. Try a different name.";
-                return;
-            }
-
-            _addError = null;
-            await Changed.InvokeAsync();
-        }
-        finally
-        {
-            _renaming = false;
-        }
-    }
 
     private async Task FolderAddedAsync()
     {

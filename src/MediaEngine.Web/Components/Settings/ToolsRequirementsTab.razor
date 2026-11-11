@@ -33,30 +33,22 @@
             <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@L["ToolsRequirementsTab_SomethingTheLibraryNeedsIsn"]</AppAlert>
         }
 
-        <AppCard Title="@L["Common_Tools"].Value" Description="@L["ToolsRequirementsTab_OutsideProgramsTheLibraryUses"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["Common_Tools"].Value" Helper="@L["ToolsRequirementsTab_OutsideProgramsTheLibraryUses"].Value">
+            <ToolsSummaryLine Tools="@Tools" />
             <div class="tools-requirements__list" data-testid="tools-list">
                 @foreach (var tool in Tools)
                 {
                     <ToolRequirementRow Tool="@tool" Busy="@(_busyId is not null)" OnLocate="LocateAsync"
-                                        OnInstall="InstallAsync" OnDownloadAgain="InstallAsync">
-                        <Actions>
-                            @if (tool.State == ToolRequirementStates.Downloading)
-                            {
-                                <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => CancelInstallAsync(tool))" />
-                            }
-                            @if (tool.State == ToolRequirementStates.InstallerReady)
-                            {
-                                <AppButton Label="@L["Common_RunInstaller"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_busyId is not null)" OnClick="@(() => RunInstallerAsync(tool))" />
-                            }
-                        </Actions>
-                    </ToolRequirementRow>
+                                        OnInstall="InstallAsync" OnCancel="CancelInstallAsync" OnRunInstaller="RunInstallerAsync" />
                 }
             </div>
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["ToolsRequirementsTab_LocalAIModels"].Value" Description="@L["ToolsRequirementsTab_ModelFilesForTheOptional"].Value" Class="tl-sp-mb-3">
+        <RestoreOfficialPluginsRow />
+
+        <AppSettingsGroup Heading="@L["ToolsRequirementsTab_LocalAIModels"].Value" Helper="@L["ToolsRequirementsTab_ModelFilesForTheOptional"].Value">
             <AppButton Label="@L["ToolsRequirementsTab_OpenModelsAndHardware"].Value" Href="@SettingsNav.RouteFor(SettingsSection.LocalAi, "models")" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" data-testid="models-link" />
-        </AppCard>
+        </AppSettingsGroup>
     }
 </div>
 
@@ -135,7 +127,7 @@
             { component => component.Title, $"Locate {tool.Name}" },
             { component => component.HelpText, $"Choose the folder that contains {tool.Name}." },
             { component => component.ConfirmLabel, "Use this folder" },
-        }, new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true });
+        }, ServerFolderPicker.DialogOptions);
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected })
         {
             return;

@@ -1,24 +1,29 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Ui
-@* The service's generic alert / question, drawn as the shared popup card (one-look spec WP2): the caller's title, the message,
-   and the buttons bottom right with the main choice last. *@
-<AppDialog Tone="AppUiTone.Info" Size="Small">
-    <DialogContent>
-        <div class="app-message-box__message">@if (Message is MarkupString markup) { @markup } else { @Message }</div>
-    </DialogContent>
-    <DialogActions>
-        @if (CancelText is not null) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelAsync">@CancelText</AppButton> }
-        @if (NoText is not null) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="NoAsync">@NoText</AppButton> }
-        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="YesAsync">@YesText</AppButton>
-    </DialogActions>
-</AppDialog>
+@* The service's generic alert / question. It is the one confirmation dialog (AppConfirmDialog, Look pass 4.3): the caller's
+   title, the message, and the buttons bottom right with the safe choice filled, last and focused. *@
+<AppConfirmDialog Title="@Title"
+                  PrimaryLabel="@YesText"
+                  SecondaryLabel="@(CancelText ?? NoText ?? string.Empty)"
+                  PrimaryDestructive="@IsDestructive"
+                  Tone="@(IsDestructive ? AppUiTone.Error : AppUiTone.Info)"
+                  Preview="@MessageContent" />
 @code {
     [CascadingParameter] public IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public object? Message { get; set; }
     [Parameter] public string YesText { get; set; } = "OK";
     [Parameter] public string? NoText { get; set; }
     [Parameter] public string? CancelText { get; set; }
-    private Task YesAsync() => Dialog.CloseAsync(AppDialogResult.Ok(true));
-    private Task NoAsync() => Dialog.CloseAsync(AppDialogResult.Ok(false));
-    private Task CancelAsync() => Dialog.CancelAsync();
+    [Parameter] public bool Destructive { get; set; }
+    // The caller says when the main button removes or discards something (AppDialogOptions.DestructiveConfirm): drawn outlined red,
+    // not focused, with the safe button filled and focused (Look pass 4.3).
+    private bool IsDestructive => Destructive && !string.IsNullOrEmpty(CancelText ?? NoText);
+    private string Title => Dialog.Title ?? string.Empty;
+    private RenderFragment MessageContent => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "app-message-box__message");
+        if (Message is MarkupString markup) builder.AddContent(2, markup); else builder.AddContent(2, Message?.ToString());
+        builder.CloseElement();
+    };
 }

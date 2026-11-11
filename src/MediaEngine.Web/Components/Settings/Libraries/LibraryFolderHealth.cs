@@ -1,4 +1,6 @@
+using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -16,6 +18,58 @@ public static class LibraryFolderHealth
 {
     public const string Unavailable = "Folder unavailable";
     public const string NoAccess = "No access";
+
+    /// <summary>The folder's files are held because nothing that can identify them works yet (Plugins screens v4 D38).</summary>
+    public const string WaitingForSource = "Waiting for a source";
+
+    /// <summary>
+    /// The kinds whose import is held right now: Movies, TV Shows and Comics while no source that can identify them is switched on and
+    /// has its key. Read from the same plugin list the Plugins page shows, with the rule the Engine uses.
+    /// </summary>
+    public static IReadOnlySet<string> HeldKinds(IEnumerable<PluginSummaryResponse> plugins)
+    {
+        var list = plugins.ToList();
+        if (!list.Any(plugin => plugin.Provider is not null))
+        {
+            // No source was listed at all, which means the list could not be read; nothing is claimed held.
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var working = list
+            .Where(plugin => plugin.Provider is not null && plugin.Enabled && string.IsNullOrWhiteSpace(plugin.LoadError)
+                && (!plugin.Provider.RequiresKey || plugin.Provider.KeyPresent))
+            .Select(plugin => plugin.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new[] { "movies", "tv", "comics" }
+            .Where(kind => IdentificationSourceRules.IsHeld(kind, working.Contains))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Marks the folders of every library whose kind is held as Waiting for a source, unless the folder already has a worse problem
+    /// (offline, no access), which stays what is shown.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> WithHeldKinds(
+        IReadOnlyDictionary<string, string> issues,
+        LibrariesConfigurationDto configuration,
+        IReadOnlySet<string> heldKinds)
+    {
+        if (heldKinds.Count == 0)
+        {
+            return issues;
+        }
+
+        var merged = new Dictionary<string, string>(issues, StringComparer.OrdinalIgnoreCase);
+        foreach (var library in configuration.Libraries.Where(library => heldKinds.Contains(library.KindKey)))
+        {
+            foreach (var source in library.Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path)))
+            {
+                merged.TryAdd(source.Path, WaitingForSource);
+            }
+        }
+
+        return merged;
+    }
 
     /// <summary>
     /// Checks every distinct folder path of <paramref name="configuration"/> (at most four at once) and returns path to issue.
@@ -64,6 +118,7 @@ public static class LibraryFolderHealth
     {
         var unavailable = 0;
         var noAccess = 0;
+        var waiting = 0;
         foreach (var source in sources)
         {
             if (string.IsNullOrWhiteSpace(source.Path) || !issues.TryGetValue(source.Path, out var issue))
@@ -75,13 +130,17 @@ public static class LibraryFolderHealth
             {
                 unavailable++;
             }
+            else if (issue == WaitingForSource)
+            {
+                waiting++;
+            }
             else
             {
                 noAccess++;
             }
         }
 
-        if (unavailable + noAccess == 0)
+        if (unavailable + noAccess + waiting == 0)
         {
             return LibraryHealth.Ok;
         }
@@ -95,6 +154,11 @@ public static class LibraryFolderHealth
         if (noAccess > 0)
         {
             parts.Add($"{Folders(noAccess)} {(noAccess == 1 ? "needs" : "need")} access");
+        }
+
+        if (waiting > 0)
+        {
+            parts.Add(WaitingForSource);
         }
 
         return new LibraryHealth(false, string.Join(", ", parts));

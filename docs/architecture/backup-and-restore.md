@@ -191,7 +191,6 @@ See "What a backup file holds" above. The restore screens come in the next step.
 
 | Table | Why | Owner column | Points at the catalogue | Left out |
 |---|---|---|---|---|
-| `reader_bookmarks` | Bookmarks a person placed in a book. | `user_id` | `asset_id` (media asset) | none |
 | `reader_highlights` | Highlights and notes a person made in a book. | `user_id` | `asset_id` (media asset) | none |
 | `reader_statistics` | A person's reading time and speed per book. | `user_id` | `asset_id` (media asset) | none |
 | `audiobook_bookmarks` | Bookmarks a person placed in an audiobook. | `profile_id` | `work_id` (work), `asset_id` (media asset) | none |
@@ -383,8 +382,6 @@ The Vault keeps its settings and each person's own state in a backup, and never 
 | `vault_section_grants` | Configuration | Which Vault sections each profile may open. |
 | `vault_moves` | Transient | Move to Vault and Move out jobs; a restore starts with none. |
 | `vault_move_items` | Transient | The titles inside a move, with their saved steps and a snapshot of profile state. |
-| `bookmark_packs` | Personal state | Bookmark packs a person imported for a title. |
-| `bookmark_pack_items` | Personal state | The bookmarks inside a pack (owned through the pack's profile). |
 | `nsfw_session_unlocks` | Transient | Temporary Vault mode sessions. |
 | `vault_activity` | Catalogue | Quiet list of Vault ingestion activity. |
 | `vault_artwork` | Catalogue | Vault artwork. |

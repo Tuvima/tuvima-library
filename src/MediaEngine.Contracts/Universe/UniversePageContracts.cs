@@ -37,6 +37,13 @@ public sealed class UniversePageDto
     [JsonPropertyName("enrichment")]
     public UniverseEnrichmentStateDto Enrichment { get; init; } = new();
 
+    /// <summary>
+    /// The things this Universe holds (Characters, Factions, Places, Events, Objects, Species, Concepts) and its Timeline, limited
+    /// to what the profile may see; null when there is nothing to show.
+    /// </summary>
+    [JsonPropertyName("contents")]
+    public UniverseContentsDto? Contents { get; init; }
+
     /// <summary>Visible people, places and things the Library has learned about in this Universe.</summary>
     [JsonPropertyName("graph_entity_count")]
     public int GraphEntityCount { get; init; }

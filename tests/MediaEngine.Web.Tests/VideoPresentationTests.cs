@@ -17,40 +17,40 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class VideoPresentationTests
 {
-    [Fact]
-    public void EpisodeRowsKeepTheNumberSeparateAndReserveTheActivityMarker()
-    {
-        using var ctx = new LocalizedBunitContext();
-        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        var episode = new VideoOwnedEpisode(Guid.NewGuid(), "A Message Across the Water", null, null,
-            "3:00", "2", "Season 2", 2, 5);
-        var cut = ctx.Render<VideoContextPanel>(parameters => parameters
-            .Add(p => p.Episodes, [episode]).Add(p => p.CurrentWorkId, episode.WorkId));
-        Assert.Equal(episode.Title, cut.Find(".playback-sheet-row__copy strong").TextContent);
-        Assert.Equal("E5", cut.Find(".playback-sheet-row__copy > span").TextContent);
-        Assert.Single(cut.FindAll(".video-context-current"));
-        Assert.Equal("Paused", cut.Find(".video-context-current [role='img']").GetAttribute("aria-label"));
-        cut.Render(parameters => parameters.Add(p => p.IsPlaying, true));
-        Assert.Equal("Playing", cut.Find(".video-context-current [role='img']").GetAttribute("aria-label"));
-        cut.Render(parameters => parameters.Add(p => p.NextEpisode, episode));
-        cut.Find("button[aria-label='Up Next']").Click();
-        Assert.Equal("S2 E5 · A Message Across the Water", cut.Find(".video-context-panel__featured strong").TextContent);
-    }
-
     [Theory]
-    [InlineData(true, true, 2, 3, 2, "episodes")]
-    [InlineData(true, true, 0, 3, 2, "queue")]
-    [InlineData(true, true, 0, 3, 0, null)]
-    [InlineData(true, false, 0, 3, 2, "queue")]
-    [InlineData(true, false, 0, 3, 0, null)]
-    [InlineData(true, false, 1, 0, 2, "episodes")]
-    [InlineData(false, true, 0, 2, 2, "chapters")]
-    [InlineData(false, true, 0, 1, 2, "queue")]
-    [InlineData(false, false, 0, 3, 0, null)]
-    [InlineData(false, false, 0, 3, 2, "queue")]
-    [InlineData(false, true, 0, 1, 0, null)]
-    public void ContextPriorityUsesOnlyRealApplicableChoices(bool tv, bool movie, int episodes, int chapters, int queue, string? expected)
-        => Assert.Equal(expected, VideoPresentationResolver.ContextKind(tv, movie, episodes, chapters, queue));
+    [InlineData(true, true, 2, 2, "episodes")]
+    [InlineData(true, true, 0, 2, null)]
+    [InlineData(true, true, 0, 0, null)]
+    [InlineData(true, false, 0, 2, "queue")]
+    [InlineData(true, false, 0, 0, null)]
+    [InlineData(true, false, 1, 2, "episodes")]
+    // A film has bookmarks only: no chapters list and no Up next (player-controls-v3 D7).
+    [InlineData(false, true, 0, 2, null)]
+    [InlineData(false, true, 0, 0, null)]
+    [InlineData(false, false, 0, 0, null)]
+    // Other video lists its Lessons when it belongs to a series.
+    [InlineData(false, false, 0, 2, "queue")]
+    public void ContextPriorityUsesOnlyRealApplicableChoices(bool tv, bool movie, int episodes, int queue, string? expected)
+        => Assert.Equal(expected, VideoPresentationResolver.ContextKind(tv, movie, episodes, queue));
+
+    [Fact]
+    public void OwnedEpisodeProjection_CarriesTheSeasonsOwnIdSoGoToSeasonCanOpenIt()
+    {
+        var seasonId = Guid.NewGuid();
+        var episode = Guid.NewGuid();
+        var sequence = new SequencePlacementViewModel
+        {
+            Groups = [new SequenceGroupViewModel
+            {
+                Key = "season-1", Title = "Season 1", EntityId = seasonId.ToString("D"),
+                Items = [new() { Id = episode.ToString(), EntityType = DetailEntityType.TvEpisode, Title = "Pilot", IsOwned = true }],
+            }],
+        };
+
+        var owned = Assert.Single(VideoPresentationResolver.OwnedEpisodes(sequence));
+
+        Assert.Equal(seasonId, owned.SeasonId);
+    }
 
     [Fact]
     public void OwnedEpisodeProjectionIncludesUnnumberedTvAndDoesNotUseFallbackShowArtwork()
@@ -67,9 +67,9 @@ public sealed class VideoPresentationTests
         Assert.Equal(owned, episode.WorkId); Assert.Null(episode.StillUrl);
         Assert.True(VideoPresentationResolver.IsTvEpisode(Video() with { EpisodeNumber = null }));
         var real = episode with { StillUrl = "/stream/artwork/actual", StillWidthPx = 1920, StillHeightPx = 1080 };
-        Assert.Contains("320w", VideoContextPanel.EpisodeArtworkSrcSet(real));
-        Assert.Contains("960w", VideoContextPanel.EpisodeArtworkSrcSet(real));
-        Assert.Null(VideoContextPanel.EpisodeArtworkSrcSet(real with { StillWidthPx = null }));
+        Assert.Contains("320w", EpisodesPanel.EpisodeArtworkSrcSet(real));
+        Assert.Contains("960w", EpisodesPanel.EpisodeArtworkSrcSet(real));
+        Assert.Null(EpisodesPanel.EpisodeArtworkSrcSet(real with { StillWidthPx = null }));
     }
 
     [Theory]
@@ -478,7 +478,7 @@ public sealed class VideoPresentationComponentTests : AsyncBunitContext
     public async Task NestedSeasonSelectorKeepsItsOwningPlaybackPanelOpen(string appearance)
     {
         var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
-        var cut = Render<PlaybackPopover>(p => p.Add(x => x.ToolId, "episodes").Add(x => x.Title, "Episodes")
+        var cut = Render<PlaybackPanel>(p => p.Add(x => x.ToolId, "episodes").Add(x => x.Title, "Episodes")
             .AddChildContent<AppSelect>(select => select.Add(x => x.Options, new[] { new AppSelectOption("1", "Season 1"), new AppSelectOption("2", "Season 2") }).Add(x => x.Appearance, appearance)));
         await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
         var select = cut.FindComponent<AppSelect>();
@@ -541,7 +541,7 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
     {
         var cut = Render<VideoPlaybackHost>();
         var identity = VideoPlaybackIdentity.Capture(_playback)!;
-        Assert.Single(cut.FindAll("button[aria-label='Close video']"));
+        Assert.Single(cut.FindAll("button[aria-label='Close']"));
         Assert.Empty(cut.FindAll("button[aria-label='Back to details']"));
         await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, true));
         Assert.False(_playback.IsVideoExpanded);
@@ -551,6 +551,41 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, false));
         Assert.Single(cut.FindAll(".video-playback-restore"));
         Assert.True(_playback.HasQueue);
+    }
+
+    [Fact]
+    public async Task TheViewerOffersHideOnlyWhenAllowedAndTellsTheHostWhenPressed()
+    {
+        var item = new MediaViewerItem("fixture", MediaViewerKind.Image, "Fixture", null, "/preview", "/original");
+        var hidden = 0;
+
+        var offered = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanHide: true))
+            .Add(x => x.OnHide, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => hidden++)));
+        await offered.Find("button[aria-label='Hide item']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.Equal(1, hidden);
+
+        var withheld = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities()));
+        Assert.Empty(withheld.FindAll("button[aria-label='Hide item']"));
+    }
+
+    [Fact]
+    public async Task TheViewersGalleryListOffersNewGalleryOnlyWhenThePageAllowsIt()
+    {
+        var item = new MediaViewerItem("fixture", MediaViewerKind.Image, "Fixture", null, "/preview", "/original");
+        var created = 0;
+
+        var offered = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanAddToGallery: true))
+            .Add(x => x.OnCreateGallery, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => created++)));
+        // The gallery list is the app's own menu now (not a native select): a trigger button, with New Gallery listed only when the page allows it.
+        var trigger = offered.Find("button[aria-label='Add item to Gallery']");
+        await trigger.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        var newGallery = offered.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
+        await newGallery.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.Equal(1, created);
+
+        var withheld = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanAddToGallery: true)));
+        await withheld.Find("button[aria-label='Add item to Gallery']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.DoesNotContain(withheld.FindAll("[role='menuitem']"), option => option.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]

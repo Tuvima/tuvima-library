@@ -4,223 +4,286 @@
 @using MediaEngine.Web.Services.Ui
 @inject NavigationManager Navigation
 @inject IAppDialogService DialogService
-@inject LibraryFolderAddService AddService
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@inject DashboardSessionAccessor Session
+@using Microsoft.JSInterop
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
 
-@* The Libraries overview (Libraries redesign D2, D13, D15): one table of every library grouped under Watch, Listen, Read, View and (for someone who may open it) the
-   Vault, one row per library. The whole row opens the library and ends in a chevron; the name is the real link for the keyboard. A Vault library is listed only inside the Vault area. A library that was just
-   added glows for about two seconds (no toast). First-run setup draws this same table with Simple on (Library pages D13; library setup and add-folder
-   v2): Watch, Listen, Read and View, and the Vault only once the person turned it on in setup (ShowVault), rows that do not open a page (a library's page
-   belongs to Settings), no Import folder line, and Add library saves through the setup session. View's rows have no Add library, so each has its own
-   Add folder, which opens the View folder dialog. *@
+@* The Libraries overview (Libraries and folder picker D1, D3, D4, D15): area chips (All, Watch, Listen, Read, View) over one table. Each row has an icon tile, the name
+   with its content type, an area tag, what it holds, a folder-count button that lists the real paths, a status and one labeled Edit button. The Import folder is the
+   pinned first row and stays under every chip. The whole row still opens the library's page; the name is the real link for the keyboard. A Vault library is listed
+   only for someone who may open the Vault. A library that was just added glows for about two seconds (no toast). First-run setup draws this same table. *@
 <div class="libs">
     @if (ReadOnly)
     {
         <p class="libs__note">@L["Common_UseADesktopOrTablet"]</p>
     }
 
-    @if (_addError is not null)
-    {
-        <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@_addError</AppAlert>
+    @{
+        var groups = Groups;
+        var everyRow = groups.SelectMany(group => group.All).ToList();
+        var shown = ShownRows(groups);
+        var areas = Areas;
     }
 
-    @{ var groups = Groups; var anyRows = groups.Any(group => group.All.Count > 0); }
-    @if (anyRows)
+    @* Add library sits at the top right of the page header, on the title row (Libraries v3 D22); the Settings frame draws it there. Inside the frame
+       nothing is drawn here; drawn on its own (no frame around it) the button keeps a row of its own above the collection card. *@
+    @if (HeaderActions is null && CanAddLibrary)
     {
-        <div class="libs__toolbar">
-            <div class="libs__search">
-                <AppSearchField Label="@L["LibrariesOverview_SearchLibraries"].Value"
-                                HideLabel="true"
-                                Placeholder="@L["LibrariesOverview_SearchLibraries"].Value"
-                                Value="@_search"
-                                ValueChanged="@((string? value) => _search = value ?? string.Empty)" />
-            </div>
-            <div class="libs__filter">
-                <AppSelect Label="@L["Models_Status"].Value"
-                           HideLabel="true"
-                           AriaLabel="@L["LibrariesOverview_FilterByStatus"].Value"
-                           Value="@_status"
-                           ValueChanged="@((string? value) => _status = value ?? string.Empty)"
-                           Options="StatusOptions"
-                           Size="AppControlSize.Compact" />
-            </div>
-            <AppLayoutSwitch StorageKey="tuvima.libraries.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["LibrariesOverview_LibrariesLayout"].Value" />
+        <div class="libs__header">@_addLibraryAction</div>
+    }
+    <LibrariesSummary Rows="@everyRow" />
+    <LibraryScanCard />
+
+    <div class="libs__filters">
+    <LibraryAreaChips Areas="@areas" Counts="@AreaCounts(groups)" Selected="@_area" SelectedChanged="ChooseAreaAsync" />
+    <div class="libs__toolbar">
+        <div class="libs__search">
+            <AppSearchField Label="@L["LibrariesOverview_SearchLibraries"].Value"
+                            HideLabel="true"
+                            Placeholder="@L["LibrariesOverview_SearchLibraries"].Value"
+                            Value="@_search"
+                            ValueChanged="@((string? value) => _search = value ?? string.Empty)" />
+        </div>
+        <div class="libs__filter">
+            <AppSelect Label="@L["Models_Status"].Value"
+                       HideLabel="true"
+                       AriaLabel="@L["LibrariesOverview_FilterByStatus"].Value"
+                       Value="@_status"
+                       ValueChanged="@((string? value) => _status = value ?? string.Empty)"
+                       Options="StatusOptions" />
+        </div>
+    </div>
+    </div>
+
+    @if (everyRow.All(row => row.IsView))
+    {
+        @* Empty (no libraries; View's kinds always exist, so they do not count): a heading, a gap, one sentence and an obvious button. The Import folder row still shows below. *@
+        <div class="libs__empty" data-empty="none">
+            <h3>@L["LibrariesOverview_NoLibrariesYet"]</h3>
+            <p>@L["LibrariesOverview_AddOneForEachKind"]</p>
             @if (CanAddLibrary)
             {
-                <AppButton Label="@L["Common_AddLibrary"].Value"
-                           StartIcon="@AppMaterialIcons.Outlined.Add"
-                           ButtonStyle="AppButtonStyle.Filled"
-                           Tone="AppUiTone.Primary"
-                           OnClick="@(() => OpenAddLibraryAsync(null))" />
+                <AppButton Label="@L["Common_AddLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => OpenAddLibraryAsync(null))" />
             }
         </div>
     }
 
-    @* One table grouped by area: nothing to toggle, nothing hidden (Libraries redesign D2). A heading is plain text with its count. *@
-    @foreach (var group in groups)
-    {
-        var area = group.Area;
-        var rows = group.Visible;
-        <section class="libs__group" data-area="@area.Key" aria-label="@area.Label">
-            <h3 class="libs__group-heading">
-                <AppMaterialIcon Icon="@area.Icon" />
-                <span>@area.Label</span>
-                @if (group.All.Count > 0)
-                {
-                    <span class="libs__group-count">@group.All.Count</span>
-                }
-                else
-                {
-                    <span class="libs__group-count">@L["LibrariesOverview_NothingYet"]</span>
-                    @if (CanAddLibraryIn(area))
+    <AppTable Hover="true" CardsOn="AppTableCardsMode.Phone" Class="libs__table">
+        <caption class="sr-only">@L["Nav_Libraries"]</caption>
+        <thead>
+            <tr>
+                <th data-card-role="title">@L["Users_ColName"]</th>
+                <th data-card-role="subtitle">@L["Common_Area"]</th>
+                <th>@L["LibrariesOverview_FoldersAndTitles"]</th>
+                <th>@L["ViewFoldersTab_Folders"]</th>
+                <th data-card-role="value">@L["Models_Status"]</th>
+                <th data-card-role="hidden"><span class="sr-only">@L["Common_Open"]</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @* The Import folder is pinned first and stays under every chip (D15). *@
+            <tr class="libs__row libs__row--import" data-library="import" @onclick="OpenImport">
+                <td data-card-role="title">
+                    <span class="libs__name">
+                        <span class="lib-kind-tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
+                        <span class="libs__title libs__title--inline">
+                            <span @onclick:stopPropagation="true"><AppButton Label="@L["Common_ImportFolder"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Class="libs__link libs__link--button" Disabled="@ReadOnly" OnClick="EditImportAsync" /></span>
+                            <span class="libs__info" @onclick:stopPropagation="true"><AppInfoTip Text="@ImportInfo" Label="@L["LibrariesOverview_AboutImport"].Value" /></span>
+                        </span>
+                    </span>
+                </td>
+                <td data-card-role="subtitle"><span class="libs__tag">@L["LibrariesOverview_AllMedia"]</span></td>
+                <td class="libs__counts">@ImportContents</td>
+                <td class="libs__folders">@(ImportConfigured ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibrariesOverview_ChooseAFolder"].Value)</td>
+                <td data-card-role="value">
+                    <span class="libs__import-status" data-import-status="@(ImportConfigured ? "ready" : "not-set")">
+                        <i class="libs__dot libs__dot--@(ImportConfigured ? "ok" : "warn")" aria-hidden="true"></i>@(ImportConfigured ? L["LibrariesOverview_UpToDate"].Value : L["Common_NotSet"].Value)
+                    </span>
+                </td>
+                <td data-card-role="hidden" class="libs__edit">
+                    @if (!ReadOnly)
                     {
-                        <AppButton Label="@($"Add a {area.Label} library")" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => OpenAddLibraryAsync(area.Key))" />
+                        <span @onclick:stopPropagation="true">
+                            <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
+                                       aria-label="@L["LibrariesOverview_EditImport"].Value" OnClick="EditImportAsync" data-edit="import" />
+                        </span>
                     }
-                }
-            </h3>
-            @if (rows.Count > 0 && _layout == AppLayoutSwitch.Cards)
+                </td>
+            </tr>
+            @foreach (var row in shown)
             {
-                <div class="libs__cards" data-area="@area.Key">
-                    @foreach (var row in rows)
-                    {
-                        <div @key="row.Key" class="@(row.Key == _newLibraryId ? "libs__card-slot libs__card-slot--new" : "libs__card-slot")" data-library="@row.Key" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
-                            <AppListCard Title="@row.Name" Icon="@row.Type.Icon" Kind="@row.Type.Label" Description="@CountsFor(row)">
-                                <Status><LibraryStatusCell Row="@row" /></Status>
-                                <Footer>
-                                    @if (CanAddFolder && row.Access != LibraryListing.Vault)
-                                    {
-                                        <AppButton Label="@L["Common_AddFolder"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Text"
-                                                   aria-label="@($"Add a folder to {row.Name}")" OnClick="@(() => AddFolderAsync(row))" />
-                                    }
-                                </Footer>
-                            </AppListCard>
-                        </div>
-                    }
-                </div>
-            }
-            else if (rows.Count > 0)
-            {
-                <AppTable Hover="true" CardsOn="AppTableCardsMode.Phone" Class="libs__table" data-area="@area.Key">
-                    <caption class="sr-only">@area.Label libraries</caption>
-                    <thead>
-                        <tr>
-                            <th data-card-role="title">@L["Users_ColName"]</th>
-                            <th data-card-role="subtitle">@L["Common_ContentType"]</th>
-                            <th>@L["LibrariesOverview_FoldersAndTitles"]</th>
-                            <th data-card-role="value">@L["Models_Status"]</th>
-                            @if (!Simple)
+                <tr @key="row.Key" class="@RowClass(row)" data-library="@row.Key" data-area="@AreaKeyOf(row)" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
+                    <td data-card-role="title">
+                        <span class="libs__name">
+                            <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
+                            <span class="libs__title">
+                                <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
+                                <small class="libs__subtitle">@row.Type.Label</small>
+                            </span>
+                            @if (row.Access == LibraryListing.Vault)
                             {
-                                <th data-card-role="hidden"><span class="sr-only">@L["Common_Open"]</span></th>
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Class="libs__lock" />
                             }
-                            else if (CanAddFolder)
-                            {
-                                <th data-card-role="hidden"><span class="sr-only">@L["Common_AddFolder"]</span></th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in rows)
+                        </span>
+                    </td>
+                    <td data-card-role="subtitle">
+                        <span class="libs__tag lib-area--@AreaKeyOf(row)" data-area-tag><AppMaterialIcon Icon="@AreaIcon(AreaKeyOf(row))" />@AreaLabel(AreaKeyOf(row))</span>
+                    </td>
+                    <td class="libs__counts">@CountsFor(row)</td>
+                    <td class="libs__folders">
+                        @if (row.Library is { Sources.Count: > 0 } library)
                         {
-                            <tr @key="row.Key" class="@RowClass(row)" data-library="@row.Key" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
-                                <td data-card-role="title">
-                                    <span class="libs__name">
-                                        <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
-                                        @if (Simple)
-                                        {
-                                            <span class="libs__link">@row.Name</span>
-                                        }
-                                        else
-                                        {
-                                            <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
-                                        }
-                                        @if (row.Access == LibraryListing.Vault)
-                                        {
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Class="libs__lock" />
-                                        }
-                                    </span>
-                                </td>
-                                <td data-card-role="subtitle">
-                                    <span class="libs__type"><AppMaterialIcon Icon="@row.Type.Icon" />@row.Type.Label</span>
-                                </td>
-                                <td class="libs__counts">@CountsFor(row)</td>
-                                <td data-card-role="value">
-                                    <LibraryStatusCell Row="@row" />
-                                </td>
-                                @if (!Simple)
-                                {
-                                    <td data-card-role="hidden" class="libs__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></td>
-                                }
-                                else if (CanAddFolder)
-                                {
-                                    <td data-card-role="hidden" class="libs__add-folder">
-                                        @if (row.Access != LibraryListing.Vault)
-                                        {
-                                            <AppButton Label="@L["Common_AddFolder"].Value"
-                                                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                                                       ButtonStyle="AppButtonStyle.Text"
-                                                       aria-label="@($"Add a folder to {row.Name}")"
-                                                       OnClick="@(() => AddFolderAsync(row))" />
-                                        }
-                                    </td>
-                                }
-                            </tr>
+                            <LibraryFoldersPopover Sources="@library.Sources" LibraryName="@row.Name" PathIssues="@PathIssues" />
                         }
-                    </tbody>
-                </AppTable>
+                        else if (row.IsView && ViewFolderLists?.GetValueOrDefault(row.Key) is { Count: > 0 } viewList)
+                        {
+                            <LibraryFoldersPopover Items="@viewList" LibraryName="@row.Name" />
+                        }
+                        else
+                        {
+                            <span>@FolderWords(row)</span>
+                        }
+                    </td>
+                    <td data-card-role="value">
+                        <LibraryStatusCell Row="@row" />
+                    </td>
+                    <td data-card-role="hidden" class="libs__edit">
+                        @if (!ReadOnly && (row.Library is not null || row.IsView))
+                        {
+                            <span @onclick:stopPropagation="true">
+                                <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
+                                           aria-label="@L["LibrariesOverview_EditNamed", row.Name].Value" OnClick="@(() => EditAsync(row))" data-edit="@row.Key" />
+                            </span>
+                        }
+                        else
+                        {
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                        }
+                    </td>
+                </tr>
             }
-            else if (group.All.Count > 0)
-            {
-                <p class="libs__note">@L["LibrariesOverview_NoLibrariesMatch", area.Label]</p>
-            }
-        </section>
+        </tbody>
+    </AppTable>
+
+    @if (everyRow.Count > 0 && shown.Count == 0)
+    {
+        var selected = areas.FirstOrDefault(area => string.Equals(area.Key, _area, StringComparison.OrdinalIgnoreCase));
+        @if (selected is not null && !HasSearch && CanAddLibraryIn(selected))
+        {
+            <div class="libs__empty" data-empty="area">
+                <h3>@L["LibrariesOverview_NoAreaLibrariesYet", selected.Label]</h3>
+                <AppButton Label="@L["LibrariesOverview_AddAreaLibrary", selected.Label].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => OpenAddLibraryAsync(selected.Key))" />
+            </div>
+        }
+        else
+        {
+            <p class="libs__note">@L["LibrariesOverview_NoLibrariesMatch", selected?.Label ?? "these"]</p>
+        }
     }
 
-    @if (Simple)
-    {
-        <p class="libs__note" data-later>The Import folder, who sees what and each library's own settings are in Settings &gt; Libraries.</p>
-    }
-    else
-    {
-        <p class="libs__note">
-            <a href="/settings/libraries/import">@L["Common_ImportFolder"]</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
-        </p>
-    }
+    <p class="libs__footer" data-libs-footer>@FooterText(everyRow)</p>
 </div>
 
 @code {
-    // The Cards / List switch (Plugins v3 D27); List is the table Settings has always shown, and the choice is remembered on this device.
-    private string _layout = AppLayoutSwitch.List;
-
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     /// <summary>The Engine's list of library kinds; the area tabs, content types and icons are drawn from it.</summary>
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     /// <summary>View's folder count per kind; null while it is not known.</summary>
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
+    /// <summary>View's folders per kind, for the "N folders" list; null while not known.</summary>
+    [Parameter] public IReadOnlyDictionary<string, IReadOnlyList<FolderListItem>>? ViewFolderLists { get; set; }
     /// <summary>Folder path to issue; null while the folder checks have not finished (no status is claimed then).</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>A Vault-protected library is listed only while the Vault may be shown; the host decides (see <see cref="LibraryVaultAccess"/>).</summary>
     [Parameter] public bool ShowVault { get; set; }
-    /// <summary>First-run setup (Library pages D13; add-folder v2): Watch, Listen, Read and View, rows that do not open a page, saves through the setup session. The Vault area joins only when <see cref="ShowVault"/> is set.</summary>
-    [Parameter] public bool Simple { get; set; }
-    /// <summary>The first-run setup session the Create library dialog saves through; used only with <see cref="Simple"/>.</summary>
-    [Parameter] public string? SetupSession { get; set; }
     /// <summary>Phones: counts and status only, no control that changes anything.</summary>
     [Parameter] public bool ReadOnly { get; set; }
-    /// <summary>Lists only this area (the setup Vault offer shows the Vault alone); every area when empty.</summary>
-    [Parameter] public string? OnlyArea { get; set; }
     /// <summary>Raised after a folder was added, so the page can refresh its counts.</summary>
     [Parameter] public EventCallback FolderAdded { get; set; }
+    /// <summary>The area chip the address names (?area=watch); null lets the choice remembered for this profile apply.</summary>
+    [Parameter] public string? Area { get; set; }
+    /// <summary>Files waiting in the Import folder; null while not known (reads "Nothing waiting").</summary>
+    [Parameter] public int? ImportWaiting { get; set; }
+
+    /// <summary>The Settings frame's header slot; null when this table is drawn without that frame.</summary>
+    [CascadingParameter] public SettingsHeaderActions? HeaderActions { get; set; }
 
     private string _search = string.Empty;
     private string _status = string.Empty;
-
+    private string? _area;
+    private string? _lastAreaParameter;
     private string? _newLibraryId;
-    private string? _addError;
+    // One fragment for the life of the page, so the frame can tell it has not changed; it reads the chosen area when pressed.
+    private RenderFragment? _addLibraryAction;
+
+    private const string StoragePrefix = "tuvima.libraries.area";
+
+    private string StorageKey => $"{StoragePrefix}.{Session.ActiveProfileId?.ToString("N") ?? "device"}";
+
+    protected override void OnInitialized() =>
+        _addLibraryAction = @<AppButton Label="@L["Common_AddLibrary"].Value"
+                                        StartIcon="@AppMaterialIcons.Outlined.Add"
+                                        ButtonStyle="AppButtonStyle.Filled"
+                                        Tone="AppUiTone.Primary"
+                                        OnClick="@(() => OpenAddLibraryAsync(_area))" />;
+
+    public void Dispose() => HeaderActions?.Set(null);
+
+    protected override void OnParametersSet()
+    {
+        // Add library goes to the page header while this page is inside the Settings frame (and only for someone who can add).
+        HeaderActions?.Set(CanAddLibrary ? _addLibraryAction : null);
+
+        // An address that names an area wins; leaving the address alone keeps the chip the person already chose.
+        if (!string.Equals(_lastAreaParameter, Area, StringComparison.Ordinal))
+        {
+            _lastAreaParameter = Area;
+            if (Area is not null) _area = ValidArea(Area);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Area is not null) return;
+        try
+        {
+            var stored = ValidArea(await JS.InvokeAsync<string?>("localStorage.getItem", StorageKey));
+            if (stored is not null && !string.Equals(stored, _area, StringComparison.OrdinalIgnoreCase))
+            {
+                _area = stored;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Storage is blocked or the circuit ended: the chip stays on All.
+        }
+    }
+
+    private string? ValidArea(string? key) => Areas.FirstOrDefault(area => string.Equals(area.Key, key, StringComparison.OrdinalIgnoreCase))?.Key;
+
+    private async Task ChooseAreaAsync(string? key)
+    {
+        _area = ValidArea(key);
+        _lastAreaParameter = _area;
+        Navigation.NavigateTo(LibraryListing.OverviewAddress(_area), replace: true);
+        try
+        {
+            if (_area is null) await JS.InvokeVoidAsync("localStorage.removeItem", StorageKey);
+            else await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, _area);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Not remembered; the choice still applies to this visit.
+        }
+    }
 
     // Watch, Listen, Read, View, then the Vault for someone who may open it (library access D6); the Vault never exists for anyone else.
-    // Setup shows View too (add-folder v2 D14); it shows the Vault only after the administrator turned it on there.
-    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Visible(ShowVault).Where(group => string.IsNullOrEmpty(OnlyArea) || string.Equals(group.Key, OnlyArea, StringComparison.OrdinalIgnoreCase))];
+    private IReadOnlyList<LibraryGroup> Areas => Kinds.Visible(ShowVault);
 
     private sealed record AreaRows(LibraryGroup Area, IReadOnlyList<LibraryListRow> All, IReadOnlyList<LibraryListRow> Visible);
 
@@ -230,7 +293,23 @@
         return new AreaRows(area, all, [.. all.Where(Matches)]);
     })];
 
-    private string RowClass(LibraryListRow row) => string.Join(' ', new[] { "libs__row", Simple ? "libs__row--static" : null, row.Key == _newLibraryId ? "libs__row--new" : null }
+    // One table: the rows of the chosen area (every area on All), narrowed by search and status.
+    private IReadOnlyList<LibraryListRow> ShownRows(IReadOnlyList<AreaRows> groups) =>
+        [.. groups.Where(group => _area is null || string.Equals(group.Area.Key, _area, StringComparison.OrdinalIgnoreCase)).SelectMany(group => group.Visible)];
+
+    private static IReadOnlyDictionary<string, int> AreaCounts(IReadOnlyList<AreaRows> groups) =>
+        groups.ToDictionary(group => group.Area.Key, group => group.All.Count, StringComparer.OrdinalIgnoreCase);
+
+    private bool HasSearch => _search.Trim().Length > 0 || _status.Length > 0;
+
+    // A Vault library is tagged Vault, never with the area its kind sits in.
+    private static string AreaKeyOf(LibraryListRow row) => row.Access == LibraryListing.Vault ? LibraryGroupCatalog.VaultKey : row.Area.ToLowerInvariant();
+
+    private string AreaLabel(string key) => Kinds.TryGetGroup(key)?.Label ?? key;
+
+    private string AreaIcon(string key) => Kinds.TryGetGroup(key)?.Icon ?? AppMaterialIcons.Outlined.Folder;
+
+    private string RowClass(LibraryListRow row) => string.Join(' ', new[] { "libs__row", row.Key == _newLibraryId ? "libs__row--new" : null }
         .Where(value => value is not null));
 
     private bool Matches(LibraryListRow row)
@@ -248,83 +327,94 @@
 
     private IReadOnlyList<AppSelectOption> StatusOptions =>
     [
-        new("", "All statuses"),
+        new("", L["ViewContributionsPage_AllStatuses"].Value),
         .. Enum.GetValues<LibraryStatusKind>().Select(status => new AppSelectOption(LibraryListing.FilterValue(status), LibraryListing.StatusText(status))),
     ];
 
-    private void OpenRow(LibraryListRow row)
-    {
-        if (!Simple) Navigation.NavigateTo(row.Href);
-    }
+    private void OpenRow(LibraryListRow row) => Navigation.NavigateTo(row.Href);
 
-    // View's three kinds always exist and keep their own add-folder form, so View has no Add library (Library pages WP11).
+    // The Import folder has no page of its own any more (D15): the row opens its Edit window.
+    private Task OpenImport() => ReadOnly ? Task.CompletedTask : EditImportAsync();
+
+    // Add library is open to everyone who can edit; View's kinds always exist, so inside a View chip it offers its folder pop-up instead (Add library, View tab).
     private bool CanAddLibrary => !ReadOnly;
 
     private bool CanAddLibraryIn(LibraryGroup area) => !ReadOnly && !string.Equals(area.Key, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase);
 
-    // The one place the add flow is started: the two-step Add library dialog, on the area the person asked from (Watch from the toolbar).
+    // The one place the add flow is started: the Add library dialog, on the area the person is looking at (Watch when All).
     private Task OpenAddLibraryAsync(string? areaKey) => LibraryAddFlow.OpenAsync(
-        DialogService, Configuration, Kinds, areaKey, ShowVault, Simple, SetupSession,
+        DialogService, Configuration, Kinds, areaKey, ShowVault, setup: false, setupSession: null,
         id => { _newLibraryId = id; return FolderAdded.InvokeAsync(); });
 
-    // Setup rows do not open a page, so each one adds its own folders here: the same pop-up and the same save as a library's page, through the setup session.
-    // A Vault library takes its folders from its own page after setup, so its row has no Add folder here.
-    private bool CanAddFolder => Simple && !ReadOnly;
-
-    private async Task AddFolderAsync(LibraryListRow row)
+    // Edit: one window for the name and folders (D4). Nothing is saved until Save changes; a changed library comes back with the page re-read.
+    private async Task EditAsync(LibraryListRow row)
     {
-        if (string.Equals(row.Area, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
+        if (row.IsView)
         {
-            await AddViewFolderAsync(row);
+            // A View kind's Edit window (View folders spec D3, D4): the same anatomy as a library's.
+            var viewParameters = new AppDialogParameters<ViewKindEditDialog>
+            {
+                { component => component.Kind, row.Type },
+                { component => component.Configuration, Configuration },
+            };
+            var viewDialog = await DialogService.ShowAsync<ViewKindEditDialog>(string.Empty, viewParameters, ViewKindEditDialog.DialogOptions);
+            if (await viewDialog.Result is { Canceled: false }) await FolderAdded.InvokeAsync();
             return;
         }
 
-        if (row.Library is not { } library) return;
-        var managed = row.Type.DefaultHandling == "managed";
-        var parameters = new AppDialogParameters<ServerFolderPicker>
+        if (row.Library is null) return;
+        var parameters = new AppDialogParameters<LibraryEditDialog>
         {
-            { component => component.Title, $"Choose your {row.Type.Label} folder" },
-            { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row.Name}." },
-            { component => component.ConfirmLabel, "Choose folder" },
-            { component => component.SelectionMode, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.KindKey, library.KindKey },
-            { component => component.MediaType, row.Type.MediaTypes.FirstOrDefault() },
-            { component => component.SetupSession, SetupSession },
-        };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
-        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
-
-        var plan = new AddFolderPlan(library.KindKey, selected, managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly, MarkNewMediaHere: false, LibraryId: library.Id);
-        var result = await AddService.AddAsync(plan, Kinds, Configuration, new FolderAddScope(true, SetupSession));
-        if (!result.Saved)
-        {
-            _addError = result.Error ?? "The folder could not be added. Check it and try again.";
-            return;
-        }
-
-        _addError = null;
-        _newLibraryId = row.Key;
-        await FolderAdded.InvokeAsync();
-    }
-
-    // View has no Add library: its kinds always exist, and a folder joins one of them through the View folder dialog (shared with everyone, read where it is).
-    private async Task AddViewFolderAsync(LibraryListRow row)
-    {
-        var parameters = new AppDialogParameters<AddViewFolderDialog>
-        {
-            { component => component.Kind, row.Type },
+            { component => component.Library, row.Library },
             { component => component.Configuration, Configuration },
-            { component => component.SetupSession, SetupSession },
+            { component => component.Kinds, Kinds },
+            { component => component.PathIssues, PathIssues },
         };
-        var dialog = await DialogService.ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
-        if (await dialog.Result is not { Canceled: false }) return;
-
-        _addError = null;
-        _newLibraryId = row.Key;
-        await FolderAdded.InvokeAsync();
+        var dialog = await DialogService.ShowAsync<LibraryEditDialog>(string.Empty, parameters, LibraryEditDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false })
+        {
+            _newLibraryId = row.Key;
+            await FolderAdded.InvokeAsync();
+        }
     }
+
+    private async Task EditImportAsync()
+    {
+        var parameters = new AppDialogParameters<LibraryEditDialog>
+        {
+            { component => component.Import, true },
+            { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
+            { component => component.PathIssues, PathIssues },
+        };
+        var dialog = await DialogService.ShowAsync<LibraryEditDialog>(string.Empty, parameters, LibraryEditDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false }) await FolderAdded.InvokeAsync();
+    }
+
+    private bool ImportConfigured => Configuration.ImportFolderStatus?.Configured == true;
+
+    private string ImportContents => !ImportConfigured || ImportWaiting is not > 0 ? L["LibrariesOverview_NothingWaiting"].Value : L["LibrariesOverview_WaitingCount", ImportWaiting.Value.ToString("N0")].Value;
+
+    // The (i) on the Import folder row: what it is, what it does, how it is managed (D15).
+    private string ImportInfo => L["LibrariesOverview_ImportInfo"].Value;
 
     private string CountsFor(LibraryListRow row) => LibraryRollup.CountsText(row.Folders, row.Titles);
+
+    private string FolderWords(LibraryListRow row) => row.Folders switch
+    {
+        null => "—",
+        1 => L["LibraryFoldersPopover_OneFolder"].Value,
+        var count => L["LibraryFoldersPopover_ManyFolders", count].Value,
+    };
+
+    private string FooterText(IReadOnlyList<LibraryListRow> rows)
+    {
+        var libraries = rows.Count;
+        var folders = rows.Sum(row => row.Folders ?? 0);
+        return L["LibrariesOverview_Footer",
+            libraries == 1 ? L["LibrariesOverview_OneLibrary"].Value : L["LibrariesOverview_ManyLibraries", libraries].Value,
+            folders == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", folders].Value].Value;
+    }
 
     private static string AccessibleName(LibraryListRow row)
     {

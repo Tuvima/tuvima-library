@@ -1,0 +1,274 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject ViewEditorHost Host
+@inject ViewRibbonState Ribbon
+@inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
+
+@* The pop-over of the photos, videos, documents and galleries editor (spec photos-documents-editor D1), drawn once by the app layout so Edit opens
+   it over any page. It draws no frame of its own: it hands the shared window (EditorWindowChrome) its rail, header, tabs and body, so it looks and
+   behaves exactly like the library editor's. Nothing is saved until Save changes shows Review changes; Delete is the one thing that happens at once,
+   after "Are you sure?". *@
+@if (Host.Session is { } session)
+{
+    var stage = session.Active;
+    var tabs = session.Tools.Select(tool => new EditorWindowChrome.Tab(tool.ToString(), TabLabel(tool), TabIcon(tool))).ToList();
+    var tool = session.Tools.Contains(session.Tool) ? session.Tool : ViewEditTool.Details;
+    <NavigationLock ConfirmExternalNavigation="@session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+    <AppDialogFrame Open="true" Title="@Header(session)" DialogOptions="_options" OnCancel="@(() => session.LeaveAsync())" Class="tl-editor-dialog">
+        <EditorWindowChrome Framed="@(!_reviewing)"
+                            Title="@L["ViewEdit_ReviewChanges"].Value"
+                            CloseName="@Header(session)"
+                            ShowTabs="@(!_reviewing)"
+                            Tabs="tabs"
+                            ActiveKey="@tool.ToString()"
+                            TabsDisabled="@(session.Saving || session.Switching)"
+                            OnTab="@(key => { if (Enum.TryParse<ViewEditTool>(key, out var picked)) { session.SelectTool(picked); } return Task.CompletedTask; })"
+                            ShowFooter="@(!_reviewing)"
+                            FooterStart="@(CanDelete(session) ? DeleteButton(session) : null)"
+                            ChangeCount="session.ChangeCount"
+                            Saving="session.Saving"
+                            OnClose="@(() => session.LeaveAsync())"
+                            OnDiscard="@(() => session.LeaveAsync())"
+                            OnSave="OpenReviewAsync">
+            <ItemHeader>
+                @* The gallery is the family: the header draws its home button and the dropdown of its photos (screen L). *@
+                <ViewEditHeader Session="session" />
+            </ItemHeader>
+            <Notice>
+                @if (!_reviewing && (!string.IsNullOrWhiteSpace(session.Message) || !string.IsNullOrWhiteSpace(_deleteNote)))
+                {
+                    <div class="tl-editor-window__notice" role="alert">
+                        <AppAlert Severity="AppSeverity.Error" Dense="true"><strong>@(_deleteNote ?? session.Message)</strong></AppAlert>
+                    </div>
+                }
+            </Notice>
+            <Where>
+                @* A View edit never writes into the files, so the footer always says so, in the library editor's words and look. *@
+                <div class="tl-editor-window__where" data-footer-status="writebackoff" role="status">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" Class="tl-editor-window__where-icon" />
+                    <div class="tl-editor-window__where-text">
+                        <strong>@L["EditorFooter_WriteBackOffTitle"]</strong>
+                        <small>@L["EditorFooter_WriteBackOffDetail"]</small>
+                    </div>
+                </div>
+            </Where>
+            <Body>
+                @if (_reviewing)
+                {
+                    <ReviewChangesView Source="session" OnOutcome="OnReviewOutcome" />
+                }
+                else
+                {
+                    <div class="view-edit-body">
+                        <div class="view-edit-body__main">
+                            @switch (tool)
+                            {
+                                case ViewEditTool.Artwork when session.Gallery is { } artwork:
+                                    <ViewGalleryArtworkPanel Gallery="artwork" />
+                                    break;
+                                case ViewEditTool.History:
+                                    <ViewEditHistoryPanel Item="@(stage.Items.Count == 1 && !session.IsGallery ? stage.Items[0] : null)" />
+                                    break;
+                                default:
+                                    @if (session.Gallery is { } gallery)
+                                    {
+                                        <ViewGalleryDetailsPanel Gallery="gallery" />
+                                    }
+                                    else
+                                    {
+                                        <ViewEditDetailsPanel Stage="stage" @key="stage" />
+                                    }
+
+                                    break;
+                            }
+
+                        </div>
+                        @if (!session.IsGallery)
+                        {
+                            <ViewEditQuickFacts Items="stage.Items" />
+                        }
+                    </div>
+                }
+            </Body>
+        </EditorWindowChrome>
+    </AppDialogFrame>
+}
+
+@code {
+    private static readonly AppDialogOptions _options = new() { NoHeader = true, BackdropClick = false, CloseOnEscapeKey = true };
+    private bool _reviewing, _deleting;
+    private string? _deleteNote;
+    private ViewEditSession? _bound;
+
+    protected override void OnInitialized()
+    {
+        Host.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
+        Host.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Host.Changed -= OnChanged;
+        Host.ConfirmDiscard = null;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_bound, Host.Session))
+        {
+            _bound = Host.Session;
+            _reviewing = false;
+            _deleteNote = null;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Delete sits at the bottom-left of the shared footer, red, as in the library editor: it asks once and then happens at once.
+    private RenderFragment DeleteButton(ViewEditSession session) => __builder =>
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
+                   StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(_deleting || session.Saving || session.Switching)" OnClick="DeleteAsync">
+            @L["ViewEdit_Delete"]
+        </AppButton>
+    };
+
+    private static bool CanDelete(ViewEditSession session) =>
+        session.IsGallery ? session.Gallery is { IsNew: false } : session.Active.Items.Count > 0;
+
+    private string Header(ViewEditSession session) => session.IsGallery
+        ? L["ViewEdit_EditingGallery"].Value
+        : session.Active.IsGroup ? L["ViewEdit_EditingItems", session.Active.Items.Count].Value : L["ViewEdit_EditingItem", session.Active.ItemLabel()].Value;
+
+    private string TabLabel(ViewEditTool tool) => tool switch
+    {
+        ViewEditTool.Artwork => L["ViewEdit_TabArtwork"].Value,
+        ViewEditTool.History => L["ViewEdit_TabHistory"].Value,
+        _ => L["ViewEdit_TabDetails"].Value,
+    };
+
+    private static string TabIcon(ViewEditTool tool) => tool switch
+    {
+        ViewEditTool.Artwork => AppMaterialIcons.Outlined.PhotoLibrary,
+        ViewEditTool.History => AppMaterialIcons.Outlined.History,
+        _ => AppMaterialIcons.Outlined.Description,
+    };
+
+    // Save changes never saves straight away: it opens Review changes, which checks the list and saves it.
+    private void OpenReviewAsync()
+    {
+        if (Host.Session is { Saving: false, HasPendingChanges: true })
+        {
+            _reviewing = true;
+        }
+    }
+
+    private void OnReviewOutcome(ReviewChangesOutcome outcome)
+    {
+        _reviewing = false;
+        if (outcome is ReviewChangesOutcome.Saved or ReviewChangesOutcome.Discarded && Host.Session is { } session)
+        {
+            if (outcome == ReviewChangesOutcome.Saved && session.LastSaved is { } saved)
+            {
+                Ribbon.Show(saved);
+            }
+
+            Host.Close();
+        }
+    }
+
+    // Delete is the one thing that happens at once (v4 decision, Shy): after "Are you sure?" the Engine moves the item to the Recycle bin. A Read-only
+    // folder refuses with its own reason; a group says how many moved and how many stayed. A gallery goes away; its photos stay in the library.
+    private async Task DeleteAsync()
+    {
+        if (Host.Session is not { } session || _deleting)
+        {
+            return;
+        }
+
+        var isGallery = session.IsGallery;
+        var items = session.Active.Items;
+        var title = isGallery ? L["ViewEdit_DeleteGalleryTitle"].Value : items.Count > 1 ? L["ViewEdit_DeleteItemsTitle", items.Count].Value : L["ViewEdit_DeleteItemTitle"].Value;
+        var message = isGallery ? L["ViewEdit_DeleteGalleryMessage"].Value : L["ViewEdit_DeleteItemMessage"].Value;
+        if (await AppConfirmDialog.ShowAsync(Dialogs, title, message, L["ViewEdit_Delete"].Value, L["ViewEdit_Keep"].Value, primaryDestructive: true) != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _deleting = true;
+        Host.IsDeleting = true;
+        _deleteNote = null;
+        try
+        {
+            if (isGallery)
+            {
+                var gallery = session.Gallery!;
+                var done = gallery.IsVault ? (await Api.DeleteVaultImageGalleryAsync(gallery.Id!.Value)).Succeeded : await Api.DeleteViewGalleryAsync(gallery.Id!.Value);
+                if (!done)
+                {
+                    _deleteNote = L["ViewEdit_DeleteFailed"].Value;
+                    return;
+                }
+
+                Ribbon.Show(L["ViewEdit_GalleryDeleted", gallery.OriginalName].Value);
+                Host.GalleryDeleted(gallery.Id.Value);
+                return;
+            }
+
+            var moved = new List<Guid>();
+            var stayed = 0;
+            foreach (var item in items)
+            {
+                if (!item.CanTrash)
+                {
+                    stayed++;
+                    continue;
+                }
+
+                if (await Api.TrashViewItemAsync(item.Id))
+                {
+                    moved.Add(item.Id);
+                }
+                else
+                {
+                    stayed++;
+                }
+            }
+
+            if (moved.Count > 0)
+            {
+                Ribbon.Show(stayed == 0 ? L["ViewEdit_Deleted", moved.Count].Value : L["ViewEdit_DeletedSome", moved.Count, stayed].Value, isError: stayed > 0);
+                Host.ItemsDeleted(moved);
+            }
+            else
+            {
+                _deleteNote = items.Any(item => !item.CanTrash) ? L["ViewEdit_NoteReadOnlyFolder"].Value : L["ViewEdit_DeleteFailed"].Value;
+            }
+        }
+        finally
+        {
+            _deleting = false;
+            Host.IsDeleting = false;
+        }
+    }
+
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        if (Host.Session is not { HasPendingChanges: true } session)
+        {
+            return;
+        }
+
+        if (!await session.LeaveAsync())
+        {
+            context.PreventNavigation();
+        }
+    }
+}

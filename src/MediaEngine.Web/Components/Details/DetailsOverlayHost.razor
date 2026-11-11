@@ -11,12 +11,7 @@
 @* The details overlay frame (spec D1): a modal window over the page the person came from (a bottom sheet on phones).
    The browser makes everything outside it inert and unreachable, app-dialog.js locks the page scroll, returns focus to
    the element that opened it, and routes Esc, the backdrop and the sheet's grip to RequestCancel, which asks the guards. *@
-<dialog @ref="_dialog"
-        class="@RootClass"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="@TitleId"
-        data-details-overlay>
+<AppViewer @ref="_viewer" Native="true" Surface="AppViewerSurface.Page" Class="@RootClass" LabelledBy="@TitleId" data-details-overlay="">
     @if (IsSheet)
     {
         <div class="tl-details-overlay__grip" data-app-dialog-grip aria-hidden="true"><span></span></div>
@@ -25,25 +20,24 @@
     <h2 id="@TitleId" class="tl-details-overlay__title">@(string.IsNullOrWhiteSpace(Overlay.Title) ? "Details" : Overlay.Title)</h2>
     <div class="tl-details-overlay__frame">
         @* AppNativeButton renders the element, so its 44px top-right style lives in app.css (scoped styles cannot reach it). *@
-        <AppNativeButton Type="button"
-                         Class="tl-details-overlay__close"
-                         AriaLabel="@L["Common_Close"].Value"
-                         Title="@L["Common_Close"].Value"
-                         OnClick="CloseAsync">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Class="tl-details-overlay__close"
+                       AriaLabel="@L["Common_Close"].Value"
+                       Tooltip="@L["Common_Close"].Value"
+                       OnClick="CloseAsync" />
         <div class="tl-details-overlay__scroller" data-detail-origin-scroll="details-overlay" tabindex="-1" autofocus>
             @ChildContent
         </div>
     </div>
-</dialog>
+</AppViewer>
 
 @code {
     private const string TitleId = "tl-details-overlay-title";
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    private ElementReference _dialog;
+    private AppViewer? _viewer;
+    private ElementReference _dialog => _viewer?.Root ?? default;
     private readonly string _frameId = Guid.NewGuid().ToString("N");
     private IJSObjectReference? _module;
     private DotNetObjectReference<DetailsOverlayHost>? _self;
@@ -90,7 +84,7 @@
     }
 
     // Esc, the backdrop and a swipe down on the sheet's grip all arrive here. The open page is offered the press first
-    // (Editing Mode closes a field, then a section, with it); when it uses the press the overlay stays open. Otherwise this
+    // (the pop-over editor closes a tool with it); when it uses the press the overlay stays open. Otherwise this
     // is the close button: the guards are asked and the overlay closes.
     [JSInvokable]
     public async Task RequestCancel()

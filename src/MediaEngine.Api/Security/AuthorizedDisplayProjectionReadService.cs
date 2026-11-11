@@ -1,6 +1,8 @@
 using Dapper;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -472,7 +474,64 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
         var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
         var allowed = rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
-        return await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, includeUnmatched, ct).ConfigureAwait(false);
+        var visible = await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, includeUnmatched, ct).ConfigureAwait(false);
+        return await HideUniversesTheProfileCannotOpenAsync(visible, scope, ct).ConfigureAwait(false);
+    }
+
+    // A row carries its Universe only when this profile can open that Universe's page, so a tile or TV button never offers a way into
+    // something hidden from the profile (a Kids or private Universe). The check reads collection records only (no works), is asked once
+    // per Universe per request, and fails closed: with no Universe read available, no row keeps its Universe.
+    private readonly Dictionary<string, Task<IReadOnlySet<Guid>?>> _universeMembers = new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task<List<DisplayWorkRow>> HideUniversesTheProfileCannotOpenAsync(List<DisplayWorkRow> rows, CatalogueScope scope, CancellationToken ct)
+    {
+        if (!rows.Any(row => !string.IsNullOrEmpty(row.UniverseQid)))
+        {
+            return rows;
+        }
+
+        var services = http.HttpContext?.RequestServices;
+        var universes = services?.GetService(typeof(UniverseClientReadService)) as UniverseClientReadService;
+        var profiles = services?.GetService(typeof(IProfileRepository)) as IProfileRepository;
+        Profile? profile = null;
+        if (universes is not null && profiles is not null && scope.Authority.ActiveProfileId is { } profileId)
+        {
+            profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
+        }
+
+        var canAsk = universes is not null && profile is not null;
+        var result = new List<DisplayWorkRow>(rows.Count);
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrEmpty(row.UniverseQid))
+            {
+                result.Add(row);
+                continue;
+            }
+
+            IReadOnlySet<Guid>? members = null;
+            if (canAsk)
+            {
+                var qid = row.UniverseQid;
+                Task<IReadOnlySet<Guid>?> asked;
+                lock (_universeMembers)
+                {
+                    if (!_universeMembers.TryGetValue(qid, out asked!))
+                    {
+                        asked = universes!.OpenUniverseMemberIdsAsync(qid, profile, ct);
+                        _universeMembers[qid] = asked;
+                    }
+                }
+
+                members = await asked.ConfigureAwait(false);
+            }
+
+            result.Add(members is not null && row.CollectionId is { } collectionId && members.Contains(collectionId)
+                ? row
+                : row.WithoutUniverse());
+        }
+
+        return result;
     }
 
     /// <summary>

@@ -248,9 +248,6 @@
     "tl-series-episode-edit",
     "tl-series-episode-title-link"
   ],
-  "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": [
-    "listen-context-sidebar__lyrics"
-  ],
   "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": [
     "listen-player__menu-link",
     "listen-player__utility-glyph"
@@ -765,9 +762,6 @@
     "playback-icon-button__badge",
     "playback-icon-button__label",
     "playback-icon-button__value"
-  ],
-  "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": [
-    "listen-player-shell--popped-out"
   ],
   "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": [
     "playback-sleep-timer__trigger-status"

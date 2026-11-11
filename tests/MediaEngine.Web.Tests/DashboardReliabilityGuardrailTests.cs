@@ -36,9 +36,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor", "@key=\"item.Id\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor", "@key=\"item.GroupId\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor", "@key=\"item.GroupId\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor", "@key=\"row.Key\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {
@@ -53,11 +51,11 @@ public sealed class DashboardReliabilityGuardrailTests
         var source = Read(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
         var normalized = source.ReplaceLineEndings("\n");
 
-        Assert.Contains("_reviewsLoading && _reviews.Count == 0", source, StringComparison.Ordinal);
-        var loadStart = normalized.IndexOf("private async Task LoadReviewsAsync()", StringComparison.Ordinal);
-        var loadEnd = normalized.IndexOf("private Task RetryReviewsAsync", loadStart, StringComparison.Ordinal);
+        Assert.Contains("_loading && _rows.Count == 0", source, StringComparison.Ordinal);
+        var loadStart = normalized.IndexOf("private async Task LoadAsync()", StringComparison.Ordinal);
+        var loadEnd = normalized.IndexOf("private async Task LoadMoreAsync", loadStart, StringComparison.Ordinal);
         Assert.True(loadStart >= 0 && loadEnd > loadStart);
-        Assert.DoesNotContain("_reviews = [];", normalized[loadStart..loadEnd], StringComparison.Ordinal);
+        Assert.DoesNotContain("_rows.Clear();", normalized[loadStart..loadEnd], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -176,7 +174,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.DoesNotContain("tl-detail-media-stage__background", carouselStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("object-fit: cover", carouselStyles, StringComparison.Ordinal);
         Assert.Contains("--cinematic-hero-min-height: var(--cinematic-hero-height)", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("--cinematic-hero-height: clamp(34rem,80svh,calc(100svh - var(--app-topbar-height,65px)))", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("--cinematic-hero-height: clamp(22rem,var(--tl-hero-height),calc(100svh - var(--app-topbar-height,65px)))", carouselStyles, StringComparison.Ordinal);
         Assert.Contains("height: var(--cinematic-hero-height, 95svh) !important", surfaceStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px), (max-height: 620px)", surfaceStyles, StringComparison.Ordinal);
         Assert.Contains("height: auto !important", surfaceStyles, StringComparison.Ordinal);
@@ -193,7 +191,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("<DetailHeroContent", detail, StringComparison.Ordinal);
         Assert.Contains("tl-detail-hero__synopsis", content, StringComparison.Ordinal);
         Assert.DoesNotContain("cinematic-hero__section-identity", carousel, StringComparison.Ordinal);
-        Assert.Contains("Featured Content", carousel, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Featured Content\"", carousel, StringComparison.Ordinal);
         Assert.Contains("Continue Watching", carousel, StringComparison.Ordinal);
         Assert.Contains("Continue Reading", carousel, StringComparison.Ordinal);
         Assert.Contains("Continue Listening", carousel, StringComparison.Ordinal);

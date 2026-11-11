@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Reading;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Domain.Authorization;
@@ -147,6 +148,131 @@ public static class ReadEndpoints
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
         .RequireRateLimiting("reader_files");
 
+        // ── Which reader opens this title ────────────────────────────────
+
+        group.MapGet("/{assetId:guid}/format", async (
+            Guid assetId,
+            IMediaAssetRepository assetRepo,
+            IReaderTitleService titles,
+            CancellationToken ct) =>
+        {
+            var asset = await assetRepo.FindByIdAsync(assetId, ct);
+            if (asset is null)
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            var format = ReaderFormatOf(asset.FilePathRoot);
+            var title = await titles.GetAsync(assetId, format == "comic", ct);
+            return Results.Ok(new ReaderFormatDto { Format = format, Title = title.Title, Subtitle = title.Subtitle, Series = title.Series });
+        })
+        .WithName("GetReaderFormat")
+        .WithSummary("Says which reader opens the title: epub, comic, pdf or unsupported.")
+        .Produces<ReaderFormatDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
+
+        // ── Next issue (PDF and comic reader spec D13) ───────────────────
+
+        group.MapGet("/{assetId:guid}/next", async (
+            Guid assetId,
+            ClaimsPrincipal user,
+            HttpContext context,
+            IReaderNextIssueService nextIssues,
+            CancellationToken ct) =>
+        {
+            Guid? profileId = Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var profile) ? profile : null;
+            var next = await nextIssues.FindAsync(context, assetId, profileId, ct);
+            return next is null
+                ? ApiErrors.NotFound("There is no next issue.")
+                : Results.Ok(new ReaderNextIssueDto
+                {
+                    AssetId = next.AssetId,
+                    WorkId = next.WorkId,
+                    CollectionId = next.CollectionId,
+                    Series = next.Series,
+                    Title = next.Title,
+                });
+        })
+        .WithName("GetReaderNextIssue")
+        .WithSummary("Returns the next owned issue in the comic's Series, or 404 when there is none.")
+        .Produces<ReaderNextIssueDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead);
+
+        // ── Comic pages (PDF and comic reader spec D2, D16, D18) ─────────
+
+        // The page list and one page picture at a time, for CBZ, CBR and CB7 alike. Same asset gate as the file itself.
+        group.MapGet("/{assetId:guid}/pages", async (
+            Guid assetId,
+            IMediaAssetRepository assetRepo,
+            IComicPageService pages,
+            CancellationToken ct) =>
+        {
+            var asset = await assetRepo.FindByIdAsync(assetId, ct);
+            if (asset is null || !IsComic(asset.FilePathRoot))
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            try
+            {
+                return Results.Ok(await pages.GetPageListAsync(asset.FilePathRoot, ct));
+            }
+            catch (ComicPageException ex)
+            {
+                return ComicFailure(ex);
+            }
+        })
+        .WithName("GetComicPages")
+        .WithSummary("Returns a comic's pages in reading order (number and picture size).")
+        .Produces<ComicPageListDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
+        .RequireRateLimiting("reader_files");
+
+        group.MapGet("/{assetId:guid}/pages/{page:int}", async (
+            Guid assetId,
+            int page,
+            int? width,
+            HttpContext ctx,
+            IMediaAssetRepository assetRepo,
+            IComicPageService pages,
+            CancellationToken ct) =>
+        {
+            var asset = await assetRepo.FindByIdAsync(assetId, ct);
+            if (asset is null || !IsComic(asset.FilePathRoot))
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            try
+            {
+                var image = await pages.GetPageAsync(asset.FilePathRoot, page, width ?? 0, ct);
+                ctx.Response.Headers.CacheControl = "private, max-age=3600";
+                ctx.Response.Headers[HeaderNames.XContentTypeOptions] = "nosniff";
+                ctx.Response.Headers[HeaderNames.ContentSecurityPolicy] = "default-src 'none'; sandbox";
+                return Results.File(image.Bytes, image.ContentType);
+            }
+            catch (ComicPageException ex)
+            {
+                return ComicFailure(ex);
+            }
+        })
+        .WithName("GetComicPage")
+        .WithSummary("Returns one comic page as a picture, at one of the allowed widths (0 or none for the original).")
+        .Produces(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
+        .RequireRateLimiting("reader_files");
+
         // ── Full-text search ─────────────────────────────────────────────
 
         group.MapGet("/{assetId:guid}/search", async (
@@ -225,8 +351,35 @@ public static class ReadEndpoints
             [".epub"] = "application/epub+zip",
             [".cbz"] = "application/vnd.comicbook+zip",
             [".cbr"] = "application/vnd.comicbook-rar",
+            [".cb7"] = "application/x-cb7",
             [".pdf"] = "application/pdf",
         };
+
+    internal static string ReaderFormatOf(string? filePath)
+    {
+        if (IsComic(filePath))
+        {
+            return "comic";
+        }
+
+        return Path.GetExtension(filePath ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".epub" => "epub",
+            ".pdf" => "pdf",
+            _ => "unsupported",
+        };
+    }
+
+    internal static bool IsComic(string? filePath) =>
+        !string.IsNullOrEmpty(filePath) && Path.IsPathRooted(filePath)
+        && Path.GetExtension(filePath).ToLowerInvariant() is ".cbz" or ".cbr" or ".cb7";
+
+    private static IResult ComicFailure(ComicPageException ex) => ex.Failure switch
+    {
+        ComicPageFailure.NoSuchPage => ApiErrors.NotFound(ex.Message),
+        ComicPageFailure.BadWidth => ApiErrors.BadRequest(ex.Message),
+        _ => Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity),
+    };
 
     internal static bool TryGetReadableContentType(string? filePath, out string contentType)
     {

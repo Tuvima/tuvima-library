@@ -1,14 +1,18 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,47 +34,6 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PlaybackSpeedControlShowsExactFractionalSelectionAndBlocksMalformedRate()
-    {
-        Render<AppPopoverHost>();
-        var initial = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, 1.2345d)
-            .Add(component => component.Surface, "dock"));
-
-        Assert.Contains("1.2345x", initial.Markup);
-        var choices = PlaybackRateOptions.BuildChoices(1.2345d);
-        Assert.Contains(choices, option => option.Label == "0.75x");
-        Assert.Contains(choices, option => option.Label == "1.25x");
-        Assert.Contains(choices, option => option.Label == "1.75x");
-        Assert.Contains(choices, option => option.Label == "1.2345x" && option.Rate == 1.2345d);
-
-        var malformed = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, double.NaN));
-        Assert.Contains("Playback speed unavailable", malformed.Markup);
-        Assert.DoesNotContain("1.0x", malformed.Markup);
-    }
-
-    [Fact]
-    public async Task PlaybackSpeedControlReportsOpenRequestsAndFollowsControlledState()
-    {
-        Render<AppPopoverHost>();
-        bool? requestedOpen = null;
-        var closed = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, 1.25d)
-            .Add(component => component.Open, false)
-            .Add(component => component.MenuOpenChanged, EventCallback.Factory.Create<bool>(this, value => requestedOpen = value)));
-
-        await closed.InvokeAsync(() => closed.FindComponent<PlaybackPopover>().Instance.OpenAsync(true));
-
-        Assert.True(requestedOpen);
-        Assert.Equal("true", closed.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded"));
-        var opened = Render<PlaybackSpeedControl>(parameters => parameters
-            .Add(component => component.Value, 1.25d)
-            .Add(component => component.Open, true));
-        Assert.Equal("true", opened.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded"));
-    }
-
-    [Fact]
     public void QueueShowsTheCurrentItemBeforeUpcomingItemsInTheSharedRowLayout()
     {
         var current = CreateItem("Current song", "Artist");
@@ -80,12 +43,12 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
 
-        var rows = cut.FindAll(".playback-context-row");
+        var rows = cut.FindAll("[data-playback-list-row]");
         Assert.Equal(2, rows.Count);
-        Assert.Equal("Current song", rows[0].QuerySelector(".playback-context-row__identity strong")?.TextContent);
+        Assert.Equal("Current song", rows[0].QuerySelector(".plr__title")?.TextContent);
         Assert.Contains("is-current", rows[0].ClassName);
         Assert.Equal("true", rows[0].GetAttribute("aria-current"));
-        Assert.Equal("Up next", rows[1].QuerySelector(".playback-context-row__identity strong")?.TextContent);
+        Assert.Equal("Up next", rows[1].QuerySelector(".plr__title")?.TextContent);
     }
 
     [Fact]
@@ -96,8 +59,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var playback = CreatePlayback(current, repeated, repeated);
         AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
-        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPopover>().Last(p => p.Instance.Title == "Queue actions for Repeated song").Instance.OpenAsync(true));
-        var remove = cut.FindComponents<AppNativeButton>().Where(button => button.Instance.AriaLabel == "Remove Repeated song from queue").Last().Instance.OnClick;
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Last(p => p.Instance.Title == "Queue actions for Repeated song").Instance.OpenAsync(true));
+        var remove = cut.FindComponents<AppNativeButton>().Where(button => button.Instance.AdditionalAttributes?.GetValueOrDefault("data-playback-row-action") as string == "remove").Last().Instance.OnClick;
         var target = playback.Queue[2].QueueEntryId;
         await cut.InvokeAsync(() => playback.RemoveUpcomingAt(1));
         await cut.InvokeAsync(() => remove.InvokeAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
@@ -105,6 +68,19 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.DoesNotContain(playback.Queue, item => item.QueueEntryId == target);
         Assert.Equal(current.WorkId, playback.CurrentItem?.WorkId);
         Assert.True(playback.IsPlaying);
+    }
+
+    [Fact]
+    public void TheBarsHistoryControlOpensTheQueueOnItsHistoryTab()
+    {
+        var playback = CreatePlayback(CreateItem("Current song", "Artist"), CreateItem("Next song", "Artist"));
+        AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
+
+        var history = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "history").Add(component => component.ShowTabs, true));
+        var queue = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue").Add(component => component.ShowTabs, true));
+
+        Assert.Equal("true", history.FindAll("[role='tab']")[1].GetAttribute("aria-selected"));
+        Assert.Equal("true", queue.FindAll("[role='tab']")[0].GetAttribute("aria-selected"));
     }
 
     [Fact]
@@ -116,7 +92,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             CreateItem("Later", "Artist") with { StreamUrl = "/stream/later" });
         AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
-        var clear = cut.FindComponents<AppButton>().Single(button => button.Instance.AdditionalAttributes?.GetValueOrDefault("aria-label") as string == "Clear upcoming queue").Instance.OnClick;
+        var clear = cut.FindComponents<AppNativeButton>().Single(button => button.Instance.AriaLabel == "Clear upcoming queue").Instance.OnClick;
         await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
         await cut.InvokeAsync(() => clear.InvokeAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
         Assert.Equal(3, playback.Queue.Count);
@@ -139,6 +115,119 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.False(playback.HasQueue);
         Assert.Empty(cut.FindAll(".listen-player"));
         Assert.Empty(cut.FindAll(".listen-player__error"));
+    }
+
+    [Fact]
+    public async Task AudiobookBar_HostsTheBookmarksPanel_EveryoneFirst_WithTheMakerOnTheirRows_AndNoOldDialog()
+    {
+        var profileId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var theirs = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = workId, AssetId = assetId, PositionSeconds = 120, Note = "The first clue", OwnerName = "Morgan", InEveryone = true };
+        var mine = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = workId, AssetId = assetId, PositionSeconds = 300, Note = "My own", OwnerName = "Me", IsYours = true };
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
+            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([theirs, mine]))));
+        var preferences = new TestPlaybackPreferencesAccessor(profileId);
+        var item = CreateItem("A book", "Narrator") with { MediaType = "Audiobook", AssetId = assetId, WorkId = workId, AudiobookWorkId = workId, StreamUrl = "stream://book" };
+        var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Render<AppPopoverHost>();
+
+        var cut = Render<ListenNowPlayingBar>();
+        var panel = cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.ToolId == "audio-bookmarks");
+        Assert.Equal("bookmarks", panel.Instance.Kind);
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll("[data-bookmark-id]");
+            var row = Assert.Single(rows);
+            Assert.Contains("The first clue", row.TextContent);
+            Assert.Contains("Morgan", row.TextContent);
+        });
+        Assert.Empty(cut.FindAll("[data-bookmark-edit]"));
+        Assert.Contains("Everyone · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Contains("Mine · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Empty(cut.FindAll(".audiobook-bookmark-dialog-layer"));
+    }
+
+    private (IRenderedComponent<ListenNowPlayingBar> Bar, ListenQueueItem Item, List<(Guid Work, CreateAudiobookBookmarkRequestDto Request)> Created, AudiobookBookmarkDto Saved)
+        RenderMusicBarWithBookmarks(bool showOnBar = false)
+    {
+        var profileId = Guid.NewGuid();
+        var item = CreateItem("A song", "Artist") with { AssetId = Guid.NewGuid() };
+        var saved = new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = item.WorkId, AssetId = item.AssetId!.Value, PositionSeconds = 60, Note = "The riff", IsYours = true, InEveryone = true, OwnerName = "Me" };
+        var created = new List<(Guid Work, CreateAudiobookBookmarkRequestDto Request)>();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
+                Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([saved])));
+            stub.SetHandler(nameof(IEngineApiClient.CreateAudiobookBookmarkWithOutcomeAsync), args =>
+            {
+                var request = (CreateAudiobookBookmarkRequestDto)args![1]!;
+                created.Add(((Guid)args[0]!, request));
+                return Task.FromResult(AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(
+                    new AudiobookBookmarkDto { Id = Guid.NewGuid(), WorkId = (Guid)args[0]!, AssetId = request.AssetId, PositionSeconds = request.PositionSeconds, IsYours = true }));
+            });
+        });
+        var settings = UserPlaybackSettingsDto.CreateDefaults(profileId);
+        settings.General.ShowBookmarksOnBar = showOnBar;
+        var preferences = new SavedPreferences(settings);
+        var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item, CreateItem("Next", "Artist")], CurrentIndex = 0, Experience = PlayerExperienceModes.Music, DurationSeconds = 200 });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Render<AppPopoverHost>();
+        return (Render<ListenNowPlayingBar>(), item, created, saved);
+    }
+
+    [Fact]
+    public async Task MusicBar_ShowsBookmarksBetweenQueueAndVolume_AndOpensThePanelWithTheCoverAndTheTracksBookmarks()
+    {
+        var (cut, item, created, saved) = RenderMusicBarWithBookmarks();
+
+        var tools = cut.FindAll("[data-playback-zone='tools'] button").Select(button => button.GetAttribute("aria-label")).ToList();
+        Assert.Contains("Bookmarks", tools);
+        Assert.True(tools.IndexOf("Queue") < tools.IndexOf("Bookmarks"), string.Join(", ", tools));
+        Assert.True(tools.IndexOf("Bookmarks") < tools.IndexOf("Mute"), string.Join(", ", tools)); // the Volume tool is labelled by its mute button
+
+        var panel = cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.ToolId == "audio-bookmarks");
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.Contains("The riff", Assert.Single(cut.FindAll("[data-bookmark-id]")).TextContent));
+        var inner = cut.FindComponent<BookmarksPanel>().Instance;
+        Assert.False(inner.UseFrames);
+        Assert.False(string.IsNullOrWhiteSpace(inner.CoverUrl));
+
+        // The press saves on the track itself: its own work and file, at the pressed moment.
+        await cut.Find("[data-bookmarks-add]").ClickAsync();
+        var (work, request) = Assert.Single(created);
+        Assert.Equal(item.WorkId, work);
+        Assert.Equal(item.AssetId, (Guid?)request.AssetId);
+        Assert.Equal(saved.WorkId, work);
+    }
+
+    [Fact]
+    public void MusicBar_DrawsTheTracksBookmarksOnItsSeekRail_WhenShowOnTimelineIsOn()
+    {
+        var (cut, _, _, _) = RenderMusicBarWithBookmarks(showOnBar: true);
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".playback-seek-rail__bookmark")));
+    }
+
+    [Fact]
+    public async Task MusicBar_OnAPhone_OffersBookmarksInTheMoreMenuOfTheExpandedPlayer()
+    {
+        var (cut, _, _, _) = RenderMusicBarWithBookmarks();
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync("mobile");
+        await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
+        await cut.InvokeAsync(() => Services.GetRequiredService<PlaybackSessionController>().SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".playback-full--phone")));
+        var more = cut.FindComponent<PlaybackItemMenu>().FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => more.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-playback-item-action='bookmarks']")));
     }
 
     [Fact]
@@ -190,14 +279,15 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync("mobile");
         var cut = Render<ListenNowPlayingBar>();
         var request = playback.PlaybackRequestVersion;
-        Assert.Single(cut.FindAll("button[aria-label='Close player']"));
-        Assert.Single(cut.FindAll("button[aria-label='More playback controls']"));
+        Assert.Single(cut.FindAll("button[aria-label='Close']"));
         Assert.Single(cut.FindAll("button[aria-label='Add song to Favorites']"));
         Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
         await cut.Find("button[aria-label='Open Now Playing']").ClickAsync();
+        // A desktop-width bar opens the Now playing page (unified player v2 D24); the phone's expanded player is covered by the 720 px boundary test.
         Assert.Equal(request, playback.PlaybackRequestVersion);
-        Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
-        Assert.Single(cut.FindAll("button[aria-label='Close player']"));
+        Assert.Equal(NowPlayingRoute.Path, new Uri(Services.GetRequiredService<NavigationManager>().Uri).AbsolutePath);
+        Assert.Equal(PlaybackPresentationSurface.Docked, playback.PresentationSurface);
+        Assert.Single(cut.FindAll("button[aria-label='Close']"));
     }
 
     [Theory]
@@ -206,10 +296,11 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     [InlineData(721, false)]
     [InlineData(720, true)]
     [InlineData(390, true)]
-    public async Task AudioSceneUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
+    public async Task AudioPlayerUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
     {
         var api = EngineApiClientStub.CreateDefault();
-        var playback = CreatePlayback(CreateItem("Book", "Author") with { MediaType = "Audiobook" });
+        var bookAsset = Guid.NewGuid();
+        var playback = CreatePlayback(CreateItem("Book", "Author") with { MediaType = "Audiobook", Chapters = [new() { Index = 0, AssetId = bookAsset, Title = "One", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = bookAsset, Title = "Two", StartSeconds = 30, EndSeconds = 90 }] });
         AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.SwitchDeviceAsync("mobile");
@@ -217,11 +308,23 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var cut = Render<ListenNowPlayingBar>();
         var requestVersion = playback.PlaybackRequestVersion;
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(width));
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        // A phone opens the expanded player over the page; a desktop opens the Now playing page (unified player v2 D24).
+        if (phone)
+        {
+            await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        }
+        else
+        {
+            await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo(NowPlayingRoute.Path));
+        }
+
         Assert.True(device.IsMobile);
-        Assert.Equal(phone ? 0 : 1, cut.FindAll(".playback-desktop--book").Count);
         Assert.Equal(phone ? 1 : 0, cut.FindAll(".playback-full--phone").Count);
-        Assert.Equal(!phone, cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters").Instance.Inline);
+        // The phone's collapsed bar has no tools and its expanded player holds Chapters in its one tool row, as a sheet over the view; the desktop bar hosts
+        // Chapters, and it follows the open page inline.
+        var chapterTools = cut.FindComponents<ListenDockTool>().Where(tool => tool.Instance.PanelKey == "chapters").ToList();
+        Assert.Equal(!phone, Assert.Single(chapterTools).Instance.Inline);
+        Assert.Equal(phone ? 1 : 0, cut.FindAll("[data-playback-tool-row] [data-playback-tool='Chapters']").Count);
         Assert.Equal(requestVersion, playback.PlaybackRequestVersion);
     }
 
@@ -233,7 +336,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var request = playback.PlaybackRequestVersion;
         AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
         var cut = Render<ListenNowPlayingBar>();
-        await cut.Find("button[aria-label='Close player']").ClickAsync();
+        await cut.Find("button[aria-label='Close']").ClickAsync();
         Assert.False(playback.HasQueue);
         Assert.True(playback.PlaybackRequestVersion > request);
         Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "listenPlayback.pauseAudioForClose");
@@ -279,7 +382,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             .SetResult(new(current.AssetId!.Value, playback.PlaybackRequestVersion, true, stoppedPosition, 180));
         JSInterop.Setup<bool>("listenPlayback.finalizeAudioClose", _ => true).SetResult(true);
         var cut = Render<ListenNowPlayingBar>();
-        var close = cut.Find("button[aria-label='Close player']").ClickAsync();
+        var close = cut.Find("button[aria-label='Close']").ClickAsync();
         cut.WaitForAssertion(() => Assert.NotNull(heartbeat));
         Assert.False(heartbeat!.IsPlaying);
         Assert.False(heartbeat.HasPlaybackEnded);
@@ -316,7 +419,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var cut = Render<ListenNowPlayingBar>();
         var oldAsset = playback.CurrentItem!.AssetId!.Value;
         var oldRequest = playback.PlaybackRequestVersion;
-        var close = cut.Find("button[aria-label='Close player']").ClickAsync();
+        var close = cut.Find("button[aria-label='Close']").ClickAsync();
         await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
         pause.SetResult(new(oldAsset, oldRequest, true, 45, 180));
         await close;
@@ -417,7 +520,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task UtilityMoreOpensAnchoredQueueAndLyricsWithoutUsingTheShellSidebar()
+    public async Task QueueAndLyricsToolsOpenAnchoredPanelsWithoutUsingTheShellSidebar()
     {
         var api = EngineApiClientStub.CreateDefault();
         var playback = CreatePlayback(CreateItem("Song with lyrics", "Artist") with { AssetId = Guid.NewGuid() });
@@ -426,19 +529,17 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         AddBarServices(playback, api, workspace);
         Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
-        var more = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.Title == "More playback controls");
-        await cut.InvokeAsync(() => more.Instance.OpenAsync());
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".listen-player__utility-menu")));
-        await cut.Find(".listen-player__utility-menu button[aria-label='Queue']").ClickAsync();
+        var queue = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "queue");
+        await cut.InvokeAsync(() => queue.Instance.OpenAsync());
         cut.WaitForAssertion(() =>
         {
             Assert.True(workspace.For(playback).Open);
             Assert.Equal("queue", workspace.For(playback).ActivePanelKey);
-            Assert.NotEmpty(cut.FindAll(".listen-context-sidebar__tabs"));
+            Assert.NotEmpty(cut.FindAll(".plt"));
             Assert.Empty(cut.FindAll(".listen-player-panel-backdrop"));
         });
-        await cut.InvokeAsync(() => more.Instance.OpenAsync());
-        await cut.Find(".listen-player__utility-menu button[aria-label='Lyrics']").ClickAsync();
+        var lyrics = cut.FindComponent<PlaybackLyricsPanel>();
+        await cut.InvokeAsync(() => lyrics.Instance.OpenAsync());
         cut.WaitForAssertion(() => Assert.Equal("lyrics", workspace.For(playback).ActivePanelKey));
     }
 
@@ -481,6 +582,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api));
@@ -497,56 +599,69 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.DoesNotContain("Desktop only synopsis for responsive playback.", cut.Markup);
         Assert.DoesNotContain("listen-transport--phone-audiobook", cut.Markup);
         Assert.Empty(cut.FindAll(".listen-player-panel"));
-        var dockTools = cut.Find(".listen-player__desktop-tools");
-        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Chapters and history']"));
-        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Bookmark']"));
-        Assert.NotEmpty(dockTools.QuerySelectorAll("[aria-label='Playback speed 1.0x']"));
-        Assert.NotEmpty(dockTools.QuerySelectorAll(".playback-sleep-timer [aria-label^='Sleep timer:']"));
+        var dockTools = cut.Find("[data-playback-zone='tools']");
+        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Chapters']"));
+        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Bookmarks']"));
+        // Unified player v2 D4: the audiobook bar has a speed chip and a sleep timer button (both open today's settings menu until the tool panels are rebuilt).
+        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label^='Playback speed']"));
+        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Sleep timer']"));
         Assert.NotEmpty(cut.FindAll("input[aria-label='Volume']"));
-        Assert.Single(cut.FindAll("button[aria-label='Close player']"));
+        Assert.Single(cut.FindAll("button[aria-label='Close']"));
         var chapterTool = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters");
         await cut.InvokeAsync(() => chapterTool.Instance.OpenAsync());
-        await cut.Find(".listen-context-sidebar__tabs button[aria-selected='false']").ClickAsync();
-        Assert.Equal("history", workspace.For(playback).ActivePanelKey);
+        // Unified player v2 D20: the Chapters panel is the one list (identity, "Chapter N of M", rows, Timeline shows); it has no History tab.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-chapters-identity]")));
+        Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
 
+        // On a desktop Now playing is the page: the bar's Chapters tool then selects the page's tab and the Now playing tool shows as selected.
+        await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo(NowPlayingRoute.Path));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters").Instance.Inline);
+            Assert.Contains("is-selected", cut.Find("[data-playback-zone='tools'] button[aria-label='Now playing']").ClassName);
+        });
         playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop--book")));
 
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.SwitchDeviceAsync("mobile");
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("listen-transport--phone-audiobook", cut.Markup);
-            Assert.Contains("playback-full__modes", cut.Markup);
+            Assert.NotEmpty(cut.FindAll(".playback-full--phone [data-playback-tool-row]"));
+            Assert.Empty(cut.FindAll(".playback-full--phone input[aria-label='Volume']"));
             Assert.DoesNotContain("Desktop only synopsis for responsive playback.", cut.Markup);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
-        // Slider speed and select sleep share the same exclusive temporary-tool owner.
+        // The phone full player has the moon that opens the Sleep timer panel, and opening it uses the shared temporary-tool owner.
         var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
-        await cut.InvokeAsync(() => phoneFull.FindComponents<PlaybackPopover>().Single(p => p.Instance.Title == "More audiobook controls").Instance.OpenAsync(true));
-        var speed = phoneFull.FindComponent<PlaybackSpeedControl>().FindComponent<PlaybackPopover>();
-        await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
-        cut.WaitForAssertion(() => Assert.Equal("true", speed.Find("button").GetAttribute("aria-expanded")));
+        var gear = phoneFull.FindComponent<SleepTimerPanel>().FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => gear.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.Equal("true", gear.Find("button").GetAttribute("aria-expanded")));
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
-        var selector = phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>();
-        await selector.Find(".tl-select-trigger").ClickAsync();
         cut.WaitForAssertion(() =>
         {
-            Assert.True(selector.Instance.Open);
-            Assert.StartsWith("app-select-", transientTools.OpenToolId);
-            Assert.Equal("false", speed.Find("button").GetAttribute("aria-expanded"));
+            // Unified player v2 D15 and D16: speed has its own panel, opened from the speed value; the moon opens the Sleep timer panel itself.
+            Assert.Empty(phoneFull.FindAll("[data-settings-row='speed']"));
+            Assert.NotEmpty(phoneFull.FindAll("[data-sleep-timer-view]"));
+            Assert.Empty(phoneFull.FindAll(".player-settings-menu__switch"));
         });
-        await cut.InvokeAsync(() => selector.Instance.ClosePlaybackMenuAsync());
-        cut.WaitForAssertion(() => Assert.False(selector.Instance.Open));
+        await cut.InvokeAsync(() => gear.Instance.CloseAsync());
+        cut.WaitForAssertion(() => Assert.Equal("false", gear.Find("button").GetAttribute("aria-expanded")));
+        var speed = phoneFull.FindComponent<PlaybackSpeedPanel>().FindComponent<PlaybackPanel>();
+        Assert.Equal("Playback speed 1×", speed.Find("button").GetAttribute("aria-label"));
+        await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotEmpty(phoneFull.FindAll("[data-playback-speed-view]")));
+        await cut.InvokeAsync(() => speed.Instance.CloseAsync());
+        // Closing re-renders the full player once more (focus return); wait for it so the Chapters click hits the current render tree.
+        cut.WaitForAssertion(() => Assert.Empty(phoneFull.FindAll("[data-playback-speed-view]")));
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
-        await cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync();
+        var chapters = phoneFull.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters");
+        await cut.InvokeAsync(() => chapters.Instance.OpenAsync());
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("playback-full__middle", cut.Markup);
-            Assert.Equal("history", workspace.For(playback).ActivePanelKey);
+            Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
@@ -555,11 +670,11 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain("listen-transport--phone-audiobook", cut.Markup);
-            Assert.NotEmpty(cut.FindAll(".playback-desktop--book"));
+            Assert.Empty(cut.FindAll(".playback-full--phone"));
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
         Assert.False(playback.IsPanelOpen);
-        Assert.Equal("history", workspace.For(playback).ActivePanelKey);
+        Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
 
         await device.SwitchDeviceAsync("mobile");
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
@@ -578,6 +693,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             MediaType = "Audiobook",
             AssetId = Guid.NewGuid(),
             StreamUrl = "stream://test-audiobook",
+            // A one-chapter book: the bar offers End of chapter exactly as the phone player does.
+            Chapters = [new() { Index = 0, AssetId = Guid.NewGuid(), Title = "Only chapter", StartSeconds = 0, EndSeconds = 600 }],
         };
         var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
         playback.RestoreState(new ListenPlaybackSnapshot
@@ -597,6 +714,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api, preferences);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
@@ -613,16 +731,14 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
 
         var firstStableOffCalls = jsRuntime.OffCalls;
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop")));
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.Docked));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".playback-desktop")));
+        await OpenNowPlayingPageAsync(cut);
+        await LeaveNowPlayingPageAsync(cut);
         Assert.Equal(firstStableOffCalls, jsRuntime.OffCalls);
 
         var stableOffCalls = jsRuntime.OffCalls;
-        var sleepControl = cut.FindComponent<PlaybackSleepTimerControl>().Instance;
+        var sleepPanel = cut.FindComponent<SleepTimerPanel>().Instance;
 
-        var selectionTask = cut.InvokeAsync(() => sleepControl.SelectionChanged.InvokeAsync(
+        var selectionTask = cut.InvokeAsync(() => sleepPanel.SelectionChanged.InvokeAsync(
             new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 15 }));
         await jsRuntime.CandidateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -630,8 +746,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(AudiobookSleepTimerModes.Off, playback.SleepTimerState.Mode);
         Assert.Equal(1, jsRuntime.CandidateCalls);
 
-        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop")));
+        await OpenNowPlayingPageAsync(cut);
         Assert.Equal(stableOffCalls, jsRuntime.OffCalls);
         Assert.Equal(1, jsRuntime.CandidateCalls);
 
@@ -642,6 +757,21 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(AudiobookSleepTimerModes.Timer, playback.SleepTimerState.Mode);
         Assert.Equal(15, playback.SleepTimerState.ChosenMinutes);
         Assert.Equal(stableOffCalls, jsRuntime.OffCalls);
+
+        // The moon's accessible name says the timer is on while it runs (the bar no longer overrides the panel's own wording), and a one-chapter book still
+        // hands its chapter to the panel.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-playback-zone='tools'] button[aria-label='Sleep timer, on']")));
+        Assert.Empty(cut.FindAll("[data-playback-zone='tools'] button[aria-label='Sleep timer']"));
+        Assert.Single(cut.FindComponent<SleepTimerPanel>().Instance.Chapters);
+
+        // Unified player v2 A4 and D16: the timer lives in the session, so opening Now playing and closing it again neither resets nor moves the
+        // deadline, and the bar's Sleep timer panel keeps showing the session's own state.
+        var deadline = playback.SleepTimerState.DeadlineUtc;
+        Assert.NotNull(deadline);
+        await LeaveNowPlayingPageAsync(cut);
+        Assert.Equal(deadline, playback.SleepTimerState.DeadlineUtc);
+        Assert.Equal(deadline, cut.FindComponent<SleepTimerPanel>().Instance.State.DeadlineUtc);
+        Assert.Equal(15, cut.FindComponent<SleepTimerPanel>().Instance.State.ChosenMinutes);
     }
 
     [Fact]
@@ -673,6 +803,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api, preferences);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
@@ -688,8 +819,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var cut = Render<ListenNowPlayingBar>();
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
         var initialOffCalls = jsRuntime.OffCalls;
-        var sleepControl = cut.FindComponent<PlaybackSleepTimerControl>().Instance;
-        var selectionTask = cut.InvokeAsync(() => sleepControl.SelectionChanged.InvokeAsync(
+        var sleepPanel = cut.FindComponent<SleepTimerPanel>().Instance;
+        var selectionTask = cut.InvokeAsync(() => sleepPanel.SelectionChanged.InvokeAsync(
             new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 15 }));
         await jsRuntime.CandidateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -740,6 +871,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         AddBookmarkBarServices(api);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
@@ -760,6 +892,67 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains(0d, jsRuntime.SeekPositions));
     }
 
+    [Fact]
+    public async Task TheChapterOrWholeBookChoiceMadeInThePanelChangesTheBarsTimelineLabel()
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var asset = Guid.NewGuid();
+        var book = CreateItem("The Way Beyond", "Maya Ellis") with
+        {
+            MediaType = "Audiobook",
+            AssetId = asset,
+            Chapters = [new() { Index = 0, AssetId = asset, Title = "One", StartSeconds = 0, EndSeconds = 1000 }, new() { Index = 1, AssetId = asset, Title = "Two", StartSeconds = 1000, EndSeconds = 4000 }],
+        };
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
+        playback.RestoreState(new ListenPlaybackSnapshot
+        {
+            Queue = [book],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            DurationSeconds = 4000,
+            CurrentTimeSeconds = 1500,
+            IsPlaying = true,
+        });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Services.AddSingleton(provider => new PlaybackTimelineScope(provider.GetRequiredService<IJSRuntime>(), playback));
+        Render<AppPopoverHost>();
+        var cut = Render<ListenNowPlayingBar>();
+        var scope = Services.GetRequiredService<PlaybackTimelineScope>();
+
+        cut.WaitForAssertion(() => Assert.Equal("Chapter 2", cut.Find(".playback-seek-rail__label").TextContent.Trim()));
+        await cut.InvokeAsync(() => scope.SetWholeBookAsync(true));
+        cut.WaitForAssertion(() => Assert.Equal("Book \u00b7 37%", cut.Find(".playback-seek-rail__label").TextContent.Trim()));
+        await cut.InvokeAsync(() => scope.SetWholeBookAsync(false));
+        cut.WaitForAssertion(() => Assert.Equal("Chapter 2", cut.Find(".playback-seek-rail__label").TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task AVeryLongQueueAndATitleThatDoesNotFitNeverChangeTheBarsLayout()
+    {
+        // Acceptance A7: the bar's zones and their classes are the same with three songs and with 200 songs and a very long title.
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = CreatePlayback(CreateItem("Short", "Artist"), CreateItem("Next", "Artist"), CreateItem("Later", "Artist"));
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        Render<AppPopoverHost>();
+        var cut = Render<ListenNowPlayingBar>();
+        string Structure() => string.Join("|", cut.FindAll("[data-playback-zone]").Select(zone =>
+            $"{zone.GetAttribute("data-playback-zone")}:{zone.ClassName}:{zone.Children.Length}")) + "#" + cut.Find(".playback-shell").ClassName;
+        var before = Structure();
+
+        var longTitle = string.Concat(Enumerable.Repeat("An Extremely Long Song Title That Cannot Possibly Fit Beside The Controls ", 8)).Trim();
+        var queue = new List<ListenQueueItem> { CreateItem(longTitle, string.Concat(Enumerable.Repeat("A very long artist name ", 12)).Trim()) };
+        queue.AddRange(Enumerable.Range(0, 200).Select(index => CreateItem($"Song {index}", "Artist")));
+        await cut.InvokeAsync(() => playback.RestoreState(new ListenPlaybackSnapshot { Queue = queue, CurrentIndex = 0, IsPlaying = true }));
+        cut.WaitForAssertion(() => Assert.Contains(longTitle, cut.Markup));
+        var queueTool = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "queue");
+        await cut.InvokeAsync(() => queueTool.Instance.OpenAsync());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".plt")));
+
+        Assert.Equal(before, Structure());
+        Assert.True(cut.FindAll("[data-playback-list-row='queue']").Count < 200, "The 200 song queue must be virtualised.");
+        Assert.Equal(longTitle, cut.Find("[data-playback-zone='identity'] .playback-identity__title").TextContent.Trim());
+    }
+
     private void AddBarServices(PlaybackSessionController playback, IEngineApiClient api, ListenContextSidebarState workspace)
     {
         Services.AddSingleton(api);
@@ -769,6 +962,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
         AddBookmarkBarServices(api);
         Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
@@ -785,6 +979,165 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton(api);
         AddPanelServices(playback, api);
         Services.AddSingleton<ListenContextSidebarState>(new ListenContextSidebarState(new MemorySidebarPreferences()));
+    }
+
+    // ---- Playback settings and Speed on the real bar (unified player v2 D14, D15) ----
+
+    private sealed class SavedPreferences(UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
+    {
+        private UserPlaybackSettingsDto _current = settings;
+        public Guid? ActiveProfileId { get; } = settings.ProfileId;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(_current);
+        public void UpdateCache(UserPlaybackSettingsDto next) => _current = next;
+        public void Invalidate() { }
+    }
+
+    private sealed class ProfileAuthentication(Guid profileId) : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
+            new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id", profileId.ToString("D"))], "test"))));
+    }
+
+    private IRenderedComponent<ListenNowPlayingBar> RenderBarWithSavedPreferences(PlaybackSessionController playback, List<UserPlaybackSettingsDto> saved)
+    {
+        var profile = playback.ActiveProfileId ?? Guid.NewGuid();
+        var preferences = new SavedPreferences(UserPlaybackSettingsDto.CreateDefaults(profile));
+        var api = EngineApiClientStub.CreateDefault();
+        var stub = (EngineApiClientStub)(object)api;
+        stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
+            { new(profile, "Listener", "#000000", "RestrictedProfile", DateTimeOffset.UtcNow) }));
+        stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), _ => Task.FromResult<UserPlaybackSettingsDto?>(saved.Count > 0 ? saved[^1] : UserPlaybackSettingsDto.CreateDefaults(profile)));
+        stub.SetHandler(nameof(IEngineApiClient.UpdatePlaybackSettingsAsync), args =>
+        {
+            saved.Add((UserPlaybackSettingsDto)args![1]!);
+            return Task.FromResult<UserPlaybackSettingsDto?>((UserPlaybackSettingsDto)args[1]!);
+        });
+        var profiles = new ActiveProfileSessionService(null!, api, authenticationStateProvider: new ProfileAuthentication(profile));
+        var orchestrator = new UIOrchestratorService(api, new UniverseStateContainer(), profiles, new ConfigurationBuilder().Build(), NullLogger<UIOrchestratorService>.Instance);
+        var preferenceService = new PlayerPreferenceService(preferences, orchestrator);
+        var workspace = new ListenContextSidebarState(new MemorySidebarPreferences());
+        Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
+        Services.AddSingleton<IEngineApiClient>(api);
+        Services.AddSingleton(playback);
+        Services.AddSingleton(workspace);
+        Services.AddSingleton(preferenceService);
+        Services.AddSingleton(new PlaybackSettingsActions(preferenceService, playback));
+        Services.AddSingleton(new PlaybackLyricsPresenter(api));
+        Services.AddSingleton(new PlaybackLyricsSelectionOwner(playback, api));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
+        Services.AddSingleton<IPlaybackCommandSink>(provider => new DirectPlaybackCommandSink(new ListenPlaybackCommandOwner(provider, playback)));
+        Services.AddSingleton(new DeviceContextService(api));
+        Services.AddSingleton<ListenAudioDragService>();
+        Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
+        var actions = new AudiobookBookmarkActionService(api);
+        Services.AddSingleton(actions);
+        Services.AddSingleton<IAudiobookBookmarkActions>(actions);
+        Services.AddSingleton<IAudiobookBookmarkLeaseInvalidator>(actions);
+        Services.AddSingleton(profiles);
+        Services.AddSingleton(orchestrator);
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Render<AppPopoverHost>();
+        return Render<ListenNowPlayingBar>();
+    }
+
+    private static PlaybackSessionController CreateAudiobookPlayback(string experience)
+    {
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
+        var item = CreateItem(experience == PlayerExperienceModes.Audiobook ? "Test audiobook" : "Test song", "Narrator") with
+        {
+            MediaType = experience == PlayerExperienceModes.Audiobook ? "Audiobook" : "Music",
+            Chapters = experience == PlayerExperienceModes.Audiobook
+                ? [new PlaybackChapterDto { Index = 0, Title = "Chapter one", StartSeconds = 0, EndSeconds = 3600 }]
+                : [],
+        };
+        playback.RestoreState(new ListenPlaybackSnapshot { Queue = [item], CurrentIndex = 0, Experience = experience, DurationSeconds = 3600, CurrentTimeSeconds = 120, IsPlaying = true });
+        return playback;
+    }
+
+    private async Task OpenItemMenuRowAsync(IRenderedComponent<ListenNowPlayingBar> bar)
+    {
+        var menu = bar.FindComponent<PlaybackItemMenu>().FindComponent<PlaybackPanel>();
+        await bar.InvokeAsync(() => menu.Instance.OpenAsync(true));
+        bar.WaitForElement("[data-playback-item-action='PlaybackSettings']");
+        await bar.Find("[data-playback-item-action='PlaybackSettings']").ClickAsync();
+        bar.WaitForElement("[data-playback-settings]");
+    }
+
+    [Fact]
+    public async Task AudiobookBar_TheSpeedChipOpensTheSpeedViewDirectlyWithNoSettingsRows()
+    {
+        var bar = RenderBarWithSavedPreferences(CreateAudiobookPlayback(PlayerExperienceModes.Audiobook), []);
+        var chip = bar.Find("[data-playback-zone='tools'] button[aria-label^='Playback speed']");
+        Assert.Equal("1×", chip.TextContent.Trim());
+
+        await bar.InvokeAsync(() => bar.FindComponent<PlaybackSpeedPanel>().FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+
+        bar.WaitForElement("[data-playback-speed-view]");
+        Assert.Empty(bar.FindAll("[data-psp-row]"));
+        Assert.DoesNotContain("Custom speed", bar.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AudiobookBar_TheItemMenusPlaybackSettingsRowOpensThePanelWithSpeedAndSkipsAndDoesNotNavigate()
+    {
+        var bar = RenderBarWithSavedPreferences(CreateAudiobookPlayback(PlayerExperienceModes.Audiobook), []);
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+
+        await OpenItemMenuRowAsync(bar);
+
+        Assert.Equal(["speed", "skip-back", "skip-forward", "information"], bar.FindAll("[data-psp-row]").Select(row => row.GetAttribute("data-psp-row")));
+        Assert.DoesNotContain("/settings/playback", navigation.Uri, StringComparison.Ordinal);
+        Assert.Equal(before, navigation.Uri);
+    }
+
+    [Fact]
+    public async Task MusicBar_TheItemMenusPlaybackSettingsRowOpensThePanelWithPlaybackInformationOnlyAndNoResetFooter()
+    {
+        var bar = RenderBarWithSavedPreferences(CreateAudiobookPlayback(PlayerExperienceModes.Music), []);
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+
+        await OpenItemMenuRowAsync(bar);
+
+        Assert.Equal(["information"], bar.FindAll("[data-psp-row]").Select(row => row.GetAttribute("data-psp-row")));
+        Assert.Empty(bar.FindAll("[data-psp-reset]"));
+        Assert.Equal(before, navigation.Uri);
+    }
+
+    [Fact]
+    public async Task AudiobookBar_ChoosingASkipLengthWritesTheListeningPairAndTheControllerTakesItAtOnce()
+    {
+        var saved = new List<UserPlaybackSettingsDto>();
+        var playback = CreateAudiobookPlayback(PlayerExperienceModes.Audiobook);
+        var bar = RenderBarWithSavedPreferences(playback, saved);
+        await OpenItemMenuRowAsync(bar);
+
+        await bar.Find("[data-psp-row='skip-forward'] select").ChangeAsync(new ChangeEventArgs { Value = "60" });
+
+        bar.WaitForAssertion(() => Assert.NotEmpty(saved));
+        Assert.Equal(60, saved[^1].Listening.SkipForwardSeconds);
+        Assert.Equal(30, saved[^1].Watching.SkipForwardSeconds);
+        Assert.Equal(60, playback.SkipForwardSeconds);
+    }
+
+    [Fact]
+    public async Task AudiobookBar_ResetPlaybackPreferencesResetsOnlyTheListeningPairAndSpeed()
+    {
+        var saved = new List<UserPlaybackSettingsDto>();
+        var playback = CreateAudiobookPlayback(PlayerExperienceModes.Audiobook);
+        var bar = RenderBarWithSavedPreferences(playback, saved);
+        await OpenItemMenuRowAsync(bar);
+        await bar.Find("[data-psp-row='skip-back'] select").ChangeAsync(new ChangeEventArgs { Value = "30" });
+        bar.WaitForAssertion(() => Assert.Single(saved));
+        saved[0].Watching.SkipBackSeconds = 5;
+
+        await bar.Find("[data-psp-reset]").ClickAsync();
+
+        bar.WaitForAssertion(() => Assert.Equal(2, saved.Count));
+        Assert.Equal(10, saved[^1].Listening.SkipBackSeconds);
+        Assert.Equal(5, saved[^1].Watching.SkipBackSeconds);
     }
 
     private void AddBookmarkBarServices(IEngineApiClient api, IUserPlaybackPreferencesAccessor? preferences = null)
@@ -828,6 +1181,19 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Subtitle = artist,
         Duration = "3:24",
     };
+
+    // Now playing on a desktop is the routed page (unified player v2 D24): the bar knows it is open from the address and shows its Now playing tool as selected.
+    private async Task OpenNowPlayingPageAsync(IRenderedComponent<ListenNowPlayingBar> bar)
+    {
+        await bar.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo(NowPlayingRoute.Path));
+        bar.WaitForAssertion(() => Assert.Contains("is-selected", bar.Find("[data-playback-zone='tools'] button[aria-label='Now playing']").ClassName));
+    }
+
+    private async Task LeaveNowPlayingPageAsync(IRenderedComponent<ListenNowPlayingBar> bar)
+    {
+        await bar.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo("/listen"));
+        bar.WaitForAssertion(() => Assert.DoesNotContain("is-selected", bar.Find("[data-playback-zone='tools'] button[aria-label='Now playing']").ClassName));
+    }
 
     private sealed class BarToggle : ComponentBase
     {

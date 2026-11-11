@@ -12,20 +12,20 @@
         transition: border-color 0.2s;
     }
     .slot-empty {
-        border: 1px dashed #444;
-        background: #1a1a1a;
+        border: 1px dashed var(--tl-border-strong);
+        background: var(--tl-bg-surface);
     }
     .slot-filled {
         border: 1px solid var(--tl-accent-primary-border);
-        background: #1a1a1a;
+        background: var(--tl-bg-surface);
     }
     .path-trail {
         padding: 10px;
         border-radius: 6px;
-        border: 1px solid #333;
+        border: 1px solid var(--tl-bg-surface-raised);
         margin-bottom: 8px;
         cursor: pointer;
-        background: #111;
+        background: var(--tl-bg-surface);
         transition: border-color 0.15s;
     }
     .path-trail:hover, .path-trail:focus-visible, .path-trail-selected {
@@ -36,13 +36,13 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 4px;
-        font-size: 12px;
+        font-size: var(--tl-font-size-xs);
     }
     .hop-node {
-        color: #e0e0e0;
+        color: var(--tl-text-primary);
         font-weight: 500;
     }
     .hop-arrow {
-        color: #555;
+        color: var(--tl-border-strong);
         font-size: var(--tl-font-size-xs);
     }

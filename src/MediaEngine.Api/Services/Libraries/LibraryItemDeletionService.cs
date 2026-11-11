@@ -83,7 +83,14 @@ public sealed record LibraryItemDeletionPlan(
     IReadOnlyList<LibraryItemDeletionPlannedFile> Files,
     LibraryItemDeletionRelatedFacts Related,
     LibraryItemDeletionPreview Preview,
-    LibraryItemDeletionGroupContext? Group = null);
+    LibraryItemDeletionGroupContext? Group = null,
+    LibraryItemDeletionFileContext? File = null);
+
+/// <summary>
+/// The one file a plan deletes (delete one file of an item). When <see cref="ItemRemains"/> is true only the file's records go and
+/// the item stays with its other files; when it is the item's last file the plan is the ordinary whole-item delete.
+/// </summary>
+public sealed record LibraryItemDeletionFileContext(Guid WorkId, Guid AssetId, bool ItemRemains, int RemainingFiles);
 
 /// <summary>
 /// The group a plan deletes (a show, season, album or Series). <see cref="GroupId"/> and <see cref="ParentGroupId"/> are only for telling open
@@ -131,6 +138,7 @@ public sealed partial class LibraryItemDeletionService(
     public const string OutsideLibraryReason = "This file is not inside any library folder Library manages.";
     public const string MissingReason = "This file is no longer on disk.";
     public const string UsedElsewhereReason = "Another item in your library uses this same file.";
+    private const string FileNotFound = "This file is no longer part of that item.";
     private const string GroupRefusal = "Only individual titles can be deleted.";
     private const string CatalogOnlyRefusal = "This title isn't in your library as a file, so there's nothing to delete.";
     private const string LabelSeparator = " › ";
@@ -153,7 +161,8 @@ public sealed partial class LibraryItemDeletionService(
         IReadOnlyList<Guid>? workIds,
         CancellationToken ct = default,
         bool vaultItems = false,
-        LibraryItemDeletionGroupContext? group = null)
+        LibraryItemDeletionGroupContext? group = null,
+        Guid? onlyAssetId = null)
     {
         var requested = (workIds ?? []).Distinct().ToList();
         if (requested.Count == 0 || requested.Contains(Guid.Empty))
@@ -197,7 +206,32 @@ public sealed partial class LibraryItemDeletionService(
         var order = requested.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
         var works = found.OrderBy(work => order[work.WorkId]).ToList();
 
+        // Delete one file: only that file is planned. When the item has other files it stays with them; when this is its last file
+        // the whole item is planned, exactly as a title delete.
+        LibraryItemDeletionFileContext? fileContext = null;
+        if (onlyAssetId is { } assetId)
+        {
+            var owner = works.Count == 1 ? works[0] : null;
+            var asset = owner?.Assets.FirstOrDefault(candidate => candidate.AssetId == assetId);
+            if (owner is null || asset is null)
+            {
+                return Refused(LibraryItemDeletionRefusalKind.NotFound, FileNotFound, requested);
+            }
+
+            var remaining = owner.Assets.Count - 1;
+            fileContext = new LibraryItemDeletionFileContext(owner.WorkId, assetId, remaining > 0, remaining);
+            if (fileContext.ItemRemains)
+            {
+                works = [owner with { Assets = [asset] }];
+            }
+        }
+
         var related = await repository.GetRelatedFactsAsync(requested, ct).ConfigureAwait(false);
+        if (fileContext?.ItemRemains == true)
+        {
+            // The item stays, so no hand-picked collection loses it and none is deleted.
+            related = related with { CuratedCollections = [] };
+        }
         var mediaExtensions = extensions.GetAllMediaExtensions();
 
         // 1. Every media file of every requested title.
@@ -342,13 +376,23 @@ public sealed partial class LibraryItemDeletionService(
             BytesFreed = bytesFreed,
             GoesToRecycleBin = goesToRecycleBin,
             Group = group is null ? null : DescribeGroup(group, requested.Count, planned, bytesFreed, goesToRecycleBin),
+            FileScope = fileContext is null ? null : new LibraryItemDeletionFileScopeDto
+            {
+                WorkId = fileContext.WorkId,
+                AssetId = fileContext.AssetId,
+                FileName = Path.GetFileName(works[0].Assets.FirstOrDefault(a => a.AssetId == fileContext.AssetId)?.FilePath ?? string.Empty),
+                ItemRemains = fileContext.ItemRemains,
+                RemainingFiles = fileContext.ItemRemains ? fileContext.RemainingFiles : 0,
+            },
             Fingerprint = ComputeFingerprint(
                 requested, planned, collections, related.ProfilesWithPersonalState,
-                group is null ? null : $"group|{group.GroupId:D}|{(group.RemovesParent ? 1 : 0)}"),
+                group is not null ? $"group|{group.GroupId:D}|{(group.RemovesParent ? 1 : 0)}"
+                    : fileContext is not null ? $"file|{fileContext.AssetId:D}|{(fileContext.ItemRemains ? 1 : 0)}"
+                    : null),
         };
 
         return LibraryItemDeletionResult<LibraryItemDeletionPlan>.Ok(
-            new LibraryItemDeletionPlan(requested, works, planned, related, preview, group));
+            new LibraryItemDeletionPlan(requested, works, planned, related, preview, group, fileContext));
     }
 
     private Decision DecideMedia(LibraryItemDeletionAsset asset, IReadOnlySet<string> usedElsewhere)

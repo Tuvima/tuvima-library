@@ -82,7 +82,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.DoesNotContain("var(--tl-bottom-dock-height", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains(".media-section-shell__content", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-y: auto", sectionShellStyles, StringComparison.Ordinal);
-        Assert.Contains("::deep .browse-multi-select__option", multiSelectStyles, StringComparison.Ordinal);
+        Assert.Contains("<AppPopover", multiSelect, StringComparison.Ordinal);
         Assert.Contains("display: grid;", multiSelectStyles, StringComparison.Ordinal);
         Assert.Contains("width: 100%;", multiSelectStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("<MudMenu", multiSelect, StringComparison.Ordinal);
@@ -104,7 +104,6 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("ShowTitleBlock=\"false\"", lanePage, StringComparison.Ordinal);
         Assert.Contains("ShowTabNavigation=\"false\"", lanePage, StringComparison.Ordinal);
         Assert.Contains("<AppPageState Kind=\"AppPageStateKind.Loading\"", lanePage, StringComparison.Ordinal);
-        Assert.Contains("GridHoverMode => MediaTileHoverMode.GlowOnly", browseShell, StringComparison.Ordinal);
         Assert.Contains("if (IsPersonGrouping)", browseShell, StringComparison.Ordinal);
         Assert.Contains("MediaPersonGroupTileComposer.Compose", browseShell, StringComparison.Ordinal);
         Assert.Contains("group.PersonId ?? group.ArtistPersonId", browseShell, StringComparison.Ordinal);
@@ -117,7 +116,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("border-left: 1px solid rgba(128, 146, 180, 0.2)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 1680px)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 1400px)", browseShellStyles, StringComparison.Ordinal);
-        Assert.Contains("font-size: 0.88rem", browseShellStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-font-size-sm)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("<BrowseMultiSelect Label=\"Filters\"", browseShell, StringComparison.Ordinal);
         Assert.Contains("Search genres...", browseShell, StringComparison.Ordinal);
         Assert.Contains("Search years...", browseShell, StringComparison.Ordinal);
@@ -125,10 +124,10 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("SelectedValuesChanged=\"OnYearsChanged\"", browseShell, StringComparison.Ordinal);
         Assert.Contains("SupportsFacetFilters => true", browseShell, StringComparison.Ordinal);
         Assert.Contains("<AppBrowseModeSelector", browseShell, StringComparison.Ordinal);
-        Assert.Contains(".app-browse-mode__option:first-child", browseModeStyles, StringComparison.Ordinal);
-        Assert.Contains("border-radius: 9px 0 0 9px", browseModeStyles, StringComparison.Ordinal);
-        Assert.Contains(".app-browse-mode__option:last-child", browseModeStyles, StringComparison.Ordinal);
-        Assert.Contains("border-radius: 0 9px 9px 0", browseModeStyles, StringComparison.Ordinal);
+        Assert.Contains(".app-browse-mode__option.is-selected", browseModeStyles, StringComparison.Ordinal);
+        Assert.Contains("background: var(--tl-gradient-primary);", browseModeStyles, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--tl-control-height-md);", browseModeStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("rgba(", browseModeStyles.Split("html[data-form-factor")[0], StringComparison.Ordinal);
         Assert.Contains("<AppQuickFilterToggle", browseShell, StringComparison.Ordinal);
         Assert.Contains("<AppActiveFilterSummary", browseShell, StringComparison.Ordinal);
         Assert.Contains("<AppTimelineResults", browseShell, StringComparison.Ordinal);
@@ -157,15 +156,6 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("ShowLabel=\"false\"", browseShell, StringComparison.Ordinal);
         Assert.DoesNotContain("OnClick=\"@context.ToggleAsync\"", multiSelect, StringComparison.Ordinal);
         Assert.DoesNotContain(".. IsSeriesOnly ? new[] { \"Series only\" }", browseShell, StringComparison.Ordinal);
-        Assert.Contains("ShowCompactCaptions=\"true\"", browseShell, StringComparison.Ordinal);
-        Assert.Contains("HideGroupKind=\"true\"", browseShell, StringComparison.Ordinal);
-        Assert.Contains("browse-shell__tile-size", browseShell, StringComparison.Ordinal);
-        Assert.Contains("TileSizePx", browseShell, StringComparison.Ordinal);
-        Assert.Contains("SectionType == MediaHubSectionType.Listen", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("ShowCompactCaptions=\"true\"", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("HideGroupKind=\"@HideGroupKind\"", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("Shelf.Key, \"tv-shows\"", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("MediaTileHoverMode.GlowOnly", mediaShelf, StringComparison.Ordinal);
         Assert.DoesNotContain("<CinematicHeroCarousel", collections, StringComparison.Ordinal);
         Assert.Contains("Nav.NavigateTo(target.Route)", hub, StringComparison.Ordinal);
 

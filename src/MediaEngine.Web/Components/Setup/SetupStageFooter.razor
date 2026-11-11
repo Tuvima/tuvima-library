@@ -9,6 +9,7 @@
                    StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
                    OnClick="Back" />
     }
+    @Leading
     <div class="setup-stage__footer-actions">
         @ChildContent
         @if (ShowReturnToCurrentStep)
@@ -26,5 +27,7 @@
     [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+    /// <summary>An optional Secondary action drawn on the left, where Back sits (Welcome uses it for "Restore a backup").</summary>
+    [Parameter] public RenderFragment? Leading { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

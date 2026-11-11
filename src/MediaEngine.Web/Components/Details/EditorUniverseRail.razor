@@ -1,0 +1,343 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Universe in the editor's header while a Universe, or a character, place or faction of one, is being edited (universal editor v4 D10,
+   WP11; header revision v4.1 D1). The Universe is a fixed tile at the left of the header, then one dropdown for each kind it holds (Characters,
+   Factions, Places, and so on) under the title, each showing how many there are. A dropdown lists that kind's things with a small picture, a
+   purple dot when changes are waiting and a search once it is long, and starts with "Add <kind>", which asks for a name and stages the new
+   thing. Choosing a thing switches the editor to it; every thing's staged changes stay in the one list. The header draws the two parts (Tile,
+   then Selects); on its own it draws both. Nothing is saved here. *@
+@if (State.Visible && Flow is not null)
+{
+    var activeId = Flow.Session.ActiveItem?.EntityId ?? Guid.Empty;
+    var onUniverse = Flow.Session.ActiveItem?.Kind == EditTrailKinds.Universe;
+    var pending = Flow.Session.Pending.Changes.GroupBy(change => change.EntityId).ToDictionary(group => group.Key, group => group.Count());
+    var busy = State.Loading || Flow.Switching;
+    var showTile = Part != EditorFamilyRailPart.Selects;
+    var showSelects = Part != EditorFamilyRailPart.Tile;
+    if (showTile && !showSelects)
+    {
+        <div class="tl-urail-tile" aria-busy="@(busy ? "true" : null)">
+            @UniverseTile(onUniverse, pending)
+        </div>
+    }
+    else
+    {
+        <nav class="tl-urail" aria-label="@L["EditorUniverse_Universe"].Value" aria-busy="@(busy ? "true" : null)">
+            @if (showTile)
+            {
+                @UniverseTile(onUniverse, pending)
+            }
+
+            @if (State.Loading && State.Kinds.Count == 0)
+            {
+                <AppSkeleton Height="2.6rem" Width="10rem" />
+            }
+
+            @foreach (var kind in State.Kinds)
+            {
+                var list = State.ListFor(kind.Key);
+                var isOpen = _open == kind.Key;
+                var staged = StagedAdds(kind.Key);
+                var activeKind = Flow.Session.ActiveItem is { Kind: var itemKind } && itemKind == EditTrailKinds.Thing && list.Items.Any(thing => thing.Id == activeId);
+                var waiting = staged.Count + list.Items.Where(thing => pending.GetValueOrDefault(thing.Id) > 0).Count();
+                <div class="tl-urail__level" @key="@($"kind{kind.Key}")">
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               id="@CrumbId(kind.Key)"
+                               Class="@(activeKind ? "tl-urail__crumb is-current" : "tl-urail__crumb")"
+                               aria-haspopup="listbox"
+                               aria-expanded="@(isOpen ? "true" : "false")"
+                               data-level="@kind.Label"
+                               OnClick="() => ToggleAsync(kind)">
+                        <span class="tl-urail__text"><small>@kind.Label</small><span>@(kind.Count + staged.Count)</span></span>
+                        @if (waiting > 0)
+                        {
+                            <AppTooltip Text="@L["EditorRail_ChangesWaiting"].Value"><span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value"></span></AppTooltip>
+                        }
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
+                    </AppButton>
+                    @if (isOpen)
+                    {
+                        @RenderPanel(kind, list, staged, activeId, pending)
+                    }
+                </div>
+            }
+        </nav>
+    }
+}
+
+@code {
+    private EditorUniverseState? _state;
+    private EditSessionFlow? _flow;
+    private string? _open;
+    private bool _disposed;
+
+    [Parameter, EditorRequired] public EditorUniverseState State { get; set; } = default!;
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>Which part to draw: the header draws the Universe tile and the kinds' dropdowns in two places; on its own it draws both.</summary>
+    [Parameter] public EditorFamilyRailPart Part { get; set; } = EditorFamilyRailPart.All;
+
+    private static string CrumbId(string key) => $"tl-urail-crumb-{key}";
+
+    // Things staged to be added to this Universe in this kind, in the order they were staged.
+    private IReadOnlyList<(string Name, string Description)> StagedAdds(string kindKey) =>
+        Flow is null || State.UniverseId == Guid.Empty
+            ? []
+            : [.. Flow.Session.Pending.ThingAdds(State.UniverseId)
+                .Where(change => change.Fields.Any(field => field.Key == EditSessionThingAdd.KindKey && field.Value == kindKey))
+                .Select(change => (
+                    change.Fields.FirstOrDefault(field => field.Key == EditSessionThingAdd.NameKey)?.Value ?? string.Empty,
+                    change.Fields.FirstOrDefault(field => field.Key == EditSessionThingAdd.DescriptionKey)?.Value ?? string.Empty))];
+
+    // The Universe itself: a fixed tile at the left of the header. It is the item being edited when it has the accent edge.
+    private RenderFragment UniverseTile(bool onUniverse, Dictionary<Guid, int> pending) => __builder =>
+    {
+        <div class="tl-urail__level tl-urail__level--tile">
+            <AppButton ButtonStyle="AppButtonStyle.Text"
+                       Class="@(onUniverse ? "tl-urail__crumb tl-urail__crumb--tile is-current" : "tl-urail__crumb tl-urail__crumb--tile")"
+                       aria-current="@(onUniverse ? "true" : null)"
+                       data-level="Universe"
+                       Disabled="@(State.UniverseId == Guid.Empty)"
+                       OnClick="PickUniverseAsync">
+                <span class="tl-urail__text"><small>@L["EditorUniverse_Universe"]</small><span>@(string.IsNullOrWhiteSpace(State.UniverseName) ? "Universe" : State.UniverseName)</span></span>
+                @if (pending.GetValueOrDefault(State.UniverseId) > 0)
+                {
+                    <AppTooltip Text="@L["EditorRail_ChangesWaiting"].Value"><span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value"></span></AppTooltip>
+                }
+            </AppButton>
+        </div>
+    };
+
+    private RenderFragment RenderPanel(EditorUniverseKindDto kind, UniverseKindList list, IReadOnlyList<(string Name, string Description)> staged, Guid activeId, Dictionary<Guid, int> pending) => __builder =>
+    {
+        var searchable = kind.Count > 6 || list.HasMore || !string.IsNullOrWhiteSpace(list.Search);
+        @* Drawn through the shared popover so it sits in the top layer above the editor window; a click anywhere else or Escape closes it. *@
+        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, kind.Key))" Class="tl-urail__surface">
+            <div class="tl-urail__panel" role="listbox" aria-label="@kind.Label" @onkeydown="OnKeyDown">
+                <AppButton ButtonStyle="AppButtonStyle.Text"
+                           Tone="AppUiTone.Primary"
+                           Size="AppControlSize.Compact"
+                           StartIcon="@AppMaterialIcons.Outlined.Add"
+                           Class="tl-urail__add"
+                           Disabled="@(Flow is null || Flow.Saving || Flow.Switching)"
+                           OnClick="() => AddAsync(kind, list, staged)">@($"Add {kind.Singular.ToLowerInvariant()}")</AppButton>
+                @if (searchable)
+                {
+                    <div class="tl-urail__search">
+                        <AppSearchField Value="@list.Search"
+                                        ValueChanged="value => State.OpenListAsync(kind.Key, value)"
+                                        Placeholder="@($"Find {kind.Singular.ToLowerInvariant()}")"
+                                        Label="@($"Find {kind.Singular.ToLowerInvariant()}")"
+                                        HideLabel="true"
+                                        Size="AppControlSize.Compact"
+                                        DebounceInterval="150" />
+                    </div>
+                }
+                <ul class="tl-urail__options">
+                    @foreach (var (name, _) in staged)
+                    {
+                        <li>
+                            <span class="tl-urail__option is-staged">
+                                <span class="tl-urail__text"><span>@name</span><small>New. Added when you save.</small></span>
+                            </span>
+                        </li>
+                    }
+                    @foreach (var thing in list.Items)
+                    {
+                        var selected = thing.Id == activeId;
+                        var waiting = pending.GetValueOrDefault(thing.Id);
+                        <li @key="@($"thing{thing.Id:N}")">
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       role="option"
+                                       Class="@(selected ? "tl-urail__option is-selected" : "tl-urail__option")"
+                                       aria-selected="@(selected ? "true" : "false")"
+                                       OnClick="() => PickThingAsync(thing)">
+                                <span class="tl-urail__thumb" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(thing.PictureUrl))
+                                    {
+                                        <AppImage Src="@thing.PictureUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-urail__img" />
+                                    }
+                                </span>
+                                <span class="tl-urail__text">
+                                    <span>@thing.Label</span>
+                                    @if (thing.Hidden)
+                                    {
+                                        <small>Hidden</small>
+                                    }
+                                    else if (thing.AddedByUser)
+                                    {
+                                        <small>Added by you</small>
+                                    }
+                                </span>
+                                @if (waiting > 0)
+                                {
+                                    <span class="tl-urail__waiting">@(waiting == 1 ? "1 change" : $"{waiting} changes")</span>
+                                }
+                            </AppButton>
+                        </li>
+                    }
+                    @if (list.Loading)
+                    {
+                        <li class="tl-urail__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
+                    }
+                    else if (list.Items.Count == 0 && staged.Count == 0)
+                    {
+                        <li class="tl-urail__note">@(string.IsNullOrWhiteSpace(list.Search) ? $"No {kind.Label.ToLowerInvariant()} yet." : "Nothing matches.")</li>
+                    }
+
+                    @if (list.HasMore && !list.Loading)
+                    {
+                        <li class="tl-urail__more" role="none">
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                       OnClick="() => State.LoadMoreAsync(kind.Key)">@($"Show more ({Math.Max(0, list.Total - list.Items.Count)} left)")</AppButton>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </AppPopover>
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_state, State))
+        {
+            if (_state is not null)
+            {
+                _state.Changed -= OnChanged;
+            }
+
+            _state = State;
+            _state.Changed += OnChanged;
+        }
+
+        if (!ReferenceEquals(_flow, Flow))
+        {
+            if (_flow is not null)
+            {
+                _flow.Changed -= OnChanged;
+                _flow.Session.Changed -= OnChanged;
+            }
+
+            _flow = Flow;
+            if (_flow is not null)
+            {
+                _flow.Changed += OnChanged;
+                _flow.Session.Changed += OnChanged;
+            }
+        }
+    }
+
+    private void OnChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CloseAll() => _open = null;
+
+    // The shared popover reports an outside click or Escape; only the list that is still open closes.
+    private void PopoverChanged(bool open, string key)
+    {
+        if (!open && _open == key)
+        {
+            CloseAll();
+        }
+    }
+
+    // Escape closes the open list; the pop-over itself stays open.
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            CloseAll();
+        }
+    }
+
+    private async Task ToggleAsync(EditorUniverseKindDto kind)
+    {
+        if (_open == kind.Key)
+        {
+            _open = null;
+            return;
+        }
+
+        _open = kind.Key;
+        if (!State.ListFor(kind.Key).Loaded)
+        {
+            await State.OpenListAsync(kind.Key, null);
+        }
+    }
+
+    private async Task PickUniverseAsync()
+    {
+        _open = null;
+        if (Flow is null || State.UniverseId == Guid.Empty)
+        {
+            return;
+        }
+
+        await Flow.SwitchToAsync([UniverseItem()]);
+    }
+
+    private async Task PickThingAsync(EditorUniverseThingDto thing)
+    {
+        _open = null;
+        if (Flow is null)
+        {
+            return;
+        }
+
+        await Flow.SwitchToAsync([UniverseItem(), new EditTrailItem(thing.Id, thing.Label, EditTrailKinds.Thing, thing.PictureUrl)]);
+    }
+
+    private EditTrailItem UniverseItem() => new(State.UniverseId, State.UniverseName, EditTrailKinds.Universe);
+
+    private async Task AddAsync(EditorUniverseKindDto kind, UniverseKindList list, IReadOnlyList<(string Name, string Description)> staged)
+    {
+        _open = null;
+        if (Flow is null || State.UniverseId == Guid.Empty)
+        {
+            return;
+        }
+
+        var known = new List<string>(list.Items.Select(thing => thing.Label));
+        known.AddRange(staged.Select(entry => entry.Name));
+        var dialog = await Dialogs.ShowAsync<EditorUniverseAddDialog>(
+            string.Empty,
+            new AppDialogParameters<EditorUniverseAddDialog>
+            {
+                { component => component.Singular, kind.Singular },
+                { component => component.ExistingNames, known },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        if (await dialog.Result is { Canceled: false, Data: EditorUniverseAddDialog.UniverseAddRequest request })
+        {
+            Flow.Session.Pending.AddThing(State.UniverseId, request.Name, kind.Key, request.Description, kind.Singular);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        if (_state is not null)
+        {
+            _state.Changed -= OnChanged;
+        }
+
+        if (_flow is not null)
+        {
+            _flow.Changed -= OnChanged;
+            _flow.Session.Changed -= OnChanged;
+        }
+    }
+}

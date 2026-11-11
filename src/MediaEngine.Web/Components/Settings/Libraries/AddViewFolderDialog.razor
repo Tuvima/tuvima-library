@@ -8,50 +8,50 @@
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
-@* Add a View folder in first-run setup (library setup and add-folder v2, D15, D16): the same look as the second screen of Add library. The
-   content type is the row the person clicked (Photos, Personal videos or Documents), so the dialog asks one thing: the folder. Browse opens
-   the shared "Choose your ... folder" pop-up. In setup a View folder is always shared with everyone and read where it already is, so nothing is
-   copied or changed; choosing who sees what is a Settings job. If View has nowhere to keep its files yet, the dialog asks for that location too,
-   pre-filled, and Add folder stays off until both are valid, so a View folder can never be saved with no storage behind it. *@
+@* Add a View folder (library setup and add-folder v2, D15, D16; View folders spec D2, D4a, D4c): the same look as the second screen of Add library. The
+   content type is the row the person clicked (Photos, Personal videos or Documents). The friendly name is optional and filled from the folder, and the
+   person chooses Read-only (the folder is read where it is) or Managed (Library creates the folder in View's storage, so uploads can be filed into it). A View
+   folder is shared with everyone; choosing who sees what is a Settings job. If View has nowhere to keep its files yet, the dialog asks for that location too,
+   pre-filled, and Add folder stays off until both are valid, so a View folder can never be saved with no storage behind it. In the Edit window the folder is only
+   collected (Defer) and saved with Save changes. *@
 <AppDialogShell Eyebrow="@L["Nav_View"].Value"
                 Title="@Heading"
-                Subtitle="@($"Pick the folder on the Library server that holds your {Noun}.")"
+                Subtitle="@($"Pick the folder on the Library server that holds your {Noun}. Give it a friendly name if you like.")"
                 Size="Large"
+                HostClass="@ServerFolderPicker.HostClass"
                 OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="add-view-folder">
-            <section class="add-view-folder__section">
-                <span class="add-view-folder__caption" id="add-view-folder-caption">@L["Common_Folder"]</span>
-                <div class="add-view-folder__folder">
-                    <div class="add-view-folder__path" data-folder-path aria-labelledby="add-view-folder-caption">
-                        @if (_folder is { } chosen)
-                        {
-                            <AppMaterialIcon Icon="@(FolderUsable ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.WarningAmber)" />
-                            <span class="add-view-folder__text">@chosen.Path</span>
-                        }
-                        else
-                        {
-                            <span class="add-view-folder__text add-view-folder__text--empty">@L["AddViewFolderDialog_BrowseForAFolder"]</span>
-                        }
-                    </div>
-                    <AppButton Label="@L["AddViewFolderDialog_Browse"].Value" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseFolderAsync" />
-                </div>
-                @if (_folder is { } problem && !FolderUsable)
+            @* The same folder window as Add library's third step (Libraries v3 D20, D21): friendly name at the top, the shared picker, and the handling
+               labels. A View folder is shared with everyone and read where it is, so only Read-only is offered. *@
+            <div class="add-view-folder__picker" data-folder-step>
+                <ServerFolderPicker Inline="true"
+                                    HideConfirm="true"
+                                    MediaType="@Kind.MediaTypes.FirstOrDefault()"
+                                    KindLabel="@LibraryTypeCatalog.AddChoiceLabel(Kind)"
+                                    SelectionMode="@ServerFolderSelectionModes.PersonalSpaceExisting"
+                                    SetupSession="@SetupSession"
+                                    ShowFolderName="true"
+                                    FolderName="@_name"
+                                    FolderNameChanged="NameChanged"
+                                    OfferHandling="true"
+                                    ManagedAllowed="true"
+                                    ShowManagedWarning="false"
+                                    OnHandlingChanged="HandlingChanged"
+                                    OnPathChanged="PathChosen" />
+                @if (_managed)
                 {
-                    <AppAlert Tone="AppUiTone.Warning" Dense="true">@FolderProblemText(problem)</AppAlert>
+                    <p class="add-view-folder__line" data-managed-note>@L["AddViewFolderDialog_ManagedNote", ManagedName]</p>
                 }
-                else if (ServerFolderResultText.For(_folder) is { } accessible)
+                else
                 {
-                    <p class="add-view-folder__check" data-folder-result="accessible"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />@accessible</p>
+                    <p class="add-view-folder__line">@L["AddViewFolderDialog_LibraryScansThisFolderAnd"]</p>
+                    @if (NeedsManagedNote)
+                    {
+                        <p class="add-view-folder__line add-view-folder__line--note" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(Noun)</p>
+                    }
                 }
-                <p class="add-view-folder__line">@L["AddViewFolderDialog_LibraryScansThisFolderAnd"]</p>
-            </section>
-
-            <section class="add-view-folder__section">
-                <span class="add-view-folder__caption">@L["Common_FolderName"]</span>
-                <AppTextField Label="@L["Common_FolderName"].Value" HideLabel="true" Value="@_name" ValueChanged="NameChanged" MaxLength="80" ReadOnly="@_saving" />
-                <p class="add-view-folder__line">@L["AddViewFolderDialog_ThisIsHowItAppears"]</p>
-            </section>
+            </div>
 
             @if (!StorageReady)
             {
@@ -75,11 +75,6 @@
                 </section>
             }
 
-            @if (_folder is null)
-            {
-                <p class="add-view-folder__line" data-choose-folder>@L["AddViewFolderDialog_ChooseAFolderToContinue"]</p>
-            }
-
             @if (!string.IsNullOrWhiteSpace(_error))
             {
                 <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
@@ -95,17 +90,10 @@
 </AppDialogShell>
 
 @code {
-    private const int MaxNameLength = 80;
+    private const int MaxNameLength = FolderHandlingWords.MaxFolderNameLength;
 
-    /// <summary>The centred dialog the host opens this with.</summary>
-    public static AppDialogOptions DialogOptions { get; } = new()
-    {
-        MaxWidth = AppMaxWidth.Medium,
-        FullWidth = true,
-        CloseButton = false,
-        NoHeader = true,
-        CloseOnEscapeKey = true,
-    };
+    /// <summary>The centred dialog the host opens this with: the one folder window (Libraries v3 D21).</summary>
+    public static AppDialogOptions DialogOptions => ServerFolderPicker.DialogOptions;
 
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
 
@@ -113,10 +101,18 @@
     [Parameter, EditorRequired] public LibraryTypeOption Kind { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter] public string? SetupSession { get; set; }
+    /// <summary>The folders this kind already has (for the " (2)" name rule and the uploads note); read from the Engine when not given.</summary>
+    [Parameter] public IReadOnlyList<ViewSourceAdminDto>? ExistingFolders { get; set; }
+    /// <summary>The Edit window collects the folder and saves it with its own Save changes; the dialog then closes with a <see cref="ViewFolderPlan"/> and saves nothing but View's storage.</summary>
+    [Parameter] public bool Defer { get; set; }
+    /// <summary>Names already waiting in the Edit window, so a second folder with the same name is numbered.</summary>
+    [Parameter] public IReadOnlyList<string> PendingNames { get; set; } = [];
+    /// <summary>True when the Edit window already holds a Managed folder to add, so the uploads note is not needed.</summary>
+    [Parameter] public bool PendingManaged { get; set; }
 
-    private ServerFolderValidationResultDto? _folder;
+    // The folder path the window has selected so far (a plain choice; View checks it when the folder is added).
+    private string _chosenPath = string.Empty;
     private string _name = string.Empty;
-    private bool _nameTouched;
     private bool _saving;
     private string? _error;
 
@@ -124,10 +120,22 @@
     private string? _storageLocationId;
     private string _storageRelative = "View";
 
-    private string Heading => $"Choose your {Kind.Label} folder";
+    private string Heading => "Where is it?";
 
     // "Photos" reads "photos" in the middle of a sentence; "Personal videos" and "Documents" follow the same rule.
-    private string Noun => char.ToLowerInvariant(Kind.PluralLabel[0]) + Kind.PluralLabel[1..];
+    private string Noun => ViewFolderRules.Noun(Kind.Key, Kind.PluralLabel);
+
+    private bool _managed;
+    private IReadOnlyList<ViewSourceAdminDto> _existing = [];
+
+    private void HandlingChanged(string handling) => _managed = handling == FolderHandlingWords.ManagedKey;
+
+    // Read-only is picked and the kind has no Managed folder yet: uploads stay off, and the person is told before trying (View folders spec D4c).
+    private bool NeedsManagedNote => !ViewFolderRules.HasManagedFolder(_existing, Kind.Key) && !PendingManaged;
+
+    private IEnumerable<string> TakenNames => ViewFolderRules.OfKind(_existing, Kind.Key).Select(source => source.Name).Concat(PendingNames);
+
+    private string ManagedName => ViewFolderRules.NameFor(_name, _chosenPath, TakenNames);
 
     private IReadOnlyList<ServerStorageLocationDto> _storageWritable = [];
 
@@ -143,29 +151,40 @@
         }
     }
 
-    private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
+    private bool FolderUsable => !string.IsNullOrWhiteSpace(_chosenPath);
 
+    // The name never blocks Add folder: an empty box saves the folder's own name (View folders spec D2). A Managed folder is created, so it needs no existing folder.
     private bool CanAdd => !_saving
-        && FolderUsable
-        && !string.IsNullOrWhiteSpace(_name)
+        && (_managed ? !string.IsNullOrWhiteSpace(ManagedName) : FolderUsable)
         && _name.Trim().Length <= MaxNameLength
         && (StorageReady || _storageLocationId is not null);
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _storageWritable = [.. Configuration.StorageLocations.Where(location => location.AllowWrite)];
         _storageLocationId = StorageReady ? null : _storageWritable.FirstOrDefault()?.Id;
-        _name = Kind.Label;
+        if (ExistingFolders is not null)
+        {
+            _existing = ExistingFolders;
+        }
+        else if (await ViewFolderRules.LoadAsync(Api, includeProfiles: SetupSession is null) is { } entries)
+        {
+            _existing = [.. entries.Select(entry => entry.Source)];
+        }
     }
 
-    private void NameChanged(string? value)
+    private void NameChanged(string value)
     {
-        _name = value ?? string.Empty;
-        _nameTouched = true;
+        _name = value;
     }
 
-    private static string FolderProblemText(ServerFolderValidationResultDto folder) =>
-        folder.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message ?? "Library can't use this folder. Choose another one.";
+    private Task PathChosen(string path)
+    {
+        _chosenPath = path;
+        _error = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
     private async Task<ServerFolderValidationResultDto?> PickAsync(string title, string help, string mode, string? start)
     {
@@ -182,20 +201,6 @@
         return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected } ? selected : null;
     }
 
-    private async Task BrowseFolderAsync()
-    {
-        var selected = await PickAsync(Heading, $"Choose the folder on the Library server that holds your {Noun}.", ServerFolderSelectionModes.PersonalSpaceExisting, _folder?.Path);
-        if (selected is null) return;
-        _folder = selected;
-        _error = null;
-        if (!_nameTouched && selected.CanSelect && !string.IsNullOrWhiteSpace(selected.Path))
-        {
-            // The server may be Windows or Linux, so the last name is read at either kind of slash.
-            var last = selected.Path.TrimEnd('\\', '/').Split('\\', '/')[^1];
-            if (!string.IsNullOrWhiteSpace(last)) _name = last.Length > MaxNameLength ? last[..MaxNameLength] : last;
-        }
-    }
-
     private async Task BrowseStorageAsync()
     {
         var selected = await PickAsync("Where View keeps its files", "Choose the folder on the Library server where View keeps its files.", ServerFolderSelectionModes.PersonalSpaceManaged, StoragePath);
@@ -207,16 +212,36 @@
 
     private async Task AddAsync()
     {
-        if (!CanAdd || _folder is not { } folder) return;
+        if (!CanAdd) return;
         _saving = true;
         _error = null;
         try
         {
+            // Looked at once, when Add folder is pressed: the picker itself reads nothing but the folder list. A Managed folder is made by Library, so nothing is checked.
+            ServerFolderValidationResultDto? folder = null;
+            if (!_managed)
+            {
+                var request = new ValidateServerFolderRequest { ManualPath = _chosenPath, SelectionMode = ServerFolderSelectionModes.PersonalSpaceExisting, KindKey = Kind.Key };
+                folder = SetupSession is not null ? await Api.ValidateSetupServerFolderAsync(request, SetupSession) : await Api.ValidateServerFolderAsync(request);
+                if (folder is not { CanSelect: true, Exists: true, HasRead: true })
+                {
+                    _error = folder?.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message ?? Api.LastError ?? "Library can't use this folder. Choose another one.";
+                    return;
+                }
+            }
+
             if (!StorageReady && !await SaveStorageAsync()) return;
 
-            // Shared with everyone and read where it is: a linked folder, subfolders included. Documents never join the Photos timeline.
-            var created = await Api.CreateViewSharedSourceAsync(new CreateViewSourceRequest(
-                _name.Trim(), "linked", folder.Path, true, Kind.Key != ViewContentKinds.Documents, Kind.Key));
+            var plan = new ViewFolderPlan(Kind.Key, _name.Trim(), _managed, folder?.Path);
+            if (Defer)
+            {
+                // The Edit window numbers and saves it with Save changes.
+                Dialog.Close(AppDialogResult.Ok(plan));
+                return;
+            }
+
+            // A Read-only folder is shared with everyone and read where it is, subfolders included; Documents never join the Photos timeline.
+            var created = await Api.CreateViewSharedSourceAsync(ViewFolderRules.RequestFor(plan, ViewFolderRules.NameFor(_name, _managed ? _chosenPath : folder!.Path, TakenNames)));
             if (created is null)
             {
                 _error = Api.LastError ?? "The folder could not be added. Check it and try again.";

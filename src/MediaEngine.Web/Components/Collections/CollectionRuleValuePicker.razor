@@ -19,64 +19,67 @@
 
     @if (_isOpen)
     {
-        <div class="collection-rule-value-picker__panel" role="listbox" aria-multiselectable="true">
-            <label class="collection-rule-value-picker__search">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
-                <AppNativeInput Value="@_search"
-                                OnInput="OnSearchInput"
-                                Placeholder="@SearchPlaceholder"
-                                AriaLabel="@SearchPlaceholder" />
-            </label>
+        @* Drawn through the shared popover so it sits in the top layer and no editor window or scroll box can clip it. *@
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Class="collection-rule-value-picker__surface">
+            <div class="collection-rule-value-picker__panel" role="listbox" aria-multiselectable="true">
+                <label class="collection-rule-value-picker__search">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+                    <AppNativeInput Value="@_search"
+                                    OnInput="OnSearchInput"
+                                    Placeholder="@SearchPlaceholder"
+                                    AriaLabel="@SearchPlaceholder" />
+                </label>
 
-            @if (_loading)
-            {
-                <div class="collection-rule-value-picker__status">@L["Common_Searching"]</div>
-            }
-            else if (_options.Count == 0)
-            {
-                <div class="collection-rule-value-picker__status">@L["CollectionRuleValuePicker_NoMatchingValues"]</div>
-            }
-            else
-            {
-                <AppNativeButton Type="button"
-                                 Class="collection-rule-value-picker__select-all"
-                                 role="option"
-                                 aria-selected="@AllShownSelected"
-                                 OnClick="ToggleAllShownAsync">
-                    <AppMaterialIcon Icon="@(AllShownSelected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
-                    <span>@(AllShownSelected ? "Clear shown" : $"Select all shown ({_options.Count})")</span>
-                </AppNativeButton>
+                @if (_loading)
+                {
+                    <div class="collection-rule-value-picker__status">@L["Common_Searching"]</div>
+                }
+                else if (_options.Count == 0)
+                {
+                    <div class="collection-rule-value-picker__status">@L["CollectionRuleValuePicker_NoMatchingValues"]</div>
+                }
+                else
+                {
+                    <AppNativeButton Type="button"
+                                     Class="collection-rule-value-picker__select-all"
+                                     role="option"
+                                     aria-selected="@AllShownSelected"
+                                     OnClick="ToggleAllShownAsync">
+                        <AppMaterialIcon Icon="@(AllShownSelected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
+                        <span>@(AllShownSelected ? "Clear shown" : $"Select all shown ({_options.Count})")</span>
+                    </AppNativeButton>
 
-                <div class="collection-rule-value-picker__options">
-                    @foreach (var group in _options.GroupBy(option => option.Group).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
-                    {
-                        <span class="collection-rule-value-picker__group">@group.Key</span>
-                        @foreach (var option in group.OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase))
+                    <div class="collection-rule-value-picker__options">
+                        @foreach (var group in _options.GroupBy(option => option.Group).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
                         {
-                            var selected = _selected.ContainsKey(option.Value);
-                            <AppNativeButton Type="button"
-                                             Class="@(selected ? "collection-rule-value-picker__option is-selected" : "collection-rule-value-picker__option")"
-                                             role="option"
-                                             aria-selected="@selected"
-                                             @key="option.Value"
-                                             OnClick="@(() => ToggleOptionAsync(option))">
-                                <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
-                                <span><strong>@option.Label</strong><small>@option.Value</small></span>
-                                @if (option.LocalCount > 0)
-                                {
-                                    <em>@option.LocalCount</em>
-                                }
-                            </AppNativeButton>
+                            <span class="collection-rule-value-picker__group">@group.Key</span>
+                            @foreach (var option in group.OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase))
+                            {
+                                var selected = _selected.ContainsKey(option.Value);
+                                <AppNativeButton Type="button"
+                                                 Class="@(selected ? "collection-rule-value-picker__option is-selected" : "collection-rule-value-picker__option")"
+                                                 role="option"
+                                                 aria-selected="@selected"
+                                                 @key="option.Value"
+                                                 OnClick="@(() => ToggleOptionAsync(option))">
+                                    <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
+                                    <span><strong>@option.Label</strong><small>@option.Value</small></span>
+                                    @if (option.LocalCount > 0)
+                                    {
+                                        <em>@option.LocalCount</em>
+                                    }
+                                </AppNativeButton>
+                            }
                         }
-                    }
-                </div>
-            }
+                    </div>
+                }
 
-            <footer>
-                <span>@SelectionSummary</span>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="CloseAsync">@L["Common_Done"]</AppButton>
-            </footer>
-        </div>
+                <footer>
+                    <span>@SelectionSummary</span>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="CloseAsync">@L["Common_Done"]</AppButton>
+                </footer>
+            </div>
+        </AppPopover>
     }
 </div>
 
@@ -133,6 +136,13 @@
         _isOpen = false;
         _search = string.Empty;
         return Task.CompletedTask;
+    }
+
+    // The shared popover reports an outside click or Escape.
+    private async Task PopoverChanged(bool open)
+    {
+        if (!open && _isOpen)
+            await CloseAsync();
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs args)

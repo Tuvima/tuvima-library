@@ -1,0 +1,146 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one Connect dialog (Plugins and Integrations screens v6 D62): Connect, Replace key and Add server all open it. A logo, a title and
+   one sentence, a Get credentials link, the fields (one or two), a Test button with its result beside it, then Cancel and Save. Save stays
+   off until a test passes, so a bad key or address is never kept. Changing a field after a test passes switches Save off again. The
+   dialog knows nothing about which plugin it is for: the page hands it what to test and what to undo. *@
+<AppDialogShell Title="@Title"
+                Subtitle="@Summary"
+                Icon="@AppMaterialIcons.Outlined.Key"
+                Size="Provider"
+                Modal="false"
+                OnClose="CancelAsync">
+    <ChildContent>
+        <div class="plugin-connect" data-testid="plugin-connect-dialog">
+            @if (!string.IsNullOrWhiteSpace(HelpUrl))
+            {
+                <div>
+                    <AppButton Label="@GetCredentialsLabel" Href="@HelpUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text"
+                               EndIcon="@AppMaterialIcons.Outlined.OpenInNew" data-testid="plugin-connect-help" />
+                </div>
+            }
+            @foreach (var field in Fields)
+            {
+                var key = field.Key;
+                <AppTextField Label="@field.Label"
+                              Value="@_values.GetValueOrDefault(key)"
+                              ValueChanged="@(value => TypedAsync(key, value))"
+                              InputType="@(field.Secret ? AppInputType.Password : AppInputType.Text)"
+                              Placeholder="@field.Placeholder"
+                              HelpText="@field.Help"
+                              Disabled="@_busy"
+                              autocomplete="off" />
+            }
+            <div class="plugin-connect__test">
+                <AppButton Label="@(_testing ? "Testing…" : "Test")"
+                           StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
+                           Disabled="@(!CanTest)"
+                           OnClick="TestAsync"
+                           data-testid="plugin-connect-test" />
+            </div>
+            @* The result goes on its own full-width line under the Test row, and the line keeps its height, so the button never moves (Look v3 D15.6). *@
+            <div class="plugin-connect__status" role="status" data-testid="plugin-connect-status">
+                @if (_result is { } result)
+                {
+                    <span class="@("plugin-connect__result plugin-connect__result--" + (result.Ok ? "ok" : "bad"))" data-testid="plugin-connect-result">
+                        <AppMaterialIcon Icon="@(result.Ok ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.ErrorOutline)" />
+                        @result.Message
+                    </span>
+                }
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <div class="plugin-connect__footer">
+            <AppButton Label="@L["PluginPage_Cancel"].Value" Disabled="@_testing" OnClick="CancelAsync" data-testid="plugin-connect-cancel" />
+            <AppButton Label="@SaveLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(!_passed || _busy)" OnClick="SaveAsync" data-testid="plugin-connect-save" />
+        </div>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = default!;
+
+    private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+    private PluginConnectResult? _result;
+    private bool _passed;
+    private bool _testing;
+    private bool _busy;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>One sentence under the title.</summary>
+    [Parameter] public string? Summary { get; set; }
+
+    /// <summary>Where to get the credentials; the Get credentials link is absent when there is none.</summary>
+    [Parameter] public string? HelpUrl { get; set; }
+
+    [Parameter] public string GetCredentialsLabel { get; set; } = "Get credentials";
+
+    /// <summary>The label of the primary button (Save, Add server).</summary>
+    [Parameter] public string SaveLabel { get; set; } = "Save";
+
+    [Parameter, EditorRequired] public IReadOnlyList<PluginConnectField> Fields { get; set; } = [];
+
+    /// <summary>Checks what was typed. A good result keeps it; a bad one leaves nothing behind.</summary>
+    [Parameter, EditorRequired] public Func<IReadOnlyDictionary<string, string>, Task<PluginConnectResult>> Test { get; set; } = default!;
+
+    /// <summary>Undoes what a passing test kept, when the person cancels or changes a field after the test.</summary>
+    [Parameter] public Func<Task>? Discard { get; set; }
+
+    private bool CanTest => !_testing && !_busy && Fields.Where(f => f.Required).All(f => !string.IsNullOrWhiteSpace(_values.GetValueOrDefault(f.Key)));
+
+    private async Task TypedAsync(string key, string? value)
+    {
+        _values[key] = value ?? string.Empty;
+        _result = null;
+        if (_passed)
+        {
+            _passed = false;
+            if (Discard is not null)
+            {
+                await Discard();
+            }
+        }
+    }
+
+    private async Task TestAsync()
+    {
+        if (!CanTest)
+        {
+            return;
+        }
+
+        _testing = true;
+        _result = null;
+        try
+        {
+            _result = await Test(new Dictionary<string, string>(_values, StringComparer.Ordinal));
+            _passed = _result.Ok;
+        }
+        finally
+        {
+            _testing = false;
+        }
+    }
+
+    private Task SaveAsync()
+    {
+        DialogInstance.Close(AppDialogResult.Ok(true));
+        return Task.CompletedTask;
+    }
+
+    private async Task CancelAsync()
+    {
+        if (_passed && Discard is not null)
+        {
+            _busy = true;
+            await Discard();
+        }
+
+        DialogInstance.Cancel();
+    }
+}
+

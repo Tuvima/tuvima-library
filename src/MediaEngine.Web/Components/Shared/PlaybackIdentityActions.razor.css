@@ -1,0 +1,6 @@
+/* Favorite, Like, Dislike and More: square 44 px buttons, 6 px apart as mockup screen 1 draws them (D5 says 8; Shy asked for the mockup 1:1; the buttons draw themselves, see PlaybackIconButton). */
+.playback-identity-actions {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+}

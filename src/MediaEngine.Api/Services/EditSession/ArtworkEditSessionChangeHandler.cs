@@ -18,7 +18,9 @@ public sealed class ArtworkEditSessionChangeHandler(
     ArtworkAssetService artwork,
     IItemCanonicalRepository itemCanonicalRepository,
     ISystemActivityRepository activityRepository,
-    EditSubjectDirectory? subjects = null) : IEditSessionChangeHandler
+    EditSubjectDirectory? subjects = null,
+    IEntityTimelineRepository? timeline = null,
+    EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     public const string UnknownSlot = "That kind of artwork cannot be changed here.";
     public const string NoTargetPicture = "No picture was chosen.";
@@ -32,6 +34,11 @@ public sealed class ArtworkEditSessionChangeHandler(
         if (ArtworkAssetService.RoleForSlot(change.Slot) is null)
         {
             return UnknownSlot;
+        }
+
+        if (await IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            return EditSessionReasons.SeriesHasNoArtwork;
         }
 
         if (string.IsNullOrWhiteSpace(change.TargetId))
@@ -62,6 +69,11 @@ public sealed class ArtworkEditSessionChangeHandler(
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
         var role = ArtworkAssetService.RoleForSlot(change.Slot) ?? throw new InvalidOperationException(UnknownSlot);
+        if (await IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesHasNoArtwork);
+        }
+
         var entityType = await ResolveEntityTypeAsync(change.EntityId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(EditSessionReasons.Gone);
         var previous = await artwork.GetChosenAsync(entityType, change.EntityId, role, ct).ConfigureAwait(false);
@@ -101,6 +113,19 @@ public sealed class ArtworkEditSessionChangeHandler(
                 : $"Edit session chose new {change.Slot} artwork.",
         }, ct).ConfigureAwait(false);
 
+        if (timeline is not null && subjects is not null
+            && await subjects.FindAsync(change.EntityId, ct).ConfigureAwait(false) is { } subject
+            && EditorUniverseHistory.Keeps(subject.Kind))
+        {
+            await EditorUniverseHistory.Record(
+                timeline,
+                change.EntityId,
+                subject.Kind,
+                EditorUniverseHistory.ArtworkEvent,
+                IsNone(change.TargetId) ? $"Removed the chosen {change.Slot} picture." : $"Chose a new {change.Slot} picture.",
+                ct).ConfigureAwait(false);
+        }
+
         return async undoCt =>
         {
             if (previous is null)
@@ -115,6 +140,18 @@ public sealed class ArtworkEditSessionChangeHandler(
                 new ArtworkLinkRequest(previous.ArtworkAssetId, role, previous.Context, Preferred: true, SourceAssetType: previous.SourceAssetType),
                 undoCt).ConfigureAwait(false);
         };
+    }
+
+    // A Series (a collection row of one, or the root of a family of books, comics or films) has no picture of its own (D24): its tile is
+    // the automatic stack of its members' covers.
+    private async Task<bool> IsSeriesAsync(Guid entityId, CancellationToken ct)
+    {
+        if (subjects is not null && await subjects.FindAsync(entityId, ct).ConfigureAwait(false) is { ReadOnly: true })
+        {
+            return true;
+        }
+
+        return seriesGuard is not null && await seriesGuard.IsSeriesAsync(entityId, ct).ConfigureAwait(false);
     }
 
     private static bool IsNone(string? targetId) =>

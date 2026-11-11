@@ -1,0 +1,10 @@
+.setup-libs { display: grid; gap: 12px; }
+.setup-libs__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.setup-libs__toolbar { display: flex; justify-content: flex-end; }
+.setup-libs__empty { display: grid; justify-items: center; gap: 8px; text-align: center; padding-block: 24px; color: var(--tl-text-muted); }
+.setup-libs__empty h3 { margin: 0; color: var(--tl-text-primary); }
+.setup-libs__empty p { margin: 0; }
+.setup-libs__name { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; }
+/* The folder list opens from this cell, so the cell must not clip it (the text path above does). */
+.setup-libs__folders { color: var(--tl-text-muted); overflow: visible; }
+.setup-libs__actions { white-space: nowrap; text-align: right; }

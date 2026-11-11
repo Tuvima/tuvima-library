@@ -25,6 +25,7 @@ public sealed class ProviderOnboardingDialogTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.SaveProviderCredentialsAsync), args => Record("save", args, session: false));
             stub.SetHandler(nameof(IEngineApiClient.SaveSetupProviderCredentialsAsync), args => Record("setup-save", args, session: true));
             stub.SetHandler(nameof(IEngineApiClient.TestProviderCredentialsAsync), args => Record("test", args, session: false));
+            stub.SetHandler(nameof(IEngineApiClient.TestSetupProviderCredentialsAsync), args => Record("setup-test", args, session: true));
         }));
     }
 
@@ -78,32 +79,43 @@ public sealed class ProviderOnboardingDialogTests : AsyncBunitContext
         var cut = RenderDialog(Catalogue(), dialog);
 
         EnterKey(cut, "wrong-key");
-        await cut.Find("button:contains('Test')").ClickAsync();
+        await cut.Find("[data-action='save-key']").ClickAsync();
 
         Assert.Contains("The service did not accept this key.", cut.Markup, StringComparison.Ordinal);
         Assert.Null(dialog.Result);
-        Assert.Empty(cut.FindAll("button:contains('Done')"));
-        Assert.NotEmpty(cut.FindAll("button:contains('Test')"));
+        Assert.NotEmpty(cut.FindAll("[data-action='test-key']"));
+        Assert.NotEmpty(cut.FindAll("[data-action='save-key']"));
     }
 
     [Fact]
-    public async Task GoodKey_SavesThroughTheEngineAndShowsSuccessWithDone()
+    public async Task GoodKey_Save_StoresItThroughTheEngineAndClosesTheWindow()
     {
         var dialog = new DialogSpy();
         var cut = RenderDialog(Catalogue(), dialog);
 
         EnterKey(cut, "good-key");
-        await cut.Find("button:contains('Test')").ClickAsync();
+        await cut.Find("[data-action='save-key']").ClickAsync();
 
         Assert.Equal(["save"], _calls);
         Assert.Equal("good-key", Assert.Single(_writes).Request.Credentials["api_key"]);
-        Assert.Contains("Key saved", cut.Markup, StringComparison.Ordinal);
-        Assert.Null(dialog.Result);
-
-        await cut.Find("button:contains('Done')").ClickAsync();
-
         var result = Assert.IsType<ProviderOnboardingDialogResult>(dialog.Result!.Data);
         Assert.True(result.Success);
+    }
+
+    [Fact]
+    public async Task GoodKey_Test_ChecksWithoutSavingAndKeepsTheKeyBoxBesideTheResult()
+    {
+        var dialog = new DialogSpy();
+        var cut = RenderDialog(Catalogue(), dialog);
+
+        EnterKey(cut, "good-key");
+        await cut.Find("[data-action='test-key']").ClickAsync();
+
+        Assert.Equal(["test"], _calls);
+        Assert.Null(dialog.Result);
+        Assert.Contains("Connection verified", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("input"));
+        Assert.NotEmpty(cut.FindAll("[data-action='save-key']"));
     }
 
     [Fact]
@@ -112,7 +124,7 @@ public sealed class ProviderOnboardingDialogTests : AsyncBunitContext
         var cut = RenderDialog(Catalogue(), setupSession: "session-1");
 
         EnterKey(cut, "good-key");
-        await cut.Find("button:contains('Test')").ClickAsync();
+        await cut.Find("[data-action='save-key']").ClickAsync();
 
         Assert.Equal(["setup-save"], _calls);
         var write = Assert.Single(_writes);
@@ -126,9 +138,78 @@ public sealed class ProviderOnboardingDialogTests : AsyncBunitContext
         var cut = RenderDialog(Catalogue(), operation: ProviderOnboardingOperation.Test);
 
         EnterKey(cut, "good-key");
-        await cut.Find("button:contains('Test connection')").ClickAsync();
+        await cut.Find("[data-action='test-key']").ClickAsync();
 
         Assert.Equal(["test"], _calls);
+        Assert.Empty(cut.FindAll("[data-action='save-key']"));
+    }
+
+    [Fact]
+    public void SavedKey_ShowsMaskedViewWithTestReplaceAndRemove_NeverAnEmptyKeyBox()
+    {
+        var cut = RenderDialog(Catalogue(saved: true));
+
+        Assert.Contains("A key is saved", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input"));
+        Assert.NotEmpty(cut.FindAll("button:contains('Test connection')"));
+        Assert.NotEmpty(cut.FindAll("[data-action='replace-key']"));
+        Assert.NotEmpty(cut.FindAll("[data-action='remove-key']"));
+    }
+
+    [Fact]
+    public void SavedKey_InSetup_OffersNoRemove_BecauseSetupHasNoRemoveAction()
+    {
+        var cut = RenderDialog(Catalogue(saved: true), setupSession: "session-1");
+
+        Assert.Empty(cut.FindAll("[data-action='remove-key']"));
+        Assert.NotEmpty(cut.FindAll("[data-action='replace-key']"));
+    }
+
+    [Fact]
+    public async Task SavedKey_TestConnectionChecksTheStoredKeyWithoutSendingOne()
+    {
+        var cut = RenderDialog(Catalogue(saved: true));
+
+        await cut.Find("[data-action='test-key']").ClickAsync();
+
+        Assert.Equal(["test"], _calls);
+        Assert.Empty(Assert.Single(_writes).Request.Credentials);
+    }
+
+    [Fact]
+    public async Task SavedKey_TestResultShowsInPlace_WithoutFlippingToTheEmptyKeyBox()
+    {
+        var cut = RenderDialog(Catalogue(saved: true));
+
+        await cut.Find("[data-action='test-key']").ClickAsync();
+
+        Assert.Contains("Connection verified", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("A key is saved", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input"));
+        Assert.NotEmpty(cut.FindAll("[data-action='remove-key']"));
+    }
+
+    [Fact]
+    public async Task SavedKey_Replace_OffersTestRemoveAndSaveTogether()
+    {
+        var cut = RenderDialog(Catalogue(saved: true));
+
+        await cut.Find("[data-action='replace-key']").ClickAsync();
+
+        Assert.NotEmpty(cut.FindAll("[data-action='test-key']"));
+        Assert.NotEmpty(cut.FindAll("[data-action='remove-key']"));
+        Assert.NotEmpty(cut.FindAll("[data-action='save-key']"));
+    }
+
+    [Fact]
+    public async Task SavedKey_ReplaceShowsTheEntryForm()
+    {
+        var cut = RenderDialog(Catalogue(saved: true));
+
+        await cut.Find("[data-action='replace-key']").ClickAsync();
+
+        Assert.Single(cut.FindAll("input"));
+        Assert.DoesNotContain("A key is saved", cut.Markup, StringComparison.Ordinal);
     }
 
     private object? Record(string call, object?[]? args, bool session)
@@ -160,13 +241,13 @@ public sealed class ProviderOnboardingDialogTests : AsyncBunitContext
         Message = "The provider credentials were verified and saved.",
     };
 
-    private static ProviderCatalogueDto Catalogue() => new()
+    private static ProviderCatalogueDto Catalogue(bool saved = false) => new()
     {
         Name = "example",
         DisplayName = "Example Service",
         Onboarding = new ProviderOnboardingDto
         {
-            Credentials = [new ProviderCredentialFieldDto { Key = "api_key", Label = "Service key", Required = true, Ownership = "user_supplied" }],
+            Credentials = [new ProviderCredentialFieldDto { Key = "api_key", Label = "Service key", Required = true, Ownership = "user_supplied", Configured = saved }],
             Steps =
             [
                 new ProviderOnboardingStepDto

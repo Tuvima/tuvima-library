@@ -94,11 +94,10 @@ public sealed class CollectionsHubTests
         Assert.Contains("media-group-tile__picture", groupTileSource, StringComparison.Ordinal);
         Assert.Contains("media-group-tile__stack", groupTileSource, StringComparison.Ordinal);
         Assert.Contains("media-group-tile__kind", groupTileSource, StringComparison.Ordinal);
-        Assert.Contains("<MediaCountLine", groupTileSource, StringComparison.Ordinal);
+        Assert.Contains("MediaTileLabels.GroupCount", groupTileSource, StringComparison.Ordinal);
         Assert.DoesNotContain("media-group-tile__identity", groupTileSource, StringComparison.Ordinal);
         Assert.DoesNotContain("media-group-tile__person", groupTileSource, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaArtworkCarousel", groupTileSource, StringComparison.Ordinal);
-        Assert.Contains("--media-group-tile-width: clamp(240px, 16vw, 320px)", groupTileStylesSource, StringComparison.Ordinal);
         Assert.Contains("PreviewTotalCount = collection.ItemCount", composerSource, StringComparison.Ordinal);
         Assert.Contains("TileTextMode = MediaTileTextMode.CoverOnly", composerSource, StringComparison.Ordinal);
         Assert.Contains("Take(4)", composerSource, StringComparison.Ordinal);

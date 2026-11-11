@@ -9,9 +9,11 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackLyricsOriginTests
 {
     [Theory]
-    [InlineData("lrclib", false, "Lyrics from LRCLIB")]
-    [InlineData("local", true, "Lyrics from a file next to the song")]
-    public async Task TheSourceLine_NamesWhereTheShownLyricsCameFrom(string provider, bool userOwned, string expected)
+    [InlineData("lrclib", false, PlaybackLyricsSource.Lrclib)]
+    [InlineData("local", true, PlaybackLyricsSource.LocalFile)]
+    [InlineData("embedded", false, PlaybackLyricsSource.SongTags)]
+    [InlineData("musixmatch", false, PlaybackLyricsSource.Other)]
+    public async Task TheSource_NamesWhereTheShownLyricsCameFrom(string provider, bool userOwned, PlaybackLyricsSource expected)
     {
         var api = EngineApiClientStub.Create(stub =>
         {
@@ -22,18 +24,18 @@ public sealed class PlaybackLyricsOriginTests
         using var presenter = new PlaybackLyricsPresenter(api);
         await presenter.EnsureAsync(Snapshot(), new Sink());
 
-        Assert.Equal(expected, presenter.SourceLine);
+        Assert.Equal(expected, presenter.Source);
     }
 
     [Fact]
-    public async Task WithNoLyrics_ThereIsNoSourceLine()
+    public async Task WithNoLyrics_ThereIsNoSource()
     {
         var api = EngineApiClientStub.Create(stub =>
             stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([])));
         using var presenter = new PlaybackLyricsPresenter(api);
         await presenter.EnsureAsync(Snapshot(), new Sink());
 
-        Assert.Null(presenter.SourceLine);
+        Assert.Equal(PlaybackLyricsSource.None, presenter.Source);
     }
 
     [Fact]

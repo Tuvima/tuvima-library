@@ -27,16 +27,6 @@ public sealed class Wave5AccessibilityGuardrailTests
     }
 
     [Fact]
-    public void EditorFieldActions_ExposeTheirTooltipLabelsToAssistiveTechnology()
-    {
-        var source = Read("src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor");
-
-        Assert.Contains("aria-label=\"@ActionLabel\"", source);
-        Assert.Contains("aria-label=\"@ConfirmLabel\"", source);
-        Assert.Contains("aria-label=\"@CancelLabel\"", source);
-    }
-
-    [Fact]
     public void ReaderAndFolderPicker_UseNativeControlsForClickActions()
     {
         var reader = Read("src/MediaEngine.Web/Components/Pages/BookReader.razor");
@@ -45,15 +35,17 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("<AppNativeButton Class=\"br-icon-btn\" OnClick=\"ExitReader\"", reader);
         Assert.Contains("<AppNativeButton Class=\"br-row br-row--grow\"", reader);
         Assert.DoesNotContain("<div class=\"br-row\" @onclick", reader);
-        Assert.Contains("role=\"listbox\"", folderBrowser);
-        Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
+        // The folder list is the shared browser frame's grid with one keyboard model; a folder row is its own component (Editor v5 D32).
+        Assert.Contains("role=\"grid\"", Read("src/MediaEngine.Web/Components/Shared/AppBrowserFrame.razor"));
+        Assert.Contains("<AppBrowserFolderRow", folderBrowser);
         Assert.Contains("aria-live=\"polite\"", folderBrowser);
-        Assert.Contains("Label=\"@ConfirmLabel\"", folderBrowser);
+        Assert.Contains("Label=\"@ConfirmButtonLabel\"", folderBrowser);
         Assert.Contains("ConfirmLabel { get; set; } = \"Add\"", folderBrowser);
-        // Shy's 2026-10-18 addendum (AD2) replaces open-on-click: a single click selects, a double click or the row's open button opens.
-        Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
-        Assert.Contains("aria-label=\"@($\"Select folder {folder.Name}\")\"", folderBrowser);
-        Assert.Contains("@ondblclick", folderBrowser);
+        // Editor v5 D32 (Shy, 2026-11-07) brings back open-on-click: a click on a folder row or its open button opens it, and the folder you are inside is the selection.
+        var folderRow = Read("src/MediaEngine.Web/Components/Shared/AppBrowserFolderRow.razor");
+        Assert.Contains("AriaLabel=\"@OpenLabelText\"", folderRow);
+        Assert.Contains("@onclick=\"OpenAsync\"", folderRow);
+        Assert.DoesNotContain("@ondblclick", folderBrowser);
     }
 
     [Fact]
@@ -63,7 +55,7 @@ public sealed class Wave5AccessibilityGuardrailTests
         var metadata = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
         var nowRow = Read("src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor");
 
-        Assert.Contains("<AppButton Label=\"Configure\"", plugins);
+        Assert.Contains("<AppIconButton Icon=\"@AppMaterialIcons.Outlined.Settings\"", plugins);
         Assert.DoesNotContain("role=\"button\"", plugins);
         Assert.DoesNotContain("role=\"button\"", metadata);
         Assert.Contains("<AppNativeButton Type=\"button\"", nowRow);
@@ -87,7 +79,7 @@ public sealed class Wave5AccessibilityGuardrailTests
         }
 
         Assert.Contains("AppPageStateKind.Loading", sources["BackupRecoveryPanel.razor"]);
-        Assert.Contains("AppPageStateKind.Error", sources["IngestionTasksTab.razor"]);
+        Assert.Contains("AppPageStateKind.Error", sources["LibrariesTab.razor"]);
         Assert.Contains("<AppDialog", sources["BackupRecoveryPanel.razor"]);
         Assert.DoesNotContain("InvokeAsync<bool>(\n            \"confirm\"", sources["BackupRecoveryPanel.razor"], StringComparison.Ordinal);
     }

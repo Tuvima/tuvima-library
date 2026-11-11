@@ -58,14 +58,14 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
 
     // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
     [Fact]
-    public void SettingsMenu_LibraryAndIngestionRow_StaysLitOnTheLibrariesTabAndThePagesBelowIt()
+    public void SettingsMenu_LibrariesRow_StaysLitOnTheLibrariesTabAndThePagesBelowIt()
     {
         var rows = Flatten(MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(
             new MediaEngine.Web.Services.Navigation.SettingsMenuContext(true, IsMobile: false, 0, false))).ToList();
 
-        // Libraries is a tab of Library & Ingestion now, so the row is lit by it and by the group and type pages beneath it.
-        Assert.DoesNotContain(rows, item => item.Route == "/settings/libraries");
-        var libraryRow = rows.Single(item => item.Label == "Library & Ingestion");
+        // The Libraries row is lit by its own tab and by the group and type pages beneath it.
+        var libraryRow = rows.Single(item => item.Label == "Libraries");
+        Assert.Equal("/settings/libraries", libraryRow.Route);
         Assert.False(libraryRow.Exact);
         Assert.Contains("/settings/libraries", libraryRow.ActiveRoutes!);
     }
@@ -218,20 +218,13 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         Assert.Contains("list of library kinds could not be loaded", cut.Markup, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void ImportOpensTheImportFolderPanel()
-    {
-        var cut = Open("import");
-
-        cut.WaitForElement("#library-import-title");
-    }
-
     // Addresses that name nothing.
     [Theory]
     [InlineData("00000000-0000-4000-8000-000000000000", null)]
     [InlineData("nowhere", null)]
     [InlineData("view", "movies")]
     [InlineData("import", "movies")]
+    [InlineData("import", null)]
     public void AnAddressThatNamesNothingShowsAPlainNotFoundWithALinkBack(string subsection, string? detail)
     {
         var cut = Open(subsection, detail);
@@ -292,7 +285,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     [InlineData("view", "documents", "Documents", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Documents")]
     [InlineData("view", "podcasts", "Libraries", "")]
     [InlineData("view", null, "Libraries", "")]
-    [InlineData("import", null, "Import folder", "Libraries>/settings/libraries|Import folder")]
+    [InlineData("import", null, "Libraries", "")]
     [InlineData("import", "movies", "Libraries", "")]
     [InlineData("watch", null, "Libraries", "")]
     [InlineData("watch", "movies", "Libraries", "")]

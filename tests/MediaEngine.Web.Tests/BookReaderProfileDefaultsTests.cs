@@ -31,6 +31,7 @@ public sealed class BookReaderProfileDefaultsTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
+        Services.AddScoped<DashboardSessionAccessor>();
         _profile.Reading.Theme = ReadingPreferenceValues.ThemeSepia;
         _profile.Reading.Font = ReadingPreferenceValues.FontSerif;
         _profile.Reading.FontSizePx = 24;

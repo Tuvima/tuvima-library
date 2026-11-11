@@ -5,12 +5,31 @@
 @using MediaEngine.Web.Services.Navigation
 
 @inject NavigationManager Nav
+@inject IEngineApiClient Api
 
-@* The route for reading an EPUB. Every book opens in the foliate-js reader (BookReader), which reads the book file in the
-   browser and unpacks the pictures itself, so no separate picture requests ever need a sign-in. *@
-<BookReader @key="AssetId" AssetId="AssetId" ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
+@* The route for reading a title. The Engine says which reader opens it: an EPUB opens in the foliate-js reader (BookReader), which
+   reads the book file in the browser and unpacks the pictures itself, so no separate picture requests ever need a sign-in; a comic
+   or a PDF opens in the page reader (PageReader). When the Engine cannot say, the book reader opens, as it always did. *@
+@if (_format is null)
+{
+    <div class="reader-route-wait" aria-busy="true"></div>
+}
+else if (_format.Format is "comic" or "pdf")
+{
+    <PageReader @key="AssetId" AssetId="AssetId" Kind="@_format.Format" Title="@_format.Title" Subtitle="@_format.Subtitle" Series="@_format.Series"
+                ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
+}
+else
+{
+    <BookReader @key="AssetId" AssetId="AssetId" ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
+}
 
 @code {
+    private static readonly MediaEngine.Contracts.Reading.ReaderFormatDto Epub = new() { Format = "epub" };
+
+    private Guid _loadedFor;
+    private MediaEngine.Contracts.Reading.ReaderFormatDto? _format;
+
     [Parameter] public Guid AssetId { get; set; }
 
     // The address this page was routed with (see RoutedPageQuery).
@@ -19,4 +38,20 @@
     private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
     public Guid? ReturnCollectionId => Query.Guid("ReturnCollectionId");
     public bool Restart => Query.Bool("Restart");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == AssetId)
+        {
+            return;
+        }
+
+        _loadedFor = AssetId;
+        _format = null;
+        var found = await Api.GetReaderFormatAsync(AssetId);
+        if (_loadedFor == AssetId)
+        {
+            _format = found ?? Epub;
+        }
+    }
 }

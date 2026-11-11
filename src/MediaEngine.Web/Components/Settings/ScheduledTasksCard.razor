@@ -7,8 +7,8 @@
 @* Every recurring Engine task with its state, when it last ran and when it runs next, a link to the setting that controls it, and
    its few most recent runs (settings revamp D22 and D42, flat Settings menu D17). Reads the Engine's durable run records, so the
    history survives a restart. *@
-<AppCard Title="@L["ScheduledTasksCard_ScheduledTasks"].Value"
-         Description="@L["ScheduledTasksCard_WorkTheLibraryDoesOn"].Value"
+<AppSettingsGroup Heading="@L["ScheduledTasksCard_ScheduledTasks"].Value"
+         Helper="@L["ScheduledTasksCard_WorkTheLibraryDoesOn"].Value"
          Class="scheduled-tasks">
     @if (_loading)
     {
@@ -37,7 +37,7 @@
                     <div class="scheduled-tasks__main">
                         <strong class="scheduled-tasks__name">@task.Name</strong>
                         <span class="scheduled-tasks__status scheduled-tasks__status--@status.ToString().ToLowerInvariant()" data-testid="task-status">
-                            <AppMaterialIcon Icon="@StatusIcon(status)" Size="AppSize.Small" aria-hidden="true" />
+                            <AppMaterialIcon Icon="@StatusIcon(status)" Size="AppIconSize.Control20" aria-hidden="true" />
                             @ScheduledTaskText.StatusLabel(status)
                         </span>
                         <span class="scheduled-tasks__what">
@@ -82,7 +82,7 @@
             }
         </ul>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     private ScheduledTaskListResponse? _tasks;

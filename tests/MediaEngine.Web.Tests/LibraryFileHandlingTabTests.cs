@@ -105,11 +105,11 @@ public sealed class LibraryFileHandlingTabTests : AsyncBunitContext
         _dialogs.ClickAsync(host => host.FindAll("button").Single(button => Text(button) == label));
 
     [Fact]
-    public void ABrandNewLibraryShowsFourCardsInTwoColumnsEachExplainedByItsSubtitle_PreserveNamesSelected_BothSwitchesOff()
+    public void ABrandNewLibraryShowsFourGroupsInOneColumnEachExplainedByItsHelperLine_PreserveNamesSelected_BothSwitchesOff()
     {
         var cut = Open();
 
-        Assert.Equal(["Organization", "File changes", "Duplicates", "Deleted files"], cut.FindAll(".library-handling__card .app-card__title").Select(Text).ToArray());
+        Assert.Equal(["Organization", "File changes", "Duplicates", "Deleted files"], cut.FindAll(".library-handling__card .app-settings-group__heading").Select(Text).ToArray());
         Assert.Empty(cut.FindAll(".library-handling__card .app-info-tip"));
         Assert.Equal(4, cut.FindAll(".library-handling__grid .library-handling__card").Count);
         Assert.Equal(4, cut.FindAll(".library-handling__example").Count);

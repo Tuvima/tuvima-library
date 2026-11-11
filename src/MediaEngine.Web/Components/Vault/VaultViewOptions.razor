@@ -6,44 +6,44 @@
 
 @* The viewing options of Videos spec D24, remembered per profile on this device: Layout, Group by, Sort, Covers and Titles. *@
 <div class="vault-options" role="group" aria-label="@L["VaultViewOptions_ViewingOptions"].Value">
-    <AppNativeSelect Value="@Nsfw.Preferences.Layout.ToString()" aria-label="@L["Common_Layout"].Value"
-                     OnChange="@(e => Change(preferences => preferences with { Layout = Parse(e, preferences.Layout) }))">
+    <AppSelect Native="true" Value="@Nsfw.Preferences.Layout.ToString()" aria-label="@L["Common_Layout"].Value"
+                     ValueChanged="@(selected => Change(preferences => preferences with { Layout = Parse(selected, preferences.Layout) }))">
         @foreach (var choice in Enum.GetValues<VaultLayout>())
         {
             <option value="@choice">@VaultViewLabels.For(choice)</option>
         }
-    </AppNativeSelect>
-    <AppNativeSelect Value="@Nsfw.Preferences.GroupBy.ToString()" aria-label="@L["VaultViewOptions_GroupBy2"].Value"
-                     OnChange="@(e => Change(preferences => preferences with { GroupBy = Parse(e, preferences.GroupBy) }))">
+    </AppSelect>
+    <AppSelect Native="true" Value="@Nsfw.Preferences.GroupBy.ToString()" aria-label="@L["VaultViewOptions_GroupBy2"].Value"
+                     ValueChanged="@(selected => Change(preferences => preferences with { GroupBy = Parse(selected, preferences.GroupBy) }))">
         @foreach (var choice in Enum.GetValues<VaultGroupBy>())
         {
             <option value="@choice">@L["VaultViewOptions_GroupBy", VaultViewLabels.For(choice)]</option>
         }
-    </AppNativeSelect>
-    <AppNativeSelect Value="@Nsfw.Preferences.Sort.ToString()" aria-label="@L["Common_Sort"].Value"
-                     OnChange="@(e => Change(preferences => preferences with { Sort = Parse(e, preferences.Sort) }))">
+    </AppSelect>
+    <AppSelect Native="true" Value="@Nsfw.Preferences.Sort.ToString()" aria-label="@L["Common_Sort"].Value"
+                     ValueChanged="@(selected => Change(preferences => preferences with { Sort = Parse(selected, preferences.Sort) }))">
         @foreach (var choice in Enum.GetValues<VaultSort>())
         {
             <option value="@choice">@L["VaultViewOptions_Sort", VaultViewLabels.For(choice)]</option>
         }
-    </AppNativeSelect>
-    <AppNativeSelect Value="@Nsfw.Preferences.Covers.ToString()" aria-label="@L["VaultViewOptions_Covers2"].Value"
-                     OnChange="@(e => Change(preferences => preferences with { Covers = Parse(e, preferences.Covers) }))">
+    </AppSelect>
+    <AppSelect Native="true" Value="@Nsfw.Preferences.Covers.ToString()" aria-label="@L["VaultViewOptions_Covers2"].Value"
+                     ValueChanged="@(selected => Change(preferences => preferences with { Covers = Parse(selected, preferences.Covers) }))">
         @foreach (var choice in Enum.GetValues<VaultCoverMode>())
         {
             <option value="@choice">@L["VaultViewOptions_Covers", VaultViewLabels.For(choice)]</option>
         }
-    </AppNativeSelect>
-    <AppNativeSelect Value="@(Nsfw.Preferences.TitlesHiddenUntilPointed ? "hidden" : "shown")" aria-label="@L["Common_Titles"].Value"
-                     OnChange="@(e => Change(preferences => preferences with { TitlesHiddenUntilPointed = e.Value?.ToString() == "hidden" }))">
+    </AppSelect>
+    <AppSelect Native="true" Value="@(Nsfw.Preferences.TitlesHiddenUntilPointed ? "hidden" : "shown")" aria-label="@L["Common_Titles"].Value"
+                     ValueChanged="@(selected => Change(preferences => preferences with { TitlesHiddenUntilPointed = selected == "hidden" }))">
         <option value="shown">@L["VaultViewOptions_TitlesShown"]</option>
         <option value="hidden">@L["VaultViewOptions_TitlesHiddenUntilPointedAt"]</option>
-    </AppNativeSelect>
-    <AppNativeSelect Value="@(Nsfw.Preferences.HoverStills ? "on" : "off")" aria-label="@L["VaultViewOptions_HoverPreviews"].Value"
-                     OnChange="@(e => Change(preferences => preferences with { HoverStills = e.Value?.ToString() == "on" }))">
+    </AppSelect>
+    <AppSelect Native="true" Value="@(Nsfw.Preferences.HoverStills ? "on" : "off")" aria-label="@L["VaultViewOptions_HoverPreviews"].Value"
+                     ValueChanged="@(selected => Change(preferences => preferences with { HoverStills = selected == "on" }))">
         <option value="off">@L["VaultViewOptions_HoverPreviewsOff"]</option>
         <option value="on">@L["VaultViewOptions_HoverPreviewsMatchedScenes"]</option>
-    </AppNativeSelect>
+    </AppSelect>
 </div>
 
 @code {
@@ -53,8 +53,8 @@
 
     private Task Change(Func<VaultViewPreferences, VaultViewPreferences> change) => Nsfw.UpdatePreferencesAsync(change);
 
-    private static T Parse<T>(ChangeEventArgs args, T current) where T : struct, Enum =>
-        Enum.TryParse<T>(args.Value?.ToString(), out var parsed) ? parsed : current;
+    private static T Parse<T>(string? selected, T current) where T : struct, Enum =>
+        Enum.TryParse<T>(selected, out var parsed) ? parsed : current;
 
     public void Dispose() => Nsfw.Changed -= OnChanged;
 }

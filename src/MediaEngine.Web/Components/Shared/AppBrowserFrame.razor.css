@@ -1,0 +1,135 @@
+/* The shared browser frame (Editor v5 D32). Every colour, radius and size comes from the shipped tokens; the window around it is Look v3's. */
+.app-browser {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 24rem;
+    padding: var(--tl-space-5) var(--tl-space-6);
+}
+
+/* Add library's folder step has no fixed window height of its own, so the frame brings one. */
+.app-browser--inline {
+    height: 28rem;
+}
+
+.app-browser__top {
+    display: grid;
+    flex: none;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+/* In Add library's folder step the window scrolls, so the area and kind pills (and the folder name) stay at the top while the list moves under them. */
+.app-browser--inline > .app-browser__top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-block: var(--tl-space-2);
+    background: var(--tl-bg-surface-raised);
+}
+
+/* A slot the host left without any element in it takes no room. */
+.app-browser__top:not(:has(*)),
+.app-browser__inside:not(:has(*)) {
+    display: none;
+}
+
+.app-browser__body {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: var(--tl-space-4);
+    min-height: 0;
+}
+
+.app-browser__side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.app-browser__main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    min-height: 0;
+}
+
+.app-browser__toolbar {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+    align-items: center;
+}
+
+.app-browser__search {
+    flex: 1 1 14rem;
+    min-width: 12rem;
+}
+
+/* The line above the list: where you are, or how many there are. */
+.app-browser__inside {
+    flex: none;
+    min-width: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.app-browser__state {
+    display: grid;
+    flex: 1 1 auto;
+    align-content: start;
+    gap: var(--tl-space-2);
+    min-height: 0;
+}
+
+.app-browser__list {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+.app-browser__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tl-font-size-sm);
+}
+
+.app-browser__table:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: calc(var(--tl-focus-ring-width) * -1);
+}
+
+.app-browser__table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+@media (max-width: 840px) {
+    .app-browser {
+        padding: var(--tl-space-3) var(--tl-space-4);
+    }
+
+    .app-browser__body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .app-browser__side {
+        max-height: 9.5rem;
+    }
+}

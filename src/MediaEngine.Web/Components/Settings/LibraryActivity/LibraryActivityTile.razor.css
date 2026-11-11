@@ -1,0 +1,6 @@
+/* The standard tile (One tile design spec): 214 x 321 on desktop, 112 x 168 on a phone; albums are square at the same height. */
+.lact-tile { --lact-tile-w: 214px; --lact-tile-h: 321px; position: relative; flex: none; width: var(--lact-tile-w); height: var(--lact-tile-h); }
+.lact-tile.is-square { width: var(--lact-tile-h); }
+.lact-tile__link { display: block; width: 100%; height: 100%; color: inherit; text-decoration: none; border-radius: var(--tl-radius-md); }
+.lact-tile__link:hover, .lact-tile__link:focus-visible { outline: 2px solid var(--tl-accent-primary); }
+@media (max-width: 640px) { .lact-tile { --lact-tile-w: 112px; --lact-tile-h: 168px; } }

@@ -29,12 +29,93 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string ExtraMove = "extra_move";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove];
+    /// <summary>
+    /// "Match the other episodes in this season by number" (universal editor v3, D4): after an episode is matched into a show, the other
+    /// episodes in its folder season take the same season of that show by their own episode numbers. The target is an
+    /// <see cref="EpisodeSiblingMatchTarget"/> (see <see cref="EditSessionSiblingMatchTarget"/>). Like an identity change it cannot be undone.
+    /// </summary>
+    public const string SiblingMatch = "sibling_match";
+
+    /// <summary>
+    /// "Re-match seasons and episodes" (universal editor v3, D8 item 3): after a show is re-matched, its seasons and episodes are matched
+    /// again against the new show by number, and what does not fit goes to Needs Review. The target is a
+    /// <see cref="ShowChildRematchTarget"/> (see <see cref="EditSessionChildRematchTarget"/>). Like an identity change it cannot be undone.
+    /// </summary>
+    public const string ChildRematch = "child_rematch";
+
+    /// <summary>
+    /// A video joins a series or one of its sections, starts a new series, or stands alone again (universal editor v3.1, WP1). Library's own
+    /// data only: no file moves. <see cref="EditSessionChange.EntityId"/> is the video; see <see cref="EditSessionVideo"/> for the target.
+    /// </summary>
+    public const string VideoSeries = "video_series";
+
+    /// <summary>
+    /// The videos of a series (or of one section) in the order the person chose (universal editor v3.1, WP1). <see cref="EditSessionChange.EntityId"/>
+    /// is the series or section; <see cref="EditSessionChange.OrderedIds"/> lists its videos, first to last. Library's own data only: no file moves.
+    /// </summary>
+    public const string VideoOrder = "video_order";
+
+    /// <summary>
+    /// "Rename the files to match this order" (universal editor v3.1, WP1): each video file of the series or section gets its position in its
+    /// name. Physical, so it runs last, one change at a time, cannot be undone, and only ever touches Managed folders.
+    /// <see cref="EditSessionChange.EntityId"/> is the series or section.
+    /// </summary>
+    public const string VideoRename = "video_rename";
+
+    /// <summary>
+    /// A new character, place, faction or other thing is added by hand to a Universe (universal editor v4, WP11). Library's own data only: the
+    /// thing gets a local ID and the "added by you" mark, and nothing is sent to a provider. <see cref="EditSessionChange.EntityId"/> is the
+    /// Universe the thing is added to; <see cref="EditSessionChange.TargetId"/> is an id the Dashboard made up to tell several additions to the
+    /// same Universe apart. The fields are named in <see cref="EditSessionThingAdd"/>.
+    /// </summary>
+    public const string ThingAdd = "thing_add";
+
+    /// <summary>
+    /// Group, role, Belongs to or tags set on several supporting files of one title at once (universal editor v5 D16, D30), and, for one file
+    /// at a time, its title, description and the episode it is shown alongside (WP7).
+    /// <see cref="EditSessionChange.EntityId"/> is the title; <see cref="EditSessionChange.SupportingFiles"/> names the files and what changes.
+    /// Library's own data, saved with the rest of the session and undone with it; in a Managed folder a changed Belongs to also moves the file
+    /// (put back if a later change fails). Deleting files is not a staged change: it asks once and happens at once.
+    /// </summary>
+    public const string SupportingFiles = "supporting_files";
+
+    /// <summary>
+    /// The item's match is taken away (universal editor v5, Match tab "Remove match"). <see cref="EditSessionChange.EntityId"/> is the item;
+    /// nothing else is needed. The provider record ids stop being the item's; its details, locked fields, pictures and Wikidata id stay, no
+    /// file moves, and the item does not go to Needs Review. Same permission as choosing a match.
+    /// </summary>
+    public const string MatchRemoval = "match_removal";
+
+    /// <summary>
+    /// The item is linked to a Wikidata item (universal editor v5, Match tab, Wikidata side). <see cref="EditSessionChange.EntityId"/> is the item and
+    /// <see cref="EditSessionChange.TargetId"/> the Wikidata item (<c>Q123</c>). Only the Wikidata identity changes: the provider match is never
+    /// touched. The Engine refuses an item that is the item's parent (the show for an episode), whatever the Dashboard sent.
+    /// </summary>
+    public const string WikidataLink = "wikidata_link";
+
+    /// <summary>
+    /// The item's Wikidata link is taken away (universal editor v5, Match tab, Wikidata side "Remove match"). <see cref="EditSessionChange.EntityId"/>
+    /// is the item. Only the Wikidata identity goes; the provider match, details and pictures stay.
+    /// </summary>
+    public const string WikidataRemoval = "wikidata_removal";
+
+    /// <summary>
+    /// Changes to a title's Everyone's bookmarks (universal editor v5 D37, WP15): adding a profile's bookmark, removing, renaming and moving one,
+    /// an applied import, and "Start over from profiles". <see cref="EditSessionChange.EntityId"/> is the title (its work);
+    /// <see cref="EditSessionChange.Bookmarks"/> lists the operations in order. Administrators only, never in the Vault. Library's own data only,
+    /// written in one transaction with the same-spot merge, and put back exactly if a later change in the session fails.
+    /// </summary>
+    public const string Bookmarks = "bookmarks";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd, SupportingFiles, MatchRemoval, WikidataLink, WikidataRemoval, Bookmarks];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 
-    /// <summary>True for the kinds saved together as one unit (everything except file moves).</summary>
-    public static bool IsDataChange(string? kind) => IsKnown(kind) && kind != FileMove;
+    /// <summary>True for the kinds that change files on disk: they run last, one at a time, and cannot be undone.</summary>
+    public static bool IsFileChange(string? kind) => kind is FileMove or VideoRename;
+
+    /// <summary>True for the kinds saved together as one unit (everything except file changes).</summary>
+    public static bool IsDataChange(string? kind) => IsKnown(kind) && !IsFileChange(kind);
 }
 
 /// <summary>How one pending change came out of a check or a save.</summary>
@@ -86,6 +167,20 @@ public sealed class EditSessionChange
     /// <summary>Confirmation token from a move preview (file moves).</summary>
     [JsonPropertyName("token")]
     public string? Token { get; init; }
+
+    /// <summary>The videos of a series or section, first to last (<see cref="EditSessionChangeKinds.VideoOrder"/> changes).</summary>
+    [JsonPropertyName("ordered_ids")]
+    public List<Guid> OrderedIds { get; init; } = [];
+
+    /// <summary>The files and the change for a <see cref="EditSessionChangeKinds.SupportingFiles"/> change.</summary>
+    [JsonPropertyName("supporting_files")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest? SupportingFiles { get; init; }
+
+    /// <summary>The operations for a <see cref="EditSessionChangeKinds.Bookmarks"/> change.</summary>
+    [JsonPropertyName("bookmarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MediaEngine.Contracts.Playback.EditorBookmarkChangeDto? Bookmarks { get; init; }
 }
 
 /// <summary>One staged value for a details field. An empty value reverts the field to the provider's value.</summary>

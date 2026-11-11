@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Find bookmarks</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1b1f24;--mute:#5d6672;--line:#dfe3e8;--accent:#6c5ce7;--ok:#1f9d55;--warn:#c27c0e;--chip:#eef0f4}
+@media (prefers-color-scheme:dark){:root{--bg:#12141a;--card:#1b1e26;--ink:#eceef2;--mute:#9aa3b0;--line:#2b303b;--accent:#9a8cff;--ok:#4ac584;--warn:#e0a53c;--chip:#262a34}}
+*{box-sizing:border-box}body{margin:0;padding:24px 16px;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,sans-serif}
+h1{font-size:20px;margin:0 0 16px}.wrap{max-width:1000px;margin:0 auto;display:grid;gap:28px}
+.panel{min-height:560px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:620px;position:relative}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.x{border:0;background:var(--chip);color:var(--ink);width:30px;height:30px;border-radius:50%}
+.seg{display:flex;margin:6px 0 10px}.seg span{padding:5px 14px;border:1px solid var(--line);font-size:13px}.seg .on{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;gap:10px;align-items:center;padding:9px 6px;border-top:1px solid var(--line)}
+.dot{width:12px;height:12px;border-radius:50%;flex:none}.g{background:#fff;border:1px solid var(--mute)}.m{background:var(--accent)}
+.t{font-variant-numeric:tabular-nums;color:var(--mute)}.tag{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--mute)}.ok{color:var(--ok)}.warn{color:var(--warn)}
+.r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-weight:600}.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.link{color:var(--accent);font-weight:600}.in{border:1px solid var(--line);border-radius:6px;padding:4px 8px;width:150px;color:var(--mute)}
+.cmp{display:grid;grid-template-columns:1.2fr 1.2fr auto;gap:8px;align-items:center;padding:9px 6px;border-top:1px solid var(--line)}
+.seg2{display:flex}.seg2 i{font-style:normal;font-size:12px;padding:4px 8px;border:1px solid var(--line)}.seg2 .on{background:var(--accent);border-color:var(--accent);color:#fff}.cmp{grid-template-columns:1.1fr 1.1fr 1.3fr!important}.card{border:1px solid var(--line);border-radius:8px;padding:6px 8px}.card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}.tick{color:var(--accent);font-weight:700;float:right}.cmp{grid-template-columns:1fr 1fr auto!important}.hd{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
+.n{display:inline-flex;width:18px;height:18px;border-radius:50%;background:#ffb020;color:#111;font-size:12px;font-weight:700;align-items:center;justify-content:center;margin-left:4px}
+ol{color:var(--mute);margin:8px 0 0;padding-left:20px;font-size:13px;max-width:620px}
+</style></head><body><h1>Bookmarks in the player</h1><div class="wrap">
+
+<section><div class="panel">
+<div class="head"><b>Bookmarks</b><button class="x">✕</button></div>
+<div class="seg"><span>All</span><span class="on">Everyone's</span><span>Mine</span><span>Global</span><span class="n">1</span></div>
+<div class="row"><i class="dot m"></i><span class="t">12:41</span><span>Battle of Gondor begins</span><span class="tag">Sam</span>
+ <span class="r"><span class="in">Rename</span><span class="btn pri">Promote</span><span class="n">2</span></span></div>
+<div class="row"><i class="dot m"></i><span class="t">58:20</span><span>Pelennor Fields</span><span class="tag">Alex</span><span class="r"><span class="in">Rename</span><span class="btn pri">Promote</span></span></div>
+<div class="row"><i class="dot g"></i><span class="t">04:10</span><span>The Shire</span><span class="tag">Global</span></div>
+<div class="row"><span class="link">Find bookmarks</span><span class="n">3</span><span class="r"><span class="btn">Export Global bookmarks</span><span class="n">4</span></span></div>
+<div class="row"><span>Show bookmarks on the bar</span><span class="n">5</span></div>
+</div>
+<ol><li>The pane is tall (about 80% of the player height, above the control bar) so 20 or more bookmarks can be scrolled and clicked through. Filter: "Everyone's" appears for administrators only; others see All, Mine, Global.</li><li>Promote makes it Global straight away. A bookmark from another profile at the same spot is replaced.</li><li>Opens the list of bookmark sets for this title.</li><li>Administrators only. Saves this title's Global bookmarks as a file.</li><li>Switch, off by default. Bookmark dots only appear on the progress bar when on.</li></ol></section>
+
+<section><div class="panel">
+<div class="head"><b>Find bookmarks</b><button class="x">←</button></div>
+<div class="row"><div><b>Your file: lotr-battles.bookmarks</b> <span class="tag">Your file</span> <span class="tag ok">Matches this cut</span><span class="n">1</span><br><span class="t">12 bookmarks · by Dana</span></div><span class="r"><span class="btn pri">Compare</span></span></div>
+</div><ol><li>Where sets come from. Today only a file you choose; other sources can appear in the same list later.</li></ol></section>
+
+<section><div class="panel">
+<div class="head"><b>Compare with your bookmarks</b><button class="x">←</button></div>
+<div class="cmp hd"><span>Incoming <span class="n">1</span></span><span>Yours</span></div>
+<div class="cmp"><span class="card on"><span class="t">12:43</span> Gondor begins <span class="tick">✓</span></span><span class="card"><span class="t">12:41</span> Battle of Gondor begins</span><span class="tag ok">Same spot · 2s</span></div>
+<div class="cmp"><span class="card"><span class="t">31:20</span> Gandalf arrives</span><span class="card on"><span class="t">31:05</span> Great scene <span class="tick">✓</span></span><span class="tag warn">Close · 15s</span><span class="n">2</span></div>
+<div class="cmp"><span class="card"><span class="t">1:20:00</span> The ride</span><span class="card on"><span class="t">1:18:10</span> Rohan <span class="tick">✓</span></span><span class="tag">Far · 1m 50s</span></div>
+<div class="cmp"><span class="card on"><span class="t">1:45:30</span> Final stand <span class="tick">✓</span></span><span class="t">Nothing nearby</span><span class="tag ok">New</span></div>
+<div class="row"><span class="link">Replace the whole Global set with this one</span><span class="n">3</span><span class="r"><span class="btn pri">Apply</span><span class="n">4</span></span></div>
+</div><ol><li>Each incoming bookmark beside the closest one you already have. Tap a card: the player jumps to that spot and that card becomes the one kept (ticked).</li><li>Defaults: Same spot keeps the incoming one, Close and Far keep yours. New bookmarks are added; tap the tick to leave one out.</li><li>Administrators only.</li><li>Nothing changes until Apply.</li></ol></section>
+</div></body></html>

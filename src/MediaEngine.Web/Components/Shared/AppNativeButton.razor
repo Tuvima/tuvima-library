@@ -1,18 +1,13 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<button @ref="_element"
-        type="@Type"
-        class="@Class"
-        disabled="@Disabled"
-        title="@Title"
-        aria-label="@AriaLabel"
-        style="@ResolvedStyle"
-        @onclick="OnClick"
-        @onclick:stopPropagation="@StopPropagation"
-        @onclick:preventDefault="@PreventDefault"
-        @attributes="AdditionalAttributes">
-    @ChildContent
-</button>
+@if (string.IsNullOrWhiteSpace(Tooltip))
+{
+    @ButtonContent
+}
+else
+{
+    <AppTooltip Text="@Tooltip">@ButtonContent</AppTooltip>
+}
 
 @code {
     private ElementReference _element;
@@ -20,7 +15,8 @@
     [Parameter] public string? Type { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool Disabled { get; set; }
-    [Parameter] public string? Title { get; set; }
+    /// <summary>The app tooltip. Only for an icon-only button (Look v3 D8); a button with a visible label that says the same needs none.</summary>
+    [Parameter] public string? Tooltip { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
     [Parameter] public string? Css { get; set; }
@@ -29,6 +25,19 @@
     [Parameter] public bool PreventDefault { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private RenderFragment ButtonContent => @<button @ref="_element"
+        type="@Type"
+        class="@Class"
+        disabled="@Disabled"
+        aria-label="@AriaLabel"
+        style="@ResolvedStyle"
+        @onclick="OnClick"
+        @onclick:stopPropagation="@StopPropagation"
+        @onclick:preventDefault="@PreventDefault"
+        @attributes="AdditionalAttributes">
+    @ChildContent
+</button>;
 
     public ElementReference Element => _element;
     private string? ResolvedStyle => !string.IsNullOrWhiteSpace(Css) ? Css : InlineStyle;

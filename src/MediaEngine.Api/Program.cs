@@ -262,10 +262,26 @@ builder.Services.AddSingleton<IDatabaseConnection>(_ =>
 // One secrets store for provider and plugin keys, kept in the config folder so it survives a data store wipe.
 var configSecrets = new ConfigFolderSecretsStore(configDirectory);
 builder.Services.AddSingleton<IConfigSecretsStore>(configSecrets);
+{
+    // Key files written by an earlier version are plain text. Lock them once; each original is removed only after the
+    // locked copy reads back correctly, and a file that cannot be converted stays as it was and is retried next start.
+    var conversion = configSecrets.ConvertPlainFiles();
+    if (conversion.Converted.Count > 0)
+    {
+        Log.Information("Locked {Count} key file(s) with the Library's root key: {Owners}", conversion.Converted.Count, string.Join(", ", conversion.Converted));
+    }
+
+    foreach (var owner in conversion.Failed)
+    {
+        Log.Warning("The key file for {Owner} could not be locked yet; it was left as it was and will be retried at the next start", owner);
+    }
+}
 
 ConfigurationDirectoryLoader configLoader;
 try
 {
+    // A provider file that ships with the Library and has gone missing or cannot be read is put back before anything reads it.
+    MediaEngine.Api.Services.Plugins.Sources.ShippedProviderFiles.Repair(configDirectory, Log.Logger);
     configLoader = new ConfigurationDirectoryLoader(configDirectory, configSecrets);
     // Library kinds refer to providers and naming templates in other files; a typo in a user-edited kinds file stops start-up here
     // with the entry named, like any other invalid configuration file.
@@ -313,7 +329,13 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
 // -- Rate limiting -------------------------------------------------------------
 {
     var rateLimits = configLoader.LoadCore().RateLimiting;
-    string[] globalLimiterExemptPaths = ["/system/status", "/health", "/health/live"];
+    // The light status checks the Dashboard repeats every few seconds are exempt, so a busy page can never turn the
+    // whole app into "Engine unavailable".
+    string[] globalLimiterExemptPaths =
+    [
+        "/system/status", "/health", "/health/live",
+        "/auth/bootstrap/status", "/ingestion/queue-progress", "/api/v1/companion/devices",
+    ];
     string[] globalLimiterExemptPrefixes =
     [
         "/swagger",
@@ -397,7 +419,7 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
                 }));
         options.AddPolicy("general", context =>
             RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                ReaderFileRateLimitPartition.SessionKey(context) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = rateLimits.General.PermitLimit,
@@ -500,7 +522,8 @@ builder.Services.AddSingleton<AssetStoreCleanupService>();
 builder.Services.AddSingleton(sp => new DatabaseBackupService(
     sp.GetRequiredService<PersonalStateBackupRepository>(),
     configDirectory,
-    backupDirectory));
+    backupDirectory,
+    sp.GetRequiredService<IConfigSecretsStore>()));
 builder.Services.AddSingleton<IPendingRestoreImportService>(sp => new PendingRestoreImportService(
     sp.GetRequiredService<BackupRestoreRepository>(),
     sp.GetRequiredService<IBackupPortableValueCodec>(),
@@ -564,6 +587,9 @@ catch (DataStoreUpgradeException exception)
 
 // A restored backup is imported into the fresh data store before anything is served; the previous data store was put aside as a pre-restore copy.
 app.Services.GetRequiredService<IPendingRestoreImportService>().ImportIfPending();
+
+// The file-name cleaning rules (config/filename_cleaning.json) are installed before the first scan reads a name.
+_ = app.Services.GetRequiredService<MediaEngine.Domain.Services.FilenameCleaningConfigurationProvider>().Current;
 
 // The Vault's folders are known before anything is served, scanned or logged.
 await app.Services.GetRequiredService<VaultLocationGuardRefreshService>().RefreshAsync().ConfigureAwait(false);

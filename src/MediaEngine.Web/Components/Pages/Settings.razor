@@ -6,6 +6,7 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Settings.LibraryActivity
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
@@ -28,7 +29,12 @@
 
 <PageTitle>@BrowserTitle</PageTitle>
 
-@if (_leavingSettings)
+@if (_notFound)
+{
+    @* An address that is not a Settings page, or one this person may not see, shows the not-found page in place; the address stays as typed. *@
+    <NotFound />
+}
+else if (_leavingSettings)
 {
     @* A Kids profile reaches Profile and nothing else in Settings. The move to Home is already under way, so nothing is drawn meanwhile. *@
 }
@@ -58,10 +64,10 @@ else
             <label class="settings-mobile-navigation__label" for="settings-mobile-page">@L["Settings_SettingsPage"]</label>
             <div class="settings-mobile-navigation__control">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" aria-hidden="true" />
-                <AppNativeSelect @key="MobileNavigationValue"
+                <AppSelect Native="true" @key="MobileNavigationValue"
                                  id="settings-mobile-page"
                                  Value="@MobileNavigationValue"
-                                 OnChange="@OnMobilePageChanged"
+                                 ValueChanged="@OnMobilePageChanged"
                                  aria-label="@L["Settings_SettingsPage"].Value">
                     @foreach (var group in PhoneMenuGroups)
                     {
@@ -72,19 +78,19 @@ else
                             }
                         </optgroup>
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </div>
         </nav>
 
         <MediaEngine.Web.Components.Vault.VaultHiddenReminder />
 
         <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
-                           Eyebrow="@GetHeroEyebrow()"
                            Title="@GetHeroTitle()"
                            Description="@GetSectionDescription(_activeSection)"
                            Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
                            PageNotice="@PageNoticeFragment"
-                           Tabs="@PageTabsFragment">
+                           Tabs="@PageTabsFragment"
+                           AdvancedWarning="@IsAdvancedTabOpen">
             <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
                 <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
                 @if (ShouldDeferForRoleResolution)
@@ -133,11 +139,7 @@ else
                     @switch (_activeSection)
                     {
                             case SettingsSection.Overview:
-                                @if (_activeSubsection == SettingsNav.AppsSubsection)
-                                {
-                                    <OverviewAppsPage />
-                                }
-                                else if (_activeSubsection == SettingsNav.ActivitySubsection)
+                                @if (_activeSubsection == SettingsNav.ActivitySubsection)
                                 {
                                     <ActivityPage Scope="@ActivityScope" />
                                 }
@@ -148,6 +150,10 @@ else
                                 else if (_activeSubsection == SettingsNav.ImportSubsection)
                                 {
                                     <OverviewImportPage />
+                                }
+                                else if (_activeSubsection == SettingsNav.AccountsSubsection)
+                                {
+                                    <OverviewAccountsPage />
                                 }
                                 else
                                 {
@@ -183,6 +189,11 @@ else
                                 {
                                     <ScheduledTasksPage />
                                 }
+                                else if (_activeSubsection == SettingsNav.AdvancedSubsection)
+                                {
+                                    <LogRetentionPanel />
+                                    <LogExportPanel />
+                                }
                                 else
                                 {
                                     <SystemSummaryPage />
@@ -191,14 +202,11 @@ else
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
-                            case SettingsSection.Ingestion:
-                                <IngestionTasksTab View="@IngestionView" />
-                                break;
                             case SettingsSection.RecentlyAdded:
-                                <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
+                                <LibraryActivityPage />
                                 break;
                             case SettingsSection.Review:
-                                <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" />
+                                <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" Show="@Query.String("show")" />
                                 break;
                             case SettingsSection.DevHarness:
                                 @RenderInternalTool(
@@ -206,7 +214,10 @@ else
                                     new Dictionary<string, object?> { ["Subsection"] = _activeSubsection })
                                 break;
                             case SettingsSection.Providers:
-                                <MetadataSettingsPage Subsection="@_activeSubsection" Detail="@Detail" />
+                                <MetadataSettingsPage Subsection="ingestion-flow" Detail="@Detail" />
+                                break;
+                            case SettingsSection.LibraryRules:
+                                <LibraryRulesPage />
                                 break;
                             case SettingsSection.LocalAi:
                                 <LocalAiSettingsTab Subsection="@_activeSubsection" />
@@ -214,12 +225,14 @@ else
                             case SettingsSection.Plugins:
                                 <PluginSettingsTab FocusPluginId="@PluginFocusId" DetailPluginId="@PluginDetailId" DetailTab="@PluginDetailTab" NameChanged="OnPluginNameChanged" />
                                 break;
-                            case SettingsSection.Delivery:
+                            case SettingsSection.Playback:
                                 <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Tools:
-                            case SettingsSection.Notifications:
-                                <ConfigurationPage />
+                                <ToolsRequirementsTab />
+                                break;
+                            case SettingsSection.General:
+                                <GeneralPage />
                                 break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
@@ -231,14 +244,26 @@ else
                                 }
                                 else
                                 {
-                                    <UsersAccessSettingsTab Subsection="@_activeSubsection" />
+                                    @* Advanced holds what Sign-in Methods held; the tab keeps the page's shared address segment. *@
+                                    <UsersAccessSettingsTab Subsection="@(_activeSubsection == SettingsNav.AdvancedSubsection ? "authentication" : _activeSubsection)" />
                                 }
                                 break;
                             case SettingsSection.Integrations:
                                 <UsersAccessSettingsTab Subsection="applications" IntegrationId="@IntegrationDetailId" DetailTab="@IntegrationDetailTab" NameChanged="OnIntegrationNameChanged" />
                                 break;
-                            case SettingsSection.Server:
-                                <BackupRecoveryPanel />
+                            case SettingsSection.Backups:
+                                @if (_activeSubsection == SettingsNav.DestinationsSubsection)
+                                {
+                                    <BackupDestinationsSection />
+                                }
+                                else if (_activeSubsection == SettingsNav.AdvancedSubsection)
+                                {
+                                    <BackupAdvancedPanel />
+                                }
+                                else
+                                {
+                                    <BackupRecoveryPanel />
+                                }
                                 break;
                             case SettingsSection.ProviderTester:
                                 @RenderInternalTool("MediaEngine.Web.Components.Settings.ProviderTesterToolTab")
@@ -324,8 +349,8 @@ else
     // A Kids profile reaches Profile and nothing else in Settings; every other address sends it Home.
     private bool _restricted;
     private bool _leavingSettings;
+    private bool _notFound;
 
-    private bool _legacyRedirectIssued;
     private SystemStatusViewModel? _systemStatus;
     private bool _shellStateLoading = true;
     private bool _developmentToolsLoading = true;
@@ -362,7 +387,7 @@ else
     // One flat menu: the desktop rail, the phone page selector and the tab strip are all built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
 
-    private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups);
+    private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups, _activeSection);
 
     // The page this person is on, with only the tabs they may open; null for a page the menu does not place.
     private SettingsMenuLocation? CurrentLocation
@@ -398,7 +423,10 @@ else
     private RenderFragment ProfileTabsFragment => @<ProfileTabs ProfileId="@ProfileDetailId" Active="@ProfileTab" />;
 
     private RenderFragment RenderPageTabs(SettingsMenuLocation location) =>
-        @<SettingsPageTabs Tabs="@location.Page.Tabs" Active="@location.Tab" PageLabel="@location.Page.Label" />;
+        @<SettingsPageTabs Tabs="@location.Page.Tabs" Active="@location.Tab" PageLabel="@location.Page.Label" ReviewCount="@Attention.ReviewCount" />;
+
+    // The page's Advanced tab is open: the frame draws the one warning line first.
+    private bool IsAdvancedTabOpen => CurrentLocation?.Tab?.IsAdvanced == true && !IsMobileRouteUnavailable;
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
@@ -406,12 +434,15 @@ else
     /// <summary>The tab of a person's page: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
     private string ProfileTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
 
+    // A tab's name comes from the wording file when it has a key there; the English name in the menu table is the fallback.
+    private string TabLabel(SettingsPageTab tab) => tab.LabelKey is { } key ? L[key].Value : tab.Label;
+
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Manage Profiles - Library"
         : _activeSection == SettingsSection.Libraries
         ? LibrariesBrowserTitle
-        : CurrentLocation?.Tab is { } tab && !string.Equals(tab.Label, GetHeroTitle(), StringComparison.Ordinal)
-        ? $"{tab.Label} - {GetHeroTitle()} - Library"
+        : CurrentLocation?.Tab is { } tab && !string.Equals(TabLabel(tab), GetHeroTitle(), StringComparison.Ordinal)
+        ? $"{TabLabel(tab)} - {GetHeroTitle()} - Library"
         : $"{GetHeroTitle()} - Library";
     // The Vault's title and breadcrumb follow the same rule as the Libraries page itself (an administrator with Vault mode on).
     private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(
@@ -442,12 +473,8 @@ else
             ? "settings-mobile-summary"
             : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private string MobileNavigationValue => IsMobileRouteUnavailable
-        ? MobileFallbackRoute
-        : SettingsNavigationGroups
-            .SelectMany(group => group.Items)
-            .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(_activeSection), StringComparer.OrdinalIgnoreCase) == true)?.Route
-          ?? SettingsNav.RouteFor(_activeSection);
+    // Always the page this person is on (a page the phone menu leaves out is added to the list), never a fallback page.
+    private string MobileNavigationValue => SettingsMenuBuilder.PhoneSelectorRoute(SettingsNavigationGroups, _activeSection);
     private bool IsMobileNavigationOptionSelected(string route) =>
         string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
 
@@ -495,7 +522,7 @@ else
         }
 
         await LoadAuthorityAsync();
-        ResolveSectionAndNormalize();
+        ResolveSection();
         if (_leavingSettings)
         {
             return;
@@ -526,7 +553,7 @@ else
             await ExitAdministrationAsync();
         }
         _wasAdministrationRoute = IsAdministrationRoute(Section);
-        ResolveSectionAndNormalize();
+        ResolveSection();
         if (!IsProfileDetailRoute)
         {
             _profileBreadcrumbName = null;
@@ -665,7 +692,7 @@ else
     // Administration pages need the administrator gate.
     private bool RequiresAdministratorSurface => SettingsNav.GetItem(_activeSection).AdminOnly;
 
-    private void ResolveSectionAndNormalize()
+    private void ResolveSection()
     {
         // A profile or authority change can reach this while the router has already moved to another settings page (or another tab of the same page) but has not
         // handed this component the new Section, Subsection and Detail yet. Redirecting from that stale Section sends the page to the old address, and the
@@ -676,27 +703,7 @@ else
             return;
         }
 
-        if (!_legacyRedirectIssued
-            && Section is not null
-            && (Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
-                || Section.Equals("timeline", StringComparison.OrdinalIgnoreCase)))
-        {
-            _legacyRedirectIssued = true;
-            Nav.NavigateTo("/settings/recently-added", replace: true);
-            return;
-        }
-
-        // Needs Review has its own page now; the old Recently Added link that opened its collapsed block lands there.
-        if (!_legacyRedirectIssued
-            && Section is not null
-            && Section.Equals("recently-added", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(ReviewState, "expanded", StringComparison.OrdinalIgnoreCase))
-        {
-            _legacyRedirectIssued = true;
-            Nav.NavigateTo(SettingsNav.RouteFor(SettingsSection.Review), replace: true);
-            return;
-        }
-
+        _notFound = false;
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
 
@@ -710,13 +717,14 @@ else
 
         if (!resolution.IsKnownRoute)
         {
-            Nav.NavigateTo("/not-found", replace: true);
+            _notFound = true;
             return;
         }
 
         if (!resolution.RequestedSectionAllowed)
         {
-            Nav.NavigateTo(resolution.CanonicalRoute, replace: true);
+            // A page this person may not see is not found, the same as one that does not exist.
+            _notFound = true;
             return;
         }
 
@@ -732,10 +740,6 @@ else
         {
             _activeSubsection = Subsection!.Trim();
         }
-        else if (_activeSection == SettingsSection.Providers && string.IsNullOrWhiteSpace(Subsection))
-        {
-            _activeSubsection = SettingsNav.IngestionFlowSubsection;
-        }
         else if (string.IsNullOrWhiteSpace(Subsection))
         {
             _activeSubsection = string.Empty;
@@ -745,7 +749,7 @@ else
             var subsection = SettingsNav.ResolveSubsection(_activeSection, Subsection);
             if (subsection is null)
             {
-                Nav.NavigateTo("/not-found", replace: true);
+                _notFound = true;
                 return;
             }
 
@@ -754,27 +758,8 @@ else
 
         if (!IsValidDetailRoute(_activeSection, _activeSubsection, Detail))
         {
-            Nav.NavigateTo("/not-found", replace: true);
+            _notFound = true;
             return;
-        }
-
-        var currentPath = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)));
-        var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
-            ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
-            : IsProfileDetailRoute
-            ? $"/settings/profiles/{_activeSubsection}{(ProfileTab.Length == 0 ? string.Empty : "/" + ProfileTab)}"
-            : IsIntegrationDetailRoute
-            ? $"/settings/integrations/{Uri.EscapeDataString(_activeSubsection)}{(IntegrationDetailTab.Length == 0 ? string.Empty : "/" + IntegrationDetailTab)}"
-            : IsPluginDetailRoute
-            ? $"/settings/plugins/{Uri.EscapeDataString(_activeSubsection)}{(PluginDetailTab.Length == 0 ? string.Empty : "/" + PluginDetailTab)}"
-            : string.IsNullOrWhiteSpace(Subsection)
-            ? resolution.CanonicalRoute
-            : SettingsNav.RouteFor(_activeSection, _activeSubsection);
-        var targetPath = NormalizePath(targetRoute);
-
-        if (!string.Equals(currentPath, targetPath, StringComparison.OrdinalIgnoreCase))
-        {
-            Nav.NavigateTo(targetRoute, replace: true);
         }
     }
 
@@ -822,7 +807,7 @@ else
         if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access";
         if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
         if (section == SettingsSection.Integrations) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "access" or "keys" or "deliveries" or "activity";
-        if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity";
+        if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity" or "file";
         return false;
     }
 
@@ -837,7 +822,7 @@ else
         {
             await LoadAuthorityAsync();
             await LoadDevelopmentToolsAsync();
-            ResolveSectionAndNormalize();
+            ResolveSection();
             StateHasChanged();
         });
     }
@@ -885,9 +870,8 @@ else
         builder.CloseComponent();
     };
 
-    private void OnMobilePageChanged(ChangeEventArgs args)
+    private void OnMobilePageChanged(string? route)
     {
-        var route = args.Value?.ToString();
         if (!string.IsNullOrWhiteSpace(route))
         {
             Nav.NavigateTo(route);
@@ -917,9 +901,8 @@ else
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            // Library & Ingestion > Libraries > Watch > Movies: the frame carries the level, so Libraries is a link once the page is deeper.
+            // Libraries > Watch > Movies: the page is Libraries, so it is a link once the page is deeper.
             var levels = LibrariesLevel.Crumbs;
-            steps.Add(new SettingsBreadcrumb("Libraries", SettingsNav.RouteFor(SettingsSection.Libraries)));
             foreach (var level in levels.Skip(1))
                 steps.Add(new SettingsBreadcrumb(level.Label, level.Href));
         }
@@ -939,7 +922,7 @@ else
         }
         else
         {
-            var leaf = location?.Tab?.Label ?? location?.Leaf;
+            var leaf = location?.Tab is { } leafTab ? TabLabel(leafTab) : location?.Leaf;
             if (leaf is not null && !string.Equals(leaf, pageLabel, StringComparison.Ordinal))
                 steps.Add(new SettingsBreadcrumb(leaf, location?.Tab?.Route ?? SettingsNav.RouteFor(_activeSection)));
             if (!string.IsNullOrWhiteSpace(Detail))
@@ -960,25 +943,27 @@ else
     private static string FormatRouteLabel(string value) =>
         System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.Replace('-', ' '));
 
-    private string GetHeroEyebrow() => CurrentGroup.Label;
 
     private string GetHeroTitle()
     {
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
+        // Needs Review is named by its own heading (universal editor v3 mock, screen 2), not by the Libraries page it is a tab of.
+        if (_activeSection == SettingsSection.Review)
+            return CurrentLocation?.Tab is { } reviewTab ? TabLabel(reviewTab) : SettingsNav.GetItem(_activeSection).Label;
         return CurrentLocation?.Page.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
 
     private string? GetSectionDescription(SettingsSection section) => section switch
     {
-        SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
-            ? "Install the Library app on your phone or TV and connect it to this server."
-            : _activeSubsection == SettingsNav.ActivitySubsection
+        SettingsSection.Overview => _activeSubsection == SettingsNav.ActivitySubsection
                 ? "Everything you have watched, listened to and read, and what you added to My list."
             : _activeSubsection == SettingsNav.TasteSubsection
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
             : _activeSubsection == SettingsNav.ImportSubsection
                 ? "Drop a list, a collection pack, a bookmark pack or a plugin settings file. Library says what it is and where it goes."
+            : _activeSubsection == SettingsNav.AccountsSubsection
+                ? "Sign in to your own accounts on other sites, such as Trakt, so plugins can read your private lists."
                 : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => IsProfileDetailRoute
             ? "Details, preferences, and access and safety for this profile."
@@ -988,45 +973,53 @@ else
             : "Password, email and extra protection.",
         SettingsSection.AdminOverview => _activeSubsection switch
         {
-            SettingsNav.LogsSubsection => "What the Library did, the Engine's technical log, and how long logs are kept.",
+            SettingsNav.LogsSubsection => "What the Library did and the Engine's technical log.",
             SettingsNav.ScheduledTasksSubsection => "What runs by itself, when it last ran, and when it runs next.",
+            SettingsNav.AdvancedSubsection => "How long logs are kept, and exporting them.",
             _ => "How this server is doing: its version, processor, memory and storage.",
         },
         // Only the overview has a subtitle; the pages below it are named by their title and breadcrumb.
         SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
-        SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
+        SettingsSection.LibraryRules => "The rules every library follows. Each library can override them.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Development builds only: reset, seed or rescan the test library.",
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
         {
-            "models" => "Choose the resource profile and set runtime limits.",
+            "models" => "Choose the resource profile, check this machine and manage the model files.",
+            SettingsNav.AdvancedSubsection => "Runtime limits, the plugin allowance and what Local AI has done lately.",
             _ => "Manage local intelligence features while keeping technical details out of the way.",
         },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
-        SettingsSection.Delivery => _activeSubsection switch
+        SettingsSection.Playback => _activeSubsection switch
         {
-            "hardware" => "Choose what the server uses to prepare video for playback.",
-            "optimized-copies" => "Set how optimized copies are prepared, scheduled and stored, and watch the jobs that make them.",
-            "diagnostics" => "Technical checks on playback delivery reported by the server.",
+            SettingsNav.AdvancedSubsection => "Hardware acceleration, optimized copies and technical checks on playback.",
             _ => "Set the limits and quality for streaming away from home.",
         },
-        SettingsSection.Notifications or SettingsSection.Tools =>
-            "The tools and downloads the Library relies on, and what it tells you about and where those messages go.",
+        SettingsSection.Tools => "The tools and downloads the Library relies on.",
+        SettingsSection.General => "The Library's name and address, language and region, and what the Library tells you about and where those messages go.",
         SettingsSection.Integrations => "Credentials and webhooks that let other software use Library.",
         SettingsSection.Access => _activeSubsection switch
         {
-            "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
+            SettingsNav.AdvancedSubsection => "How people sign in, and the rules for passwords, sessions and invitations.",
             SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people, library access and Shared Library.",
             _ => "Who can sign in, and which profile each sign-in opens.",
         },
-        SettingsSection.Server => "Protect your Library configuration and recover it when needed.",
-        SettingsSection.Review => "Resolve items Library could not identify confidently.",
+        SettingsSection.Backups => "Protect your Library configuration and recover it when needed.",
+        SettingsSection.Review => ReviewDescription,
         SettingsSection.ProviderTester => "Try a search against each metadata provider and see what comes back.",
         // Temporary: the Enrichment Tester is removed at beta (Developer tools spec, section 4).
         SettingsSection.EnrichmentTester => "Development builds only: run one item through enrichment step by step.",
         _ => "Settings",
+    };
+
+    // The count is the shell's own Needs Review count, so the sentence and the tab badge always agree.
+    private string ReviewDescription => Attention.ReviewCount switch
+    {
+        <= 0 => "Nothing needs a person right now.",
+        1 => "1 item needs a person. Not matched files and uncertain matches are listed together.",
+        var count => $"{count:N0} items need a person. Not matched files and uncertain matches are listed together.",
     };
 
     private bool IsOperationsView(SettingsSection section) => _activeSection == section;

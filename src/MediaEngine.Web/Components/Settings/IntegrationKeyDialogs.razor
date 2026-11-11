@@ -1,0 +1,79 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@inject ILogger<IntegrationKeyDialogs> Logger
+
+@* The two short windows of an integration's Keys tab (Plugins and Integrations screens v6 D68). With no Secret, it asks for a name and
+   when the key expires, then Generate key. With a Secret, it shows the new key once, with Copy key; closing the window forgets it, so a
+   key can never be shown a second time. *@
+<AppDialogShell Title="@(Secret is null ? "Generate key" : "Your new key")"
+                Subtitle="@(Secret is null ? "A key lets an app or service use this integration." : "Copy it now. It will not be shown again.")"
+                Icon="@AppMaterialIcons.Outlined.Key"
+                Size="Provider"
+                Modal="false"
+                OnClose="CloseAsync">
+    <ChildContent>
+        @if (Secret is null)
+        {
+            <div class="integration-key" data-testid="integration-key-form">
+                <AppTextField @bind-Value="_name" Label="@L["IntegrationKey_Name"].Value" FullWidth="true" />
+                <AppSelect Native="true" Label="@L["IntegrationKey_Expires"].Value" Value="@_expiry" Options="@Expiries" ValueChanged="@(value => _expiry = value ?? Expiries[0].Value)" />
+            </div>
+        }
+        else
+        {
+            <div class="integration-key" data-testid="integration-key-secret">
+                <code class="integration-key__value">@Secret</code>
+                <AppButton Label="@(_copied ? "Copied" : "Copy key")" StartIcon="@(_copied ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.ContentCopy)" OnClick="CopyAsync" data-testid="integration-key-copy" />
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <div class="integration-key__footer">
+            @if (Secret is null)
+            {
+                <AppButton Label="@L["PluginPage_Cancel"].Value" OnClick="CloseAsync" />
+                <AppButton Label="@L["IntegrationKey_Generate"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_name)" OnClick="GenerateAsync" data-testid="integration-key-generate" />
+            }
+            else
+            {
+                <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseAsync" data-testid="integration-key-done" />
+            }
+        </div>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = default!;
+
+    private string _name = "Key";
+    private string _expiry = "year";
+    private bool _copied;
+
+    /// <summary>The new key, shown once. Null asks for a name and an expiry instead.</summary>
+    [Parameter] public string? Secret { get; set; }
+
+    [Parameter] public IReadOnlyList<AppSelectOption> Expiries { get; set; } = [new("year", "In 1 year (suggested)"), new("quarter", "In 90 days"), new("never", "Never")];
+
+    private Task GenerateAsync()
+    {
+        DialogInstance.Close(AppDialogResult.Ok(new IntegrationKeyRequest(_name.Trim(), _expiry)));
+        return Task.CompletedTask;
+    }
+
+    private Task CloseAsync()
+    {
+        DialogInstance.Cancel();
+        return Task.CompletedTask;
+    }
+
+    private async Task CopyAsync()
+    {
+        if (Secret is null)
+        {
+            return;
+        }
+
+        _copied = await JS.TryCopyAsync(Secret, Logger) == ClipboardCopyResult.Copied;
+    }
+}

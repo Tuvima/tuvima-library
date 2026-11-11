@@ -8,7 +8,7 @@
 .library-folders__empty span {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .library-folders__detail {
@@ -33,7 +33,7 @@
 
 .library-folders__detail-header h3 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .library-folders__detail-header > div:not(.library-folders__detail-actions) {
@@ -62,13 +62,7 @@
     border-bottom: 0;
 }
 
-.library-folders__row--head {
-    min-height: 40px;
-    color: var(--tl-text-muted);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-}
+
 
 .library-folders__name {
     display: flex;
@@ -120,9 +114,7 @@
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .library-folders__row--head {
-        display: none;
-    }
+    
 
     .library-folders__table-head {
         display: none;
@@ -161,10 +153,10 @@
     margin: 0;
     padding: 10px 12px;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 /* Under the one card breakpoint (840px, by viewport width, so portrait tablets too) folders are read-only: the note says where to
@@ -186,7 +178,7 @@
 
 .library-folders__table {
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
     overflow: hidden;
 }
 
@@ -202,9 +194,8 @@
 .library-folders__table-head {
     min-height: 40px;
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
 }
 
 .library-folders__table-row {
@@ -224,12 +215,12 @@
     padding: 0 10px;
     border-radius: 14px;
     background: var(--tl-accent-primary-soft);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .library-folders__subheading {
     margin: 4px 0 0;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .library-folders__destinations {
@@ -238,7 +229,7 @@
     padding: 0;
     list-style: none;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
 }
 
 .library-folders__destination {
@@ -260,7 +251,7 @@
     min-width: 0;
     overflow-wrap: anywhere;
     color: var(--tl-text-muted);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .library-folders__destination-note {
@@ -268,7 +259,7 @@
 }
 
 .library-folders__status {
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .library-folders__status--warning {
@@ -280,5 +271,5 @@
 .library-folders__hint {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }

@@ -260,6 +260,18 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
                 """, new { sourceId }, transaction, cancellationToken: token)) > 0, ct);
     }
 
+    public Task SetSourceSkippedFileCountAsync(Guid sourceId, int skippedFileCount, CancellationToken ct = default)
+    {
+        ValidateId(sourceId, nameof(sourceId));
+        ArgumentOutOfRangeException.ThrowIfNegative(skippedFileCount);
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+            connection.Execute(new CommandDefinition("""
+                UPDATE view_sources SET skipped_file_count = @skippedFileCount
+                 WHERE id = @sourceId AND scope_kind = 'shared' AND personal_space_id IS NULL
+                   AND skipped_file_count <> @skippedFileCount;
+                """, new { sourceId, skippedFileCount }, transaction, cancellationToken: token)), ct);
+    }
+
     private static ViewSharedSource Map(SourceRow row) => new(
         row.Id, row.LibraryId, ParseSourceType(row.SourceType), row.Name, row.SourceKey,
         ParseNullableDate(row.LastActivityAt), ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt),

@@ -1,0 +1,46 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The area chips under the Libraries title (Libraries and folder picker D1): All, Watch, Listen, Read, View (and the Vault only while it may be shown), each in its
+   area's color with a count. One chip is pressed at a time; choosing one narrows the single table below. The colors come from the area tones of the design system
+   (the lib-area--* classes), never from this component. *@
+<div class="lib-chips" role="group" aria-label="@L["LibraryAreaChips_FilterByArea"].Value" data-lib-chips>
+    @foreach (var chip in Chips)
+    {
+        <AppNativeButton Type="button"
+                         Class="@ChipClass(chip.Key)"
+                         data-area="@(chip.Key ?? "all")"
+                         aria-pressed="@((chip.Key is null ? Selected is null : IsSelected(chip.Key)) ? "true" : "false")"
+                         OnClick="@(() => Choose(chip.Key))">
+            @if (chip.Icon is not null)
+            {
+                <AppMaterialIcon Icon="@chip.Icon" />
+            }
+            <span class="lib-chip__label">@(chip.Label ?? L["LibraryAreaChips_All"].Value)</span><span class="lib-chip__count">@(chip.Key is null ? Total : CountOf(chip.Key))</span>
+        </AppNativeButton>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LibraryGroup> Areas { get; set; } = [];
+    /// <summary>How many libraries each area holds (a key missing from the list counts zero).</summary>
+    [Parameter] public IReadOnlyDictionary<string, int> Counts { get; set; } = new Dictionary<string, int>();
+    /// <summary>The area that is pressed, or null for All.</summary>
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string?> SelectedChanged { get; set; }
+
+    private sealed record Chip(string? Key, string? Label, string? Icon);
+
+    private IEnumerable<Chip> Chips => Areas.Select(area => new Chip(area.Key, area.Label, area.Icon)).Prepend(new Chip(null, null, null));
+
+    private int Total => Counts.Values.Sum();
+
+    private int CountOf(string key) => Counts.TryGetValue(key, out var count) ? count : 0;
+
+    private bool IsSelected(string key) => string.Equals(Selected, key, StringComparison.OrdinalIgnoreCase);
+
+    private string ChipClass(string? key) =>
+        $"lib-chip{(key is null ? string.Empty : $" lib-area--{key}")}{((key is null ? Selected is null : IsSelected(key)) ? " is-on" : string.Empty)}";
+
+    private Task Choose(string? key) => SelectedChanged.InvokeAsync(key);
+}

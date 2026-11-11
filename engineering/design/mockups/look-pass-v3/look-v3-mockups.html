@@ -1,0 +1,393 @@
+<title>Look v3 Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700&display=swap">
+<style>
+/* Layout: a dark page that uses the app's own token values, so every mock is drawn in the real greys. Dark only, like the Dashboard. */
+:root{
+  color-scheme:dark;
+  --page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--raised:#2F3039;
+  --text:#F5F7FB;--text2:#B6C2D6;--muted:#94A3B8;
+  --accent:#8852FC;--accent-text:#A46FFF;--accent-soft:rgba(136,82,252,.16);
+  --border-subtle:rgba(148,163,184,.10);--border:rgba(148,163,184,.16);--border-strong:rgba(182,194,214,.46);
+  --amber:#F59E0B;--red:#FF8A8A;--green:#22C55E;
+  --old-navy1:#070b14;--old-navy2:#05070c;--old-rail:rgba(7,12,23,.86);--old-menu:rgba(18,11,42,.97);--old-menu-border:rgba(136,82,252,.65);
+  --ui:"Inter",system-ui,sans-serif;--sys:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;--brand:"Montserrat","Inter",sans-serif;
+  --doc:"Inter",system-ui,sans-serif;
+}
+body{margin:0;background:var(--page);color:var(--text);font:14px/1.5 var(--doc);padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1{font-size:24px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+h2{font-size:20px;font-weight:600;margin:0;text-wrap:balance}
+p{margin:0;color:var(--text2);max-width:72ch}
+section{display:flex;flex-direction:column;gap:14px}
+.lead{color:var(--muted)}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.lab{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:0}
+.lab b{color:var(--text)}
+.notes{display:flex;flex-direction:column;gap:6px;padding:0 0 0 18px;margin:0;color:var(--text2)}
+.notes li::marker{color:var(--amber);font-weight:700}
+.m{position:absolute;width:20px;height:20px;border-radius:50%;background:#F5B942;color:#111;font:700 12px/20px var(--doc);text-align:center;z-index:5;box-shadow:0 0 0 2px var(--page)}
+/* app frame */
+.app{position:relative;border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:360px;display:grid;grid-template-columns:168px minmax(0,1fr);font-family:var(--ui);color:var(--text)}
+.app.after{background:var(--page)}
+.app.before{background:radial-gradient(circle at 52% 0%,rgba(91,33,182,.1),transparent 30%),linear-gradient(180deg,var(--old-navy1),var(--old-navy2))}
+.rail{padding:14px 10px;display:flex;flex-direction:column;gap:2px;font-size:13px;min-width:0}
+.before .rail{background:var(--old-rail);border-right:1px solid rgba(148,163,184,.14)}
+.after .rail{background:var(--nav);border-right:1px solid var(--border-subtle)}
+.rail .g{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.after .rail .g{font-size:12px;font-weight:600;letter-spacing:.06em}
+.rail div.r{padding:8px 10px;border-radius:8px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.before .rail .on{background:rgba(136,82,252,.2);color:#fff;border:1px solid rgba(136,82,252,.62)}
+.after .rail .on{background:var(--accent-soft);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{padding:16px 18px;min-width:0}
+.before .main{max-width:360px;margin:0 auto}
+.t{font-size:20px;font-weight:600;margin:0}
+.before .eyebrow{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.before .t{font-family:var(--sys);font-weight:700}
+.sub{color:var(--muted);font-size:13px;margin:2px 0 12px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-subtle);margin-bottom:14px;font-size:13px}
+.tabs span{padding:8px 10px;color:var(--muted)}
+.tabs .on{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+.tabs .adv{margin-left:auto;color:var(--amber)}
+/* before: cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+.card h4{margin:0 0 2px;font-size:15px;font-weight:700;font-family:var(--sys)}
+.card .d{font-size:12px;color:var(--muted);margin-bottom:10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--border-subtle);font-size:13px}
+.row small{display:block;color:var(--muted);font-size:12px}
+.card .row:first-of-type{border-top:0}
+/* after: groups */
+.grp{margin-bottom:20px}
+.grp h4{margin:0;font-size:15px;font-weight:600}
+.grp .d{font-size:12px;color:var(--muted);margin-bottom:4px}
+.grp .row{padding:11px 0;min-height:22px}
+.grp .row:first-of-type{border-top:0}
+.obj{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-top:6px}
+.danger{border:1px solid rgba(239,68,68,.34);border-radius:8px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.tog{width:34px;height:18px;border-radius:9px;background:var(--hover);position:relative;flex:none}.tog.on{background:var(--accent)}
+.tog:after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}.tog.on:after{left:18px}
+.sel{border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px;font-size:13px;color:var(--text);white-space:nowrap}
+.btn{background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px;font-weight:600;font-size:13px;display:inline-block}
+.btn2{border:1px solid var(--border-strong);border-radius:8px;padding:5px 12px;font-size:13px;display:inline-block}
+/* swatches */
+.sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.sw div{border:1px solid var(--border);border-radius:8px;padding:12px;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;font-size:12px;color:var(--text2)}
+.sw b{color:var(--text);font-size:13px}
+.sw code{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.roles div{border:1px solid var(--border-subtle);border-radius:8px;padding:12px 14px;background:var(--card)}
+.roles h4{margin:0 0 6px;font-size:14px;font-weight:600}
+.roles ul{margin:0;padding-left:18px;color:var(--text2);font-size:13px}
+.chip{display:inline-block;border-radius:3px;padding:2px 8px;font-size:12px;font-weight:500;margin:2px 4px 2px 0;border:1px solid transparent}
+/* menus */
+.menu{position:relative;width:240px;border-radius:8px;padding:6px;font-family:var(--ui);font-size:15px;font-weight:500;box-shadow:0 12px 32px rgba(0,0,0,.4);max-width:100%}
+.menu.before{background:var(--old-menu);border:1px solid var(--old-menu-border)}
+.menu.after{background:var(--raised);border:1px solid var(--border)}
+.menu div{display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:6px}
+.menu i{width:20px;height:20px;border-radius:4px;display:inline-block;flex:none}
+.menu.before i{background:#c4b5fd}.menu.after i{background:var(--text2)}
+.menu.before .hov{background:rgba(136,82,252,.14)}.menu.after .hov{background:rgba(255,255,255,.06)}
+.menu.before .sel-row{background:rgba(136,82,252,.2)}.menu.after .sel-row{background:var(--accent-soft);color:var(--accent-text)}
+.menu.after .sel-row i{background:var(--accent-text)}
+.menu .del{color:var(--red)}.menu .del i{background:var(--red)}
+.menu hr{border:0;border-top:1px solid var(--border-subtle);margin:4px 0}
+.menus{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+/* type */
+.type{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.type .s{border:1px solid var(--border-subtle);border-radius:8px;background:var(--card);padding:14px;position:relative;min-width:0}
+.type .s .h{font-size:18px;font-weight:600;margin:0 0 2px}
+.type .s .b{color:var(--text2);margin:0 0 10px;font-size:14px}
+.type .s .r{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--border-subtle);font-size:14px;font-weight:500}
+.type .s .r small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.type .s .tag{position:absolute;top:10px;right:10px;font-size:11px;color:var(--muted);font-family:var(--doc)}
+.f-sys{font-family:var(--sys)}.f-sys .h{font-weight:700}.f-sys .r{font-weight:600}
+.f-inter{font-family:var(--ui)}
+.f-brand{font-family:var(--brand)}
+.ladder{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:baseline;font-family:var(--ui)}
+.ladder code{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+/* tooltips */
+.tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.tip{border:1px solid var(--border-subtle);border-radius:8px;background:var(--card);padding:14px;position:relative;display:flex;flex-direction:column;gap:10px;font-family:var(--ui)}
+.tip .ex{display:flex;align-items:center;gap:10px;position:relative;padding-top:34px}
+.ib{width:40px;height:40px;border-radius:8px;border:1px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;color:var(--text2);font-size:18px;flex:none}
+.bubble{position:absolute;left:0;top:0;background:var(--raised);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;box-shadow:0 12px 32px rgba(0,0,0,.4)}
+.bubble.no{text-decoration:line-through;color:var(--muted)}
+.verdict{font-size:12px;font-weight:600}.ok{color:var(--green)}.bad{color:var(--red)}
+/* icon buttons */
+.ibs{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end}
+.ibs figure{margin:0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;font-size:12px;color:var(--muted);position:relative}
+.ibs .ib.plain{border:0;background:rgba(16,17,21,.55)}
+.ibs .ib.filled{border:0;background:var(--accent);color:#fff}
+.ibs .ib.filled.like{background:var(--accent-soft);color:var(--accent-text);box-shadow:inset 0 0 0 1px var(--accent)}
+.hero{position:relative;border-radius:10px;padding:22px 20px;background:linear-gradient(90deg,#1b1f2b 0%,#2b2334 60%,#3a2a3a 100%);display:flex;flex-direction:column;gap:12px;font-family:var(--ui);max-width:620px}
+.hero .ht{font-size:28px;font-weight:700;line-height:1.1}
+.hero .hr{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.hbtn{height:56px;min-width:180px;border-radius:10px;background:#F5F7FB;color:#101115;font-size:20px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 24px;position:relative;overflow:hidden}
+.hbtn i{position:absolute;left:0;bottom:0;height:3px;width:38%;background:var(--accent)}
+.comp{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--text2)}
+.comp .ib{width:48px;height:48px;border:0;background:rgba(16,17,21,.55);color:#fff;font-size:20px}
+.art{width:120px;height:72px;border-radius:8px;background:linear-gradient(135deg,#e9d8a6,#f4f1ea);position:relative}
+.art .ib{position:absolute;right:6px;top:6px;width:36px;height:36px;color:#fff}
+
+.ct{display:flex;gap:14px;flex-wrap:wrap}
+.ctile{width:132px;height:132px;border:1px solid var(--border);border-radius:10px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-family:var(--ui);text-align:center;position:relative}
+.ctile .sq{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:30px}
+.ctile b{font-size:14px;font-weight:500;display:block}.ctile small{font-size:12px;color:var(--muted)}
+.ctile.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.brow{display:flex;flex-direction:column;gap:0;max-width:360px;border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;background:var(--card);font-family:var(--ui)}
+.brow div{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--border-subtle);font-size:15px;font-weight:500}.brow div:first-child{border-top:0}
+.brow i{width:24px;height:24px;border-radius:5px;background:var(--text2);flex:none}.brow .chev{margin-left:auto;color:var(--muted)}
+.wins{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.win{border:1px solid var(--border);border-radius:12px;background:var(--card);padding:16px;font-family:var(--ui);position:relative;min-width:0}
+.win .wh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}.win .wh b{font-size:18px;font-weight:600}.win .wh small{display:block;color:var(--muted);font-size:13px;font-weight:400}
+.win .x{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--text2);flex:none}
+.win .wb{border-top:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle);padding:12px 0;font-size:13px;color:var(--text2);min-height:40px}
+.win .wf{display:flex;justify-content:space-between;align-items:center;padding-top:12px;gap:8px}
+.win.sheet{border-radius:16px 16px 0 0;border-bottom:0;padding-top:8px}.win.sheet:before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--border-strong);margin:0 auto 12px}
+.win.pop{border-radius:8px;background:var(--raised);padding:6px;max-width:240px}.win.pop div{padding:10px;font-size:15px;font-weight:500}
+.win.viewer{background:#000;border-radius:0;min-height:150px}.win.viewer .x{position:absolute;top:10px;right:10px}
+.win .k{position:absolute;right:12px;bottom:-9px;font-size:11px;color:var(--muted);background:var(--page);padding:0 6px;font-family:var(--doc)}
+.al{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.alc{border:1px solid var(--border-subtle);border-radius:8px;background:var(--card);padding:14px;font-family:var(--ui);position:relative;min-width:0}
+.pills{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 0}
+.pill{border:1px solid var(--border);border-radius:3px;padding:3px 8px;font-size:12px;font-weight:500;white-space:nowrap}
+.pill.on{border-color:var(--accent);color:var(--accent-text);background:var(--accent-soft)}
+.arow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;border-top:1px solid var(--border-subtle);font-size:15px;font-weight:500}
+.arow small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.badrow{display:flex;align-items:flex-start;gap:8px;border-top:1px solid var(--border-subtle);padding:8px 0;font-size:13px;font-weight:500}
+.badrow .cell{display:flex;flex-direction:column;gap:6px;flex:1}
+.ftr{display:flex;justify-content:flex-end;align-items:center;gap:8px;border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:12px}
+.ftr .quiet{margin-right:auto;color:var(--text2);font-size:13px}
+.frm{display:grid;grid-template-columns:150px 1fr;gap:10px 14px;align-items:start;font-size:14px}
+.frm label{padding-top:11px;font-weight:500}
+.frm .fld{height:40px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;display:flex;align-items:center;color:var(--text2)}
+.frm small{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+@media (max-width:600px){.app{grid-template-columns:1fr}.rail{flex-direction:row;overflow-x:auto;gap:4px}.rail .g{display:none}.before .main{max-width:none}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Look v3: one coherent UI system</h1>
+  <p class="lead">Mockups for the plan. Every grey is the app's own token value; the "before" panels copy the rules that are in the code today. Yellow numbers are called out under each pair.</p>
+</header>
+
+<section>
+  <h2>1. The five surfaces and where purple may go</h2>
+  <p>These values are already in the token file. The change is a rule for what each one is for, so nothing else paints its own dark.</p>
+  <div class="sw">
+    <div style="background:#101115"><b>Page</b><code>#101115</code>Everything behind everything</div>
+    <div style="background:#14151A"><b>Navigation and rails</b><code>#14151A</code>Top bar, Settings menu, section rails</div>
+    <div style="background:#1A1B21"><b>Card</b><code>#1A1B21</code>Only for a thing that is an object</div>
+    <div style="background:#272830"><b>Hover</b><code>#272830</code>Any row or tile under the pointer</div>
+    <div style="background:#2F3039"><b>Raised and menus</b><code>#2F3039</code>Menus, dropdowns, tooltips, pop-outs, player panels</div>
+  </div>
+  <div class="roles">
+    <div><h4>Purple, only when something is chosen or primary</h4><ul><li>Selected nav row, tab underline, chip, menu row</li><li>The one primary button, switches that are on, progress</li><li>Focus ring and the Like state</li></ul><span class="chip" style="background:var(--accent-soft);color:var(--accent-text);border-color:var(--accent)">Selected</span><span class="chip" style="background:var(--accent);color:#fff">Primary</span></div>
+    <div><h4>Area colours, only on area things</h4><ul><li>Chips, icon tiles and labels for Watch, Listen, Read, View, Vault</li><li>Never on page chrome, rails or backgrounds</li></ul><span class="chip" style="color:#FB7185;border-color:#FB7185">Watch</span><span class="chip" style="color:#FBBF24;border-color:#FBBF24">Listen</span><span class="chip" style="color:#60A5FA;border-color:#60A5FA">Read</span><span class="chip" style="color:#2DD4BF;border-color:#2DD4BF">View</span><span class="chip" style="color:#D6A84F;border-color:#D6A84F">&#9919; Vault</span></div>
+    <div><h4>Status colours, only on status</h4><ul><li>Green working, amber needs attention, red broken or destructive</li><li>Amber also marks the Advanced tab (already decided)</li></ul><span class="chip" style="color:var(--green);border-color:var(--green)">Working</span><span class="chip" style="color:var(--amber);border-color:var(--amber)">Needs a key</span><span class="chip" style="color:var(--red);border-color:var(--red)">Delete</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>2. Settings: a stack of boxes beside a navy menu, then one page</h2>
+  <div class="pair">
+    <div><p class="lab"><b>Before</b> (what the code draws today)</p>
+      <div class="app before">
+        <span class="m" style="left:6px;top:6px">1</span>
+        <div class="rail"><div class="g">Personal</div><div class="r">Profile</div><div class="r">Manage Profiles</div><div class="g">Library</div><div class="r">Libraries</div><div class="r on">Playback</div><div class="g">Server</div><div class="r">General</div><div class="r">Users &amp; Households</div><div class="r">Network</div></div>
+        <div class="main">
+          <span class="m" style="right:8px;top:48px">2</span>
+          <div class="eyebrow">Library</div>
+          <p class="t">Playback</p><p class="sub">How Library plays video and music.</p>
+          <div class="tabs"><span class="on">Quality</span><span class="adv">Advanced</span></div>
+          <div class="card" style="position:relative"><span class="m" style="left:-10px;top:-10px">3</span><h4>Remote quality</h4><div class="d">What people get away from home.</div>
+            <div class="row"><span>Default quality<small>Used until the person changes it</small></span><span class="sel">1080p</span></div>
+            <div class="row"><span>Protect your upload<small>Keep one stream per household</small></span><span class="tog on"></span></div></div>
+          <div class="card"><h4>Bandwidth test</h4><div class="d">Measure the connection once a day.</div>
+            <div class="row"><span>Run a test now</span><span class="btn2">Test</span></div></div>
+          <div class="card"><h4>Sharing</h4><div class="d">Library shares the connection automatically.</div>
+            <div class="row"><span>Pause others when a TV starts</span><span class="tog"></span></div></div>
+        </div>
+      </div>
+    </div>
+    <div><p class="lab"><b>After</b> (Look v3, D4 and D5)</p>
+      <div class="app after">
+        <span class="m" style="left:6px;top:6px">4</span>
+        <div class="rail"><div class="g">Personal</div><div class="r">Profile</div><div class="r">Manage Profiles</div><div class="g">Library</div><div class="r">Libraries</div><div class="r on">Playback</div><div class="g">Server</div><div class="r">General</div><div class="r">Users &amp; Households</div><div class="r">Network</div></div>
+        <div class="main">
+          <span class="m" style="left:170px;top:8px">5</span>
+          <p class="t">Playback</p><p class="sub">How Library plays video and music.</p>
+          <div class="tabs"><span class="on">Quality</span><span class="adv">Advanced</span></div>
+          <div class="grp" style="position:relative"><span class="m" style="left:-10px;top:-6px">6</span><h4>Remote quality</h4><div class="d">What people get away from home.</div>
+            <div class="row"><span>Default quality<small>Used until the person changes it</small></span><span class="sel">1080p</span></div>
+            <div class="row"><span>Protect your upload<small>Keep one stream per household</small></span><span class="tog on"></span></div>
+            <div class="row"><span>Pause others when a TV starts</span><span class="tog"></span></div></div>
+          <div class="grp"><h4>Bandwidth</h4><div class="d">Library measures the connection once a day.</div>
+            <div class="row"><span>Last test<small>Today 09:12 · 48 Mbit/s up</small></span><span class="btn2">Test now</span></div></div>
+          <div class="grp" style="position:relative"><span class="m" style="right:-6px;top:-6px">7</span><h4>Destinations</h4>
+            <div class="obj"><span>Living room TV<small>Roku · last seen today</small></span><span class="sel">Forget</span></div></div>
+          <div class="danger" style="position:relative"><span class="m" style="right:-6px;top:-10px">8</span><span>Reset playback settings<small>Every profile goes back to the defaults</small></span><span class="btn2" style="color:var(--red);border-color:rgba(239,68,68,.5)">Reset</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li>The rail is navy with a purple glow behind it, and the page column is near-black: two darks side by side. The selected row has a purple fill and border.</li>
+    <li>The column is centred with a 1180 px cap, so it floats away from the rail on a wide screen.</li>
+    <li>Every setting lives in a bordered card with a bold 18 px title, a 28 px icon and its own padding; three to five per tab.</li>
+    <li>Rail and page use the token greys with a hairline between them; the selected row is the purple soft wash with a thin purple edge.</li>
+    <li>The column starts at the rail, so title, tabs and groups line up on one left edge.</li>
+    <li>Settings are groups: a 16 px / 600 heading, a helper line, rows with a hairline between them and the control at the right end. No borders, no icons, no eyebrow.</li>
+    <li>A card is kept only for an object (a device, a destination, a tool, a plugin).</li>
+    <li>A danger group is outlined red, once per page at most, last.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>3. Menus and dropdowns: purple surface, then neutral with purple on the chosen row</h2>
+  <div class="menus">
+    <div><p class="lab"><b>Before</b></p><div class="menu before"><span class="m" style="left:-8px;top:-8px">9</span><div><i></i>Open</div><div class="hov"><i></i>Add to My List</div><div class="sel-row"><i></i>Season 2</div><div><i></i>Edit</div><hr><div class="del"><i></i>Delete</div></div></div>
+    <div><p class="lab"><b>After</b> (bug 13, decided A)</p><div class="menu after"><span class="m" style="left:-8px;top:-8px">10</span><div><i></i>Open</div><div class="hov"><i></i>Add to My List</div><div class="sel-row"><i></i>Season 2</div><div><i></i>Edit</div><hr><div class="del"><i></i>Delete</div></div></div>
+  </div>
+  <ol class="notes" start="9">
+    <li>Violet surface, a 65 % purple border, purple hover and lavender icons. Six shared settings drive this on every menu, the season dropdown, the thumbs pop-up and each "..." menu.</li>
+    <li>Menu grey with a hairline border, a neutral hover, purple only on the selected row (text and icon in the lighter purple), Delete in the soft red that passes contrast. The same surface is used by tooltips and the player's pop-outs.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>4. Type: the device's font today, one shipped face after</h2>
+  <p>The same Settings group three times. The first is what SHY-DESKTOP shows (Segoe UI, bold titles and row labels, as the code sets them). The second is the recommendation. The third shows the brand face as the UI font, for comparison.</p>
+  <div class="type">
+    <div class="s f-sys"><span class="m" style="left:-8px;top:-8px">11</span><span class="tag">Today · device font</span><p class="h">Remote quality</p><p class="b">What people get away from home.</p><div class="r"><span>Default quality<small>Used until the person changes it</small></span><span>1080p</span></div><div class="r"><span>Protect your upload<small>One stream per household</small></span><span>On</span></div></div>
+    <div class="s f-inter"><span class="m" style="left:-8px;top:-8px">12</span><span class="tag">Option A · Inter (recommended)</span><p class="h">Remote quality</p><p class="b">What people get away from home.</p><div class="r"><span>Default quality<small>Used until the person changes it</small></span><span>1080p</span></div><div class="r"><span>Protect your upload<small>One stream per household</small></span><span>On</span></div></div>
+    <div class="s f-brand"><span class="m" style="left:-8px;top:-8px">13</span><span class="tag">Option B · Tuvima Sans (shown as Montserrat)</span><p class="h">Remote quality</p><p class="b">What people get away from home.</p><div class="r"><span>Default quality<small>Used until the person changes it</small></span><span>1080p</span></div><div class="r"><span>Protect your upload<small>One stream per household</small></span><span>On</span></div></div>
+  </div>
+  <ol class="notes" start="11">
+    <li>Segoe (or San Francisco on a Mac, Roboto on a phone): a different look per device, and 700 is the most used weight in the app, so headings and labels compete.</li>
+    <li>Inter at the ladder sizes: 600 headings, 500 labels, 400 helper text. The same on every device. Open licence, one 300 KB file.</li>
+    <li>The brand face is wide and geometric: lines run longer and dense settings get harder to scan. Better kept for the wordmark and top navigation, as decided.</li>
+  </ol>
+  <p class="lab" style="margin-top:6px"><b>The ladder</b> (D7): a page picks a step and never writes its own size</p>
+  <div class="ladder">
+    <code>32 / 700</code><span style="font-size:32px;font-weight:700;line-height:1.2">Hero title</span>
+    <code>24 / 700</code><span style="font-size:24px;font-weight:700;line-height:1.2">Page title</span>
+    <code>20 / 600</code><span style="font-size:20px;font-weight:600;line-height:1.3">Section and shelf heading</span>
+    <code>16 / 500</code><span style="font-size:16px;font-weight:500;line-height:1.3">Controls, menus and settings rows</span>
+    <code>14 / 400</code><span style="font-size:14px;line-height:1.5">Body text, the default</span>
+    <code>13 / 400</code><span style="font-size:13px;line-height:1.5;color:var(--text2)">Secondary and helper text</span>
+    <code>12 / 500</code><span style="font-size:12px;font-weight:500;line-height:1.5;color:var(--muted)">Captions and metadata, the floor</span>
+  </div>
+</section>
+
+<section>
+  <h2>5. Tooltips: three reasons to exist</h2>
+  <div class="tips">
+    <div class="tip"><span class="m" style="left:-8px;top:-8px">14</span><div class="ex"><span class="bubble">Add to My List</span><span class="ib">+</span></div><span class="verdict ok">Allowed: the control is icon-only</span></div>
+    <div class="tip"><div class="ex"><span class="bubble">Needs an administrator to unlock</span><span class="ib" style="opacity:.5">⚙</span></div><span class="verdict ok">Allowed: it says why the control is disabled</span></div>
+    <div class="tip"><div class="ex"><span class="bubble">MasterClass: Stephen Curry Teaches Shooting</span><span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">MasterClass: Stephen Curry Teaches Shooting</span></div><span class="verdict ok">Allowed: the text is cut off</span></div>
+    <div class="tip"><span class="m" style="left:-8px;top:-8px">15</span><div class="ex"><span class="bubble no">Settings</span><span class="btn2">⚙ Settings</span></div><span class="verdict bad">Not allowed: it repeats the visible label (bug 17)</span></div>
+    <div class="tip"><div class="ex"><span class="bubble no">Open this episode</span><span style="font-weight:500">S2 E4 · The Weeping Somnambulist</span></div><span class="verdict bad">Not allowed: list and menu rows never carry one</span></div>
+    <div class="tip"><span class="m" style="left:-8px;top:-8px">16</span><div class="ex"><span class="bubble">Like</span><span class="ib">♡</span></div><span class="verdict ok">Goes away: when the control is replaced, on any press, when a menu opens, or after 4 s (bug 27)</span></div>
+  </div>
+  <ol class="notes" start="14">
+    <li>About 300 controls carry a tooltip today. Roughly half will pass these three tests; the rest go.</li>
+    <li>A check fails the build if a tooltip equals its control's own text.</li>
+    <li>Today nothing removes a tooltip when the app redraws the control under it, which is why they get stuck; a mouse tooltip also has no time limit.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>6. One icon button, three variants</h2>
+  <div class="ibs">
+    <figure><span class="ib">⋯</span>Outlined · on surfaces (default)</figure>
+    <figure><span class="art"><span class="ib plain">⋯</span></span>Plain · over artwork, no border, soft scrim (tile "...", hero companions)</figure>
+    <figure><span class="ib filled">▶</span>Filled · primary</figure>
+    <figure><span class="ib filled like">♥</span>Filled soft · the Like state at rest</figure>
+  </div>
+  <ol class="notes" start="17">
+    <li>Today the hero row, the rate control, the tile menu and a global circle rule each style their own button (bug 11), and the tile "..." inherits an outline that vanishes on light covers (bug 30c). One part with three variants replaces all four.</li>
+  </ol>
+  <p class="lab" style="margin-top:10px"><b>The shared hero row</b> (bug 10, decided: one 56 px light button on Home and on every details page)</p>
+  <div class="hero">
+    <span class="m" style="left:-8px;top:-8px">18</span>
+    <div class="ht">MasterClass: Stephen Curry</div>
+    <div class="hr">
+      <span class="hbtn">▶ Resume<i></i></span>
+      <span class="comp"><span class="ib">▣</span>Open</span>
+      <span class="comp"><span class="ib">+</span>My List</span>
+      <span class="comp"><span class="ib">♡</span>Like</span>
+      <span class="comp"><span class="ib">⋯</span>More</span>
+    </div>
+  </div>
+  <ol class="notes" start="18">
+    <li>One wide light button, 56 px tall with a 20 px label, reads over any artwork; a thin purple progress bar under Resume. Companions are the Plain variant at 48 px with a short label. A folder of videos gets an Open button with a folder icon instead of today's text link. The same row is used by the Home hero, the details hero and the phone hero.</li>
+  </ol>
+</section>
+<section>
+  <h2>7. Icons: one ladder, above text or beside it</h2>
+  <p>Five sizes only (16, 20, 24, 32, 48, plus 64 for empty states). An icon sits above its text in a tile you choose from, and beside it in a row or button. Nothing else places or sizes an icon.</p>
+  <p class="lab"><b>Above text</b>: the choice tile (Add library step 1 and 2, setup area cards, "What is this file?")</p>
+  <div class="ct">
+    <div class="ctile on"><span class="m" style="left:-8px;top:-8px">19</span><span class="sq" style="background:rgba(251,113,133,.14);color:#FB7185">&#9654;</span><span><b>Watch</b><small>Movies, TV, videos</small></span></div>
+    <div class="ctile"><span class="sq" style="background:rgba(251,191,36,.14);color:#FBBF24">&#9835;</span><span><b>Listen</b><small>Music, audiobooks</small></span></div>
+    <div class="ctile"><span class="sq" style="background:rgba(96,165,250,.14);color:#60A5FA">&#9636;</span><span><b>Read</b><small>Books, comics</small></span></div>
+    <div class="ctile"><span class="sq" style="background:rgba(45,212,191,.14);color:#2DD4BF">&#9711;</span><span><b>View</b><small>Photos, documents</small></span></div>
+    <div class="ctile"><span class="sq" style="background:rgba(214,168,79,.14);color:#D6A84F">&#9919;</span><span><b>Vault</b><small>Private</small></span></div>
+  </div>
+  <p class="lab" style="margin-top:8px"><b>Beside text</b>: rows, buttons, menus and chips</p>
+  <div class="brow"><span class="m" style="left:-8px;top:-8px">20</span><div><i></i>Libraries<span class="chev">&#8250;</span></div><div><i></i>Playback<span class="chev">&#8250;</span></div><div><i style="background:#F59E0B"></i>Tools<span class="chev" style="color:var(--amber)">Needs a key</span></div></div>
+  <ol class="notes" start="19">
+    <li>A choice tile: a 48 px icon on a soft square in the area colour (neutral when there is no area), the name at 14 px under it, an optional muted second line, everything centred. The selected tile gets the purple edge. Today's Add library tiles show a 28 px icon beside the text because they are built from the shared button.</li>
+    <li>A row or button: the 24 px icon leads, a 12 px gap, the text at 16 px / 500, a chevron or status at the far right. The icon is grey unless the row is selected or carries a meaning colour.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>8. Windows: four kinds, one ladder</h2>
+  <p>Everything that floats over the page is one of these four, each a shared part. Today 82 files build their own, with widths from 140 to 1,540 px and corners from 6 to 18 px.</p>
+  <div class="wins">
+    <div class="win"><span class="m" style="left:-8px;top:-8px">21</span><div class="wh"><span><b>TMDB key</b><small>Used to find details for movies and TV.</small></span><span class="x">&#10005;</span></div><div class="wb">&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679; &nbsp; Test &nbsp; Remove</div><div class="wf"><span class="btn2">Cancel</span><span class="btn">Save</span></div><span class="k">Window · S 480 · M 640 · L 900</span></div>
+    <div class="win sheet"><span class="m" style="left:-8px;top:-8px">22</span><div class="wh"><span><b>TMDB key</b><small>Used to find details for movies and TV.</small></span></div><div class="wb">&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;</div><div class="wf"><span class="btn2">Cancel</span><span class="btn">Save</span></div><span class="k">Sheet · the Window on phones</span></div>
+    <div><div class="win pop"><span class="m" style="left:-8px;top:-8px">23</span><div style="font-size:12px;color:var(--muted);font-weight:600;padding:6px 10px 2px">Speed</div><div>0.75&times;</div><div style="background:var(--accent-soft);color:var(--accent-text);border-radius:6px">1&times;</div><div>1.25&times;</div><div>1.5&times;</div></div><span style="display:block;font-size:11px;color:var(--muted);margin-top:6px">Pop-out · Menu 272 · Panel 400</span></div>
+    <div class="win viewer"><span class="m" style="left:-8px;top:-8px">24</span><span class="x">&#10005;</span><div style="color:var(--muted);font-size:13px;padding-top:60px;text-align:center">photo, page, document or search</div><span class="k">Viewer · full screen</span></div>
+  </div>
+  <ol class="notes" start="21">
+    <li>Window: centred over a dark scrim, three widths (480 for a confirmation, 640 for a form or picker, 900 for a workspace), 12 px corners, one anatomy: title, one-line description, close X, body, footer with Cancel or Discard left and the one primary button last; a destructive button is outlined red beside it.</li>
+    <li>Sheet: every Window under 600 px, from the bottom, a handle, the same anatomy. No page opts out.</li>
+    <li>Pop-out: anchored to its control, no scrim, the raised grey, 8 px corners; Menu width for "..." menus, Panel width for tools such as the player's speed, audio, subtitles and queue, and the folders pop-over. A Pop-out becomes a Sheet on phones.</li>
+    <li>Viewer: full screen for the reader, photo and document viewers, search and the details overlay, with the same 44 px close X and the same menus and tooltips as everywhere else.</li>
+  </ol>
+</section>
+<section>
+  <h2>9. Alignment: one axis per row, one order for buttons</h2>
+  <p>The editor's Match row as it is today, then as the rules draw it; a form and a footer under the same rules.</p>
+  <div class="al">
+    <div class="alc"><span class="m" style="left:-8px;top:-8px">25</span><p class="lab"><b>Today</b> (Match tab)</p>
+      <div class="badrow"><div class="cell"><span>Providers</span><span class="pills" style="padding:0"><span class="pill on">TheTVDB</span><span class="pill">TMDB</span><span class="pill">Wikidata</span></span></div><div class="cell" style="flex:0 0 auto"><span>Search<br>Wikidata</span><span class="tog on"></span></div></div></div>
+    <div class="alc"><span class="m" style="left:-8px;top:-8px">26</span><p class="lab"><b>After</b> (D15)</p>
+      <div class="arow" style="border-top:0;min-height:44px"><span style="display:flex;gap:8px;align-items:center"><span class="sel">TheTVDB &#9662;</span><span class="ib" style="width:36px;height:36px;font-size:15px">&#9906;</span></span><span class="pills" style="padding:0;gap:0;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden"><span class="pill" style="border:0;border-radius:0;padding:7px 10px">Media providers</span><span class="pill on" style="border:0;border-radius:0;padding:7px 10px">Wikidata</span></span></div></div>
+    <div class="alc"><span class="m" style="left:-8px;top:-8px">27</span><p class="lab"><b>Form</b></p>
+      <div style="display:grid;gap:12px;font-size:14px"><div><div style="font-size:13px;font-weight:500;margin-bottom:6px">Title</div><div class="fld" style="height:40px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;display:flex;align-items:center;color:var(--text2)">Dune Part One</div></div><div><div style="font-size:13px;font-weight:500;margin-bottom:6px">Sort title</div><div style="height:40px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;display:flex;align-items:center;color:var(--text2)">Dune Part One</div><small style="display:block;color:var(--muted);font-size:13px;margin-top:4px">Used only for ordering</small></div><div><div style="font-size:13px;font-weight:500;margin-bottom:6px">Year</div><div style="height:40px;width:96px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;display:flex;align-items:center;justify-content:flex-end;color:var(--text2)">2021</div></div></div>
+      <div class="ftr"><span class="quiet">Reset</span><span class="btn2" style="color:var(--red);border-color:rgba(239,68,68,.5)">Delete</span><span class="btn2">Discard</span><span class="btn">Save changes</span></div><span class="m" style="right:-8px;bottom:-8px">28</span></div>
+  </div>
+  <ol class="notes" start="25">
+    <li>Two things in one row: the switch label breaks onto two lines inside its cell and sits above the row's centre line, and the pills crowd the switch.</li>
+    <li>Still one row, as Shy asked: the provider dropdown and an icon-only Search on the left, the Media providers · Wikidata control on the right, all on one centre line. A label never wraps inside a toolbar row; if there is no room, it shortens with an ellipsis and a tooltip.</li>
+    <li>Form fields: the label above the field at 13 px, helper text under it, numbers right-aligned, the same on every width (as the editor already does). Settings rows are the other shape: label left, control right.</li>
+    <li>One footer order everywhere: quiet action far left, destructive outlined red, then Discard, then the one primary button last; same height, same baseline; stacked full width on phones.</li>
+  </ol>
+  <p class="lab" style="margin-top:14px"><b>Text never rides on a control</b></p>
+  <div class="al">
+    <div class="alc"><span class="m" style="left:-8px;top:-8px">29</span><p class="lab"><b>Today</b></p>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="flex:1;height:40px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;display:flex;align-items:center;color:var(--text2)">&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;</span><span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span class="btn2">Test</span><span style="color:var(--green);font-size:12px">Connected</span></span><span class="btn2">Remove</span></div></div>
+    <div class="alc"><span class="m" style="left:-8px;top:-8px">30</span><p class="lab"><b>After</b> (D15.6)</p>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="flex:1;height:40px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;display:flex;align-items:center;color:var(--text2)">&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;</span><span class="btn2">Test</span><span class="btn2">Remove</span></div>
+      <div style="font-size:13px;color:var(--green);margin-top:8px;min-height:18px">Connected</div></div>
+  </div>
+  <ol class="notes" start="29">
+    <li>A result line placed under one button lifts that button above the others, so the controls on the row no longer share a centre line.</li>
+    <li>Status, helper, error and result text go on their own full-width row under the control row, and that row keeps its height, so nothing on the row above moves when the text appears or changes.</li>
+  </ol>
+</section>
+</div>

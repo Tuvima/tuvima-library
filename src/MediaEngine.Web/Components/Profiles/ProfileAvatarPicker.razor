@@ -66,7 +66,7 @@
             </label>
             @if (HasPhoto)
             {
-                <AppNativeButton Type="button" Class="who-button" Disabled="@Disabled" OnClick="@(() => PhotoRemoved.InvokeAsync())">@L["ProfileAvatarPicker_RemovePhoto"]</AppNativeButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Disabled="@Disabled" OnClick="@(() => PhotoRemoved.InvokeAsync())" Label="@L["ProfileAvatarPicker_RemovePhoto"].Value" />
             }
         </div>
         <p class="avatar-picker__hint">@L["ProfileAvatarPicker_JPEGPNGOrWebPUp"]</p>

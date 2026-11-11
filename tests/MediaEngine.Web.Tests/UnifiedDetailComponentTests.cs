@@ -98,7 +98,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("#000 32%", styles);
         Assert.Contains("<SurfaceNavigationBar", ReadSource("src/MediaEngine.Web/Components/Details/DetailTabs.razor"));
         Assert.Contains("background: #090c12", styles);
-        Assert.Contains("font-family: Georgia, \"Times New Roman\", serif", styles);
+        Assert.Contains("font-family: var(--font-reader)", styles);
         Assert.Contains("font-weight: 500", styles);
         Assert.Contains("max-width: 22ch", styles);
         Assert.DoesNotContain("min-height: calc(100dvh - 5.75rem)", styles);
@@ -113,7 +113,6 @@ public sealed class UnifiedDetailComponentTests
     {
         var presentation = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroPresentation.cs");
         var hero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
-        var progress = ReadSource("src/MediaEngine.Web/Components/Details/HeroProgressBlock.razor");
         var styles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var client = ReadEngineApiClientSources();
         var appStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
@@ -149,10 +148,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-detail-collection-artwork", hero);
         Assert.Contains("usePrimaryHeroChrome ? string.Empty : FormatEntityType", presentation);
         Assert.Contains("UsesPrimaryHeroChrome", presentation);
-        Assert.Contains("tl-detail-hero-progress", progress);
-        Assert.Contains("--hero-progress", progress);
         Assert.Contains("Progress = detail.Progress", client);
-        Assert.Contains(".tl-detail-hero-progress__fill", styles);
         Assert.Contains("rgba(var(--hero-shadow-rgb), 0.24) 0%", styles);
         Assert.Contains("rgba(var(--hero-shadow-rgb), 0.06) 42%", styles);
         Assert.Contains("rgba(var(--hero-shadow-rgb), 0.96) 100%", styles);
@@ -247,9 +243,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("flex-wrap: nowrap", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
         Assert.Contains(".tl-detail-watch-metadata-row--facts", ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css"));
         Assert.Contains("align-items:center", actions);
-        Assert.Contains("height:4.6rem", actions);
-        Assert.Contains("flex:0 0 auto; width:22rem", actions);
-        Assert.Contains("var(--tl-font-size-xl)", actions);
+        Assert.Contains("height:var(--tl-hero-action-height)", actions);
+        Assert.Contains("flex:0 0 auto; width:min(100%, 24rem)", actions);
+        Assert.Contains("var(--tl-hero-action-label-size)", actions);
         Assert.Contains("@media (max-width: 600px)", actions);
     }
 
@@ -327,20 +323,17 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void SequencePlacement_EnlargesSeasonArtworkWithoutGrowingTheBrowserRow()
+    public void SequencePlacement_HasNoSeasonPosterBrowser_AndKeepsTheSeasonPageRowHeight()
     {
         var styles = ReadSequenceStyles();
 
-        Assert.Contains("grid-auto-columns: clamp(11.5rem, 15vw, 14rem)", styles);
-        Assert.Contains("justify-content: start", styles);
-        Assert.Contains("text-align: center", styles);
+        // The season control is a dropdown; the old row of season posters (and its toggle) is gone.
+        Assert.DoesNotContain(".tl-season-card", styles);
+        Assert.DoesNotContain(".tl-season-toggle", styles);
+        Assert.DoesNotContain(".tl-season-browser", styles);
         Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__carousel", styles);
         Assert.Contains("min-height: clamp(24rem, 58svh, 30rem)", styles);
-        Assert.Contains("padding: 0.25rem 0.45rem 0.15rem", styles);
         Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__ownership", styles);
-        Assert.Contains("min-height: 1.65rem", styles);
-        Assert.Contains("padding-top: 0.15rem", styles);
-        Assert.DoesNotContain(".tl-season-card__edit", styles);
         Assert.DoesNotContain(".tl-series-detail__edit-season", styles);
     }
 
@@ -421,7 +414,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("CreditGroupType.Writers", source);
         Assert.Contains("CreditGroupType.Illustrators", source);
         Assert.DoesNotContain("RelatedEntityChip", source);
-        Assert.Contains("OverviewParagraphs(Pending?.Description(Model.Description) ?? Model.Description)", source);
+        Assert.Contains("OverviewParagraphs(Model.Description)", source);
         Assert.Contains("Split('\\n'", source);
         Assert.Contains("Replace(\"\\\\n\", \"\\n\", StringComparison.Ordinal)", source);
         Assert.Contains("DescriptionAttribution Attribution=\"Model.DescriptionAttribution\" Compact=\"true\"", source);
@@ -479,7 +472,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".app-menu-item", appStyles);
         Assert.Contains("--tl-secondary-action-border", appStyles);
         var detailStyles = ReadDetailStyles();
-        Assert.Contains("height:4.6rem", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
+        Assert.Contains("height:var(--tl-hero-action-height)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
     }
 
     [Fact]
@@ -657,7 +650,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("item.PublicationDate", source);
         Assert.DoesNotContain("tl-series-item__owned-badge", source);
         Assert.Contains("tl-series-item__completed-badge", source);
-        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppSize.Small\"", source);
+        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppIconSize.Control20\"", source);
         Assert.Contains("ItemNoun", source);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 6), minmax(5.8rem, 7.3rem))", styles);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 7), minmax(7.2rem, 9.2rem))", styles);
@@ -1051,10 +1044,9 @@ public sealed class UnifiedDetailComponentTests
         var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
-        var popupHost = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor");
         var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
-        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor");
-        var popupPlayer = popupHost + fullPlayer + contextPanel;
+        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor");
+        var phonePlayer = fullPlayer + contextPanel + ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
         var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
         var playbackService = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs");
@@ -1064,19 +1056,12 @@ public sealed class UnifiedDetailComponentTests
         var heroMetadata = ReadSource("src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor");
         var playerBar = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
         var playerStyles = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css");
-        var transportControls = ReadSource("src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor");
-        var transportControlStyles = ReadSource("src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css");
-        var popupPlayerStyles = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css");
         var playbackSkipButton = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor");
         var playbackSkipButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css");
         var playbackPrimaryButton = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor");
         var playbackPrimaryButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css");
-        var playbackTimelineMetaRow = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor");
-        var playbackTimelineMetaRowStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css");
-        var playbackSpeedControl = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor");
-        var playbackSpeedControlStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
-        var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor");
-        var playbackSleepTimerControlStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css");
+        var playbackSpeedView = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
+        var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerView.razor");
         var playbackRangeSlider = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor");
         var playbackRangeSliderStyles = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css");
         var playerScript = ReadSource("src/MediaEngine.Web/wwwroot/app.js");
@@ -1141,28 +1126,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<AudioItemTable", ReadSource("src/MediaEngine.Web/Components/Details/MusicTrackList.razor"));
         Assert.Contains("_columns.AddRange(IsAudiobook ? AudiobookColumns() : MusicColumns())", audioTable);
         Assert.Contains("private static IReadOnlyList<AudioTableColumn> AudiobookColumns()", audioTable);
-        Assert.Contains("<PlaybackPrimaryButton", transportControls);
-        Assert.DoesNotContain("PlayButtonStyle", transportControls);
-        Assert.DoesNotContain("PlayIconClass", transportControls);
-        Assert.DoesNotContain("AppMaterialIcons.Filled.PlayArrow", transportControls);
         Assert.Contains("[Parameter(CaptureUnmatchedValues = true)]", playbackPrimaryButton);
         Assert.Contains("@attributes=\"AdditionalAttributes\"", playbackPrimaryButton);
         Assert.Contains("playback-primary-button-shell--compact", playbackPrimaryButtonStyles);
         Assert.Contains("playback-primary-button-shell--large", playbackPrimaryButtonStyles);
-        Assert.Contains("\"popup\" => \"large\"", transportControls);
-        Assert.Contains("\"panel\" => \"standard\"", transportControls);
-        Assert.Contains("_ => \"compact\"", transportControls);
-        Assert.Contains("listen-transport__secondary-icon", transportControls);
-        Assert.Contains("<PlaybackSeekRail Surface=\"phone\"", fullPlayer);
-        Assert.DoesNotContain("class=\"playback-full__time\"", fullPlayer);
-        Assert.Contains("playback-timeline-meta-row", playbackTimelineMetaRow);
-        Assert.Contains("color: var(--playback-text);", playbackTimelineMetaRowStyles);
-        Assert.DoesNotContain(".listen-popup__chapter-row", popupPlayerStyles);
-        Assert.DoesNotContain("background: var(--listen-accent", transportControlStyles);
-        Assert.DoesNotContain("background: var(--listen-audio-accent", transportControlStyles);
         Assert.DoesNotContain(".listen-player__play {", playerStyles);
-        Assert.DoesNotContain(".listen-popup__play {", popupPlayerStyles);
-        Assert.Contains("<PlaybackRelativeSkipButton", transportControls);
         Assert.Contains("playback-relative-skip", playbackSkipButton);
         Assert.Contains("viewBox=\"0 0 56 56\"", playbackSkipButton);
         Assert.Contains("playback-relative-skip__glyph", playbackSkipButton);
@@ -1173,52 +1141,42 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("M47 29A19 19 0 1 1 28 9", playbackSkipButton);
         Assert.Contains("M9 29A19 19 0 1 0 28 9", playbackSkipButton);
         Assert.DoesNotContain("translate(56 0) scale(-1 1)", playbackSkipButton);
-        Assert.DoesNotContain("AudiobookSkipButton", transportControls + playbackSkipButton + playbackSkipButtonStyles);
-        Assert.DoesNotContain("audiobook-skip-button", transportControls + playbackSkipButton + playbackSkipButtonStyles);
-        Assert.DoesNotContain("audiobook-skip-button__line", transportControls + playbackSkipButton + playbackSkipButtonStyles);
-        Assert.DoesNotContain("audiobook-skip-button__unit", transportControls + playbackSkipButton + playbackSkipButtonStyles);
-        Assert.DoesNotContain("data-listen-seek-delta", transportControls + playbackSkipButton + playbackSkipButtonStyles);
-        Assert.DoesNotContain("AppMaterialIcons.Filled.Replay30", transportControls);
-        Assert.DoesNotContain("AppMaterialIcons.Filled.Forward30", transportControls);
-        Assert.DoesNotContain("audiobook-skip-button__icon", transportControls);
-        Assert.DoesNotContain("title=\"@label\"", transportControls + playbackSkipButton);
-        Assert.Contains("ChapterDuration", popupPlayer);
-        Assert.Contains("chapter.EndSeconds.Value - chapter.StartSeconds", popupPlayer);
+        Assert.DoesNotContain("AudiobookSkipButton", playbackSkipButton + playbackSkipButtonStyles);
+        Assert.DoesNotContain("audiobook-skip-button", playbackSkipButton + playbackSkipButtonStyles);
+        Assert.DoesNotContain("audiobook-skip-button__line", playbackSkipButton + playbackSkipButtonStyles);
+        Assert.DoesNotContain("audiobook-skip-button__unit", playbackSkipButton + playbackSkipButtonStyles);
+        Assert.DoesNotContain("data-listen-seek-delta", playbackSkipButton + playbackSkipButtonStyles);
+        Assert.DoesNotContain("title=\"@label\"", playbackSkipButton);
+        Assert.Contains("Length(chapter, position)", phonePlayer);
+        Assert.Contains("end - chapter.StartSeconds", phonePlayer);
         Assert.Contains("playback-relative-skip", playbackSkipButton);
         Assert.Contains("playback-relative-skip__arc", playbackSkipButton);
         Assert.Contains("playback-relative-skip__arrow", playbackSkipButton);
         Assert.Contains("playback-relative-skip__number", playbackSkipButton);
         Assert.Contains("data-playback-seek-delta", playbackSkipButton);
-        Assert.Contains("consumeImmediateToggleHandled", popupPlayer);
-        Assert.Contains("consumeImmediateSeekHandled", popupPlayer);
-        Assert.DoesNotContain("AppMaterialIcons.Filled.Replay30", popupPlayer);
-        Assert.DoesNotContain("AppMaterialIcons.Filled.Forward30", popupPlayer);
-        Assert.DoesNotContain("audiobook-skip-button__icon", popupPlayer);
-        Assert.DoesNotContain("listen-skip-glyph", popupPlayer);
-        Assert.DoesNotContain("<strong>@value</strong>", popupPlayer);
-        Assert.DoesNotContain("<span>@label</span>", popupPlayer);
-        Assert.DoesNotContain("title=\"@label\"", transportControls + playbackSkipButton);
-        Assert.Contains("@if (IsBook)", popupPlayer);
-        Assert.DoesNotContain("<h1>@current.Title</h1>\n                <p>@PlayerSubtitle(current)</p>", popupPlayer.Replace("\r\n", "\n", StringComparison.Ordinal));
-        Assert.Contains("PlaybackContextRow Variant=\"history\"", popupPlayer);
+        Assert.Contains("consumeImmediateToggleHandled", phonePlayer);
+        Assert.Contains("consumeImmediateSeekHandled", phonePlayer);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Replay30", phonePlayer);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Forward30", phonePlayer);
+        Assert.DoesNotContain("audiobook-skip-button__icon", phonePlayer);
+        Assert.DoesNotContain("listen-skip-glyph", phonePlayer);
+        Assert.DoesNotContain("<strong>@value</strong>", phonePlayer);
+        Assert.DoesNotContain("<span>@label</span>", phonePlayer);
+        Assert.DoesNotContain("title=\"@label\"", playbackSkipButton);
+        Assert.DoesNotContain("<h1>@current.Title</h1>\n                <p>@PlayerSubtitle(current)</p>", phonePlayer.Replace("\r\n", "\n", StringComparison.Ordinal));
+        Assert.Contains("PlaybackContextRow Variant=\"history\"", phonePlayer);
         Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", contextPanel);
         Assert.Contains("Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}", contextPanel);
-        Assert.Contains("ListenPlaybackCommandActions.SetSpeed", popupPlayer);
-        Assert.Contains("SpeedMenuOpenChanged=\"SpeedMenuChangedAsync\"", popupPlayer);
-        Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", popupPlayer);
-        Assert.Contains("SleepTimerChanged=", popupPlayer);
-        Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
-        Assert.DoesNotContain("SpeedRates", popupPlayer);
-        Assert.DoesNotContain("Choose playback speed", popupPlayer);
-        Assert.DoesNotContain("listen-popup-sheet__speed-row", popupPlayer + popupPlayerStyles);
-        Assert.DoesNotContain("listen-popup-sheet__radio", popupPlayer + popupPlayerStyles);
-        Assert.DoesNotContain("TimerRow(", popupPlayer);
-        Assert.DoesNotContain("SleepTimerDisplay", popupPlayer);
-        Assert.DoesNotContain("listen-popup-sheet__row--timer", popupPlayer + popupPlayerStyles);
-        Assert.Contains("<AppRangeSlider", playbackSpeedControl);
+        Assert.Contains("SelectionChanged=", phonePlayer);
+        Assert.DoesNotContain("SpeedRates", phonePlayer);
+        Assert.DoesNotContain("Choose playback speed", phonePlayer);
+        Assert.DoesNotContain("listen-popup-sheet__speed-row", phonePlayer);
+        Assert.DoesNotContain("listen-popup-sheet__radio", phonePlayer);
+        Assert.DoesNotContain("TimerRow(", phonePlayer);
+        Assert.DoesNotContain("SleepTimerDisplay", phonePlayer);
+        Assert.DoesNotContain("listen-popup-sheet__row--timer", phonePlayer);
+        Assert.Contains("<AppRangeSlider", playbackSpeedView);
         Assert.DoesNotContain("<AppRangeSlider", playbackSleepTimerControl);
-        Assert.Contains("Open=\"Open\"", playbackSpeedControl);
-        Assert.Contains("OpenChanged=\"MenuOpenChanged\"", playbackSpeedControl);
         Assert.Contains("type=\"range\"", playbackRangeSlider);
         Assert.Contains("@oninput=\"HandleInputAsync\"", playbackRangeSlider);
         Assert.Contains("_interactiveValue = snapped", playbackRangeSlider);
@@ -1234,21 +1192,18 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("playback-range-slider__fill", playbackRangeSlider);
         Assert.Contains("playback-range-slider__thumb", playbackRangeSlider);
         Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\" role=", playbackRangeSlider);
-        Assert.Contains("Step=\"0.05\"", playbackSpeedControl);
-        Assert.Contains("PlaybackRateOptions.FormatLabel", playbackSpeedControl);
-        Assert.DoesNotContain("Quick presets", playbackSpeedControl);
-        Assert.DoesNotContain("ResetValue", playbackSpeedControl);
-        Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerControl);
-        Assert.Contains("AudiobookSleepTimerModes.EndNext", playbackSleepTimerControl);
+        Assert.Contains("Step=\"@PlaybackSpeedChoices.Step\"", playbackSpeedView);
+        Assert.Contains("ValueFormatter=\"PlaybackSpeedChoices.Format\"", playbackSpeedView);
+        Assert.DoesNotContain("Quick presets", playbackSpeedView);
+        Assert.DoesNotContain("ResetValue", playbackSpeedView);
+        var playbackSleepTimerChoices = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs");
+        Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerChoices);
         Assert.Contains("Availability.CanEndCurrent", playbackSleepTimerControl);
-        Assert.Contains("Availability.CanEndNext", playbackSleepTimerControl);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", playbackSleepTimerControl);
         Assert.DoesNotContain("AppRangeSlider", playbackSleepTimerControl);
         Assert.DoesNotContain("System.Threading.Timer", playbackSleepTimerControl);
-        Assert.Contains("playback-speed-control__slider", playbackSpeedControl);
-        Assert.DoesNotContain("_pendingValue", playbackSpeedControl);
-        Assert.Contains(".app-select__trigger-content", playbackSleepTimerControlStyles);
-        Assert.Contains(".app-select--playback-flat.app-field", playbackSpeedControlStyles);
+        Assert.Contains("AppRangeSlider", playbackSpeedView);
+        Assert.DoesNotContain("_pendingValue", playbackSpeedView);
         Assert.Contains("playback-range-slider__input", playbackRangeSliderStyles);
         Assert.Contains("--playback-range-percent", playbackRangeSliderStyles);
         Assert.Contains("--playback-range-track-inset", playbackRangeSliderStyles);
@@ -1262,15 +1217,14 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".playback-range-slider ::deep .playback-range-slider__label", playbackRangeSliderStyles);
         Assert.Contains("position: absolute;", playbackRangeSliderStyles);
         Assert.Contains("top: 0;", playbackRangeSliderStyles);
-        Assert.Contains("<AudiobookBookmarkDialog", popupPlayer);
-        Assert.DoesNotContain("_snapshot.AudiobookBookmarks", popupPlayer);
-        Assert.Contains("<PlaybackContextRow Variant=\"history\"", popupPlayer);
-        Assert.DoesNotContain("playback-sheet-row__index", popupPlayer);
-        Assert.DoesNotContain("listen-popup-sheet__index", popupPlayer);
-        Assert.DoesNotContain("<PlaybackPositionList", popupPlayer);
-        Assert.DoesNotContain("listen-popup-sheet__primary", popupPlayer);
-        Assert.DoesNotContain("SecondaryActionLabel=\"Delete bookmark\"", popupPlayer);
-        Assert.Contains("playback-full__book-progress", popupPlayer);
+        Assert.Contains("<BookmarksPanel", phonePlayer);
+        Assert.DoesNotContain("_snapshot.AudiobookBookmarks", phonePlayer);
+        Assert.Contains("<PlaybackContextRow Variant=\"history\"", phonePlayer);
+        Assert.DoesNotContain("playback-sheet-row__index", phonePlayer);
+        Assert.DoesNotContain("listen-popup-sheet__index", phonePlayer);
+        Assert.DoesNotContain("<PlaybackPositionList", phonePlayer);
+        Assert.DoesNotContain("listen-popup-sheet__primary", phonePlayer);
+        Assert.DoesNotContain("SecondaryActionLabel=\"Delete bookmark\"", phonePlayer);
         Assert.DoesNotContain("FormatChapterTimeRange", audioTable);
         Assert.DoesNotContain("AudioDetailLayout", detailPage);
         Assert.DoesNotContain("Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Tracks", primaryModule);
@@ -1320,8 +1274,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("startPositionFromDataset", playerScript);
         Assert.Contains("listenPendingStartPosition", playerScript);
         Assert.Contains("document.addEventListener('click'", playerScript);
-        Assert.Contains("openPopupFromImmediateAction", playerScript);
-        Assert.Contains("data-listen-popup-route", playerBar);
+        Assert.DoesNotContain("openPopupFromImmediateAction", playerScript);
         Assert.Contains("AudiobookActionAttributes", detailPage);
         Assert.Contains("ActionAttributes=\"@(IsAudiobook ? AudiobookActionAttributes : null)\"", detailPage);
         Assert.Contains("window.detailOrigin.initialize();", playerScript);
@@ -1348,7 +1301,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".Concat(SecondaryActions)", actions);
         Assert.DoesNotContain("watch-party", actions, StringComparison.Ordinal);
         Assert.Contains("<MediaRateControl", actions);
-        Assert.Contains("border-radius: 999px", styles);
+        Assert.Contains("border-radius: var(--tl-control-radius)", styles);
         Assert.Contains("AppMaterialIcons.Filled.Favorite", songTable);
         Assert.Contains("AppMaterialIcons.Outlined.FavoriteBorder", songTable);
         Assert.Contains("AppMaterialIcons.Filled.Favorite", libraryTable);
@@ -1357,47 +1310,33 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void PlaybackPopoutUsesSharedFullPlayerAndAuthorizedTools()
+    public void PhonePlayerUsesSharedFullPlayerAndAuthorizedTools()
     {
-        var popup = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor");
         var host = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
-        var controls = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor");
-        var transport = ReadSource("src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor");
-        var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor");
-        var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor");
-        var sleep = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor");
+        var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor");
+        var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
 
+        // The phone's Now playing draws the catalog's transport and its one row of tools; the bar's own panels (Speed, Sleep timer, Chapters, Lyrics, Queue)
+        // reach it through the shared fragments, so a tool opens the same sheet in both places (unified player v2 D26).
         var full = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
-        Assert.Contains("<PlaybackFullPlayer", popup);
-        Assert.DoesNotContain("OnCollapse=", popup);
         Assert.Contains("<PlaybackFullPlayer", host);
-        Assert.Contains("<PlaybackControlStrip", full);
-        Assert.Contains("<ListenTransportControls", full);
-        Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", full);
-        Assert.Contains("SleepTimerAvailability=\"Snapshot.SleepTimerAvailability\"", full);
-        Assert.Contains("SleepTimerChanged=", full);
-        Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full);
-        Assert.Contains("<PlaybackSleepTimerControl", controls);
-        Assert.Contains("<PlaybackSpeedControl", controls);
+        Assert.Contains("<PlaybackToolRow", full);
+        Assert.Contains("<PlaybackPrimaryButton Size=\"phone\"", full);
+        Assert.Contains("PlaybackControlCatalog.BuildPhoneTransport", full);
+        Assert.Contains("ToolContent=\"@DockTool\"", host);
+        Assert.Contains("TimelineContent=\"@DockTimeline\"", host);
+        Assert.DoesNotContain("PlaybackVolumeControl", full);
+        Assert.DoesNotContain("<PlaybackSleepTimerControl", full);
         Assert.Contains("<AppRangeSlider", speed);
-        Assert.Contains("Availability.CanEndCurrent", sleep);
-        Assert.Contains("Availability.CanEndNext", sleep);
-        Assert.Contains("<AudiobookBookmarkDialog", popup);
-        Assert.Contains("OnValidSubmit=\"SaveAsync\"", bookmark);
-        Assert.Contains("ReplayAsync(bookmark.Id)", bookmark);
-        Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark);
-        Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark);
-        Assert.Contains("<PlaybackRelativeSkipButton Seconds=\"@SkipBackSeconds\" Direction=\"back\"", transport);
-        Assert.Contains("<PlaybackRelativeSkipButton Seconds=\"@SkipForwardSeconds\" Direction=\"forward\"", transport);
-        Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", host);
-        Assert.DoesNotContain("<PlaybackSleepTimerControl", popup);
-        Assert.DoesNotContain("<PlaybackSpeedControl", popup);
-        Assert.DoesNotContain("add-audiobook-bookmark", popup);
-        Assert.DoesNotContain("TimerRow(", popup);
-        Assert.DoesNotContain("SleepTimerDisplay", popup);
-        Assert.DoesNotContain("listen-popup-sheet__row--timer", popup);
+        Assert.Contains("Availability.CanEndCurrent", ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerView.razor"));
+        Assert.Contains("<SleepTimerPanel", host);
+        Assert.Contains("<BookmarksPanel", host);
+        Assert.DoesNotContain("AudiobookBookmarkDialog", host);
+        Assert.Contains("@onclick=\"AddAsync\"", bookmark);
+        Assert.Contains("Seek.InvokeAsync(bookmark)", bookmark);
+        Assert.Contains("data-bookmark-delete-confirm", bookmark);
+        Assert.Contains("State=\"@Playback.SleepTimerState\"", host);
     }
-
     [Fact]
     public void WatchHero_PreservesTheCompleteFirstParagraph()
     {

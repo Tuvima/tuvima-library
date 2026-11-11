@@ -80,14 +80,14 @@
                     </div>
                     <div class="app-state-card__fact">
                         <dt>@L["AppStateCard_LastActivity"]</dt>
-                        <dd data-testid="last-activity" title="@LastActivityTitle">
+                        <dd data-testid="last-activity">
                             @if (Loading)
                             {
                                 <AppSkeleton Width="7rem" Height="1rem" Class="app-state-card__placeholder" />
                             }
                             else
                             {
-                                @LastActivityText
+                                @if (LastActivity is { } lastActivityAt) { <time datetime="@lastActivityAt.ToString("O")" title="@LastActivityTitle">@LastActivityText</time> } else { @LastActivityText }
                             }
                         </dd>
                     </div>
@@ -170,14 +170,14 @@ else
                 </div>
                 <div class="app-state-card__fact">
                     <dt>@L["AppStateCard_LastActivity"]</dt>
-                    <dd data-testid="last-activity" title="@LastActivityTitle">
+                    <dd data-testid="last-activity">
                         @if (Loading)
                         {
                             <AppSkeleton Width="7rem" Height="1rem" Class="app-state-card__placeholder" />
                         }
                         else
                         {
-                            @LastActivityText
+                            @if (LastActivity is { } lastActivityAt) { <time datetime="@lastActivityAt.ToString("O")" title="@LastActivityTitle">@LastActivityText</time> } else { @LastActivityText }
                         }
                     </dd>
                 </div>

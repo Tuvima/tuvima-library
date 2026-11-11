@@ -1,572 +1,83 @@
+/* One tile design (spec one-tile-design): every cover is the same size, carries its title on the art, shows "..." always, and draws one
+   thin outline on hover or focus. Sizes come from the tile tokens (tuvima.tokens.css); nothing here sets a pixel size of its own. */
 .media-tile-link { display:block; width:100%; color:inherit; text-decoration:none; cursor:pointer; }
-.media-tile-link:focus-visible { outline:3px solid var(--tl-focus-ring,#a78bfa); outline-offset:3px; border-radius:var(--app-radius-md); }
-.media-tile { --media-tile-accent:#38bdf8; --media-tile-secondary-accent:#111827; --media-tile-action-accent:var(--tl-accent-primary,#8852FC); --media-tile-progress-accent:var(--tl-accent-primary,#8852FC); --media-tile-hover-lift:clamp(8px,1.2vw,12px); --media-tile-media-height:clamp(192px,18.4vw,232px); --media-tile-media-aspect:2 / 3; --media-tile-hover-panel-width:clamp(320px,28vw,440px); display:flex; flex:0 0 auto; flex-direction:column; gap:12px; color:#f8fafc; outline:none; position:relative; overflow:visible; scroll-snap-align:start; z-index:0; transition:z-index var(--tl-motion-duration-fast) var(--tl-motion-ease-standard), transform var(--tl-motion-duration-medium) var(--tl-motion-ease-emphasized), box-shadow var(--tl-motion-duration-medium) var(--tl-motion-ease-standard); }
-    .media-tile.has-compact-caption { gap:8px; }
-    .media-tile.is-media-book, .media-tile.is-book-series { --media-tile-accent:var(--tl-media-book); }
-    .media-tile.is-media-comic, .media-tile.is-comic-series { --media-tile-accent:var(--tl-media-comic); }
-    .media-tile.is-media-audio, .media-tile.is-audiobook-series, .media-tile.is-album, .media-tile.is-artist { --media-tile-accent:var(--tl-media-audio); }
-    .media-tile.is-media-movie, .media-tile.is-movie-series { --media-tile-accent:var(--tl-status-info); }
-    .media-tile.is-media-tv, .media-tile.is-tv-series { --media-tile-accent:var(--tl-media-video); }
-    .media-tile.is-portrait { --media-tile-media-height:clamp(252px,23vw,342px);   --media-tile-hover-panel-width:clamp(276px,20vw,318px); --media-tile-hover-clearance:clamp(132px,14vw,188px); }
-    .media-tile.is-landscape { width:calc(var(--media-tile-media-height) * 16 / 9); --media-tile-media-aspect:16 / 9; --media-tile-hover-panel-width:clamp(420px,36vw,560px); }
-    @media (min-width:600px) {
-        :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-portrait, :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-square { --media-tile-media-height:clamp(176px,16.1vw,240px); }
-        :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-landscape { --media-tile-media-height:clamp(134px,12.9vw,162px); }
-    }
-    .media-tile.is-square { --media-tile-media-height:clamp(252px,23vw,342px);  --media-tile-media-aspect:1 / 1; --media-tile-hover-panel-width:clamp(300px,25vw,360px); --media-tile-hover-clearance:clamp(104px,12vw,164px); }
-    .media-tile.is-dismissed { display:none; }
-    .media-tile-frame { position:relative; display:flex; flex-direction:column; overflow:visible; width:100%; }
-    .media-tile.tl-card-hover--media:hover:not(.is-hover-active):not(.is-expanded):not(:focus-within) { transform:none; box-shadow:none !important; }
-    .media-tile.tl-card-hover--media:hover:not(.is-hover-active):not(.is-expanded):not(:focus-within) .media-tile-media { transform:none; box-shadow:0 18px 44px rgba(0,0,0,.26) !important; }
-    .media-tile.tl-card-hover--media:hover:not(.is-hover-active):not(.is-expanded):not(:focus-within) .media-tile-image,
-    .media-tile.tl-card-hover--media:hover:not(.is-hover-active):not(.is-expanded):not(:focus-within) .media-tile-stack-image { transform:none; filter:none; }
-    .media-tile.tl-card-hover--media:hover:not(.is-hover-active):not(.is-expanded):not(:focus-within) .media-tile-caption { opacity:1; transform:none; pointer-events:auto; }
-    .media-tile.is-cinematic-hover:focus-within, .media-tile.is-cinematic-hover.is-expanded, .media-tile.is-cinematic-hover.is-hover-active { transform:translateY(-6px) scale(1.035); box-shadow:var(--tl-shadow-hover-media) !important; }
-    .media-tile:hover, .media-tile.is-cinematic-hover:focus-within, .media-tile.is-cinematic-hover.is-expanded, .media-tile.is-cinematic-hover.is-hover-active { z-index:24; }
-    .media-tile.is-hover-none:hover,
-    .media-tile.is-hover-none:focus-within,
-    .media-tile.is-hover-none.is-expanded,
-    .media-tile.is-hover-none.is-hover-active { transform:none; box-shadow:none !important; z-index:0; }
-    .media-tile-media { position:relative; display:block; overflow:hidden; width:100%; height:auto; padding:0; aspect-ratio:var(--media-tile-media-aspect); border-radius:var(--app-radius-md); background:radial-gradient(circle at top left,color-mix(in srgb,var(--media-tile-accent) 28%,transparent) 0%,transparent 55%),linear-gradient(180deg,rgba(16,21,36,.94) 0%,rgba(7,10,18,.96) 100%); border:1px solid rgba(255,255,255,.08); color:inherit; text-decoration:none; box-shadow:0 18px 44px rgba(0,0,0,.26); cursor:pointer; z-index:1; transform-origin:center top; transition:transform var(--tl-motion-duration-medium) var(--tl-motion-ease-emphasized),border-color var(--tl-motion-duration-medium) var(--tl-motion-ease-standard),box-shadow var(--tl-motion-duration-medium) var(--tl-motion-ease-standard); }
-    .media-tile-media:focus-visible { outline:3px solid var(--tl-focus-ring, #a78bfa); outline-offset:3px; }
-    .media-tile-media.has-artwork-surface { background:transparent; border-color:transparent; }
-    .media-tile.is-cinematic-hover:focus-within .media-tile-media, .media-tile.is-cinematic-hover.is-expanded .media-tile-media, .media-tile.is-cinematic-hover.is-hover-active .media-tile-media { transform:translateY(var(--tl-hover-quiet-y)) scale(1.012); border-color:rgba(136, 82, 252,.72); box-shadow:0 24px 58px rgba(0,0,0,.48),0 0 0 1px rgba(136, 82, 252,.5),0 0 30px rgba(136, 82, 252,.32); }
-    .media-tile.is-cinematic-hover:focus-within .media-tile-media.has-artwork-surface, .media-tile.is-cinematic-hover.is-expanded .media-tile-media.has-artwork-surface, .media-tile.is-cinematic-hover.is-hover-active .media-tile-media.has-artwork-surface { border-color:rgba(136, 82, 252,.72); box-shadow:0 24px 58px rgba(0,0,0,.48),0 0 0 1px rgba(136, 82, 252,.5),0 0 30px rgba(136, 82, 252,.32); }
-    .media-tile-image { width:100%; height:100%; display:block; transition:transform var(--tl-motion-duration-slow) var(--tl-motion-ease-emphasized), filter var(--tl-motion-duration-medium) var(--tl-motion-ease-standard); }
-    .media-tile-image.is-fill { object-fit:cover; }
-
-    .media-tile.is-cinematic-hover:focus-within .media-tile-image, .media-tile.is-cinematic-hover.is-expanded .media-tile-image, .media-tile.is-cinematic-hover.is-hover-active .media-tile-image { transform:scale(var(--tl-hover-artwork-scale)) translateY(var(--tl-hover-artwork-pan-y)); filter:saturate(1.08) contrast(1.04); }
-    .media-tile-stack { position:absolute; inset:0; }
-    .media-tile-stack-image { position:absolute; aspect-ratio:2 / 3; border-radius:var(--app-radius-md); object-fit:cover; box-shadow:0 20px 36px rgba(0,0,0,.34); border:1px solid rgba(255,255,255,.14); opacity:.98; }
-    .media-tile.is-landscape .media-tile-stack-image-0 { left:28%; top:56%; width:30%; transform:translate(-50%,-50%) rotate(-8deg); z-index:1; }
-    .media-tile.is-landscape .media-tile-stack-image-1 { left:50%; top:48%; width:34%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
-    .media-tile.is-landscape .media-tile-stack-image-2 { left:72%; top:56%; width:30%; transform:translate(-50%,-50%) rotate(8deg); z-index:2; }
-    .media-tile.is-square .media-tile-stack-image-0 { left:34%; top:58%; width:38%; transform:translate(-50%,-50%) rotate(-10deg); z-index:1; }
-    .media-tile.is-square .media-tile-stack-image-1 { left:52%; top:48%; width:44%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
-    .media-tile.is-square .media-tile-stack-image-2 { left:70%; top:58%; width:38%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
-    .media-tile.is-portrait .media-tile-stack-image-0 { left:36%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(-10deg); z-index:1; }
-    .media-tile.is-portrait .media-tile-stack-image-1 { left:52%; top:48%; width:60%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
-    .media-tile.is-portrait .media-tile-stack-image-2 { left:68%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
-    .media-tile-fallback, .media-tile-hover-fallback { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-    .media-tile-fallback { flex-direction:column; gap:12px; padding:18px; text-align:center; font-family: var(--font-ui); font-size:.92rem; font-weight:700; color:rgba(248,250,252,.72); }
-    .media-tile-hover-fallback { color:rgba(255,255,255,.2); }
-    .media-tile-hover-fallback .tl-icon-root { font-size:68px; }
-    .media-tile-collection-backdrop { position:absolute; inset:0; width:100%; height:100%; display:block; object-position:center center; filter:saturate(1.05) contrast(1.02); z-index:0; }
-    .media-tile-collection-backdrop.is-fill { object-fit:cover; }
-    .media-tile-collection-backdrop.is-contained { object-fit:contain; background:rgba(2,6,16,.84); }
-    .media-tile-collection-wash { position:absolute; inset:0; background:var(--art-bg-gradient, linear-gradient(90deg,var(--art-bg-base-dark, rgba(3,7,13,.88)) 0%,var(--art-bg-base, rgba(3,7,13,.7)) 34%,color-mix(in srgb,var(--art-bg-accent-muted, rgba(3,7,13,.08)) 36%, transparent) 64%,var(--art-bg-overlay, rgba(3,7,13,.28)) 100%)); z-index:1; }
-    .media-tile-artwork-stack { position:absolute; inset:0; z-index:2; border-radius:inherit; }
-    .media-tile .artwork-stack.media-tile-artwork-stack { position:absolute; width:auto; height:auto; min-height:0; }
-
-    .media-tile-group-indicators { position:absolute; inset:10px 10px auto; z-index:6; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; pointer-events:none; }
-    .media-tile-group-kind,
-    .media-tile-group-count { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:29px; padding:5px 9px; border:1px solid rgba(255,255,255,.2); border-radius:999px; color:rgba(248,250,252,.96); background:rgba(5,8,14,.76); box-shadow:0 8px 20px rgba(0,0,0,.34); backdrop-filter:blur(12px) saturate(130%); font-family:var(--font-ui); font-size: var(--tl-font-size-xs); font-weight: 700; line-height:1; letter-spacing:.055em; text-transform:uppercase; text-shadow:0 1px 8px rgba(0,0,0,.7); }
-    .media-tile-group-kind { max-width:70%; overflow:hidden; }
-    .media-tile-group-kind span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .media-tile-group-count { flex:0 0 auto; color:white; border-color:color-mix(in srgb,var(--media-tile-accent) 50%,rgba(255,255,255,.22)); background:color-mix(in srgb,var(--media-tile-accent) 22%,rgba(5,8,14,.8)); font-size:.75rem; letter-spacing:.02em; }
-    .media-tile-group-kind ::deep .tl-icon-root,
-    .media-tile-group-count ::deep .tl-icon-root { width:16px; height:16px; font-size:16px; color:color-mix(in srgb,var(--media-tile-accent) 82%,white); }
-
-    .media-tile-hover-logo { object-fit:contain; object-position:left bottom; filter:drop-shadow(0 0 1px rgba(255,255,255,.78)) drop-shadow(0 0 12px rgba(255,255,255,.16)) drop-shadow(0 8px 18px rgba(0,0,0,.62)); z-index:2; }
-
-    .media-tile-hover-logo { position:absolute; left:14px; bottom:14px; width:min(calc(100% - 28px),220px); max-height:54px; }
-
-    .media-tile-hover-art { position:relative; overflow:hidden; background:radial-gradient(circle at top right,color-mix(in srgb,var(--media-tile-accent) 18%,transparent) 0%,transparent 40%),linear-gradient(180deg,rgba(10,14,24,.94) 0%,rgba(5,8,14,.98) 100%); }
-    .media-tile-hover-art.is-empty { min-height:168px; }
-    .media-tile-hover-image { width:100%; height:100%; display:block; object-position:center center; }
-    .media-tile-hover-image.is-fill { object-fit:cover; }
-    .media-tile-hover-image.is-contained { object-fit:contain; }
-    .media-tile-hover-body { position:relative; z-index:2; padding:14px 16px 16px; display:flex; flex-direction:column; gap:8px; background:radial-gradient(circle at 12% 0%, rgba(136, 82, 252,.18), transparent 34%),linear-gradient(180deg,#171a22 0%,#11141b 100%); }
-
-    .media-tile-hover-heading,
-.media-tile-caption { display:flex; flex-direction:column; gap:4px; }
-
-    .media-tile-hover-title { font-family:var(--font-ui); font-weight:600; line-height:1.25; color:rgba(248,250,252,.98); }
-    .media-tile-hover-title { font-size:1.08rem; }
-
-    .media-tile-hover-subtitle,
-.media-tile-hover-context,
-.media-tile-hover-description,
-.media-tile-hover-fact { font-family: var(--font-ui); }
-    .media-tile-hover-subtitle { font-size:.84rem;  line-height:1.42; color:color-mix(in srgb,var(--media-tile-accent) 72%,rgba(248,250,252,.82)); }
-
-    .media-tile-hover-progress { display:flex; align-items:center; gap:10px; color:rgba(226,232,240,.8); font-family:var(--font-ui); font-size:.76rem; font-weight: 700; }
-    .media-tile-hover-progress-track { appearance:none; position:relative; flex:1; width:100%; height:4px; border:0; border-radius:var(--app-radius-md); background:rgba(255,255,255,.16); overflow:hidden; }
-    .media-tile-hover-progress-track::-webkit-progress-bar { background:rgba(255,255,255,.16); border-radius:inherit; }
-    .media-tile-hover-progress-track::-webkit-progress-value { background:linear-gradient(90deg,var(--tl-accent-primary) 0%,#c084fc 100%); border-radius:inherit; box-shadow:0 0 14px rgba(136, 82, 252,.38); }
-    .media-tile-hover-progress-track::-moz-progress-bar { background:linear-gradient(90deg,var(--tl-accent-primary) 0%,#c084fc 100%); border-radius:inherit; box-shadow:0 0 14px rgba(136, 82, 252,.38); }
-
-    .media-tile-hover-context { font-size:.78rem; line-height:1.45; color:rgba(226,232,240,.76); }
-    .media-tile-hover-facts { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
-    .media-tile-hover-fact { font-size:.76rem; line-height:1.25; font-weight:700; color:rgba(226,232,240,.82); }
-    .media-tile-hover-fact.is-rating { color:#facc15; text-shadow:0 0 12px rgba(250,204,21,.18); }
-    .media-tile-hover-fact:not(:last-child)::after { content:""; display:inline-block; width:4px; height:4px; margin-left:7px; vertical-align:middle; border-radius:50%; background:rgba(226,232,240,.36); }
-    .media-tile-rating-pill { display:inline-flex; align-items:center; gap:4px; min-height:24px; padding:3px 8px; border-radius:999px; background:rgba(250,204,21,.1); border:1px solid rgba(250,204,21,.2); color:#facc15; font-family:var(--font-ui); font-size:.76rem; line-height:1;  box-shadow:0 0 14px rgba(250,204,21,.08); }
-    .media-tile-rating-pill .tl-icon-root { font-size:.88rem; }
-
-    .media-tile-hover-description { margin:0; font-size:.84rem; line-height:1.48; color:rgba(226,232,240,.82); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
-    .media-tile-caption { display:flex; min-width:0; flex-direction:column; gap:3px; padding:0 3px; font-family:var(--font-ui); transition:opacity .18s ease,transform .18s ease; }
-    .media-tile-caption__title { overflow:hidden; color:rgba(248,250,252,.92); font-size:.78rem; font-weight:600; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
-    .media-tile-caption__subtitle,
-    .media-tile-caption__year { overflow:hidden; color:rgba(148,163,184,.72); font-size: var(--tl-font-size-xs); font-weight:500; line-height:1.3; text-overflow:ellipsis; white-space:nowrap; }
-    .media-tile.is-cinematic-hover:focus-within .media-tile-caption, .media-tile.is-cinematic-hover.is-expanded .media-tile-caption, .media-tile.is-cinematic-hover.is-hover-active .media-tile-caption { opacity:0; transform:translateY(-12px); pointer-events:none; }
-    .media-tile.is-hover-glow-only:focus-within .media-tile-caption,
-    .media-tile.is-hover-glow-only.is-expanded .media-tile-caption,
-    .media-tile.is-hover-glow-only.is-hover-active .media-tile-caption { opacity:1; transform:none; pointer-events:none; }
-
-    @media (hover:none), (max-width:640px) {
-
-        .media-tile.is-cinematic-hover:focus-within,
-        .media-tile.is-cinematic-hover.is-expanded,
-        .media-tile.is-cinematic-hover.is-hover-active {
-            transform: none;
-            box-shadow: none !important;
-            z-index: 0;
-        }
-
-        .media-tile.is-cinematic-hover:focus-within .media-tile-caption,
-        .media-tile.is-cinematic-hover.is-expanded .media-tile-caption,
-        .media-tile.is-cinematic-hover.is-hover-active .media-tile-caption {
-            opacity: 1;
-            transform: none;
-            pointer-events: auto;
-        }
-    }
-    @media (prefers-reduced-motion: reduce) {
-
-        .media-tile:hover .media-tile-media,
-        .media-tile.is-cinematic-hover:focus-within .media-tile-media,
-        .media-tile.is-cinematic-hover.is-expanded .media-tile-media,
-        .media-tile.is-cinematic-hover.is-hover-active .media-tile-media,
-        .media-tile:hover .media-tile-image,
-        .media-tile.is-cinematic-hover:focus-within .media-tile-image,
-        .media-tile.is-cinematic-hover.is-expanded .media-tile-image,
-        .media-tile.is-cinematic-hover.is-hover-active .media-tile-image {
-            transform: none !important;
-        }
-    }
-    @media (max-width:640px) {
-        .media-tile { --media-tile-media-height:clamp(170px,47vw,204px); --media-tile-hover-panel-width:min(92vw,360px); }
-        .media-tile.is-portrait { --media-tile-hover-clearance:clamp(268px,56vw,392px); }
-        .media-tile.is-square { --media-tile-hover-clearance:clamp(232px,48vw,328px); }
-    }
-
-/* Unified artwork-only cards and detail-page-scale identity previews. */
-.media-tile.is-portrait {
-    --media-tile-media-height: clamp(400px, 25vw, 500px);
-    --media-tile-media-aspect: 2 / 3;
-    --media-tile-hover-panel-width: clamp(320px,28vw,440px);
-    width: calc(var(--media-tile-media-height) * 2 / 3);
-}
-
-.media-tile-contained-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(24px) brightness(.45); transform: scale(1.1); pointer-events: none; }
-.media-tile-image.is-contained { position: relative; padding: 0; background: transparent; object-fit: contain; }
-
-.media-tile-hover-cover-stage {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-items: center;
-}
-
-.media-tile-hover-cover-stage.is-book-stage {
-    width: min(88%, 440px);
-    height: auto;
-    max-height: 100%;
-    aspect-ratio: 2 / 3;
-    place-items: stretch;
-    filter: drop-shadow(0 30px 38px rgba(0, 0, 0, .54));
-}
-
-.media-tile-hover-cover-stage.is-book-stage .media-tile-hover-image {
-    position: relative;
-    z-index: 3;
-    width: calc(100% - 24px);
-    height: 100%;
-    object-fit: cover;
-    border: 1px solid rgba(255, 255, 255, .14);
-    border-radius: 8px 3px 3px 8px;
-    box-shadow:
-        inset 12px 0 20px rgba(0, 0, 0, .25),
-        0 24px 46px rgba(0, 0, 0, .5);
-}
-
-.media-tile-book-pages {
-    position: absolute;
-    z-index: 1;
-    right: 0;
-    top: 2.3%;
-    bottom: 2.3%;
-    width: 32px;
-    border-radius: 0 7px 7px 0;
-    background:
-        repeating-linear-gradient(90deg, #f4efe2 0 2px, #d9d0bd 2px 4px),
-        linear-gradient(90deg, #efe7d7, #b8ad99);
-    box-shadow: inset -6px 0 9px rgba(0, 0, 0, .25), 12px 18px 30px rgba(0, 0, 0, .36);
-}
-
-.media-tile-book-spine {
-    position: absolute;
-    z-index: 4;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 9%;
-    border-radius: 8px 0 0 8px;
-    background: linear-gradient(90deg, rgba(0, 0, 0, .38), transparent);
-    pointer-events: none;
-}
-
-.media-tile-hover-subtitle {
-    font-size: clamp(1.15rem, 1.65vw, 1.6rem);
-    font-weight: 700;
-    line-height: 1.25;
-    letter-spacing: 0;
-    color: color-mix(in srgb, var(--media-tile-accent) 72%, #fff 28%);
-    text-transform: none;
-}
-
-.media-tile-hover-heading {
-    order: 1;
-    gap: 14px;
-    align-items: flex-start;
-    text-align: left;
-}
-
-.media-tile-hover-facts {
-    order: 2;
-    gap: 14px;
-    min-height: 32px;
-}
-
-.media-tile-hover-fact {
-    font-size: clamp(1.18rem, 1.3vw, 1.5rem);
-    line-height: 1.3;
-    font-weight: 600;
-    color: rgba(230, 233, 240, .76);
-}
-
-.media-tile-hover-fact:not(:last-child)::after {
-    width: 5px;
-    height: 5px;
-    margin-left: 14px;
-    background: rgba(230, 233, 240, .48);
-}
-
-.media-tile-rating-pill {
-    min-height: 0;
-    padding: 0;
-    gap: 8px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    color: #ffc328;
-    font-size: clamp(1.18rem, 1.3vw, 1.5rem);
-    font-weight: 700;
-}
-
-.media-tile-rating-pill .tl-icon-root {
-    font-size: clamp(1.4rem, 1.8vw, 1.85rem);
-}
-
-.media-tile-rating-pill:not(:last-child)::after {
-    content: "";
-    width: 5px;
-    height: 5px;
-    margin-left: 6px;
-    border-radius: 50%;
-    background: rgba(230, 233, 240, .48);
-}
-
-.media-tile-hover-progress {
-    order: 3;
-}
-
-/* In-row previews replace the resting cover at the same vertical position. */
-.media-tile.is-portrait .media-tile-image {
-    object-fit: contain;
-    background: color-mix(in srgb, var(--media-tile-secondary-accent) 82%, #080b12);
-}
-
-.media-tile.is-square {
-    --media-tile-media-height: clamp(400px, 25vw, 500px);
-    width: var(--media-tile-media-height);
-}
-
-.media-tile.is-square .media-tile-image:not(.is-contained) {
-    object-fit: cover;
-    background: transparent;
-}
-
-.media-tile.is-cinematic-hover.is-hover-active .media-tile-media,
-.media-tile.is-cinematic-hover.is-expanded .media-tile-media {
-    transform: none;
-}
-
-@media (max-width: 840px), (hover: none), (pointer: coarse) {
-    .media-tile.is-portrait {
-        --media-tile-media-height: clamp(240px, 64vw, 320px);
-    }
-
-    .media-tile.is-square {
-        --media-tile-media-height: clamp(240px, 64vw, 320px);
-    }
-}
-
-/* Desktop previews expand the flex item itself, so the shelf reflows instead of
-   drawing a fixed panel over neighboring cards. */
-@media (min-width: 841px) and (hover: hover) and (pointer: fine) {
-    .media-tile.is-portrait .media-tile-image,
-    .media-tile.is-portrait .media-tile-image.is-contained {
-        padding: 0;
-        background: transparent;
-        object-fit: contain;
-    }
-}
-
-.media-tile-static-group-preview {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    border-radius: inherit;
-}
-
-.media-tile-static-hover {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    overflow: hidden;
-    border-radius: var(--app-radius-md);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 170ms ease;
-}
-
-.media-tile-hover-identity-strip {
-    position: absolute;
-    inset: 0 0 auto;
-    z-index: 6;
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    gap: 0.38rem;
-    padding: 0.64rem 0.72rem 1rem;
-    overflow: hidden;
-    color: rgba(248, 250, 252, 0.98);
-    background: linear-gradient(180deg, rgba(3, 7, 18, 0.86) 0%, rgba(3, 7, 18, 0.68) 68%, rgba(3, 7, 18, 0) 100%);
-    font-family: var(--font-ui);
-    font-size: var(--tl-font-size-caption);
-    font-weight: 700;
-    line-height: 1.2;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.92);
-    white-space: nowrap;
-}
-
-.media-tile-hover-identity-strip span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.media-tile-hover-identity-strip span:not(:last-child) {
-    flex: 1 1 auto;
-}
-
-.media-tile-hover-identity-strip span:last-child {
-    flex: 0 1 auto;
-}
-
-.media-tile-hover-identity-strip span + span::before {
-    margin-right: 0.38rem;
-    color: color-mix(in srgb, var(--media-tile-accent) 74%, white);
-    content: "·";
-}
-
-/* Static cards retain their geometry; the outline does not consume space. */
-.media-tile.is-static-cover-hover:is(:hover, :focus-within) .media-tile-media {
-    outline: 1px solid color-mix(in srgb, var(--tl-accent-primary) 65%, transparent);
-    outline-offset: 1px;
-}
-.media-tile.is-hover-overlay:is(:hover, :focus-within) .media-tile-static-hover { opacity: 1; }
-
-.media-tile-hover-context,
-.media-tile-hover-description-block {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    padding: 0.7rem 0 0;
-    border: 0;
-    border-top: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-}
-
-.media-tile-hover-context { order: 3; }
-.media-tile-hover-progress { order: 4; }
-.media-tile-hover-description-block { order: 5; }
-
-.media-tile-hover-section-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: color-mix(in srgb, var(--media-tile-accent) 66%, white);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 800;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-}
-
-.media-tile-hover-section-label .tl-icon-root { font-size: 0.9rem; }
-
-.media-tile-hover-progress:has(.media-tile-hover-section-label) { flex-wrap: wrap; }
-.media-tile-hover-progress > .media-tile-hover-section-label { flex: 0 0 100%; }
-
-.media-tile-hover-context ol {
-    display: grid;
-    gap: 3px;
-    margin: 6px 0 0;
-    padding: 0;
-    list-style: none;
-}
-
-.media-tile-hover-context li {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 7px;
-    align-items: baseline;
-    color: rgba(226, 232, 240, 0.78);
-    font-size: var(--tl-font-size-xs);
-}
-
-.media-tile-hover-context li strong {
-    overflow: hidden;
-    color: rgba(248, 250, 252, 0.94);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.media-tile-hover-context-position { color: color-mix(in srgb, var(--media-tile-accent) 64%, white); }
-.media-tile-hover-context-duration { color: rgba(203, 213, 225, 0.68); }
-
-.media-tile-hover-description-block .media-tile-hover-description {
-    margin-top: 6px;
-    -webkit-line-clamp: 3;
-}
-
-@media (min-width: 841px) and (hover: hover) and (pointer: fine) {
-
-    @container (max-width: 610px) {
-        .media-tile-hover-panel.is-cover-led .media-tile-hover-description-block,
-        .media-tile-hover-panel.is-cover-led .media-tile-hover-context li:nth-child(n + 3) { display: none; }
-    }
-
-    @container (max-width: 540px) {
-        .media-tile-hover-panel.is-cover-led .media-tile-hover-context { display: none; }
-        .media-tile-hover-panel.is-cover-led .media-tile-hover-facts { max-height: 2.2em; }
-    }
-}
-.media-tile-episode-caption { display:grid; gap:4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-caption); color: var(--tl-palette-text-secondary); padding-top: .2rem; }
-
-/* Viewport previews do not participate in the resting shelf's geometry. */
-.media-tile-hover-panel { display: none; position: fixed; z-index: 1450; left: var(--media-tile-hover-left, 12px); top: var(--media-tile-hover-top, 12px); width: min(calc(100vw - 24px), 440px); max-height: var(--media-tile-hover-max-height, calc(100svh - 24px)); overflow: hidden; border: 1px solid var(--tl-accent-primary); border-radius: var(--app-radius-md); background: var(--tl-bg-elevated, #15181f); color: var(--tl-text-primary); opacity: 0; visibility: hidden; pointer-events: none; transform: scale(.97); transform-origin: var(--media-tile-hover-origin-x, 50%) center; transition: opacity .2s ease, transform .2s ease; box-shadow: 0 24px 64px rgba(0,0,0,.65); }
-.media-tile-hover-panel.is-viewport-mounted { display: flex; flex-direction: column; }
-.media-tile-hover-panel.is-positioned.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transform: scale(1); }
-.media-tile-hover-panel.is-landscape { width: min(calc(100vw - 24px), calc(var(--media-tile-hover-anchor-width, 200px) * 1.35)); }
-.media-tile-hover-panel.is-art-popover .media-tile-hover-art { height: min(60svh, 480px); min-height: 0; flex: 0 1 auto; }
-.media-tile-hover-panel.is-art-popover.is-square .media-tile-hover-art { height: min(48svh, 400px); }
-.media-tile-hover-panel.is-banner-popover .media-tile-hover-art { aspect-ratio: 16 / 9; height: auto; min-height: 0; max-height: 46svh; flex: 0 0 auto; }
-.media-tile-hover-panel .media-tile-hover-image { width: 100%; height: 100%; object-fit: contain; }
-.media-tile-hover-panel.is-banner-popover .media-tile-hover-image { object-fit: cover; }
-.media-tile-hover-panel .media-tile-hover-cover-stage { width: 100%; height: 100%; padding: 0; }
-.media-tile-hover-panel .media-tile-hover-body { padding: 12px 18px; min-height: 0; overflow: auto; }
-.media-tile-hover-panel .media-tile-hover-title { font-size: var(--tl-font-size-lg); line-height: 1.2; }
-
-@media (hover: none), (pointer: coarse), (max-width: 640px) { .media-tile-hover-panel { display: none !important; } }
-@media (prefers-reduced-motion: reduce) { .media-tile-hover-panel { transition: none; transform: none; } }
-/* Watch backdrops occupy the cover's height; details overlay the image. */
-.media-tile-hover-panel.is-banner-popover.is-cinematic {
-    width: min(calc(100vw - 24px), var(--media-tile-expanded-width, 440px));
-    height: var(--media-tile-hover-anchor-height);
-    max-height: var(--media-tile-hover-anchor-height);
-    box-sizing: border-box;
-    transform: none;
-}
-.media-tile-hover-panel.is-banner-popover.is-cinematic .media-tile-hover-art {
-    position: absolute; inset: 0; height: 100%; max-height: none; aspect-ratio: auto;
-}
-.media-tile-hover-panel.is-cinematic .media-tile-hover-body {
-    position: absolute; inset: auto 0 0; max-height: 55%; overflow: hidden;
-    padding: 10px 12px; gap: 4px;
-    background: linear-gradient(180deg, transparent, rgba(8,11,18,.9) 25%);
-}
-.media-tile-hover-panel.is-cinematic .media-tile-hover-description {
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden; margin: 0;
-}
-.media-tile-hover-panel.is-cinematic .media-tile-hover-section-label { display: none; }
-.media-tile-hover-panel.is-cinematic .media-tile-hover-logo { max-height: 30%; }
-.media-tile.is-cinematic-hover:hover,
-.media-tile.is-cinematic-hover:focus-within { transform: none; }
-
-/* Movie and TV tiles on Home and Watch: the tile lifts a little and the preview fades in over it. The tile never changes width, so neighbours never move. */
-.media-tile.is-cinematic-hover.is-hover-active .media-tile-frame,
-.media-tile.is-cinematic-hover.is-hover-active .media-tile-media {
-    height: var(--media-tile-hover-anchor-height); aspect-ratio: auto;
-}
-.media-tile-hover-panel.is-inline-expanded.is-cinematic {
-    display: block; position: absolute; inset: 0 auto auto 0;
-    width: 100%; height: var(--media-tile-hover-anchor-height);
-    max-height: var(--media-tile-hover-anchor-height); transform: none;
-}
-.media-tile-hover-panel.is-inline-expanded.is-visible {
-    opacity: 1; visibility: visible; pointer-events: auto;
-}
-.media-tile.is-hover-overlay .media-tile-hover-identity-strip {
-    flex-direction: column; align-items: flex-start; gap: 4px;
-    font-size: var(--tl-font-size-md); white-space: normal;
-}
-.media-tile.is-hover-overlay .media-tile-hover-identity-strip span + span::before { content: none; }
-
-@media (prefers-reduced-motion: reduce) { .media-tile.is-cinematic-hover, .media-tile.is-cinematic-hover.is-hover-active { transition: none; transform: none; } .media-tile-hover-panel.is-inline-expanded { transition: none; } }
-
-/* Artwork keeps its height during both expansion and contraction. */
-.media-tile.is-cinematic-hover .media-tile-frame,
-.media-tile.is-cinematic-hover .media-tile-media {
-    height: var(--media-tile-media-height); aspect-ratio: auto; box-sizing: border-box;
-}
-.media-tile.is-cinematic-hover.is-hover-active,
-.media-tile.is-cinematic-hover.is-expanded { transform: translateY(-4px); box-shadow: none !important; }
-.media-tile-hover-panel.is-inline-expanded.is-cinematic {
-    box-shadow: 0 0 0 1px rgba(136, 82, 252,.4);
-}
-.media-tile-hover-panel.is-inline-expanded.is-cinematic .media-tile-hover-image { object-fit: contain; }
-
+.media-tile-link:focus-visible { outline:none; }
+.media-tile { --media-tile-accent:var(--tl-accent-secondary); --media-tile-secondary-accent:var(--tl-bg-root); --media-tile-media-aspect:2 / 3; display:flex; flex:0 0 auto; flex-direction:column; gap:8px; min-width:0; color:var(--tl-text-primary); outline:none; position:relative; scroll-snap-align:start; }
+.media-tile.is-media-book, .media-tile.is-book-series { --media-tile-accent:var(--tl-media-book); }
+.media-tile.is-media-comic, .media-tile.is-comic-series { --media-tile-accent:var(--tl-media-comic); }
+.media-tile.is-media-audio, .media-tile.is-audiobook-series, .media-tile.is-album, .media-tile.is-artist { --media-tile-accent:var(--tl-media-audio); }
+.media-tile.is-media-movie, .media-tile.is-movie-series { --media-tile-accent:var(--tl-status-info); }
+.media-tile.is-media-tv, .media-tile.is-tv-series { --media-tile-accent:var(--tl-media-video); }
+
+/* Sizes (D1, D2): the cover's width is the tile's width and its aspect ratio sets the height. */
+.media-tile.is-portrait { width:var(--tl-tile-poster-w); --media-tile-media-aspect:2 / 3; }
+.media-tile.is-square { width:var(--tl-tile-square-w); --media-tile-media-aspect:1 / 1; }
+.media-tile.is-landscape { width:var(--tl-tile-landscape-w); --media-tile-media-aspect:16 / 9; }
+
+.media-tile-frame { position:relative; display:flex; flex-direction:column; width:100%; }
+.media-tile-media { position:relative; display:block; overflow:hidden; width:100%; height:auto; padding:0; aspect-ratio:var(--media-tile-media-aspect); border-radius:var(--tl-radius-md); background:var(--tl-bg-surface); }
+.media-tile-media.has-artwork-surface { background:transparent; }
+
+/* Hover and keyboard focus (D5): a thin outline in the accent around the cover only. The tile does not grow, move or change shape. */
+.media-tile:is(:hover, :focus-within) .media-tile-media { outline:2px solid var(--tl-accent-primary); outline-offset:0; }
+
+.media-tile-image { width:100%; height:100%; display:block; }
+.media-tile-image.is-fill { object-fit:cover; }
+.media-tile-contained-backdrop { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:blur(24px) brightness(.45); transform:scale(1.1); pointer-events:none; }
+.media-tile-image.is-contained { position:relative; padding:0; background:transparent; object-fit:contain; }
+.media-tile.is-portrait .media-tile-image { object-fit:contain; background:color-mix(in srgb,var(--media-tile-secondary-accent) 82%,var(--tl-bg-root)); }
+.media-tile.is-square .media-tile-image:not(.is-contained) { object-fit:cover; background:transparent; }
+.media-tile-static-group-preview { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
+
+/* Fanned cover stack for a title with no single cover but several pictures. */
+.media-tile-stack { position:absolute; inset:0; }
+.media-tile-stack-image { position:absolute; aspect-ratio:2 / 3; border-radius:var(--tl-radius-md); object-fit:cover; box-shadow:0 20px 36px rgba(0,0,0,.34); border:1px solid rgba(255,255,255,.14); opacity:.98; }
+.media-tile.is-landscape .media-tile-stack-image-0 { left:28%; top:56%; width:30%; transform:translate(-50%,-50%) rotate(-8deg); z-index:1; }
+.media-tile.is-landscape .media-tile-stack-image-1 { left:50%; top:48%; width:34%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
+.media-tile.is-landscape .media-tile-stack-image-2 { left:72%; top:56%; width:30%; transform:translate(-50%,-50%) rotate(8deg); z-index:2; }
+.media-tile.is-square .media-tile-stack-image-0 { left:34%; top:58%; width:38%; transform:translate(-50%,-50%) rotate(-10deg); z-index:1; }
+.media-tile.is-square .media-tile-stack-image-1 { left:52%; top:48%; width:44%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
+.media-tile.is-square .media-tile-stack-image-2 { left:70%; top:58%; width:38%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
+.media-tile.is-portrait .media-tile-stack-image-0 { left:36%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(-10deg); z-index:1; }
+.media-tile.is-portrait .media-tile-stack-image-1 { left:52%; top:48%; width:60%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
+.media-tile.is-portrait .media-tile-stack-image-2 { left:68%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
+
+/* An episode TheTVDB has no picture for: a marked stand-in, never a real-looking still. */
+.media-tile-standin { position:absolute; inset:0; overflow:hidden; background:linear-gradient(135deg,var(--tl-bg-surface-raised),var(--tl-bg-root)); }
+.media-tile-standin__image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.45) saturate(.85); }
+.media-tile-standin__library-tile { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.media-tile-standin__number { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--font-ui); font-weight:600; font-size:clamp(1.4rem,18%,2.6rem); letter-spacing:.04em; color:rgba(248,250,252,.92); text-shadow:0 2px 14px rgba(0,0,0,.65); }
+.media-tile-standin__tag { position:absolute; left:8px; bottom:8px; z-index:2; padding:3px 8px; border:1px solid rgba(255,255,255,.28); border-radius:0; background:rgba(5,8,14,.78); font-family:var(--font-ui); font-size:var(--tl-font-size-xs); font-weight:600; line-height:1; color:rgba(248,250,252,.92); cursor:help; }
+
+/* Group banner (a landscape group drawn by the single-title tile). */
+.media-tile-collection-backdrop { position:absolute; inset:0; width:100%; height:100%; display:block; object-position:center center; filter:saturate(1.05) contrast(1.02); z-index:0; }
+.media-tile-collection-backdrop.is-fill { object-fit:cover; }
+.media-tile-collection-backdrop.is-contained { object-fit:contain; background:rgba(2,6,16,.84); }
+.media-tile-collection-wash { position:absolute; inset:0; background:var(--art-bg-gradient,linear-gradient(90deg,var(--art-bg-base-dark,rgba(3,7,13,.88)) 0%,var(--art-bg-base,rgba(3,7,13,.7)) 34%,color-mix(in srgb,var(--art-bg-accent-muted,rgba(3,7,13,.08)) 36%,transparent) 64%,var(--art-bg-overlay,rgba(3,7,13,.28)) 100%)); z-index:1; }
+.media-tile-landscape-logo { max-width:60%; max-height:34px; object-fit:contain; object-position:left bottom; }
+.media-tile-landscape-logo.is-banner { position:absolute; left:14px; bottom:14px; z-index:2; max-height:44px; }
+.media-tile-landscape-title { color:var(--tl-text-on-accent); font-weight:600; font-size:var(--tl-font-size-md); line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,.7); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.media-tile-landscape-title.is-banner { position:absolute; left:14px; bottom:14px; right:14px; z-index:2; }
+
+/* A cover with no art (D7): a plain dark cover, the kind's icon, the title and the author or artist at the bottom. Text is never under the
+   floor, wraps to two lines and is never clipped by the tile edge. */
+.media-tile-fallback { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:12px; text-align:center; font-family:var(--font-ui); color:rgba(248,250,252,.78); background:var(--tl-bg-surface); }
+.media-tile-fallback__title, .media-tile-fallback__detail, .media-tile-video-text__title, .media-tile-video-text__detail { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-sm)); line-height:1.3; }
+.media-tile-fallback__title { font-weight:600; color:var(--tl-text-primary); }
+.media-tile-fallback__detail { font-weight:500; color:rgba(226,232,240,.72); }
+
+/* A video with no cover art (D7, D16): the still on top, the name and one detail line below, at poster size. */
+.media-tile.is-video-still .media-tile-media { display:flex; flex-direction:column; background:var(--tl-bg-surface); }
+.media-tile-video-still { position:relative; flex:0 0 auto; width:calc(100% - 16px); margin:8px 8px 0; aspect-ratio:16 / 9; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-root); }
+.media-tile-video-still__image { display:block; width:100%; height:100%; object-fit:cover; }
+.media-tile-video-still__panel { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:44px; color:rgba(255,255,255,.28); }
+.media-tile-video-text { display:flex; flex:1 1 auto; flex-direction:column; justify-content:flex-end; gap:4px; min-height:0; padding:10px 12px; }
+.media-tile-video-text__title { font-weight:600; color:var(--tl-text-primary); }
+.media-tile-video-text__detail { font-weight:500; color:rgba(226,232,240,.72); }
+
+/* Episode lists on a show or season page keep their number and title under the still. */
+.media-tile-episode-caption { display:grid; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--tl-font-size-caption); color:var(--tl-text-secondary); padding-top:.2rem; }
 .media-tile-episode-caption > * { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .media-tile-episode-caption strong { color:var(--tl-text-primary); font-size:var(--tl-font-size-secondary); }
 
-/* Quiet "still being matched" marker: a soft dot before the caption title. It never overlays artwork and keeps the caption line height. */
-.media-tile-settling-dot { display:inline-block; width:6px; height:6px; margin-right:6px; vertical-align:middle; border-radius:50%; background:var(--media-tile-accent, var(--tl-accent-primary)); opacity:.7; animation:media-tile-settling-pulse 2s ease-in-out infinite; }
-.media-tile-settling-dot.is-overlay { position:absolute; top:8px; right:8px; margin:0; z-index:2; box-shadow:0 0 0 2px rgba(0,0,0,.45); pointer-events:none; }
-.media-tile-settling-dot__label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
-@keyframes media-tile-settling-pulse { 50% { opacity:.25; } }
-@media (prefers-reduced-motion: reduce) { .media-tile-settling-dot { animation:none; } }
-
-/* Phones: cards are sized from the screen width so the next card always peeks (about 2.6 portrait or 2.4 square cards
-   fit across) and no card is wider than the screen. A surface that shares one artwork height (Home) supplies
-   --phone-shelf-height; grids and tablets are untouched. */
-:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-portrait {
-    --media-tile-media-height: var(--phone-shelf-height, calc((100vw - 32px) / 2.6 * 1.5));
-}
-
-:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-square {
-    --media-tile-media-height: var(--phone-shelf-height, calc((100vw - 32px) / 2.4));
-}
-
-:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-continue-card.is-landscape {
-    --media-tile-media-height: calc(min(86vw, 320px) * 9 / 16);
-}
+@media (prefers-reduced-motion: reduce) { .media-tile-media { transition:none; } }

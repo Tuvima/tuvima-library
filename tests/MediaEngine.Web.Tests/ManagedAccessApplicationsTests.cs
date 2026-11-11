@@ -67,11 +67,15 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     [Fact]
     public void Credential_IsShownOnceAndClearedWhenDrawerCloses()
     {
+        var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
         OpenEdit(cut, "keys");
-        ButtonNamed(cut, "Generate credential").Click();
+        GenerateKey(cut, dialogs);
 
-        cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, cut.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, dialogs.Markup));
+        Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
+        dialogs.Find("[data-testid=integration-key-done]").Click();
+        dialogs.WaitForAssertion(() => Assert.DoesNotContain(ApplicationsHandler.Secret, dialogs.Markup));
         ClosePage(cut);
         cut.WaitForAssertion(() =>
         {
@@ -88,7 +92,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
         OpenEdit(cut, "keys");
 
-        ButtonNamed(cut, "Generate credential").Click();
+        GenerateKey(cut, dialogs);
 
         dialogs.WaitForAssertion(() =>
         {
@@ -99,7 +103,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
         dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Issue key").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, cut.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, dialogs.Markup));
         var posts = _handler.Requests.Where(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/credentials", StringComparison.Ordinal)).ToList();
         Assert.Equal(2, posts.Count);
         Assert.Null(JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(posts[0].Body, JsonOptions)!.ApprovalHash);
@@ -113,7 +117,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
         OpenEdit(cut, "keys");
-        ButtonNamed(cut, "Generate credential").Click();
+        GenerateKey(cut, dialogs);
         dialogs.WaitForAssertion(() => Assert.Contains("Issue this key?", dialogs.Markup));
 
         dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
@@ -279,14 +283,14 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.CredentialGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _handler.CredentialStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
         OpenEdit(cut, "keys");
 
-        var pending = ButtonNamed(cut, "Generate credential")
-            .ClickAsync(new());
+        ButtonNamed(cut, "Generate key").Click();
+        var pending = dialogs.WaitForElement("[data-testid=integration-key-generate]").ClickAsync(new());
         await _handler.CredentialStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        cut.WaitForAssertion(() => Assert.True(cut.FindAll("button")
-            .Single(button => button.TextContent.Trim() == "Generate credential").HasAttribute("disabled")));
+        cut.WaitForAssertion(() => Assert.True(cut.Find("[data-testid=integration-generate-key]").HasAttribute("disabled")));
 
         ClosePage(cut);
         OpenEdit(cut, "keys");
@@ -322,9 +326,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         var cut = RenderApplications();
 
-        cut.FindAll("article[aria-label='Living room'] button").Single(button => button.TextContent.Trim() == "Manage").Click();
+        var gear = cut.WaitForElement("article[aria-label='Living room'] [data-testid=integration-gear]");
 
-        Assert.EndsWith($"/settings/integrations/{_handler.ApplicationId:D}", Services.GetRequiredService<NavigationManager>().Uri);
+        Assert.EndsWith($"/settings/integrations/{_handler.ApplicationId:D}", gear.GetAttribute("href"));
     }
 
     [Fact]
@@ -553,13 +557,12 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            var rows = cut.FindAll(".access-credential-row");
+            var rows = cut.FindAll(".access-key-row");
             Assert.Equal(3, rows.Count);
             Assert.Contains("No expiry", rows[0].TextContent);
-            Assert.Contains("Never used", rows[0].TextContent);
+            Assert.Contains("Never", rows[0].TextContent);
             Assert.Contains("Expires ", rows[1].TextContent);
-            Assert.Contains("Last used ", rows[1].TextContent);
-            Assert.DoesNotContain("Never used", rows[1].TextContent);
+            Assert.DoesNotContain("Never", rows[1].TextContent);
             Assert.Contains("Expired ", rows[2].TextContent);
         });
     }
@@ -567,15 +570,20 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     [Fact]
     public void ApplicationTable_ShowsTheSoonestKeyExpiryInTheCredentialsCell()
     {
-        _handler.AddCredential("Later", DateTimeOffset.UtcNow.AddDays(60), null);
-        _handler.AddCredential("Sooner", DateTimeOffset.UtcNow.AddDays(10), null);
+        // Fix both expiry moments once, up front: the label shows them to the minute, so re-reading the clock
+        // inside the wait would miss on a slow run that crosses a minute boundary.
+        var later = DateTimeOffset.UtcNow.AddDays(60);
+        var sooner = DateTimeOffset.UtcNow.AddDays(10);
+        _handler.AddCredential("Later", later, null);
+        _handler.AddCredential("Sooner", sooner, null);
         var cut = RenderApplications();
+        OpenEdit(cut);
 
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("2 active", cut.Markup);
-            Assert.Contains($"Next expiry {DateTimeOffset.UtcNow.AddDays(10).ToLocalTime():g}", cut.Markup);
-            Assert.DoesNotContain($"Next expiry {DateTimeOffset.UtcNow.AddDays(60).ToLocalTime():g}", cut.Markup);
+            Assert.Contains($"Next expiry {sooner.ToLocalTime():g}", cut.Markup);
+            Assert.DoesNotContain($"Next expiry {later.ToLocalTime():g}", cut.Markup);
         });
     }
 
@@ -584,6 +592,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.AddCredential("Forever", null, null);
         var cut = RenderApplications();
+        OpenEdit(cut);
 
         cut.WaitForAssertion(() =>
         {
@@ -764,20 +773,21 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
 
         var card = cut.WaitForElement("article[aria-label='Living room']");
-        Assert.Contains("User Client", card.TextContent);
-        Assert.Contains("Disabled", card.TextContent);
+        Assert.DoesNotContain("User Client", card.TextContent);
+        Assert.Equal("Status: Disabled", card.QuerySelector(".app-status-dot")!.GetAttribute("aria-label"));
         Assert.Contains("Manage on a computer or tablet", cut.WaitForElement("p[role='note']").TextContent);
         Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Manage") || button.TextContent.Contains("New integration"));
     }
 
     [Fact]
-    public void OnADesktop_ApplicationsKeepTheRowActionsAndNoPhoneNote()
+    public void OnADesktop_ApplicationsHaveOneManageButtonAndNoPhoneNote()
     {
         var cut = RenderApplications();
 
         cut.WaitForElement("article[aria-label='Living room']");
-        Assert.NotEmpty(cut.FindAll("button[aria-label='Actions for Living room']"));
+        Assert.NotEmpty(cut.FindAll("[aria-label='Manage for Living room']"));
+        Assert.Empty(cut.FindAll("button[aria-label='Actions for Living room']"));
         Assert.DoesNotContain("Manage on a computer or tablet", cut.Markup);
     }
 
@@ -787,7 +797,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
 
         cut.WaitForElement("article[aria-label='Living room']");
-        Assert.Contains("integrations", cut.WaitForElement("ul[aria-label='Integration summary']").TextContent);
+        Assert.Empty(cut.FindAll("ul[aria-label='Integration summary']"));
         Assert.Contains("Applications", cut.Markup);
         Assert.Contains("Webhooks", cut.Markup);
 
@@ -920,6 +930,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
     // Manage navigates to the integration's own page (Plugins and Integrations screens v3 D24), so these tests open the page by its
     // address parameters and pick the tab the step needs.
+    // Generate key opens a short window (name and expiry); its own Generate key button issues the key (v6 D68).
+    private static void GenerateKey(IRenderedComponent<ManagedAccessApplications> cut, IRenderedComponent<AppDialogHost> dialogs)
+    {
+        ButtonNamed(cut, "Generate key").Click();
+        dialogs.WaitForElement("[data-testid=integration-key-generate]").Click();
+    }
+
     private void OpenEdit(IRenderedComponent<ManagedAccessApplications> cut, string? tab = null)
     {
         cut.Render(parameters => parameters

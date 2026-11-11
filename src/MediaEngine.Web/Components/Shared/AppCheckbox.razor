@@ -2,15 +2,17 @@
 <label class="@RootClass">
     <span class="app-checkbox__control">
         <input type="checkbox" class="tl-checkbox-input" checked="@Value" disabled="@Disabled" aria-readonly="@ReadOnly.ToString().ToLowerInvariant()" @onchange="ChangedAsync" @onclick:preventDefault="@ReadOnly" @attributes="AdditionalAttributes" />
-        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppSize.Medium" Class="app-checkbox__glyph" />
+        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppIconSize.Row24" Class="app-checkbox__glyph" />
     </span>
-    @if (!string.IsNullOrWhiteSpace(Label)) { <span>@Label</span> }
+    @if (!string.IsNullOrWhiteSpace(Label)) { <span class="@(HideLabel ? "sr-only" : null)">@Label</span> }
     @ChildContent
 </label>
 @code {
     [Parameter] public bool Value { get; set; }
     [Parameter] public EventCallback<bool> ValueChanged { get; set; }
     [Parameter] public string? Label { get; set; }
+    /// <summary>Keep the label for screen readers but do not draw it (a tick in a table row is named by its row, not by visible text).</summary>
+    [Parameter] public bool HideLabel { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public bool Dense { get; set; } = true;

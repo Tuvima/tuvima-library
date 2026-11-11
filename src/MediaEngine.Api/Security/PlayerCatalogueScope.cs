@@ -8,8 +8,8 @@ namespace MediaEngine.Api.Security;
 
 public sealed class PlayerResourceDeniedException : Exception;
 
-/// <summary>A person who is not a server administrator tried to make a bookmark shared with everybody.</summary>
-public sealed class PlayerBookmarkSharingDeniedException : Exception;
+/// <summary>An administrator-only bookmark action (the Everyone's view, Promote, editing a Global bookmark) was asked for by someone else.</summary>
+public sealed class PlayerBookmarkAdminDeniedException : Exception;
 
 /// <summary>Request-bound catalogue access used by the singleton player before selection or persistence.</summary>
 public sealed class PlayerCatalogueScope(IHttpContextAccessor http)
@@ -124,9 +124,13 @@ internal sealed class PlayerResourceFailureFilter : IEndpointFilter
     {
         try { return await next(context); }
         catch (PlayerResourceDeniedException) { return ApiErrors.NotFound("Playback item not found."); }
-        catch (PlayerBookmarkSharingDeniedException)
+        catch (PlayerBookmarkAdminDeniedException)
         {
-            return ApiErrors.Forbidden("Only a server administrator can share a bookmark with everyone.");
+            return ApiErrors.Forbidden("Only a server administrator can do that with bookmarks.");
+        }
+        catch (MediaEngine.Api.Services.Playback.EditorBookmarkVaultException)
+        {
+            return ApiErrors.Forbidden(MediaEngine.Api.Services.Playback.EditorBookmarksService.InTheVault);
         }
     }
 }

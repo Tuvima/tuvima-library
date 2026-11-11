@@ -22,7 +22,7 @@
 
 .shelf-grid-page__title {
     margin: 0;
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
     font-size: clamp(1.35rem, 2vw, 1.8rem);
     font-weight: var(--tl-font-weight-bold);
     line-height: var(--tl-line-height-tight);
@@ -44,7 +44,7 @@
     margin: 0;
     min-height: 1.25rem;
     color: var(--tl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .shelf-grid-page__filters {
@@ -56,7 +56,7 @@
 .shelf-grid-page__controls {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: center;
     gap: var(--tl-space-3);
 }
 
@@ -121,7 +121,7 @@
 .shelf-grid-page__more-error {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 /* The scroll trigger: no height of its own, it only marks where the grid ends. */

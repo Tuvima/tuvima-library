@@ -50,19 +50,14 @@ public static class PlaybackRateOptions
         return rate.ToString("R", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Creates the compact user-facing value, for example <c>1.25x</c>.</summary>
+    /// <summary>Creates the compact user-facing value, for example <c>1.25×</c>.</summary>
     public static string FormatLabel(double rate)
     {
         if (!IsValid(rate))
         {
             throw new ArgumentOutOfRangeException(nameof(rate));
         }
-        var exact = ToWireValue(rate);
-        if (!exact.Contains(".", StringComparison.Ordinal))
-        {
-            exact += ".0";
-        }
-        return $"{exact}x";
+        return PlaybackSpeedChoices.Format(rate);
     }
 
     public static bool TryParseWireValue(string? value, out double rate)

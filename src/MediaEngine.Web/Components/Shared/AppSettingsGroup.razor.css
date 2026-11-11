@@ -1,0 +1,61 @@
+/* A settings group sits on the page background: no border, no fill, no card padding. Danger is the one outlined exception. */
+.app-settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    margin: 0 0 32px;
+}
+
+.app-settings-group__heading {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-md);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.app-settings-group__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+}
+
+.app-settings-group__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-settings-group__helper {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-secondary);
+    line-height: 1.4;
+}
+
+.app-settings-group__rows {
+    padding-top: 4px;
+}
+
+.app-settings-group__rows:first-child {
+    padding-top: 0;
+}
+
+/* Hairline between any two rows of a group, whichever row part they are. */
+.app-settings-group__rows > :where(.app-setting-row, .app-switch-row:not(.app-switch-row--control-only)) + :where(.app-setting-row, .app-switch-row:not(.app-switch-row--control-only)) {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.app-settings-group--danger {
+    padding: 16px 20px;
+    border: 1px solid var(--tl-status-danger-border);
+    border-radius: var(--tl-radius-md, 12px);
+}
+
+.app-settings-group--danger .app-settings-group__heading {
+    color: var(--tl-text-danger);
+}

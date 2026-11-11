@@ -29,8 +29,8 @@ public sealed class DetailPageViewModel
     public SequencePlacementViewModel? SequencePlacement { get; init; }
 
     /// <summary>
-    /// The Universe this item belongs to, set only when the Library holds at least two Series or two formats in it that
-    /// the requesting profile can see. Null otherwise, and on every page that is not a single work.
+    /// The Universe this item belongs to, set whenever the requesting profile can open that Universe's page, including a
+    /// Universe the Library holds a single Series of. Null otherwise, and on every page that is not a single work.
     /// </summary>
     public UniverseLinkViewModel? UniverseLink { get; init; }
 
@@ -68,6 +68,12 @@ public sealed class DetailPageViewModel
     /// and when there are none, in which case the page shows no Extras section. Only a title the viewer may see carries them.
     /// </summary>
     public IReadOnlyList<DetailExtraCardViewModel> Extras { get; set; } = [];
+
+    /// <summary>
+    /// How many Extras cards one group shows before "See all" (<c>cards_per_group</c> in <c>config/editor.json</c>, universal editor v5 D34), so the
+    /// Dashboard holds no number. 0 when the page has no Extras.
+    /// </summary>
+    public int ExtrasCardsPerGroup { get; set; }
 
     /// <summary>
     /// What a curated collection's page adds to the standard one (Collections and lists spec 4g): how it fills up, the set it is, and
@@ -124,11 +130,16 @@ public sealed class DetailUnmatchedAssetViewModel
     public bool KeptAsIs { get; init; }
 }
 
-/// <summary>A link from an item page to the Universe page: the Universe's Wikidata QID and its name.</summary>
+/// <summary>
+/// A link from an item page to the Universe page (the Universe icon): the Universe's Wikidata QID and its name, plus the
+/// two counts its hover card shows (Series and Works the profile can see).
+/// </summary>
 public sealed class UniverseLinkViewModel
 {
     public string Qid { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
+    public int SeriesCount { get; init; }
+    public int WorkCount { get; init; }
 }
 
 public sealed class MusicAlbumCompanionViewModel
@@ -224,6 +235,8 @@ public sealed class DetailFactsViewModel
     public string? SeasonNumber { get; init; }
     public string? EpisodeNumber { get; init; }
     public string? EpisodeTitle { get; init; }
+    /// <summary>Where an episode's picture comes from: "TheTVDB", or "Stand-in from show image" with the next check date while TheTVDB has none.</summary>
+    public string? EpisodePicture { get; init; }
     public string? Network { get; init; }
     public string? SeasonCount { get; init; }
     public string? EpisodeCount { get; init; }
@@ -471,6 +484,8 @@ public sealed class SequencePlacementViewModel
     /// </summary>
     public IReadOnlyList<SequenceItemViewModel> AlsoInThisWorld { get; init; } = [];
     public IReadOnlyList<SequenceGroupViewModel> Groups { get; set; } = [];
+    /// <summary>The show's landscape backdrop, used to draw stand-ins for episodes TheTVDB has no picture for; null when the show has none.</summary>
+    public string? StandInBackdropUrl { get; set; }
 }
 
 public sealed class SequenceContainerOptionViewModel
@@ -539,6 +554,10 @@ public sealed class SequenceItemViewModel
     public string? EpisodeStillUrl { get; init; }
     public int? EpisodeStillWidthPx { get; init; }
     public int? EpisodeStillHeightPx { get; init; }
+    /// <summary>True when TheTVDB has no picture for this episode, so the screen draws a marked stand-in from the show's own artwork.</summary>
+    public bool PictureIsStandIn { get; init; }
+    /// <summary>The date (yyyy-MM-dd) Library checks TheTVDB again for the real picture; set only with <see cref="PictureIsStandIn"/>.</summary>
+    public string? StandInRetryAfter { get; init; }
     public MediaEngine.Contracts.Display.DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public double? ProgressPercent { get; init; }
     public double? PositionSeconds { get; init; }

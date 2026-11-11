@@ -119,8 +119,8 @@ public sealed class PlaybackCommandSinkTests
     {
         var snapshot = new ListenPlaybackSnapshot { Queue = [Song() with { MediaType = mediaType }], CurrentIndex = 0 };
         Assert.True(PlaybackCommandCapabilities.Supports(ListenPlaybackCommandActions.TogglePlay, snapshot));
-        foreach (var action in new[] { ListenPlaybackCommandActions.ClosePlayer, ListenPlaybackCommandActions.PopupClosed,
-            ListenPlaybackCommandActions.SetTab, ListenPlaybackCommandActions.TogglePanel, "collapse", "window-close", ListenPlaybackPresentationActions.NavigateIdentity, ListenPlaybackPresentationActions.RegisterPopup })
+        foreach (var action in new[] { ListenPlaybackCommandActions.ClosePlayer,
+            ListenPlaybackCommandActions.SetTab, ListenPlaybackCommandActions.TogglePanel, "collapse", "window-close", ListenPlaybackPresentationActions.NavigateIdentity })
         {
             Assert.False(PlaybackCommandCapabilities.Supports(action, snapshot));
         }
@@ -266,38 +266,6 @@ public sealed class PlaybackCommandSinkTests
         pending.SetResult(new() { Id = album.ToString("D"), EntityType = DetailEntityType.MusicAlbum });
         Assert.False((await task)?.BooleanResult);
         Assert.False(navigated);
-    }
-
-    [Fact]
-    public async Task PassivePopupClosureRequiresCurrentWindowSenderAndGenerationAndNeverStopsAudio()
-    {
-        var preferences = new Preferences(Guid.NewGuid());
-        var playback = CreatePlayback(preferences);
-        using var services = new ServiceCollection().BuildServiceProvider();
-        var owner = new ListenPlaybackCommandOwner(services, playback);
-        var window = Guid.NewGuid();
-        owner.ValidatePopupWindowAsync = id => Task.FromResult(id == window);
-        var before = playback.CreateSnapshot();
-        var transportCalls = 0;
-        playback.TransportCommandRequested += _ => { transportCalls++; return Task.CompletedTask; };
-        var registration = Envelope(owner, playback, ListenPlaybackPresentationActions.RegisterPopup) with { PopupWindowId = window, OwnerGeneration = 100 };
-        Assert.True((await owner.HandleAsync(registration))?.BooleanResult);
-        Assert.True(playback.IsPopupOpen);
-        var next = registration with { CommandId = Guid.NewGuid(), SenderId = Guid.NewGuid(), OwnerGeneration = 101 };
-        Assert.True((await owner.HandleAsync(next))?.BooleanResult);
-        var obsoleteClose = registration with { CommandId = Guid.NewGuid(), Action = ListenPlaybackCommandActions.PopupClosed };
-        Assert.False((await owner.HandleAsync(obsoleteClose))?.BooleanResult);
-        Assert.True(playback.IsPopupOpen);
-        Assert.False((await owner.HandleAsync(next with { CommandId = Guid.NewGuid(), PopupWindowId = Guid.NewGuid(), OwnerGeneration = 102 }))?.BooleanResult);
-        var closed = next with { CommandId = Guid.NewGuid(), Action = ListenPlaybackCommandActions.PopupClosed };
-        var reply = await owner.HandleAsync(closed);
-        Assert.True(reply?.BooleanResult);
-        Assert.Same(reply, await owner.HandleAsync(closed));
-        Assert.False(playback.IsPopupOpen);
-        Assert.Equal(before.Queue[0].AssetId, playback.CurrentItem?.AssetId);
-        Assert.Equal(before.PlaybackRequestVersion, playback.PlaybackRequestVersion);
-        Assert.False(playback.IsDismissed);
-        Assert.Equal(0, transportCalls);
     }
 
     private static ListenQueueItem Song() => new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Song", StreamUrl = "stream://song" };

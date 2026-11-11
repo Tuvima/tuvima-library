@@ -341,10 +341,17 @@ public static class IngestionEndpoints
             IIngestionEngine engine,
             IOptions<IngestionOptions> opts,
             IVaultPathClassifier vaultPaths,
+            MediaEngine.Api.Services.LocalAssets.ViewSourceIndexingHostedService viewFolders,
             CancellationToken ct) =>
         {
             var includeSubdirectories = request?.IncludeSubdirectories ?? opts.Value.IncludeSubdirectories;
             var requestedRoot = request?.RootPath;
+
+            // "Check folders for changes" also looks at the View folders again (personal and Shared), in the background.
+            if (string.IsNullOrWhiteSpace(requestedRoot))
+            {
+                viewFolders.RequestReconcileAll();
+            }
 
             // Also looks at the Import folder (even one set after startup) and files anything that was waiting in it.
             await engine.RefreshImportFolderAsync(ct);

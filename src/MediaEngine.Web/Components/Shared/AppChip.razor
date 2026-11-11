@@ -2,7 +2,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <span class="@RootClass"
-      title="@Title"
+      aria-description="@Title"
       style="@ResolvedStyle"
       role="@Role"
       tabindex="@TabIndex"
@@ -11,7 +11,7 @@
       @attributes="AdditionalAttributes">
     @if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" />
+        <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Inline16" />
     }
     @if (ChildContent is not null)
     {
@@ -19,11 +19,11 @@
     }
     else
     {
-        <span>@Text</span>
+        <span data-overflow-tooltip="@Text">@Text</span>
     }
     @if (OnClose.HasDelegate)
     {
-        <button type="button" class="app-chip__remove" aria-label="@L["AppChip_RemoveTag"].Value" disabled="@Disabled" @onclick="HandleClose" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" /></button>
+        <button type="button" class="app-chip__remove" aria-label="@L["AppChip_RemoveTag"].Value" disabled="@Disabled" @onclick="HandleClose" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppIconSize.Inline16" /></button>
     }
 </span>
 

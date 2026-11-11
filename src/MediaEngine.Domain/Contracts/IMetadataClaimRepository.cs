@@ -25,6 +25,16 @@ public interface IMetadataClaimRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Takes every current claim of the entity for the supplied fields out of scoring, the person's locked ones included. The rows stay as
+    /// history; nothing is deleted. Used when a person removes a value they had set (the Wikidata link), so no later scoring brings it back.
+    /// </summary>
+    Task RetireCurrentClaimsAsync(
+        Guid entityId,
+        IReadOnlyCollection<string> fieldKeys,
+        CancellationToken ct = default) =>
+        throw new NotSupportedException("This claim store cannot retire claims.");
+
+    /// <summary>
     /// Atomically replaces a provider's current observations for the supplied
     /// fields. Old rows remain available as history but are excluded from scoring.
     /// </summary>

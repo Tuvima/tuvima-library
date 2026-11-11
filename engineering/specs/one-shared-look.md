@@ -65,3 +65,7 @@ Open Plugins, Integrations, Libraries and a library page on SHY-DESKTOP at deskt
 
 ## Plain English summary
 The ugly tabs come from three separate tab styles fighting each other in the app's stylesheet. We replace them with one flat underlined tab, make every card the same height with tidy text, and use the same search bar, summary strip and pills everywhere. Then Plugins, Integrations and Libraries (and the new flat Settings pages) all look like they belong together.
+
+## Gaps and drift (audit 2026-11-03)
+
+- Pills and squareness belong to home-detail-and-tiles, but only four files are guarded; about 80 fully rounded corners remain and there is no app-wide guardrail. The 'no page defines its own tab style' guardrail was not found. No spec covers one icon and button colour scheme. Suggested status: In progress. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

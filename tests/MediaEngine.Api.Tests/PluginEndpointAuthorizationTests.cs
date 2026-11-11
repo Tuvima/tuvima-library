@@ -38,12 +38,25 @@ public sealed class PluginEndpointAuthorizationTests
             ("/plugins/", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/directory", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/{pluginId}/page", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/{pluginId}/file", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/{pluginId}/file/check", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/file", "PUT", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/file/reset", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/restore-preview", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/restore", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/removal-impact", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/enable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/disable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/ai-steps/{stepKey}/run", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/service/lookup", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/settings", "PUT", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/page/values/{key}", "PUT", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/page/items/{key}", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/page/items/{key}/{itemId}", "DELETE", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/page/items/{key}/{itemId}/test", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/page/items/{key}/{itemId}/secret/{field}", "PUT", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/activity-cap", "PUT", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/manifest", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/manifest", "PUT", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}", "DELETE", ApplicationPermissionIds.PluginsManage),
@@ -57,8 +70,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/universe/{qid}/lore/enrich", "POST", ApplicationPermissionIds.PluginsJobsRun),
         };
 
-        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +5 for the plugin directory actions (administrator-only, install included; see PluginDirectoryEndpointTests) and +1 for Upload plugin (in-person administrator only; see MappedEndpointInventoryTests) and +2 for a plugin's Activity list and the People-action log (see PluginActivityEndpointTests) and +2 for a plugin's library limit (see PluginLibraryLimitTests) and +1 for a plugin's dependencies (see PluginDependencyTests) and +1 for a plugin's removal preview (see PluginRemovalTests) and +1 for Check now (see PluginCheckNowTests) and +3 for a profile's own connections (human self-service; see PluginProfileConnectionTests).
-        Assert.Equal(expected.Length + 1 + 3 + 5 + 1 + 2 + 2 + 1 + 1 + 1 + 3, endpoints.Length);
+        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +5 for the plugin directory actions (administrator-only, install included; see PluginDirectoryEndpointTests) and +1 for Upload plugin (in-person administrator only; see MappedEndpointInventoryTests) and +2 for a plugin's Activity list and the People-action log (see PluginActivityEndpointTests) and +2 for a plugin's library limit (see PluginLibraryLimitTests) and +1 for a plugin's dependencies (see PluginDependencyTests) and +1 for a plugin's removal preview (see PluginRemovalTests) and +1 for Check now (see PluginCheckNowTests) and +3 for a profile's own connections (human self-service; see PluginProfileConnectionTests) and +3 for the connections list and the device sign-in start and check (human self-service; see PluginDeviceSignInTests).
+        Assert.Equal(expected.Length + 1 + 3 + 5 + 1 + 2 + 2 + 1 + 1 + 1 + 3 + 3, endpoints.Length);
         foreach (var route in expected)
         {
             AssertPolicy(endpoints, route.Route, route.Method, route.Permission);

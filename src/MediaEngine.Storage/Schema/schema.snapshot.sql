@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0075 collection_list_sources).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0086 activity_run_scans).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -78,6 +78,31 @@ CREATE TABLE "accounts" (
     temporary_password_expires_at TEXT,
     profile_id       BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE
 );
+
+CREATE TABLE activity_run_items (
+    id            BLOB NOT NULL PRIMARY KEY,
+    run_id        BLOB NOT NULL REFERENCES activity_runs(id) ON DELETE CASCADE,
+    work_id       BLOB,                          -- the Work that was added (null for a removed file)
+    asset_id      BLOB,
+    media_type    TEXT NOT NULL DEFAULT '',      -- Movies, TV, Music, Books, Audiobooks, Comics, Videos
+    title         TEXT NOT NULL,
+    group_key     TEXT NOT NULL,                 -- the stacking rule (D12): one tile per show, album, folder or title
+    group_title   TEXT NOT NULL,
+    group_work_id BLOB,                          -- the show or album a tile opens, when there is one
+    created_at    TEXT NOT NULL
+);
+
+CREATE TABLE activity_runs (
+    id               BLOB NOT NULL PRIMARY KEY,
+    library_id       TEXT NOT NULL,              -- the configured library's id, lowercase with dashes
+    kind             TEXT NOT NULL CHECK (kind IN ('added', 'updated', 'fixed', 'removed')),
+    status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'failed')),
+    is_first_run     INTEGER NOT NULL DEFAULT 0, -- the library's first run: its initial load never marks anything New
+    started_at       TEXT NOT NULL,              -- ISO 8601 UTC
+    last_activity_at TEXT NOT NULL,              -- when the newest item joined; a run closes after 5 quiet minutes
+    ended_at         TEXT,                       -- set when the run completes; the true end is the last item
+    item_count       INTEGER NOT NULL DEFAULT 0
+, scan_id BLOB);
 
 CREATE TABLE adaptive_hls_packages (
     id              BLOB NOT NULL PRIMARY KEY,
@@ -312,7 +337,7 @@ CREATE TABLE audiobook_bookmarks (
     label                  TEXT,
     note                   TEXT,
     created_at             TEXT NOT NULL
-, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds));
+, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds), position_kind TEXT NOT NULL DEFAULT 'time' CHECK (position_kind IN ('time', 'text', 'page')), locator TEXT);
 
 CREATE TABLE audiobook_chapter_title_overrides (
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -420,30 +445,10 @@ CREATE TABLE backup_settings (
     updated_at   TEXT NOT NULL
 );
 
-CREATE TABLE bookmark_pack_items (
-    id               BLOB NOT NULL PRIMARY KEY,
-    pack_id          BLOB NOT NULL REFERENCES bookmark_packs(id) ON DELETE CASCADE,
-    position_seconds REAL NOT NULL CHECK (position_seconds >= 0),
-    end_seconds      REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds),
-    chapter_title    TEXT,
-    note             TEXT,
-    description      TEXT
-);
-
-CREATE TABLE bookmark_packs (
-    id                           BLOB NOT NULL PRIMARY KEY,
-    profile_id                   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    work_id                      BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-    asset_id                     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-    name                         TEXT NOT NULL,
-    author                       TEXT,
-    content_hash                 TEXT NOT NULL,
-    source_running_time_seconds  REAL,
-    source_edition               TEXT,
-    is_aligned                   INTEGER NOT NULL DEFAULT 0 CHECK (is_aligned IN (0, 1)),
-    is_enabled                   INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
-    imported_at                  TEXT NOT NULL,
-    UNIQUE (profile_id, work_id, content_hash)
+CREATE TABLE bookmark_definitive_sets (
+    work_id  BLOB NOT NULL PRIMARY KEY REFERENCES works(id) ON DELETE CASCADE,
+    made_at  TEXT NOT NULL,
+    made_by  BLOB REFERENCES profiles(id) ON DELETE SET NULL
 );
 
 CREATE TABLE bridge_ids (
@@ -589,7 +594,7 @@ CREATE TABLE collection_list_sources (
     unmatched_count   INTEGER NOT NULL DEFAULT 0,
     created_at        TEXT NOT NULL,
     updated_at        TEXT NOT NULL
-);
+, connection_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL);
 
 CREATE TABLE collection_placements (
     id            BLOB PRIMARY KEY,
@@ -1035,43 +1040,45 @@ CREATE TABLE entity_relationships (
     end_time                TEXT
 );
 
-CREATE TABLE excluded_source_files (
+CREATE TABLE "excluded_source_files" (
     id                     BLOB NOT NULL PRIMARY KEY,
     library_id             TEXT NOT NULL,
     source_id              TEXT NOT NULL,
     relative_path          TEXT NOT NULL,
-    content_hash           TEXT,                -- SHA-256 hex of the deleted title's media asset
+    content_hash           TEXT,
     file_size              INTEGER,
-    last_write_utc         TEXT,                -- ISO 8601 UTC
+    last_write_utc         TEXT,
     title                  TEXT,
-    excluded_at            TEXT NOT NULL,       -- ISO 8601 UTC
+    excluded_at            TEXT NOT NULL,
     excluded_by_account_id BLOB,
     excluded_by_name       TEXT,
-    reason                 TEXT CHECK (reason IS NULL OR reason IN ('as_is', 'protected', 'delete_failed')),
+    reason                 TEXT CHECK (reason IS NULL OR reason IN ('as_is', 'protected', 'delete_failed', 'ignored_by_you')),
     UNIQUE (source_id, relative_path)
 );
 
-CREATE TABLE fictional_entities (
+CREATE TABLE "fictional_entities" (
     id                       BLOB NOT NULL PRIMARY KEY,
     wikidata_qid             TEXT NOT NULL UNIQUE,
     label                    TEXT NOT NULL,
     description              TEXT,
     entity_sub_type          TEXT NOT NULL
-                                 CHECK (entity_sub_type IN ('Character', 'Location', 'Organization', 'Event', 'Object')),
+                                 CHECK (entity_sub_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Species', 'Concept')),
     fictional_universe_qid   TEXT,
     fictional_universe_label TEXT,
     image_url                TEXT,
     local_image_path         TEXT,
     created_at               TEXT NOT NULL,
-    enriched_at              TEXT
-, wikidata_revision_id INTEGER);
+    enriched_at              TEXT,
+    wikidata_revision_id     INTEGER,
+    added_by_user            INTEGER NOT NULL DEFAULT 0 CHECK (added_by_user IN (0, 1))
+);
 
 CREATE TABLE "fictional_entity_user_overrides" (
     entity_id      BLOB NOT NULL PRIMARY KEY REFERENCES fictional_entities(id) ON DELETE CASCADE,
     label          TEXT,
     description    TEXT,
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
+, aliases_json TEXT, belongs_to_entity_id BLOB REFERENCES fictional_entities(id) ON DELETE SET NULL, is_hidden INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0, 1)));
 
 CREATE TABLE fictional_entity_work_links (
     id                   BLOB NOT NULL PRIMARY KEY,
@@ -1263,6 +1270,23 @@ CREATE TABLE ingestion_log (
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
+CREATE TABLE item_extra_groups (
+    id          BLOB NOT NULL PRIMARY KEY,
+    item_folder TEXT NOT NULL COLLATE NOCASE,
+    name        TEXT NOT NULL COLLATE NOCASE,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    source      TEXT NOT NULL DEFAULT 'you' CHECK (source IN ('folder', 'you')),
+    created_at  TEXT NOT NULL,
+    UNIQUE (item_folder, name)
+);
+
+CREATE TABLE item_extra_tag_links (
+    extra_id BLOB NOT NULL REFERENCES item_extras(id) ON DELETE CASCADE,
+    tag_id   BLOB NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (extra_id, tag_id)
+);
+
 CREATE TABLE item_extras (
     id               BLOB NOT NULL PRIMARY KEY,
     library_id       TEXT NOT NULL,
@@ -1279,7 +1303,9 @@ CREATE TABLE item_extras (
     target_season    INTEGER,
     target_episode   INTEGER,
     found_at         TEXT NOT NULL
-);
+, extra_kind TEXT
+    CHECK (extra_kind IS NULL OR extra_kind IN ('trailer', 'featurette', 'behind_the_scenes', 'deleted_scene', 'interview', 'document', 'pictures', 'other_clip')), place_season INTEGER, place_episode INTEGER, place_track INTEGER, own_title TEXT, own_description TEXT, role TEXT, inferred_role TEXT, group_id BLOB REFERENCES item_extra_groups(id) ON DELETE SET NULL, group_source TEXT
+    CHECK (group_source IS NULL OR group_source IN ('folder', 'you')), inferred_group TEXT, scope TEXT, inferred_scope TEXT NOT NULL DEFAULT 'root', alongside TEXT, inferred_alongside TEXT, missing_since TEXT);
 
 CREATE TABLE local_file_sources (
     id                  BLOB NOT NULL PRIMARY KEY,
@@ -2111,7 +2137,7 @@ CREATE TABLE plugin_library_limits (
     PRIMARY KEY (plugin_id, library_id)
 );
 
-CREATE TABLE plugin_lore_entities (
+CREATE TABLE "plugin_lore_entities" (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
     universe_qid    TEXT NOT NULL,
@@ -2121,7 +2147,7 @@ CREATE TABLE plugin_lore_entities (
     label           TEXT NOT NULL,
     description     TEXT,
     entity_type     TEXT NOT NULL DEFAULT 'Unknown'
-                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Unknown')),
+                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Species', 'Concept', 'Unknown')),
     aliases_json    TEXT NOT NULL DEFAULT '[]',
     source_url      TEXT NOT NULL,
     confidence      REAL NOT NULL DEFAULT 0.0,
@@ -2288,11 +2314,11 @@ CREATE TABLE profile_person_preferences (
     PRIMARY KEY (profile_id, person_id)
 );
 
-CREATE TABLE profile_reactions (
+CREATE TABLE "profile_reactions" (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     entity_kind  TEXT NOT NULL CHECK(entity_kind IN ('Movie','TvShow','Book','Comic','Audiobook','Album','Song','Collection','Playlist')),
     entity_id    BLOB NOT NULL,
-    reaction     TEXT NOT NULL CHECK(reaction IN ('Like','Dislike','Love')),
+    reaction     TEXT NOT NULL CHECK(reaction IN ('Like','Dislike')),
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (profile_id, entity_kind, entity_id)
 );
@@ -2343,7 +2369,7 @@ CREATE TABLE profile_view_preferences (
     viewer_info_open        INTEGER NOT NULL DEFAULT 1 CHECK (viewer_info_open IN (0, 1)),
     -- How the Documents list is ordered for this profile; NULL means the default order.
     documents_sort          TEXT CHECK (documents_sort IS NULL OR documents_sort IN ('added', 'document_date', 'title', 'correspondent')),
-    updated_at              TEXT NOT NULL,
+    updated_at              TEXT NOT NULL, documents_pictures_to_photos INTEGER NOT NULL DEFAULT 0 CHECK (documents_pictures_to_photos IN (0, 1)),
     CHECK ((last_scope_kind = 'profile' AND last_scope_profile_id IS NOT NULL)
         OR (last_scope_kind IS NULL OR last_scope_kind IN ('shared', 'mine'))
            AND last_scope_profile_id IS NULL)
@@ -2415,16 +2441,6 @@ CREATE TABLE qid_labels (
     entity_type TEXT,
     fetched_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
-);
-
-CREATE TABLE reader_bookmarks (
-    id             BLOB NOT NULL PRIMARY KEY,
-    user_id        TEXT NOT NULL,
-    asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-    chapter_index  INTEGER NOT NULL,
-    cfi_position   TEXT,
-    label          TEXT,
-    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE reader_highlights (
@@ -3317,6 +3333,22 @@ CREATE VIRTUAL TABLE search_index USING fts5(
 CREATE INDEX idx_account_external_logins_account
     ON account_external_logins(account_id);
 
+CREATE INDEX idx_activity_run_items_group_title ON activity_run_items (group_title COLLATE NOCASE);
+
+CREATE INDEX idx_activity_run_items_run ON activity_run_items (run_id, group_key);
+
+CREATE INDEX idx_activity_run_items_title ON activity_run_items (title COLLATE NOCASE);
+
+CREATE INDEX idx_activity_run_items_work ON activity_run_items (work_id);
+
+CREATE INDEX idx_activity_runs_library_started ON activity_runs (library_id, started_at DESC);
+
+CREATE INDEX idx_activity_runs_scan ON activity_runs (scan_id);
+
+CREATE INDEX idx_activity_runs_started ON activity_runs (started_at DESC);
+
+CREATE INDEX idx_activity_runs_status ON activity_runs (status, last_activity_at);
+
 CREATE INDEX idx_adaptive_hls_packages_eviction
     ON adaptive_hls_packages(status, last_accessed);
 
@@ -3347,12 +3379,6 @@ CREATE INDEX idx_auth_sessions_account_active
 
 CREATE INDEX idx_authorization_audit_subject
     ON authorization_audit_events(subject_type, subject_id, occurred_at DESC);
-
-CREATE INDEX idx_bookmark_pack_items_pack
-    ON bookmark_pack_items(pack_id, position_seconds);
-
-CREATE INDEX idx_bookmark_packs_profile_work
-    ON bookmark_packs(profile_id, work_id, imported_at DESC);
 
 CREATE INDEX idx_bridge_ids_entity
     ON bridge_ids(entity_id);
@@ -3737,9 +3763,6 @@ CREATE INDEX idx_profile_work_preferences_work
 
 CREATE INDEX idx_qid_labels_type ON qid_labels(entity_type);
 
-CREATE INDEX idx_reader_bookmarks_user_asset
-    ON reader_bookmarks (user_id, asset_id);
-
 CREATE INDEX idx_reader_highlights_user_asset
     ON reader_highlights (user_id, asset_id);
 
@@ -3914,7 +3937,13 @@ CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_
 
 CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
 
+CREATE INDEX ix_item_extra_groups_folder ON item_extra_groups (item_folder);
+
+CREATE INDEX ix_item_extra_tag_links_tag ON item_extra_tag_links (tag_id);
+
 CREATE INDEX ix_item_extras_folder ON item_extras (item_folder);
+
+CREATE INDEX ix_item_extras_group ON item_extras (group_id);
 
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);

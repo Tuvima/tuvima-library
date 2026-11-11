@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -19,12 +20,24 @@ public static partial class MetadataEndpoints
         group.MapGet("/{entityId:guid}/work-versions", async (
             Guid entityId,
             MediaEditorWorkVersionReadRepository versions,
+            ILibraryFolderResolver folders,
             CancellationToken ct) =>
         {
             var result = await versions.GetAsync(entityId, ct);
-            return result is null
-                ? ApiErrors.NotFound($"Work, edition, or asset {entityId} not found.")
-                : Results.Ok(result);
+            if (result is null)
+            {
+                return ApiErrors.NotFound($"Work, edition, or asset {entityId} not found.");
+            }
+
+            // The Files tab marks a file Read-only when its library folder is, or when no library folder holds it (Tuvima leaves it alone either way).
+            foreach (var asset in result.Editions.SelectMany(edition => edition.Assets))
+            {
+                var path = string.IsNullOrWhiteSpace(asset.Folder) ? null : Path.Combine(asset.Folder, asset.FileName);
+                var resolved = path is null ? null : folders.ResolveSourceForPath(path);
+                asset.ReadOnly = resolved is null || !resolved.Source.IsWritable;
+            }
+
+            return Results.Ok(result);
         })
         .WithName("GetMediaEditorWorkVersions")
         .WithSummary("Return a bounded Work, meaningful Edition, and physical Asset selector while preserving the launch identity.")
@@ -35,10 +48,11 @@ public static partial class MetadataEndpoints
 
         group.MapGet("/{entityId:guid}/navigator", async (
             Guid entityId,
+            bool? structureOnly,
             IMediaEditorNavigationReadService navigationReadService,
             CancellationToken ct) =>
         {
-            var navigator = await navigationReadService.GetNavigatorAsync(entityId, ct);
+            var navigator = await navigationReadService.GetNavigatorAsync(entityId, ct, structureOnly == true);
             return navigator is null
                 ? ApiErrors.NotFound($"Navigator for {entityId} not found.")
                 : Results.Ok(ToContract(navigator));
@@ -60,6 +74,7 @@ public static partial class MetadataEndpoints
             int? volume,
             string? matchStatus,
             string? fileStatus,
+            bool? directOnly,
             IMediaEditorOwnedChildReadService ownedChildReadService,
             HttpContext http,
             CatalogueResourceAuthorizationService catalogueAuthorization,
@@ -77,7 +92,7 @@ public static partial class MetadataEndpoints
             }
             var result = await ownedChildReadService.SearchAsync(
                 entityId, q, page ?? 1, pageSize ?? 50, season, disc, volume,
-                matchStatus, fileStatus, ct, allowedSegments);
+                matchStatus, fileStatus, ct, allowedSegments, directOnly == true);
             return result is null
                 ? ApiErrors.NotFound($"Editor parent {entityId} not found.")
                 : Results.Ok(ToContract(result));
@@ -210,6 +225,8 @@ public static partial class MetadataEndpoints
                 CanSelectAsEditorTarget = node.CanSelectAsEditorTarget,
                 CanQuarantine = node.CanQuarantine,
                 QuarantineCount = node.QuarantineCount,
+                MatchState = node.MatchState,
+                MatchReason = node.MatchReason,
             }).ToList(),
         };
 
@@ -248,6 +265,8 @@ public static partial class MetadataEndpoints
                 SeasonNumber = item.SeasonNumber,
                 DiscNumber = item.DiscNumber,
                 VolumeNumber = item.VolumeNumber,
+                MatchReason = item.MatchReason,
+                FileSizeBytes = item.FileSizeBytes,
             }).ToList(),
         };
 

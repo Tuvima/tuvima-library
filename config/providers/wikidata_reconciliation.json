@@ -16,6 +16,9 @@
   "cache_ttl_hours": 168,
   "language_strategy": "both",
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "People", "Series order"],
+    "short_description": "Links your items to Wikidata so works, people and series line up.",
     "accent_color": "#339966",
     "material_icon": "Collections",
     "category": "Open",
@@ -165,6 +168,9 @@
     },
     "object_properties": {
       "core": ["P31", "P1080", "P1441", "P4584", "P170", "P361", "P527", "P5800", "P18"]
+    },
+    "species_properties": {
+      "core": ["P31", "P1080", "P1441", "P4584", "P170", "P361", "P527", "P18"]
     },
     "audiobook_edition_properties": ["P175", "P2047", "P5749", "P123"],
     "property_labels": {

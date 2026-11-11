@@ -32,22 +32,20 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
     private void ClipboardThrows(Exception exception) =>
         JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetException(exception);
 
-    private IRenderedComponent<OverviewAppsPage> RenderAppsPage()
+    private IRenderedComponent<GeneralNameAddressPanel> RenderAppsPage()
     {
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
-            stub.SetHandler(nameof(IEngineApiClient.GetNetworkAppAddressesAsync), _ => Task.FromResult<NetworkAppAddressesDto?>(new() { AtHome = Address }))));
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetNetworkAppAddressesAsync), _ => Task.FromResult<NetworkAppAddressesDto?>(new() { AtHome = Address }));
+            stub.SetHandler(nameof(IEngineApiClient.GetServerIdentityAsync), _ => Task.FromResult<MediaEngine.Contracts.Setup.SetupServerIdentityDto?>(new("Library", "library", true)));
+        }));
         Services.AddSingleton(new AppStoreLinks());
-        var id = Guid.NewGuid();
-        var session = new DashboardSessionAccessor();
-        session.Set("test-session-token", id, id, Guid.NewGuid(),
-            new DashboardAuthorityResponse(id, id, true, true, 1, 1, false, false, null, 1, [], [], []));
-        Services.AddScoped(_ => session);
-        var cut = Render<OverviewAppsPage>();
+        var cut = Render<GeneralNameAddressPanel>();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-apps-address='at-home']")));
         return cut;
     }
 
-    // ---- Overview > Apps -----------------------------------------------------------------------------------------------------
+    // ---- General > Name and address -----------------------------------------------------------------------------------------------------
 
     [Fact]
     public void CopyingTheServerAddress_WhereTheBrowserHasNoClipboard_SaysSoInsteadOfBreakingThePage()

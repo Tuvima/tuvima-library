@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unified player v2 mockups</title>
+<style>
+:root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--acc:#8852FC;--acc-t:#A46FFF;--acc-soft:rgba(136,82,252,.22);--t1:#F5F7FB;--t2:#A3A8B8;--t3:#7C8190;--line:rgba(255,255,255,.10);--rail:rgba(255,255,255,.22)}
+*{box-sizing:border-box}body{margin:0;background:#0B0C0F;color:var(--t1);font:14px/1.45 "Segoe UI",system-ui,sans-serif;padding:24px 16px 80px}
+main{max-width:1180px;margin:0 auto}h1{font-size:22px;margin:0 0 4px}p.lead{color:var(--t2);margin:0 0 28px}h2{font-size:17px;margin:40px 0 10px;color:var(--t1)}
+figure{margin:0 0 36px}figcaption{margin-top:12px;color:var(--t2);font-size:14px}figcaption b{color:var(--t1)}figcaption ol{margin:6px 0 0;padding-left:20px}figcaption li{margin:2px 0}
+.screen{position:relative;background:var(--page);border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.screen.video{aspect-ratio:16/9;background:radial-gradient(120% 90% at 30% 20%,#3b3450 0%,#1a1824 55%,#0c0b10 100%)}
+.screen.lib{aspect-ratio:16/9}
+.m{position:absolute;z-index:20;width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;font:700 12px/22px sans-serif;text-align:center;box-shadow:0 0 0 2px #0B0C0F}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.sm{width:20px;height:20px}svg.i.big{width:32px;height:32px}
+/* bar */
+.bar{position:relative;background:var(--nav);border-top:1px solid var(--line);padding:0 16px 10px}
+.bar.over{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.78) 60%);border:0;padding-top:8px}
+.tl{display:flex;align-items:center;gap:10px;height:28px;font-size:12px;color:var(--t2)}
+.tl .rail{flex:1;height:4px;background:var(--rail);border-radius:2px;position:relative}
+.tl .rail i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:2px}
+.tl .rail u{position:absolute;top:-4px;width:12px;height:12px;border-radius:50%;background:#fff;margin-left:-6px}
+.tl .rail b{position:absolute;top:6px;width:2px;height:8px;background:var(--acc-t)}.tl .rail b.s{background:#fff}
+.tl .lbl{color:var(--t2)}
+.row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;min-height:60px}
+.id{display:flex;align-items:center;gap:12px;min-width:0}
+.art{width:56px;height:56px;border-radius:6px;flex:none;background:linear-gradient(150deg,#5b3fa6,#2c8f8a);overflow:hidden;position:relative}
+.art.wide{width:100px}.art.book{background:linear-gradient(160deg,#c46a3a,#4a2b6f)}.art.tv{background:linear-gradient(160deg,#2e7d5b,#1f3d6b)}.art.film{background:linear-gradient(160deg,#243b66,#121a2e)}
+.art.poster::before{content:"";position:absolute;inset:0;background:inherit;filter:blur(6px) brightness(.6)}.art.poster::after{content:"";position:absolute;left:30px;top:2px;width:40px;bottom:2px;border-radius:3px;background:linear-gradient(160deg,#4d6aa8,#1b2540)}
+.txt{min-width:0}.txt .t{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--t1)}.txt .s{font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txt .t a,.txt .s a{color:inherit;text-decoration:none}
+.acts{display:flex;gap:6px;margin-left:2px}
+.btn{width:44px;height:44px;border-radius:8px;display:grid;place-items:center;color:var(--t1);position:relative;flex:none}
+.btn.play{width:48px;height:48px}.btn.hov{background:rgba(255,255,255,.08)}.btn.sel{background:var(--acc-soft);color:var(--acc-t)}.btn.dis{opacity:.38}
+.btn .n{position:absolute;font:700 9px/1 sans-serif;top:50%;left:50%;transform:translate(-50%,-30%)}
+.mid{display:flex;align-items:center;gap:2px}.tools{display:flex;align-items:center;gap:2px;justify-content:flex-end}
+.chip{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--t1)}
+.chip.sel{background:var(--acc-soft);color:var(--acc-t)}.chip.outl{border:1px solid var(--line)}
+.sep{width:1px;height:28px;background:var(--line);margin:0 6px}
+.tip{position:absolute;background:var(--menu);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.vol{display:flex;align-items:center;gap:8px}.vol .rail{width:96px;height:4px;background:var(--rail);border-radius:2px;position:relative}.vol .rail i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:2px}.vol .rail u{position:absolute;top:-4px;width:12px;height:12px;border-radius:50%;background:#fff;margin-left:-6px}
+/* panel */
+.panel{position:absolute;background:rgba(47,48,57,.97);border:1px solid var(--line);border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden;z-index:10}
+.ph{display:flex;align-items:center;gap:10px;padding:12px 12px 10px 16px;border-bottom:1px solid var(--line)}.ph h3{margin:0;font-size:17px;font-weight:600;flex:1}.ph .x{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:var(--t1)}
+.ph .sub{font-size:13px;color:var(--t2);font-weight:400;display:block}
+.pb{flex:1;overflow:auto;padding:8px}.pf{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);font-size:14px}
+.pr{display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px;min-height:44px;padding:4px 10px;border-radius:6px;font-size:16px;font-weight:500;color:var(--t1)}.pr .v{margin-left:auto;color:var(--t2);font-size:14px;font-weight:400}.pr.sel{background:var(--acc-soft)}.pr .ck{margin-left:auto;color:var(--acc-t)}.pr.sel .v+.ck{margin-left:8px}
+.pr .sub{flex-basis:100%;order:10;font-size:13px;color:var(--t2);font-weight:400}.pr.ic .sub{margin-left:36px}
+.div{height:1px;background:var(--line);margin:6px 8px}
+.tabs{display:flex;gap:20px;padding:0 16px;border-bottom:1px solid var(--line)}.tabs span{padding:10px 0;font-size:15px;font-weight:600;color:var(--t2)}.tabs span.on{color:var(--t1);border-bottom:2px solid var(--acc)}
+.mh{padding:10px 16px 4px;font-size:12px;letter-spacing:.04em;color:var(--t3);text-transform:uppercase;display:flex}.mh em{margin-left:auto;font-style:normal;color:var(--t1);text-transform:none;letter-spacing:0;font-size:14px}
+.lr{display:grid;grid-template-columns:24px 40px 1fr auto 32px;gap:10px;align-items:center;min-height:52px;padding:2px 8px;border-radius:6px}.lr .a{width:40px;height:40px;border-radius:4px;background:linear-gradient(150deg,#7a4fd0,#2c8f8a)}.lr .a.w{width:96px;height:54px;border-radius:4px}.lr .t{font-size:15px;font-weight:600}.lr .s{font-size:13px;color:var(--t2)}.lr .d{color:var(--t2);font-size:14px}.lr.sel{background:var(--acc-soft)}.lr .h{color:var(--t3)}
+.lr.ep{grid-template-columns:96px 1fr auto}.lr.ch{grid-template-columns:28px 1fr auto 24px}
+.prog{height:3px;background:var(--rail);border-radius:2px;margin-top:6px;position:relative}.prog i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:2px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--acc-soft);color:var(--acc-t);font-size:11px;font-weight:600;letter-spacing:.03em}
+.sw{width:40px;height:22px;border-radius:11px;background:var(--acc);position:relative;flex:none}.sw::after{content:"";position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff}.sw.off{background:#555a66}.sw.off::after{right:auto;left:3px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}.seg span{padding:7px 14px;font-size:14px;font-weight:500;color:var(--t2)}.seg span.on{background:var(--acc);color:#fff}
+.sel-dd{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:15px}
+.pre{display:flex;gap:8px}.pre span{flex:1;text-align:center;padding:10px 0;border:1px solid var(--line);border-radius:8px;font-size:15px;font-weight:600}.pre span.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.slider{height:4px;background:var(--rail);border-radius:2px;position:relative;margin:8px 4px}.slider i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:2px}.slider u{position:absolute;top:-4px;width:12px;height:12px;border-radius:50%;background:#fff;margin-left:-6px}
+.btn-p{background:var(--acc);color:#fff;border-radius:8px;padding:12px;text-align:center;font-weight:600;font-size:15px}
+.btn-o{border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px}
+.inp{border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--t3);font-size:14px;display:flex;align-items:center;gap:8px}
+.lyr{padding:16px 20px;font-size:22px;line-height:1.5;color:var(--t2)}.lyr div{padding:4px 0 4px 14px;border-left:3px solid transparent}.lyr div.cur{color:var(--t1);font-weight:700;border-left-color:var(--acc)}
+.paused{position:absolute;left:28px;bottom:118px;max-width:46%;padding:60px 0 0}.paused h4{margin:0;font-size:28px;font-weight:700}.paused .s{color:var(--t2);font-size:15px;margin:4px 0 8px}.paused p{margin:0;color:var(--t2);font-size:14px}
+.grad{position:absolute;left:0;bottom:0;width:60%;height:55%;background:radial-gradient(ellipse at 0% 100%,rgba(0,0,0,.75),transparent 70%)}
+.hdr{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;padding:0 20px;font-weight:600;font-size:17px;background:linear-gradient(rgba(0,0,0,.6),transparent)}
+.prev{height:140px;border-radius:6px;background:linear-gradient(160deg,#4e6b8c,#243b66 60%,#5b3b4a);position:relative;margin:8px}.prev span{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(0,0,0,.75);padding:4px 10px;border-radius:4px;font-size:16px;color:#fff;white-space:nowrap}
+.sty{display:flex;gap:8px;padding:0 8px}.sty div{flex:1;border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;position:relative}.sty div.on{border-color:var(--acc)}.sty div b{display:block;font-size:22px}.sty div span{font-size:13px;color:var(--t2)}.sty div.on i{position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:50%;background:var(--acc);color:#fff;font:700 11px/18px sans-serif;font-style:normal}
+.kv{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-size:15px}
+/* now playing page */
+.np{position:absolute;inset:0;background:radial-gradient(90% 70% at 25% 35%,#2c2544,#101115 70%)}
+.np .top{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;font-size:15px}
+.np .body{display:grid;grid-template-columns:280px 1fr;gap:40px;padding:8px 48px}
+.np .cover{width:280px;height:280px;border-radius:8px;background:linear-gradient(150deg,#5b3fa6,#2c8f8a);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.np .meta h4{margin:14px 0 2px;font-size:22px}.np .meta a{color:var(--acc-t);text-decoration:none;font-size:15px}.np .meta .s{color:var(--t2);font-size:13px}
+/* phone */
+.phone{width:360px;height:640px;border-radius:24px;border:1px solid var(--line);background:var(--page);position:relative;overflow:hidden;display:inline-block;vertical-align:top;margin-right:16px}
+.phone .content{padding:16px;color:var(--t3)}.phone .content div{height:90px;border-radius:8px;background:var(--card);margin-bottom:12px}
+.phone .cbar{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--nav);border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 12px 6px}
+.phone .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:16px 16px 0 0;border-top:1px solid var(--line);padding:8px 16px 20px}
+.phone .hd{width:36px;height:4px;border-radius:2px;background:var(--t3);margin:0 auto 10px}
+.phone .exp{position:absolute;inset:0;background:var(--menu);padding:16px}
+.phone .exp .bigart{width:200px;height:200px;border-radius:8px;background:linear-gradient(150deg,#5b3fa6,#2c8f8a);margin:12px auto 14px}
+.phone .mid{justify-content:center;gap:4px}.phone .mid .btn{width:52px;height:52px}
+.phone .tabs2{display:flex;gap:16px;padding:0 4px;border-bottom:1px solid var(--line);margin-bottom:6px}.phone .tabs2 span{padding:8px 0;font-weight:600;color:var(--t2)}.phone .tabs2 span.on{color:var(--t1);border-bottom:2px solid var(--acc)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="prev" viewBox="0 0 24 24"><path d="M6 5v14M18 6l-9 6 9 6z"/></symbol>
+<symbol id="next" viewBox="0 0 24 24"><path d="M18 5v14M6 6l9 6-9 6z"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+<symbol id="pause" viewBox="0 0 24 24"><path d="M7 5v14M17 5v14" stroke-width="3"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.9"/><path d="M4.5 4v5h5"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3l2.2 2.2"/><path d="M19.5 4v5h-5"/></symbol>
+<symbol id="shuffle" viewBox="0 0 24 24"><path d="M3 7h3l4 5-4 5H3M21 7h-3l-8 10H3M18 4l3 3-3 3M18 14l3 3-3 3"/></symbol>
+<symbol id="repeat" viewBox="0 0 24 24"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 21l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M7 10v10H3V10zM7 10l4-7a2 2 0 0 1 2 2v5h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 16.8 21H7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M17 14V4h4v10zM17 14l-4 7a2 2 0 0 1-2-2v-5H6a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 7.2 3H17"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/></symbol>
+<symbol id="lyrics" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 3.5V16H4z"/><path d="M8 9h8M8 12h5"/></symbol>
+<symbol id="queue" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+<symbol id="bm" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></symbol>
+<symbol id="vol" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+<symbol id="mute" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6"/></symbol>
+<symbol id="bars" viewBox="0 0 24 24"><path d="M5 14v-4M9 18V6M13 15V9M17 19V5M21 13v-2"/></symbol>
+<symbol id="close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="chap" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.2"/></symbol>
+<symbol id="moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+<symbol id="cc" viewBox="0 0 24 24"><path d="M3 5h18v12H9l-4 3v-3H3z"/><path d="M14 9.5a4 4 0 0 1 0 3M16.5 8a6 6 0 0 1 0 6"/><path d="M7 11h4M7 14h3"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="full" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></symbol>
+<symbol id="eps" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M9 10v9"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="chevd" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="arrowl" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10" stroke-width="2.4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+<symbol id="aa" viewBox="0 0 24 24"><path d="M3 18L8 6l5 12M5 14h6M14 18l3-7 3 7M15.5 15.5h3"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="drag" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3" fill="currentColor"/><circle cx="15" cy="6" r="1.3" fill="currentColor"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><circle cx="9" cy="18" r="1.3" fill="currentColor"/><circle cx="15" cy="18" r="1.3" fill="currentColor"/></symbol>
+<symbol id="open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+<symbol id="pip" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor"/></symbol>
+<symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01" stroke-width="2.2"/></symbol>
+<symbol id="speed" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></symbol>
+<symbol id="reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 3.5v5h5"/></symbol>
+<symbol id="playlist" viewBox="0 0 24 24"><path d="M4 6h12M4 11h12M4 16h7M17 13v8M13 17h8"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="disc" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="3.5"/></symbol>
+<symbol id="person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+<symbol id="cast" viewBox="0 0 24 24"><path d="M3 17v3M3 13a7 7 0 0 1 7 7M3 9a11 11 0 0 1 11 11"/><path d="M3 6V5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-4"/></symbol>
+<symbol id="bmadd" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/><path d="M12 8v6M9 11h6"/></symbol>
+</defs></svg>
+<main>
+<h1>Unified player v2</h1>
+<p class="lead">One player shell for music, audiobooks, TV and movies. Each screen shows exactly what appears in the app; the purple numbers are reference markers for the notes underneath and are not part of the design.</p>
+
+<h2>1. The persistent bar for each kind of media (desktop, 1280 wide)</h2>
+<figure><div class="screen" style="padding:0 30px">
+<div class="m" style="left:4px;top:4px">1</div><div class="m" style="left:calc(50% - 11px);top:106px">2</div><div class="m" style="right:4px;top:40px">3</div><div class="m" style="left:4px;top:40px">4</div><div class="m" style="left:calc(50% - 190px);top:106px">5</div>
+<div class="bar"><div class="tl"><span>2:23</span><div class="rail"><i style="width:56%"></i><u style="left:56%"></u></div><span>−1:49</span></div>
+<div class="row"><div class="id"><div class="art"></div><div class="txt"><div class="t"><a href="#">Stay a Little Longer</a></div><div class="s"><a href="#">The Midnight Coast</a></div></div>
+<div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn sel"><svg class="i"><use href="#up"/></svg></div><div class="btn"><svg class="i"><use href="#down"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn play"><svg class="i big"><use href="#play"/></svg></div><div class="btn"><svg class="i"><use href="#next"/></svg></div><div class="btn sel"><svg class="i"><use href="#repeat"/></svg><span class="n" style="transform:translate(-50%,-50%)">1</span></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+
+<div class="bar" style="margin-top:14px"><div class="tl"><span>12:08</span><span class="lbl">Chapter 8</span><div class="rail"><i style="width:40%"></i><u style="left:40%"></u></div><span>−18:32</span></div>
+<div class="row"><div class="id"><div class="art book"></div><div class="txt"><div class="t"><a href="#">The Way Beyond</a></div><div class="s"><a href="#">Maya Ellis</a> · Chapter 8</div></div>
+<div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#play"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#chap"/></svg></div><div class="chip sel">1.25×</div><div class="btn"><svg class="i"><use href="#moon"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+
+<div class="bar" style="margin-top:14px"><div class="tl"><span>2:23</span><div class="rail"><i style="width:11%"></i><u style="left:11%"></u></div><span>−20:18</span></div>
+<div class="row"><div class="id"><div class="art wide tv"></div><div class="txt"><div class="t"><a href="#">Shimmer and Shine</a></div><div class="s">S1 E1 · <a href="#">The First Wish</a></div></div>
+<div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#play"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#eps"/></svg></div><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+
+<div class="bar" style="margin-top:14px"><div class="tl"><span>34:12</span><div class="rail"><i style="width:30%"></i><u style="left:30%"></u></div><span>−1:18:46</span></div>
+<div class="row"><div class="id"><div class="art wide film poster"></div><div class="txt"><div class="t"><a href="#">The Glass Harbor</a></div><div class="s">2026 · Movie</div></div>
+<div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn dis"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#play"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn dis"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Music, audiobook, TV episode and movie.</b><ol>
+<li>Thin timeline above the row: elapsed left, remaining right; the audiobook adds "Chapter 8" and can switch to the whole book (screen 11).</li>
+<li>Play is at the exact center of the bar for every media. Audiobooks, TV and movies have the same five buttons in the same place: Previous, back 10 s, Play, forward 30 s, Next. Music has Previous, Play and Next only: songs are skipped whole, and Previous restarts the song (a second press, or a press in the first three seconds, goes back one), as in Spotify and Apple Music. The movie has nothing to go to, so Previous and Next are dimmed in place.</li>
+<li>Only the tools change (each an icon button with a tooltip, including Now playing): music Lyrics · Queue · Bookmarks · Volume · Now playing · Close; audiobook Chapters · 1.25× · Sleep timer · Bookmarks · Volume · Now playing · Close; TV Episodes · Audio &amp; subtitles · Bookmarks · Volume · Playback settings · Fullscreen · Close; movie the same without Episodes.</li>
+<li>Artwork for every media type in a fixed 56 px slot: square for audio, landscape for video; a movie poster sits inside the landscape slot on a blurred fill, never stretched. Title and names are links. Music keeps Favorite, Like, Dislike and More right beside the song, with room between them; the Like here is on (purple with a soft background).</li>
+<li>Music adds Shuffle and Repeat just outside its three; Repeat shows Off, Repeat all and Repeat one (ring with "1") so the state is readable.</li></ol></figcaption></figure>
+
+<h2>2. Hover, tooltip and volume (music bar)</h2>
+<figure><div class="screen" style="padding-top:44px">
+<div class="m" style="left:calc(50% - 11px);top:4px">1</div><div class="m" style="right:280px;top:4px">2</div>
+<div class="tip" style="left:calc(50% + 36px);top:12px">Skip forward 30 s</div>
+<div class="bar"><div class="tl"><span>2:23</span><div class="rail"><i style="width:56%"></i><u style="left:56%"></u></div><span>−1:49</span></div>
+<div class="row"><div class="id"><div class="art"></div><div class="txt"><div class="t">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div>
+<div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#up"/></svg></div><div class="btn"><svg class="i"><use href="#down"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn hov"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div><div class="btn"><svg class="i"><use href="#repeat"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="vol"><div class="btn hov"><svg class="i"><use href="#vol"/></svg></div><div class="rail"><i style="width:62%"></i><u style="left:62%"></u></div></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Mouse over Skip forward; mouse over the speaker.</b><ol>
+<li>Hover adds a soft translucent background and the app tooltip above the button. Nothing grows, glows or gets an underline. Keyboard focus shows a 2 px purple ring instead.</li>
+<li>Hovering or focusing the speaker reveals a short horizontal slider beside it, with the same thin rail and small handle as the timeline; it stays while you use it. Clicking the speaker mutes; clicking again restores the previous level. On touch, tapping opens a small volume panel instead.</li></ol></figcaption></figure>
+
+<h2>3. Audio &amp; subtitles (TV and movies)</h2>
+<figure><div class="screen video">
+<div class="hdr">Tuvima</div>
+<div class="panel" style="right:16px;bottom:96px;width:560px"><div class="ph"><h3>Audio &amp; subtitles</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div class="pb" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 12px">
+<div><div class="mh">Audio</div><div class="pr sel">English<span class="sub">Dolby Atmos · 7.1</span><span class="ck"><svg class="i sm"><use href="#check"/></svg></span></div><div class="pr">English<span class="sub">Stereo · 2.0</span></div><div class="pr">Spanish<span class="sub">Dolby Digital · 5.1</span></div><div class="pr">English · Audio description<span class="sub">Stereo</span></div><div class="pr">Director commentary<span class="sub">English · Stereo</span></div></div>
+<div><div class="mh">Subtitles</div><div class="pr">Off</div><div class="pr sel">English<span class="ck"><svg class="i sm"><use href="#check"/></svg></span></div><div class="pr">English · SDH</div><div class="pr">Spanish</div><div class="pr">English · Forced</div></div></div>
+<div class="pf"><svg class="i sm"><use href="#aa"/></svg>Subtitle appearance<span style="flex:1"></span><svg class="i sm"><use href="#search"/></svg>Find subtitles…</div></div>
+<div class="m" style="right:582px;bottom:300px">1</div><div class="m" style="right:582px;bottom:112px">2</div><div class="m" style="right:200px;bottom:4px">3</div>
+<div class="bar over"><div class="tl"><span>28:14</span><div class="rail"><i style="width:22%"></i><u style="left:22%"></u></div><span>−1:37:53</span></div>
+<div class="row"><div class="id"><div class="txt"><div class="t">The Glass Harbor</div><div class="s">2026 · Movie</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn dis"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn dis"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn sel"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Movie playing, Audio &amp; subtitles open.</b><ol>
+<li>Two columns in one panel: Audio rows show the language plus the format and channels; commentary and audio description are named and listed last. Subtitles start with Off and keep labels such as SDH and Forced. The chosen row has a check and a soft purple background; audio and subtitles are chosen independently and the picture never restarts.</li>
+<li>The footer holds Subtitle appearance (opens the nested view in screen 4) and Find subtitles…, which opens the existing search inside this panel. The old separate subtitle style button and the audio/subtitle rows inside Playback settings are gone.</li>
+<li>The button whose panel is open is shown as selected. In the video player the bar has no thumbnail; the title and the same centered controls remain. Controls stay visible while a panel is open.</li></ol></figcaption></figure>
+
+<h2>4. Subtitle appearance (nested view)</h2>
+<figure><div class="screen video">
+<div class="panel" style="right:16px;bottom:96px;width:400px"><div class="ph"><div class="x"><svg class="i"><use href="#arrowl"/></svg></div><h3>Subtitle appearance</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div class="pb" style="padding:0 0 4px"><div class="prev"><span>This is how your subtitles will look</span></div>
+<div class="mh">Style</div><div class="sty"><div class="on"><b>Aa</b><span>Default</span><i>✓</i></div><div><b style="font-size:26px">Aa</b><span>Large text</span></div><div style="background:#000"><b>Aa</b><span>High contrast</span></div></div>
+<div class="kv" style="margin-top:8px">Text size<div class="seg"><span>Small</span><span class="on">Medium</span><span>Large</span></div></div>
+<div class="kv">Background<div class="seg"><span>None</span><span>Shadow</span><span class="on">Box</span></div></div>
+<div class="div"></div><div class="pr">Custom appearance<span class="sub">Font, colors and opacity</span><span class="v"><svg class="i sm"><use href="#chev"/></svg></span></div></div>
+<div class="pf">Reset to default<span style="flex:1"></span><span style="color:var(--t2);font-size:13px">Changes saved automatically</span></div></div>
+<div class="m" style="right:420px;bottom:430px">1</div><div class="m" style="right:420px;bottom:300px">2</div><div class="m" style="right:420px;bottom:150px">3</div>
+<div class="bar over"><div class="tl"><span>28:14</span><div class="rail"><i style="width:22%"></i><u style="left:22%"></u></div><span>−1:37:53</span></div>
+<div class="row"><div class="id"><div class="txt"><div class="t">The Glass Harbor</div><div class="s">2026 · Movie</div></div></div>
+<div class="mid"><div class="btn dis"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn dis"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn sel"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Subtitle appearance, reached from Audio &amp; subtitles.</b><ol>
+<li>A back arrow returns to Audio &amp; subtitles. The live preview changes as you choose, and so do the real subtitles.</li>
+<li>Three presets (Default, Large text, High contrast), then simple text size and background choices. A custom value shows no preset ticked.</li>
+<li>Custom appearance opens the full set that exists today (font, colors, shadow, opacity) one level deeper. Reset to default in the footer; everything saves at once per profile.</li></ol></figcaption></figure>
+
+<h2>5. Playback settings and Speed</h2>
+<figure><div class="screen video" style="aspect-ratio:2/1">
+<div class="panel" style="right:16px;bottom:96px;width:400px"><div class="ph"><h3>Playback settings</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div class="pb"><div class="pr"><svg class="i"><use href="#speed"/></svg>Playback speed<span class="v">1× · Normal <svg class="i sm" style="vertical-align:middle"><use href="#chev"/></svg></span></div>
+<div class="pr"><svg class="i"><use href="#back"/></svg>Skip back<span class="v">10 seconds <svg class="i sm" style="vertical-align:middle"><use href="#chevd"/></svg></span></div>
+<div class="pr"><svg class="i"><use href="#fwd"/></svg>Skip forward<span class="v">30 seconds <svg class="i sm" style="vertical-align:middle"><use href="#chevd"/></svg></span></div>
+<div class="pr"><svg class="i"><use href="#pip"/></svg>Picture-in-picture<span class="v"><svg class="i sm"><use href="#open"/></svg></span></div>
+<div class="pr ic"><svg class="i"><use href="#info"/></svg>Playback information<span class="sub">Video, audio and connection details</span><span class="v"><svg class="i sm"><use href="#chev"/></svg></span></div></div>
+<div class="pf" style="color:var(--t2)"><svg class="i sm"><use href="#reset"/></svg>Reset playback preferences</div></div>
+<div class="panel" style="left:16px;bottom:96px;width:420px"><div class="ph"><h3>Playback speed</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div class="pb" style="padding:12px 16px"><div style="text-align:center"><div style="font-size:40px;font-weight:700;line-height:1">1.25×</div><div style="color:var(--t2);font-size:13px;margin:4px 0 14px">Current speed</div></div>
+<div class="pre"><span>0.75×</span><span>1×</span><span class="on">1.25× ✓</span><span>1.5×</span><span>2×</span></div>
+<div class="slider" style="margin-top:22px"><i style="width:30%"></i><u style="left:30%"></u></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2)"><span>0.5×</span><span>3×</span></div><div style="text-align:center;color:var(--t2);font-size:13px;margin-top:8px">Adjust in steps of 0.05×</div></div>
+<div class="pf" style="justify-content:center">Reset to 1×</div></div>
+<div class="m" style="right:420px;bottom:300px">1</div><div class="m" style="left:440px;bottom:300px">2</div><div class="m" style="left:440px;bottom:150px">3</div>
+<div class="bar over"><div class="tl"><span>43:17</span><div class="rail"><i style="width:36%"></i><u style="left:36%"></u></div><span>−1:15:07</span></div>
+<div class="row"><div class="id"><div class="txt"><div class="t">The Glass Harbor</div><div class="s">2026 · Movie</div></div></div>
+<div class="mid"><div class="btn dis"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn dis"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn sel"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Playback settings (right) and the Speed panel (left, shown together here only to save space; in the app one panel is open at a time).</b><ol>
+<li>Playback settings keeps only preferences: speed, skip lengths, picture-in-picture and Playback information (the technical details move here). Audio and subtitles are no longer inside it.</li>
+<li>Speed: the large current value, five quick presets (a preset is ticked only when the value matches), and a slider from 0.5× to 3× in 0.05 steps. Presets and slider always agree. Audiobooks open this panel straight from the "1.25×" value on the bar; video reaches it through Playback settings.</li>
+<li>Reset to 1× in the fixed footer. The "Custom speed…" submenu no longer exists.</li></ol></figcaption></figure>
+
+<h2>6. Sleep timer (audiobooks)</h2>
+<figure><div class="screen" style="height:520px;background:radial-gradient(100% 80% at 60% 20%,#2a2740,#101115 70%)">
+<div class="panel" style="right:16px;bottom:96px;width:380px"><div class="ph"><svg class="i"><use href="#moon"/></svg><h3>Sleep timer</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div class="pb" style="padding:12px 16px"><div style="text-align:center"><div style="color:var(--t2);font-size:13px">Stopping in</div><div style="font-size:40px;font-weight:700;line-height:1.1">14:32</div><div style="color:var(--t2);font-size:13px;margin-bottom:14px">Playback will pause automatically.</div></div>
+<div class="pre"><span class="on">15 min</span><span>30 min</span><span>45 min</span><span>60 min</span></div>
+<div class="div" style="margin:12px 0"></div><div class="pr">End of chapter<span class="v"><svg class="i sm"><use href="#chev"/></svg></span></div><div class="pr">Custom duration…<span class="v"><svg class="i sm"><use href="#chev"/></svg></span></div></div>
+<div class="pf"><span class="btn-o">+5 minutes</span><span style="flex:1"></span><span style="color:var(--t2)">Cancel timer</span></div></div>
+<div class="m" style="right:400px;bottom:330px">1</div><div class="m" style="right:400px;bottom:118px">2</div>
+<div class="bar over"><div class="tl"><span>12:08</span><span class="lbl">Chapter 8</span><div class="rail"><i style="width:40%"></i><u style="left:40%"></u></div><span>−18:32</span></div>
+<div class="row"><div class="id"><div class="art book"></div><div class="txt"><div class="t">The Way Beyond</div><div class="s">Maya Ellis · Chapter 8</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#chap"/></svg></div><div class="chip">1.25×</div><div class="btn sel"><svg class="i"><use href="#moon"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Sleep timer running.</b><ol>
+<li>While a timer runs the panel shows the countdown; in End-of-chapter mode it says "Stopping at the end of chapter 8" instead. Presets 15, 30, 45 and 60 minutes, End of chapter, and Custom duration one level deeper. The timer lives in the playback session, so opening Now playing never resets it.</li>
+<li>+5 minutes and Cancel timer in the fixed footer. On the bar the moon is shown selected while a timer runs. No speech-bubble arrow on any panel.</li></ol></figcaption></figure>
+
+<h2>7. Lyrics (music, over the library)</h2>
+<figure><div class="screen lib">
+<div style="position:absolute;left:0;top:0;bottom:92px;width:220px;background:var(--nav);padding:20px;color:var(--t2)"><div style="color:var(--t1);font-weight:700;font-size:18px;margin-bottom:20px">Tuvima</div><div>Home</div><div style="color:var(--t1);background:var(--acc-soft);margin:8px -8px;padding:8px;border-radius:6px">Listen</div><div>Watch</div><div>Read</div></div>
+<div style="position:absolute;left:240px;top:24px;font-size:22px;font-weight:600">Albums</div>
+<div style="position:absolute;left:240px;top:72px;display:grid;grid-template-columns:repeat(3,120px);gap:16px">
+<div style="height:120px;border-radius:6px;background:linear-gradient(150deg,#5b3fa6,#2c8f8a)"></div><div style="height:120px;border-radius:6px;background:linear-gradient(150deg,#c46a3a,#4a2b6f)"></div><div style="height:120px;border-radius:6px;background:linear-gradient(150deg,#2e7d5b,#1f3d6b)"></div></div>
+<div class="panel" style="right:16px;bottom:100px;width:460px;height:calc(100% - 140px)"><div class="ph"><h3>Lyrics <span class="pill" style="vertical-align:middle;margin-left:6px">● Synced</span></h3><div class="x"><svg class="i"><use href="#open"/></svg></div><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div style="display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)"><div class="art" style="width:44px;height:44px"></div><div><div style="font-weight:600;font-size:15px">Stay a Little Longer</div><div style="color:var(--t2);font-size:13px">The Midnight Coast</div></div></div>
+<div class="pb lyr"><div>The city settles into blue</div><div>I leave a little light for you</div><div class="cur">Stay a little longer</div><div>Let the quiet carry through</div><div>Morning waits beyond the window</div>
+<div style="text-align:center;margin-top:10px;border:0;padding:0"><span class="chip sel" style="display:inline-flex"><svg class="i sm"><use href="#play"/></svg>Resume following</span><div style="font-size:13px;color:var(--t2);margin-top:6px;border:0;padding:0">Select a line to jump to that moment.</div></div></div>
+<div class="pf" style="color:var(--t2)">Synced lyrics · Local file<span style="flex:1"></span><svg class="i sm" style="color:var(--t1)"><use href="#more"/></svg></div></div>
+<div class="m" style="right:484px;top:12px">1</div><div class="m" style="right:484px;top:170px">2</div><div class="m" style="right:484px;bottom:116px">3</div>
+<div class="bar" style="position:absolute;left:0;right:0;bottom:0"><div class="tl"><span>2:23</span><div class="rail"><i style="width:56%"></i><u style="left:56%"></u></div><span>−1:49</span></div>
+<div class="row"><div class="id"><div class="art"></div><div class="txt"><div class="t">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#up"/></svg></div><div class="btn"><svg class="i"><use href="#down"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div><div class="btn"><svg class="i"><use href="#repeat"/></svg></div></div>
+<div class="tools"><div class="btn sel"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Lyrics panel after the person scrolled by hand.</b><ol>
+<li>Header: "Lyrics" with a Synced (or Unsynced) chip, an Open Now playing button and Close; then the track identity.</li>
+<li>Synced lyrics highlight the current line with a purple edge and follow the song. Scrolling by hand pauses the following and shows Resume following; selecting a timed line jumps there. Unsynced lyrics are plain scrolling text. When nothing is found: a short line with Find lyrics and Add a lyrics file.</li>
+<li>Footer: where the lyrics came from, and a "..." menu with Find another, Add a lyrics file and About lyrics sources (the long explanation lives there now).</li></ol></figcaption></figure>
+
+<h2>8. Queue (music): Up next and History</h2>
+<figure><div class="screen" style="height:560px;background:radial-gradient(90% 70% at 25% 35%,#23203a,#101115 70%)">
+<div class="panel" style="right:16px;bottom:96px;width:440px;height:440px"><div class="ph"><h3>Queue</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div class="tabs"><span class="on">Up next · 6</span><span>History</span></div>
+<div class="pb" style="padding:4px 8px"><div class="mh">Now playing</div><div class="lr sel" style="grid-template-columns:40px 1fr auto 24px"><div class="a"></div><div><div class="t">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div><div class="d">4:12</div><svg class="i sm" style="color:var(--acc-t)"><use href="#bars"/></svg></div>
+<div class="mh">Up next · 6<em style="color:var(--t2);font-size:14px">Clear</em></div>
+<div class="lr"><svg class="i sm h"><use href="#drag"/></svg><div class="a" style="background:linear-gradient(150deg,#c46a3a,#4a2b6f)"></div><div><div class="t">Afterglow</div><div class="s">The Midnight Coast</div></div><div class="d">3:46</div><svg class="i sm"><use href="#more"/></svg></div>
+<div class="lr"><svg class="i sm h"><use href="#drag"/></svg><div class="a" style="background:linear-gradient(150deg,#2e7d5b,#1f3d6b)"></div><div><div class="t">Northern Roads</div><div class="s">The Midnight Coast</div></div><div class="d">4:08</div><svg class="i sm"><use href="#more"/></svg></div>
+<div class="lr"><svg class="i sm h"><use href="#drag"/></svg><div class="a"></div><div><div class="t">Paper Lanterns</div><div class="s">The Midnight Coast</div></div><div class="d">3:22</div><svg class="i sm"><use href="#more"/></svg></div>
+<div class="lr"><svg class="i sm h"><use href="#drag"/></svg><div class="a" style="background:linear-gradient(150deg,#243b66,#5b3b4a)"></div><div><div class="t">Night Drive</div><div class="s">The Midnight Coast</div></div><div class="d">4:31</div><svg class="i sm"><use href="#more"/></svg></div></div>
+<div class="pf" style="color:var(--t2)"><svg class="i sm"><use href="#playlist"/></svg>Playing from <b style="color:var(--t1);margin-left:4px">Northern Lights</b></div></div>
+<div class="m" style="right:464px;bottom:470px">1</div><div class="m" style="right:464px;bottom:330px">2</div><div class="m" style="right:464px;bottom:112px">3</div>
+<div class="bar over" style="background:var(--nav);border-top:1px solid var(--line)"><div class="tl"><span>1:37</span><div class="rail"><i style="width:38%"></i><u style="left:38%"></u></div><span>−2:35</span></div>
+<div class="row"><div class="id"><div class="art"></div><div class="txt"><div class="t">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#up"/></svg></div><div class="btn"><svg class="i"><use href="#down"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div><div class="btn"><svg class="i"><use href="#repeat"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn sel"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Queue, Up next tab.</b><ol>
+<li>One Queue panel with two tabs, Up next and History; there is no separate Up next view with the same list.</li>
+<li>A compact Now playing row, then Up next with a Clear action that never stops the current song. Rows: drag handle in its own column, 40 px art, title and artist, length, and a "..." menu (Play next, Move up, Move down, Remove, Go to album, Go to artist). Compact rows, no cards, no repeated Play buttons.</li>
+<li>Footer: where the queue came from. An Autoplay switch appears here only if the app gains that feature (it has none today, so it is not shown). History lists what played this session with "3 min ago" and a Play action; the song's full listening history stays in the "..." menu beside the title.</li></ol></figcaption></figure>
+
+<h2>9. Episodes (TV)</h2>
+<figure><div class="screen video">
+<div class="panel" style="right:16px;bottom:96px;width:520px;height:calc(100% - 130px)"><div class="ph"><h3>Episodes<span class="sub">Shimmer and Shine</span></h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div style="display:flex;align-items:center;padding:10px 16px;gap:12px"><span class="sel-dd">Season 1 <svg class="i sm"><use href="#chevd"/></svg></span><span style="margin-left:auto;color:var(--t2)">20 episodes</span></div>
+<div class="pb" style="padding:0 8px">
+<div class="lr ep sel"><div class="a w" style="background:linear-gradient(150deg,#2e7d5b,#1f3d6b)"></div><div><div class="t">1. The First Wish (1)</div><div class="s"><span style="color:var(--acc-t)">Playing</span> · 2:23 of 22:41</div><div class="prog" style="width:92%"><i style="width:11%"></i></div></div><div></div></div>
+<div class="lr ep"><div class="a w" style="background:linear-gradient(150deg,#5b3fa6,#2c8f8a)"></div><div><div class="t">2. The First Wish (2) <span class="pill">Up next</span></div><div class="s">22:38 · Leah discovers there is more to her new friends.</div></div><div></div></div>
+<div class="lr ep"><div class="a w" style="background:linear-gradient(150deg,#c46a3a,#4a2b6f)"></div><div><div class="t">3. A magical mess</div><div class="s">22:12 · Shimmer and Shine's magic causes a big, glittery mess.</div></div><div></div></div>
+<div class="lr ep"><div class="a w" style="background:linear-gradient(150deg,#243b66,#5b3b4a)"></div><div><div class="t">4. The missing necklace</div><div class="s">22:34 · Leah and the genies search for a lost necklace.</div><div class="prog" style="width:92%"><i style="width:70%"></i></div></div><div></div></div>
+<div class="lr ep"><div class="a w" style="background:var(--card)"></div><div><div class="t">5. A wish too far</div><div class="s">22:26 · A wish sends everyone on a bigger adventure.</div></div><div></div></div></div>
+<div class="pf">Autoplay next episode<span style="flex:1"></span><span class="sw"></span></div></div>
+<div class="m" style="right:544px;top:70px">1</div><div class="m" style="right:544px;top:150px">2</div><div class="m" style="right:544px;bottom:112px">3</div>
+<div class="bar over"><div class="tl"><span>2:23</span><div class="rail"><i style="width:11%"></i><u style="left:11%"></u></div><span>−20:18</span></div>
+<div class="row"><div class="id"><div class="txt"><div class="t">Shimmer and Shine</div><div class="s">S1 E1 · The First Wish</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn sel"><svg class="i"><use href="#eps"/></svg></div><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Episodes panel.</b><ol>
+<li>Show name under the title, a Season dropdown and the count. The Up next and Chapters tabs are gone; this is the one list.</li>
+<li>Landscape stills (show art, then a neutral tile with the number, when there is none), number and title, length and a one-line synopsis, a progress line on started episodes, the current row highlighted with "Playing · 2:23 of 22:41", and a small Up next chip on the next one. Selecting a row plays or resumes it as today.</li>
+<li>Autoplay next episode is the existing per-profile switch, now reachable here. Courses use the same panel titled Lessons.</li></ol></figcaption></figure>
+
+<h2>10. Chapters (audiobooks)</h2>
+<figure><div class="screen" style="height:600px;background:radial-gradient(100% 80% at 60% 20%,#2a2740,#101115 70%)">
+<div class="panel" style="left:50%;transform:translateX(-50%);bottom:96px;width:600px;height:470px"><div class="ph"><h3>Chapters</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div style="display:flex;gap:14px;align-items:center;padding:12px 16px"><div class="art book" style="width:64px;height:64px"></div><div><div style="font-size:18px;font-weight:600">The Way Beyond</div><div style="color:var(--t2)">Maya Ellis</div></div></div>
+<div style="display:flex;padding:0 16px 8px;font-size:14px"><span>Chapter 8 of 24</span><span style="margin-left:auto;color:var(--t2)">Book · 32% complete</span></div>
+<div class="pb" style="padding:0 8px"><div class="lr ch"><span class="h">6</span><div class="t">The crossing</div><div class="d">24:16</div><svg class="i sm" style="color:var(--acc-t)"><use href="#check"/></svg></div>
+<div class="lr ch"><span class="h">7</span><div class="t">A change in the wind</div><div class="d">19:42</div><svg class="i sm" style="color:var(--acc-t)"><use href="#check"/></svg></div>
+<div class="lr ch sel"><span class="h">8</span><div><div class="t">Beyond the ridge</div><div class="s">12:08 elapsed · 18:32 remaining</div><div class="prog"><i style="width:40%"></i></div></div><div class="d">30:40</div><svg class="i sm" style="color:var(--acc-t)"><use href="#bars"/></svg></div>
+<div class="lr ch"><span class="h">9</span><div class="t">The quiet valley</div><div class="d">27:18</div><span></span></div>
+<div class="lr ch"><span class="h">10</span><div class="t">An unfamiliar road</div><div class="d">22:04</div><span></span></div></div>
+<div class="pf" style="white-space:nowrap"><span>Timeline shows</span><div class="seg"><span class="on">Chapter</span><span>Whole book</span></div><span style="flex:1"></span><span style="color:var(--t2);font-size:13px">Select a chapter to start listening.</span></div></div>
+<div class="m" style="left:calc(50% - 324px);top:90px">1</div><div class="m" style="left:calc(50% - 324px);top:290px">2</div><div class="m" style="left:calc(50% - 324px);bottom:112px">3</div>
+<div class="bar over" style="background:var(--nav);border-top:1px solid var(--line)"><div class="tl"><span>12:08</span><span class="lbl">Chapter 8</span><div class="rail"><i style="width:40%"></i><u style="left:40%"></u></div><span>−18:32</span></div>
+<div class="row"><div class="id"><div class="art book"></div><div class="txt"><div class="t">The Way Beyond</div><div class="s">Maya Ellis · Chapter 8</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn sel"><svg class="i"><use href="#chap"/></svg></div><div class="chip">1.0×</div><div class="btn"><svg class="i"><use href="#moon"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Chapters panel.</b><ol>
+<li>Book identity, "Chapter 8 of 24" and the whole-book percentage.</li>
+<li>Number, title and length; finished chapters carry a check; the current one is highlighted with elapsed and remaining time and a progress line. Selecting a row plays that chapter. Same list style as Episodes.</li>
+<li>"Timeline shows Chapter | Whole book" moves into the footer (remembered per profile) and changes the bar's timeline and labels.</li></ol></figcaption></figure>
+
+<h2>11. Bookmarks (every media with bookmarks)</h2>
+<figure><div class="screen video">
+<div class="panel" style="right:16px;bottom:96px;width:460px;height:calc(100% - 120px)"><div class="ph"><h3>Bookmarks</h3><div class="x"><svg class="i"><use href="#close"/></svg></div></div>
+<div style="padding:10px 16px 0"><div class="btn-p"><svg class="i sm" style="vertical-align:middle;margin-right:6px"><use href="#plus"/></svg>Bookmark at 34:12</div><div class="inp" style="margin-top:8px">Add a note…<span style="flex:1"></span><svg class="i sm"><use href="#chevd"/></svg></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px 16px 4px"><div class="seg"><span class="on">Everyone · 8</span><span>Mine · 3</span></div></div>
+<div style="padding:8px 16px 0"><div class="inp"><svg class="i sm"><use href="#search"/></svg>Search bookmarks</div></div>
+<div class="pb" style="padding:4px 8px">
+<div class="lr" style="grid-template-columns:72px 1fr auto"><div class="a w" style="width:72px;height:40px;background:linear-gradient(150deg,#243b66,#5b3b4a)"></div><div><div class="t"><span style="color:var(--acc-t)">12:48</span> · The first clue</div><div class="s">Alex</div></div><span></span></div>
+<div class="lr" style="grid-template-columns:72px 1fr auto"><div class="a w" style="width:72px;height:40px;background:linear-gradient(150deg,#4e6b8c,#243b66)"></div><div><div class="t"><span style="color:var(--acc-t)">28:06</span> · The lighthouse signal</div><div class="s">Morgan</div></div><span></span></div>
+<div class="lr" style="grid-template-columns:72px 1fr auto"><div class="a w" style="width:72px;height:40px;background:linear-gradient(150deg,#5b3fa6,#2c8f8a)"></div><div><div class="t"><span style="color:var(--acc-t)">46:32</span> · The hidden room</div><div class="s">Alex</div></div><span></span></div>
+<div class="lr" style="grid-template-columns:72px 1fr auto"><div class="a w" style="width:72px;height:40px;background:linear-gradient(150deg,#c46a3a,#4a2b6f)"></div><div><div class="t"><span style="color:var(--acc-t)">1:12:09</span> · The reveal</div><div class="s">Sam</div></div><span></span></div>
+<div style="text-align:center;color:var(--t2);font-size:13px;padding:8px">Select a bookmark to jump to that moment.</div></div>
+<div class="pf">Show on timeline<span class="sw" style="margin-left:6px"></span></div></div>
+<div class="m" style="right:484px;top:70px">1</div><div class="m" style="right:484px;top:170px">2</div><div class="m" style="right:484px;top:290px">3</div><div class="m" style="right:484px;bottom:112px">4</div><div class="m" style="left:200px;bottom:106px">5</div>
+<div class="bar over"><div class="tl"><span>34:12</span><div class="rail"><i style="width:30%"></i><u style="left:30%"></u><b style="left:12%"></b><b style="left:26%"></b><b class="s" style="left:48%"></b><b style="left:70%"></b></div><span>−1:02:15</span></div>
+<div class="row"><div class="id"><div class="txt"><div class="t">The Glass Harbor</div><div class="s">2026 · Movie</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn dis"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn dis"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn sel"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Bookmarks, Everyone (the default).</b><ol>
+<li>"Bookmark at 34:12" captures the time when pressed and saves at once, no note needed; the note field is optional and expands.</li>
+<li>One two-way choice, Everyone or Mine, Everyone by default. Everyone is the title's definitive set, made by an administrator in the editor's Bookmarks tab (from profiles' bookmarks, by import, or by hand), so it is simply there for every viewer; Mine is your own. A search box appears when the list has more than eight rows.</li>
+<li>Rows: time, title or note, a frame from that moment, and who made it. Selecting a row jumps there. Everyone rows have no actions in the player; Mine rows get Edit and Delete.</li>
+<li>"Show on timeline": the markers follow whichever list is showing.</li>
+<li>Markers on the timeline are small ticks under the rail that never get in the way of scrubbing; they come only from the Engine's filtered list.</li></ol></figcaption></figure>
+
+<h2>12. Item actions menu (music)</h2>
+<figure><div class="screen" style="height:420px;background:radial-gradient(90% 70% at 25% 35%,#23203a,#101115 70%)">
+<div class="panel" style="left:300px;bottom:96px;width:272px"><div style="padding:10px 16px 4px;color:var(--t2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Stay a Little Longer</div>
+<div class="pb" style="padding:4px 8px 8px"><div class="pr"><svg class="i"><use href="#playlist"/></svg>Add to playlist…</div><div class="div"></div><div class="pr"><svg class="i"><use href="#check"/></svg>Mark as listened</div><div class="pr"><svg class="i"><use href="#clock"/></svg>Listening history</div><div class="div"></div><div class="pr"><svg class="i"><use href="#disc"/></svg>Go to album</div><div class="pr"><svg class="i"><use href="#person"/></svg>Go to artist</div><div class="div"></div><div class="pr"><svg class="i"><use href="#gear"/></svg>Playback settings</div></div></div>
+<div class="m" style="left:580px;bottom:330px">1</div><div class="m" style="left:580px;bottom:110px">2</div>
+<div class="bar over" style="background:var(--nav);border-top:1px solid var(--line)"><div class="tl"><span>1:37</span><div class="rail"><i style="width:38%"></i><u style="left:38%"></u></div><span>−2:35</span></div>
+<div class="row"><div class="id"><div class="art"></div><div class="txt"><div class="t">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#up"/></svg></div><div class="btn"><svg class="i"><use href="#down"/></svg></div><div class="btn sel"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div><div class="btn"><svg class="i"><use href="#repeat"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>The "..." menu beside the song.</b><ol>
+<li>A compact menu (272 px, 44 px rows, same surface as every other menu in the app) with the song name as its header: Add to playlist…, Mark as listened or unlistened (whichever applies), Listening history, Go to album, Go to artist, Playback settings. Favorite and ratings are not repeated here. Audiobooks, TV and movies get the matching wording (Mark as finished, Go to show, Go to season…).</li>
+<li>The More button shows as selected while its menu is open; one panel at a time, so opening it closes any other.</li></ol></figcaption></figure>
+
+<h2>13. Now playing (music)</h2>
+<figure><div class="screen lib"><div class="np">
+<div class="top"><span><svg class="i sm" style="vertical-align:middle"><use href="#arrowl"/></svg> Back to library</span><svg class="i"><use href="#close"/></svg></div>
+<div class="body"><div><div class="cover"></div><div class="meta"><h4>Stay a Little Longer</h4><a href="#">The Midnight Coast</a><div class="s">Northern Lights · 2026</div></div></div>
+<div><div class="tabs" style="padding:0"><span class="on">Lyrics</span><span>Queue</span><span>History</span><span class="pill" style="align-self:center;margin-left:8px">● Synced</span></div>
+<div class="lyr" style="padding:20px 0;font-size:26px"><div>The city settles into blue</div><div>I leave a little light for you</div><div class="cur">Stay a little longer</div><div>Let the quiet carry through</div><div>Morning waits beyond the window</div></div><div style="color:var(--t2);font-size:13px"><svg class="i sm" style="vertical-align:middle;color:var(--acc-t)"><use href="#check"/></svg> Following playback</div></div></div>
+<div class="m" style="left:180px;top:14px">1</div><div class="m" style="left:330px;top:40px">2</div><div class="m" style="left:4px;bottom:100px">3</div>
+<div class="bar" style="position:absolute;left:0;right:0;bottom:0"><div class="tl"><span>2:23</span><div class="rail"><i style="width:56%"></i><u style="left:56%"></u></div><span>−1:49</span></div>
+<div class="row"><div class="id"><div class="art"></div><div class="txt"><div class="t">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#up"/></svg></div><div class="btn"><svg class="i"><use href="#down"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div><div class="btn"><svg class="i"><use href="#repeat"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn sel"><svg class="i"><use href="#bars"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div></div>
+<figcaption><b>Now playing page for music (audiobooks: large cover, book, author, narrator and chapter, with Chapters and About tabs).</b><ol>
+<li>Back to library and Close at the top both return to where you were; playback keeps going. The bar's own Close is the only thing that stops and dismisses the player.</li>
+<li>Large cover and facts on the left; Lyrics, Queue and History tabs on the right, with the synced lyrics built in rather than a second floating panel. The art area has no extra controls.</li>
+<li>The complete bar at the bottom, exactly as while browsing (small art, Favorite and ratings, centered transport, tools); "Now playing" shows as selected.</li></ol></figcaption></figure>
+
+<h2>14. Video paused</h2>
+<figure><div class="screen video"><div class="grad"></div>
+<div class="hdr">Tuvima</div>
+<div class="paused"><h4>Shimmer and Shine</h4><div class="s">S1 E1 · The First Wish · 22 min</div><p>Leah meets Shimmer and Shine, two genies in training, and makes her first wish, which does not go quite as planned.</p></div>
+<div class="m" style="left:100px;top:14px">1</div><div class="m" style="left:4px;bottom:200px">2</div><div class="m" style="right:4px;bottom:4px">3</div>
+<div class="bar over"><div class="tl"><span>2:23</span><div class="rail"><i style="width:11%"></i><u style="left:11%"></u></div><span>−20:18</span></div>
+<div class="row"><div class="id"><div class="txt"><div class="t">Shimmer and Shine</div><div class="s">S1 E1 · The First Wish</div></div><div class="acts"><div class="btn"><svg class="i"><use href="#heart"/></svg></div><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#play"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#eps"/></svg></div><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn"><svg class="i"><use href="#vol"/></svg></div><div class="btn"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div>
+</div>
+<figcaption><b>Episode paused, no panel open.</b><ol>
+<li>The rating card from the earlier spec stays at the top-left when the title has a rating (not shown here: this title has none).</li>
+<li>Title, season and episode line and a short description sit above the bar with a soft local gradient behind them; the rest of the picture is not dimmed. They hide while a panel is open and return when it closes. While playing, the controls fade after a few seconds unless the pointer is on them, a control has focus or a panel is open. Subtitles move up above the bar while the controls are visible.</li>
+<li>In fullscreen the bar, every panel and every tooltip render inside the fullscreen picture, so nothing is lost or clipped.</li></ol></figcaption></figure>
+
+<h2>15. Phone</h2>
+<figure><div style="overflow-x:auto;white-space:nowrap;padding-bottom:4px">
+<div class="phone"><div class="m" style="left:4px;bottom:70px">1</div><div class="content"><div></div><div></div><div></div><div></div><div></div></div>
+<div class="cbar"><div class="art" style="width:44px;height:44px"></div><div class="txt" style="flex:1"><div class="t" style="font-size:15px">Stay a Little Longer</div><div class="s">The Midnight Coast</div></div><div class="btn"><svg class="i"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div></div>
+<div class="phone"><div class="m" style="left:4px;top:44px">2</div><div class="m" style="left:4px;top:330px">3</div><div class="m" style="left:4px;top:520px">4</div><div class="exp">
+<div style="display:flex;justify-content:space-between;align-items:center"><svg class="i"><use href="#chevd"/></svg><span style="font-size:13px;color:var(--t2)">Playing from Northern Lights</span><svg class="i"><use href="#more"/></svg></div>
+<div class="bigart" style="width:260px;height:260px;margin:20px auto"></div>
+<div style="display:flex;align-items:center;gap:4px"><div class="txt" style="flex:1"><div class="t" style="font-size:18px">Stay a Little Longer</div><div class="s" style="font-size:14px">The Midnight Coast</div></div><div class="btn" style="width:40px;height:40px"><svg class="i"><use href="#heart"/></svg></div><div class="btn sel" style="width:40px;height:40px"><svg class="i"><use href="#up"/></svg></div><div class="btn" style="width:40px;height:40px"><svg class="i"><use href="#down"/></svg></div></div>
+<div class="tl" style="margin-top:12px"><span>2:23</span><div class="rail"><i style="width:56%"></i><u style="left:56%"></u></div><span>−1:49</span></div>
+<div class="mid" style="margin-top:8px;gap:20px"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn play" style="width:64px;height:64px;background:#fff;color:#000;border-radius:50%"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools" style="justify-content:space-between;margin-top:18px;padding:0 8px"><div class="btn"><svg class="i"><use href="#shuffle"/></svg></div><div class="btn"><svg class="i"><use href="#lyrics"/></svg></div><div class="btn"><svg class="i"><use href="#queue"/></svg></div><div class="btn"><svg class="i"><use href="#repeat"/></svg></div></div></div></div>
+<div class="phone" style="margin-right:0"><div class="m" style="left:4px;top:160px">5</div><div class="screen video" style="position:absolute;inset:0;border:0;border-radius:0;aspect-ratio:auto"></div>
+<div class="sheet" style="height:470px"><div class="hd"></div><div style="display:flex;align-items:center"><h3 style="margin:0;font-size:17px;flex:1">Audio &amp; subtitles</h3><svg class="i"><use href="#close"/></svg></div>
+<div class="tabs2"><span>Audio</span><span class="on">Subtitles</span></div>
+<div class="pr" style="min-height:52px">Off</div><div class="pr sel" style="min-height:52px">English<span class="ck"><svg class="i sm"><use href="#check"/></svg></span></div><div class="pr" style="min-height:52px">English · SDH</div><div class="pr" style="min-height:52px">Spanish</div><div class="pr" style="min-height:52px">English · Forced</div>
+<div class="div"></div><div class="pr" style="min-height:52px"><svg class="i"><use href="#aa"/></svg>Subtitle appearance</div><div class="pr" style="min-height:52px"><svg class="i"><use href="#search"/></svg>Find subtitles…</div></div></div>
+</div>
+<figcaption><b>Collapsed bar, expanded player, and a bottom sheet.</b><ol>
+<li>The collapsed bar shows artwork, title, Play/pause and Next (forward 30 s for an audiobook; Play alone for video). No Favorite here: it lives in the expanded view. The page keeps space for the bar so it never covers library content.</li>
+<li>Tapping it expands to Now playing, which on a phone is the expanded player itself: large artwork, the title and artist with Favorite, Like and Dislike on the same line, the timeline, and the transport for this media (Previous, Play, Next for music; the five for an audiobook) with a larger Play.</li>
+<li>One row of up to four tools for this media (music: Shuffle, Lyrics, Queue, Repeat; audiobook: Chapters, Speed, Sleep timer, Bookmarks; video keeps its overlay). Everything else, including Bookmarks for music and Playback settings, is in the "..." menu at the top. Volume is the phone's own buttons.</li>
+<li>Lyrics, Queue and the other tools open as bottom sheets over this view.</li>
+<li>Larger panels are bottom sheets with 52 px rows, a bounded height, their own scrolling, safe-area padding and a drag handle; Audio &amp; subtitles becomes two tabs. Nothing depends on hover.</li></ol></figcaption></figure>
+
+<h2>16. Lock screen, Play on another device, TV and car</h2>
+<figure><div style="white-space:nowrap">
+<div class="phone" style="background:linear-gradient(170deg,#2b3350,#0f1220)"><div class="m" style="left:4px;top:150px">1</div>
+<div style="text-align:center;padding-top:48px;font-size:52px;font-weight:300;letter-spacing:-1px">9:41</div><div style="text-align:center;font-size:14px;color:var(--t2)">Friday, 7 November</div>
+<div style="margin:36px 16px 0;background:rgba(255,255,255,.12);backdrop-filter:blur(10px);border-radius:20px;padding:14px">
+<div style="display:flex;gap:12px;align-items:center"><div class="art" style="width:60px;height:60px;border-radius:10px"></div><div class="txt" style="flex:1"><div class="t" style="font-size:16px">Stay a Little Longer</div><div class="s" style="font-size:13px">The Midnight Coast · Northern Lights</div></div></div>
+<div class="tl" style="margin-top:10px;height:20px"><span>2:23</span><div class="rail" style="background:rgba(255,255,255,.3)"><i style="width:56%;background:#fff"></i></div><span>−1:49</span></div>
+<div class="mid" style="justify-content:center;gap:28px;margin-top:4px"><div class="btn"><svg class="i big"><use href="#prev"/></svg></div><div class="btn"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i big"><use href="#next"/></svg></div></div></div>
+<div style="margin:12px 16px 0;background:rgba(255,255,255,.12);border-radius:20px;padding:14px;opacity:.9">
+<div style="display:flex;gap:12px;align-items:center"><div class="art book" style="width:60px;height:60px;border-radius:10px"></div><div class="txt" style="flex:1"><div class="t" style="font-size:16px">The Way Beyond</div><div class="s" style="font-size:13px">Maya Ellis · Chapter 8</div></div></div>
+<div class="mid" style="justify-content:center;gap:28px;margin-top:8px"><div class="btn"><svg class="i big"><use href="#back"/></svg><span class="n" style="font-size:10px">10</span></div><div class="btn"><svg class="i big"><use href="#play"/></svg></div><div class="btn"><svg class="i big"><use href="#fwd"/></svg><span class="n" style="font-size:10px">30</span></div></div></div>
+</div>
+<div style="display:inline-block;vertical-align:top;width:790px;white-space:normal">
+<div class="screen" style="height:300px"><div class="m" style="left:4px;top:4px">2</div><div class="m" style="left:4px;bottom:36px">3</div>
+<div class="panel" style="right:16px;top:12px;width:272px;height:214px"><div class="ph"><h3>The Glass Harbor<span class="sub">Playback settings</span></h3></div><div class="pb">
+<div class="pr"><svg class="i"><use href="#speed"/></svg>Playback speed<span class="v">1×</span></div>
+<div class="pr"><svg class="i"><use href="#pip"/></svg>Picture-in-picture</div>
+<div class="pr sel"><svg class="i"><use href="#cast"/></svg>Play on another device…</div></div></div>
+<div class="bar" style="position:absolute;left:0;right:0;bottom:0"><div class="tl"><span>34:12</span><div class="rail"><i style="width:30%"></i><u style="left:30%"></u></div><span>−1:18:46</span></div>
+<div class="row" style="grid-template-columns:1.8fr auto 1fr"><div class="id"><div class="art wide film poster"></div><div class="txt"><div class="t"><a href="#">The Glass Harbor</a></div><div class="s">2026 · Movie</div><div class="s" style="color:var(--acc-t)">Playing on Living room TV</div></div>
+<div class="acts"><div class="btn"><svg class="i"><use href="#more"/></svg></div></div></div>
+<div class="mid"><div class="btn dis"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn dis"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools"><div class="btn"><svg class="i"><use href="#cc"/></svg></div><div class="btn"><svg class="i"><use href="#bm"/></svg></div><div class="btn sel"><svg class="i"><use href="#gear"/></svg></div><div class="btn"><svg class="i"><use href="#full"/></svg></div><div class="btn"><svg class="i"><use href="#close"/></svg></div></div></div></div></div>
+<div class="screen video" style="margin-top:16px;height:324px;aspect-ratio:auto"><div class="m" style="left:4px;top:4px">4</div><div class="grad"></div>
+<div class="hdr" style="right:260px">Shimmer and Shine · S1 E1 · The First Wish</div>
+<div class="bar over" style="padding:8px 28px 18px;right:260px"><div class="tl"><span>2:23</span><div class="rail"><i style="width:11%"></i><u style="left:11%"></u></div><span>−20:18</span></div>
+<div class="mid" style="justify-content:center;gap:12px;margin-top:4px"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play" style="box-shadow:0 0 0 3px #fff;border-radius:50%"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools" style="justify-content:center;gap:28px;margin-top:6px;font-size:13px;color:var(--t2)"><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><svg class="i"><use href="#eps"/></svg>Episodes</div><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><svg class="i"><use href="#cc"/></svg>Audio &amp; subtitles</div><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><svg class="i"><use href="#bm"/></svg>Bookmarks</div><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><svg class="i"><use href="#gear"/></svg>Playback settings</div></div></div>
+<div class="panel" style="right:0;top:0;bottom:0;width:260px;border-radius:0;border-width:0 0 0 1px"><div class="ph"><h3>Episodes<span class="sub">Season 1</span></h3></div><div class="pb"><div class="pr sel" style="font-size:14px">1 · The First Wish</div><div class="pr" style="font-size:14px">2 · Lost in the Lamp</div><div class="pr" style="font-size:14px">3 · A Very Short Wish</div><div class="pr" style="font-size:14px">4 · The Pirate Genie</div></div></div></div>
+</div>
+</div>
+<div class="screen" style="width:640px;height:360px;background:#0d0f14;border-radius:14px;margin-top:16px;display:grid;grid-template-columns:330px 1fr"><div class="m" style="left:4px;top:4px">5</div>
+<div style="padding:16px 20px;border-right:1px solid var(--line)">
+<div style="font-size:12px;color:var(--t3);display:flex;justify-content:space-between"><span>Tuvima</span><span>9:41</span></div>
+<div style="display:flex;gap:14px;align-items:center;margin-top:14px"><div class="art book" style="width:96px;height:96px;border-radius:10px"></div><div class="txt"><div class="t" style="font-size:17px;white-space:normal">The Way Beyond</div><div class="s" style="font-size:13px">Maya Ellis · Chapter 8</div></div></div>
+<div class="tl" style="margin-top:14px"><span>12:08</span><div class="rail"><i style="width:40%"></i></div><span>−18:32</span></div>
+<div class="mid" style="justify-content:center;gap:10px;margin-top:4px"><div class="btn"><svg class="i"><use href="#prev"/></svg></div><div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div><div class="btn play" style="width:56px;height:56px;background:#fff;color:#000;border-radius:50%"><svg class="i big"><use href="#pause"/></svg></div><div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div><div class="btn"><svg class="i"><use href="#next"/></svg></div></div>
+<div class="tools" style="justify-content:center;gap:8px;margin-top:10px"><div class="chip outl">1.25×</div><div class="chip outl"><svg class="i sm"><use href="#chap"/></svg>Chapters</div></div></div>
+<div style="padding:16px 12px"><div style="padding:0 8px 6px;font-size:12px;letter-spacing:.04em;color:var(--t3);text-transform:uppercase">Library</div>
+<div class="pr" style="font-size:16px;min-height:48px">Continue</div><div class="pr" style="font-size:16px;min-height:48px">Listen shelves</div><div class="pr" style="font-size:16px;min-height:48px">Audiobooks</div><div class="pr" style="font-size:16px;min-height:48px">Playlists</div><div class="pr" style="font-size:16px;min-height:48px">Recently played</div></div></div>
+<figcaption><b>What the system shows, playing on a TV from the Dashboard, the TV overlay, and the car card.</b><ol>
+<li>The lock screen is drawn by the phone (or Windows, the Mac, a headset): Tuvima fills in the cover, the title, the same second line as the bar, the position, and the buttons that fit the media: Previous, Play and Next for a song; back 10, Play and forward 30 for an audiobook or a video. A locked Vault item sends nothing.</li>
+<li>"Play on another device…" is a row in Playback settings (video) or the "..." menu (music, audiobooks), never a bar tool. It opens the browser's own picker: AirPlay in Safari, Google Cast in Chrome and Edge. Disabled with "Not available in this browser" elsewhere, and for Vault items.</li>
+<li>While the TV plays, the bar adds "Playing on Living room TV", Volume disappears (the TV's remote owns it), and everything else keeps controlling the TV: Play, seek, Audio &amp; subtitles, Bookmarks, Episodes. The same row then reads "Stop playing on Living room TV".</li>
+<li>Television apps (Roku, Android TV, Apple TV, Samsung, LG): the same five transport buttons in the same order with a focus ring, Left and Right seek 10 and 30 s, one labelled tool row in the Dashboard's order, and panels slide in from the right with the same names and rows; Back closes the panel, then the overlay. Defined here as one contract file; each app is brought to it in its own follow-up.</li>
+<li>Cars (CarPlay, Android Auto): the car draws its own card from the same metadata and actions, with Speed and Chapters as the extra buttons for an audiobook (Shuffle and Repeat for music), and a list of Continue, Audiobooks, Playlists and Recently played beneath. No video, no visuals of Tuvima's own.</li></ol></figcaption></figure>
+</main></body></html>

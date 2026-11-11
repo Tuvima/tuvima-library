@@ -1,0 +1,118 @@
+@namespace MediaEngine.Web.Components.Shared
+@* A choice tile (Look v3 D13, mockup section 7): the icon sits ABOVE its text. A tile of at least 132px, the 48px icon on a soft square tinted with
+   the area colour at 14% (neutral when there is no area), the name at 14/500 under it, an optional muted second line, all centred. This is the one part
+   for Add library's area and kind tiles, the setup area cards and the "What is this file?" choices; the Empty variant is the empty-state form (a 64px
+   icon, no tinted square). Beside-text icons (rows, buttons, chips) are the existing row, button and chip parts, never this one. *@
+@if (Static)
+{
+    <div class="@RootClass" style="@ToneStyle">
+        <span class="app-choice-tile__square" aria-hidden="true">
+            <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Choice48" Class="app-choice-tile__icon" />
+        </span>
+        <span class="app-choice-tile__text">
+            <strong class="@LabelCss">@Label</strong>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <small class="app-choice-tile__description">@Description</small>
+            }
+        </span>
+    </div>
+}
+else if (Empty)
+{
+    <div class="@RootClass">
+        <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Hero64" Class="app-choice-tile__icon" aria-hidden="true" />
+        <span class="app-choice-tile__text">
+            <strong class="@LabelCss">@Label</strong>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <small class="app-choice-tile__description">@Description</small>
+            }
+        </span>
+    </div>
+}
+else
+{
+    <button type="button"
+            class="@RootClass"
+            style="@ToneStyle"
+            aria-pressed="@(Selected ? "true" : "false")"
+            aria-disabled="@(Disabled ? "true" : null)"
+            @onclick="HandleClick"
+            @attributes="AdditionalAttributes">
+        <span class="app-choice-tile__square" aria-hidden="true">
+            <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Choice48" Class="app-choice-tile__icon" />
+        </span>
+        <span class="app-choice-tile__text">
+            <strong class="@LabelCss">@Label</strong>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <small class="app-choice-tile__description">@Description</small>
+            }
+            @ChildContent
+        </span>
+    </button>
+}
+
+@code {
+    /// <summary>The Material icon drawn above the name.</summary>
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+
+    /// <summary>The name under the icon (14/500).</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>An optional muted second line (for example "Movies, TV, videos").</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>Extra content under the second line (for example a small "Added" note).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The meaning that colours the soft square; null is neutral. The area tones (Watch, Listen, Read, View, Vault) give the area colour.</summary>
+    [Parameter] public AppIconTone? Tone { get; set; }
+
+    /// <summary>An area key ("watch", "listen", "read", "view", "vault") as a shortcut for <see cref="Tone"/>; anything else is neutral.</summary>
+    [Parameter] public string? Area { get; set; }
+
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>The empty-state form: a 64px icon, no tinted square, not pressable.</summary>
+    [Parameter] public bool Empty { get; set; }
+
+    /// <summary>A tile that is only shown, not chosen (the setup area cards): the same icon square above the name, with no border, fill or press.</summary>
+    [Parameter] public bool Static { get; set; }
+
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>An extra class on the name, for screens that find a tile by it.</summary>
+    [Parameter] public string? LabelClass { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AppIconTone? ResolvedTone => Tone ?? Area?.ToLowerInvariant() switch
+    {
+        "watch" => AppIconTone.Watch,
+        "listen" => AppIconTone.Listen,
+        "read" => AppIconTone.Read,
+        "view" => AppIconTone.View,
+        "vault" => AppIconTone.Vault,
+        _ => null,
+    };
+
+    private string ToneStyle => $"--app-choice-tile-tone:{(ResolvedTone is { } tone ? AppIconToneMap.Color(tone) : "var(--tl-text-secondary)")};";
+
+    private string LabelCss => string.Join(" ", new[] { "app-choice-tile__label", LabelClass }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "app-choice-tile",
+        Empty ? "app-choice-tile--empty" : null,
+        Static ? "app-choice-tile--static" : null,
+        Selected ? "is-selected" : null,
+        Disabled ? "is-disabled" : null,
+        Class,
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private Task HandleClick() => Disabled ? Task.CompletedTask : OnClick.InvokeAsync();
+}

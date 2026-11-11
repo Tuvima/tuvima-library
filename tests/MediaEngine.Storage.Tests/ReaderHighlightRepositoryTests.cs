@@ -85,7 +85,7 @@ public sealed class ReaderHighlightRepositoryTests : IDisposable
     [Fact]
     public async Task Bookmarks_KeepTheirCfiPositionAndStayPrivate()
     {
-        var mine = Guid.NewGuid().ToString("D");
+        var mine = CreateProfile().ToString("D");
         await _bookmarks.InsertAsync(new ReaderBookmark
         {
             Id = Guid.NewGuid(),
@@ -115,6 +115,14 @@ public sealed class ReaderHighlightRepositoryTests : IDisposable
         Color = HighlightColor.Yellow,
         CreatedAt = DateTime.UtcNow,
     };
+
+    private Guid CreateProfile()
+    {
+        var id = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute("INSERT INTO profiles (id, display_name, created_at) VALUES (@id, 'Reader', @now);", new { id, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
+    }
 
     private Guid CreateAsset()
     {

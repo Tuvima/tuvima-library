@@ -1,168 +1,273 @@
 using Bunit;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Web.Components.Settings;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
-using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The live Ingestion page shows the Engine's queue snapshot as sent: the same headline, tally, status and time words,
-/// no arithmetic of their own.
+/// The Libraries page's status line shows the Engine's queue snapshot as sent, in the words of the shared formatter,
+/// with no arithmetic of its own beyond naming how many files are left.
 /// </summary>
-public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
+public sealed class IngestionQueueProgressDisplayTests : LiveLibraryTestContext
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
 
-    private readonly UniverseStateContainer _state = new();
-    private readonly List<string> _calls = [];
-    private Func<Task<IngestionPresentationSnapshotDto?>> _presentation =
-        () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto());
-    private Func<Task<IngestionQueueProgressDto?>> _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
-
-    public IngestionQueueProgressDisplayTests()
-    {
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddLocalization();
-        Services.AddLogging();
-        var api = EngineApiClientStub.Create(stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetIngestionPresentationAsync), _ =>
-            {
-                _calls.Add("presentation");
-                return _presentation();
-            });
-            stub.SetHandler(nameof(IEngineApiClient.GetIngestionQueueProgressAsync), _ =>
-            {
-                _calls.Add("queue");
-                return _queue();
-            });
-        });
-        Services.AddSingleton(api);
-        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        Services.AddSingleton(_state);
-        Services.AddSingleton(provider =>
-        {
-            var orchestrator = new UIOrchestratorService(
-                api,
-                _state,
-                new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
-                provider.GetRequiredService<IConfiguration>(),
-                NullLogger<UIOrchestratorService>.Instance);
-            // A normal circuit: the live connection to the Engine is up.
-            orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
-            return orchestrator;
-        });
-        Services.AddSingleton(provider => new IngestionLiveDashboardState(
-            api,
-            provider.GetRequiredService<UIOrchestratorService>(),
-            _state));
-        Services.AddSingleton(provider => new ContextSidebarPreferences(
-            provider.GetRequiredService<UIOrchestratorService>(),
-            new NoPlaybackPreferences()));
-        Services.AddSingleton<ContextSidebarCoordinator>();
-        Render<AppPopoverHost>();
-    }
-
     [Fact]
-    public void Working_ShowsFilesFoundAndTheTallyByTypeExactlyAsTheSnapshotSays()
-    {
-        var cut = RenderTab(Working());
-
-        Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
-        Assert.Equal(
-            "212 movies, 140 episodes, 96 songs, 31 books, 29 still being sorted",
-            cut.Find(".ingestion-status__tally").TextContent);
-        Assert.DoesNotContain("0 items", cut.Find(".ingestion-status").TextContent, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Working_WithOneFileOfOneType_UsesSingularNouns()
+    public void Working_SaysHowManyFilesAreBeingAddedAndHowLongIsLeft()
     {
         var snapshot = Working();
-        snapshot.FilesFound = 1;
-        snapshot.FilesDone = 0;
-        snapshot.FilesUnsorted = 0;
-        snapshot.Tally = [new IngestionQueueTypeTallyDto { MediaType = "Audiobooks", Files = 1 }];
+        snapshot.EstimatedSecondsRemaining = 240;
 
-        var cut = RenderTab(snapshot);
+        var cut = RenderLine(snapshot);
 
-        Assert.Equal("Found 1 file", cut.Find(".ingestion-status h2").TextContent);
-        Assert.Equal("1 audiobook file", cut.Find(".ingestion-status__tally").TextContent);
+        Assert.Equal("Adding 254 files · about 4 min left", StatusText(cut));
+        Assert.Contains("is-working", cut.Find(".libs-status__text").ClassList);
     }
 
     [Fact]
-    public void Working_WithAnUnknownMediaType_NamesItInLowerCase()
-    {
-        var snapshot = Working();
-        snapshot.Tally = [new IngestionQueueTypeTallyDto { MediaType = "Photos", Files = 4 }];
-        snapshot.FilesUnsorted = 0;
-
-        var cut = RenderTab(snapshot);
-
-        Assert.Equal("4 photos", cut.Find(".ingestion-status__tally").TextContent);
-    }
-
-    [Fact]
-    public void Working_WithFilesThatJoinedLater_ShowsTheMoreFoundLine()
-    {
-        var snapshot = Working();
-        snapshot.FilesMoreFound = 120;
-
-        var cut = RenderTab(snapshot);
-
-        Assert.Equal("120 more found", cut.Find(".ingestion-status__more").TextContent);
-    }
-
-    [Fact]
-    public void Working_WithoutMoreFiles_ShowsNoMoreFoundLine()
-    {
-        var cut = RenderTab(Working());
-
-        Assert.Empty(cut.FindAll(".ingestion-status__more"));
-    }
-
-    [Fact]
-    public void Working_ShowsOneBlueBarAtTheEnginesProgressAndTheDoneLine()
-    {
-        var cut = RenderTab(Working());
-
-        var track = cut.Find(".ingestion-status .app-progress-bar__track");
-        Assert.Equal("50", track.GetAttribute("aria-valuenow"));
-        Assert.Single(cut.FindAll(".ingestion-status .app-progress-bar"));
-        Assert.Empty(cut.FindAll(".app-progress-bar--indeterminate"));
-        Assert.Contains("--app-progress-accent: var(--tl-accent-secondary)", cut.Find(".ingestion-status .app-progress-bar").GetAttribute("style"), StringComparison.Ordinal);
-        Assert.Equal("254 of 508 done · 3 need review · 1 failed", cut.Find(".ingestion-status__line").TextContent);
-    }
-
-    [Fact]
-    public void Working_WithoutAReliableEstimate_ShowsHowLongItHasBeenRunning()
+    public void Working_WithoutAReliableEstimate_SaysHowLongItHasBeenRunning()
     {
         var snapshot = Working();
         snapshot.EstimatedSecondsRemaining = null;
         snapshot.StartedAt = DateTimeOffset.UtcNow.AddMinutes(-4).AddSeconds(-10);
 
-        var cut = RenderTab(snapshot);
+        var cut = RenderLine(snapshot);
 
-        Assert.Equal("Running for 4 min", cut.Find(".ingestion-status__meta").TextContent);
-        Assert.DoesNotContain("left", cut.Find(".ingestion-status").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Adding 254 files · running for 4 min", StatusText(cut));
     }
 
     [Fact]
-    public void Working_WithAnEstimate_ShowsTheEstimateInsteadOfElapsedTime()
+    public void Working_WithOneFileLeft_UsesTheSingularNoun()
     {
         var snapshot = Working();
-        snapshot.EstimatedSecondsRemaining = 330;
+        snapshot.FilesFound = 10;
+        snapshot.FilesDone = 9;
+        snapshot.EstimatedSecondsRemaining = 20;
 
-        var cut = RenderTab(snapshot);
+        Assert.Equal("Adding 1 file · less than a minute left", StatusText(RenderLine(snapshot)));
+    }
 
-        Assert.Equal("About 6 min left", cut.Find(".ingestion-status__meta").TextContent);
-        Assert.DoesNotContain("Running for", cut.Find(".ingestion-status").TextContent, StringComparison.Ordinal);
+    [Fact]
+    public void Working_BeforeAnyFileIsFound_SaysItIsLookingForFiles()
+    {
+        var snapshot = Working();
+        snapshot.FilesFound = 0;
+        snapshot.FilesDone = 0;
+        snapshot.StartedAt = null;
+
+        Assert.Equal("Looking for files", StatusText(RenderLine(snapshot)));
+    }
+
+    [Fact]
+    public void Idle_SaysUpToDateAndWhenTheLibraryLastChecked()
+    {
+        var snapshot = new IngestionQueueProgressDto
+        {
+            State = "idle",
+            Progress = 1,
+            LastActivityAt = DateTimeOffset.UtcNow.AddMinutes(-10).AddSeconds(-5),
+        };
+
+        var cut = RenderLine(snapshot);
+
+        Assert.Equal("Up to date · last checked 10 min ago", StatusText(cut));
+        Assert.Contains("is-idle", cut.Find(".libs-status__text").ClassList);
+    }
+
+    [Fact]
+    public void Idle_WithNoActivityYet_SaysJustUpToDate()
+    {
+        Assert.Equal("Up to date", StatusText(RenderLine(new IngestionQueueProgressDto { State = "idle", Progress = 1 })));
+    }
+
+    [Fact]
+    public void Waiting_NamesTheMissingToolsCountsTheWaitingFilesAndLinksToTheToolsPage()
+    {
+        var snapshot = new IngestionQueueProgressDto
+        {
+            State = "waiting",
+            FilesFound = 40,
+            FilesDone = 10,
+            FilesWaiting = 30,
+            WaitingFor = ["ffmpeg"],
+            Progress = 0.25,
+        };
+
+        var cut = RenderLine(snapshot);
+
+        Assert.Equal("Waiting for media tools · 30 files are waiting", StatusText(cut));
+        var link = cut.Find(".libs-status a");
+        Assert.Equal("/settings/tools", link.GetAttribute("href"));
+        Assert.Contains("Tools and requirements", link.TextContent, StringComparison.Ordinal);
+        Assert.Contains("is-waiting", cut.Find(".libs-status__text").ClassList);
+    }
+
+    [Fact]
+    public void Waiting_ForAnotherTool_NamesThatTool()
+    {
+        var snapshot = new IngestionQueueProgressDto { State = "waiting", FilesFound = 3, FilesWaiting = 3, WaitingFor = ["pdfium"], Progress = 0.1 };
+
+        Assert.StartsWith("Waiting for pdfium", StatusText(RenderLine(snapshot)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoSnapshotYetWhileLoading_ShowsASkeletonInsteadOfAStatus()
+    {
+        var pending = new TaskCompletionSource<IngestionPresentationSnapshotDto?>();
+        Presentation = () => pending.Task;
+
+        var cut = Render<LibraryStatusLine>();
+
+        Assert.Single(cut.FindAll(".libs-status .app-skeleton"));
+        Assert.Empty(cut.FindAll("[data-testid='library-status-text']"));
+        Assert.Equal("true", cut.Find(".libs-status").GetAttribute("aria-busy"));
+        pending.SetResult(new IngestionPresentationSnapshotDto());
+    }
+
+    [Fact]
+    public void CheckFoldersForChanges_AsksTheEngineToScanWhileTheLibraryIsIdle()
+    {
+        var cut = RenderLine(new IngestionQueueProgressDto { State = "idle", Progress = 1 });
+        var button = cut.FindAll(".libs-status button").Single(b => b.TextContent.Contains("Check folders for changes", StringComparison.Ordinal));
+        Assert.False(button.HasAttribute("disabled"));
+
+        button.Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("rescan", Calls));
+    }
+
+    [Fact]
+    public void CheckFoldersForChanges_IsOffWhileTheLibraryIsAlreadyAddingFiles()
+    {
+        var cut = RenderLine(Working());
+
+        var button = cut.FindAll(".libs-status button").Single(b => b.TextContent.Contains("Check folders for changes", StringComparison.Ordinal));
+        Assert.True(button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void CheckFoldersForChanges_IsOffOnAPhone()
+    {
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(new IngestionQueueProgressDto { State = "idle", Progress = 1 });
+        var cut = Render<LibraryStatusLine>(parameters => parameters.Add(line => line.ReadOnly, true));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='library-status-text']")));
+
+        var button = cut.FindAll(".libs-status button").Single(b => b.TextContent.Contains("Check folders for changes", StringComparison.Ordinal));
+        Assert.True(button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void EngineUnreachable_WhenTheClientReportsFailedRequestsAsNull_SaysSoWithRetry()
+    {
+        // The Engine client swallows request errors and returns null, so this is what production sees.
+        Presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(null);
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
+
+        var cut = Render<LibraryStatusLine>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("The Library's engine isn't responding", cut.Find(".libs-status__text").TextContent.Trim());
+            Assert.Contains("Retry", cut.Find(".libs-status button").TextContent, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void EngineUnreachable_RetryRunsTheLoadAgainAndRecovers()
+    {
+        var failing = true;
+        Presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(failing ? null : new IngestionPresentationSnapshotDto());
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(failing ? null : Working());
+
+        var cut = Render<LibraryStatusLine>();
+        cut.WaitForAssertion(() => Assert.Equal("The Library's engine isn't responding", cut.Find(".libs-status__text").TextContent.Trim()));
+        var loadsBeforeRetry = Calls.Count(call => call == "presentation");
+
+        failing = false;
+        cut.Find(".libs-status button").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(Calls.Count(call => call == "presentation") > loadsBeforeRetry);
+            Assert.StartsWith("Adding 254 files", StatusText(cut), StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void EngineUnreachable_WhenALoadThrows_AlsoSaysSo()
+    {
+        Presentation = () => Task.FromException<IngestionPresentationSnapshotDto?>(new HttpRequestException("down"));
+
+        var cut = Render<LibraryStatusLine>();
+
+        cut.WaitForAssertion(() =>
+            Assert.Equal("The Library's engine isn't responding", cut.Find(".libs-status__text").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void EngineUnreachable_WhenTheEngineGoesOfflineAndComesBack_FollowsTheConnection()
+    {
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var cut = Render<LibraryStatusLine>();
+        cut.WaitForAssertion(() => Assert.StartsWith("Adding 254 files", StatusText(cut), StringComparison.Ordinal));
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+
+        orchestrator.SetEngineConnectionState(EngineConnectionState.Offline);
+        cut.WaitForAssertion(() => Assert.Equal("The Library's engine isn't responding", cut.Find(".libs-status__text").TextContent.Trim()));
+
+        orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
+        cut.WaitForAssertion(() => Assert.StartsWith("Adding 254 files", StatusText(cut), StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(EngineConnectionState.Reconnecting)]
+    [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
+    public void LiveUpdatesOff_KeepsShowingTheStatusWithoutSayingTheEngineIsNotResponding(EngineConnectionState liveUpdatesOff)
+    {
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var cut = Render<LibraryStatusLine>();
+        cut.WaitForAssertion(() => Assert.StartsWith("Adding 254 files", StatusText(cut), StringComparison.Ordinal));
+
+        Services.GetRequiredService<UIOrchestratorService>().SetEngineConnectionState(liveUpdatesOff);
+
+        cut.WaitForAssertion(() => Assert.StartsWith("Adding 254 files", StatusText(cut), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void QueueSnapshotPushedLater_UpdatesTheOpenStatusLine()
+    {
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var cut = Render<LibraryStatusLine>();
+        cut.WaitForAssertion(() => Assert.StartsWith("Adding 254 files", StatusText(cut), StringComparison.Ordinal));
+
+        var next = Working();
+        next.FilesFound = 628;
+        next.UpdatedAt = DateTimeOffset.UtcNow.AddSeconds(5);
+        State.PushIngestionQueueProgress(next);
+
+        cut.WaitForAssertion(() => Assert.StartsWith("Adding 374 files", StatusText(cut), StringComparison.Ordinal), TimeSpan.FromSeconds(6));
+    }
+
+    [Fact]
+    public void TwoTabsSharingTheLiveState_KeepItRunningUntilTheLastOneLeaves()
+    {
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var first = Render<LibraryStatusLine>();
+        var second = Render<LibraryStatusLine>();
+        first.WaitForAssertion(() => Assert.StartsWith("Adding 254 files", StatusText(first), StringComparison.Ordinal));
+        var loadsBefore = Calls.Count(call => call == "queue");
+
+        first.Dispose();
+        State.PushIngestionQueueProgress(Working());
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+        orchestrator.SetEngineConnectionState(EngineConnectionState.Offline);
+        orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
+
+        // The second tab still follows the connection, so the first one leaving did not stop the shared updates.
+        second.WaitForAssertion(() => Assert.True(Calls.Count(call => call == "queue") > loadsBefore), TimeSpan.FromSeconds(6));
     }
 
     [Theory]
@@ -245,255 +350,15 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         Assert.Equal("Looking for files", IngestionQueueProgressText.Headline(snapshot));
     }
 
-    [Fact]
-    public void Waiting_NamesTheMissingToolsCountsTheWaitingFilesAndLinksToTheToolsPage()
+    private IRenderedComponent<LibraryStatusLine> RenderLine(IngestionQueueProgressDto queue)
     {
-        var snapshot = new IngestionQueueProgressDto
-        {
-            State = "waiting",
-            FilesFound = 40,
-            FilesDone = 10,
-            FilesWaiting = 30,
-            WaitingFor = ["ffmpeg"],
-            Progress = 0.25,
-        };
-
-        var cut = RenderTab(snapshot);
-
-        var panel = cut.Find(".ingestion-status");
-        Assert.Equal("Waiting for media tools", cut.Find(".ingestion-status h2").TextContent);
-        Assert.Equal("30 files are waiting", cut.Find(".ingestion-status__line").TextContent);
-        var button = cut.Find(".ingestion-status a");
-        Assert.Equal("/settings/tools", button.GetAttribute("href"));
-        Assert.Contains("Tools and requirements", button.TextContent, StringComparison.Ordinal);
-        Assert.Equal("Paused", cut.Find(".ingestion-status .app-progress-bar__label").TextContent);
-        Assert.Equal("25", cut.Find(".ingestion-status .app-progress-bar__track").GetAttribute("aria-valuenow"));
-        Assert.DoesNotContain("0 items", panel.TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("left", panel.TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("failed", panel.TextContent, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Waiting_ForAnotherTool_NamesThatTool()
-    {
-        var snapshot = new IngestionQueueProgressDto { State = "waiting", FilesFound = 3, FilesWaiting = 3, WaitingFor = ["pdfium"], Progress = 0.1 };
-
-        var cut = RenderTab(snapshot);
-
-        Assert.Equal("Waiting for pdfium", cut.Find(".ingestion-status h2").TextContent);
-    }
-
-    [Fact]
-    public void Idle_SaysTheLibraryIsUpToDateWithAGreenDotAndTheLastActivity()
-    {
-        var snapshot = new IngestionQueueProgressDto
-        {
-            State = "idle",
-            Progress = 1,
-            LastActivityAt = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-5),
-        };
-
-        var cut = RenderTab(snapshot);
-
-        Assert.Equal("Library is up to date", cut.Find(".ingestion-status h2").TextContent);
-        Assert.Single(cut.FindAll(".ingestion-status__dot"));
-        Assert.Equal("Last activity 5 minutes ago", cut.Find(".ingestion-status__meta").TextContent);
-        Assert.Empty(cut.FindAll(".ingestion-status .app-progress-bar"));
-    }
-
-    [Fact]
-    public void NoSnapshotYetWhileLoading_ShowsSkeletonsInsteadOfASpinnerPage()
-    {
-        var pending = new TaskCompletionSource<IngestionPresentationSnapshotDto?>();
-        _presentation = () => pending.Task;
-
-        var cut = Render<IngestionTasksTab>();
-
-        Assert.Equal(3, cut.FindAll(".ingestion-status .app-skeleton").Count);
-        Assert.Empty(cut.FindAll(".ingestion-status h2"));
-        Assert.Equal("true", cut.Find(".ingestion-status").GetAttribute("aria-busy"));
-        pending.SetResult(new IngestionPresentationSnapshotDto());
-    }
-
-    [Fact]
-    public void EngineUnreachable_WhenTheClientReportsFailedRequestsAsNull_SaysSoWithRetryAndKeepsTheLastKnownNumbersGreyed()
-    {
-        // The Engine client swallows request errors and returns null, so this is what production sees.
-        _state.PushIngestionQueueProgress(Working());
-        _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(null);
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
-
-        var cut = Render<IngestionTasksTab>();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent);
-            Assert.Contains("Retry", cut.Find(".ingestion-status button").TextContent, StringComparison.Ordinal);
-            var stale = cut.Find(".ingestion-status__stale");
-            Assert.Contains("Found 508 files", stale.TextContent, StringComparison.Ordinal);
-            Assert.Contains("212 movies", stale.TextContent, StringComparison.Ordinal);
-        });
-    }
-
-    [Fact]
-    public void EngineUnreachable_RetryRunsTheLoadAgainAndRecovers()
-    {
-        var failing = true;
-        _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(failing ? null : new IngestionPresentationSnapshotDto());
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(failing ? null : Working());
-
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent));
-        var loadsBeforeRetry = _calls.Count(call => call == "presentation");
-
-        failing = false;
-        cut.Find(".ingestion-status button").Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.True(_calls.Count(call => call == "presentation") > loadsBeforeRetry);
-            Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
-        });
-    }
-
-    [Fact]
-    public void EngineUnreachable_WhenALoadThrows_AlsoSaysSo()
-    {
-        _presentation = () => Task.FromException<IngestionPresentationSnapshotDto?>(new HttpRequestException("down"));
-
-        var cut = Render<IngestionTasksTab>();
-
-        cut.WaitForAssertion(() =>
-            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent));
-    }
-
-    [Fact]
-    public void EngineUnreachable_WhenALaterQueueFetchReturnsNothing_StillSaysSoDespiteAnEarlierSnapshot()
-    {
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
-
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
-        _ = Services.GetRequiredService<IngestionLiveDashboardState>().LoadAsync();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent);
-            Assert.Contains("Found 508 files", cut.Find(".ingestion-status__stale").TextContent, StringComparison.Ordinal);
-        });
-    }
-
-    [Fact]
-    public void EngineUnreachable_WhenTheEngineGoesOfflineAndComesBack_FollowsTheConnection()
-    {
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
-        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
-
-        orchestrator.SetEngineConnectionState(EngineConnectionState.Offline);
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent);
-            Assert.Contains("Found 508 files", cut.Find(".ingestion-status__stale").TextContent, StringComparison.Ordinal);
-        });
-
-        orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
-            Assert.Empty(cut.FindAll(".ingestion-status__stale"));
-        });
-    }
-
-    [Theory]
-    [InlineData(EngineConnectionState.Reconnecting)]
-    [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
-    public void LiveUpdatesOff_KeepsShowingTheNumbersWithoutSayingTheEngineIsNotResponding(EngineConnectionState liveUpdatesOff)
-    {
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
-
-        Services.GetRequiredService<UIOrchestratorService>().SetEngineConnectionState(liveUpdatesOff);
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
-            Assert.Empty(cut.FindAll(".ingestion-status__stale"));
-        });
-    }
-
-    [Fact]
-    public void EngineUnreachable_RecoversByItselfWhenAFreshSnapshotArrives()
-    {
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent));
-
-        _state.PushIngestionQueueProgress(Working());
-
-        cut.WaitForAssertion(
-            () => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent),
-            TimeSpan.FromSeconds(6));
-    }
-
-    [Fact]
-    public void QueueSnapshotPushedLater_UpdatesTheOpenPage()
-    {
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
-
-        var next = Working();
-        next.FilesFound = 628;
-        next.FilesMoreFound = 120;
-        next.UpdatedAt = DateTimeOffset.UtcNow.AddSeconds(5);
-        _state.PushIngestionQueueProgress(next);
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("Found 628 files", cut.Find(".ingestion-status h2").TextContent);
-            Assert.Equal("120 more found", cut.Find(".ingestion-status__more").TextContent);
-        }, TimeSpan.FromSeconds(6));
-    }
-
-    [Fact]
-    public void ViewAll_OnTheAddedSummary_OpensTheActivityLogOnAdded()
-    {
-        _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto
-        {
-            CurrentMedia = [new() { GroupId = Guid.NewGuid(), Title = "Dune" }],
-            IsRunning = true,
-            CurrentMediaTotal = 5,
-        });
-
-        var cut = Render<IngestionTasksTab>();
-
-        cut.WaitForAssertion(() =>
-            Assert.Equal("/settings/system/logs?tab=events&filter=added", cut.Find(".ingestion-added a[href*='/settings/system/logs']").GetAttribute("href")));
-    }
-
-    [Fact]
-    public void TheOldPagedViewAddress_RedirectsToTheActivityLogOnAdded()
-    {
-        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
-
-        Render<IngestionTasksTab>(parameters => parameters.Add(p => p.View, "all"));
-
-        Assert.EndsWith("/settings/system/logs?tab=events&filter=added", navigation.Uri, StringComparison.Ordinal);
-    }
-
-    private IRenderedComponent<IngestionTasksTab> RenderTab(IngestionQueueProgressDto queue)
-    {
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(queue);
-        var cut = Render<IngestionTasksTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".ingestion-status h2")));
+        Queue = () => Task.FromResult<IngestionQueueProgressDto?>(queue);
+        var cut = Render<LibraryStatusLine>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='library-status-text']")));
         return cut;
     }
+
+    private static string StatusText(IRenderedComponent<LibraryStatusLine> cut) => cut.Find("[data-testid='library-status-text']").TextContent.Trim();
 
     private static IngestionQueueProgressDto Working() => new()
     {
@@ -511,21 +376,8 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         ],
         Outcomes = new IngestionQueueOutcomesDto { Added = 250, NeedsReview = 3, Failed = 1 },
         StartedAt = DateTimeOffset.UtcNow.AddMinutes(-4),
+        EstimatedSecondsRemaining = 330,
         LastActivityAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow,
     };
-
-    private sealed class NoPlaybackPreferences : IUserPlaybackPreferencesAccessor
-    {
-        public Task<MediaEngine.Contracts.Playback.UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) =>
-            Task.FromResult<MediaEngine.Contracts.Playback.UserPlaybackSettingsDto?>(null);
-
-        public void UpdateCache(MediaEngine.Contracts.Playback.UserPlaybackSettingsDto settings)
-        {
-        }
-
-        public void Invalidate()
-        {
-        }
-    }
 }

@@ -46,7 +46,6 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
             ContinuationState = state,
             SortTimestamp = Now.AddMinutes(-minutesAgo),
             DetailsNavigationUrl = "/details/work/x",
-            HoverMode = MediaTileHoverMode.GlowOnly,
             EpisodeContext = episode,
         };
 
@@ -176,5 +175,21 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
         Assert.Equal("42% read", PhoneContinueLogic.SubLabel(Item("Book", "B", 42, 1, MediaTileShape.Portrait)));
         Assert.Equal("Chapter 4", PhoneContinueLogic.SubLabel(Item("Audiobook", "A", 25, 1, MediaTileShape.Square, progressLabel: "Chapter 4")));
         Assert.Equal("In progress", PhoneContinueLogic.SubLabel(Item("Music", "A", null, 1, MediaTileShape.Square)));
+    }
+
+    [Fact]
+    public void TheHomeChipsNarrowPickUpToTheChosenAreasAndAllShowsEverythingStarted()
+    {
+        var items = new[]
+        {
+            Item("Book", "A book", 40, 5, MediaTileShape.Portrait),
+            Item("Audiobook", "An audiobook", 20, 6, MediaTileShape.Square),
+            Item("TV", "An episode", 60, 7, MediaTileShape.Landscape),
+        };
+
+        Assert.Equal(3, PhoneContinueLogic.InScope(items, "all").Count);
+        Assert.Equal(["An audiobook"], PhoneContinueLogic.InScope(items, "listen").Select(item => item.Title).ToArray());
+        Assert.Equal(["A book", "An episode"], PhoneContinueLogic.InScope(items, "watch,read").Select(item => item.Title).Order().ToArray());
+        Assert.Empty(PhoneContinueLogic.InScope(items, "view"));
     }
 }

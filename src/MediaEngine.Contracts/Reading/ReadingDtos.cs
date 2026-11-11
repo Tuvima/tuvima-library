@@ -39,7 +39,38 @@ public sealed class ReaderBookmarkDto
     public int ChapterIndex { get; init; }
     public string? CfiPosition { get; init; }
     public string? Label { get; init; }
+    /// <summary>True when the bookmark is Global: everyone who can see the book sees it, and only an administrator changes it.</summary>
+    public bool IsGlobal { get; init; }
+    /// <summary>The owner's display name; set only on the administrator's Everyone's list.</summary>
+    public string? OwnerName { get; init; }
     public DateTime CreatedAt { get; init; }
+}
+
+/// <summary>A bookmark on a page of a comic or PDF (PDF and comic reader spec D14).</summary>
+public sealed class PageBookmarkDto
+{
+    public Guid Id { get; init; }
+    public Guid AssetId { get; init; }
+    public int Page { get; init; }
+    public string? Label { get; init; }
+
+    /// <summary>True when the bookmark is in Everyone's: everyone who can read the title sees it, and only an administrator changes it.</summary>
+    public bool IsGlobal { get; init; }
+
+    /// <summary>True for the signed-in person's own bookmarks.</summary>
+    public bool IsYours { get; init; }
+
+    /// <summary>The owner's display name, set on an Everyone's bookmark.</summary>
+    public string? OwnerName { get; init; }
+
+    public DateTime CreatedAt { get; init; }
+}
+
+/// <summary>Adds a page bookmark to the signed-in person's own bookmarks.</summary>
+public sealed class CreatePageBookmarkRequestDto
+{
+    public int Page { get; init; }
+    public string? Label { get; init; }
 }
 
 /// <summary>A text highlight stored for an EPUB asset.</summary>

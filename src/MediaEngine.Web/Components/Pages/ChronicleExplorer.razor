@@ -13,6 +13,7 @@
 @inject DashboardSessionAccessor Session
 @inject IAppToastService Snackbar
 @inject IEngineApiClient ApiClient
+@inject EditorHost Editor
 @inject IJSRuntime JS
 @inject ILogger<ChronicleExplorer> Logger
 @inject DeviceContextService DeviceContext
@@ -22,10 +23,9 @@
 <PageTitle>@L["ChronicleExplorer_ChronicleExplorer", _graph?.universe.label ?? Qid]</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.False" Class="tl-sp-pa-4">
-@* Editing the Universe, or one character, place or organisation in it, uses the same bar, side panel and floating artwork picker as every
-   other page (Name, Description and pictures; nothing is saved until Save changes shows Review changes). The graph, appearances and
+@* Editing the Universe, or one character, place or organisation in it, uses the same pop-over editor as every other page (the layout draws
+   it; Name, Description and pictures; nothing is saved until Save changes shows Review changes). The graph, appearances and
    relationships stay read-only. Desktop administrators only. *@
-<EditingBar Mode="_editing" Flow="_flow" CanDelete="false" GuardInternalNavigation="true" />
 @if (_loading)
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
@@ -36,7 +36,7 @@
 else if (_graph is null)
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppIconSize.Tile32" Color="AppColor.Default" />
         <AppText Typo="AppTypo.h5">@L["ChronicleExplorer_UniverseGraphUnavailable"]</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
             @L["ChronicleExplorer_LibraryHasNotFoundEnough"]
@@ -51,17 +51,11 @@ else
     </AppText>
     @if (_canEditUniverse && DeviceContext.CanEdit)
     {
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(null))">@L["ChronicleExplorer_EditUniverse"]</AppButton>
+        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Class="chronicle-explorer-more" Disabled="@(_openingEditor || _editing.IsOn)">
+            <AppMenuItem Label="@L["ChronicleExplorer_EditUniverse"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => EditUniverseAsync(null))" />
+        </AppOverflowMenu>
     }
 </div>
-
-    <EditSavedRibbon Flow="_flow" />
-    <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker">
-        @if (context == EditTool.Details)
-        {
-            <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
-        }
-    </EditorPanelHost>
 
     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-3">
         <AppChip T="string" Color="AppColor.Primary" Size="AppSize.Small">
@@ -100,25 +94,19 @@ else
              ApplyEffectsToContainer="false"
              SliderColor="AppColor.Warning"
              Rounded="false">
-        <AppTabPanel Text="@L["Universe_ModeWeb"].Value" Icon="@AppMaterialIcons.Filled.Collections"
-                     ToolTip="Full relationship graph" />
-        <AppTabPanel Text="@L["Universe_ModePaths"].Value" Icon="@AppMaterialIcons.Filled.Route"
-                     ToolTip="Six Degrees pathfinder" />
-        <AppTabPanel Text="@L["Universe_ModeFamily"].Value" Icon="@AppMaterialIcons.Filled.AccountTree"
-                     ToolTip="Family tree view" />
-        <AppTabPanel Text="@L["Universe_ModeCast"].Value" Icon="@AppMaterialIcons.Filled.People"
-                     ToolTip="Character to performer mapping" />
-        <AppTabPanel Text="@L["Universe_ModeAdaptations"].Value" Icon="@AppMaterialIcons.Filled.Merge"
-                     ToolTip="Adaptation chain" />
-        <AppTabPanel Text="@L["Common_Sources"].Value" Icon="@AppMaterialIcons.Filled.FactCheck"
-                     ToolTip="Supplemental lore sources" />
+        <AppTabPanel Text="@L["Universe_ModeWeb"].Value" Icon="@AppMaterialIcons.Filled.Collections" />
+        <AppTabPanel Text="@L["Universe_ModePaths"].Value" Icon="@AppMaterialIcons.Filled.Route" />
+        <AppTabPanel Text="@L["Universe_ModeFamily"].Value" Icon="@AppMaterialIcons.Filled.AccountTree" />
+        <AppTabPanel Text="@L["Universe_ModeCast"].Value" Icon="@AppMaterialIcons.Filled.People" />
+        <AppTabPanel Text="@L["Universe_ModeAdaptations"].Value" Icon="@AppMaterialIcons.Filled.Merge" />
+        <AppTabPanel Text="@L["Common_Sources"].Value" Icon="@AppMaterialIcons.Filled.FactCheck" />
     </AppTabs>
 @if (_activeMode == 0 || _activeMode == 1 || _activeMode == 2)
     {
 @if (!_hasGraphData)
         {
             <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppIconSize.Tile32" Color="AppColor.Default" />
                 <AppText Typo="AppTypo.h5">@L["ChronicleExplorer_UniverseGraphUnavailable"]</AppText>
                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                     @L["ChronicleExplorer_LibraryHasNotFoundEnough"]
@@ -207,7 +195,7 @@ else
                                     <span class="chronicle-node-list__row">
                                         <AppMaterialIcon Icon="@GetEntityIcon(entity.type)"
                                                  Color="@GetEntityColor(entity.type)"
-                                                 Size="AppSize.Small" />
+                                                 Size="AppIconSize.Control20" />
                                         <span class="chronicle-node-list__text">
                                             <span class="chronicle-node-list__label">@entity.label</span>
                                             <span class="chronicle-node-list__meta">@entity.type · @RelationshipText(entry.RelationshipCount)</span>
@@ -395,7 +383,9 @@ else
 
             @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEdit)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(_selectedEntity))">@L["ChronicleExplorer_Edit", _selectedEntity.label]</AppButton>
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Class="chronicle-explorer-more" Disabled="@(_openingEditor || _editing.IsOn)">
+                    <AppMenuItem Label="@L["ChronicleExplorer_Edit", _selectedEntity.label].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => EditUniverseAsync(_selectedEntity))" />
+                </AppOverflowMenu>
             }
 
             @if (_selectedEntity.works.Any())
@@ -435,39 +425,29 @@ else
     private readonly CancellationTokenSource _lifetime = new();
     private EditingModeContext _editing = default!;
     private EditSessionFlow _flow = default!;
-    private EditPendingPreview _preview = default!;
-    private ArtworkPickerSession _artworkPicker = default!;
+    private EditorBinding _binding = default!;
 
     // What the editor is open on: the Universe itself (no id), or one character, place or organisation by its id.
     private Guid? _editEntityId;
     private string? _editEntityTitle;
-    private string? _editEntityKind;
 
     protected override void OnInitialized()
     {
-        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
-        {
-            Loader = LoadEditingFieldsAsync,
-            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
-        };
-        _editing.Changed += OnEditingChanged;
-        var session = new EditSessionState(new PendingEditList());
-        _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
+        _editing = Editor.Mode;
+        _flow = Editor.Flow;
+        _binding = new EditorBinding(DeviceContext)
         {
             Saved = RefreshAfterEditSavedAsync,
+            Trail = EditTrail,
+            ShowHistory = true,
         };
-        _preview = new EditPendingPreview(session, _editing.Fields);
-        _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
-        session.Changed += OnEditingChanged;
-        _artworkPicker.Changed += OnEditingChanged;
+        Editor.Changed += OnEditingChanged;
     }
 
-    private Task LoadEditingFieldsAsync() => _editEntityId is { } id
-        ? _editing.Fields.LoadSubjectAsync(id, _lifetime.Token)
-        : _editing.Fields.LoadUniverseSubjectAsync(Qid, _lifetime.Token);
-
-    private IReadOnlyList<EditTrailItem> EditTrail() =>
-        [new EditTrailItem(_editing.Fields.EntityId, _editEntityTitle ?? _graph?.universe.label ?? "Universe", _editEntityKind ?? "Universe")];
+    // The pop-over loads the Universe, or the character, place or faction chosen in its rail, because the binding names the Universe.
+    private IReadOnlyList<EditTrailItem> EditTrail() => _editEntityId is { } id
+        ? [new EditTrailItem(Guid.Empty, _graph?.universe.label ?? "Universe", EditTrailKinds.Universe), new EditTrailItem(id, _editEntityTitle ?? "Item", EditTrailKinds.Thing)]
+        : [new EditTrailItem(_editing.Fields.EntityId, _graph?.universe.label ?? "Universe", EditTrailKinds.Universe)];
 
     private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -497,10 +477,9 @@ else
             if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token)) return;
             _editEntityId = entityId;
             _editEntityTitle = entity?.label;
-            _editEntityKind = entity?.type;
-            _editing.HasPermission = true;
-            if (await _editing.EnterAsync() && _editing.Fields.Loaded)
-                await _flow.SelectToolAsync(EditTool.Details);
+            _binding.HasPermission = true;
+            _binding.UniverseQid = Qid;
+            await Editor.OpenAsync(_binding, entityId ?? Guid.Empty, EditTool.Details);
         }
         catch (OperationCanceledException) { /* the page was left while the unlock prompt was open */ }
         catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error); }
@@ -517,7 +496,6 @@ else
             if (selectedId is not null) _selectedEntity = _graph?.nodes.FirstOrDefault(node => node.id == selectedId);
             if (_cytoscapeReady && _graph is not null)
                 await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
-            await LoadEditingFieldsAsync();
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
@@ -675,10 +653,13 @@ else
 
         // A different Universe in the same circuit starts over: an open edit belongs to the old one, so close it first.
         _loadedQid = Qid;
-        _editing.Leave();
+        if (ReferenceEquals(Editor.Binding, _binding))
+        {
+            _editing.Leave();
+        }
+
         _editEntityId = null;
         _editEntityTitle = null;
-        _editEntityKind = null;
         _selectedEntity = null;
         _selectedEntityEdges = [];
         _canEditUniverse = false;
@@ -999,11 +980,8 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        _editing.Changed -= OnEditingChanged;
-        _flow.Session.Changed -= OnEditingChanged;
-        _artworkPicker.Changed -= OnEditingChanged;
-        _flow.Dispose();
-        _editing.Dispose();
+        Editor.Changed -= OnEditingChanged;
+        Editor.Unbind(_binding);
         _lifetime.Cancel();
         _lifetime.Dispose();
         if (_cytoscapeReady)

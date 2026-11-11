@@ -66,7 +66,6 @@ public sealed class MediaTileComposerService
             HoverArtworkShape = MediaTileShape.Square,
             Presentation = MediaTilePresentation.Album,
             SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            HoverMode = MediaTileHoverMode.GlowOnly,
             TileTextMode = MediaTileTextMode.Caption,
             TileImageUrl = smallArtwork ?? playlist.CoverArtworkUrl,
             TileImageSrcSet = MediaTileArtworkUrl.SrcSet(smallArtwork, mediumArtwork),
@@ -130,10 +129,18 @@ public sealed class MediaTileComposerService
         var primaryAction = hero.Progress?.ResumeAction ?? hero.Actions.FirstOrDefault();
         var secondaryAction = hero.Actions.Skip(1).FirstOrDefault();
 
+        // Other videos have no portrait cover: their picture is a frame taken from the video. It fills the hero as the
+        // background instead of sitting as a small picture inside a portrait cover.
+        var frameBackdrop = Components.Cinematic.PhoneHeroPresentation.IsVideoKind(hero.MediaType) ? FrameBackdropUrl(hero.Artwork) : null;
+        if (frameBackdrop is not null)
+        {
+            heroSurfaceKind = MediaTileSurfaceKind.BannerLandscape;
+        }
+
         return new DiscoveryHeroViewModel
         {
-            BackgroundWidthPx = !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundWidthPx : hero.Artwork.BannerWidthPx,
-            BackgroundHeightPx = !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundHeightPx : hero.Artwork.BannerHeightPx,
+            BackgroundWidthPx = frameBackdrop is not null ? hero.Artwork.CoverWidthPx : !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundWidthPx : hero.Artwork.BannerWidthPx,
+            BackgroundHeightPx = frameBackdrop is not null ? hero.Artwork.CoverHeightPx : !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundHeightPx : hero.Artwork.BannerHeightPx,
             CoverWidthPx = !string.IsNullOrWhiteSpace(hero.Artwork.CoverUrl ?? hero.Artwork.CoverLargeUrl ?? hero.Artwork.CoverMediumUrl) ? hero.Artwork.CoverWidthPx : hero.Artwork.SquareWidthPx,
             CoverHeightPx = !string.IsNullOrWhiteSpace(hero.Artwork.CoverUrl ?? hero.Artwork.CoverLargeUrl ?? hero.Artwork.CoverMediumUrl) ? hero.Artwork.CoverHeightPx : hero.Artwork.SquareHeightPx,
             Subject = hero.Subject,
@@ -147,8 +154,8 @@ public sealed class MediaTileComposerService
             Subtitle = hero.Subtitle,
             Tagline = hero.Tagline,
             Description = hero.Description,
-            BackgroundImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
-            HeroBackgroundImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
+            BackgroundImageUrl = frameBackdrop ?? StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
+            HeroBackgroundImageUrl = frameBackdrop ?? StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
             BannerImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
             PreviewImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.CoverUrl, hero.Artwork.CoverLargeUrl, hero.Artwork.CoverMediumUrl, hero.Artwork.SquareUrl, hero.Artwork.SquareLargeUrl, hero.Artwork.SquareMediumUrl),
             SurfaceKind = heroSurfaceKind,
@@ -168,6 +175,7 @@ public sealed class MediaTileComposerService
             Genres = hero.Genres,
             PreviewItems = hero.PreviewItems.Select(item => ToArtworkStackItem(item, hero.MediaType)).ToList(),
             PreviewTotalCount = hero.PreviewTotalCount,
+            CollageUrls = hero.CollageUrls,
             PrimaryActionLabel = primaryAction?.Label ?? "Open",
             PrimaryNavigationUrl = primaryAction?.WebUrl ?? "/",
             SecondaryActionLabel = "Details",
@@ -336,6 +344,7 @@ public sealed class MediaTileComposerService
             Title = card.Subject == DisplaySubjectKind.TvEpisode && card.EpisodeContext is { } episodeIdentity
                 ? episodeIdentity.EpisodeTitle : card.Title,
             IsSettling = card.IsSettling || card.ListMetadata?.IsUpdatingDetails == true,
+            UniverseQid = card.UniverseQid,
             Subtitle = card.Subtitle,
             Tagline = card.Tagline,
             Description = card.Description,
@@ -349,6 +358,7 @@ public sealed class MediaTileComposerService
             MetaText = string.Join(" / ", card.Facts),
             QualityBadge = BadgeLabel(card.Badges, "quality"),
             IsKept = card.Flags.KeptAsIs,
+            NewLabel = NewLabelFor(card),
             SourceBadgeLabel = BadgeLabel(card.Badges, "source"),
             SourceLogoUrl = SourceLogos.ResolveLogoPath(BadgeLabel(card.Badges, "source")),
             MediaCounts = card.GroupSummary?.MediaCounts.Select(ToMediaCount).ToList() ?? [],
@@ -356,13 +366,15 @@ public sealed class MediaTileComposerService
             HoverFacts = card.Facts,
             Genres = card.Genres,
             MediaKind = card.MediaType,
-            AccentColor = card.Artwork.AccentColor ?? AccentForBucket(bucket),
+            // Every video (a folder, a single file) wears the one video color (item 14).
+            AccentColor = VideoFolderWording.IsVideoFolderMediaType(card.MediaType) || string.Equals(card.MediaType, "Video", StringComparison.OrdinalIgnoreCase)
+                ? "var(--tl-media-video)"
+                : card.Artwork.AccentColor ?? AccentForBucket(bucket),
             Shape = tileShape,
             HoverArtworkShape = surface.HoverArtworkShape,
             Presentation = presentation,
             SurfaceKind = surfaceKind,
             HoverLayout = hoverLayout,
-            HoverMode = SupportsExpandedHover(bucket, isTypedGroup) ? MediaTileHoverMode.Expanded : MediaTileHoverMode.Preview,
             TileTextMode = string.Equals(card.TileTextMode, "coverOnly", StringComparison.OrdinalIgnoreCase) ? MediaTileTextMode.CoverOnly : MediaTileTextMode.Caption,
             PreviewPlacement = string.Equals(card.PreviewPlacement, "bottom", StringComparison.OrdinalIgnoreCase)
                 ? MediaTilePreviewPlacement.Bottom
@@ -528,14 +540,14 @@ public sealed class MediaTileComposerService
         _ => new(AppMaterialIcons.Filled.MoreHoriz, "Other", count.Count),
     };
 
-    private static bool SupportsExpandedHover(MediaTileBucket bucket, bool isTypedGroup) =>
-        isTypedGroup
-        || bucket is MediaTileBucket.Movie
-            or MediaTileBucket.Tv
-            or MediaTileBucket.Book
-            or MediaTileBucket.Comic
-            or MediaTileBucket.Audiobook
-            or MediaTileBucket.Music;
+    /// <summary>The cover of a video when it has no background or banner of its own (it is a frame from the video).</summary>
+    internal static string? FrameBackdropUrl(DisplayArtworkDto artwork)
+    {
+        var hasLandscape = !string.IsNullOrWhiteSpace(artwork.BackgroundUrl) || !string.IsNullOrWhiteSpace(artwork.BackgroundLargeUrl)
+            || !string.IsNullOrWhiteSpace(artwork.BackgroundMediumUrl) || !string.IsNullOrWhiteSpace(artwork.BannerUrl)
+            || !string.IsNullOrWhiteSpace(artwork.BannerLargeUrl) || !string.IsNullOrWhiteSpace(artwork.BannerMediumUrl);
+        return hasLandscape ? null : StringHelpers.FirstNonBlank(artwork.CoverLargeUrl, artwork.CoverUrl, artwork.CoverMediumUrl);
+    }
 
     private static MediaTileSurfaceKind ResolveHeroSurfaceKind(DisplayArtworkDto artwork, MediaTileSurfaceKind fallback = MediaTileSurfaceKind.CoverPortrait)
     {
@@ -661,6 +673,21 @@ public sealed class MediaTileComposerService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(card.Flags.IsCollection ? 5 : 3)
             .ToList();
+    }
+
+    /// <summary>
+    /// "New" (or "New Episode" for an episode) when the Engine says a later import added the item in the last 14 days (Library activity D14)
+    /// and the person has not started it. Cards built without the Engine's answer fall back to a 7-day added-recently check.
+    /// </summary>
+    internal static string? NewLabelFor(DisplayCardDto card)
+    {
+        var isNew = card.IsNew ?? DateTimeOffset.UtcNow - card.SortTimestamp <= TimeSpan.FromDays(7);
+        if (!isNew || card.ContinuationState is DisplayContinuationState.InProgress or DisplayContinuationState.Completed)
+        {
+            return null;
+        }
+        // A video in a folder of Other videos is a video, never an episode (item 17).
+        return card.EpisodeContext is not null && !Components.Cinematic.PhoneHeroPresentation.IsVideoKind(card.MediaType) ? "New Episode" : "New";
     }
 
     private static string? BadgeLabel(IReadOnlyList<DisplayCardBadgeDto> badges, string kind) =>

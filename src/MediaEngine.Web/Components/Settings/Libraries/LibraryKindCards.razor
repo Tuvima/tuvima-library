@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 
-@* The kind cards: an icon tile (coloured when the kind looks details up, grey when it files as it is), the kind's name and an (i)
-   with what belongs in it. Change kind and the file-drop dialog both draw their kinds from here. *@
+@* The kind cards: an icon tile (coloured when the kind looks details up, grey when it files as it is) and the kind's name; hovering or focusing a card
+   opens its hover card with what belongs in it (Libraries v3 D24, no (i) and no browser tooltip). Change kind and the file-drop dialog both draw their kinds from here. *@
 <div class="lib-choice__kinds" role="group" aria-label="@Label">
     @foreach (var kind in Kinds)
     {
         <div class="lib-choice__kind">
+            <LibraryPeek Title="@kind.Label" About="@kind.Explainer" Examples="@kind.Examples" LibraryDoes="@kind.LibraryDoes">
             <AppNativeButton Type="button"
                              Class="@($"lib-choice__kind-option{(kind.Key == SelectedKey ? " is-selected" : string.Empty)}")"
                              data-type="@kind.Key"
@@ -14,13 +15,11 @@
                 <span class="@LibraryKindLook.TileClass(kind)" data-lookup="@(LibraryKindLook.LooksUp(kind) ? "true" : "false")"><AppMaterialIcon Icon="@kind.Icon" /></span>
                 <strong>@kind.Label</strong>
             </AppNativeButton>
+            </LibraryPeek>
             @if (ShowMetadata)
             {
                 <LibraryMetadataCell Type="@kind" Catalogue="@Catalogue" />
             }
-            <AppTooltip Text="@kind.Tooltip" Placement="AppPlacement.Top">
-                <span class="lib-choice__info" role="img" tabindex="0" aria-label="@($"About {kind.Label}: {kind.Tooltip}")" data-info-for="@kind.Key"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
-            </AppTooltip>
         </div>
     }
 </div>

@@ -1,0 +1,64 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+
+@* The read-only, coloured view of a plugin's file with line numbers (Plugins and Integrations screens v5 D54). Colours come from a small
+   tokenizer, so there is no editor library. Lines the Engine's check complained about are marked and listed under the text. The
+   editor (a later packet) replaces this panel in place; this one only shows. *@
+<div class="plugin-file-viewer" data-testid="plugin-file-viewer">
+    <div class="plugin-file-viewer__scroll" role="region" aria-label="@FileName">
+        @foreach (var (tokens, index) in _lines.Select((tokens, index) => (tokens, index)))
+        {
+            var number = index + 1;
+            var marked = _problemLines.Contains(number);
+            <div @key="number" class="@("plugin-file-viewer__row" + (marked ? " plugin-file-viewer__row--problem" : string.Empty))" data-line="@number" data-problem="@(marked ? "true" : null)">
+                <span class="plugin-file-viewer__number" aria-hidden="true">@number</span>
+                <code class="plugin-file-viewer__code">@foreach (var token in tokens)
+                {<span class="@("plugin-json plugin-json--" + Kind(token))">@token.Text</span>}</code>
+            </div>
+        }
+    </div>
+    @if (Problems.Count > 0)
+    {
+        <ul class="plugin-file-viewer__problems" data-testid="plugin-file-problems">
+            @foreach (var problem in Problems)
+            {
+                <li class="@("plugin-file-viewer__problem plugin-file-viewer__problem--" + problem.Severity)" data-line="@problem.Line">
+                    <strong>@(problem.Severity == "error" ? "Line " + problem.Line : "To know, line " + problem.Line)</strong>
+                    <span>@problem.Message</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<IReadOnlyList<PluginJsonToken>> _lines = [];
+    private HashSet<int> _problemLines = [];
+
+    /// <summary>The file's text.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>The file's name, read out by screen readers as the name of the region.</summary>
+    [Parameter] public string FileName { get; set; } = string.Empty;
+
+    /// <summary>What the Engine's check found; the lines it points at are marked.</summary>
+    [Parameter] public IReadOnlyList<PluginFileProblemDto> Problems { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        _lines = PluginJsonTokenizer.Lines(Text);
+        _problemLines = [.. Problems.Where(problem => problem.Severity == "error").Select(problem => problem.Line)];
+    }
+
+    private static string Kind(PluginJsonToken token) => token.Kind switch
+    {
+        PluginJsonTokenKind.Punctuation => "punctuation",
+        PluginJsonTokenKind.Key => "key",
+        PluginJsonTokenKind.String => "string",
+        PluginJsonTokenKind.Number => "number",
+        PluginJsonTokenKind.Literal => "literal",
+        PluginJsonTokenKind.Comment => "comment",
+        PluginJsonTokenKind.Space => "space",
+        _ => "text",
+    };
+}

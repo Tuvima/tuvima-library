@@ -1,0 +1,2 @@
+.view-folder-filter { display: inline-flex; align-items: center; gap: 8px; }
+.view-folder-filter > span { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }

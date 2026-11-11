@@ -1,6 +1,8 @@
 ﻿@page "/design-system/components"
 @rendermode InteractiveServer
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Details
 
 <PageTitle>Library Components</PageTitle>
 
@@ -17,6 +19,25 @@
     </header>
 
     <div class="design-system-preview__grid">
+        <AppCard Title="Settings group" Description="AppSettingsGroup and AppSettingRow: rows on the page background, hairlines between, control at the right end.">
+            <AppSettingsGroup Heading="Playback" Helper="How this profile plays things.">
+                <AppSettingRow Label="Skip intros" Helper="Jump past title sequences." LeadingIcon="@AppMaterialIcons.Outlined.Settings">
+                    <Control><AppSwitchRow Value="true" AriaLabel="Skip intros" /></Control>
+                </AppSettingRow>
+                <AppSettingRow Label="Language">
+                    <Control><AppSelect T="string" Value="localized" Options="@LanguageOptions" AriaLabel="Language" /></Control>
+                    <Status>Saved just now.</Status>
+                </AppSettingRow>
+                <AppSettingRow Label="Rescan folder" Helper="Looks for new files.">
+                    <Control><AppButton Label="Rescan" Size="AppControlSize.Compact" /></Control>
+                </AppSettingRow>
+            </AppSettingsGroup>
+            <AppSettingsGroup Heading="Danger zone" Tone="AppSettingsGroupTone.Danger">
+                <AppSettingRow Label="Delete library" Helper="This cannot be undone." Tone="AppSettingsGroupTone.Danger">
+                    <Control><AppButton Label="Delete" Size="AppControlSize.Compact" /></Control>
+                </AppSettingRow>
+            </AppSettingsGroup>
+        </AppCard>
         <AppCard Title="Form Controls" Description="Shared field wrappers own first-party UI control sizing and alignment.">
             <div class="design-system-preview__form-grid">
                 @foreach (var size in Sizes)
@@ -48,6 +69,29 @@
             <AppCheckboxRow Label="Include artwork" Description="Checkbox rows share spacing with switches." Value="true" />
             <AppCheckbox Label="Select this row" Value="true" />
             <AppChoiceRow Title="Single choice row" Description="One choice in a list; the selected row shows the accent." Selected="true" />
+        </AppCard>
+
+        <AppCard Title="Icons" Description="One size ladder (16, 20, 24, 32, 48, 64) and two placements: above the text in a choice tile, beside it in a row or button.">
+            <div class="design-system-preview__row" aria-label="Icon size ladder">
+                @foreach (var step in Enum.GetValues<AppIconSize>())
+                {
+                    <span class="design-system-preview__icon-step">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" Size="@step" />
+                        <small>@step</small>
+                    </span>
+                }
+            </div>
+            <div class="design-system-preview__row" aria-label="Icon above text">
+                <AppChoiceTile Icon="@AppMaterialIcons.Outlined.Movie" Label="Watch" Description="Movies, TV, videos" Area="watch" Selected="true" />
+                <AppChoiceTile Icon="@AppMaterialIcons.Outlined.MusicNote" Label="Listen" Description="Music, audiobooks" Area="listen" />
+                <AppChoiceTile Icon="@AppMaterialIcons.Outlined.Folder" Label="Neutral" Description="No area colour" />
+                <AppChoiceTile Empty="true" Icon="@AppMaterialIcons.Outlined.Search" Label="Empty state" Description="64 px icon, no tinted square" />
+            </div>
+            <div class="design-system-preview__row" aria-label="Icon beside text">
+                <AppButton Label="36 px button" StartIcon="@AppMaterialIcons.Outlined.Add" Size="AppControlSize.Compact" />
+                <AppButton Label="44 px button" StartIcon="@AppMaterialIcons.Outlined.Add" />
+                <AppChip Text="Chip" Icon="@AppMaterialIcons.Outlined.Circle" />
+            </div>
         </AppCard>
 
         <AppCard Title="Actions" Description="One visual hierarchy applies everywhere: filled primary, outlined secondary, and text tertiary.">
@@ -96,7 +140,7 @@
             </AppActionBar>
         </AppCard>
 
-        <AppCard Title="Typography" Description="Segoe UI Variable carries the interface; specialized faces are scoped to identity, reading, and technical values.">
+        <AppCard Title="Typography" Description="Inter carries the interface; specialized faces are scoped to identity, reading, and technical values.">
             <div class="design-system-preview__type-stack">
                 <div>
                     <span>Interface · 14px</span>
@@ -117,6 +161,153 @@
                 <div>
                     <span>Technical</span>
                     <code class="design-system-preview__type-code">http://localhost:61495</code>
+                </div>
+            </div>
+        </AppCard>
+
+        <AppCard Title="Colour tokens" Description="Every colour in tuvima.tokens.css, drawn from the token itself. Surfaces are the only backgrounds; purple means selected or primary; status colours appear only on status." data-testid="design-system-colours">
+            @foreach (var group in ColourGroups)
+            {
+                <div class="design-system-preview__swatch-group" aria-label="@group.Name">
+                    <span class="design-system-preview__group-label">@group.Name</span>
+                    <div class="design-system-preview__swatches">
+                        @foreach (var token in group.Tokens)
+                        {
+                            <div class="design-system-preview__swatch-item" data-token="@token">
+                                <AppCssElement Tag="span" Class="design-system-preview__swatch" Css="@SwatchCss(token)" />
+                                <code>@token</code>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </AppCard>
+
+        <AppCard Title="Type ladder" Description="Inter for every interface step; a page picks a step and never writes its own size." data-testid="design-system-type">
+            <div class="design-system-preview__type-stack">
+                @foreach (var step in TypeSteps)
+                {
+                    <div class="design-system-preview__type-step" data-token="@step.Token">
+                        <span>@step.Name · @step.Token</span>
+                        <AppCssElement Tag="p" Css="@TypeCss(step.Token, step.Weight)">The quick brown fox presents your library</AppCssElement>
+                    </div>
+                }
+                <div class="design-system-preview__type-step">
+                    <span>Weights · regular 400, medium 500, semibold 600, bold 700 (titles only)</span>
+                    <div class="design-system-preview__row">
+                        @foreach (var weight in WeightTokens)
+                        {
+                            <AppCssElement Tag="strong" Css="@($"font-weight: var({weight});")">@weight.Replace("--tl-font-weight-", string.Empty)</AppCssElement>
+                        }
+                    </div>
+                </div>
+            </div>
+        </AppCard>
+
+        <AppCard Title="Row heights and spacing" Description="Rows come from one ladder: 44 menu, rail and toolbar rows, 56 settings and list rows, 64 rows with a picture. Spacing steps are 4 to 40." data-testid="design-system-rows">
+            @foreach (var row in RowTokens)
+            {
+                <AppCssElement Tag="div" Class="design-system-preview__rowbar" Css="@($"height: var({row.Token});")" data-token="@row.Token">
+                    <span>@row.Name</span><code>@row.Token</code>
+                </AppCssElement>
+            }
+            <div class="design-system-preview__row" aria-label="Spacing steps">
+                @foreach (var space in SpaceTokens)
+                {
+                    <span class="design-system-preview__icon-step">
+                        <AppCssElement Tag="span" Class="design-system-preview__space" Css="@($"width: var({space}); height: var({space});")" />
+                        <small>@space.Replace("--tl-space-", string.Empty)</small>
+                    </span>
+                }
+            </div>
+        </AppCard>
+
+        <AppCard Title="Primitive states" Description="Every shared part in its states: default, selected, disabled, loading, error, long text." data-testid="design-system-states">
+            <div class="design-system-preview__action-group" aria-label="Button styles and states">
+                <span>AppButton · Filled, Outlined, Text, each default and disabled, plus loading</span>
+                <div class="design-system-preview__row">
+                    @foreach (var style in ButtonStyles)
+                    {
+                        <AppButton Label="@style.ToString()" ButtonStyle="@style" Tone="AppUiTone.Primary" />
+                        <AppButton Label="@($"{style} off")" ButtonStyle="@style" Tone="AppUiTone.Primary" Disabled="true" />
+                    }
+                    <AppButton Label="Loading" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="true" />
+                    <AppButton Label="Destructive" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" />
+                </div>
+            </div>
+            <div class="design-system-preview__action-group" aria-label="Icon button variants">
+                <span>AppIconButton · Outlined, Text, Filled, OverArtwork, Soft; each at rest, active and disabled</span>
+                <div class="design-system-preview__row">
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert" Tooltip="Outlined" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert" Tooltip="Outlined active" aria-pressed="true" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert" Tooltip="Outlined unavailable" Disabled="true" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Text" ButtonStyle="AppButtonStyle.Text" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Text active" ButtonStyle="AppButtonStyle.Text" aria-pressed="true" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Filled" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Filled unavailable" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="true" />
+                    <span class="design-system-preview__artwork">
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert" Tooltip="Over artwork" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" />
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert" Tooltip="Over artwork active" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" aria-pressed="true" />
+                    </span>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="Soft" Soft="true" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="Soft active" Soft="true" aria-pressed="true" />
+                </div>
+                <div class="design-system-preview__row">
+                    @foreach (var size in Sizes)
+                    {
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@($"{size} size")" Size="@size" />
+                    }
+                </div>
+            </div>
+            <div class="design-system-preview__action-group" aria-label="Hero button">
+                <span>Hero button · one light main action with a companion row</span>
+                <div class="design-system-preview__hero">
+                    <HeroActionRow PrimaryActions="@HeroPrimaryActions" FolderHref="/design-system/components" />
+                </div>
+            </div>
+            <div class="design-system-preview__action-group" aria-label="Segmented control and chips">
+                <span>AppSegmentedControl, AppToggleChip, AppChip</span>
+                <div class="design-system-preview__row">
+                    <AppSegmentedControl Options="@SegmentOptions" Value="artwork" AriaLabel="Selected segment" />
+                    <AppSegmentedControl Options="@SegmentOptions" Value="providers" AriaLabel="Unavailable segment" Disabled="true" />
+                </div>
+                <div class="design-system-preview__row">
+                    <AppToggleChip Pressed="true">Pressed</AppToggleChip>
+                    <AppToggleChip>Resting</AppToggleChip>
+                    <AppToggleChip Disabled="true">Unavailable</AppToggleChip>
+                    <AppChip Text="Chip" Icon="@AppMaterialIcons.Outlined.Circle" />
+                    <AppChip Text="A chip with a very long label that has to be cut off at the end of its line" Tone="AppUiTone.Info" />
+                </div>
+            </div>
+            <div class="design-system-preview__action-group" aria-label="Fields and states">
+                <span>AppTextField, AppSelect, AppNumericField · helper, error, disabled</span>
+                <div class="design-system-preview__form-grid">
+                    <AppTextField Label="With helper" Value="Dune" HelpText="Helper text sits under the field at 13 px." />
+                    <AppTextField Label="With error" Value="Dune" Error="true" ErrorText="That title is already used." />
+                    <AppTextField Label="Unavailable" Value="Dune" Disabled="true" />
+                    <AppSelect T="string" Label="Select" Value="localized" Options="@LanguageOptions" HelpText="Helper under the select." />
+                    <AppSelect T="string" Label="Select unavailable" Value="localized" Options="@LanguageOptions" Disabled="true" />
+                    <AppNumericField Label="Numeric with helper" Value="10" Min="1" Max="60" HelpText="Between 1 and 60." />
+                </div>
+            </div>
+            <div class="design-system-preview__action-group" aria-label="Setting row with reserved status">
+                <span>AppSettingRow · the status line is reserved, so nothing shifts when it appears</span>
+                <AppSettingsGroup Heading="Reserved status" Helper="The first row shows a result; the second reserves the same space and shows nothing.">
+                    <AppSettingRow Label="Provider key" Helper="Tested before it is saved." ReserveStatus="true" data-testid="preview-status-shown">
+                        <Control><AppButton Label="Test" Size="AppControlSize.Compact" /></Control>
+                        <Status><span class="design-system-preview__ok">Connected</span></Status>
+                    </AppSettingRow>
+                    <AppSettingRow Label="Backup folder" Helper="Where copies are kept." ReserveStatus="true" data-testid="preview-status-empty">
+                        <Control><AppButton Label="Choose" Size="AppControlSize.Compact" /></Control>
+                    </AppSettingRow>
+                </AppSettingsGroup>
+            </div>
+            <div class="design-system-preview__action-group" aria-label="Choice tile states">
+                <span>AppChoiceTile · resting, selected, unavailable</span>
+                <div class="design-system-preview__row">
+                    <AppChoiceTile Icon="@AppMaterialIcons.Outlined.Movie" Label="Resting" Description="Neutral" />
+                    <AppChoiceTile Icon="@AppMaterialIcons.Outlined.MusicNote" Label="Selected" Description="Area colour" Area="listen" Selected="true" />
+                    <AppChoiceTile Icon="@AppMaterialIcons.Outlined.Folder" Label="Unavailable" Description="Disabled" Disabled="true" />
                 </div>
             </div>
         </AppCard>
@@ -222,7 +413,7 @@
                     <tr>
                         <th data-card-role="title">Title</th>
                         <th data-card-role="subtitle">Format</th>
-                        <th data-card-role="value">Size</th>
+                        <th class="app-table__num" data-card-role="value">Size</th>
                         <th data-card-role="actions"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
@@ -232,7 +423,7 @@
                         <tr @key="row.Title">
                             <td data-card-role="title">@row.Title</td>
                             <td data-card-role="subtitle">@row.Format</td>
-                            <td data-card-role="value">@row.Size</td>
+                            <td class="app-table__num" data-card-role="value">@row.Size</td>
                             <td data-card-role="actions">
                                 <AppRowMenu AriaLabel="@($"Actions for {row.Title}")" Title="@row.Title" Items="@RowMenuItems" />
                             </td>
@@ -240,6 +431,86 @@
                     }
                 </tbody>
             </AppTable>
+        </AppCard>
+
+        <AppCard Title="Alignment: one axis per row, one order for buttons" Description="Look v3 D15: rows sit on one centre line, fields keep their label above, status text gets its own reserved line, and a footer reads quiet, destructive, Discard, primary." data-testid="design-system-alignment">
+            <AppSettingsGroup Heading="Settings row with a status line" Helper="Label and helper left, controls at the right end, the result on its own line under the row.">
+                <AppSettingRow Label="Metadata key" Helper="Tested before it is saved." LabelColumn="true" ReserveStatus="true" data-testid="preview-alignment-row">
+                    <Control>
+                        <AppButton Label="Test" Size="AppControlSize.Compact" />
+                        <AppButton Label="Remove" Size="AppControlSize.Compact" />
+                    </Control>
+                    <Status><span class="design-system-preview__ok">Connected</span></Status>
+                </AppSettingRow>
+            </AppSettingsGroup>
+            <AppFilterRow AriaLabel="Filter example" data-testid="preview-alignment-filterrow">
+                <AppSearchField Label="Search" HideLabel="true" Placeholder="Search" Value="" />
+                <AppSelect T="string" Label="Status" HideLabel="true" AriaLabel="Status" Value="all" Options="@ProviderRowOptions" FullWidth="false" />
+                <AppSelect T="string" Label="Sort" HideLabel="true" AriaLabel="Sort" Value="all" Options="@ProviderRowOptions" FullWidth="false" />
+            </AppFilterRow>
+            <div class="design-system-preview__matchrow" data-testid="preview-alignment-matchrow">
+                <div class="design-system-preview__matchrow-start">
+                    <AppSelect T="string" Value="tvdb" Options="@ProviderRowOptions" AriaLabel="Search in" FullWidth="false" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="Search" Size="AppControlSize.Compact" />
+                </div>
+                <AppSegmentedControl Options="@SegmentOptions" Value="providers" AriaLabel="What to match" />
+            </div>
+            <div class="design-system-preview__form-grid" data-testid="preview-alignment-form">
+                <AppTextField Label="Title" Value="Dune Part One" />
+                <AppTextField Label="Sort title" Value="Dune Part One" HelpText="Used only for ordering" />
+                <AppNumericField Label="Year" Value="2021" />
+            </div>
+            <div data-testid="preview-alignment-footer"><AppActionBar Align="AppHorizontalAlignment.End">
+                <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" Class="app-footer-start" />
+                <AppButton Label="Delete" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Outlined" />
+                <AppButton Label="Discard" />
+                <AppButton Label="Save changes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+            </AppActionBar></div>
+        </AppCard>
+
+        <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 272 and Panel 400; Viewer full screen. Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
+            <div class="design-system-preview__row">
+                <AppButton Label="Window S 480" OnClick="@(() => _windowOpen = AppWindowSize.Small)" data-testid="preview-window-s" />
+                <AppButton Label="Window M 640" OnClick="@(() => _windowOpen = AppWindowSize.Medium)" data-testid="preview-window-m" />
+                <AppButton Label="Window L 900" OnClick="@(() => _windowOpen = AppWindowSize.Large)" data-testid="preview-window-l" />
+                <span class="design-system-preview__popout-anchor">
+                    <AppButton Label="Pop-out Menu 272" OnClick="@(() => _popoutOpen = _popoutOpen == AppPopoutSize.Menu ? AppPopoutSize.None : AppPopoutSize.Menu)" data-testid="preview-popout-menu" />
+                    @if (_popoutOpen == AppPopoutSize.Menu)
+                    {
+                        <AppPopover Open="true" OpenChanged="@(_ => _popoutOpen = AppPopoutSize.None)" Size="AppPopoutSize.Menu" Role="menu" AriaLabel="Speed">
+                            <div><AppMenuItem Label="0.75x" /><AppMenuItem Label="1x" /><AppMenuItem Label="1.25x" /><AppMenuItem Label="1.5x" /></div>
+                        </AppPopover>
+                    }
+                </span>
+                <span class="design-system-preview__popout-anchor">
+                    <AppButton Label="Pop-out Panel 400" OnClick="@(() => _popoutOpen = _popoutOpen == AppPopoutSize.Panel ? AppPopoutSize.None : AppPopoutSize.Panel)" data-testid="preview-popout-panel" />
+                    @if (_popoutOpen == AppPopoutSize.Panel)
+                    {
+                        <AppPopover Open="true" OpenChanged="@(_ => _popoutOpen = AppPopoutSize.None)" Size="AppPopoutSize.Panel" Role="dialog" AriaLabel="Library folders">
+                            <div class="design-system-preview__popout-panel"><p>A tool panel: the player's speed, audio, subtitles and queue, and the library folders list.</p></div>
+                        </AppPopover>
+                    }
+                </span>
+                <AppButton Label="Viewer" OnClick="@(() => _viewerOpen = true)" data-testid="preview-viewer" />
+            </div>
+            @if (_windowOpen is { } windowSize)
+            {
+                <AppDialog Visible="true" Title="@($"Window {WindowWidth(windowSize)}")" Subtitle="One anatomy at every size: title, one-line description, close, body, footer." Options="@(new AppDialogOptions { Size = windowSize, NoHeader = true, CloseOnEscapeKey = true, BackdropClick = true })"
+                           OnClose="@(() => _windowOpen = null)">
+                    <ChildContent><p class="design-system-preview__window-body">The body scrolls inside the window. Under 600 px this same window slides up from the bottom as a Sheet.</p></ChildContent>
+                    <FooterContent>
+                        <AppButton Label="Delete" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="@(() => _windowOpen = null)" />
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _windowOpen = null)" />
+                        <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _windowOpen = null)" />
+                    </FooterContent>
+                </AppDialog>
+            }
+            @if (_viewerOpen)
+            {
+                <AppViewer Label="Viewer" OnClose="@(() => _viewerOpen = false)" data-testid="preview-viewer-surface">
+                    <div class="design-system-preview__viewer-body">photo, page, document or search</div>
+                </AppViewer>
+            }
         </AppCard>
 
         <AppCard Title="Media And Provider Primitives" Description="Reusable artwork, provider logo, and avatar sizing.">
@@ -282,10 +553,60 @@
 </div>
 
 @code {
+    private sealed record ColourGroup(string Name, string[] Tokens);
+    private sealed record TypeStep(string Name, string Token, int Weight);
+    private sealed record RowToken(string Name, string Token);
+
+    // Every colour token the design-system document lists; DesignSystemDocDriftTests keeps this page and the document in step.
+    private static readonly IReadOnlyList<ColourGroup> ColourGroups =
+    [
+        new("Surfaces", ["--tl-bg-root", "--tl-bg-shell", "--tl-bg-surface", "--tl-bg-surface-raised", "--tl-bg-surface-hover", "--tl-bg-surface-elevated", "--tl-bg-overlay"]),
+        new("Text", ["--tl-text-primary", "--tl-text-secondary", "--tl-text-muted", "--tl-text-disabled", "--tl-text-on-accent", "--tl-text-on-warning", "--tl-text-on-collection", "--tl-text-danger"]),
+        new("Borders", ["--tl-border-subtle", "--tl-border-default", "--tl-border-strong", "--tl-divider"]),
+        new("Accent and Vault gold", ["--tl-accent-primary", "--tl-accent-primary-hover", "--tl-accent-primary-active", "--tl-accent-primary-soft", "--tl-accent-primary-border", "--tl-accent-primary-glow", "--tl-focus-ring", "--tl-accent-collection", "--tl-accent-collection-hover", "--tl-accent-collection-soft"]),
+        new("Menus and dropdowns", ["--tl-menu-surface", "--tl-menu-border", "--tl-menu-divider", "--tl-menu-item-hover", "--tl-menu-item-selected", "--tl-menu-icon"]),
+        new("Status", ["--tl-status-success", "--tl-status-info", "--tl-status-warning", "--tl-status-danger", "--tl-status-unmatched", "--tl-status-idle", "--tl-status-success-soft", "--tl-status-info-soft", "--tl-status-warning-soft", "--tl-status-danger-soft"]),
+        new("Areas", ["--tl-area-watch", "--tl-area-listen", "--tl-area-read", "--tl-area-view", "--tl-area-vault"]),
+    ];
+
+    private static readonly IReadOnlyList<TypeStep> TypeSteps =
+    [
+        new("12 caption", "--tl-font-size-xs", 400),
+        new("13 secondary", "--tl-font-size-secondary", 400),
+        new("14 body", "--tl-font-size-body", 400),
+        new("16 controls, menus, rows", "--tl-font-size-md", 500),
+        new("20 section and window titles", "--tl-font-size-dialog-title", 600),
+        new("24 page title", "--tl-font-size-title", 700),
+        new("32 hero", "--tl-font-size-hero", 700),
+    ];
+
+    private static readonly string[] WeightTokens = ["--tl-font-weight-regular", "--tl-font-weight-medium", "--tl-font-weight-semibold", "--tl-font-weight-bold"];
+
+    private static readonly IReadOnlyList<RowToken> RowTokens =
+    [
+        new("Compact row (menu, rail, toolbar)", "--tl-row-h-compact"),
+        new("Default row (settings, list)", "--tl-row-h-default"),
+        new("Row with a picture", "--tl-row-h-media"),
+    ];
+
+    private static readonly string[] SpaceTokens = ["--tl-space-1", "--tl-space-2", "--tl-space-3", "--tl-space-4", "--tl-space-5", "--tl-space-6", "--tl-space-8", "--tl-space-10"];
+
+    private static readonly AppButtonStyle[] ButtonStyles = [AppButtonStyle.Filled, AppButtonStyle.Outlined, AppButtonStyle.Text];
+
+    private static readonly IReadOnlyList<DetailAction> HeroPrimaryActions = [new DetailAction { Key = "watch", Label = "Resume", Icon = "play_arrow", IsPrimary = true }];
+
+    private static string SwatchCss(string token) => $"background: var({token});";
+
+    private static string TypeCss(string token, int weight) => $"font-size: var({token}); font-weight: {weight}; line-height: var(--tl-line-height-heading); margin: 0;";
+
     private string _seriesSet = "complete";
     private string _listTab = "all";
     private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3), new("metadata", "Metadata", 1), new("services", "Services", 1)];
     private bool _sheetOpen;
+    private bool _viewerOpen;
+    private AppWindowSize? _windowOpen;
+    private AppPopoutSize _popoutOpen;
+    private static string WindowWidth(AppWindowSize size) => size switch { AppWindowSize.Small => "S 480", AppWindowSize.Medium => "M 640", _ => "L 900" };
     private static readonly AppDialogOptions SheetDialogOptions = new() { NoHeader = true, MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, BackdropClick = true, Sheet = AppDialogSheetMode.Phone };
     private static readonly IReadOnlyList<PhoneTableRow> PhoneTableRows =
     [
@@ -323,6 +644,8 @@
         AppUiTone.Warning,
         AppUiTone.Error,
     ];
+
+    private static readonly IReadOnlyList<AppSelectOption> ProviderRowOptions = [new AppSelectOption("tvdb", "TheTVDB"), new AppSelectOption("tmdb", "TMDB")];
 
     private static readonly IReadOnlyList<AppSelectOption> LanguageOptions =
     [
@@ -436,7 +759,6 @@
             Presentation = presentation,
             Shape = MediaTileShape.Landscape,
             SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
-            HoverMode = MediaTileHoverMode.Expanded,
             NavigationUrl = "/design-system/components#group-card-preview-title",
             DetailsNavigationUrl = "/design-system/components#group-card-preview-title",
             IsCollection = true,

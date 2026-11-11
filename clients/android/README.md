@@ -87,3 +87,22 @@ and the offline download rules: server-won detection, replay order, the storage 
 plus kept photos: the cap with photos, the purge rule, kinds and the gallery plan)
 run with `gradle :core:testDebugUnitTest`. They use plain JUnit and cover logic that needs no Android
 framework; wire-shape parsing needs the Android JSON classes and is not yet covered by JVM unit tests.
+
+## Player
+
+Android TV, the phone app and Android Auto follow the shared contract in
+[`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
+Gaps for **Android TV**: the player activity is the stock player view with a
+subtitles button, so it has none of the contract's controls yet: the five
+transport buttons in order with Previous and Next dimmed in place, skips of 10
+seconds back and 30 forward by default (the profile's saved pair), the tool row
+(Episodes, Audio & subtitles, Bookmarks, Playback settings) with side panels on
+the right, Bookmarks (Everyone | Mine), paused details, the end card and the
+Autoplay switch. The Cast button (V6b-A) stays waiting on the product owner's
+television test. Gaps for **Android Auto**: the media service browses a Library
+root, but the list should be Continue, the Listen shelves, Audiobooks, Playlists
+and Recently played, and the Now playing card should carry the contract's
+lock-screen fields and the music or audiobook actions (back 10, forward 30,
+Previous and Next chapter, Speed presets as extra buttons). The television side
+panels and the car list are a first definition, to be settled in their own
+threads (Unified player v2, D29 and section 9).

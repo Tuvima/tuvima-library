@@ -1,13 +1,19 @@
 namespace MediaEngine.Domain.Contracts;
 
-/// <summary>One video in a series (or a section of one), in the order it is shown.</summary>
-public sealed record VideoOrderEntry(Guid WorkId, Guid AssetId, string Title);
+/// <summary>
+/// One video in a series (or a section of one), in the order it is shown. <paramref name="FileName"/> and <paramref name="AddedAt"/> (when
+/// Library first showed it, as sortable text; null when unknown) feed the editor's sort button.
+/// </summary>
+public sealed record VideoOrderEntry(Guid WorkId, Guid AssetId, string Title, string FileName = "", string? AddedAt = null);
 
 /// <summary>The videos that share one parent: the series itself, or one of its sections.</summary>
 public sealed record VideoOrderGroup(Guid ParentWorkId, string Title, IReadOnlyList<VideoOrderEntry> Entries);
 
 /// <summary>Where a video landed after a hand reorder (1 is first).</summary>
 public sealed record VideoOrderPlacement(Guid WorkId, Guid AssetId, int Position);
+
+/// <summary>Where a section landed after a hand reorder of a series' sections (1 is first).</summary>
+public sealed record VideoSectionPlacement(Guid SectionWorkId, int Position);
 
 /// <summary>
 /// Reads and saves the hand order of the videos in a series. The order is kept in Tuvima's own data, never in the files'
@@ -26,4 +32,10 @@ public interface IVideoOrderRepository
     /// videos that are there now, so a stale screen can never drop or invent one.
     /// </summary>
     Task<IReadOnlyList<VideoOrderPlacement>?> ReorderAsync(Guid parentWorkId, IReadOnlyList<Guid> orderedWorkIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Puts the sections of <paramref name="seriesWorkId"/> that hold videos in the order given (a section with no video follows them).
+    /// Refused (null) unless the list names exactly the sections that hold videos now.
+    /// </summary>
+    Task<IReadOnlyList<VideoSectionPlacement>?> ReorderSectionsAsync(Guid seriesWorkId, IReadOnlyList<Guid> orderedSectionIds, CancellationToken ct = default);
 }

@@ -5,7 +5,7 @@
     align-items: center;
     min-height: 3.5rem;
     flex: none;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }
 .ingestion-facets__slot { display: flex; justify-content: center; min-width: 0; }
 .ingestion-facet {
@@ -14,9 +14,9 @@
     place-items: center;
     width: 1.7rem;
     height: 1.7rem;
-    color: var(--tl-palette-text-secondary);
+    color: var(--tl-text-secondary);
 }
-.ingestion-facet ::deep > .tl-icon-root { font-size: 1.5rem; }
+.ingestion-facet ::deep > .tl-icon-root { font-size: var(--tl-icon-size-md); }
 .ingestion-facet ::deep .ingestion-facet__state,
 .ingestion-facet__spinner {
     position: absolute;
@@ -24,22 +24,22 @@
     bottom: -.1rem;
     width: .75rem;
     height: .75rem;
-    font-size: .75rem !important;
-    background: var(--app-surface-elevated, var(--app-surface));
+    font-size: var(--tl-font-size-xs) !important;
+    background: var(--app-surface-elevated, var(--tl-bg-surface));
     border-radius: 50%;
 }
 /* Not started yet, or no result: the symbol stays in its slot, dimmed. A symbol that does not apply to the type is a dash instead. */
 .ingestion-facet.is-notapplicable,
 .ingestion-facet.is-none { color: var(--tl-text-muted); opacity: .7; }
-.ingestion-facet.is-none { font-size: 1.1rem; line-height: 1; }
-.ingestion-facet.is-complete { color: var(--tl-palette-success); }
-.ingestion-facet.is-active { color: var(--tl-palette-info); }
-.ingestion-facet.is-attention { color: var(--tl-palette-warning); }
-.ingestion-facet.is-failed { color: var(--tl-palette-error); }
+.ingestion-facet.is-none { font-size: var(--tl-font-size-lg); line-height: 1; }
+.ingestion-facet.is-complete { color: var(--tl-status-success); }
+.ingestion-facet.is-active { color: var(--tl-status-info); }
+.ingestion-facet.is-attention { color: var(--tl-status-warning); }
+.ingestion-facet.is-failed { color: var(--tl-status-danger); }
 .ingestion-facet__spinner {
-    border: 2px solid color-mix(in srgb, var(--tl-palette-info) 25%, transparent);
-    border-top-color: var(--tl-palette-info);
-    border-right-color: var(--tl-palette-info);
+    border: 2px solid color-mix(in srgb, var(--tl-status-info) 25%, transparent);
+    border-top-color: var(--tl-status-info);
+    border-right-color: var(--tl-status-info);
     animation: ingestion-facet-spin 1.1s linear infinite;
 }
 @keyframes ingestion-facet-spin { to { transform: rotate(360deg); } }

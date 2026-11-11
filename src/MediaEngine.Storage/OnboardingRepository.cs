@@ -40,7 +40,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
               AND step_key IN ('welcome','profile','tools','libraries','vault','metadata','done')
             ORDER BY CASE step_key
                 WHEN 'welcome' THEN 0 WHEN 'profile' THEN 1 WHEN 'tools' THEN 2
-                WHEN 'libraries' THEN 3 WHEN 'vault' THEN 4 WHEN 'metadata' THEN 5
+                WHEN 'vault' THEN 3 WHEN 'libraries' THEN 4 WHEN 'metadata' THEN 5
                 WHEN 'done' THEN 6 ELSE 99 END;
             """, new { version = CurrentVersion }).AsList();
         return new OnboardingWorkflowRecord(
@@ -221,7 +221,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
             """, new { id, version = CurrentVersion, now = DateTimeOffset.UtcNow.ToString("O") });
     }
 
-    // The optional Vault entry is never the step setup is waiting on: the Dashboard offers it after Libraries and records the answer.
+    // The optional Vault entry is never the step setup is waiting on: the Dashboard offers it after Tools (before Libraries) and records the answer.
     private static string NextIncomplete(Microsoft.Data.Sqlite.SqliteConnection connection, Microsoft.Data.Sqlite.SqliteTransaction transaction) =>
         connection.QuerySingleOrDefault<string>("""
             SELECT step_key FROM onboarding_steps
@@ -229,7 +229,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
               AND step_key IN ('welcome','profile','tools','libraries','metadata','done')
             ORDER BY CASE step_key
                 WHEN 'welcome' THEN 0 WHEN 'profile' THEN 1 WHEN 'tools' THEN 2
-                WHEN 'libraries' THEN 3 WHEN 'vault' THEN 4 WHEN 'metadata' THEN 5
+                WHEN 'vault' THEN 3 WHEN 'libraries' THEN 4 WHEN 'metadata' THEN 5
                 WHEN 'done' THEN 6 ELSE 99 END LIMIT 1;
             """, new { version = CurrentVersion }, transaction) ?? "done";
 

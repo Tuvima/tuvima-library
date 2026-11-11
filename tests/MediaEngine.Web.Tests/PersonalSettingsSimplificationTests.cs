@@ -9,7 +9,7 @@ public sealed class PersonalSettingsSimplificationTests
 
         // Profiles is the administrators' people list: it lists the household's people with Edit, Add profile and no stats card.
         Assert.Contains("Add profile", source, StringComparison.Ordinal);
-        Assert.Contains(">Edit</AppNativeButton>", source, StringComparison.Ordinal);
+        Assert.Contains("profiles-tab__edit", source, StringComparison.Ordinal);
         Assert.Contains("<ProfileEditorSheet", source, StringComparison.Ordinal);
         Assert.DoesNotContain("profiles-tab__stats", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetProfileOverviewAsync", source, StringComparison.Ordinal);
@@ -25,10 +25,13 @@ public sealed class PersonalSettingsSimplificationTests
     {
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor");
 
-        Assert.Contains("Autoplay next episode", source, StringComparison.Ordinal);
+        // Unified player v2 D19: Autoplay next episode lives in the Episodes panel now; the preference itself stays.
+        Assert.DoesNotContain("Autoplay next episode", source, StringComparison.Ordinal);
         Assert.Contains("Resume where you left off", source, StringComparison.Ordinal);
-        Assert.Contains("Skip back", source, StringComparison.Ordinal);
-        Assert.Contains("Skip forward", source, StringComparison.Ordinal);
+        // Unified player v2 D14: the skip lengths and the subtitle look live in the player's Playback settings, not here.
+        Assert.DoesNotContain("Skip back", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Skip forward", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SubtitleSize", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Audiobook default speed", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Resume rewind", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Default playback speed", source, StringComparison.Ordinal);
@@ -39,12 +42,14 @@ public sealed class PersonalSettingsSimplificationTests
     }
 
     [Fact]
-    public void ListeningPage_OnlySurfacesSkipAndSleepTimerDefaults()
+    public void ListeningPage_OnlySurfacesResumeRewindAndTheEndOfChapterChoice()
     {
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ListeningSettingsPage.razor");
 
         Assert.Contains("Resume rewind", source, StringComparison.Ordinal);
-        Assert.Contains("DefaultSleepTimer", source, StringComparison.Ordinal);
+        // Unified player v2 D16: the sleep timer presets are fixed (15, 30, 45, 60), so the default length and the option list are not offered here.
+        Assert.DoesNotContain("DefaultSleepTimer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SleepTimerOptionsMinutes", source, StringComparison.Ordinal);
         Assert.Contains("AllowEndOfChapterSleepTimer", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AudiobookDefaultSpeed", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SkipSilence", source, StringComparison.Ordinal);
@@ -58,7 +63,7 @@ public sealed class PersonalSettingsSimplificationTests
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Pages", "BookReader.razor");
         var settings = ReadRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "EpubReaderDtos.cs");
 
-        Assert.Contains("br-theme-@ThemeClass", source, StringComparison.Ordinal);
+        Assert.Contains("br-theme-{ThemeClass}", source, StringComparison.Ordinal);
         Assert.Contains("Reading settings", source, StringComparison.Ordinal);
         Assert.Contains("SetThemeAsync", source, StringComparison.Ordinal);
         Assert.Contains("Theme {", settings, StringComparison.Ordinal);

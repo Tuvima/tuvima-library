@@ -1,0 +1,50 @@
+@namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
+@* The Viewer (Look v3 D14): a full-screen surface, black or the page surface, with its own 44 px close X at the top right. The reader, the
+   photo and document viewers, search and the details overlay are Viewers. Native draws the browser's modal <dialog> (the details overlay,
+   whose open, close and Escape are routed by app-dialog.js); otherwise it is an in-page surface with role="dialog". The viewer's own chrome
+   (bars, stages, side panels) is its content and keeps its own styles; this part owns the kind, the role and the close X. *@
+@if (Native)
+{
+    <dialog @ref="_root" class="@RootClass" role="@(string.IsNullOrWhiteSpace(Role) ? null : Role)" aria-label="@Label" aria-labelledby="@LabelledBy" aria-modal="@(Modal ? "true" : null)" @onkeydown="OnKeyDown" @attributes="AdditionalAttributes">
+        @Body
+    </dialog>
+}
+else
+{
+    <div @ref="_root" class="@RootClass" role="@(string.IsNullOrWhiteSpace(Role) ? null : Role)" aria-label="@Label" aria-labelledby="@LabelledBy" aria-modal="@(Modal && !string.IsNullOrWhiteSpace(Role) ? "true" : null)" @onkeydown="OnKeyDown" @attributes="AdditionalAttributes">
+        @Body
+    </div>
+}
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Draw the browser's own modal dialog element instead of a div.</summary>
+    [Parameter] public bool Native { get; set; }
+    /// <summary>The role of the in-page surface: "dialog" for a viewer over a page; empty for a reader that is itself the page.</summary>
+    [Parameter] public string? Role { get; set; } = "dialog";
+    [Parameter] public bool Modal { get; set; } = true;
+    [Parameter] public AppViewerSurface Surface { get; set; } = AppViewerSurface.Black;
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? LabelledBy { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+    /// <summary>When set, the Viewer draws its own close X (44 px, top right) and calls this.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+    /// <summary>Extra class on the close X, for a viewer whose styles or tests already name it.</summary>
+    [Parameter] public string? CloseClass { get; set; }
+    [Parameter] public string? CloseLabel { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private ElementReference _root;
+    /// <summary>The surface element, for the viewers that focus it or hand it to their script.</summary>
+    public ElementReference Root => _root;
+    private string RootClass => $"app-viewer app-viewer--{(Surface == AppViewerSurface.Page ? "page" : "black")} {Class}";
+    private string ResolvedCloseLabel => CloseLabel ?? L["Common_Close"].Value;
+    private RenderFragment Body => @<text>
+        @if (OnClose.HasDelegate)
+        {
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Normal" Class="@($"app-viewer__close {CloseClass}")"
+                           Tooltip="@ResolvedCloseLabel" AriaLabel="@ResolvedCloseLabel" OnClick="OnClose" />
+        }
+        @ChildContent
+    </text>;
+}

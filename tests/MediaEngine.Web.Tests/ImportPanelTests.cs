@@ -152,7 +152,7 @@ public sealed class ImportPanelTests : AsyncBunitContext
 
         Choose(cut, "scenes.zip");
 
-        cut.WaitForAssertion(() => Assert.Contains("a bookmark pack", cut.Find("[data-import-elsewhere]").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("a bookmark file", cut.Find("[data-import-elsewhere]").TextContent));
         Assert.Contains("Best scenes", cut.Markup);
         Assert.Null(raised);
     }

@@ -11,17 +11,16 @@ public sealed partial class UiConsistencyGuardrailTests
     [Fact]
     public void PlaybackSongActionRows_UseOneOwnerForIconTypeAndGeometry()
     {
-        foreach (var host in new[] { "ListenNowPlayingBar", "PlaybackFullPlayer", "PlaybackDesktopScene" })
+        // The persistent bar and the phone's Now playing draw their actions through PlaybackIdentityActions (unified player v2 D5, D26: square buttons, Like and
+        // Dislike apart); the desktop Now playing page draws no second set of controls (D24). The old circular song-action row is gone.
+        foreach (var host in new[] { "ListenNowPlayingBar", "PlaybackFullPlayer" })
         {
             var source = Read($"src/MediaEngine.Web/Components/Listen/{host}.razor");
-            Assert.Contains("<PlaybackSongActions", source, StringComparison.Ordinal);
+            Assert.Contains("<PlaybackIdentityActions", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<SongActions", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<PlaybackSongActions", source, StringComparison.Ordinal);
         }
-        var style = Read("src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css");
-        Assert.Contains(".playback-song-actions ::deep .playback-song-action", style, StringComparison.Ordinal);
-        Assert.Contains("width:44px; height:44px;", style, StringComparison.Ordinal);
-        Assert.Contains("border-radius:50%", style, StringComparison.Ordinal);
-        Assert.DoesNotContain("!important", style, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor")));
         Assert.DoesNotContain("playback-lyrics__sync", Read("src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor"), StringComparison.Ordinal);
     }
 
@@ -92,8 +91,7 @@ public sealed partial class UiConsistencyGuardrailTests
     {
         var expectations = new Dictionary<string, string>
         {
-            ["src/MediaEngine.Web/Components/Settings/IngestionScanAction.razor"] = "<strong>Check folders for changes</strong>",
-            ["src/MediaEngine.Web/Components/Settings/LocalNetworkSettingsPanel.razor"] = "Label=\"Save\" ButtonStyle=\"AppButtonStyle.Filled\" Tone=\"AppUiTone.Primary\"",
+            ["src/MediaEngine.Web/Components/Settings/Libraries/LibraryStatusLine.razor"] = "Label=\"Check folders for changes\"",
             ["src/MediaEngine.Web/Components/Settings/StreamingLimitsPanel.razor"] = "Label=\"Save streaming settings\" ButtonStyle=\"AppButtonStyle.Filled\" Tone=\"AppUiTone.Primary\"",
             ["src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor"] = "Label=\"Save and verify\" ButtonStyle=\"AppButtonStyle.Filled\" Tone=\"AppUiTone.Primary\"",
         };
@@ -108,10 +106,10 @@ public sealed partial class UiConsistencyGuardrailTests
     public void SharedActionControls_UseTheSemanticTypographyContract()
     {
         var tokens = Read("src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
-        Assert.Contains("--tl-control-font-size-sm: 0.8125rem;", tokens, StringComparison.Ordinal);
-        Assert.Contains("--tl-control-font-size-md: 0.875rem;", tokens, StringComparison.Ordinal);
-        Assert.Contains("--tl-control-font-size-lg: 0.9375rem;", tokens, StringComparison.Ordinal);
-        Assert.Contains("--tl-control-font-weight: var(--tl-font-weight-semibold);", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-font-size-sm: 13px;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-font-size-md: 14px;", tokens, StringComparison.Ordinal);
+        Assert.DoesNotContain("--tl-control-font-size-lg", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-font-weight: var(--tl-font-weight-medium);", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-line-height: 1.25;", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-letter-spacing: 0;", tokens, StringComparison.Ordinal);
 
@@ -128,7 +126,7 @@ public sealed partial class UiConsistencyGuardrailTests
         Assert.Contains(".app-button.app-control--normal", css, StringComparison.Ordinal);
         Assert.Contains("font-size: var(--tl-control-font-size-md)", css, StringComparison.Ordinal);
         Assert.Contains(".app-button.app-control--large", css, StringComparison.Ordinal);
-        Assert.Contains("font-size: var(--tl-control-font-size-lg)", css, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-font-size-md)", css, StringComparison.Ordinal);
 
         var segmentedRule = CssRule(css, ".app-segmented-control__item");
         Assert.Contains("font-family: var(--font-ui)", segmentedRule, StringComparison.Ordinal);
@@ -150,7 +148,6 @@ public sealed partial class UiConsistencyGuardrailTests
         {
             ["src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"] = ".browse-shell__tabs-frame .tl-tab {",
             ["src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css"] = ".browse-shell__tabs-frame ::deep .tl-tab {",
-            ["src/MediaEngine.Web/Components/Pages/ViewPage.razor.css"] = "::deep .view-kind-tab {",
         };
 
         foreach (var (path, selector) in scopedControlRules)

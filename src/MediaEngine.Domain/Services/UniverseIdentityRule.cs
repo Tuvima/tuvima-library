@@ -244,6 +244,26 @@ public static class UniverseIdentityRule
     }
 
     /// <summary>
+    /// Whether a Universe <em>page</em> can open for <paramref name="universeQid"/> given the Series shelves that name it.
+    /// It can whenever a Universe shelf would be presented (<see cref="ShouldPresentUniverseShelf"/>), and also for a
+    /// single Series that sits inside a broader Universe: its own QID differs from the Universe's, so something wider than
+    /// the Series itself named it. A Series that is its own Universe (the rule's last step) is just that Series, so it gets
+    /// no Universe page. Collections still lists a Universe only when the shelf rule is met.
+    /// </summary>
+    public static bool CanOpenUniversePage(string universeQid, IReadOnlyCollection<UniverseSeriesShelf> seriesShelves)
+    {
+        ArgumentNullException.ThrowIfNull(seriesShelves);
+
+        if (ShouldPresentUniverseShelf(universeQid, seriesShelves))
+        {
+            return true;
+        }
+
+        return seriesShelves.Count == 1
+            && !string.Equals(NormaliseQid(seriesShelves.First().WikidataQid), NormaliseQid(universeQid), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// The QID in canonical form (upper-case Q followed by letters and digits), or null when the value is blank or is
     /// not a QID. Real QIDs are Q and digits; the looser form keeps stand-in ids in tests working.
     /// </summary>

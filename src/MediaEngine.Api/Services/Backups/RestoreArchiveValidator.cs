@@ -27,7 +27,8 @@ internal sealed record RestoreArchiveInfo(
     long UncompressedBytes,
     int ConfigurationRows = 0,
     int Titles = 0,
-    int FileOnlyTitles = 0);
+    int FileOnlyTitles = 0,
+    bool IncludesKeys = false);
 
 /// <summary>
 /// The one check every route into a restore uses (scheduling it, the monthly restore check, the test restore, a setup upload and a
@@ -91,6 +92,7 @@ internal static class RestoreArchiveValidator
             EntryCount = archive.Entries.Count,
             ConfigurationFileCount = archive.Entries.Count(entry => entry.FullName.StartsWith("config/", StringComparison.Ordinal) && !string.IsNullOrEmpty(entry.Name)),
             UncompressedBytes = uncompressed,
+            IncludesKeys = SealedKeysBundle.Exists(archive),
         };
     }
 

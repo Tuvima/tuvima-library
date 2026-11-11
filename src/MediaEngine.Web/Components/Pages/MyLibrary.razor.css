@@ -44,7 +44,7 @@
     flex: 0 0 auto;
     width: 64px;
     height: 64px;
-    border-radius: var(--tl-radius-pill);
+    border-radius: var(--tl-radius-round, 999px);
     overflow: hidden;
 }
 
@@ -84,7 +84,7 @@
 .my-library-header__action-skeleton {
     width: 9rem;
     min-height: var(--tl-touch-target-min);
-    border-radius: var(--tl-radius-pill);
+    border-radius: var(--tl-radius-round, 999px);
 }
 
 .my-library-action {
@@ -97,7 +97,7 @@
     min-height: var(--tl-touch-target-min);
     padding: 0 var(--tl-space-4);
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-pill);
+    border-radius: var(--tl-radius-round, 999px);
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-body);
     font-weight: var(--tl-font-weight-semibold);

@@ -531,8 +531,12 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Type(overlay, "dune");
         await State.UnlockAsync(null);
         await overlay.InvokeAsync(() => overlay.Instance.Open());
-        overlay.Find(".universal-search-overlay__input-shell input").Input("typedwhileunlocked");
-        Assert.Contains("typedwhileunlocked", overlay.Markup);
+        // Type until the box shows it: on a busy runner a late render from the unlock can land first.
+        overlay.WaitForAssertion(() =>
+        {
+            overlay.Find(".universal-search-overlay__input-shell input").Input("typedwhileunlocked");
+            Assert.Contains("typedwhileunlocked", overlay.Markup);
+        });
 
         await overlay.InvokeAsync(() => State.LockAsync());
 

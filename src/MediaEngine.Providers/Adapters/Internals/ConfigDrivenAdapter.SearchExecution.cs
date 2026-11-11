@@ -513,8 +513,8 @@ public sealed partial class ConfigDrivenAdapter
         var responseBody = await response.Content.ReadAsStringAsync(ct)
             .ConfigureAwait(false);
 
-        // Cache the response.
-        if (_responseCache is not null && !string.IsNullOrEmpty(responseBody))
+        // Cache the response, unless it says "nothing here": an empty answer would hide the title from the provider for the whole cache period.
+        if (_responseCache is not null && !EmptyProviderAnswer.IsEmpty(responseBody))
         {
             var etag = response.Headers.ETag?.Tag?.Trim('"');
             var queryHash = ComputeSha256(url);

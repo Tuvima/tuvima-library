@@ -1,7 +1,7 @@
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// Library-tag validation shared by the editor Details section and Editing Mode pencils,
+/// Library-tag validation shared by the editor Details tool and the Engine,
 /// so a tag is accepted or refused the same way wherever it is typed.
 /// </summary>
 public static class MediaEditorTagRules

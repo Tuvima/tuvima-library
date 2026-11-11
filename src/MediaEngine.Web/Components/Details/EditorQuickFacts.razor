@@ -1,0 +1,115 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject ILogger<EditorQuickFacts> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* Quick Facts (universal editor v4 D4, section 3a): three to five read-only facts that suit the kind of item being edited, plus "Read-only
+   library" or "File write-back off" when true. Nothing here can be changed; it sits to the right of the form, and under it below 1280 px.
+   A fact the Engine and the item's fields do not know is left out, never guessed. *@
+@if (_model is { IsEmpty: false } model)
+{
+    <aside class="tl-quick-facts" aria-label="@L["EditorQuickFacts_Title"].Value" data-quick-facts-kind="@model.Kind.ToString().ToLowerInvariant()">
+        <h3 class="tl-quick-facts__title">@L["EditorQuickFacts_Title"]</h3>
+        @foreach (var fact in model.Facts)
+        {
+            <div class="tl-quick-facts__row" data-fact="@fact.Key">
+                <span class="tl-quick-facts__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(fact.Icon)" Size="AppIconSize.Control20" /></span>
+                <div class="tl-quick-facts__text">
+                    <strong class="tl-quick-facts__value">@fact.Value</strong>
+                    <small class="tl-quick-facts__label">@fact.Label</small>
+                </div>
+            </div>
+        }
+        @foreach (var note in model.Notes)
+        {
+            <div class="tl-quick-facts__note" data-note="@note" role="note">@note</div>
+        }
+        @if (model.OffersPreview && OnPreview.HasDelegate)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Class="tl-quick-facts__preview"
+                       StartIcon="@AppMaterialIcons.Outlined.Visibility" data-quick-facts-preview="true" OnClick="OnPreview">@model.PreviewLabel</AppButton>
+        }
+    </aside>
+}
+
+@code {
+    private QuickFactsModel _model = QuickFactsModel.Empty;
+    private string _writeBackFor = string.Empty;
+    private FileWriteSetting _writeBack = FileWriteSetting.Unknown;
+
+    /// <summary>The editor's loaded item: its fields, kind and the Engine's totals.</summary>
+    [Parameter] public ItemFieldEditSession? Fields { get; set; }
+
+    /// <summary>A supporting file's Preview button: opens its Preview tab. Without it the button is not drawn.</summary>
+    [Parameter] public EventCallback OnPreview { get; set; }
+
+    /// <summary>Facts the caller already worked out (several files edited together sum their selection); with it the card reads nothing itself.</summary>
+    [Parameter] public QuickFactsModel? Model { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Model is not null)
+        {
+            _model = Model;
+            return;
+        }
+
+        if (Fields is not { Loaded: true } fields)
+        {
+            _model = QuickFactsModel.Empty;
+            return;
+        }
+
+        if (fields.SupportingFile is { } supportingFile)
+        {
+            // The file's own facts: nothing here depends on a library's write-back switch, because Library never writes into a supporting file.
+            _model = EditorQuickFactsBuilder.ForSupportingFile(supportingFile);
+            return;
+        }
+
+        // The write-back switch belongs to the library that holds the item's type; it is only read here (it is changed in Settings).
+        var types = string.IsNullOrWhiteSpace(fields.MediaType) || fields.SubjectKind is not null ? [] : new[] { fields.MediaType };
+        var key = string.Join('|', types);
+        if (key != _writeBackFor)
+        {
+            _writeBackFor = key;
+            _writeBack = types.Length == 0 ? FileWriteSetting.Unknown : await FileWriteSettingReader.ReadAsync(ApiClient, Logger, types);
+        }
+
+        var kind = EditorQuickFactsBuilder.KindOf(fields.MediaType, fields.ScopeId, fields.SubjectKind, fields.QuickFacts);
+        _model = EditorQuickFactsBuilder.WithFileFacts(
+            EditorQuickFactsBuilder.Build(
+                kind,
+                keys => fields.Find(keys) is { } found ? found.DisplayValue ?? found.Value : null,
+                fields.QuickFacts,
+                _writeBack.State == FileWriteState.Off,
+                fields.MediaType),
+            fields.Header,
+            fields.Identity?.ProviderName);
+    }
+
+    private static string IconFor(string name) => name switch
+    {
+        "Schedule" => AppMaterialIcons.Outlined.Schedule,
+        "CalendarToday" => AppMaterialIcons.Outlined.CalendarToday,
+        "HighQuality" => AppMaterialIcons.Outlined.HighQuality,
+        "Storage" => AppMaterialIcons.Outlined.Storage,
+        "MenuBook" => AppMaterialIcons.Outlined.MenuBook,
+        "Tag" => AppMaterialIcons.Outlined.Tag,
+        "FolderOpen" => AppMaterialIcons.Outlined.FolderOpen,
+        "Person" => AppMaterialIcons.Outlined.Person,
+        "People" => AppMaterialIcons.Outlined.People,
+        "ViewAgenda" => AppMaterialIcons.Outlined.ViewAgenda,
+        "LiveTv" => AppMaterialIcons.Outlined.LiveTv,
+        "QueueMusic" => AppMaterialIcons.Outlined.QueueMusic,
+        "LibraryBooks" => AppMaterialIcons.Outlined.LibraryBooks,
+        "Hub" => AppMaterialIcons.Outlined.Hub,
+        "RecordVoiceOver" => AppMaterialIcons.Outlined.RecordVoiceOver,
+        "Check" => AppMaterialIcons.Outlined.Check,
+        "InsertDriveFile" => AppMaterialIcons.Outlined.InsertDriveFile,
+        "Collections" => AppMaterialIcons.Outlined.Collections,
+        _ => AppMaterialIcons.Outlined.Folder,
+    };
+}

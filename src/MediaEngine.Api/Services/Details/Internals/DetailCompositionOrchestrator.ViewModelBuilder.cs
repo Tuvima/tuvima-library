@@ -80,6 +80,7 @@ internal sealed partial class DetailCompositionOrchestrator
             SeasonNumber = StringHelpers.FirstNonBlankOr(string.Empty, detail.SeasonNumber, GetValue(canonicalValues, MetadataFieldConstants.SeasonNumber), GetValue(canonicalValues, "season")),
             EpisodeNumber = StringHelpers.FirstNonBlankOr(string.Empty, detail.EpisodeNumber, GetValue(canonicalValues, MetadataFieldConstants.EpisodeNumber), GetValue(canonicalValues, "episode")),
             EpisodeTitle = StringHelpers.FirstNonBlankOr(string.Empty, detail.EpisodeTitle, GetValue(canonicalValues, MetadataFieldConstants.EpisodeTitle)),
+            EpisodePicture = EpisodePictureSource(canonicalValues),
             Network = StringHelpers.FirstNonBlankOr(string.Empty, GetValue(canonicalValues, MetadataFieldConstants.Network), GetValue(canonicalValues, "broadcaster")),
             SeasonCount = GetValue(canonicalValues, MetadataFieldConstants.SeasonCount),
             EpisodeCount = GetValue(canonicalValues, MetadataFieldConstants.EpisodeCount),
@@ -146,7 +147,7 @@ internal sealed partial class DetailCompositionOrchestrator
         return new DetailFactsViewModel
         {
             AiResults = BuildAiResults(canonicalValues),
-            MediaKind = FormatEntityType(entityType),
+            MediaKind = entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType) ? VideoFolderWording.KindLabel : FormatEntityType(entityType),
             Year = displayedYear ?? string.Empty,
             ReleaseDate = displayedReleaseDate ?? string.Empty,
             Rating = StringHelpers.FirstNonBlankOr(string.Empty, FormatRating(GetValue(canonicalValues, MetadataFieldConstants.Rating)), GetValue(canonicalValues, MetadataFieldConstants.Rating)),
@@ -710,9 +711,15 @@ internal sealed partial class DetailCompositionOrchestrator
             ],
         };
 
-    private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null)
+    private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null, bool videoFolder = false)
     {
         var verb = progress is null ? "Watch" : "Resume";
+        if (videoFolder)
+        {
+            // A folder of Other videos says Play or Resume and never carries a season or episode number (item 17).
+            verb = VideoFolderWording.PlayButton(progress is not null);
+        }
+
         var watch = new DetailAction
         {
             Key = "watch",
@@ -858,7 +865,8 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             DetailPrimaryModuleKind.Tracks => "Tracks",
             DetailPrimaryModuleKind.Chapters => "Chapters",
-            DetailPrimaryModuleKind.Episodes => "Episodes",
+            // A folder of Other videos lists "Videos", never "Episodes" (item 17).
+            DetailPrimaryModuleKind.Episodes => sequencePlacement is not null && VideoFolderWording.IsVideoFolderList(sequencePlacement.ContainerLabel, sequencePlacement.ItemLabel) ? VideoFolderWording.UnnamedSectionTitle : "Episodes",
             DetailPrimaryModuleKind.Works => "Works in Your Library",
             DetailPrimaryModuleKind.CollectionItems => "Items",
             DetailPrimaryModuleKind.Sequence => sequencePlacement?.ItemPluralLabel ?? "Series",
@@ -1378,4 +1386,15 @@ internal sealed partial class DetailCompositionOrchestrator
                 && normalizedTitle.EndsWith(normalizedIssue, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static string? EpisodePictureSource(IReadOnlyDictionary<string, string> canonicalValues)
+    {
+        var retryAfter = GetValue(canonicalValues, MetadataFieldConstants.EpisodeStillStandIn);
+        if (!string.IsNullOrWhiteSpace(retryAfter))
+        {
+            return $"Stand-in from show image, next check {retryAfter}";
+        }
+
+        return string.IsNullOrWhiteSpace(GetValue(canonicalValues, BridgeIdKeys.TvdbEpisodeId)) ? null : "TheTVDB";
+    }
 }
+

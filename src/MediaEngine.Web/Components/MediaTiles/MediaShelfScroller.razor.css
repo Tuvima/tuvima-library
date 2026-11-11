@@ -56,12 +56,6 @@
         scroll-snap-type: none;
     }
 
-    .media-tile-shelf-scroll.is-hover-scroll-locked {
-        overflow-y: clip;
-        overscroll-behavior-x: contain;
-        overscroll-behavior-y: auto;
-    }
-
     .media-tile-shelf-scroll::-webkit-scrollbar {
         display: none;
     }
@@ -80,7 +74,7 @@
         transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
         background: rgba(8, 12, 24, 0.82);
         border: 1px solid rgba(255, 255, 255, 0.22);
-        border-radius: var(--app-radius-md);
+        border-radius: var(--tl-radius-md);
         box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(14px);
     }
@@ -93,7 +87,7 @@
     }
 
     ::deep .media-tile-shelf-arrow .tl-icon-root {
-        font-size: 1.55rem;
+        font-size: var(--tl-icon-size-md);
     }
 
     @media (hover: none) {

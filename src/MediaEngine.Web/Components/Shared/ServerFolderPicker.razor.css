@@ -1,327 +1,64 @@
-/* Layout follows the reference mockup only; every colour, radius and size comes from the shipped tokens. */
+/* The list, the left column, the toolbar and the rows belong to the shared browser frame (AppBrowserFrame); this file only places what the folder picker puts into it. */
 .server-folder-picker {
-    display: flex;
-    flex-direction: column;
-    min-height: min(680px, 72vh);
-    font-family: var(--app-font-sans);
-}
-
-/* The address bar spans the whole dialog above the location list and the browser. */
-.server-folder-picker__pathbar {
-    display: grid;
-    gap: 6px;
-    padding: 20px 28px;
-    border-bottom: 1px solid var(--tl-border-subtle);
-}
-
-/* Like an Explorer address bar: clickable folder names with a chevron each, and an empty end that turns the bar into a text box. */
-.server-folder-picker__address {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    min-height: 48px;
-    padding: 0 4px;
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-sm, 6px);
-    background: var(--app-glass-inner-bg);
-}
-
-.server-folder-picker__segment { display: inline-flex; align-items: center; }
-
-.server-folder-picker__address-field {
-    flex: 1 1 48px;
-    min-width: 0;
-    min-height: 44px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-}
-
-button.server-folder-picker__address-field { cursor: text; }
-input.server-folder-picker__address-field { padding: 0 12px; }
-
-/* Embedded in another dialog: the host supplies the title, and the selected path sits under the list. */
-.server-folder-picker__inline-footer { padding: 16px 20px; border-top: 1px solid var(--tl-border-subtle); }
-
-.server-folder-picker__body {
-    display: grid;
-    flex: 1 1 auto;
-    grid-template-columns: 300px minmax(0, 1fr);
-    min-height: 0;
-}
-
-/* The location list has small gaps between roomy rows, so a long list of drives and media folders is easy to scan. */
-.server-folder-picker__locations {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 12px 10px;
-    overflow-y: auto;
-    border-right: 1px solid var(--tl-border-subtle);
-    background: rgba(0, 0, 0, 0.12);
-}
-
-.server-folder-picker__locations h3 {
-    margin: 8px 0 2px;
-    padding: 0 10px;
-    color: var(--tl-text-muted);
-    font-size: 0.75rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-.server-folder-picker__locations h3:first-child { margin-top: 0; }
-
-.server-folder-picker__location {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
+    box-sizing: border-box;
     width: 100%;
-    min-height: 48px;
-    padding: 4px 10px;
-    border: 1px solid transparent;
-    border-radius: var(--app-radius-sm, 6px);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.server-folder-picker__location:hover,
-.server-folder-picker__location:focus-visible,
-.server-folder-picker__location.is-active {
-    border-color: var(--tl-accent-primary-border);
-    background: var(--tl-accent-primary-soft);
-}
-
-.server-folder-picker__location > span {
-    display: grid;
+    max-width: 100%;
     min-width: 0;
+    height: 100%;
+    font-family: var(--font-ui);
 }
 
-/* A mouse and keyboard desktop gets a slightly shorter row; touch and narrow windows keep 48px. */
-@media (hover: hover) and (pointer: fine) and (min-width: 1180px) {
-    .server-folder-picker__location { min-height: 44px; }
-}
+/* Embedded in the Add library window: the same full-width column, free to shrink to the window. */
+.server-folder-picker__inline { box-sizing: border-box; width: 100%; min-width: 0; }
 
-.server-folder-picker__location small {
-    overflow: hidden;
-    font-size: 0.75rem;
-    line-height: 1.25;
-    color: var(--tl-text-muted);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+/* Embedded in another dialog: the host supplies the title, and the handling choice sits under the frame. */
+.server-folder-picker__inline-footer { padding: var(--tl-space-4) var(--tl-space-5); border-top: 1px solid var(--tl-border-subtle); }
 
-.server-folder-picker__browser {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    gap: 16px;
-    padding: 24px 28px;
-}
+.server-folder-picker__target { margin: 0; color: var(--tl-text-secondary); }
 
-/* Back, Forward and Up, then the folder search. */
-.server-folder-picker__toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-}
+/* Host fields above the list: the library name is large and the first thing you type (D5). */
+.server-folder-picker__top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-3); }
+.server-folder-picker__top ::deep input { font-size: var(--tl-font-size-lg, 1.125rem); }
 
-.server-folder-picker__history {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+/* The friendly name is the only text box (Editor v5 D32); it names the folder, never the library (Libraries v3 D18). */
+.server-folder-picker__name { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-1); max-width: 22.5rem; }
+.server-folder-picker__name-hint { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
 
-.server-folder-picker__crumb {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0 8px;
-    border: 0;
-    border-radius: var(--app-radius-sm, 6px);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    overflow-wrap: anywhere;
-    cursor: pointer;
-}
+/* The folder you are inside, named above the list. */
+.server-folder-picker__selected { color: var(--tl-text-primary); overflow-wrap: anywhere; }
 
-.server-folder-picker__crumb:hover,
-.server-folder-picker__crumb:focus-visible { background: var(--tl-accent-primary-soft); }
+/* "Type a path..." opens this small box under its row in the left column; Go lists that folder. */
+.server-folder-picker__typed { display: grid; gap: var(--tl-space-2); padding: var(--tl-space-2); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface); }
 
-.server-folder-picker__crumb.is-current {
-    display: inline-flex;
-    align-items: center;
-    padding: 0 8px;
-    color: var(--tl-accent-primary);
-    font-weight: 500;
-}
-
-.server-folder-picker__search {
-    display: flex;
-    flex: 1 1 200px;
-    align-items: center;
-    gap: 8px;
-    max-width: 280px;
-    min-height: 44px;
-    padding: 0 10px;
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-sm, 6px);
-    background: var(--app-glass-inner-bg);
-}
-
-.server-folder-picker__search ::deep input {
-    min-width: 0;
+.server-folder-picker__typed-input {
+    box-sizing: border-box;
     width: 100%;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: inherit;
-}
-
-.server-folder-picker__list {
-    min-height: 280px;
-    max-height: min(420px, 48vh);
-    overflow-y: auto;
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
-    background: var(--app-glass-inner-bg);
-}
-
-.server-folder-picker__list:focus-visible {
-    outline: 2px solid var(--tl-accent-primary);
-    outline-offset: -2px;
-}
-
-.server-folder-picker__list-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 190px;
-    align-items: center;
-    gap: 16px;
-    min-height: 44px;
-    padding: 0 60px 0 16px;
-    border-bottom: 1px solid var(--tl-border-subtle);
-    position: sticky;
-    z-index: 1;
-    top: 0;
-    background: rgba(17, 24, 39, 0.98);
-    color: var(--tl-text-muted);
-    font-size: 0.8125rem;
-    font-weight: 500;
-}
-
-/* A folder row: the select button fills the row and a separate 44px button opens it, for touch and keyboard. */
-.server-folder-picker__row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
-    align-items: stretch;
-    border-bottom: 1px solid var(--tl-border-subtle);
-}
-
-.server-folder-picker__folder {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 190px;
-    align-items: center;
-    gap: 16px;
-    width: 100%;
-    min-height: 56px;
-    padding: 0 16px;
-    border: 0;
-    background: transparent;
+    min-height: 2.75rem;
+    padding: 0 var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
     color: inherit;
     font: inherit;
-    text-align: left;
-    cursor: pointer;
 }
 
-.server-folder-picker__folder:hover,
-.server-folder-picker__folder.is-highlighted { background: var(--tl-accent-primary-soft); }
-
-.server-folder-picker__folder.is-selected {
-    background: var(--tl-accent-primary-soft);
-    box-shadow: inset 3px 0 0 var(--tl-accent-primary);
-}
-
-.server-folder-picker__list:focus-visible .server-folder-picker__folder.is-highlighted {
-    box-shadow: inset 0 0 0 2px var(--tl-accent-primary);
-}
-
-.server-folder-picker__folder-name {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    overflow: hidden;
-    color: var(--tl-accent-primary);
-}
-
-.server-folder-picker__folder-name strong {
-    overflow: hidden;
-    color: var(--tl-text-primary);
-    font-weight: 400;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.server-folder-picker__modified {
-    color: var(--tl-text-muted);
-    font-size: 0.8125rem;
-    text-align: left;
-}
-
-.server-folder-picker__row ::deep .server-folder-picker__open {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--tl-text-muted);
-    cursor: pointer;
-}
-
-.server-folder-picker__row ::deep .server-folder-picker__open:hover,
-.server-folder-picker__row ::deep .server-folder-picker__open:focus-visible {
-    background: var(--tl-accent-primary-soft);
-    color: var(--tl-text-primary);
+.server-folder-picker__typed-input:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
 }
 
 .server-folder-picker__state {
     display: grid;
     place-items: center;
-    min-height: 260px;
-    padding: 24px;
+    min-height: 12rem;
+    padding: var(--tl-space-5);
     color: var(--tl-text-muted);
 }
 
-.server-folder-picker__issues {
-    display: grid;
-    gap: 6px;
-    padding: 10px 12px;
-    border: 1px solid rgba(255, 107, 107, 0.35);
-    border-radius: var(--app-radius-sm, 6px);
-    background: rgba(255, 107, 107, 0.08);
-}
-
-
-.server-folder-picker__issues > div {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 /* Reserve room for validation notices so the folder list does not jump when one appears. */
-.server-folder-picker__notices { display: grid; align-content: start; gap: 8px; min-height: 76px; }
+.server-folder-picker__notices { display: grid; align-content: start; gap: var(--tl-space-2); min-height: 4.75rem; }
 
-/* Footer: the selected path with its copy button, then Cancel and the confirm button. */
+/* Footer: the safety line, then Cancel and the confirm button. */
 .server-folder-picker__footer {
     display: flex;
     flex-wrap: wrap;
@@ -331,69 +68,21 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     width: 100%;
 }
 
-.server-folder-picker__selected {
-    display: flex;
-    flex: 1 1 320px;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-}
+.server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 
-.server-folder-picker__selected-label {
-    color: var(--tl-text-muted);
-    font-size: 0.875rem;
-    white-space: nowrap;
-}
+.server-folder-picker__handling { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--tl-space-2); }
 
-.server-folder-picker__selected-field {
-    flex: 1 1 auto;
-    min-width: 0;
-}
+/* The one check's answer, drawn when Add / Choose is pressed (D7). */
+.server-folder-picker__result { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--tl-radius-md, 10px); border: 1px solid var(--tl-border-subtle); }
+.server-folder-picker__result p { margin: 2px 0 0; color: var(--tl-text-secondary); }
+.server-folder-picker__result[data-result="looks-right"] { border-color: var(--tl-status-success); color: var(--tl-status-success); }
+.server-folder-picker__result[data-result="heads-up"] { border-color: var(--tl-status-warning); color: var(--tl-status-warning); }
+.server-folder-picker__result[data-result="already-used"], .server-folder-picker__result[data-result="refused"] { border-color: var(--tl-status-error, var(--tl-status-warning)); color: var(--tl-status-error, var(--tl-status-warning)); }
+.server-folder-picker__result strong, .server-folder-picker__result p { color: inherit; }
+.server-folder-picker__result p { color: var(--tl-text-secondary); }
+.server-folder-picker__validation-progress { display: grid; gap: 6px; color: var(--tl-text-muted); }
 
-.server-folder-picker__selected-field ::deep .tl-input-adornment { min-width: 44px; min-height: 44px; }
-
-.server-folder-picker__copied {
-    min-width: 3.5rem;
-    color: var(--tl-text-muted);
-    font-size: 0.8rem;
-}
-
-/* Under 840px (the one card breakpoint shared with the Libraries panel): a narrower location column, and Modified is hidden. */
+/* Under 840px (the one card breakpoint shared with the Libraries panel) the friendly name takes the whole row. */
 @media (max-width: 840px) {
-    .server-folder-picker__body { grid-template-columns: 220px minmax(0, 1fr); }
-
-    .server-folder-picker__list-header { grid-template-columns: minmax(0, 1fr); }
-    .server-folder-picker__list-header span:nth-child(2) { display: none; }
-    .server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 60px; }
-    .server-folder-picker__modified { display: none; }
-}
-
-/* Under 600px the locations sit above the browser as a wrapping list, so nothing scrolls sideways. */
-@media (max-width: 600px) {
-    .server-folder-picker__pathbar { padding: 12px 14px; }
-    .server-folder-picker__body { grid-template-columns: minmax(0, 1fr); }
-
-    .server-folder-picker__locations {
-        flex-flow: row wrap;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        border-right: 0;
-        border-bottom: 1px solid var(--tl-border-subtle);
-    }
-
-    .server-folder-picker__locations h3 { display: none; }
-
-    .server-folder-picker__location {
-        flex: 1 1 150px;
-        width: auto;
-        min-height: 48px;
-        padding: 6px 12px;
-    }
-
-    .server-folder-picker__browser { padding: 14px; }
-    .server-folder-picker__search { max-width: none; }
-    .server-folder-picker__selected { flex-flow: row wrap; flex-basis: 100%; }
-    .server-folder-picker__selected-label { flex-basis: 100%; }
-    .server-folder-picker__selected-field { flex: 1 1 0; }
+    .server-folder-picker__name { max-width: none; }
 }

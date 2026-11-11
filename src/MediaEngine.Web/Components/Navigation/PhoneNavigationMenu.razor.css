@@ -27,7 +27,7 @@
 .phone-nav-menu__title {
     margin: 0;
     font-size: var(--tl-font-size-lg);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .phone-nav-menu__list {

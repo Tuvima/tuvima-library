@@ -8,14 +8,14 @@
     <div class="app-list-card__top">
         @if (Logo is not null)
         {
-            <span class="app-list-card__logo" aria-hidden="true">@Logo</span>
+            <span class="app-list-card__logo">@Logo</span>
         }
         else
         {
             <span class="app-list-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@(Icon ?? AppMaterialIcons.Outlined.Extension)" /></span>
         }
         <div class="app-list-card__copy">
-            <strong class="app-list-card__title" title="@Title">@Title</strong>
+            <strong class="app-list-card__title" data-overflow-tooltip="@Title">@Title</strong>
         </div>
         @if (Aside is not null)
         {
@@ -24,7 +24,7 @@
     </div>
     @if (!string.IsNullOrWhiteSpace(Description))
     {
-        <p class="app-list-card__description">@Description</p>
+        <p class="app-list-card__description" data-overflow-tooltip="@DescriptionTitle">@Description</p>
     }
     @if (Status is not null || !string.IsNullOrWhiteSpace(Kind) || Badges is not null || Warning is not null)
     {
@@ -56,6 +56,9 @@
     /// <summary>A brand logo drawn instead of the icon (a metadata provider's own mark in its colour).</summary>
     [Parameter] public RenderFragment? Logo { get; set; }
     [Parameter] public string? Description { get; set; }
+
+    /// <summary>The full text shown as a tooltip when <see cref="Description"/> is clamped to two lines.</summary>
+    [Parameter] public string? DescriptionTitle { get; set; }
 
     /// <summary>The small category or kind label under the name.</summary>
     [Parameter] public string? Kind { get; set; }

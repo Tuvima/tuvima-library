@@ -1,0 +1,83 @@
+{
+  "properties": {
+    "auto_discovery_enabled": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Suggest Fandom sources",
+      "description": "Allow Library to propose Fandom wiki sources for admin approval.",
+      "group": "Sources",
+      "order": 0,
+      "default": true
+    },
+    "source_mode": {
+      "type": "string",
+      "control": "choice",
+      "title": "Source mode",
+      "description": "Hybrid Review proposes sources but requires approval before enrichment.",
+      "group": "Sources",
+      "order": 1,
+      "enum": ["hybrid_review", "manual_only"],
+      "enum_labels": { "hybrid_review": "Hybrid review (propose, then ask)", "manual_only": "Manual only" },
+      "default": "hybrid_review"
+    },
+    "content_mode": {
+      "type": "string",
+      "control": "choice",
+      "title": "Content mode",
+      "description": "Structured Only stores page metadata and categories, not article prose.",
+      "group": "Sources",
+      "order": 2,
+      "enum": ["structured_only"],
+      "enum_labels": { "structured_only": "Structured only" },
+      "default": "structured_only"
+    },
+    "max_pages_per_run": {
+      "type": "integer",
+      "control": "number",
+      "title": "Max pages per run",
+      "description": "Maximum Fandom pages inspected during one universe enrichment run.",
+      "unit": "pages",
+      "group": "Limits",
+      "order": 3,
+      "minimum": 1,
+      "maximum": 500,
+      "default": 50
+    },
+    "confidence_threshold": {
+      "type": "number",
+      "control": "number",
+      "title": "Confidence threshold",
+      "description": "Minimum confidence required before supplemental lore is saved.",
+      "group": "Limits",
+      "order": 4,
+      "minimum": 0.1,
+      "maximum": 1.0,
+      "default": 0.65
+    },
+    "request_delay_ms": {
+      "type": "integer",
+      "control": "number",
+      "title": "Request delay",
+      "description": "Delay between external requests.",
+      "unit": "ms",
+      "group": "Limits",
+      "order": 5,
+      "minimum": 100,
+      "maximum": 10000,
+      "default": 500,
+      "advanced": true
+    },
+    "user_agent_contact": {
+      "type": "string",
+      "control": "text",
+      "title": "User-Agent contact",
+      "description": "Optional admin contact text included in Fandom/Wikidata API requests.",
+      "placeholder": "you@example.com",
+      "group": "Limits",
+      "order": 6,
+      "default": "",
+      "advanced": true
+    }
+  },
+  "required": ["auto_discovery_enabled", "source_mode", "content_mode", "request_delay_ms", "max_pages_per_run", "confidence_threshold"]
+}

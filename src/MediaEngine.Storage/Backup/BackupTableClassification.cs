@@ -76,6 +76,7 @@ public static partial class BackupTableClassification
         Config("collection_list_entries", "Every entry of an imported list and which title in the library it matched.", refs: [Work("matched_work_id")], keepWhere: InPersonBuiltCollection),
         Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
         Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
+        Config("bookmark_definitive_sets", "Which titles have a definitive set of Everyone's bookmarks an administrator made (the bookmarks themselves are the shared ones in each person's bookmark list).", refs: [Work("work_id")], excluded: ["made_by"]),
         Config("folder_first_checks", "The first check of each newly added folder: a pause waiting for an administrator's choice, and which folders have already passed, so a restore neither releases a paused folder nor starts the check again."),
         Config("backup_restores", "Which backups were restored and when, with counts of what was put back and what is still waiting."),
         Config("waiting_personal_state", "State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period."),
@@ -83,10 +84,9 @@ public static partial class BackupTableClassification
         // ---------------------------------------------------------------------------------------------------------
         // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
         // ---------------------------------------------------------------------------------------------------------
-        Personal("reader_bookmarks", "user_id", "Bookmarks a person placed in a book.", refs: [Asset("asset_id")]),
         Personal("reader_highlights", "user_id", "Highlights and notes a person made in a book.", refs: [Asset("asset_id")]),
         Personal("reader_statistics", "user_id", "A person's reading time and speed per book.", refs: [Asset("asset_id")]),
-        Personal("audiobook_bookmarks", "profile_id", "Bookmarks a person placed in an audiobook.", refs: [Work("work_id"), Asset("asset_id")]),
+        Personal("audiobook_bookmarks", "profile_id", "Bookmarks a person placed in a film, episode, audiobook or book (Global ones are shared).", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("audiobook_listen_history", "profile_id", "What a person listened to in audiobooks.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("music_play_stats", "profile_id", "Play counts and last played time per album or track.", refs: [Work("work_id")]),
         Personal("consumption_history", "profile_id", "What a person watched, read or listened to, with progress.", refs: [Asset("asset_id")]),
@@ -161,7 +161,9 @@ public static partial class BackupTableClassification
         Catalogue("subtitle_name_tags", "Characters found in subtitle text."),
         Catalogue("text_tracks", "Subtitle and lyric tracks found for files."),
         Catalogue("text_track_rejections", "Lyrics and subtitle results a person marked wrong for a file, so they are not picked again."),
-        Catalogue("item_extras", "Guidebooks, pictures and clips found beside a title (its Extras); rebuilt by a rescan. Files a person moved between Extras and episodes in the editor are kept as corrections.", correctionWhere: "origin <> 'rule'"),
+        Catalogue("item_extras", "Guidebooks, worksheets, pictures and clips found beside a title (its supporting files, shown as its Extras); rebuilt by a rescan. What a person set on a file (its own title or description, role, where it belongs, the episode or lesson it is shown alongside, a group they chose, tags) and files they moved between Extras and episodes are kept as corrections.", correctionWhere: "origin <> 'rule' OR own_title IS NOT NULL OR own_description IS NOT NULL OR role IS NOT NULL OR scope IS NOT NULL OR alongside IS NOT NULL OR group_source = 'you' OR EXISTS (SELECT 1 FROM item_extra_tag_links WHERE item_extra_tag_links.extra_id = item_extras.id)"),
+        Catalogue("item_extra_groups", "Groups a title's supporting files are sorted into (\"Character guides\", \"Homework\"); groups read from folders are rebuilt by a rescan, groups a person made are kept as corrections along with the files in them.", correctionWhere: "1 = 1"),
+        Catalogue("item_extra_tag_links", "Which tags a person put on which supporting file; kept as corrections (the tags themselves are kept with the other tags).", correctionWhere: "1 = 1"),
         Catalogue("local_items", "Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept.", choices: ["favorite", "hidden", "archived_at", "trashed_at", "captured_at_user_override", "captured_at"], gatedBy: [("captured_at", "captured_at_user_override")]),
         Catalogue("local_files", "Files behind View items."),
         Catalogue("local_file_sources", "Where View files were found."),
@@ -182,6 +184,8 @@ public static partial class BackupTableClassification
         // Transient: not kept and not rebuilt from files.
         // ---------------------------------------------------------------------------------------------------------
         Transient("recycle_bin_personal_state", "Progress kept for files waiting in the Recycle bin; the bin itself is not backed up, so these copies have nothing to come back to after a restore."),
+        Transient("activity_runs", "The History of imports on the Activity page; rebuilt as new files arrive, so it is not kept in a backup."),
+        Transient("activity_run_items", "The items inside each History entry on the Activity page."),
         Transient("auth_sessions", "Sign-in sessions."),
         Transient("client_tokens", "Device and application tokens."),
         Transient("plugin_display_contributions", "Lines and badges plugins publish for the Library's pages; each plugin publishes them again when it next runs."),
@@ -268,8 +272,6 @@ public static partial class BackupTableClassification
         Config("vault_section_grants", "Which Vault sections each profile may open."),
         Transient("vault_moves", "Move to Vault jobs; a job in flight is not worth restoring, the files are the record."),
         Transient("vault_move_items", "The items of a Move to Vault job."),
-        Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
-        Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
         Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),
         Catalogue("vault_activity", "Quiet list of Vault ingestion activity."),
         Catalogue("vault_artwork", "Vault artwork."),

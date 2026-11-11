@@ -55,17 +55,65 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AuthenticationPage_RendersCanonicalOriginAndCurrentAccountTestAction()
+    public void AuthenticationPage_RendersCanonicalOrigin_AndTheTestEmailHasMovedToGeneral()
     {
         var cut = Render<SecurityTab>();
         cut.WaitForElement(".security-settings__facts");
 
         Assert.Contains("https://library.example.test", cut.Markup, StringComparison.Ordinal);
-        var button = cut.FindAll("button").Single(element =>
-            element.TextContent.Contains("Send test email to my account", StringComparison.Ordinal));
-        Assert.False(button.HasAttribute("disabled"));
-        Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Send test email", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("SMTP", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("input[type='email']"));
+    }
+
+    [Fact]
+    public void AdvancedTab_HoldsEverySignInControlUnderOneOfThreeHeadings()
+    {
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement(".security-settings__facts");
+
+        Assert.Equal(["How people sign in", "Sessions and invitations", "Status"], cut.FindAll("h3").Select(h => h.TextContent.Trim()));
+
+        string[] InGroup(string id) => cut.Find($"#{id}").NextElementSibling is { } group ? [group.TextContent] : [];
+        var signIn = string.Concat(InGroup("security-group-sign-in")) + cut.Find("h4").TextContent;
+        Assert.Contains("Password sign-in", signIn, StringComparison.Ordinal);
+        Assert.Contains("Passkey sign-in", signIn, StringComparison.Ordinal);
+        Assert.Contains("External provider sign-in", signIn, StringComparison.Ordinal);
+        Assert.Contains("External providers", signIn, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("select"), select => select.InnerHtml.Contains("Optional", StringComparison.Ordinal));
+
+        var sessions = string.Concat(InGroup("security-group-sessions"));
+        Assert.Contains("Session lifetime (hours)", sessions, StringComparison.Ordinal);
+        Assert.Contains("Maximum active sessions per account", sessions, StringComparison.Ordinal);
+        Assert.Contains("Invitation lifetime (hours)", sessions, StringComparison.Ordinal);
+        Assert.Contains("Trusted local networks", sessions, StringComparison.Ordinal);
+
+        var status = cut.Find("dl.security-settings__facts").TextContent;
+        Assert.Contains("Public address", status, StringComparison.Ordinal);
+        Assert.Contains("Passkeys", status, StringComparison.Ordinal);
+        Assert.Contains("Recovery delivery", status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneralNotifications_OffersTheTestEmailOnceOutgoingEmailIsSetUp()
+    {
+        var cut = Render<NotificationsEmailTest>();
+        cut.WaitForElement("[data-testid='notifications-email-test']");
+
+        var button = cut.Find("[data-testid='notifications-email-test-send']");
+        Assert.False(button.HasAttribute("disabled"));
+        Assert.Contains("Send test email to my account", button.TextContent, StringComparison.Ordinal);
+        Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneralNotifications_ShowsNoTestEmailWhileOutgoingEmailIsNotConfigured()
+    {
+        _settings = new AuthSettingsDto();
+
+        var cut = Render<NotificationsEmailTest>();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid='notifications-email-test']")));
+        Assert.DoesNotContain("Send test email", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -34,6 +34,7 @@ public sealed class WorkReadinessService : BackgroundService
     private readonly ISystemActivityRepository _activity;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<WorkReadinessService> _logger;
+    private readonly IActivityRunRecorder? _runs;
 
     // First time this service saw a Work matched, placed and not in review but still waiting for artwork.
     // Only the service's single loop touches it.
@@ -54,8 +55,10 @@ public sealed class WorkReadinessService : BackgroundService
         IEventPublisher publisher,
         ISystemActivityRepository activity,
         TimeProvider timeProvider,
-        ILogger<WorkReadinessService> logger)
+        ILogger<WorkReadinessService> logger,
+        IActivityRunRecorder? runs = null)
     {
+        _runs = runs;
         _repository = repository;
         _bypassLibraries = bypassLibraries;
         _publisher = publisher;
@@ -305,6 +308,14 @@ public sealed class WorkReadinessService : BackgroundService
                 Detail = "Added",
             }, ct).ConfigureAwait(false);
             _activityWritten.Add(detail.WorkId);
+
+            // One run per scan or import (spec library-activity D21). The recorder never throws; a missed run only loses a line of History.
+            if (_runs is not null)
+            {
+                await _runs.RecordAddedAsync(
+                    detail.WorkId, detail.AssetId, detail.MediaType, detail.Title, detail.GroupTitle, detail.GroupWorkId, ct).ConfigureAwait(false);
+            }
+
             return true;
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)

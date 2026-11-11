@@ -60,48 +60,20 @@
                     <AppCssElement Tag="div"
                                    Class="tl-series-detail__control tl-series-detail__control--group"
                                    >
-                        <span class="sr-only">@(IsSeasonContainer ? "Season" : "Arc / sub-series")</span>
-                        @if (IsSeasonContainer)
-                        {
-                            <AppNativeButton Type="button"
-                                             Class="@SeasonToggleClass"
-                                             OnClick="ToggleSeasonBrowser"
-                                             aria-pressed="@_seasonBrowserOpen"
-                                             aria-expanded="@_seasonBrowserOpen"
-                                             aria-controls="@_seasonStripId"
-                                             AriaLabel="@($"Choose season; {ActiveGroup?.Title ?? "current season"} selected")">
-                                <span class="tl-season-toggle__art">
-                                    @if (!string.IsNullOrWhiteSpace(ActiveGroup?.ArtworkSmallUrl))
-                                    {
-                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" alt="" width="40" height="60" decoding="async" />
-                                    }
-                                    else
-                                    {
-                                        <span>@SeasonShortLabel(ActiveGroup)</span>
-                                    }
-                                </span>
-                                <span class="tl-season-toggle__label">@(ActiveGroup?.Title ?? "Season")</span>
-                                <AppMaterialIcon Class="tl-season-toggle__chevron"
-                                         Icon="@AppMaterialIcons.Outlined.ExpandMore"
-                                         Size="AppSize.Small" />
-                            </AppNativeButton>
-                        }
-                        else
-                        {
-                            <AppSelect Value="@SelectedGroupKey"
-                                       ValueChanged="SelectGroup"
-                                       Options="@GroupSelectOptions"
-                                       LeadingIcon="@AppMaterialIcons.Outlined.AccountTree"
-                                       Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
-                                       PopoverClass="app-select__popover tl-series-select-popover"
-                                       aria-label="@GroupSelectorAriaLabel" />
-                        }
+                        <span class="sr-only">@(IsSeasonContainer ? "Season" : IsVideoFolder ? VideoFolderWording.SectionLabel : "Arc / sub-series")</span>
+                        <AppSelect Value="@SelectedGroupKey"
+                                   ValueChanged="SelectGroup"
+                                   Options="@GroupSelectOptions"
+                                   LeadingIcon="@(IsSeasonContainer ? null : AppMaterialIcons.Outlined.AccountTree)"
+                                   Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
+                                   PopoverClass="app-select__popover tl-series-select-popover"
+                                   aria-label="@(IsSeasonContainer ? L["SequencePlacementPanel_ChooseSeason"].Value : GroupSelectorAriaLabel)" />
                     </AppCssElement>
                     }
             </div>
 
         @* Under a shared row heading (no identity line), a Series' Jump to sits in this controls row, as a season's does. *@
-        @if ((IsSeasonContainer || !ShowIdentity) && ShowJumpSelector && !_seasonBrowserOpen)
+        @if ((IsSeasonContainer || !ShowIdentity) && ShowJumpSelector)
         {
             @JumpPicker
         }
@@ -113,74 +85,22 @@
     {
     <div class="tl-series-detail__heading">
         <div class="tl-series-detail__identity">
-            <AppMaterialIcon Icon="@ContainerIcon" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@ContainerIcon" Size="AppIconSize.Control20" />
             <div>
                 <span>@ContainerTitleDisplay</span>
                 <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
             </div>
         </div>
-        @if (ShowJumpSelector && !_seasonBrowserOpen)
+        @if (ShowJumpSelector)
         {
             @JumpPicker
         }
     </div>
     }
 
-    @* Editing Mode: the ticked rows' bar sits directly above the rows. *@
+    @* The ticked rows' bar sits directly above the rows. *@
     <BulkSelectionBar />
 
-    @if (_seasonBrowserOpen && IsSeasonContainer)
-    {
-    <div class="tl-series-detail__carousel tl-season-browser">
-        <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--left"
-                       Icon="@AppMaterialIcons.Outlined.ChevronLeft"
-                       Size="AppControlSize.Large"
-                       AriaLabel="@L["SequencePlacementPanel_PreviousSeasons"].Value"
-                       OnClick="@(() => PageSeasonRailAsync(-1))" />
-        <div id="@_seasonStripId"
-             class="tl-season-browser__strip"
-             role="listbox"
-             aria-label="@L["SequencePlacementPanel_ChooseSeason"].Value">
-            @for (var index = 0; index < VisibleGroups.Count; index++)
-            {
-                var season = VisibleGroups[index];
-                var selected = string.Equals(season.Key, SelectedGroupKey, StringComparison.OrdinalIgnoreCase);
-                <AppNativeButton Type="button"
-                                 Class="@(selected ? "tl-season-card is-selected" : "tl-season-card")"
-                                 OnClick="@(() => SelectSeason(season.Key))"
-                                 data-sequence-index="@index"
-                                 role="option"
-                                 aria-selected="@(selected ? "true" : "false")"
-                                 aria-current="@(selected ? "true" : null)">
-                    <span class="tl-season-card__art">
-                        @if (!string.IsNullOrWhiteSpace(season.ArtworkUrl))
-                        {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(season.ArtworkUrl, 340)"
-                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(season.ArtworkUrl, 340)"
-                                 alt=""
-                                 width="280"
-                                 height="420"
-                                 loading="@(selected ? "eager" : "lazy")"
-                                 fetchpriority="@(selected ? "high" : "auto")"
-                                 decoding="async" />
-                        }
-                        else
-                        {
-                            <span>@SeasonShortLabel(season)</span>
-                        }
-                    </span>
-                    <strong>@season.Title</strong>
-                </AppNativeButton>
-            }
-        </div>
-        <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--right"
-                       Icon="@AppMaterialIcons.Outlined.ChevronRight"
-                       Size="AppControlSize.Large"
-                       AriaLabel="@L["SequencePlacementPanel_NextSeasons"].Value"
-                       OnClick="@(() => PageSeasonRailAsync(1))" />
-    </div>
-    }
-    else
     {
     <div class="tl-series-detail__carousel">
         <AppIconButton Class="@LeftArrowClass"
@@ -199,43 +119,47 @@
             {
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
-                // While Editing Mode is on a tickable card is not a link: the tick box is the card's one control.
+                // A tickable card is not a link: the tick box is the card's one control.
                 var tickable = IsTickable(item);
                 var route = tickable ? null : SequenceItemRoute(item);
                 if (route is not null)
                 {
-                    <a class="@SequenceItemClass(item)"
-                       href="@route"
-                       aria-current="@(item.IsCurrent ? "page" : null)"
-                       aria-label="Open @SequenceItemTitle(item)">
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
-                    </a>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <a class="@SequenceItemClass(item)"
+                           href="@route"
+                           aria-current="@(item.IsCurrent ? "page" : null)"
+                           aria-label="Open @SequenceItemTitle(item)">
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </a>
+                    </SequenceItemFiles>
                 }
                 else
                 {
-                    @* While Editing Mode is on, a tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
+                    @* A tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
                        title is for after Done (a card has no row menu of its own). *@
-                    <article class="@SequenceItemClass(item)"
-                             aria-current="@(item.IsCurrent ? "page" : null)"
-                             aria-label="@SequenceItemAccessibilityLabel(item)"
-                             data-tickable="@(tickable ? "true" : null)"
-                             @onclick="@(tickable ? TickFromCard(item) : default)">
-                        @if (tickable)
-                        {
-                            <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
-                        }
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
-                    </article>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <article class="@SequenceItemClass(item)"
+                                 aria-current="@(item.IsCurrent ? "page" : null)"
+                                 aria-label="@SequenceItemAccessibilityLabel(item)"
+                                 data-tickable="@(tickable ? "true" : null)"
+                                 @onclick="@(tickable ? TickFromCard(item) : default)">
+                            @if (tickable)
+                            {
+                                <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
+                            }
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </article>
+                    </SequenceItemFiles>
                 }
             }
         </AppCssElement>
@@ -291,16 +215,15 @@
 
     @if (HasMoreConfiguredMissingItems)
     {
-        <AppNativeButton Type="button"
-                         Class="tl-series-load-missing"
-                         OnClick="LoadMoreMissingItems">
+        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                   OnClick="LoadMoreMissingItems">
             @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
-        </AppNativeButton>
+        </AppButton>
     }
 
     <footer class="tl-series-detail__ownership"
             aria-label="@OwnershipSummaryLabel">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" />
         <strong>@OwnedCount owned</strong>
         @if (ShowCoverageBar)
         {
@@ -386,10 +309,7 @@ else
                     @if (ShowSetDefault)
                     {
                         <div class="tl-series-default-control">
-                            <AppNativeButton Type="button" Class="tl-series-default-action" Disabled="@_settingDefault" OnClick="SetDefaultSequenceAsync">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.StarOutline" Size="AppSize.Small" />
-                                <span>@L["SequencePlacementPanel_MakeDefault"]</span>
-                            </AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="tl-series-default-action" Disabled="@_settingDefault" StartIcon="@AppMaterialIcons.Outlined.StarOutline" OnClick="SetDefaultSequenceAsync">@L["SequencePlacementPanel_MakeDefault"]</AppButton>
                             <small>@L["SequencePlacementPanel_UseAsYourDefaultSeries"]</small>
                         </div>
                     }
@@ -461,7 +381,7 @@ else
         @if (!IsSeasonContainer && SeriesDateRange is not null)
         {
             <div class="tl-series-date-range">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppSize.Small" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppIconSize.Control20" />
                 <span>@SeriesDateRange</span>
             </div>
         }
@@ -489,7 +409,7 @@ else
         }
 
         <div class="tl-series-owned-summary">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" />
             <span>@OwnedSummary</span>
             @if (ShowCoverageDonut)
             {
@@ -503,7 +423,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                     aria-label="Open @SeriesWikidataQid on Wikidata in a new tab">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     <span>@L["SequencePlacementPanel_Wikidata", SourceKindLabel ?? string.Empty, SeriesWikidataQid ?? string.Empty]</span>
                 </a>
             }
@@ -514,7 +434,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                    aria-label="@L["SequencePlacementPanel_OpenThisComicSeriesOn"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     <span>@L["SequencePlacementPanel_ComicVine", SourceKindLabel ?? string.Empty]</span>
                 </a>
             }
@@ -525,7 +445,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                    aria-label="@L["SequencePlacementPanel_OpenTheSeriesArticleOn"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     <span>@L["SequencePlacementPanel_Wikipedia", SourceKindLabel ?? string.Empty]</span>
                 </a>
             }
@@ -564,7 +484,7 @@ else
                 if (IsSeasonContainer && item.IsOwned && item.EpisodeContext is not null)
                 {
                     <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null) @(_sameFileHighlight.Contains(item.Id) ? "is-same-file-highlight" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
-                        <MediaTile ShowCompactCaption="true" Item="@SequenceEpisodeTileAdapter.FromItem(item)" />
+                        <MediaTile Item="@SequenceEpisodeTileAdapter.FromItem(item, Placement.StandInBackdropUrl)" ShowEpisodeText="true" />
                         <SameFileChip Links="item.CoveredWith"
                                       CanHighlight="@HasVisibleSibling(item)"
                                       IsHighlighting="@IsHighlightingSiblings(item)"
@@ -573,30 +493,34 @@ else
                 }
                 else if (route is not null)
                 {
-                    <a class="@SequenceItemClass(item)"
-                       href="@route"
-                       aria-current="@(item.IsCurrent ? "page" : null)"
-                       aria-label="Open @SequenceItemTitle(item)">
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
-                    </a>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <a class="@SequenceItemClass(item)"
+                           href="@route"
+                           aria-current="@(item.IsCurrent ? "page" : null)"
+                           aria-label="Open @SequenceItemTitle(item)">
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </a>
+                    </SequenceItemFiles>
                 }
                 else
                 {
-                    <article class="@SequenceItemClass(item)"
-                             aria-current="@(item.IsCurrent ? "page" : null)"
-                             aria-label="@SequenceItemAccessibilityLabel(item)">
-                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
-                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
-                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                              MissingIcon="@MissingIcon" />
-                    </article>
+                    <SequenceItemFiles Chips="@ChipsFor(item)">
+                        <article class="@SequenceItemClass(item)"
+                                 aria-current="@(item.IsCurrent ? "page" : null)"
+                                 aria-label="@SequenceItemAccessibilityLabel(item)">
+                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                                  ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                                  PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
+                                                  DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                                  AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                                  MissingIcon="@MissingIcon" />
+                        </article>
+                    </SequenceItemFiles>
                 }
             }
         </AppCssElement>
@@ -632,11 +556,10 @@ else
 
         @if (HasMoreConfiguredMissingItems)
         {
-            <AppNativeButton Type="button"
-                             Class="tl-series-load-missing"
-                             OnClick="LoadMoreMissingItems">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       OnClick="LoadMoreMissingItems">
                 @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
-            </AppNativeButton>
+            </AppButton>
         }
 
     </div>
@@ -655,6 +578,11 @@ else
     [Parameter] public EventCallback<Guid> OnSeasonSelected { get; set; }
     [Parameter] public bool Compact { get; set; }
     [Parameter] public bool DetailSurface { get; set; }
+
+    /// <summary>The title's supporting files; one shown alongside an episode or lesson of this list gets a chip under that row (universal editor v5 D31).</summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
+
+    private IReadOnlyList<DetailExtraCardViewModel> ChipsFor(SequenceItemViewModel item) => ExtrasRowRules.FilesFor(Extras, item);
 
     /// <summary>False when a shared row heading above already names the Series and its count (the details page row).</summary>
     [Parameter] public bool ShowIdentity { get; set; } = true;
@@ -678,13 +606,10 @@ else
     private bool _configuredShowMissingDefault;
     private bool _hasMissingPreferenceOverride;
     private bool _savingMissingPreference;
-    private bool _seasonBrowserOpen;
-    private bool _scrollToCurrentSeason;
-    private Guid? _activeProfileId;
+        private Guid? _activeProfileId;
     private int _visibleMissingLimit;
     private MissingItemDisplayPolicy? _missingItemPolicy;
     private ElementReference _seriesDescriptionElement;
-    private readonly string _seasonStripId = "seasons-" + Guid.NewGuid().ToString("N");
 
     private bool HasVisibleSibling(SequenceItemViewModel item)
         => item.CoveredWith.Any(link => VisibleItems.Any(other => string.Equals(other.Id, link.Id, StringComparison.OrdinalIgnoreCase)));
@@ -739,7 +664,9 @@ else
         && Placement.CurrentItem.EntityType is DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode;
     private bool ShowGroupSelector => IsSeasonContainer
         || (VisibleGroups.Count > 1 && !string.IsNullOrWhiteSpace(Placement.GroupLabel));
-    private string HeadingLabel => IsSeasonContainer ? "Season" : "Series";
+    // A folder of Other videos is a plain list of videos whose sub-folders are named sections (item 17): never Season, Series or Show.
+    private bool IsVideoFolder => VideoFolderWording.IsVideoFolderList(Placement.ContainerLabel, Placement.ItemLabel);
+    private string HeadingLabel => IsSeasonContainer ? "Season" : IsVideoFolder ? VideoFolderWording.ContainerLabel : "Series";
     private string HeadingValue => IsSeasonContainer
         ? SeasonHeading
         : ContainerTitleDisplay;
@@ -760,8 +687,8 @@ else
     private string ShowDetailRoute => Guid.TryParse(Placement.ContainerId, out var showId)
         ? $"/details/tvshow/{showId:D}?context=watch"
         : "#";
-    private string GroupSelectorAriaLabel => IsSeasonContainer ? "Choose season" : "Choose series section";
-    private string SourceKindLabel => IsSeasonContainer ? "Show" : "Series";
+    private string GroupSelectorAriaLabel => IsSeasonContainer ? "Choose season" : IsVideoFolder ? VideoFolderWording.SectionLabel : "Choose series section";
+    private string SourceKindLabel => IsSeasonContainer ? "Show" : IsVideoFolder ? VideoFolderWording.ContainerLabel : "Series";
     private bool HasExpandableSeriesDescription => _hasExpandableSeriesDescription;
     private string SeriesDescriptionClass => $"tl-series-information__copy{(_seriesDescriptionExpanded ? " is-expanded" : string.Empty)}";
     private IReadOnlyDictionary<string, object> SeriesDescriptionToggleAttributes => new Dictionary<string, object>
@@ -770,8 +697,17 @@ else
         ["aria-expanded"] = _seriesDescriptionExpanded.ToString().ToLowerInvariant(),
     };
     private IReadOnlyList<AppSelectOption> GroupSelectOptions => VisibleGroups
-        .Select(group => new AppSelectOption(group.Key, group.Title))
+        .Select(group => new AppSelectOption(group.Key, GroupOptionLabel(group)))
         .ToList();
+
+    // A season reads "Season 2 · 13 episodes" so the list says what each choice holds.
+    private string GroupOptionLabel(SequenceGroupViewModel group)
+    {
+        var count = group.ItemCount > 0 ? group.ItemCount : group.Items.Count;
+        return IsSeasonContainer && count > 0
+            ? $"{group.Title} · {count} {(count == 1 ? Placement.ItemLabel.ToLowerInvariant() : Placement.ItemPluralLabel.ToLowerInvariant())}"
+            : group.Title;
+    }
 
     private string? SelectedGroupKey
     {
@@ -796,7 +732,6 @@ else
         => SelectedGroupKey is null
             ? null
             : VisibleGroups.FirstOrDefault(group => group.Key == SelectedGroupKey);
-    private string SeasonToggleClass => $"tl-season-toggle{(_seasonBrowserOpen ? " is-open" : string.Empty)}";
     // A full-width wash at 28% opacity under dark overlays: the medium copy.
     private string? SeasonAtmosphereStyle => string.IsNullOrWhiteSpace(ActiveGroup?.BackgroundArtworkUrl)
         ? null
@@ -935,7 +870,7 @@ else
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
     private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle
-        || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector && !_seasonBrowserOpen);
+        || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector);
 
     // A season's Jump to sizes to the chosen episode; a Series' sizes to its longest entry, so entries never wrap.
     private RenderFragment JumpPicker => __builder =>
@@ -1091,8 +1026,6 @@ else
             _loadingWindow = false;
             _windowFailed = false;
             _selectedGroupKey = Placement.CurrentGroupKey;
-            _seasonBrowserOpen = false;
-            _scrollToCurrentSeason = false;
             _seriesDescriptionExpanded = false;
             _hasExpandableSeriesDescription = false;
             _needsSeriesDescriptionMeasurement = true;
@@ -1141,7 +1074,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (UsesScrollingRail && !_seasonBrowserOpen && _episodeStrip is not null
+        if (UsesScrollingRail && _episodeStrip is not null
             && !_observedEpisodeStrip.Equals(_episodeStrip.Element))
         {
             if (_episodeReference is not null) await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip);
@@ -1154,16 +1087,6 @@ else
             _scrollToCurrentEpisode = false;
             // A season starts at its first episode; a movie Series opens with the open movie in view.
             await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, IsSeasonContainer ? 0 : _windowCenterIndex, IsSeasonContainer ? "start" : "center", "auto");
-        }
-        if (_scrollToCurrentSeason)
-        {
-            _scrollToCurrentSeason = false;
-            var seasonIndex = VisibleGroups.ToList().FindIndex(group =>
-                string.Equals(group.Key, SelectedGroupKey, StringComparison.OrdinalIgnoreCase));
-            if (seasonIndex >= 0)
-            {
-                await Js.InvokeVoidAsync("scrollSequenceItem", _seasonStripId, seasonIndex, "center", "auto");
-            }
         }
         if (!_needsSeriesDescriptionMeasurement
             || Compact
@@ -1279,33 +1202,6 @@ else
             if (request == _windowRequestId)
                 _loadingWindow = false;
         }
-    }
-
-    private void ToggleSeasonBrowser()
-    {
-        if (!IsSeasonContainer)
-        {
-            return;
-        }
-
-        _seasonBrowserOpen = !_seasonBrowserOpen;
-        _scrollToCurrentSeason = _seasonBrowserOpen;
-    }
-
-    private async Task SelectSeason(string key)
-    {
-        _seasonBrowserOpen = false;
-        await SelectGroup(key);
-    }
-
-    private Task PageSeasonRailAsync(int direction)
-        => Js.InvokeVoidAsync("scrollSequenceRail", _seasonStripId, direction).AsTask();
-
-    private static string SeasonShortLabel(SequenceGroupViewModel? group)
-    {
-        var value = StringHelpers.FirstNonBlank(group?.Key, group?.Title, "Season")!;
-        var number = new string(value.Where(char.IsDigit).ToArray());
-        return string.IsNullOrWhiteSpace(number) ? "S" : $"S{number}";
     }
 
     private async Task ShowMissingChangedAsync(bool value)
@@ -1453,11 +1349,6 @@ else
     }
     public async ValueTask DisposeAsync()
     {
-        if (_hookedMode is not null)
-        {
-            _hookedMode.Changed -= OnBatchStateChanged;
-        }
-
         if (_hookedSelection is not null)
         {
             _hookedSelection.Changed -= OnBatchStateChanged;
@@ -1571,10 +1462,11 @@ else
     private string SequenceItemClass(SequenceItemViewModel item)
         => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(!IsTickable(item) && SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}{(IsTicked(item) ? " is-selected" : string.Empty)}";
 
-    // Details overlay spec D8: while Editing Mode is on, an owned single title in the detail page's own list can be ticked.
+    // Details overlay spec D8: an owned single title in the detail page's own list can be ticked.
     private bool IsTickable(SequenceItemViewModel item)
         => DetailSurface
-           && EditingMode is { IsOn: true, CanEdit: true }
+           && !IsVideoFolder // A folder of videos is a plain list: no tick boxes (item 12b).
+           && PageEditor is { CanEdit: true }
            && BatchSelection is not null
            && item.IsOwned
            && TickId(item) != Guid.Empty
@@ -1593,6 +1485,7 @@ else
             return;
         }
 
+        EditorHostService.Bind(PageEditor!);
         if (!BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV")))
         {
             Snackbar.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
@@ -1602,29 +1495,17 @@ else
     private static Guid TickId(SequenceItemViewModel item)
         => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;
 
-    [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
+    /// <summary>The detail page this list sits on, which carries the Engine's answer whether the item may be edited. Null outside a detail page.</summary>
+    [CascadingParameter] public EditorBinding? PageEditor { get; set; }
 
     [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
-    private EditingModeContext? _hookedMode;
+    [Inject] private EditorHost EditorHostService { get; set; } = default!;
+
     private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {
-        if (!ReferenceEquals(_hookedMode, EditingMode))
-        {
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed -= OnBatchStateChanged;
-            }
-
-            _hookedMode = EditingMode;
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed += OnBatchStateChanged;
-            }
-        }
-
         if (!ReferenceEquals(_hookedSelection, BatchSelection))
         {
             if (_hookedSelection is not null)
@@ -1697,28 +1578,32 @@ else
         }
         @if (alsoRoute is not null)
         {
-            <a class="@SequenceItemClass(item)"
-               href="@alsoRoute"
-               aria-current="@(item.IsCurrent ? "page" : null)"
-               aria-label="Open @SequenceItemTitle(item)">
-                <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
-                                      PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
-                                      DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                      AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                      MissingIcon="@MissingIcon" />
-            </a>
+            <SequenceItemFiles Chips="@ChipsFor(item)">
+                <a class="@SequenceItemClass(item)"
+                   href="@alsoRoute"
+                   aria-current="@(item.IsCurrent ? "page" : null)"
+                   aria-label="Open @SequenceItemTitle(item)">
+                    <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
+                                          PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
+                                          DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                          AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                          MissingIcon="@MissingIcon" />
+                </a>
+            </SequenceItemFiles>
         }
         else
         {
-            <article class="@SequenceItemClass(item)"
-                     aria-current="@(item.IsCurrent ? "page" : null)"
-                     aria-label="@SequenceItemAccessibilityLabel(item)">
-                <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
-                                      PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
-                                      DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
-                                      AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
-                                      MissingIcon="@MissingIcon" />
-            </article>
+            <SequenceItemFiles Chips="@ChipsFor(item)">
+                <article class="@SequenceItemClass(item)"
+                         aria-current="@(item.IsCurrent ? "page" : null)"
+                         aria-label="@SequenceItemAccessibilityLabel(item)">
+                    <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
+                                          PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
+                                          DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                          AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                          MissingIcon="@MissingIcon" />
+                </article>
+            </SequenceItemFiles>
         }
     </text>;
 

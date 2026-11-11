@@ -20,13 +20,16 @@
     {
         @switch (ActiveSection)
         {
-            case "local":
+            case "home":
+                @* Home network: status cards, Test connection, the address and the discovery switch. Nothing to type. *@
+                <NetworkOverviewPanel Settings="@_settings" Status="@_status"
+                                      StatusRefreshRequested="RefreshStatusAsync" />
                 <LocalNetworkSettingsPanel Settings="@_settings" Status="@_status"
-                                           SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
+                                           SaveRequested="SaveAsync" />
                 break;
             case "remote":
                 <RemoteAccessSettingsPanel Settings="@_settings" Status="@_status"
-                                           SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
+                                           SaveRequested="SaveAsync" />
                 break;
             case "advanced":
                 <AdvancedNetworkSettingsPanel Settings="@_settings" Status="@_status"
@@ -42,7 +45,7 @@
 </section>
 
 @code {
-    [Parameter] public string Subsection { get; set; } = "overview";
+    [Parameter] public string Subsection { get; set; } = "home";
 
     /// <summary>
     /// Tells the Settings page whether remote access is not set up (the connection mode is still "local-only"), so the
@@ -56,10 +59,10 @@
 
     private string ActiveSection => Subsection.ToLowerInvariant() switch
     {
-        "local" => "local",
+        "home" => "home",
         "remote" => "remote",
         "advanced" => "advanced",
-        _ => "overview",
+        _ => "home",
     };
 
     protected override async Task OnInitializedAsync()

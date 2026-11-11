@@ -20,6 +20,7 @@
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" aria-hidden="true" />
             </summary>
             <div class="media-section-shell__mobile-nav-panel">
+                @NavigationHeader
                 @foreach (var group in NavigationGroups)
                 {
                     <section aria-labelledby="@($"{GroupId(group)}-mobile")">
@@ -60,6 +61,7 @@
     </nav>
     }
     <aside class="media-section-shell__rail" aria-label="@($"{Title} navigation")">
+        @NavigationHeader
         @foreach (var group in NavigationGroups)
         {
             <section class="media-section-shell__rail-group @(IsFlatTree ? "is-flat" : null)" aria-labelledby="@GroupId(group)">
@@ -226,7 +228,7 @@
                                                             <span>@child.Label</span>
                                                             @if (management.IsSmart)
                                                             {
-                                                                <span class="media-section-shell__smart-badge" title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value">@L["Common_Smart"]</span>
+                                                                <AppChip Text="@L["Common_Smart"].Value" Title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value" />
                                                             }
                                                             else if (!string.IsNullOrWhiteSpace(child.Meta))
                                                             {
@@ -340,7 +342,7 @@
                                         <span>@item.Label</span>
                                         @if (management.IsSmart)
                                         {
-                                            <span class="media-section-shell__smart-badge" title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value">@L["Common_Smart"]</span>
+                                            <AppChip Text="@L["Common_Smart"].Value" Title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value" />
                                         }
                                         else if (!string.IsNullOrWhiteSpace(item.Meta))
                                         {
@@ -415,6 +417,8 @@
     [Parameter] public Func<MediaSectionNavigationRenameEvent, Task<bool>>? OnNavigationItemRename { get; set; }
     [Parameter] public Func<MediaSectionNavigationManageEvent, Task<bool>>? OnNavigationItemDelete { get; set; }
     [Parameter] public Func<MediaSectionNavigationReorderEvent, Task<bool>>? OnNavigationItemReorder { get; set; }
+    /// <summary>Optional content shown at the top of the rail and as the first row of the phone menu (View uses it for the Viewing switch).</summary>
+    [Parameter] public RenderFragment? NavigationHeader { get; set; }
     [Parameter] public bool ShowMobileNavigation { get; set; } = true;
 
     /// <summary>
@@ -799,12 +803,11 @@
             <a id="@ItemId(item)"
                href="@item.Route"
                class="media-section-shell__tree-link"
-               title="@item.Label"
                aria-current="@(IsTreeRowCurrent(item) ? "page" : null)"
                @onclick="@(() => NavigateTreeNode(item))"
                @onclick:preventDefault="@HasChildren(item)">
-                <span class="media-section-shell__tree-icon"><AppMaterialIcon Icon="@item.Icon" Size="AppSize.Small" aria-hidden="true" /></span>
-                <span class="media-section-shell__tree-label">@item.Label</span>
+                <span class="media-section-shell__tree-icon"><AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Control20" aria-hidden="true" /></span>
+                <span class="media-section-shell__tree-label" data-overflow-tooltip="@item.Label">@item.Label</span>
                 <span class="media-section-shell__tree-badge">
                     @if (!string.IsNullOrWhiteSpace(item.Meta))
                     {

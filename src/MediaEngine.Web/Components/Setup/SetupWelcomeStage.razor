@@ -12,14 +12,33 @@
     <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="true" ShowMetadata="false" />
 
     <div class="setup-server-form">
-        <AppTextField Label="@L["Common_ServerName"].Value" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" />
-        <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="tuvima" />
-        <p class="setup-server-form__preview">@L["SetupWelcomeStage_OtherDevicesOnYourHome"] <strong>http://@(string.IsNullOrWhiteSpace(HostName) ? "tuvima" : HostName).local</strong>@L["SetupWelcomeStage_IfADeviceCannotFind"]</p>
+        <AppTextField Label="@L["SetupWelcomeStage_WhatShouldWeCallThisLibrary"].Value" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" />
+        <p class="setup-server-form__preview" data-testid="setup-network-name-line">@L["SetupWelcomeStage_PhonesAndTVsOnYourHome"] <strong>@(string.IsNullOrWhiteSpace(HostName) ? NetworkNameRules.DefaultLabel : HostName).local</strong>
+            @if (!_showHostField)
+            {
+                <text> &middot; </text><AppButton Label="@L["SetupWelcomeStage_Change"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" OnClick="RevealHostField" data-testid="setup-network-name-change" />
+            }
+        </p>
+        @if (_showHostField)
+        {
+            <div class="setup-server-form__host">
+                <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="@NetworkNameRules.DefaultLabel" data-testid="setup-network-name-field" />
+                <AppButton Label="@L["SetupWelcomeStage_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" OnClick="CancelHostField" data-testid="setup-network-name-cancel" />
+            </div>
+        }
     </div>
 
     <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <Leading>
+            @if (!ShowRestore)
+            {
+                <AppButton Label="@L["SetupWelcomeStage_RestoreABackupInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenRestore" data-testid="setup-restore-open" />
+            }
+        </Leading>
+        <ChildContent>
         <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
+        </ChildContent>
     </SetupStageFooter>
 
     @if (ShowRestore)
@@ -54,10 +73,6 @@
             }
         </div>
     }
-    else
-    {
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="@L["SetupWelcomeStage_RestoreABackupInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
-    }
 </div>
 
 @code {
@@ -81,31 +96,34 @@
     [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
     [Parameter] public EventCallback ConfirmRestore { get; set; }
 
-    // The network name follows the friendly name until the person edits it themselves.
-    private bool _hostEdited;
+    /// <summary>True while the network name just follows the friendly name; a hand-set name sets this to false.</summary>
+    [Parameter] public bool HostNameDerived { get; set; } = true;
+    [Parameter] public EventCallback<bool> HostNameDerivedChanged { get; set; }
+
+    private bool _showHostField;
+
+    private void RevealHostField() => _showHostField = true;
+
+    // Cancel closes the editor and hands the network name back to the friendly name, as emptying the field does.
+    private async Task CancelHostField()
+    {
+        _showHostField = false;
+        await OnHostChanged(string.Empty);
+    }
 
     private async Task OnNameChanged(string? value)
     {
         var name = value ?? string.Empty;
         await ServerNameChanged.InvokeAsync(name);
-        if (!_hostEdited) await HostNameChanged.InvokeAsync(ToLabel(name));
+        if (HostNameDerived) await HostNameChanged.InvokeAsync(NetworkNameRules.ToLabel(name));
     }
 
-    private Task OnHostChanged(string? value)
+    private async Task OnHostChanged(string? value)
     {
-        _hostEdited = true;
-        return HostNameChanged.InvokeAsync(ToLabel(value ?? string.Empty));
-    }
-
-    private static string ToLabel(string value)
-    {
-        var builder = new System.Text.StringBuilder();
-        foreach (var character in value.Trim().ToLowerInvariant())
-        {
-            if (character is >= 'a' and <= 'z' or >= '0' and <= '9') builder.Append(character);
-            else if (builder.Length > 0 && builder[^1] != '-') builder.Append('-');
-        }
-        var label = builder.ToString().TrimEnd('-');
-        return label.Length > 63 ? label[..63].TrimEnd('-') : label;
+        var label = NetworkNameRules.ToLabel(value);
+        // Emptying the field hands the network name back to the friendly name.
+        var derived = label.Length == 0;
+        await HostNameDerivedChanged.InvokeAsync(derived);
+        await HostNameChanged.InvokeAsync(derived ? NetworkNameRules.ToLabel(ServerName) : label);
     }
 }

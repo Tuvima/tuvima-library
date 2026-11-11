@@ -70,3 +70,7 @@ Packets 4 and 5 may run side by side (different files).
 
 ## Plain English summary
 The household picks one language and spelling for the whole app, so "Favorites" becomes "Favourites" for UK households and the app can be fully translated over time. Each person only chooses the languages they want for subtitles, lyrics and audio. All wording moves into one shared list so each idea has one name everywhere, and a safety test stops new screens from skipping it.
+
+## Gaps and drift (audit 2026-11-03)
+
+- German, French and Spanish have 263 of about 3,400 strings; 28 files remain on the typed-wording baseline. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

@@ -78,7 +78,7 @@ public sealed class ItemExtrasScannerTests : IDisposable
     }
 
     [Fact]
-    public async Task AFileTheScanQueued_IsCheckedByTheQueuePass_AndAFileThatLeavesIsRemoved()
+    public async Task AFileTheScanQueued_IsCheckedByTheQueuePass_AndAFileThatLeavesIsKeptAsMissing()
     {
         Touch("Show/Season 1/Show S01E01.mkv");
         var guide = Touch("Show/Workbook.pdf");
@@ -90,7 +90,9 @@ public sealed class ItemExtrasScannerTests : IDisposable
         _scanner.NoteFile(guide);
         await _scanner.SyncQueuedAsync();
 
-        Assert.Empty(await _extras.ListByItemFoldersAsync([Path.Combine(_root, "Show")]));
+        // The record stays for a while as "File missing" so a renamed file can be found again (editor v5 D20).
+        var kept = Assert.Single(await _extras.ListByItemFoldersAsync([Path.Combine(_root, "Show")]));
+        Assert.True(kept.IsMissingFromDisk);
     }
 
     [Fact]
@@ -196,6 +198,55 @@ public sealed class ItemExtrasScannerTests : IDisposable
             Path.GetExtension(path) is ".mkv" && !_scanner.ClaimsFileAsync(path, _library).GetAwaiter().GetResult();
     }
 
+    [Fact]
+    public async Task ResolveScopeFolder_FindsTheTitleFolder_TheSeasonFolder_AndTheFolderOfAnEpisodesOwnFile()
+    {
+        Touch("Show/Season 1/Show S01E01.mkv");
+        Touch("Show/Season 2/Show S02E01.mkv");
+        Touch("Show/Workbook.pdf");
+        var show = Path.Combine(_root, "Show");
+
+        Assert.Equal(show, await _scanner.ResolveScopeFolderAsync(show, ExtraScope.Root));
+        Assert.Equal(Path.Combine(show, "Season 2"), await _scanner.ResolveScopeFolderAsync(show, ExtraScope.ForSeason(2)));
+        Assert.Equal(Path.Combine(show, "Season 1"), await _scanner.ResolveScopeFolderAsync(show, ExtraScope.ForEpisode(1, 1)));
+        Assert.Null(await _scanner.ResolveScopeFolderAsync(show, ExtraScope.ForSeason(9)));
+        Assert.Null(await _scanner.ResolveScopeFolderAsync(show, ExtraScope.ForEpisode(1, 9)));
+        Assert.Null(await _scanner.ResolveScopeFolderAsync(Path.Combine(_root, "Not a show"), ExtraScope.Root));
+    }
+
+    [Fact]
+    public async Task ResolveScopeFolder_IsNullInAVaultLibrary_AndForAFolderOutsideEveryLibrary()
+    {
+        Touch("Show/Season 1/Show S01E01.mkv");
+        var show = Path.Combine(_root, "Show");
+        _vaultLibraries.Add(_library.Id);
+
+        Assert.Null(await _scanner.ResolveScopeFolderAsync(show, ExtraScope.Root));
+        Assert.Null(await _scanner.ResolveScopeFolderAsync(Path.Combine(Path.GetTempPath(), "somewhere-else"), ExtraScope.Root));
+    }
+
+    [Fact]
+    public async Task AFileADeletedFromAReadOnlyFolderStayedOn_IsNotListedAgainByTheNextScan()
+    {
+        Touch("Show/Season 1/Show S01E01.mkv");
+        var kept = Touch("Show/Workbook.pdf");
+        Touch("Show/Answers.pdf");
+        var options = new OptionsMonitorStub<IngestionOptions>(new IngestionOptions { LibraryFolders = [_library] });
+        var scanner = new ItemExtrasScanner(
+            new LibraryFolderResolver(options),
+            new MediaTypeExtensionCatalog(),
+            _extras,
+            new VaultHook(_vaultLibraries),
+            options,
+            NullLogger<ItemExtrasScanner>.Instance,
+            excluded: new ExcludedPaths(kept));
+
+        Assert.True(await scanner.SyncItemFolderAsync(Path.Combine(_root, "Show")));
+
+        var stored = await _extras.ListByItemFoldersAsync([Path.Combine(_root, "Show")]);
+        Assert.Equal(["Answers.pdf"], stored.Select(extra => Path.GetFileName(extra.FilePath)));
+    }
+
     private ItemExtra Decision(string path, string origin) => new(
         Guid.NewGuid(), _library.Id, Path.GetDirectoryName(Path.GetDirectoryName(path)) is { } parent && parent.EndsWith("Show") ? parent : Path.Combine(_root, "Show"),
         path, ItemExtraKinds.Clip, origin, Path.GetFileNameWithoutExtension(path), null, 0, 4, null, null, DateTimeOffset.UtcNow);
@@ -206,6 +257,16 @@ public sealed class ItemExtrasScannerTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, new byte[4]);
         return path;
+    }
+
+    private sealed class ExcludedPaths(string path) : IExcludedSourceFileFilter
+    {
+        public Task<bool> ShouldSkipAsync(string fullPath, CancellationToken ct = default) =>
+            Task.FromResult(string.Equals(Path.GetFullPath(fullPath), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase));
+
+        public void Invalidate()
+        {
+        }
     }
 
     private sealed class VaultHook(HashSet<string> vaultLibraries) : IVaultIngestionHook

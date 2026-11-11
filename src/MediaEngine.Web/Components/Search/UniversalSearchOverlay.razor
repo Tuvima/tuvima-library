@@ -12,11 +12,7 @@
 
 @if (_open)
 {
-    <div class="@OverlayClass"
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="universal-search-title"
-         @onkeydown="HandleOverlayKeyDown">
+    <AppViewer Class="@OverlayClass" Surface="AppViewerSurface.Page" LabelledBy="universal-search-title" OnKeyDown="HandleOverlayKeyDown">
         <AppNativeButton Type="button"
                          Class="universal-search-overlay__backdrop"
                          AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value"
@@ -29,12 +25,7 @@
                         <h1 id="universal-search-title">@L["Nav_Search"]</h1>
                         <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> @L["Common_ResultsUpdateInstantlyAsYou"]</span>
                     </div>
-                    <AppNativeButton Type="button"
-                                     Class="universal-search-overlay__close"
-                                     AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value"
-                                     OnClick="CloseAsync">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-                    </AppNativeButton>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="universal-search-overlay__close" AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value" Tooltip="@L["UniversalSearchOverlay_CloseSearch"].Value" OnClick="CloseAsync" />
                 </div>
 
                 <label class="universal-search-overlay__input-shell">
@@ -53,19 +44,12 @@
                     }
                     else if (!string.IsNullOrWhiteSpace(_query))
                     {
-                        <AppNativeButton Type="button"
-                                         Class="universal-search-overlay__clear"
-                                         AriaLabel="@L["UniversalSearchOverlay_ClearSearch"].Value"
-                                         OnClick="ClearAsync">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-                        </AppNativeButton>
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" Class="universal-search-overlay__clear" AriaLabel="@L["UniversalSearchOverlay_ClearSearch"].Value" Tooltip="@L["UniversalSearchOverlay_ClearSearch"].Value" OnClick="ClearAsync" />
                     }
                 </label>
                 @if (DeviceContext.IsPhone)
                 {
-                    <AppNativeButton Type="button"
-                                     Class="universal-search-overlay__cancel"
-                                     OnClick="CloseAsync">@L["Search_Cancel"]</AppNativeButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="universal-search-overlay__cancel" OnClick="CloseAsync" Label="@L["Search_Cancel"].Value" />
                 }
             </header>
 
@@ -139,7 +123,7 @@
             </div>
         </div>
         </AppFocusTrap>
-    </div>
+    </AppViewer>
 }
 
 @code {

@@ -29,7 +29,7 @@
 }
 
 .notifications-page__item--unread {
-    border-left: 3px solid var(--tl-primary);
+    border-left: 3px solid var(--tl-accent-primary);
 }
 
 .notifications-page__item-head {
@@ -50,9 +50,9 @@
 
 .notifications-page__badge {
     padding: 1px 8px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     font-size: 0.8em;
-    background: var(--tl-surface-variant, rgba(127, 127, 127, 0.2));
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.2));
 }
 
 .notifications-page__channels {
@@ -71,12 +71,10 @@
     border: 1px solid var(--tl-border-subtle, transparent);
 }
 
-.notifications-page__channel--needs_attention {
-    border-color: var(--tl-warning);
-}
+
 
 .notifications-page__channel--off {
-    border-color: var(--tl-error);
+    border-color: var(--tl-status-danger);
 }
 
 .notifications-page__channel-copy {
@@ -145,4 +143,8 @@
     .notifications-page__matrix-copy {
         grid-column: 1 / -1;
     }
+}
+
+.notifications-page__channel--needs_attention {
+    border-color: var(--tl-status-warning);
 }

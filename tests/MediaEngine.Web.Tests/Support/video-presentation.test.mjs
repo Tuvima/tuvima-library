@@ -38,7 +38,7 @@ function runtime(file) {
         ResizeObserver: class { observe() {} disconnect() {} }, MutationObserver: class { constructor(callback) { observers.push(callback); } observe() {} disconnect() {} },
         setInterval: callback => { intervals.set(++id, callback); return id; }, clearInterval: key => intervals.delete(key),
         setTimeout: (callback, delay) => { timeouts.set(++id, { callback, delay }); return id; }, clearTimeout: key => timeouts.delete(key) };
-    const source = readFileSync(new URL(`../../../src/MediaEngine.Web/wwwroot/js/${file}`, import.meta.url), 'utf8').replaceAll('export function ', 'function ');
+    const source = readFileSync(new URL(`../../../src/MediaEngine.Web/wwwroot/js/${file}`, import.meta.url), 'utf8').replaceAll('export function ', 'function ').replaceAll('export const ', 'const ');
     vm.runInNewContext(`${source}\nglobalThis.exports = { attach, update, detach, ${file === 'video-presentation.js' ? 'bindSource' : file === 'playback-chrome.js' ? 'setHold, reveal' : ''} };`, sandbox);
     return { api: sandbox.exports, document, window, intervals, timeouts, observers,
         setViewport: bounds => { window.visualViewport = sandbox.visualViewport = Object.assign(new Surface(), bounds); },
@@ -129,19 +129,19 @@ test('native-ended rejects mismatched and unfinished sources and captures immuta
 test('phone sheet restores before conditional removal and stale renders or observers cannot resurrect a portal', () => {
     const r = runtime('playback-popover.js'), root = new Surface(), trigger = new Surface(), panel = new Surface();
     r.document.body.append(root); root.append(trigger, panel); panel.id = 'chapters';
-    panel.classList.toggle('playback-popover--sheet', true);
+    panel.classList.toggle('playback-panel--sheet', true);
     root.querySelector = () => trigger;
     r.api.attach(root, null, { invokeMethodAsync: () => Promise.resolve() });
-    r.api.update(root, panel, true, true);
+    r.api.update(root, panel, true);
     assert.equal(panel.parentNode, r.document.body);
-    r.api.update(root, null, false, false, true);
+    r.api.update(root, null, false, true);
     assert.equal(panel.parentNode, root); assert.equal(trigger.focusCount, 1);
     panel.remove(); // Blazor's conditional removal, after the awaited release.
     for (const callback of r.observers) callback();
-    r.api.update(root, panel, true, true); // An obsolete render cannot reattach a detached element.
+    r.api.update(root, panel, true); // An obsolete render cannot reattach a detached element.
     assert.equal(panel.isConnected, false); assert.equal(r.document.body.children.includes(panel), false);
-    const replacement = new Surface(); root.append(replacement); replacement.id = 'chapters-next';
-    r.api.update(root, replacement, true, true);
+    const replacement = new Surface(); root.append(replacement); replacement.id = 'chapters-next'; replacement.classList.toggle('playback-panel--sheet', true);
+    r.api.update(root, replacement, true);
     root.remove(); r.api.detach(root); // Disposal after the marker's owner left also removes the orphan.
     assert.equal(replacement.isConnected, false); assert.equal(replacement.parentNode, null);
     assert.equal(trigger.countListeners(), 0); assert.equal(r.document.countListeners(), 0); assert.equal(r.window.countListeners(), 0);
@@ -160,15 +160,15 @@ test('audio dock popovers leave seek clear while non-dock anchoring and viewport
         trigger.closest = selector => selector === '.listen-player' && dockTop !== null
             ? { getBoundingClientRect: () => ({ top: dockTop }) } : null;
         trigger.getBoundingClientRect = () => ({ top: triggerTop, right: 820, width: 44, height: 44 });
-        panel.getBoundingClientRect = () => ({ width: Number.parseFloat(panel.style.width),
-            height: Math.min(300, Number.parseFloat(panel.style.maxHeight)) });
+        panel.getBoundingClientRect = () => ({ width: 400,
+            height: Math.min(300, Number.parseFloat(panel.style.maxHeight || '300')) });
         r.api.attach(root, null, { invokeMethodAsync: () => Promise.resolve() });
-        r.api.update(root, panel, true, true);
+        r.api.update(root, panel, true);
         const box = panel.getBoundingClientRect();
         assert.equal(Number.parseFloat(panel.style.top) + box.height, expectedBottom);
         assert.equal(Number.parseFloat(panel.style.left), 420, 'horizontal trigger anchoring stays unchanged');
-        assert.ok(Number.parseFloat(panel.style.top) >= 8, 'panel remains inside the viewport');
-        if (dockTop === 200) assert.equal(Number.parseFloat(panel.style.maxHeight), 184);
+        assert.ok(Number.parseFloat(panel.style.top) >= 12, 'panel remains 12px inside the viewport');
+        if (dockTop === 200) assert.equal(Number.parseFloat(panel.style.maxHeight), 180);
         r.api.detach(root);
     }
 });
@@ -186,7 +186,7 @@ test('video chrome waits three seconds and holds for pause, tool and loading, wi
     r.api.detach(host); assert.equal(r.timeouts.size, 0); assert.equal(video.countListeners(), 0); assert.equal(host.countListeners(), 0); assert.equal(r.document.countListeners(), 0);
 });
 
-test('advancing media clears a stalled hold, stationary stage hides, controls hover holds, and touch toggles', () => {
+test('advancing media clears a stalled hold, stationary stage hides, controls hover holds, and a touch tap reveals but never hides', () => {
     const r=runtime('playback-chrome.js'),host=new Surface(),video=media();
     let controlsHovered=false;
     host.querySelector=selector=>selector==='[data-chrome-hold]:hover' && controlsHovered ? new Surface() : null;
@@ -197,10 +197,25 @@ test('advancing media clears a stalled hold, stationary stage hides, controls ho
     host.emit('pointermove'); assert.equal(host.classList.contains('playback-chrome-hidden'),false);
     controlsHovered=true; host.emit('pointermove'); assert.equal(r.timeouts.size,0);
     controlsHovered=false; host.emit('pointermove');
-    const target={closest:()=>null}; host.emit('pointerdown',{pointerType:'touch',target});
-    assert.equal(host.classList.contains('playback-chrome-hidden'),true);
+    // Unified player v2 D25: a touch tap shows the controls and restarts the three second timer; a tap never hides them.
+    const target={closest:()=>null}; r.idle(); assert.equal(host.classList.contains('playback-chrome-hidden'),true);
+    host.emit('pointerdown',{pointerType:'touch',target});
+    assert.equal(host.classList.contains('playback-chrome-hidden'),false); assert.equal(r.timeouts.size,1);
     host.emit('pointerdown',{pointerType:'touch',target});
     assert.equal(host.classList.contains('playback-chrome-hidden'),false);
+    r.api.detach(host);
+});
+
+test('controls do not auto-hide while a panel is open or a control has focus, and fade three seconds after both end (D25)', () => {
+    const r=runtime('playback-chrome.js'),host=new Surface(),video=media();
+    let focused=false;
+    host.querySelector=selector=>selector==='[data-playback-chrome] :focus-visible' && focused ? new Surface() : null;
+    r.api.attach(host,video);
+    r.api.setHold(host,'tool',true); assert.equal(r.timeouts.size,0); assert.equal(host.classList.contains('playback-chrome-hidden'),false);
+    r.api.setHold(host,'tool',false); assert.equal(r.timeouts.size,1); assert.equal([...r.timeouts.values()][0].delay,3000);
+    focused=true; host.emit('pointermove'); assert.equal(r.timeouts.size,0);
+    focused=false; host.emit('pointermove'); assert.equal(r.timeouts.size,1);
+    r.idle(); assert.equal(host.classList.contains('playback-chrome-hidden'),true);
     r.api.detach(host);
 });
 
@@ -265,7 +280,7 @@ test('late multiline phone cues reserve each native line and the measured viewer
     const header = new Surface(); header.getBoundingClientRect = () => ({ height: headerHeight });
     const rail = new Surface(); rail.getBoundingClientRect = () => ({ top: 654 });
     host.querySelector = selector => selector === '[data-playback-seek-rail]' ? rail
-        : selector === '[data-playback-chrome="header"]' ? header : null;
+        : selector === '[data-playback-chrome-header]' ? header : null;
     video.videoWidth = 1920; video.videoHeight = 1080;
     video.getBoundingClientRect = () => ({ top: 0, left: 0, width: 390, height: 844 });
     const track = new Surface(), cue = { line: 'auto', snapToLines: true, text: 'First line\nSecond line' };

@@ -202,6 +202,27 @@ public sealed class ArtworkAssetServiceTests : IDisposable
             "SELECT COUNT(*) FROM artwork_asset_context WHERE artwork_asset_id=@assetId;", new { assetId }));
     }
 
+    [Fact]
+    public async Task Workspace_ReportsFileSizeAndTypeOfTheSavedOriginal_AndNullWhenTheFileIsGone()
+    {
+        var entityId = Guid.NewGuid();
+        var present = Guid.NewGuid();
+        var missing = Guid.NewGuid();
+        SeedAsset(present, "present", "Present", entityId);
+        SeedAsset(missing, "missing", "Missing", entityId);
+        await File.WriteAllBytesAsync(Path.Combine(_root, $"{present:N}.jpg"), new byte[2048]);
+
+        var workspace = await _service.GetEntityAsync("Work", entityId, CancellationToken.None);
+
+        var found = Assert.Single(workspace.Variants, v => v.ArtworkAssetId == present);
+        Assert.Equal(2048, found.FileSizeBytes);
+        Assert.Equal("image/jpeg", found.ContentType);
+        Assert.Equal($"{present:N}.jpg", found.FileName);
+        var gone = Assert.Single(workspace.Variants, v => v.ArtworkAssetId == missing);
+        Assert.Null(gone.FileSizeBytes);
+        Assert.Equal("image/jpeg", gone.ContentType);
+    }
+
     private void SeedAsset(
         Guid assetId,
         string hashSuffix,

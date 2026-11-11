@@ -12,15 +12,6 @@
     width: 100%;
 }
 
-.settings-plugin-detail-header__description {
-    color: var(--tl-text-muted);
-    font-size: 14px;
-}
-
-.settings-plugin-configure-panel {
-    scroll-margin-top: 96px;
-}
-
 /* The card a /settings/plugins?plugin={id} link points at: scrolled into view and ringed in the accent colour. */
 .settings-plugin-card-focus {
     scroll-margin-top: 96px;
@@ -51,29 +42,6 @@
     align-items: center;
     gap: 14px;
 }
-
-.settings-plugin-detail-header__icon {
-    display: grid;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 auto;
-    place-items: center;
-    color: var(--tl-accent-primary);
-    border-radius: 12px;
-    background: var(--tl-accent-primary-soft);
-}
-
-.settings-plugin-detail-header__copy {
-    display: grid;
-    min-width: 0;
-    flex: 1;
-    gap: 3px;
-}
-
-.settings-plugin-detail-header__title {
-    color: var(--tl-text-primary);
-    font-size: 18px;
-}
 .settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; }
 
 .settings-plugin-rows__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
@@ -85,3 +53,20 @@
 .settings-plugin-rows__copy small { grid-column: 1 / -1; color: var(--tl-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 44ch; }
 .settings-plugin-rows__media, .settings-plugin-rows__actions { display: flex; align-items: center; gap: 6px; }
 .settings-plugin-rows__actions { justify-content: flex-end; }
+
+.settings-plugin-rows__private { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+
+/* The plugin's own page (Plugins and Integrations screens v4 D33): one short column. */
+.plugin-page { display: grid; gap: 16px; }
+.plugin-page__setup { display: grid; gap: 16px; }
+
+/* The fixed tile footer and list columns (Plugins and Integrations screens v5 D43 to D45). */
+.plugin-foot__health { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.plugin-foot__pill { padding: 2px 8px; border: 1px solid var(--tl-status-warning); border-radius: var(--tl-radius-pill); color: var(--tl-status-warning); font-size: var(--tl-font-size-sm); white-space: nowrap; text-decoration: none; font-weight: 600; }
+.settings-plugin-rows__narrow { width: 64px; text-align: center; }
+.plugin-section { display: grid; gap: 12px; }
+.plugin-section + .plugin-section { margin-top: 8px; }
+.plugin-section__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.plugin-section__head h3 { margin: 0; font-size: var(--tl-font-size-lg); }
+.plugin-section__count, .plugin-section__health { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.plugin-section__explainer { flex-basis: 100%; margin: 0; color: var(--tl-text-muted); }

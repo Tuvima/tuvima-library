@@ -118,8 +118,9 @@ public sealed class ImportFileMover
                 continue;
             }
 
-            original ??= (await _hasher.ComputeAsync(sourcePath, ct).ConfigureAwait(false)).Hex;
-            var present = (await _hasher.ComputeAsync(candidate, ct).ConfigureAwait(false)).Hex;
+            // Byte-for-byte, never the quick fingerprint: this decides whether a second copy is skipped.
+            original = (await _hasher.ComputeFullAsync(sourcePath, ct).ConfigureAwait(false)).Hex;
+            var present = (await _hasher.ComputeFullAsync(candidate, ct).ConfigureAwait(false)).Hex;
             if (string.Equals(original, present, StringComparison.OrdinalIgnoreCase))
             {
                 return candidate;
@@ -236,11 +237,16 @@ public sealed class ImportFileMover
                 return null;
             }
 
-            var recorded = string.IsNullOrWhiteSpace(expectedHash)
-                ? (await _hasher.ComputeAsync(sourcePath, ct).ConfigureAwait(false)).Hex
-                : expectedHash;
-            var copied = (await _hasher.ComputeAsync(partPath, ct).ConfigureAwait(false)).Hex;
-            if (!string.Equals(recorded, copied, StringComparison.OrdinalIgnoreCase))
+            // The original goes only after the copy matches every byte, so this reads both whole. The recorded fingerprint is a quick
+            // sample of big files and cannot prove that.
+            var recorded = (await _hasher.ComputeFullAsync(sourcePath, ct).ConfigureAwait(false)).Hex;
+            var copied = (await _hasher.ComputeFullAsync(partPath, ct).ConfigureAwait(false)).Hex;
+            // The file must also still be the one that was catalogued: the recorded fingerprint is either the whole-file hash or the
+            // quick sample, so the original is left alone when it matches neither (it changed after it was fingerprinted).
+            var stillTheCataloguedFile = string.IsNullOrWhiteSpace(expectedHash)
+                || string.Equals(expectedHash, recorded, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(expectedHash, (await _hasher.ComputeAsync(sourcePath, ct).ConfigureAwait(false)).Hex, StringComparison.OrdinalIgnoreCase);
+            if (!stillTheCataloguedFile || !string.Equals(recorded, copied, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning(
                     "Import copy did not match the original (it may have changed while copying); the original stays: {Source}",

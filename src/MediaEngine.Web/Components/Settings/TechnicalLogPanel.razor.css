@@ -2,7 +2,7 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--tl-space-3);
-    align-items: end;
+    align-items: center;
     margin-bottom: var(--tl-space-3);
 }
 
@@ -11,7 +11,7 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .technical-log__line {
@@ -64,7 +64,7 @@
     margin: 4px 0 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    font-size: 12px;
+    font-size: var(--tl-font-size-xs);
 }
 
 .technical-log__more {

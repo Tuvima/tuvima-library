@@ -36,7 +36,7 @@ public sealed class ProviderListingsTests : IDisposable
 
         Assert.Equal("provider", tile.ListingKind);
         Assert.Equal("official", tile.TrustLevel);
-        Assert.Equal("metadata", tile.Category);
+        Assert.Equal("intake", tile.Category);
         Assert.Equal("TMDB", tile.Name);
         Assert.True(tile.Provider!.RequiresKey);
         Assert.False(tile.Provider.KeyPresent);

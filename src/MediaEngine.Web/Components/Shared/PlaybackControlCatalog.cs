@@ -22,6 +22,7 @@ public enum PlaybackControlKey
     Bookmarks,
     SleepTimer,
     Speed,
+    Settings,
     Cast,
     More,
     Captions,
@@ -37,6 +38,16 @@ public enum PlaybackControlKey
     Resume,
     SkipIntro,
     SkipCredits,
+    /// <summary>Unified player v2 D4: the video tool that opens Audio and Subtitles together.</summary>
+    AudioSubtitles,
+    /// <summary>Unified player v2 D4: the TV episode list tool.</summary>
+    Episodes,
+    /// <summary>Unified player v2 D4: the icon-only Now playing tool of music and audiobooks.</summary>
+    NowPlaying,
+    /// <summary>Unified player v2 D5: the Like button beside a song title.</summary>
+    Like,
+    /// <summary>Unified player v2 D5: the Dislike button beside a song title.</summary>
+    Dislike,
 }
 
 public enum PlaybackControlSurface
@@ -84,17 +95,19 @@ public sealed record PlaybackControlState(
     bool IsRepeatEnabled = false,
     bool IsSleepTimerActive = false,
     string? SleepTimerValueText = null,
-    int SkipBackSeconds = 15,
-    int SkipForwardSeconds = 15,
+    int SkipBackSeconds = 10,
+    int SkipForwardSeconds = 30,
     int HistoryCount = 0,
     string? RepeatMode = null,
-    bool CanBookmark = false);
+    bool CanBookmark = false,
+    bool IsMovie = false,
+    bool IsFolderVideo = false);
 
 public sealed record PlaybackControlDefinition(
     PlaybackControlKey Key,
     string Label,
     string AriaLabel,
-    string Icon,
+    PlaybackUtilityGlyphKind Glyph,
     PlaybackControlPlacement Placement,
     string Command,
     string? Sheet = null,
@@ -104,7 +117,7 @@ public sealed record PlaybackControlDefinition(
     bool IsDisabled = false,
     bool IsSelected = false);
 
-public static class PlaybackControlCatalog
+public static partial class PlaybackControlCatalog
 {
     public static IReadOnlyList<PlaybackControlDefinition> Build(
         PlaybackExperience experience,
@@ -113,8 +126,8 @@ public static class PlaybackControlCatalog
     {
         var controls = new List<PlaybackControlDefinition>
         {
-            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? AppMaterialIcons.Filled.Pause : AppMaterialIcons.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
-            new(PlaybackControlKey.Timeline, "Playback position", "Playback position", AppMaterialIcons.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
+            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play, PlaybackControlPlacement.Transport, "toggle-play"),
+            new(PlaybackControlKey.Timeline, "Playback position", "Playback position", PlaybackUtilityGlyphKind.Timeline, PlaybackControlPlacement.Timeline, "seek"),
         };
 
         if (state.CanPrevious)
@@ -130,24 +143,24 @@ public static class PlaybackControlCatalog
         {
             var back = Math.Clamp(state.SkipBackSeconds, 1, 999);
             var forward = Math.Clamp(state.SkipForwardSeconds, 1, 999);
-            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", AppMaterialIcons.Outlined.Replay, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
-            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", AppMaterialIcons.Outlined.Forward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", PlaybackUtilityGlyphKind.SkipBack, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", PlaybackUtilityGlyphKind.SkipForward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
         }
 
         if (surface == PlaybackControlSurface.PictureInPicture)
         {
             if (experience == PlaybackExperience.Video)
             {
-                controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", string.Empty, PlaybackControlPlacement.Utility, "restore-video"));
+                controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", PlaybackUtilityGlyphKind.Restore, PlaybackControlPlacement.Utility, "restore-video"));
             }
             return controls.Where(control => control.Key is PlaybackControlKey.PlayPause or PlaybackControlKey.Timeline or PlaybackControlKey.SkipBack or PlaybackControlKey.SkipForward or PlaybackControlKey.Resume).ToList();
         }
 
-        controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", state.IsMuted ? "Unmute" : "Mute", string.Empty, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
-        controls.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", string.Empty, PlaybackControlPlacement.Utility, "set-volume"));
+        controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", state.IsMuted ? "Unmute" : "Mute", PlaybackUtilityGlyphKind.Mute, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
+        controls.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", PlaybackUtilityGlyphKind.Volume, PlaybackControlPlacement.Utility, "set-volume"));
         if (state.CanCast)
         {
-            controls.Add(new(PlaybackControlKey.Cast, "Device", "Playback device", string.Empty, PlaybackControlPlacement.Utility, "cast"));
+            controls.Add(new(PlaybackControlKey.Cast, "Device", "Playback device", PlaybackUtilityGlyphKind.Cast, PlaybackControlPlacement.Utility, "cast"));
         }
 
         AddExperienceControls(controls, experience, surface, state);
@@ -200,12 +213,12 @@ public static class PlaybackControlCatalog
             { AriaLabel = "Chapters unavailable; no timed chapters were found" });
         }
 
+        // Player controls v3 D7 / unified player D10: previous and next chapter, Chapters, Settings (speed, sleep timer, bookmark markers), Bookmarks.
         var order = new[]
         {
             PlaybackControlKey.Chapters,
+            PlaybackControlKey.Settings,
             PlaybackControlKey.Bookmarks,
-            PlaybackControlKey.Speed,
-            PlaybackControlKey.SleepTimer,
             PlaybackControlKey.History,
         };
         return OrderByKeys(tools, order);
@@ -254,7 +267,7 @@ public static class PlaybackControlCatalog
         };
 
         var key = isNext ? PlaybackControlKey.NextItem : PlaybackControlKey.PreviousItem;
-        var icon = isNext ? AppMaterialIcons.Filled.SkipNext : AppMaterialIcons.Filled.SkipPrevious;
+        var icon = isNext ? PlaybackUtilityGlyphKind.Next : PlaybackUtilityGlyphKind.Previous;
         var command = isNext
             ? experience == PlaybackExperience.Audiobook ? "play-next-chapter" : "play-next"
             : experience == PlaybackExperience.Audiobook ? "play-previous-chapter" : "play-previous";
@@ -282,48 +295,45 @@ public static class PlaybackControlCatalog
                 {
                     controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", "lyrics", state));
                 }
-                controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", state.IsShuffleEnabled ? "Shuffle on" : "Shuffle off", string.Empty, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
-                controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", string.Empty, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
+                controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", state.IsShuffleEnabled ? "Shuffle on" : "Shuffle off", PlaybackUtilityGlyphKind.Shuffle, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
+                controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", PlaybackUtilityGlyphKind.Repeat, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
                 break;
             case PlaybackExperience.Audiobook:
-                controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
+                // Speed and the sleep timer live inside the one Settings menu (unified player D10), not as buttons of their own.
+                // The gear shows its on-state while a sleep timer is running (speed has its own chip on the bar).
                 if (state.HasChapters)
                 {
                     controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
                 }
-                controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
-                controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmark", "bookmark-dialog", state));
-                var sleepTimer = new PlaybackControlDefinition(
-                    PlaybackControlKey.SleepTimer,
-                    "Sleep",
-                    "Sleep timer",
-                    string.Empty,
-                    PlaybackControlPlacement.ToolStrip,
-                    "sleep-timer",
-                    ValueText: state.SleepTimerValueText,
-                    BadgeText: state.SleepTimerValueText,
+                var settings = Tool(PlaybackControlKey.Settings, "Settings", "settings", state,
+                    BadgeText: state.IsSleepTimerActive ? state.SleepTimerValueText : null,
                     IsActive: state.IsSleepTimerActive);
                 if (state.IsSleepTimerActive)
                 {
                     var status = state.SleepTimerValueText switch
                     {
-                        "Ch" => "ends at the current chapter boundary",
+                        "CH" or "Ch" => "ends at the current chapter boundary",
                         "NEXT" => "ends at the next chapter boundary",
                         _ => $"{state.SleepTimerValueText ?? "active"} remaining",
                     };
-                    sleepTimer = sleepTimer with { AriaLabel = $"Sleep timer active, {status}" };
+                    settings = settings with { AriaLabel = $"Settings, sleep timer active, {status}" };
                 }
-                controls.Add(sleepTimer);
+                controls.Add(settings);
+                controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
+                controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmark", "bookmark-dialog", state));
                 break;
             case PlaybackExperience.Video:
+                // Control sets by media (player-controls-v3 D7). A film has bookmarks only: no Up next and no chapters.
+                // A TV episode adds Episodes (the season list with Up next); other video adds Lessons when it belongs to a series.
+                // Chapters belong to audiobooks.
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
-                if (state.HasChapters)
-                {
-                    controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
-                }
                 if (state.IsTvEpisode && state.HasQueue)
                 {
-                    controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", "queue", state));
+                    controls.Add(Tool(PlaybackControlKey.Queue, state.IsFolderVideo ? "Videos" : "Episodes", "queue", state));
+                }
+                else if (!state.IsTvEpisode && !state.IsMovie && state.HasQueue)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Queue, "Lessons", "queue", state));
                 }
                 if (state.HasCaptions || state.CanFindCaptions)
                 {
@@ -343,11 +353,11 @@ public static class PlaybackControlCatalog
                 }
                 if (state.CanFullscreen)
                 {
-                    controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", string.Empty, PlaybackControlPlacement.Utility, "fullscreen"));
+                    controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", PlaybackUtilityGlyphKind.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen"));
                 }
                 if (state.CanPictureInPicture)
                 {
-                    controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", string.Empty, PlaybackControlPlacement.Utility, "picture-in-picture"));
+                    controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", PlaybackUtilityGlyphKind.PictureInPicture, PlaybackControlPlacement.Utility, "picture-in-picture"));
                 }
                 break;
         }
@@ -367,7 +377,7 @@ public static class PlaybackControlCatalog
             key,
             label,
             ValueText is null ? label : $"{label} {ValueText}",
-            string.Empty,
+            PlaybackUtilityGlyphMap.For(key),
             PlaybackControlPlacement.ToolStrip,
             $"open-{sheet}",
             sheet,

@@ -224,6 +224,10 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("management_mode")]
     public string ManagementMode { get; set; } = "existing_library";
 
+    /// <summary>The folder's friendly name (Libraries v3 D18), at most 60 characters and unique within its library; shown only when the library has two or more folders.</summary>
+    [JsonPropertyName("label")]
+    public string? Label { get; set; }
+
     [JsonPropertyName("source_type")]
     public string SourceType { get; set; } = "local_folder";
 

@@ -15,3 +15,13 @@ export function detach(root) {
     const start=roots.get(root); if (start) root.removeEventListener('dragstart',start);
     roots.delete(root);
 }
+
+// Puts keyboard focus on the drag handle of a queue row (by its queue entry id); with no such row it falls back to the scrolling list, so focus never drops to the page.
+export function focusHandle(root, id) {
+    if (!root) return false;
+    const handle = id ? Array.from(root.querySelectorAll('[data-playback-queue-drag]')).find(item => item.dataset.playbackQueueDrag === id) : null;
+    const target = handle || root.querySelector('[data-playback-list-scroll]');
+    if (!target) return false;
+    target.focus();
+    return true;
+}

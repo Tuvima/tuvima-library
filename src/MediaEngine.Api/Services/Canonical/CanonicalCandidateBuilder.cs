@@ -205,6 +205,7 @@ internal sealed class CanonicalCandidateBuilder(
                     CoverScore = candidate.MatchScores.CoverScore,
                     CoverVerdict = (int)candidate.MatchScores.CoverVerdict,
                 },
+            ReasonText = MediaEngine.Api.Services.Matching.MatchReasonText.FromFieldScores(candidate.MatchScores?.FieldScores),
             ExtraFields = candidate.ExtraFields?.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
             LinkState = "provider_only",
@@ -298,6 +299,7 @@ internal sealed class CanonicalCandidateBuilder(
                     CoverScore = candidate.MatchScores.CoverScore,
                     CoverVerdict = (int)candidate.MatchScores.CoverVerdict,
                 },
+            ReasonText = MediaEngine.Api.Services.Matching.MatchReasonText.FromFieldScores(candidate.MatchScores?.FieldScores),
             BridgeIds = candidate.BridgeIds?.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
             MediaTypeMetadata = candidate.MediaTypeMetadata?.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase)

@@ -69,7 +69,7 @@ public sealed class FolderKindChangeTests : IDisposable
         var second = _w.AddFile(folder, "second.mkv", MediaType.Movies, "Second clip");
         _w.Execute("""
             INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@person, @asset, 40, '2026-10-01T00:00:00Z');
-            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Love', '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Like', '2026-10-01T00:00:00Z');
             """, new { person = Profile.SeedProfileId, asset = first.AssetId, work = first.WorkId });
 
         var status = await _w.Service.StartAsync(folder.Id, new() { KindKey = "other_videos", LibraryId = _w.VideosLibrary }, default);
@@ -110,7 +110,7 @@ public sealed class FolderKindChangeTests : IDisposable
         Assert.Equal(40, _w.Scalar<int>("SELECT progress_pct FROM user_states WHERE asset_id = @id;", new { id = first.AssetId }));
         var newWork = _w.Scalar<Guid>("SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @id;", new { id = first.AssetId });
         Assert.Equal(newWork, _w.Scalar<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }));
-        Assert.Equal("Love", _w.Scalar<string>("SELECT reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }));
+        Assert.Equal("Like", _w.Scalar<string>("SELECT reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }));
 
         // A plain kind has no first check; the job is in the ledger and in the administrator's activity.
         Assert.Null(await _w.FirstChecks.GetAsync(folder.Id));
@@ -601,7 +601,7 @@ public sealed class FolderKindChangeTests : IDisposable
     {
         var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: false);
         var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
-        _w.Execute("INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Love', '2026-10-01T00:00:00Z');",
+        _w.Execute("INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Like', '2026-10-01T00:00:00Z');",
             new { person = Profile.SeedProfileId, work = file.WorkId });
         _w.Rescoring.FailAfterRescore = 1;
         var forward = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
@@ -617,7 +617,7 @@ public sealed class FolderKindChangeTests : IDisposable
         Assert.Equal(_w.MoviesLibrary, _w.Scalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = file.AssetId }));
         Assert.Equal(0, _w.Scalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
         var work = _w.Scalar<Guid>("SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @id;", new { id = file.AssetId });
-        Assert.Equal((work, "Love"), _w.Rows<(Guid, string)>("SELECT entity_id, reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }).Single());
+        Assert.Equal((work, "Like"), _w.Rows<(Guid, string)>("SELECT entity_id, reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }).Single());
     }
 
     [Fact]
@@ -1039,7 +1039,7 @@ public sealed class FolderKindChangeTests : IDisposable
     // The file's own watch progress and reaction, which no kind change may lose.
     private void GivePersonalState(FileRef file) => _w.Execute("""
         INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@person, @asset, 40, '2026-10-01T00:00:00Z');
-        INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Love', '2026-10-01T00:00:00Z');
+        INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @work, 'Like', '2026-10-01T00:00:00Z');
         """, new { person = Profile.SeedProfileId, asset = file.AssetId, work = file.WorkId });
 
     // The file is wholly what the kind says: in its library, under one work of the kind's media type (no leftover work of another type), with
@@ -1076,7 +1076,7 @@ public sealed class FolderKindChangeTests : IDisposable
 
         // Personal state: progress stays with the file and the reaction followed it to its current work.
         Assert.Equal(40, _w.Scalar<int>("SELECT progress_pct FROM user_states WHERE asset_id = @id;", new { id = file.AssetId }));
-        Assert.Equal((work, "Love"), _w.Rows<(Guid, string)>("SELECT entity_id, reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }).Single());
+        Assert.Equal((work, "Like"), _w.Rows<(Guid, string)>("SELECT entity_id, reaction FROM profile_reactions WHERE profile_id = @person;", new { person = Profile.SeedProfileId }).Single());
     }
 
     private static StringContent Json(string body) => new(body, Encoding.UTF8, MediaTypeHeaderValue.Parse("application/json"));
@@ -1354,6 +1354,17 @@ public sealed class FolderKindChangeTests : IDisposable
             Database.RunStartupChecks();
 
             Config = new ConfigurationDirectoryLoader(Path.Combine(Root, "config"));
+            // These tests cover a kind that holds several libraries. The shipped kinds hold one (Libraries v3 D17), so Videos and Other audio are made multi kinds here,
+            // the way a kind added in config would be.
+            var kindList = new LibraryKindsConfiguration();
+            foreach (var multi in kindList.Kinds.Where(kind => kind.Key is "other_videos" or "other_audio"))
+            {
+                multi.AllowsMultiple = true;
+                multi.MaxLibraries = LibraryKindRules.MaxPlainLibraries;
+            }
+
+            Directory.CreateDirectory(Path.Combine(Root, "config"));
+            File.WriteAllText(Path.Combine(Root, "config", "library_kinds.json"), JsonSerializer.Serialize(kindList));
             Config.SaveLibraries(new LibrariesConfiguration
             {
                 StorageLocations =
@@ -1405,7 +1416,7 @@ public sealed class FolderKindChangeTests : IDisposable
                 Grouping = LibraryKindGroupings.FolderAndTags,
                 NamingTemplate = "default",
             };
-            var kinds = new FixedKinds([.. LibraryKindsConfiguration.BuiltIn(), vaultKind]);
+            var kinds = new FixedKinds([.. kindList.Kinds, vaultKind]);
             var visibilityRule = new LibraryVisibilityRule(new HouseholdLibraryAccessRepository(Database), vaultLibraries);
             Visibility = new SwitchableVisibility(new VisibilityAfterMoveReadService(
                 _accounts, new ProfileRepository(Database), _profileAccess, new MediaAssetLibraryCountRepository(Database), vaultLibraries, Config, visibilityRule));

@@ -18,6 +18,8 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
     private readonly IOptionsMonitor<IngestionOptions> _options;
     private readonly ILogger<ItemExtrasScanner> _logger;
     private readonly IItemExtraFactsReader? _facts;
+    private readonly ExtrasConfigurationProvider? _rules;
+    private readonly IExcludedSourceFileFilter? _excluded;
     private readonly ConcurrentDictionary<string, byte> _queued = new(StringComparer.OrdinalIgnoreCase);
 
     public ItemExtrasScanner(
@@ -27,7 +29,9 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         IVaultIngestionHook vault,
         IOptionsMonitor<IngestionOptions> options,
         ILogger<ItemExtrasScanner> logger,
-        IItemExtraFactsReader? facts = null)
+        IItemExtraFactsReader? facts = null,
+        ExtrasConfigurationProvider? rules = null,
+        IExcludedSourceFileFilter? excluded = null)
     {
         _libraries = libraries;
         _extensions = extensions;
@@ -36,6 +40,8 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         _options = options;
         _logger = logger;
         _facts = facts;
+        _rules = rules;
+        _excluded = excluded;
     }
 
     public async Task<bool> ClaimsFileAsync(string filePath, LibraryFolderEntry? library, CancellationToken ct = default)
@@ -169,9 +175,67 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         return true;
     }
 
+    public async Task<string?> ResolveScopeFolderAsync(string itemFolder, ExtraScope scope, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(itemFolder))
+        {
+            return null;
+        }
+
+        var full = Path.GetFullPath(itemFolder);
+        var resolved = _libraries.ResolveSourceForPath(full);
+        if (resolved is null
+            || resolved.Library.MediaTypes.Count == 0
+            || await _vault.IsVaultLibraryAsync(resolved.Library.Id, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return ExtrasRule.ResolveScopeFolder(BuildContext(resolved.Library, resolved.Source.Path), full, scope);
+    }
+
+    public async Task<IReadOnlyList<ExtraScope>> ListPlacesAsync(string itemFolder, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(itemFolder))
+        {
+            return [];
+        }
+
+        var full = Path.GetFullPath(itemFolder);
+        var resolved = _libraries.ResolveSourceForPath(full);
+        if (resolved is null
+            || resolved.Library.MediaTypes.Count == 0
+            || await _vault.IsVaultLibraryAsync(resolved.Library.Id, ct).ConfigureAwait(false))
+        {
+            return [];
+        }
+
+        return ExtrasRule.ListPlaces(BuildContext(resolved.Library, resolved.Source.Path), full);
+    }
+
     public async Task<ItemExtra?> DescribeAsync(
         string filePath, string origin, int? targetSeason, int? targetEpisode, CancellationToken ct = default)
     {
+        var described = await DescribeAsync(filePath, origin, new ExtraDecision(), ct).ConfigureAwait(false);
+        return described is null ? null : described with { TargetSeason = targetSeason, TargetEpisode = targetEpisode };
+    }
+
+    public async Task<ExtraTitleFolder?> ResolveTitleFolderAsync(string titleFilePath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(titleFilePath))
+        {
+            return null;
+        }
+
+        var context = await ResolveContextAsync(titleFilePath, null, ct).ConfigureAwait(false);
+        var folder = context is null ? null : ExtrasRule.ResolveItemFolder(context, titleFilePath);
+        return context is null || folder is null ? null : new ExtraTitleFolder(context.LibraryId, Path.GetFullPath(folder));
+    }
+
+    public async Task<ItemExtra?> DescribeAsync(
+        string filePath, string origin, ExtraDecision decision, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
             return null;
@@ -184,8 +248,9 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         }
 
         var context = await ResolveContextAsync(filePath, null, ct).ConfigureAwait(false);
-        var itemFolder = context is null ? null : ExtrasRule.ResolveItemFolder(context, filePath);
-        if (context is null || itemFolder is null)
+        var itemFolder = decision.Title?.ItemFolder ?? (context is null ? null : ExtrasRule.ResolveItemFolder(context, filePath));
+        var libraryId = decision.Title?.LibraryId ?? context?.LibraryId;
+        if (context is null || itemFolder is null || libraryId is null)
         {
             return null;
         }
@@ -201,7 +266,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
                 : await _facts.ReadAsync(full, kind, ct).ConfigureAwait(false);
         return new ItemExtra(
             existing?.Id ?? Guid.NewGuid(),
-            context.LibraryId,
+            libraryId,
             Path.GetFullPath(itemFolder),
             full,
             kind,
@@ -213,8 +278,12 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
             facts.DurationSeconds,
             facts.PageCount,
             existing?.FoundAt ?? DateTimeOffset.UtcNow,
-            targetSeason,
-            targetEpisode);
+            null,
+            null,
+            decision.ExtraKind,
+            decision.PlaceSeason,
+            decision.PlaceEpisode,
+            decision.PlaceTrack);
     }
 
     public async Task<ExtraEpisodePlacement?> GetEpisodePlacementAsync(string filePath, CancellationToken ct = default)
@@ -257,6 +326,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
             var existing = (await _extras.ListAllInItemFolderAsync(full, ct).ConfigureAwait(false))
                 .ToDictionary(row => row.FilePath, StringComparer.OrdinalIgnoreCase);
             var candidates = ExtrasRule.HoldsTitle(context, full) ? ExtrasRule.ScanItemFolder(context, full) : [];
+            candidates = await DropExcludedAsync(candidates, ct).ConfigureAwait(false);
             var found = new List<ItemExtra>(candidates.Count);
             for (var index = 0; index < candidates.Count; index++)
             {
@@ -278,20 +348,46 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
                     candidate.SizeBytes,
                     facts.DurationSeconds,
                     facts.PageCount,
-                    known?.FoundAt ?? DateTimeOffset.UtcNow));
+                    known?.FoundAt ?? DateTimeOffset.UtcNow,
+                    InferredRole: candidate.Role,
+                    InferredGroup: candidate.Group,
+                    InferredScope: candidate.Scope,
+                    InferredAlongside: candidate.Alongside));
             }
 
             var gone = existing.Values
-                .Where(row => row.Origin != ItemExtraOrigins.Rule && !File.Exists(row.FilePath))
+                .Where(row => !File.Exists(row.FilePath))
                 .Select(row => row.FilePath)
                 .ToList();
-            await _extras.SyncItemFolderAsync(full, found, gone, ct).ConfigureAwait(false);
+            // A file that left the disk keeps its record as "File missing" for the configured days (D20), then goes.
+            var keepDays = (_rules?.Current ?? ExtrasConfigurationProvider.BuiltIn).MissingFileKeepDays;
+            await _extras.SyncItemFolderAsync(full, found, gone, DateTimeOffset.UtcNow.AddDays(-keepDays), ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // One unreadable folder never stops the pass; its Extras are left as they were and the next pass tries again.
             _logger.LogWarning(ex, "Could not check the Extras of \"{Folder}\"", Path.GetFileName(full));
         }
+    }
+
+    // A supporting file a person deleted from a Read-only folder stays on disk and is remembered as excluded, so a scan never lists it again.
+    private async Task<IReadOnlyList<ExtraCandidate>> DropExcludedAsync(IReadOnlyList<ExtraCandidate> candidates, CancellationToken ct)
+    {
+        if (_excluded is null || candidates.Count == 0)
+        {
+            return candidates;
+        }
+
+        var kept = new List<ExtraCandidate>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            if (!await _excluded.ShouldSkipAsync(candidate.FilePath, ct).ConfigureAwait(false))
+            {
+                kept.Add(candidate);
+            }
+        }
+
+        return kept;
     }
 
     private async Task<ItemExtraFacts> ReadFactsAsync(ExtraCandidate candidate, CancellationToken ct)
@@ -330,7 +426,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
             main.UnionWith(_extensions.GetExtensionsFor(type));
         }
 
-        return new ExtrasLibraryContext(library.Id, library.MediaTypes, sourcePath, main);
+        return new ExtrasLibraryContext(library.Id, library.MediaTypes, sourcePath, main, _rules?.Current);
     }
 
     private void Queue(string itemFolder) => _queued.TryAdd(Path.GetFullPath(itemFolder), 0);

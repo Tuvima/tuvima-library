@@ -15,6 +15,12 @@ public static class EditSessionReasons
     public const string NotRunBecauseCheckFailed = "Not saved, because another change failed its check.";
 
     public const string MatchUnreadable = "The match you chose could not be read. Pick it again.";
+    public const string NoMatchToRemove = "This item has no match to remove.";
+    public const string NoWikidataLinkToRemove = "This item has no Wikidata link to remove.";
+    public const string WikidataItemUnreadable = "That Wikidata item could not be found. Pick it again.";
+    public const string WikidataDidNotAnswer = "Wikidata did not answer, so the link could not be checked. Try again.";
+    public const string WikidataParentNotAllowed = "That Wikidata item is the thing this item belongs to (its show, album or series), not the item itself. Pick the item's own record.";
+    public const string WikidataLookupsOff = "This item's library never looks anything up, so it cannot be linked to Wikidata. Change what this folder is to look it up.";
     public const string SessionUnavailable = "The editing session is unavailable. Sign in again and retry.";
     public const string NoDestination = "The album, season or series to move to is missing.";
     public const string NoFiles = "This item has no files to move.";
@@ -23,6 +29,20 @@ public static class EditSessionReasons
     public const string SubjectUnavailable = "This cannot be opened for editing.";
     public const string BadPosition = "The track number is not valid. Use a whole number from 1 to 9999.";
     public const string NotInThatAlbum = "This song is no longer in that album.";
+    public const string SeriesIsReadOnly = "A Series comes from its members' own matches and cannot be changed. Edit one of its members instead.";
+    public const string SeriesHasNoArtwork = "A Series has no picture of its own. It shows the covers of its members.";
+
+    public const string NotAVideo = "That is not a video.";
+    public const string SeriesGone = "That series is no longer available. Pick it again.";
+    public const string SeriesNeedsName = "Give the new series a name.";
+    public const string SeriesNameTooLong = "The series name is too long.";
+    public const string AlreadyAlone = "This video is not in a series.";
+    public const string OrderChanged = "The videos of this series changed. Open the editor again to reorder them.";
+    public const string NothingToOrder = "A series needs at least two videos to be put in order.";
+    public const string RenameIncomplete = "Some of the files could not be renamed, so they keep their old names. The order itself was saved.";
+
+    public const string RenameNotAllowed = "Library can only rename files in a Managed folder. Some of these videos are in a folder it only reads, or a file is missing.";
+    public const string SeriesClash = "The series changed at the same moment. Open the editor again and retry.";
 
     public static string DuplicateField(string key) => $"'{key}' is changed twice for the same item.";
 }

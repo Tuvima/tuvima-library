@@ -31,6 +31,20 @@ public sealed record PluginManifest
     public string Description { get; init; } = "";
 
     /// <summary>
+    /// One sentence of at most 90 characters, starting with what the plugin does, for the tile and the row (Plugins and
+    /// Integrations screens v4 D35). Absent means the first sentence of <see cref="Description"/> is used.
+    /// </summary>
+    [JsonPropertyName("short_description")]
+    public string? ShortDescription { get; init; }
+
+    /// <summary>
+    /// What the plugin provides to Library, from the fixed list in <c>PluginProvides</c> (Identification, Details, Artwork, People,
+    /// Series order, Lyrics, Subtitles, Skip markers, Insights, Lists &amp; ratings, Account sync). Unknown words are ignored.
+    /// </summary>
+    [JsonPropertyName("provides")]
+    public IReadOnlyList<string> Provides { get; init; } = [];
+
+    /// <summary>
     /// Which tab the plugin is listed under on the Plugins page: <c>metadata</c>, <c>media-processing</c>, <c>services</c> or
     /// <c>utilities</c>. Absent or unknown means <c>utilities</c> (see <see cref="PluginCategories"/>).
     /// </summary>
@@ -116,8 +130,17 @@ public sealed record PluginManifest
     [JsonPropertyName("pages")]
     public JsonElement? Pages { get; init; }
 
+    /// <summary>
+    /// The plugin's settings and what they look like on its page (Plugins and Integrations screens v5 D47): each setting's control,
+    /// wording, behaviour and scope, repeating groups, and the tests the plugin supports. Read by <see cref="PluginSettingsDescriptionReader"/>;
+    /// words it does not know are ignored.
+    /// </summary>
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
+
+    /// <summary>Where a person signs up for the service, finds help, and reads its terms and privacy policy (v5 D48). Absent means no links.</summary>
+    [JsonPropertyName("links")]
+    public PluginManifestLinks? Links { get; init; }
 
     /// <summary>
     /// The shared declaration block (Plugin architecture spec PA1): who may use the plugin, what it requires, how heavy it is,
@@ -146,6 +169,22 @@ public sealed record PluginManifest
     [JsonIgnore]
     public ResolvedPluginDeclaration ResolvedDeclaration =>
         PluginDeclarationRules.Resolve(Declaration, Network.Count > 0, MediaTypes, Category);
+}
+
+/// <summary>The addresses a plugin gives for its service: where to sign up, get help, and read its terms and privacy policy.</summary>
+public sealed record PluginManifestLinks
+{
+    [JsonPropertyName("signup_url")]
+    public string? SignupUrl { get; init; }
+
+    [JsonPropertyName("help_url")]
+    public string? HelpUrl { get; init; }
+
+    [JsonPropertyName("terms_url")]
+    public string? TermsUrl { get; init; }
+
+    [JsonPropertyName("privacy_url")]
+    public string? PrivacyUrl { get; init; }
 }
 
 /// <summary>How a plugin runs. <see cref="Official"/> and <see cref="Declarative"/> run in this version of the Library.</summary>
@@ -255,6 +294,64 @@ public sealed record PluginSecretDeclaration
 
     [JsonPropertyName("description")]
     public string Description { get; init; } = "";
+
+    /// <summary>
+    /// How a profile links this credential without typing it: approve a short code on another device. Only for a credential
+    /// declared personal. Absent means the credential is entered by hand.
+    /// </summary>
+    [JsonPropertyName("sign_in")]
+    public PluginDeviceSignIn? SignIn { get; init; }
+}
+
+/// <summary>
+/// "Approve on another device" sign-in for a personal credential (Plugin architecture spec C13). The Library asks <see cref="Host"/>
+/// for a short code, shows it with the site's address, and polls until the person has approved it on a phone or computer. The
+/// access token that comes back is kept as the profile's credential, encrypted like any other. The app's own client id (and
+/// client secret, when the site wants one) are household secrets the administrator entered for the plugin.
+/// </summary>
+public sealed record PluginDeviceSignIn
+{
+    /// <summary>The only method there is for now: <c>device_code</c>.</summary>
+    [JsonPropertyName("method")]
+    public string Method { get; init; } = PluginDeviceSignInMethods.DeviceCode;
+
+    /// <summary>The host the codes and tokens come from. It must be one of the plugin's <c>network</c> hosts.</summary>
+    [JsonPropertyName("host")]
+    public string Host { get; init; } = "";
+
+    /// <summary>Where a code is requested (a path on <see cref="Host"/>).</summary>
+    [JsonPropertyName("code_path")]
+    public string CodePath { get; init; } = "";
+
+    /// <summary>Where the code is exchanged for a token once approved.</summary>
+    [JsonPropertyName("token_path")]
+    public string TokenPath { get; init; } = "";
+
+    /// <summary>Where a token that ran out is renewed with its refresh token. Absent means a token cannot be renewed.</summary>
+    [JsonPropertyName("refresh_path")]
+    public string? RefreshPath { get; init; }
+
+    /// <summary>The household secret that holds the app's client id.</summary>
+    [JsonPropertyName("client_id_secret")]
+    public string ClientIdSecret { get; init; } = "";
+
+    /// <summary>The household secret that holds the app's client secret, or null when the site wants none.</summary>
+    [JsonPropertyName("client_secret_secret")]
+    public string? ClientSecretSecret { get; init; }
+
+    /// <summary>Headers the site asks every request to carry, besides the client id (for example an API version).</summary>
+    [JsonPropertyName("headers")]
+    public Dictionary<string, string> Headers { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The header that carries the client id on the site's requests, or null when the site does not use one.</summary>
+    [JsonPropertyName("client_id_header")]
+    public string? ClientIdHeader { get; init; }
+}
+
+/// <summary>The names of the sign-in methods a personal credential can use.</summary>
+public static class PluginDeviceSignInMethods
+{
+    public const string DeviceCode = "device_code";
 }
 
 /// <summary>One place a plugin says it will contact, and a plain sentence on what it sends there.</summary>

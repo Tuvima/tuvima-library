@@ -6,14 +6,11 @@ public enum EditTool
     Details,
     Artwork,
     Match,
+    Bookmarks,
     History,
-}
 
-/// <summary>What the page behind the editor is showing: the normal page, or the labelled temporary view used while picking artwork (spec D9).</summary>
-public enum EditViewContext
-{
-    Normal,
-    TemporaryArtwork,
+    /// <summary>A supporting file's Preview tab (universal editor v5 WP7): the document, picture or clip itself, read where it is.</summary>
+    Preview,
 }
 
 /// <summary>One step of the item trail ("Le Continental > Season 1 > Episode 1").</summary>
@@ -50,8 +47,6 @@ public sealed class EditSessionState
     /// <summary>The open tool, or null while the panel is closed (spec "Normal": bar on top, panel closed until a tool is chosen).</summary>
     public EditTool? ActiveTool { get; private set; }
 
-    public EditViewContext ViewContext { get; private set; }
-
     public bool HasPendingChanges => !Pending.IsEmpty;
 
     /// <summary>Starts editing at the end of <paramref name="trail"/>. Starting again while active only moves to the new item.</summary>
@@ -87,12 +82,10 @@ public sealed class EditSessionState
         Trail = trail;
         ActiveItem = trail[^1];
         Remember(trail);
-        // The temporary artwork view belongs to the item it was opened for.
-        ViewContext = EditViewContext.Normal;
         RaiseChanged();
     }
 
-    /// <summary>Opens a tool, or closes the panel when null. Closing the panel keeps edit mode and the pending list (spec D22).</summary>
+    /// <summary>Opens a tool, or closes the panel when null. Closing the panel keeps the pending list (spec D22).</summary>
     public void SetTool(EditTool? tool)
     {
         if (!IsActive)
@@ -101,33 +94,17 @@ public sealed class EditSessionState
         }
 
         ActiveTool = tool;
-        if (tool != EditTool.Artwork)
-        {
-            ViewContext = EditViewContext.Normal;
-        }
-
         RaiseChanged();
     }
 
-    public void SetViewContext(EditViewContext context)
-    {
-        if (!IsActive)
-        {
-            throw new InvalidOperationException("No edit session is active.");
-        }
-
-        ViewContext = context;
-        RaiseChanged();
-    }
-
-    /// <summary>Cancel: leaves edit mode and throws the pending changes away. Callers ask "Unsaved changes" first when <see cref="HasPendingChanges"/>.</summary>
+    /// <summary>Cancel: closes the editor and throws the pending changes away. Callers ask "Unsaved changes" first when <see cref="HasPendingChanges"/>.</summary>
     public void Cancel()
     {
         Pending.Discard();
         End();
     }
 
-    /// <summary>Leaves edit mode after a successful save (the pending list was already applied).</summary>
+    /// <summary>Ends the session after a successful save (the pending list was already applied).</summary>
     public void End()
     {
         IsActive = false;
@@ -135,7 +112,6 @@ public sealed class EditSessionState
         Trail = [];
         _known.Clear();
         ActiveTool = null;
-        ViewContext = EditViewContext.Normal;
         RaiseChanged();
     }
 

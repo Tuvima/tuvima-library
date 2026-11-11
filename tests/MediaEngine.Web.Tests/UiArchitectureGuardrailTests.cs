@@ -150,7 +150,7 @@ public sealed class UiArchitectureGuardrailTests
     public void IngestionDashboard_BackgroundLoopsAreOwnedAndAwaited()
     {
         var state = Read("src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
-        var component = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
+        var statusLine = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryStatusLine.razor");
 
         Assert.Contains("IDisposable, IAsyncDisposable", state);
         Assert.Contains("private Task? _pollTask", state);
@@ -160,30 +160,19 @@ public sealed class UiArchitectureGuardrailTests
         Assert.Contains("await Task.WhenAll(tasks)", state);
         Assert.Contains("if (!_signalsDisposed)", state);
         Assert.DoesNotContain("Task.Run", state);
-        Assert.Contains("@implements IAsyncDisposable", component);
-        Assert.Contains("await Dashboard.StopAsync()", component);
+        Assert.Contains("@implements IAsyncDisposable", statusLine);
+        Assert.Contains("await Dashboard.StopAsync()", statusLine);
     }
 
     [Fact]
     public void IngestionDashboard_StateHoldsOnlyTheLifecycleAndTheEnginesSnapshots()
     {
         var lifecycle = Read("src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
-        var css = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css");
 
         Assert.Contains("public sealed class IngestionLiveDashboardState", lifecycle);
         Assert.Contains("public IngestionQueueProgressDto? QueueProgress", lifecycle);
         Assert.False(File.Exists(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Integration", "IngestionLiveDashboardState.Projection.cs")));
         Assert.False(File.Exists(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "IngestionLiveDashboard.razor")));
-
-        var retiredCssFamilies = new[]
-        {
-            "library-update-batch-head-chip",
-            "library-update-progress-block",
-            "library-update-stage-list",
-            "library-update-step__node",
-            "library-update-stage__bar"
-        };
-        Assert.All(retiredCssFamilies, family => Assert.DoesNotContain(family, css));
     }
 
     [Fact]
@@ -195,7 +184,7 @@ public sealed class UiArchitectureGuardrailTests
         Assert.DoesNotContain("<ProviderStageSelector", markup);
         Assert.Contains("[Parameter] public string? Subsection", markup);
         Assert.Contains("[Parameter] public string? Detail", markup);
-        Assert.Contains("<MetadataSettingsPage Subsection=\"@_activeSubsection\" Detail=\"@Detail\" />", settings);
+        Assert.Contains("<MetadataSettingsPage Subsection=\"ingestion-flow\" Detail=\"@Detail\" />", settings);
     }
 
     [Fact]

@@ -51,90 +51,9 @@
     box-shadow: inset 4px 0 0 var(--playback-accent);
 }
 
-.playback-sheet-row-shell ::deep .playback-sheet-row--chapter.is-active .playback-sheet-row__duration {
-    color: var(--playback-accent);
-}
-
 .playback-sheet-row-shell ::deep .playback-sheet-row--split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 0;
     padding: 0;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__copy {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__copy strong {
-    font-size: 0.98rem;
-    font-weight: 700;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__copy span,
-.playback-sheet-row-shell ::deep .playback-sheet-row__resume {
-    color: var(--playback-text-muted);
-    font-size: 0.88rem;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__resume {
-    color: var(--playback-accent);
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__duration {
-    color: var(--playback-text-secondary);
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    white-space: nowrap;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__radio {
-    border: 2px solid var(--playback-text-secondary);
-    border-radius: 999px;
-    flex: 0 0 auto;
-    display: inline-block;
-    height: 20px;
-    width: 20px;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row--select.is-active .playback-sheet-row__radio {
-    background: var(--playback-accent);
-    border-color: var(--playback-accent);
-    box-shadow: inset 0 0 0 5px rgba(13, 25, 40, 0.96);
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__main {
-    align-items: center;
-    background: transparent;
-    border: 0;
-    color: inherit;
-    cursor: pointer;
-    display: flex;
-    gap: 14px;
-    justify-content: space-between;
-    min-height: 64px;
-    min-width: 0;
-    padding: 12px 10px;
-    text-align: left;
-}
-
-.playback-sheet-row-shell ::deep .playback-sheet-row__delete {
-    align-items: center;
-    background: transparent;
-    border: 0;
-    color: var(--playback-text);
-    cursor: pointer;
-    display: inline-flex;
-    height: 52px;
-    justify-content: center;
-    width: 52px;
 }

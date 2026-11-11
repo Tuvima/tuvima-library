@@ -1,0 +1,1248 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor v5 mockups</title>
+<meta name="description" content="Editor v5: header navigation and supporting files. Every screen uses the shipped Look pass v2 tokens; pictures are stand-in colour blocks.">
+<style>
+/* One dark look on purpose: it is the app's own look (Look pass v2 tokens from wwwroot/tuvima.tokens.css). */
+:root{
+  --page:#050507; --app:#101115; --shell:#14151A; --win:#101115; --panel:#1A1B21; --raised:#1F2027; --hover:#272830; --menu:#2F3039;
+  --line:#25272E; --line2:#33363F;
+  --fg:#F5F7FB; --fg2:#B6C2D6; --fg3:#8593AA; --accent:#8852FC; --accent2:#A46FFF; --accentbg:#221a3e;
+  --ok:#4ade80; --okbg:#12351f; --warn:#fbbf24; --warnbg:#3a2c0b; --bad:#f87171; --badbg:#3b1414;
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+:root:not([data-theme="light"]){color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.4;margin:0;padding:24px max(16px,env(safe-area-inset-left,0px)) 48px}
+.intro{max-width:880px;margin:0 auto 28px}
+.intro h1{font-size:26px;margin:0 0 8px;text-wrap:balance}
+.intro p{color:var(--fg2);margin:0 0 8px;max-width:72ch}
+.toc{max-width:880px;margin:0 auto 32px;padding:0 0 0 18px;color:var(--fg2);columns:2;gap:24px}
+.toc li{margin:2px 0}.toc a{color:var(--accent2);text-decoration:none}
+section.shot{max-width:1460px;margin:0 auto 48px}
+section.shot h2{font-size:18px;margin:0 0 4px}
+section.shot .sub{color:var(--fg3);margin:0 0 12px}
+.frame{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--app)}
+.notes{max-width:880px;margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li{display:grid;grid-template-columns:26px 1fr;gap:10px;color:var(--fg2)}
+.notes li b{color:var(--fg)}
+.mk{position:absolute;width:24px;height:24px;border-radius:50%;background:#ffd84d;color:#1a1300;font-weight:800;font-size:13px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(0,0,0,.6);z-index:7}
+
+/* screen */
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:var(--app)}
+.vp.narrow{width:1024px;height:760px}
+.bgpage{position:absolute;inset:0;background:linear-gradient(180deg,#101115 0%,#14151A 46%,#101115 100%)}
+.bgpage .topnav{height:56px;border-bottom:1px solid var(--line);background:var(--shell);display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--fg2)}
+.bgpage .topnav b{color:var(--fg);letter-spacing:.08em}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.72)}
+.win{position:absolute;left:80px;top:20px;width:1280px;height:860px;background:var(--win);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.narrow .win{left:0;top:0;width:1024px;height:760px;border-radius:0}
+
+/* header: cover, label, title, facts, nav row; background is a gradient from the cover's two dominant colours */
+.hero{flex:none;display:flex;gap:22px;padding:20px 24px 18px;position:relative;border-bottom:1px solid var(--line);
+  background:linear-gradient(100deg,var(--win) 0%,var(--win) 30%,color-mix(in srgb,var(--c1) 55%,var(--win)) 68%,color-mix(in srgb,var(--c2) 70%,var(--win)) 100%)}
+.hero .cover{width:96px;height:144px;border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5);position:relative;cursor:pointer}
+.hero .cover.land{width:200px;height:113px;align-self:flex-start}
+.hero .main{min-width:0;display:flex;flex-direction:column;flex:1}
+.hero .label{color:var(--fg2);font-size:13px;font-weight:600}
+.hero h3{font-size:28px;margin:2px 0 4px;text-wrap:balance;line-height:1.2}
+.hero .facts{color:var(--fg2);display:flex;align-items:center;gap:10px;font-size:14px}
+.nav{display:flex;gap:10px;margin-top:14px;align-items:center}
+.home{width:44px;height:44px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-size:18px;flex:none}
+.sel{display:flex;align-items:center;gap:10px;height:44px;min-width:200px;padding:0 12px 0 10px;border:1px solid var(--line2);border-radius:8px;background:rgba(16,17,21,.78)}
+.sel.on{border-color:var(--accent)}
+.sel.item{min-width:420px;padding-left:6px}
+.sel .still{width:52px;height:30px;border-radius:4px;flex:none}
+.sel .ico{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+.sel small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.sel span.n{font-weight:600;font-size:14px;display:block}
+.sel .v{margin-left:auto;color:var(--fg3)}
+.hero .links{position:absolute;right:24px;top:20px;display:flex;gap:8px;align-items:center}
+.lnk{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:rgba(16,17,21,.78);border-radius:8px;padding:0 10px;height:36px;font-size:13px;font-weight:600}
+.x{color:var(--fg2);font-size:22px;width:44px;height:44px;display:grid;place-items:center}
+.logo{width:20px;height:20px;border-radius:5px;display:inline-grid;place-items:center;font-weight:800;font-size:9px;flex:none}.l-tv{background:#0f3d2e;color:#4ade80}.l-wd{background:#2a1740;color:#c4a1ff}.l-mb{background:#3a1d2f;color:#f0a0d0}.l-tm{background:#0d2f4a;color:#7cc7ff}.l-ol{background:#3a2a10;color:#f0c070}
+
+/* tabs */
+.tabs{display:flex;gap:10px;padding:0 24px;border-bottom:1px solid var(--line);flex:none}
+.tab{display:flex;align-items:center;gap:10px;padding:16px 26px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent}
+.ti{font-style:normal;font-size:15px;color:var(--ic,#8f7fd1)}.tab.on .ti{filter:brightness(1.25)}.tab.on{color:var(--fg);border-color:var(--accent)}
+
+/* body */
+.body{flex:1;min-height:0;display:flex;gap:20px;padding:20px 24px;overflow:hidden}
+.form{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;align-content:start}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.w{grid-column:1/-1}
+.f label{font-size:12px;color:var(--fg2);font-weight:600;display:flex;align-items:center;gap:8px}
+.f label .lk{margin-left:auto;color:var(--accent2);font-size:13px;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.in{height:44px;border:1px solid var(--line2);border-radius:7px;background:#0A0B0E;display:flex;align-items:center;padding:0 12px;gap:8px}
+.in.tall{height:76px;align-items:flex-start;padding-top:11px}
+.in.locked{color:var(--fg2);background:#0d0e12;border-style:dashed}
+.in.changed{border-color:var(--accent)}
+.in .end{margin-left:auto;color:var(--fg3);font-size:13px;display:inline-flex;gap:8px;align-items:center}
+.in .rev{color:var(--accent2)}
+.hint{color:var(--fg3);font-size:12px;display:flex;gap:6px;align-items:center}
+.hint a{color:var(--accent2);text-decoration:underline;margin-left:auto}
+.ro{color:var(--fg3)}
+.qf{width:300px;flex:none;border:1px solid #3d2d80;border-radius:10px;background:linear-gradient(180deg,#1d1446,#140e33);padding:14px 16px;align-self:start}
+.qf h4{margin:0 0 8px;font-size:15px}
+.qf .r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.qf .r:first-of-type{border-top:0}
+.qf .i{width:34px;height:34px;border-radius:50%;background:var(--accentbg);color:var(--accent2);display:grid;place-items:center;font-size:14px;flex:none}
+.qf b{display:block;font-size:15px}.qf small{color:var(--fg2)}
+.qf .btn{width:100%;justify-content:center;margin-top:10px}
+.foot{height:64px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;background:#0B0C0F}
+.foot .where{display:flex;align-items:center;gap:10px;padding-left:14px;border-left:1px solid var(--line);color:var(--fg2)}
+.foot .where b{display:block;font-size:13px;color:var(--fg)}.foot .where small{color:var(--fg3)}
+.foot .where.warn b{color:var(--warn)}
+.foot .cnt{margin-left:auto;color:var(--fg2)}
+.btn{height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);display:inline-flex;align-items:center;gap:8px;font-weight:600;background:transparent;color:var(--fg)}
+.btn.p{background:var(--accent);border-color:var(--accent)}
+.btn.d{color:var(--bad);border-color:#5a2424}
+.btn.sm{height:36px;padding:0 12px;font-size:13px}
+.btn.faint{opacity:.45}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:13px;background:var(--menu);color:var(--fg2)}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.warn{background:var(--warnbg);color:var(--warn)}.chip.ac{background:var(--accentbg);color:var(--accent2)}
+.th{border-radius:5px;flex:none}
+.g1{background:linear-gradient(150deg,#5a3a8a,#1a1538 60%,#0d1230)}
+.g2{background:linear-gradient(150deg,#3d5a8a,#14203a)}
+.g3{background:linear-gradient(150deg,#6a4a8a,#201538)}
+.g4{background:linear-gradient(150deg,#8a6a3a,#2a1a10)}
+.g5{background:linear-gradient(150deg,#2a6a6a,#0c2224)}
+.g6{background:linear-gradient(150deg,#7a3a5a,#200c18)}
+.g7{background:linear-gradient(150deg,#d8a24a,#5a2a12 70%)}
+.g8{background:linear-gradient(150deg,#1f6f8a,#0a2a3a)}
+.g9{background:linear-gradient(150deg,#2c7a6a,#0e2a24)}
+.fi{display:inline-grid;place-items:center;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.04em}
+.fi.pdf{background:#3b1414;color:#f87171}.fi.zip{background:#2a2a10;color:#e8d24a}.fi.img{background:#10303a;color:#7cc7ff}.fi.txt{background:#2a2a2e;color:#c8ccd4}.fi.vid{background:#12351f;color:#4ade80}
+
+/* dropdown */
+.dd{position:absolute;background:var(--menu);border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:8px;z-index:4}
+.dd .s{height:40px;border:1px solid var(--line2);border-radius:7px;background:#1A1B21;display:flex;align-items:center;padding:0 10px;color:var(--fg3);margin-bottom:6px}
+.dd .h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);padding:8px 8px 4px;font-weight:700}
+.dd .o{display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:7px;min-height:44px}
+.dd .o.on{background:var(--accentbg)}
+.dd .o .code{color:var(--fg3);font-size:12px;display:block}
+.dd .o .m{margin-left:auto;font-size:13px;color:var(--fg2)}
+.dd .o b{display:block;font-weight:600}
+.dd .o .still{width:88px;height:50px;border-radius:5px;flex:none}
+.dd hr{border:0;border-top:1px solid var(--line2);margin:6px 0}
+.dd .o.plain{color:var(--fg2)}
+.dd .o .fi{width:28px;height:28px}
+.dd .note{color:var(--fg3);font-size:12px;padding:4px 8px 6px}
+
+/* tables and big window */
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;color:var(--fg3);font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;height:52px}
+table.t tr.picked td{background:#1d1640}
+.cb{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--fg3);display:inline-block;vertical-align:middle}
+.cb.on{background:var(--accent);border-color:var(--accent);position:relative}
+.cb.on::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.num{font-variant-numeric:tabular-nums}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:5}
+.big{position:absolute;left:116px;top:50px;width:1308px;height:800px;background:var(--win);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.7);z-index:6;display:flex;flex-direction:column;overflow:hidden}
+.big .bh{display:flex;gap:14px;align-items:center;padding:22px 24px 14px}
+.big .bh .bi{width:44px;height:44px;border-radius:10px;background:var(--accentbg);color:var(--accent2);display:grid;place-items:center;font-size:20px}
+.big .bh h3{margin:0;font-size:24px}.big .bh small{color:var(--fg2);display:block;font-size:14px}
+.big .bh .x{margin-left:auto}
+.filters{display:flex;gap:12px;padding:0 24px 14px}
+.srch{flex:1;height:44px;border:1px solid var(--line2);border-radius:8px;background:#0A0B0E;display:flex;align-items:center;padding:0 12px;color:var(--fg3);gap:8px}
+.ddsel{height:44px;min-width:220px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);display:flex;align-items:center;padding:0 12px;gap:8px;font-weight:600}
+.ddsel .v{margin-left:auto;color:var(--fg3)}
+.bb{flex:1;min-height:0;display:flex;border-top:1px solid var(--line)}
+.side{width:300px;flex:none;border-right:1px solid var(--line);padding:16px 16px}
+.side h5{margin:0 0 6px;font-size:14px}
+.side .li{display:flex;align-items:center;gap:10px;height:40px;padding:0 10px;border-radius:7px;color:var(--fg2)}
+.side .li.on{background:var(--accentbg);color:var(--fg)}
+.side .li .c{margin-left:auto;color:var(--fg3);font-variant-numeric:tabular-nums}
+.side hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+.main2{flex:1;min-width:0;padding:16px 24px;display:flex;flex-direction:column}
+.main2 .cnt{color:var(--fg2);margin-bottom:8px}
+.bulk{display:flex;align-items:center;gap:10px;padding:12px 0 0;margin-top:auto}
+.bulk b{margin-right:6px}
+.bf{height:64px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 24px;color:var(--fg3)}
+.bf .pg{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--fg2)}
+.pgb{width:40px;height:40px;border:1px solid var(--line2);border-radius:8px;display:grid;place-items:center;color:var(--fg2)}
+
+/* match tab */
+.mt{flex:1;min-height:0;padding:20px 24px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.mt>*{flex-shrink:0}.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;align-self:flex-start}.seg span{padding:0 18px;height:40px;display:inline-flex;align-items:center;font-weight:600;color:var(--fg2)}.seg span.on{background:var(--accentbg);color:var(--fg)}.frow{display:flex;align-items:flex-start;gap:12px}.frow .f{flex:none}.frow .f label{height:20px}.frow .sp{flex:1}.btn.ico{width:44px;padding:0;justify-content:center;font-size:18px}.seg span{height:44px;padding:0 14px}
+.card{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:14px 16px}
+.card h4{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.row{display:flex;align-items:center;gap:12px}
+.mcard{display:flex;gap:16px;align-items:center}
+.mcard .pic{width:160px;height:90px;border-radius:6px;flex:none}
+.mcard b{font-size:16px;display:block}.mcard small{color:var(--fg2);display:block}
+.pill{padding:3px 9px;border-radius:6px;font-weight:700;font-size:12px}
+.pill.pct{background:var(--okbg);color:var(--ok)}.pill.mid{background:var(--warnbg);color:var(--warn)}
+.res{display:flex;gap:12px;align-items:center;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;background:#0A0B0E}
+.res .t{width:72px;height:40px;border-radius:4px;flex:none}
+.res b{display:block}.res small{color:var(--fg2)}
+
+/* details page row */
+.page{position:absolute;inset:0;background:var(--app);padding:0}
+.page .topnav{height:56px;border-bottom:1px solid var(--line);background:var(--shell);display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--fg2)}
+.page .topnav b{color:var(--fg);letter-spacing:.08em}
+.page .hero2{height:220px;background:linear-gradient(100deg,#101115 30%,#2a1a4a 100%);padding:40px 48px;display:flex;flex-direction:column;justify-content:flex-end}
+.page h1{font-size:32px;margin:0 0 4px}
+.page .sec{padding:18px 48px}
+.page .sec h3{font-size:18px;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.page .sec h3 small{color:var(--fg3);font-weight:500;font-size:14px}
+.page .sec h3 a{margin-left:auto;color:var(--accent2);font-size:14px;font-weight:500}
+.cards{display:flex;gap:14px}
+.ecard{width:200px;flex:none}
+.ecard .pic{height:112px;border-radius:8px;background:var(--panel);border:1px solid var(--line2);display:grid;place-items:center}
+.ecard b{display:block;margin-top:6px;font-size:14px}.ecard small{color:var(--fg3)}
+.grp{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);font-weight:700;margin:12px 0 8px}
+.eps{display:flex;gap:14px}
+.ep{width:260px;flex:none}.ep .pic{height:120px;border-radius:8px}.ep b{display:block;margin-top:6px}.ep small{color:var(--fg2)}
+.ep .rel{display:inline-flex;gap:6px;align-items:center;margin-top:6px;color:var(--fg2);font-size:12px;border:1px solid var(--line2);border-radius:6px;padding:3px 8px}
+.ro-note{border:1px solid #3d2d80;background:#160f33;border-radius:8px;padding:12px 14px;color:var(--fg2);display:flex;gap:10px;align-items:center;grid-column:1/-1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div class="intro">
+  <h1>Editor v5: header navigation and supporting files</h1>
+  <p>A revision of the Locked v4 and v4.1 editor. The Contents and Files tabs are gone: you move around a show, a course or an album from the header (home button, Season or folder dropdown, item dropdown), and a folder button at the end of the item list opens the file browser. Supporting files (guides, worksheets, clips, pictures) are items you can edit. Fields are locked until you unlock them. The header background is a gradient made from the cover's own two main colours; there is no banner picture. The footer says where edits go.</p>
+  <p>Every screen is the app's own look (Look pass v2 colours, 44 px controls). Pictures are stand-in colour blocks. Screens are 1440 px wide unless they say otherwise. Numbered markers match the notes under each screen.</p>
+</div>
+<ol class="toc">
+  <li><a href="#a">A. Episode, item dropdown open</a></li>
+  <li><a href="#b">B. Movie (no Season or Episode)</a></li>
+  <li><a href="#c">C. A supporting file in a season</a></li>
+  <li><a href="#d">D. A course: lesson materials</a></li>
+  <li><a href="#e">E. Browse files (238 files)</a></li>
+  <li><a href="#f">F. Edit 2 files together</a></li>
+  <li><a href="#g">G1. Match: the current match first</a></li>
+  <li><a href="#g2">G2. Change match: a movie</a></li>
+  <li><a href="#g3">G3. TV: show, then episode list</a></li>
+  <li><a href="#g4">G4. Music: release, disc and track</a></li>
+  <li><a href="#g5">G5. Wikidata</a></li>
+  <li><a href="#h">H. A Series is read-only</a></li>
+  <li><a href="#i">I. Details page: Extras with groups</a></li>
+  <li><a href="#j">J. Footer states</a></li>
+  <li><a href="#l">L. View: a photo on the same frame</a></li>
+  <li><a href="#m">M. Course end card with homework</a></li>
+  <li><a href="#n">N. Folder picker on the same frame</a></li>
+  <li><a href="#o">O. Editing 12 songs</a></li>
+  <li><a href="#p">P. Editing 40 photos</a></li>
+  <li><a href="#q">Q. Bookmarks tab (administrators): Everyone's definitive set</a></li>
+  <li><a href="#q2">Q2. Bookmarks tab on a show: export and import</a></li>
+  <li><a href="#k">K. Narrow window (1024)</a></li>
+</ol>
+
+<!-- A -->
+<section class="shot" id="a">
+  <h2>A. An episode, item dropdown open</h2>
+  <p class="sub">The Last Signal, Season 2, episode 3. Details tab. Fields are locked until you unlock one.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"><div class="topnav"><b>TUVIMA</b><span>Home</span><span>Watch</span><span>Read</span><span>Listen</span><span>View</span></div></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858">
+        <span class="cover g1"></span>
+        <div class="main">
+          <div class="label">The Last Signal</div><h3>Echoes in the Dark</h3>
+          <div class="facts"><span>Episode 3 · 46 min · 14 Oct 2025</span><span class="chip ok">✓ Matched</span></div>
+          <div class="nav">
+            <span class="home">⌂</span>
+            <div class="sel"><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div>
+            <div class="sel item on"><span class="still g3"></span><div><small>S02E03</small><span class="n">Echoes in the Dark</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title<span class="lk">🔒 Locked</span></label><div class="in locked">Echoes in the Dark</div></div>
+          <div class="f w"><label>Overview<span class="lk">🔓 Unlocked · your value is kept on refresh</span></label><div class="in tall changed">When a forgotten relay begins transmitting again, Mara follows a voice that should no longer exist.<span class="end"><span class="rev">↶ Revert</span></span></div></div>
+          <div class="f"><label>Air date<span class="lk">🔒 Locked</span></label><div class="in locked">14 Oct 2025</div></div>
+          <div class="f"><label>Runtime<span class="lk">🔒 Locked</span></label><div class="in locked">46 min</div></div>
+          <div class="f w"><label>Tags</label><div class="in"><span class="chip">Mystery ✕</span><span class="chip">First contact ✕</span><span class="end">＋</span></div></div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">✓</span><div><b>Matched with TheTVDB</b><small>Episode identity verified</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>1080p · MKV · 1.4 GB</b><small>1 media file · Season 02 / S02E03.mkv</small></div></div>
+          <div class="r"><span class="i">↻</span><div><b>6 Nov 2026</b><small>Last refreshed</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <div class="dd" style="left:440px;top:240px;width:420px">
+      <div class="s">⌕ Find an episode</div>
+      <div class="o"><span class="still g2"></span><div><span class="code">S02E01</span><b>The Quiet Frequency</b></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o"><span class="still g5"></span><div><span class="code">S02E02</span><b>A Voice from Below</b></div><span class="m" style="color:var(--accent2)">● 1 change</span></div>
+      <div class="o on"><span class="still g3"></span><div><span class="code">S02E03</span><b>Echoes in the Dark</b></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o"><span class="still" style="background:#1F2027"></span><div><span class="code">S02E04.mkv</span><b>Not matched</b></div><span class="m" style="color:var(--warn)">⚠</span></div>
+      <div class="note">Showing 4 of 10 · scroll for more</div>
+      <hr>
+      <div class="h">Supporting files · Season 2</div>
+      <div class="o"><span class="fi pdf">PDF</span><div><b>Character guide</b><span class="code">Character guides · 18 pages</span></div></div>
+      <div class="o"><span class="fi vid">▶</span><div><b>Behind the signal</b><span class="code">Production · 12 min</span></div></div>
+      <div class="o plain"><span class="fi" style="background:var(--accentbg);color:var(--accent2)">▣</span><div><b>All supporting files</b><span class="code">12 in this season · 238 in the show</span></div><span class="m">›</span></div>
+      <hr>
+      <div class="o plain"><span class="fi" style="background:#2a2a2e;color:#c8ccd4">▤</span><div><b>Browse files and folders</b><span class="code">The Last Signal / Season 02</span></div><span class="m">›</span></div>
+    </div>
+    <span class="mk" style="left:96px;top:36px">1</span>
+    <span class="mk" style="left:200px;top:40px">2</span>
+    <span class="mk" style="left:210px;top:212px">3</span>
+    <span class="mk" style="left:826px;top:212px">4</span>
+    <span class="mk" style="left:844px;top:572px">5</span>
+    <span class="mk" style="left:844px;top:744px">6</span>
+    <span class="mk" style="left:1026px;top:360px">7</span>
+    <span class="mk" style="left:1260px;top:400px">8</span>
+    <span class="mk" style="left:270px;top:826px">9</span>
+    <span class="mk" style="left:1300px;top:40px">10</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The cover is larger (96 × 144) and is just a picture</b>; it does not navigate. There is no kind label above the title.</span></li>
+    <li><b>2</b><span><b>The show's name is a plain label.</b> No chevron, no link. Under it the item's own title and one line of facts with the match state.</span></li>
+    <li><b>3</b><span><b>The home button, in the accent colour, is the one way back</b> to the root (the show). Nothing else in the header navigates upward.</span></li>
+    <li><b>4</b><span><b>Season and item dropdowns</b> sit on the same row. The item dropdown shows a still, the episode code and the title. Picking one switches the editor; changes staged on other items stay waiting (the purple dot).</span></li>
+    <li><b>5</b><span><b>Supporting files for this season</b> are listed under the episodes, each with its type, group and a fact. Up to 8 appear here; "All supporting files" opens the browser (screen E) when there are more.</span></li>
+    <li><b>6</b><span><b>Browse files and folders</b> is the last row: the folder button that opens the real folder tree for this show, so you can reach any file the Engine found, sorted or not.</span></li>
+    <li><b>7</b><span><b>Locked by default.</b> Every provider-filled field starts locked (dashed, dimmed). Click the lock to edit. An unlocked field you change is kept on every later provider refresh, and shows Revert.</span></li>
+    <li><b>8</b><span><b>Quick facts</b> keep the accent colour: match state, file facts (including where the file is, since there is no Files tab any more) and the last refresh.</span></li>
+    <li><b>9</b><span><b>The footer</b> carries Delete (red, left; always just "Delete": it removes whatever the header shows, so after the home button it removes the whole show with every episode, and the one confirmation says so with counts), then the file status: "File write-back off — Edits save in Tuvima. Original files stay unchanged.", the unsaved count, Discard and Save changes.</span></li>
+    <li><b>10</b><span><b>Tabs are Details, Artwork, Match, History.</b> No Contents, no Files. Provider links and the close X stay top right.</span></li>
+  </ol>
+</section>
+
+<!-- B -->
+<section class="shot" id="b">
+  <h2>B. A movie: no Season or Episode controls</h2>
+  <p class="sub">Dune: Part Two with two supporting files beside it. A movie with no supporting files shows no dropdown at all, only the cover, title and facts.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#8a6a3a;--c2:#4a2a10">
+        <span class="cover g4"></span>
+        <div class="main">
+          <div class="label">Movie</div><h3>Dune: Part Two</h3>
+          <div class="facts"><span>2024 · 2 h 46 min · PG-13</span><span class="chip ok">✓ Matched</span></div>
+          <div class="nav">
+            <div class="sel item on"><span class="still g4"></span><div><small>This movie</small><span class="n">Dune: Part Two</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tm">TM</span>TMDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title<span class="lk">🔒 Locked</span></label><div class="in locked">Dune: Part Two</div></div>
+          <div class="f w"><label>Overview<span class="lk">🔒 Locked</span></label><div class="in tall locked">Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.</div></div>
+          <div class="f"><label>Release date<span class="lk">🔒 Locked</span></label><div class="in locked">1 Mar 2024</div></div>
+          <div class="f"><label>Sort title<span class="lk">🔓 Unlocked</span></label><div class="in">Dune Part Two</div></div>
+          <div class="f w"><label>Tags</label><div class="in"><span class="chip">Sci-fi ✕</span><span class="end">＋</span></div></div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">✓</span><div><b>Matched with TMDB</b><small>Movie 693134</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>2160p · MKV · 38.2 GB</b><small>1 media file · Movies / Dune Part Two (2024)</small></div></div>
+          <div class="r"><span class="i">▣</span><div><b>2 supporting files</b><small>Trailer, Featurette</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    </div>
+    <div class="dd" style="left:218px;top:240px;width:420px">
+      <div class="o on"><span class="still g4"></span><div><span class="code">Movie</span><b>Dune: Part Two</b></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <hr>
+      <div class="h">Supporting files</div>
+      <div class="o"><span class="fi vid">▶</span><div><b>Official trailer</b><span class="code">Trailer · 2 min</span></div></div>
+      <div class="o"><span class="fi vid">▶</span><div><b>The sands of Arrakis</b><span class="code">Featurette · 14 min</span></div></div>
+      <hr>
+      <div class="o plain"><span class="fi" style="background:#2a2a2e;color:#c8ccd4">▤</span><div><b>Browse files and folders</b><span class="code">Movies / Dune Part Two (2024)</span></div><span class="m">›</span></div>
+    </div>
+    <span class="mk" style="left:210px;top:212px">1</span>
+    <span class="mk" style="left:200px;top:40px">2</span>
+    <span class="mk" style="left:1260px;top:470px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>No home button, no Season, no Episode.</b> A movie has no family, so only the item dropdown appears, and only because this movie has supporting files. With none, the header has no controls below the facts.</span></li>
+    <li><b>2</b><span><b>The label says the kind</b> ("Movie") when there is no parent to name. The same rule gives "Book" for a standalone book and "Person" for a person.</span></li>
+    <li><b>3</b><span><b>Quick facts count the supporting files</b> so a glance tells you there are extras to look at.</span></li>
+  </ol>
+</section>
+
+<!-- C -->
+<section class="shot" id="c">
+  <h2>C. A supporting file in a season</h2>
+  <p class="sub">A PDF character guide that sits in Season 2's folder. Tabs: Details, Preview, History.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858">
+        <span class="cover g1"></span>
+        <div class="main">
+          <div class="label">The Last Signal</div><h3>Characters of The Last Signal</h3>
+          <div class="facts"><span>PDF · 18 pages · 2.4 MB</span><span class="chip ac">Supporting file</span></div>
+          <div class="nav">
+            <span class="home">⌂</span>
+            <div class="sel"><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div>
+            <div class="sel item on"><span class="fi pdf" style="width:40px;height:30px">PDF</span><div><small>Character guides</small><span class="n">Characters of The Last Signal</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#4fb3d9">◉</i>Preview</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title</label><div class="in">Characters of The Last Signal</div></div>
+          <div class="f w"><label>Description<span class="lk" style="text-decoration:underline">Suggest details from the document</span></label><div class="in tall changed">Character biographies and relationships through Season 2. Includes spoilers.</div></div>
+          <div class="f"><label>Group</label><div class="in">Character guides<span class="end">▾</span></div></div>
+          <div class="f"><label>Role</label><div class="in">Guide<span class="end">▾</span></div></div>
+          <div class="f w"><label>Belongs to</label><div class="in">Season 2<span class="end">▾</span></div><div class="hint">▤ From its folder location (Season 02 / Documents)</div></div>
+          <div class="f w"><label>Shown alongside <span style="color:var(--fg3);font-weight:500">· optional</span></label><div class="in"><span class="ro">Choose an episode</span><span class="end">▾</span></div><div class="hint">Also listed on that episode's Extras.</div></div>
+          <div class="f w"><label>Tags</label><div class="in"><span class="chip">Spoilers ✕</span><span class="chip">Characters ✕</span><span class="end">＋</span></div></div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">▣</span><div><b>PDF document</b><small>18 pages · 2.4 MB</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>season2-characters.pdf</b><small>Season 02 / Documents</small></div></div>
+          <div class="r"><span class="i">◉</span><div><b>Read-only folder</b><small>The file is read where it is.</small></div></div>
+          <span class="btn">◉ Preview PDF</span>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:200px;top:120px">1</span>
+    <span class="mk" style="left:360px;top:212px">2</span>
+    <span class="mk" style="left:96px;top:324px">3</span>
+    <span class="mk" style="left:600px;top:400px">4</span>
+    <span class="mk" style="left:96px;top:466px">5</span>
+    <span class="mk" style="left:96px;top:560px">6</span>
+    <span class="mk" style="left:96px;top:654px">7</span>
+    <span class="mk" style="left:1260px;top:700px">8</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The same shell for a file.</b> Cover and gradient come from the show. The facts line gives the type, pages and size, and a "Supporting file" chip says what this is.</span></li>
+    <li><b>2</b><span><b>The item dropdown shows the file's group</b> above its title, with a type badge instead of a still. The home button and Season dropdown work as on an episode.</span></li>
+    <li><b>3</b><span><b>Tabs: Details, Preview, History.</b> No Artwork and no Match: a supporting file has no provider and no picture of its own.</span></li>
+    <li><b>4</b><span><b>Suggest details from the document</b> fills Title and Description from the file's own metadata and first page (local only; no provider). Nothing is kept until you save.</span></li>
+    <li><b>5</b><span><b>Group and Role.</b> Group is a dropdown you can type into: this show's groups, or any new name. The Engine also reads a group from a named subfolder (Extras/Character guides). Role is a fixed list that depends on the type: Guide, Worksheet, Transcript, Notes, Booklet for documents; Trailer, Featurette, Behind the scenes, Deleted scene, Interview, Clip for videos; Pictures; Other. The folder and file-name words that set a role are a documented naming scheme (public docs page "Naming supporting files"), so a tidy library needs no editing. Archives, .nfo files, subtitles and other sidecars are never supporting files: they stay hidden, and the Folders and files view lists them greyed as "Not shown in the library".</span></li>
+    <li><b>6</b><span><b>Belongs to</b> is the file's scope: the show, a season or one episode. It was read from the folder (the hint says so); picking another value in the dropdown is the override, and "Use folder location" appears to go back. In a Managed folder a changed Belongs to moves the file into that folder on Save, with the amber footer warning first; in a Read-only folder nothing moves. The scope decides where the file is listed and whose visibility and delete rules it follows.</span></li>
+    <li><b>7</b><span><b>Shown alongside</b> (optional) adds the file to one episode's own Extras without changing where it belongs. Hidden when the scope is already an episode.</span></li>
+    <li><b>8</b><span><b>Quick facts carry the file facts</b> (original file name, folder, read-only) and a Preview button, which opens the Preview tab.</span></li>
+  </ol>
+</section>
+
+<!-- D -->
+<section class="shot" id="d">
+  <h2>D. A course: lesson materials, item dropdown open</h2>
+  <p class="sub">"Build with Blazor" is a folder of videos (a Videos series). Its sections are folders, and the exercise PDF sits next to lesson 02.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#1f6f8a;--c2:#0a2a3a">
+        <span class="cover g8"></span>
+        <div class="main">
+          <div class="label">Build with Blazor</div><h3>Component exercises</h3>
+          <div class="facts"><span>PDF · 12 pages · 840 KB</span><span class="chip ac">Supporting file</span></div>
+          <div class="nav">
+            <span class="home">⌂</span>
+            <div class="sel"><div><small>Section</small><span class="n">02 · Components</span></div><span class="v">▾</span></div>
+            <div class="sel item on"><span class="fi pdf" style="width:40px;height:30px">PDF</span><div><small>Homework</small><span class="n">Component exercises</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#4fb3d9">◉</i>Preview</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title</label><div class="in">Component exercises</div></div>
+          <div class="f w"><label>Description<span class="lk" style="text-decoration:underline">Suggest details from the document</span></label><div class="in tall changed">Build reusable components and practice passing parameters between them.</div></div>
+          <div class="f"><label>Group</label><div class="in">Homework<span class="end">▾</span></div></div>
+          <div class="f"><label>Role</label><div class="in">Worksheet<span class="end">▾</span></div></div>
+          <div class="f w"><label>Belongs to</label><div class="in">02 · Components<span class="end">▾</span></div><div class="hint">▤ From its folder location (02 Components / Practice materials)</div></div>
+          <div class="f w"><label>Shown alongside <span style="color:var(--fg3);font-weight:500">· optional</span></label><div class="in">02 · Passing parameters<span class="end">▾</span></div><div class="hint">Guessed from the file name; listed with that lesson.</div></div>
+          <div class="f w"><label>Tags</label><div class="in"><span class="chip">Practice ✕</span><span class="chip">Components ✕</span><span class="end">＋</span></div></div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">▣</span><div><b>PDF document</b><small>12 pages · 840 KB</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>component-exercises.pdf</b><small>02 Components / Practice materials</small></div></div>
+          <span class="btn">◉ Preview PDF</span>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <div class="dd" style="left:440px;top:240px;width:440px">
+      <div class="h">Videos · 02 · Components</div>
+      <div class="o"><span class="still g9"></span><div><span class="code">01 · 12 min</span><b>Creating a component</b></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o"><span class="still g5"></span><div><span class="code">02 · 18 min</span><b>Passing parameters</b></div></div>
+      <div class="o"><span class="still g8"></span><div><span class="code">03 · 15 min</span><b>Component events</b></div></div>
+      <div class="o plain"><span class="fi" style="background:#2a2a2e;color:#c8ccd4">⇅</span><div><b>Reorder videos</b><span class="code">Drag, or Move up and Move down</span></div><span class="m">›</span></div>
+      <hr>
+      <div class="h">Supporting files · 02 · Components</div>
+      <div class="o on"><span class="fi pdf">PDF</span><div><b>Component exercises</b><span class="code">Homework · with lesson 02</span></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o plain"><span class="fi" style="background:var(--accentbg);color:var(--accent2)">▣</span><div><b>All supporting files</b><span class="code">3 in this section · 29 in the course</span></div><span class="m">›</span></div>
+      <hr>
+      <div class="o plain"><span class="fi" style="background:#2a2a2e;color:#c8ccd4">▤</span><div><b>Browse files and folders</b><span class="code">Build with Blazor / 02 Components</span></div><span class="m">›</span></div>
+    </div>
+    <span class="mk" style="left:360px;top:212px">1</span>
+    <span class="mk" style="left:844px;top:270px">2</span>
+    <span class="mk" style="left:844px;top:500px">3</span>
+    <span class="mk" style="left:96px;top:560px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Course wording.</b> The second dropdown is "Section" (the folder), never "Season", and videos have a number and a length, never "S01E02". The header's gradient is teal because this course's cover is.</span></li>
+    <li><b>2</b><span><b>Videos first, with stills and lengths.</b> The ✓ marks a watched video here, because a course has no provider match. The tick in a TV list means "matched". <b>Reorder videos</b> turns this list into an ordered list with drag handles and Move up / Move down; Done returns. It appears only where the order is yours (a Videos series), never on a show or album, whose order comes from the match.</span></li>
+    <li><b>3</b><span><b>Supporting files of this section</b> follow, grouped under their own heading, then "All supporting files" and the folder button, exactly as on a show.</span></li>
+    <li><b>4</b><span><b>Shown alongside was guessed from the name:</b> "component-exercises" shares its number and words with lesson 02, so the Engine proposed it. It is a proposal, kept only when you save.</span></li>
+  </ol>
+</section>
+
+<!-- E -->
+<section class="shot" id="e">
+  <h2>E. Browse files: a large collection</h2>
+  <p class="sub">Opened from "All supporting files" or the folder button. The Last Signal has 238 supporting files across the show. Search, scope and type filters, groups, ticks and bulk actions.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win" style="filter:brightness(.6)">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858"><span class="cover g1"></span><div class="main"><div class="label">The Last Signal</div><h3>Echoes in the Dark</h3></div></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="big">
+      <div class="bh"><span class="bi">▣</span><div><h3>Supporting files</h3><small>The Last Signal · 238 files across the show</small></div><span class="x">✕</span></div>
+      <div class="filters"><div class="srch">⌕ Search file names, titles or descriptions</div><div class="ddsel">Whole show<span class="v">▾</span></div><div class="ddsel">All types<span class="v">▾</span></div></div>
+      <div class="bb">
+        <div class="side">
+          <h5>Where</h5>
+          <div class="li on">✓ Whole show<span class="c">238</span></div>
+          <div class="li">Show level<span class="c">34</span></div>
+          <div class="li">Season 1<span class="c">96</span></div>
+          <div class="li">Season 2<span class="c">108</span></div>
+          <hr>
+          <h5>Groups</h5>
+          <div class="li">All groups</div>
+          <div class="li">Character guides<span class="c">12</span></div>
+          <div class="li">Production<span class="c">41</span></div>
+          <div class="li">Ungrouped<span class="c">185</span></div>
+          <hr>
+          <div class="li" style="color:var(--accent2)">▤ Folders and files<span class="c">›</span></div>
+        </div>
+        <div class="main2">
+          <div class="cnt">Showing 1–25 of 238</div>
+          <table class="t">
+            <tr><th style="width:36px"><span class="cb"></span></th><th>Name ▴</th><th>Where</th><th>Type</th><th>Group</th><th>Role</th><th style="width:40px"></th></tr>
+            <tr class="picked"><td><span class="cb on"></span></td><td><div class="row"><span class="fi pdf" style="width:36px;height:36px">PDF</span><div><b>Character guide</b><br><small class="ro">season2-characters.pdf</small></div></div></td><td>Season 2</td><td>PDF</td><td>Character guides</td><td>Guide</td><td>…</td></tr>
+            <tr class="picked"><td><span class="cb on"></span></td><td><div class="row"><span class="fi pdf" style="width:36px;height:36px">PDF</span><div><b>Episode notes</b><br><small class="ro">episode-notes-s2.pdf</small></div></div></td><td>Season 2</td><td>PDF</td><td>Production</td><td>Notes</td><td>…</td></tr>
+            <tr><td><span class="cb"></span></td><td><div class="row"><span class="fi img" style="width:36px;height:36px">IMG</span><div><b>Observatory map.jpg</b><br><small class="ro">no title yet</small></div></div></td><td>Season 2</td><td>Image</td><td class="ro">Ungrouped</td><td>Pictures</td><td>…</td></tr>
+            <tr><td><span class="cb"></span></td><td><div class="row"><span class="th g2" style="width:64px;height:36px"></span><div><b>Behind the signal</b><br><small class="ro">behind-the-signal.mkv · 12 min</small></div></div></td><td>Season 2</td><td>Video</td><td>Production</td><td>Featurette</td><td>…</td></tr>
+            <tr><td><span class="cb"></span></td><td><div class="row"><span class="fi txt" style="width:36px;height:36px">TXT</span><div><b>season1-notes.txt</b><br><small class="ro">no title yet</small></div></div></td><td>Season 1</td><td>Text</td><td class="ro">Ungrouped</td><td>Notes</td><td>…</td></tr>
+            <tr><td><span class="cb"></span></td><td><div class="row"><span class="fi pdf" style="width:36px;height:36px">PDF</span><div><b>Production workbook</b><br><small class="ro">workbook.pdf</small></div></div></td><td>Show level</td><td>PDF</td><td>Production</td><td>Worksheet</td><td>…</td></tr>
+          </table>
+          <div class="bulk"><b>2 selected</b><span class="btn sm">Set group ▾</span><span class="btn sm">Set role ▾</span><span class="btn sm">Belongs to ▾</span><span class="btn sm">Add tags</span><span class="btn sm d">Delete</span></div>
+        </div>
+      </div>
+      <div class="bf"><span>Ungrouped files are still shown on the show's page; grouping only tidies them.</span><div class="pg"><span class="pgb">‹</span><span>1 of 10</span><span class="pgb">›</span><span class="btn">Close</span><span class="btn p">Edit selected</span></div></div>
+    </div>
+    <span class="mk" style="left:140px;top:70px">1</span>
+    <span class="mk" style="left:1040px;top:160px">2</span>
+    <span class="mk" style="left:140px;top:260px">3</span>
+    <span class="mk" style="left:140px;top:650px">4</span>
+    <span class="mk" style="left:456px;top:724px">5</span>
+    <span class="mk" style="left:1310px;top:798px">6</span>
+    <span class="mk" style="left:1390px;top:290px">7</span>
+    <span class="mk" style="left:130px;top:60px">8</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>One window for the whole show.</b> It opens over the editor and lists every supporting file the Engine found under the show, whatever folder it sits in.</span></li>
+    <li><b>2</b><span><b>Search and two filters.</b> Search covers file names, titles and descriptions. "Where" scopes to the show level, a season or an episode; "All types" filters to documents, videos, pictures, audio, text or archives.</span></li>
+    <li><b>3</b><span><b>The left list mirrors the filters</b> with counts, and lists the groups you have named. "Ungrouped" is a real state, not an error: those files still show on the page.</span></li>
+    <li><b>4</b><span><b>Folders and files</b> switches the same window to the real folder tree (what the folder button opens): every file, including ones that are episodes or ignored, with "What is this file?" on each.</span></li>
+    <li><b>5</b><span><b>Bulk actions on ticked rows</b> (Set group, Set role, Belongs to, Add tags) stage changes in the editor's session; Delete asks once and happens at once, like everywhere.</span></li>
+    <li><b>6</b><span><b>Edit selected</b> opens the editor as "Editing 2 files" (screen F) with only the fields they share. Close returns to the item you were on.</span></li>
+    <li><b>7</b><span><b>Each row's "…"</b> offers Open, Edit, What is this file? and Delete.</span></li>
+    <li><b>8</b><span><b>Same frame as the folder picker.</b> This window and the folder picker in Settings (add a library folder, a View folder, an import folder) become one shared frame: the left list, the search and toolbar, the row list and the footer. The folder picker keeps its rules (click opens a folder, the path bar is the selection, folders only) and takes this look.</span></li>
+  </ol>
+</section>
+
+<!-- F -->
+<section class="shot" id="f">
+  <h2>F. Editing two files together</h2>
+  <p class="sub">After Edit selected. Only shared fields are offered; differing values say "Mixed".</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858">
+        <span class="cover g1"></span>
+        <div class="main">
+          <div class="label">The Last Signal</div><h3>Editing 2 files</h3>
+          <div class="facts"><span class="fi pdf" style="width:28px;height:20px">PDF</span><span>Character guide</span><span>·</span><span class="fi pdf" style="width:28px;height:20px">PDF</span><span>Episode notes</span></div>
+          <div class="nav"><span class="home">⌂</span><span class="btn sm">‹ Back to the list</span></div>
+        </div>
+        <div class="links"><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f"><label>Group</label><div class="in"><span class="ro">Mixed · leave unchanged</span><span class="end">▾</span></div></div>
+          <div class="f"><label>Role</label><div class="in"><span class="ro">Mixed · leave unchanged</span><span class="end">▾</span></div></div>
+          <div class="f w"><label>Belongs to</label><div class="in">Season 2<span class="end">▾</span></div><div class="hint">Both from their folder location.</div></div>
+          <div class="f w"><label>Shown alongside <span style="color:var(--fg3);font-weight:500">· optional</span></label><div class="in"><span class="ro">Choose an episode</span><span class="end">▾</span></div></div>
+          <div class="f w"><label>Add tags</label><div class="in"><span class="chip">Season 2 ✕</span><span class="end">＋</span></div></div>
+          <div class="ro-note">ⓘ Title and Description are not offered for several files: each file keeps its own.</div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">▣</span><div><b>2 PDF documents</b><small>26 pages · 3.1 MB</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>Season 02 / Documents</b><small>Same folder</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">1 unsaved change · 2 files</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:200px;top:40px">1</span>
+    <span class="mk" style="left:96px;top:300px">2</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The same window, titled by the count.</b> Home still goes to the show. "Back to the list" returns to the browser with the ticks kept.</span></li>
+    <li><b>2</b><span><b>Shared fields only</b> (the v4 rule): Group, Role, Belongs to, Shown alongside, tags. Review lists each file before saving.</span></li>
+  </ol>
+</section>
+
+<!-- G -->
+<section class="shot" id="g">
+  <h2>G1. Match tab: an item that is matched (Media providers)</h2>
+  <p class="sub">Fixes bugs 24 and 25. The tab opens on what the item is matched to, found by its provider ID, with a Why table. No search runs until you ask.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#8a6a3a;--c2:#4a2a10">
+        <span class="cover g4"></span>
+        <div class="main">
+          <div class="label">Movie</div><h3>The Glass Harbor</h3>
+          <div class="facts"><span>2023 · 1 h 47 min</span><span class="chip ok">✓ Matched</span></div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tm">TM</span>TMDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:10px;padding-top:14px">
+        <div class="frow"><div class="f" style="width:240px"><label>Provider</label><div class="in"><span class="logo l-tm">TM</span>TMDB <span class="ro" style="margin-left:6px">· Ready</span><span class="end">▾</span></div></div><div class="f" style="flex:1"><label>Your file</label><div class="hint" style="height:44px;font-size:13px">The.Glass.Harbor.2023.1080p.H264.ATMOS.mkv</div></div><div class="f"><label>&nbsp;</label><div class="seg"><span class="on">Media providers</span><span>Wikidata</span></div></div></div>
+        <div class="card" style="border-color:var(--accent)">
+          <div class="mcard"><span class="pic g4" style="width:64px;height:96px"></span><div style="flex:1"><div class="row"><span style="color:var(--fg2);font-weight:600">Current match</span><span class="chip ok">Matched</span></div><b style="font-size:18px">The Glass Harbor</b><small>2023 · Film · Directed by Elena Voss</small><small>TMDB · 693134</small><small style="margin-top:6px;color:var(--accent2);text-decoration:underline">Open source ↗</small></div><div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><span class="btn" style="border-color:var(--accent)">⌕ Change match</span><span style="color:var(--fg3);text-decoration:underline">Remove match</span></div></div>
+        </div>
+        <div class="card"><h4>Why this match <span class="chip ok">Strong match</span></h4>
+          <table class="t">
+            <tr><th style="width:160px">Field</th><th>Your file</th><th>Matched record</th><th style="width:40px"></th></tr>
+            <tr><td><b>Title</b></td><td>The Glass Harbor</td><td>The Glass Harbor</td><td style="color:var(--ok)">✓</td></tr>
+            <tr><td><b>Year</b></td><td>2023</td><td>2023</td><td style="color:var(--ok)">✓</td></tr>
+            <tr><td><b>Runtime</b><br><small class="ro">Runtime consistent</small></td><td>1:47:52 <small class="ro">measured</small></td><td>108 min <small class="ro">(rounded)</small></td><td style="color:var(--ok)">✓</td></tr>
+                      </table>
+          <div class="hint" style="margin-top:8px">Director: not in your file, so not checked. Changing the match updates unlocked metadata; locked fields stay unchanged.</div>
+        </div>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:1088px;top:300px">1</span>
+    <span class="mk" style="left:96px;top:318px">2</span>
+    <span class="mk" style="left:1140px;top:418px">3</span>
+    <span class="mk" style="left:96px;top:548px">4</span>
+    <span class="mk" style="left:700px;top:700px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Two sides, one row, one grid.</b> Every control in the row sits on the same two lines: a label line and a 44-pixel control line, so the switch, the search button and the fields share one baseline and one bottom edge (the row rule is Look v3's, consumed here). The provider dropdown sits on the left and the Media providers · Wikidata switch on the right of the same row, so no height is spent on it; choosing Wikidata simply removes the provider dropdown. The two sides stay separate and independent, and you match only the item selected in the header.</span></li>
+    <li><b>2</b><span><b>One provider dropdown</b>, the default first, each with its state (Ready, Needs a key, Off). The original file name sits beside it as muted text.</span></li>
+    <li><b>3</b><span><b>The current match stays until a replacement is applied.</b> Open source, Change match and Remove match are the only actions. It is found by its ID, so it can never say "Nothing called …" about its own title.</span></li>
+    <li><b>4</b><span><b>Why this match</b> compares your file with the matched record, one row per fact, with Strong, Possible or Check as the verdict and a short reason.</span></li>
+    <li><b>5</b><span><b>Measured versus rounded.</b> Your file's duration is measured; the provider's runtime is rounded, and the two are judged consistent within two minutes. A fact with no local evidence (Director) is shown as not checked, never counted against the match.</span></li>
+  </ol>
+</section>
+
+<section class="shot" id="g2">
+  <h2>G2. Change match: a movie</h2>
+  <p class="sub">The search replaces the current-match card in place: search → results → selection → apply.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#8a6a3a;--c2:#4a2a10"><span class="cover g4"></span><div class="main"><div class="label">Movie</div><h3>The Glass Harbor</h3><div class="facts"><span>2023 · 1 h 47 min</span><span class="chip ok">✓ Matched</span></div></div><div class="links"><span class="lnk"><span class="logo l-tm">TM</span>TMDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:12px">
+        <div><b style="font-size:16px">Match movie</b> <span class="ro" style="margin-left:10px">Your file: The Glass Harbor · 2023 · 1:47:52</span><div class="hint">The.Glass.Harbor.2023.1080p.H264.ATMOS.mkv</div></div>
+        <div class="frow"><div class="f" style="width:180px"><label>Provider</label><div class="in"><span class="logo l-tm">TM</span>TMDB<span class="end">▾</span></div></div><div class="f" style="flex:1"><label>Title</label><div class="in">The Glass Harbor</div></div><div class="f" style="width:110px"><label>Year <span class="ro" style="font-weight:400">optional</span></label><div class="in">2023</div></div><div class="f"><label>&nbsp;</label><span class="btn p ico" title="Search">⌕</span></div><span class="sp"></span><div class="f"><label>&nbsp;</label><div class="seg"><span class="on">Media providers</span><span>Wikidata</span></div></div></div>
+        <div class="row" style="gap:16px;align-items:flex-start">
+          <div style="flex:1;display:grid;gap:8px">
+            <div class="res" style="border-color:var(--accent);background:#1d1640"><span class="t g4" style="width:52px;height:78px"></span><div style="flex:1"><b>The Glass Harbor</b><small>2023 · 108 min · Elena Voss</small></div><span style="color:var(--ok)">✓</span></div>
+            <div class="res"><span class="t g7" style="width:52px;height:78px"></span><div style="flex:1"><b>The Glass Harbor</b><small>2011 · 96 min · Marcus Reed</small></div></div>
+                      </div>
+          <div class="card" style="width:520px;display:flex;gap:16px"><span class="th g4" style="width:150px;height:225px"></span><div><b style="font-size:20px;display:block">The Glass Harbor</b><small class="ro">Film · 2023 · Elena Voss</small><p style="color:var(--fg2);margin:10px 0">A harbor engineer discovers a submerged city beneath her hometown.</p><span style="color:var(--accent2);text-decoration:underline">Open source ↗</span></div></div>
+        </div>
+        <div class="card" style="padding:10px 16px"><div class="row" style="gap:18px"><span class="chip ok">✓ Strong match</span><span>✓ Title matches</span><span>✓ Year matches</span><span>✓ Runtime consistent</span><span class="ro" style="margin-left:auto">Your file: 1:47:52 measured · Provider: 108 min (rounded)</span></div></div>
+        <div class="row" style="justify-content:flex-end;gap:10px"><span class="btn">Cancel</span><span class="btn p">Apply match</span></div>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:96px;top:296px">1</span>
+    <span class="mk" style="left:96px;top:376px">2</span>
+    <span class="mk" style="left:96px;top:450px">3</span>
+    <span class="mk" style="left:96px;top:714px">4</span>
+    <span class="mk" style="left:1300px;top:770px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Clean, editable values</b> pre-filled from the file name (noise such as 1080p, H264 and ATMOS stripped), embedded tags and folder hints. The original file name stays visible, muted.</span></li>
+    <li><b>2</b><span><b>Fields suit the kind.</b> A book gets Title, Author and ISBN; a comic Series, Issue and Year; music Artist, Album and Song. A search runs on Search or a changed field, never on opening.</span></li>
+    <li><b>3</b><span><b>Results and a preview.</b> The selected row's picture, kind, year, creator and description on the right, with Open source. For books, comics and audiobooks, picking a work then lists its editions or releases.</span></li>
+    <li><b>4</b><span><b>The verdict</b> (Strong, Possible or Check) with its reasons, and the measured-versus-rounded line.</span></li>
+    <li><b>5</b><span><b>Apply match is always enabled</b>, even on a Check match. It stages the change; Save changes commits it through the usual Review (Q8). Cancel returns to the current match.</span></li>
+  </ol>
+</section>
+
+<section class="shot" id="g3">
+  <h2>G3. TV: the show first, then a text list of episodes</h2>
+  <p class="sub">An episode whose file sits in the wrong folder. Change show works regardless of the folder; in a Managed folder the file moves on Save.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858"><span class="cover g1"></span><div class="main"><div class="label">The Last Signal</div><h3>Echoes in the Dark</h3><div class="facts"><span>Episode 3 · 46 min</span><span class="chip ok">✓ Matched</span></div><div class="nav"><span class="home">⌂</span><div class="sel"><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div><div class="sel item on"><span class="still g3"></span><div><small>S02E03</small><span class="n">Echoes in the Dark</span></div><span class="v">▾</span></div></div></div><div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="x">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:10px;padding-top:14px">
+        <div class="frow"><div class="f" style="width:180px"><label>Provider</label><div class="in"><span class="logo l-tv">TV</span>TheTVDB<span class="end">▾</span></div></div><div class="f" style="flex:1"><label>Show</label><div class="in">The Last Signal</div></div><div class="f" style="width:110px"><label>Year <span class="ro" style="font-weight:400">optional</span></label><div class="in">2024</div></div><div class="f"><label>&nbsp;</label><span class="btn p ico" title="Search">⌕</span></div><span class="sp"></span><div class="f"><label>&nbsp;</label><div class="seg"><span class="on">Media providers</span><span>Wikidata</span></div></div></div>
+        <div class="card" style="padding:10px 14px"><div class="mcard"><span class="pic g1" style="width:64px;height:96px"></span><div style="flex:1"><b>The Last Signal</b><small>2024 · Science fiction · 2 seasons</small><small>A remote observatory receives a transmission that should not exist.</small></div><span style="color:var(--accent2);text-decoration:underline">Change show</span></div></div>
+        <div class="row" style="gap:14px"><b style="font-size:16px">Choose an episode</b><div class="in" style="height:40px;width:180px">Season 2<span class="end">▾</span></div><span class="ro" style="font-style:italic">Suggested from filename: S02E03</span></div>
+        <table class="t" style="font-size:14px">
+          <tr><th style="width:110px">Episode</th><th>Title</th><th style="width:150px">Air date</th><th style="width:110px">Runtime</th><th style="width:40px"></th></tr>
+                    <tr><td>S02E02</td><td>A Voice from Below</td><td>7 Oct 2025</td><td>47 min</td><td></td></tr>
+          <tr class="picked"><td>S02E03</td><td>Echoes in the Dark</td><td>14 Oct 2025</td><td>46 min</td><td style="color:var(--ok)">✓</td></tr>
+                  </table>
+        <div class="row" style="gap:18px"><span class="chip ok">✓ Strong match</span><span>✓ Episode number matches</span><span>✓ Title matches</span><span>✓ Runtime consistent</span><span class="ro" style="margin-left:auto">Your file: 45:52 measured · Provider: 46 min (rounded)</span></div>
+        <div class="row" style="justify-content:flex-end;gap:10px;margin-top:auto"><span class="btn">Cancel</span><span class="btn p">Apply match</span></div>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where warn"><span style="color:var(--warn)">⚠</span><div><b>This file will move when you save</b><small>Managed folder · Other Show / S02E03.mkv → The Last Signal / Season 02 / S02E03 · Echoes in the Dark.mkv</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:96px;top:420px">1</span>
+    <span class="mk" style="left:1190px;top:440px">2</span>
+    <span class="mk" style="left:96px;top:530px">3</span>
+    <span class="mk" style="left:96px;top:690px">4</span>
+    <span class="mk" style="left:270px;top:826px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The show first.</b> After the show search the matched show is a compact card. No "connected show" panel and no source-information section.</span></li>
+    <li><b>2</b><span><b>Change show</b> works even when the file sits in another show's folder; the match wins over the folder on every later scan.</span></li>
+    <li><b>3</b><span><b>A text list, not tiles:</b> number, title, air date and runtime, with the Season dropdown above. The episode read from the file name is pre-selected and labelled as a suggestion.</span></li>
+    <li><b>4</b><span><b>The verdict and its reasons</b>, measured against rounded. Any selected episode can be applied.</span></li>
+    <li><b>5</b><span><b>The footer turns amber</b> when the applied match will move the file (Managed folder only; a Read-only folder never moves anything).</span></li>
+  </ol>
+</section>
+
+<section class="shot" id="g4">
+  <h2>G4. Music: release, then disc and track, with a membership preview</h2>
+  <p class="sub">A song matched to a track on a different album. The preview says what moves before you apply.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#2c7a6a;--c2:#0e2a24"><span class="cover g9" style="width:120px;height:120px"></span><div class="main"><div class="label">Northern Lights · Mara Lindqvist</div><h3>Harbor Lights</h3><div class="facts"><span>Track 4 · 4:12</span><span class="chip ok">✓ Matched</span></div><div class="nav"><span class="home">⌂</span><div class="sel item on"><span class="ico" style="background:#12351f;color:#4ade80">♪</span><div><small>Track 4</small><span class="n">Harbor Lights</span></div><span class="v">▾</span></div></div></div><div class="links"><span class="lnk"><span class="logo l-mb">MB</span>MusicBrainz ↗</span><span class="x">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:10px;padding-top:14px">
+        <div class="frow"><div class="f" style="width:170px"><label>Provider</label><div class="in"><span class="logo l-mb">MB</span>MusicBrainz<span class="end">▾</span></div></div><div class="f" style="flex:1"><label>Artist</label><div class="in">Mara Lindqvist</div></div><div class="f" style="flex:1"><label>Album</label><div class="in">Harbor Lights (Live)</div></div><div class="f" style="flex:1"><label>Song</label><div class="in">Harbor Lights</div></div><div class="f"><label>&nbsp;</label><span class="btn p ico" title="Search">⌕</span></div><span class="sp"></span><div class="f"><label>&nbsp;</label><div class="seg"><span class="on">Media providers</span><span>Wikidata</span></div></div></div>
+        <div class="row" style="gap:16px;align-items:flex-start">
+          <div style="width:420px;display:grid;gap:6px"><div class="hint">Albums and releases</div>
+            <div class="res" style="padding:6px 10px"><span class="t g9" style="width:40px;height:40px"></span><div style="flex:1"><b>Northern Lights</b><small>2021 · CD · 12 tracks · Nordic Records</small></div><small class="ro">current</small></div>
+            <div class="res" style="padding:6px 10px;border-color:var(--accent);background:#1d1640"><span class="t g5" style="width:40px;height:40px"></span><div style="flex:1"><b>Harbor Lights (Live at Bergen)</b><small>2023 · 2 × CD · 18 tracks · Nordic Records</small></div><span style="color:var(--ok)">✓</span></div>
+            <div class="res" style="padding:6px 10px"><span class="t g2" style="width:40px;height:40px"></span><div style="flex:1"><b>Northern Lights (Remastered)</b><small>2024 · Digital · 12 tracks</small></div></div>
+          </div>
+          <div style="flex:1"><div class="hint">Disc 1 · Disc 2 of Harbor Lights (Live at Bergen)</div>
+            <table class="t"><tr><th style="width:60px">#</th><th>Track</th><th style="width:170px">Recording</th><th style="width:80px">Length</th><th style="width:30px"></th></tr>
+                            <tr class="picked"><td>1·7</td><td>Harbor Lights</td><td class="ro">live, 2023</td><td>4:14</td><td style="color:var(--ok)">✓</td></tr>
+              <tr><td>1·8</td><td>Harbor Lights (radio edit)</td><td class="ro">edit</td><td>3:30</td><td></td></tr>
+              <tr><td>2·1</td><td>Harbor Lights</td><td class="ro">original, remastered</td><td>4:12</td><td></td></tr>
+            </table></div>
+        </div>
+        <div class="card" style="padding:10px 16px;border-color:#5a4a1a;background:#2a200c"><div class="row" style="gap:12px"><span style="color:var(--warn)">⚠</span><div><b>This song moves to another album.</b> <span style="color:var(--fg2)">From <i>Northern Lights</i>, track 4 → <i>Harbor Lights (Live at Bergen)</i>, disc 1 track 7. Its album, artist and cover follow; the Northern Lights album keeps 11 tracks.</span></div></div></div>
+        <div class="row" style="gap:18px"><span class="chip warn">Possible match</span><span>✓ Title matches</span><span>✓ Artist matches</span><span style="color:var(--warn)">✕ Length differs by 2 s (live recording)</span><span class="ro" style="margin-left:auto">Your file: 4:12 measured · Provider: 4:14</span></div>
+        <div class="row" style="justify-content:flex-end;gap:10px;margin-top:auto"><span class="btn">Cancel</span><span class="btn p">Apply match</span></div>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:80px;top:430px">1</span>
+    <span class="mk" style="left:526px;top:430px">2</span>
+    <span class="mk" style="left:96px;top:588px">3</span>
+    <span class="mk" style="left:80px;top:660px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Albums and releases first</b> (year, format, track count, label), the current one marked, the release whose track count and lengths fit the files suggested.</span></li>
+    <li><b>2</b><span><b>Discs and tracks</b> of the chosen release, each row saying which recording it is: original, remastered, live or an edit, so the right one can be told apart. The track whose number, title and measured length fit is pre-selected.</span></li>
+    <li><b>3</b><span><b>The membership preview</b> appears only when the track belongs to a different album than the song's current one: what moves, where, and what the old album keeps.</span></li>
+    <li><b>4</b><span><b>Possible match</b>, with the reason. Apply is still available.</span></li>
+  </ol>
+</section>
+
+<section class="shot" id="g5">
+  <h2>G5. Wikidata: text-only results, direct item versus parent</h2>
+  <p class="sub">The canonical identity for an episode. The show appears in the results, marked as the parent, and cannot be applied as the episode's identity.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858"><span class="cover g1"></span><div class="main"><div class="label">The Last Signal</div><h3>Echoes in the Dark</h3><div class="facts"><span>Episode 3 · 46 min</span><span class="chip ok">✓ Matched</span></div><div class="nav"><span class="home">⌂</span><div class="sel"><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div><div class="sel item on"><span class="still g3"></span><div><small>S02E03</small><span class="n">Echoes in the Dark</span></div><span class="v">▾</span></div></div></div><div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="x">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:10px;padding-top:14px">
+        <div class="frow"><div class="f" style="flex:2"><label>Search Wikidata</label><div class="in">Echoes in the Dark Last Signal</div></div><div class="f" style="flex:1"><label>Or paste a Wikidata link or QID</label><div class="in"><span class="ro">Q…</span></div></div><div class="f"><label>&nbsp;</label><span class="btn p ico" title="Search">⌕</span></div><span class="sp"></span><div class="f"><label>&nbsp;</label><div class="seg"><span>Media providers</span><span class="on">Wikidata</span></div></div></div>
+        <div class="card" style="padding:10px 14px"><div class="row"><span class="logo l-wd">W</span><div style="flex:1"><b>Wikidata identity · </b><span class="ro">Not linked yet</span><br><small class="ro">The TheTVDB match is kept separately. Linking here never changes it.</small></div></div></div>
+        <table class="t" style="font-size:14px">
+          <tr><th>Label</th><th>Description</th><th style="width:170px">Type</th><th style="width:110px">QID</th><th style="width:40px"></th></tr>
+          <tr class="picked"><td><b>Echoes in the Dark</b></td><td>episode of The Last Signal (S2 E3), 2025</td><td>television episode</td><td>Q13999201</td><td style="color:var(--ok)">✓</td></tr>
+          <tr><td><b>The Last Signal</b> <span class="chip" style="font-size:11px;padding:1px 6px">Parent · the show, not this episode</span></td><td>American science fiction series, 2024</td><td>television series</td><td>Q13990020</td><td class="ro">–</td></tr>
+          <tr><td><b>Echoes in the Dark</b></td><td>2019 novel by R. Hale</td><td>written work</td><td>Q78811002</td><td></td></tr>
+        </table>
+        <div class="card" style="padding:10px 16px"><div class="row" style="gap:18px"><b>Alignment evidence</b><span>✓ TheTVDB episode ID 10482291 on both</span><span>✓ Title</span><span>✓ Air date 2025</span><span class="ro">– Director not checked</span></div></div>
+        <div class="row" style="justify-content:flex-end;gap:10px;margin-top:auto"><span class="btn">Cancel</span><span class="btn p">Apply identity</span></div>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:96px;top:366px">1</span>
+    <span class="mk" style="left:900px;top:304px">2</span>
+    <span class="mk" style="left:96px;top:466px">3</span>
+    <span class="mk" style="left:96px;top:518px">4</span>
+    <span class="mk" style="left:96px;top:626px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Independent of the provider match.</b> The card says so; after either side changes, one amber line flags a disagreement (different year, different title) and never fixes it silently.</span></li>
+    <li><b>2</b><span><b>Direct entry:</b> paste a Wikidata link or a QID to skip the search.</span></li>
+    <li><b>3</b><span><b>Text-only results:</b> label, description, entity type, QID and a distinguishing fact. No pictures.</span></li>
+    <li><b>4</b><span><b>Parent versus direct.</b> The show is listed for context, marked as the parent, and cannot be applied as this episode's identity.</span></li>
+    <li><b>5</b><span><b>Alignment evidence</b> from identifiers both sides know, title, year and creator; unknown facts say "not checked".</span></li>
+  </ol>
+</section>
+
+<!-- H -->
+<section class="shot" id="h">
+  <h2>H. A Series is read-only</h2>
+  <p class="sub">Edit on the Dune book series. The Series is a canonical grouping; you can look and move to a book, but nothing on the Series itself can change.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#8a6a3a;--c2:#3a2a10">
+        <span class="cover g7"></span>
+        <div class="main">
+          <div class="label">Series</div><h3>Dune Novels</h3>
+          <div class="facts"><span>6 books · 4 in your library</span><span class="chip">Canonical series</span></div>
+          <div class="nav"><span class="home" style="border-color:var(--accent)">⌂</span><div class="sel item"><span class="fi" style="width:40px;height:30px;background:#2a2a2e;color:#c8ccd4">▤</span><div><small>Book</small><span class="n ro">Choose a book</span></div><span class="v">▾</span></div></div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="ro-note">🔒 A Series is a canonical grouping and is never edited. To change a book's title, cover or match, pick it from the Book dropdown. The series name, order and membership come from the books' own matches.</div>
+          <div class="f w"><label>Name</label><div class="in locked">Dune Novels</div></div>
+          <div class="f w"><label>Books in order</label><div class="in tall locked" style="height:auto;padding:10px 12px;display:block;line-height:1.8">1 · Dune (1965) ✓ &nbsp; 2 · Dune Messiah (1969) ✓ &nbsp; 3 · Children of Dune (1976) · not in your library<br>4 · God Emperor of Dune (1981) ✓ &nbsp; 5 · Heretics of Dune (1984) · not in your library &nbsp; 6 · Chapterhouse: Dune (1985) ✓</div></div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">▣</span><div><b>4 of 6 books</b><small>In your library</small></div></div>
+          <div class="r"><span class="i">◎</span><div><b>Universe: Dune</b><small>Open the Universe for overrides</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d faint">🗑 Delete</span><div class="where"><span>🔒</span><div><b>Read-only</b><small>Series come from the books' matches.</small></div></div><span class="cnt"></span><span class="btn">Close</span></div>
+    </div>
+    <span class="mk" style="left:96px;top:300px">1</span>
+    <span class="mk" style="left:210px;top:212px">2</span>
+    <span class="mk" style="left:1260px;top:420px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>A notice says why nothing can be edited</b>, and what to do instead. The fields are shown locked with no way to unlock them. There is no Artwork tab: a Series uses the automatic stack of its books' covers.</span></li>
+    <li><b>2</b><span><b>The dropdown is the way to a book.</b> Home is highlighted because the Series is the root you are on.</span></li>
+    <li><b>3</b><span><b>A Universe is different:</b> it is mostly read-only but can take added details and overrides (a description override, extra pictures), so its Details tab unlocks for those fields only.</span></li>
+  </ol>
+</section>
+
+<!-- I -->
+<section class="shot" id="i">
+  <h2>I. The details page: Extras with groups</h2>
+  <p class="sub">The show page, under the episodes. Supporting files appear here under the name "Extras", grouped by the groups you named, with a "See all" when there are many.</p>
+  <div class="frame"><div class="vp">
+    <div class="page">
+      <div class="topnav"><b>TUVIMA</b><span>Home</span><span>Watch</span><span>Read</span><span>Listen</span><span>View</span></div>
+      <div class="hero2"><div class="label" style="color:var(--fg2)">TV show · 2 seasons</div><h1>The Last Signal</h1><div class="row"><span class="btn p" style="width:220px;justify-content:center">▶ Resume S02E03</span><span class="btn">＋ My List</span><span class="btn">👍</span><span class="btn">✎ Edit</span><span class="btn">…</span></div></div>
+      <div class="sec"><h3>Season 2 <small>· 10 episodes</small></h3>
+        <div class="eps">
+          <div class="ep"><span class="pic g2" style="display:block"></span><b>1 · The Quiet Frequency</b><small>44 min</small></div>
+          <div class="ep"><span class="pic g5" style="display:block"></span><b>2 · A Voice from Below</b><small>47 min</small></div>
+          <div class="ep"><span class="pic g3" style="display:block"></span><b>3 · Echoes in the Dark</b><small>46 min</small><br><span class="rel">▣ Character guide · PDF</span></div>
+          <div class="ep"><span class="pic g6" style="display:block"></span><b>4 · The Long Night</b><small>45 min</small></div>
+          <div class="ep"><span class="pic g4" style="display:block"></span><b>5 · Array</b><small>43 min</small></div>
+        </div>
+      </div>
+      <div class="sec"><h3>Extras <small>· 238</small><a>See all 238 ›</a></h3>
+        <div class="grp">Character guides · 12</div>
+        <div class="cards">
+          <div class="ecard"><div class="pic"><span class="fi pdf" style="width:44px;height:44px">PDF</span></div><b>Characters of The Last Signal</b><small>PDF · 18 pages</small></div>
+          <div class="ecard"><div class="pic"><span class="fi pdf" style="width:44px;height:44px">PDF</span></div><b>Season 1 cast guide</b><small>PDF · 9 pages</small></div>
+          <div class="ecard"><div class="pic"><span class="fi pdf" style="width:44px;height:44px">PDF</span></div><b>Relationship map</b><small>PDF · 2 pages</small></div>
+        </div>
+        <div class="grp">Production · 41</div>
+        <div class="cards">
+          <div class="ecard"><div class="pic g2"></div><b>Behind the signal</b><small>Featurette · 12 min</small></div>
+          <div class="ecard"><div class="pic g5"></div><b>Building the array</b><small>Featurette · 9 min</small></div>
+          <div class="ecard"><div class="pic"><span class="fi pdf" style="width:44px;height:44px">PDF</span></div><b>Production workbook</b><small>PDF · 60 pages</small></div>
+          <div class="ecard"><div class="pic"><span class="fi img" style="width:44px;height:44px">IMG</span></div><b>Concept art</b><small>24 pictures</small></div>
+        </div>
+      </div>
+    </div>
+    <span class="mk" style="left:30px;top:548px">1</span>
+    <span class="mk" style="left:760px;top:508px">2</span>
+    <span class="mk" style="left:1300px;top:548px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Extras, grouped by your groups.</b> Each group shows a short row of cards; a file with no group goes under "More"; a show with only a handful of files shows one plain row with no group headings, as today.</span></li>
+    <li><b>2</b><span><b>Shown alongside an episode:</b> a small chip on the episode card opens the file. On a course the same chip reads "Worksheet · PDF" under the lesson.</span></li>
+    <li><b>3</b><span><b>See all</b> opens the same list as screen E, read-only (search, Where and type filters, groups), so a 238-file show stays readable. The main Search box also finds supporting files by title and description.</span></li>
+  </ol>
+</section>
+
+<!-- J -->
+<section class="shot" id="j">
+  <h2>J. Footer states</h2>
+  <p class="sub">The one footer, in its three states. Delete stays left; Discard and Save changes stay right.</p>
+  <div class="frame"><div style="width:1440px;padding:20px;display:grid;gap:14px">
+    <div class="foot" style="border:1px solid var(--line2);border-radius:10px"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    <div class="foot" style="border:1px solid var(--line2);border-radius:10px"><span class="btn d">🗑 Delete</span><div class="where"><span>🔓</span><div><b>File write-back on</b><small>Edits save in Tuvima and are written into the file's own tags.</small></div></div><span class="cnt">3 unsaved changes</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    <div class="foot" style="border:1px solid var(--line2);border-radius:10px"><span class="btn d">🗑 Delete</span><div class="where warn"><span style="color:var(--warn)">⚠</span><div><b>This file will move when you save</b><small>Managed folder · S02E04.mkv → Season 02 / S02E04 · The Long Night.mkv</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Write-back off</b> is the usual state and the exact wording Shy asked for.</span></li>
+    <li><b>2</b><span><b>Write-back on</b> (the batched write-back setting) changes only the second line.</span></li>
+    <li><b>3</b><span><b>A match that moves a file</b> in a Managed folder replaces the status with the amber warning (v4.1 D6) until you save or discard.</span></li>
+  </ol>
+</section>
+
+<!-- L -->
+<section class="shot" id="l">
+  <h2>L. View: a photo in a gallery, on the same frame</h2>
+  <p class="sub">The Photos area's editor (photos, videos, documents and galleries) inherits the v5 frame. A photo's picture is landscape; the gallery is its family, so the item dropdown lists the gallery's photos. No Season dropdown, no Match.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#c47a3a;--c2:#3a2a5a">
+        <span class="cover g6" style="width:176px;height:118px"></span>
+        <div class="main">
+          <div class="label">Lisbon 2026</div><h3>Tram 28 at dusk</h3>
+          <div class="facts"><span>Photo · 12 Mar 2026 · Lisbon, Portugal</span><span class="chip ac">In 2 galleries</span></div>
+          <div class="nav">
+            <span class="home">⌂</span>
+            <div class="sel item on"><span class="still g6"></span><div><small>14 of 96</small><span class="n">Tram 28 at dusk</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Description<span class="lk">🔓 Unlocked</span></label><div class="in tall changed">Tram 28 at dusk<span class="end"><span class="rev">↶ Revert</span></span></div></div>
+          <div class="f"><label>Date taken<span class="lk">🔒 Locked</span></label><div class="in locked">12 Mar 2026 · 19:42</div></div>
+          <div class="f"><label>Place<span class="lk">🔒 Locked</span></label><div class="in locked">Lisbon, Portugal</div></div>
+          <div class="f w"><label>People<span class="lk">🔒 Locked</span></label><div class="in locked"><span class="chip">Ana</span><span class="chip">Tomas</span></div></div>
+          <div class="f w"><label>Tags<span class="lk">🔓 Unlocked</span></label><div class="in"><span class="chip">Travel ✕</span><span class="chip">Trams ✕</span><span class="end">＋</span></div></div>
+          <div class="f w"><label>Galleries</label><div class="in"><span class="chip">Lisbon 2026 ✕</span><span class="chip">Best of 2026 ✕</span><span class="end">＋</span></div><div class="hint">Adding or removing is staged like every other field and listed in Review.</div></div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">▣</span><div><b>JPEG · 6000 × 4000</b><small>8.1 MB · 2 parts (RAW + JPEG)</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>IMG_4821.jpg</b><small>Photos / 2026 / 03 Lisbon</small></div></div>
+          <div class="r"><span class="i">◉</span><div><b>Read-only folder</b><small>The file is read where it is.</small></div></div>
+          <div class="r"><span class="i">📷</span><div><b>Fujifilm X-T5 · 23 mm</b><small>f/2 · 1/60 s · ISO 800</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:270px;top:120px">1</span>
+    <span class="mk" style="left:360px;top:212px">2</span>
+    <span class="mk" style="left:80px;top:324px">3</span>
+    <span class="mk" style="left:80px;top:416px">4</span>
+    <span class="mk" style="left:80px;top:660px">5</span>
+    <span class="mk" style="left:1260px;top:420px">6</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>A landscape picture</b> (the photo itself; a document shows its first page; a video its first frame) and the gradient from its colours. The label is the gallery it was opened from; a photo opened outside a gallery has no label and no dropdowns.</span></li>
+    <li><b>2</b><span><b>The gallery is the family:</b> home goes to the gallery, and the item dropdown lists its photos with thumbnails ("14 of 96"), up to 8 inline and then "All photos" opening the same picker as supporting files use. A gallery's own editor has Details, Artwork and History and the same dropdown in place of its Contents tab.</span></li>
+    <li><b>3</b><span><b>Tabs: Details and History.</b> No Files tab (its facts are in Quick facts) and no Match: a photo has no provider.</span></li>
+    <li><b>4</b><span><b>The same locks.</b> Date taken and Place are locked by default; unlocking and changing one shows Revert, which is "Use original" from the file's own data, as the View editor spec says.</span></li>
+    <li><b>5</b><span><b>Galleries</b> stays as that spec built it: chips to add and remove, staged and listed in Review.</span></li>
+    <li><b>6</b><span><b>Quick facts replace the Files tab:</b> type and size, the parts of a RAW + JPEG pair, file name and folder, read-only, camera. A document shows pages, correspondent and archive number here.</span></li>
+  </ol>
+</section>
+
+<!-- M -->
+<section class="shot" id="m">
+  <h2>M. The course end card: next lesson and the homework</h2>
+  <p class="sub">The player's existing end card (bottom-right, shown as a video ends) gains one block on a course when the lesson has a file "Shown alongside" it. A show's end card is unchanged.</p>
+  <div class="frame"><div class="vp" style="background:#000">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 60% 40%,#1e2a3a,#05070b 70%)"></div>
+    <div style="position:absolute;left:24px;top:18px;color:#c8ccd4;font-weight:700;letter-spacing:.04em">TUVIMA</div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(transparent,rgba(5,7,11,.92))"></div>
+    <div style="position:absolute;left:40px;right:40px;bottom:96px;display:flex;align-items:center;gap:12px;color:#c8ccd4;font-size:13px"><span>17:46</span><div style="flex:1;height:4px;border-radius:2px;background:#3a3d46"><div style="width:98%;height:100%;border-radius:2px;background:var(--accent)"></div></div><span>−0:14</span></div>
+    <div style="position:absolute;left:40px;bottom:36px;color:#fff"><div style="font-weight:700;font-size:16px">Build with Blazor</div><div style="color:#aab0bc;font-size:13px">02 · Passing parameters · 18 min</div></div>
+    <div style="position:absolute;left:50%;bottom:30px;transform:translateX(-50%);display:flex;gap:18px;align-items:center;color:#fff;font-size:22px"><span>⏮</span><span>↺</span><span style="width:48px;height:48px;border-radius:50%;background:#fff;color:#000;display:grid;place-items:center;font-size:20px">▶</span><span>↻</span><span>⏭</span></div>
+    <div style="position:absolute;right:40px;bottom:36px;display:flex;gap:18px;color:#c8ccd4;font-size:18px"><span>☰</span><span>CC</span><span>🔖</span><span>🔊</span><span>⚙</span><span>⛶</span><span>✕</span></div>
+    <div style="position:absolute;right:40px;bottom:182px;width:336px;padding:14px;display:grid;gap:10px;background:rgba(13,18,28,.94);border:1px solid #2c3140;border-radius:10px;color:#fff;font-size:14px">
+      <strong>Up next</strong>
+      <div style="display:flex;gap:10px;align-items:center"><span class="still g8" style="width:112px;height:63px;border-radius:5px"></span><span style="display:grid;gap:4px"><strong>03 · Component events</strong><span style="color:#aab0bc;font-size:13px">Starts in 8 seconds</span></span></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><span style="width:40px;height:40px;border-radius:8px;border:1px solid var(--accent);display:grid;place-items:center">▶</span><span style="width:40px;height:40px;border-radius:8px;border:1px solid #2c3140;display:grid;place-items:center">✕</span></div>
+      <div style="height:1px;background:#2c3140"></div>
+      <strong>Homework for this lesson</strong>
+      <div style="display:flex;gap:10px;align-items:center"><span class="fi pdf" style="width:44px;height:44px">PDF</span><span style="display:grid;gap:4px;min-width:0"><strong>Component exercises</strong><span style="color:#aab0bc;font-size:13px">Worksheet · 12 pages</span></span><span class="btn" style="margin-left:auto;height:40px;border-color:var(--accent)">Open</span></div>
+    </div>
+    <span class="mk" style="left:1044px;top:466px">1</span>
+    <span class="mk" style="left:1044px;top:630px">2</span>
+    <span class="mk" style="left:1300px;top:648px">3</span>
+    <span class="mk" style="left:1300px;top:528px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Today's end card, unchanged:</b> "Up next" with the next lesson's still and title, the countdown when autoplay is on, Play now and Dismiss. On a show this is the whole card.</span></li>
+    <li><b>2</b><span><b>The one addition, on a course only:</b> a "Homework for this lesson" block listing the file (or files) marked "Shown alongside" this lesson, with its role and size. It appears even on the last lesson, where there is no Up next.</span></li>
+    <li><b>3</b><span><b>Open</b> stops the countdown, minimises the player to its bar and opens the document in the reader over the course page. Nothing is lost: the same file stays on the lesson's row and the course page.</span></li>
+    <li><b>4</b><span><b>Autoplay is not changed by homework.</b> If the countdown runs out, the next lesson starts as the setting says; Dismiss keeps the card open with the homework still reachable until the video is closed.</span></li>
+  </ol>
+</section>
+
+<!-- N -->
+<section class="shot" id="n">
+  <h2>N. The folder picker on the same frame (Settings › Libraries › Add a folder)</h2>
+  <p class="sub">The same window, sidebar, search and row list as the supporting-files browser, with folder rows. A click opens a folder, the folder you are inside is the selection, folders only.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="scrim"></div>
+    <div class="big">
+      <div class="bh"><span class="bi">▭</span><div><h3>Add a folder</h3><small>Choose the folder that holds your <b style="color:var(--fg)">TV shows</b></small></div><span class="x">✕</span></div>
+      <div class="filters" style="align-items:flex-end"><div class="f" style="width:360px;margin:0"><label>Friendly name <span class="ro" style="font-weight:400">optional</span></label><div class="in" style="height:44px"><span class="ro">Names this folder, not the library</span></div></div></div>
+      <div class="bb">
+        <div class="side">
+          <h5>This server</h5>
+          <div class="li">▣ Root<span class="c" style="font-size:12px">/</span></div>
+          <div class="li on">▭ Media<span class="c" style="font-size:12px">/media</span></div>
+          <div class="li">▭ Home<span class="c" style="font-size:12px">/home/shy</span></div>
+          <div class="li" style="color:var(--accent2)">⌨ Type a path…</div>
+          <hr>
+          <h5>Already in Library</h5>
+          <div class="li">▤ Movies<span class="c" style="font-size:12px">/media/movies</span></div>
+          <div class="li">▤ Music<span class="c" style="font-size:12px">/media/music</span></div>
+        </div>
+        <div class="main2">
+          <div class="row" style="gap:10px;margin-bottom:12px"><span class="btn sm">‹</span><span class="btn sm">↑</span><span class="btn sm">↻</span><div class="srch" style="height:40px">⌕ Search folders here</div></div>
+          <div class="cnt"><b style="color:var(--fg)">/media/tv/Shows</b> · 48 folders inside</div>
+          <table class="t">
+            <tr><th>Name ▴</th><th style="width:200px">Modified</th><th style="width:48px"></th></tr>
+            <tr><td><div class="row"><span style="color:#e8c15a">▰</span><b>Severance</b></div></td><td>3 Nov 2026</td><td class="ro">›</td></tr>
+            <tr><td><div class="row"><span style="color:#e8c15a">▰</span><b>The Bear</b></div></td><td>28 Oct 2026</td><td class="ro">›</td></tr>
+            <tr><td><div class="row"><span style="color:#e8c15a">▰</span><b>The Last Signal</b></div></td><td>6 Nov 2026</td><td class="ro">›</td></tr>
+            <tr><td><div class="row"><span style="color:#e8c15a">▰</span><b>What We Do in the Shadows</b></div></td><td>12 Sep 2026</td><td class="ro">›</td></tr>
+          </table>
+          <div class="card" style="margin-top:auto;padding:12px 16px;display:flex;gap:12px;align-items:center;border-color:#1d4a33;background:#0e2a1c"><span style="color:var(--ok);font-size:20px">✓</span><div><b>Looks right</b><br><span style="color:var(--fg2)">/media/tv/Shows holds 48 shows in 1,912 video files. Nothing here is in another library.</span></div></div>
+        </div>
+      </div>
+      <div style="flex:none;border-top:1px solid var(--line);padding:14px 24px;display:grid;gap:10px">
+        <div class="row" style="gap:12px">
+          <div class="card" style="flex:1;padding:10px 14px;display:flex;gap:12px;align-items:center;border-color:var(--accent);background:var(--accentbg)"><span style="font-size:18px">◉</span><div><b>Read-only</b><br><span style="color:var(--fg2);font-size:13px">Library reads this folder and never changes a file in it.</span></div></div>
+          <div class="card" style="flex:1;padding:10px 14px;display:flex;gap:12px;align-items:center"><span style="font-size:18px">⚙</span><div><b>Managed</b><br><span style="color:var(--fg2);font-size:13px">Library may add, move and rename files here, for example when you fix a match.</span></div></div>
+        </div>
+        <div class="row" style="gap:12px"><span class="ro" style="flex:1">Your files are never deleted or changed in a read-only folder.</span><span class="btn">Cancel</span><span class="btn p">Add folder</span></div>
+      </div>
+    </div>
+    <span class="mk" style="left:140px;top:70px">1</span>
+    <span class="mk" style="left:510px;top:172px">2</span>
+    <span class="mk" style="left:118px;top:300px">3</span>
+    <span class="mk" style="left:424px;top:244px">4</span>
+    <span class="mk" style="left:700px;top:290px">5</span>
+    <span class="mk" style="left:456px;top:590px">6</span>
+    <span class="mk" style="left:140px;top:690px">7</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The same window</b> as screen E (Look v3's Window, size L): icon, title, the one line that says what this pick is for, close.</span></li>
+    <li><b>2</b><span><b>Friendly name is the only text box</b> (Shy, 06:15Z), on the left; there is no path box and no breadcrumb row, because the selected folder is already named above the list (marker 5).</span></li>
+    <li><b>3</b><span><b>Locations on the left</b> instead of Where and Groups: this server's roots, "Type a path…" for what a list cannot reach (a network share such as \\nas\media, a hidden folder, a deep tree: it opens a small box, Go lists that folder), and folders already in Library (so the same folder is not added twice).</span></li>
+    <li><b>4</b><span><b>The toolbar</b> (back, up, refresh, search) and the table-style list are the browser's; here rows are folders only, with name and modified date. A click opens the folder and puts it in the path bar; the chevron does the same.</span></li>
+    <li><b>5</b><span><b>The selected folder is the line above the list</b>, and the list shows what is inside it so you can see it is the right one (here, the 48 show folders of /media/tv/Shows). Opening one of them makes that the selection instead; Up goes back. Folders only: files never appear in this picker.</span></li>
+    <li><b>6</b><span><b>The one check</b> runs when a folder is chosen: Looks right, Heads up or Already used, with its plain-English count; Already used blocks Add. Unchanged from today.</span></li>
+    <li><b>7</b><span><b>The footer keeps the folder mechanics:</b> Read-only or Managed as two choice rows, the safety line, Cancel and Add folder (the label follows the host: Add folder, Use this folder, Choose). The managed warning about existing files appears above Add when Managed is picked on a folder that already holds files.</span></li>
+  </ol>
+</section>
+
+<!-- O -->
+<section class="shot" id="o">
+  <h2>O. Editing 12 songs together</h2>
+  <p class="sub">Twelve tracks of one album ticked in the album's list, then Edit. Shared fields only; each song keeps its own title and number.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#2c7a6a;--c2:#0e2a24">
+        <span class="cover g9" style="width:120px;height:120px"></span>
+        <div class="main">
+          <div class="label">Northern Lights · Mara Lindqvist</div><h3>Editing 12 songs</h3>
+          <div class="facts"><span>Tracks 1–12 · 48:10 · FLAC</span><span class="chip ok">✓ All matched</span></div>
+          <div class="nav"><span class="home">⌂</span><span class="btn sm">‹ Back to the list</span></div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-mb">MB</span>MusicBrainz ↗</span><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f"><label>Album artist<span class="lk">🔒 Locked</span></label><div class="in locked">Mara Lindqvist</div></div>
+          <div class="f"><label>Album<span class="lk">🔒 Locked</span></label><div class="in locked">Northern Lights</div></div>
+          <div class="f"><label>Year<span class="lk">🔒 Locked</span></label><div class="in locked">2021</div></div>
+          <div class="f"><label>Genre<span class="lk">🔓 Unlocked</span></label><div class="in changed">Nordic folk<span class="end"><span class="rev">↶ Revert</span></span></div></div>
+          <div class="f"><label>Disc</label><div class="in"><span class="ro">Mixed · leave unchanged</span><span class="end">▾</span></div></div>
+          <div class="f"><label>Compilation</label><div class="in">No<span class="end">▾</span></div></div>
+          <div class="f w"><label>Add tags</label><div class="in"><span class="chip">Winter ✕</span><span class="end">＋</span></div></div>
+          <div class="ro-note">ⓘ Title, track number, artist on the track and lyrics are not offered for several songs: each song keeps its own.</div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">♪</span><div><b>12 songs · 48:10</b><small>FLAC · 412 MB</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>Music / Mara Lindqvist / Northern Lights</b><small>Same folder · Read-only</small></div></div>
+          <div class="r"><span class="i">✓</span><div><b>Matched with MusicBrainz</b><small>Release 2021 · CD · Nordic Records</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">2 unsaved changes · 12 songs</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:200px;top:40px">1</span>
+    <span class="mk" style="left:96px;top:300px">2</span>
+    <span class="mk" style="left:96px;top:470px">3</span>
+    <span class="mk" style="left:250px;top:212px">4</span>
+    <span class="mk" style="left:96px;top:606px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Titled by the count</b>, with the album as the label and its cover; the facts line sums the selection. Home goes to the album; "Back to the list" returns with the ticks kept.</span></li>
+    <li><b>2</b><span><b>Shared fields only</b> (the v4 rule): album artist, album, year, genre, disc, compilation, tags. Locked fields stay locked for the whole group; unlocking Genre and typing applies one value to all twelve.</span></li>
+    <li><b>3</b><span><b>"Mixed · leave unchanged"</b> where the songs differ (two discs); choosing a value sets it for all. Nothing moves a song to another album from here; that is Match.</span></li>
+    <li><b>4</b><span><b>Match on a group</b> means one release for all of them: pick the album or release once (screen G4's left column), and every ticked song is lined up by its number; a song that does not fit is listed as "Check match" and can be left out. No table of every file.</span></li>
+    <li><b>5</b><span><b>What is not offered</b> is said once, in plain words, so nobody looks for the title field.</span></li>
+  </ol>
+</section>
+
+<!-- P -->
+<section class="shot" id="p">
+  <h2>P. Editing 40 photos together (View)</h2>
+  <p class="sub">Forty photos ticked in a gallery, then Edit. The View editor's own group rules (photos-documents-editor D5) on the v5 frame.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#c47a3a;--c2:#3a2a5a">
+        <span style="position:relative;width:176px;height:118px;flex:none;display:block"><span class="cover g6" style="position:absolute;left:0;top:0;width:150px;height:100px"></span><span class="cover g4" style="position:absolute;left:14px;top:9px;width:150px;height:100px"></span><span class="cover g7" style="position:absolute;left:26px;top:18px;width:150px;height:100px"></span></span>
+        <div class="main">
+          <div class="label">Lisbon 2026</div><h3>Editing 40 photos</h3>
+          <div class="facts"><span>12–14 Mar 2026 · 36 JPEG · 4 RAW + JPEG</span></div>
+          <div class="nav"><span class="home">⌂</span><span class="btn sm">‹ Back to the gallery</span></div>
+        </div>
+        <div class="links"><span class="x">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Date taken<span class="lk">🔓 Unlocked</span></label><div class="row" style="gap:12px"><div class="in" style="flex:1"><span class="ro">Mixed · 12–14 Mar 2026</span></div><div class="in" style="width:260px">Shift all by<span class="end"><b>+3 h</b> ▾</span></div></div><div class="hint">Shifts every photo by the same amount; the camera clock was three hours behind.</div></div>
+          <div class="f w"><label>Place<span class="lk">🔒 Locked</span></label><div class="in locked">Lisbon, Portugal</div></div>
+          <div class="f w"><label>Add people</label><div class="in"><span class="chip">Ana ✕</span><span class="end">＋</span></div></div>
+          <div class="f w"><label>Add tags</label><div class="in"><span class="chip">Travel ✕</span><span class="end">＋</span></div></div>
+          <div class="f w"><label>Galleries</label><div class="in"><span class="chip">Lisbon 2026</span><span class="ro" style="margin-left:6px">all 40</span><span class="chip" style="border-style:dashed">＋ Add to gallery</span></div><div class="hint">A new name here shows as "Create gallery" in Review.</div></div>
+          <div class="ro-note">ⓘ Description is not offered for several photos: each photo keeps its own.</div>
+        </div><div class="qf"><h4>Quick facts</h4>
+          <div class="r"><span class="i">▣</span><div><b>40 photos · 312 MB</b><small>36 JPEG · 4 RAW + JPEG pairs</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>2 folders</b><small>Photos / 2026 / 03 Lisbon · Phone / Camera Roll</small></div></div>
+          <div class="r"><span class="i">◉</span><div><b>Read-only folders</b><small>Files are read where they are.</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">2 unsaved changes · 40 photos</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:200px;top:40px">1</span>
+    <span class="mk" style="left:96px;top:300px">2</span>
+    <span class="mk" style="left:96px;top:500px">3</span>
+    <span class="mk" style="left:96px;top:620px">4</span>
+    <span class="mk" style="left:110px;top:826px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>A small stack of the first pictures</b> instead of one cover, the gallery as the label, the count as the title, the date span and formats as the facts. Home goes to the gallery.</span></li>
+    <li><b>2</b><span><b>Date taken on a group is a shift</b>, not a value: "Shift all by" moves every photo by the same amount (the View editor's rule for wrong camera clocks); the mixed range is shown, never edited directly.</span></li>
+    <li><b>3</b><span><b>People and tags are "add"</b> on a group (nothing is removed from any photo); Place can be set for all when it is the same trip.</span></li>
+    <li><b>4</b><span><b>Galleries</b> shows the gallery they all share and "Add to gallery", staged and listed in Review, as the View editor spec built it.</span></li>
+    <li><b>5</b><span><b>Delete is still just "Delete"</b>; the one confirmation names the count ("Delete 40 photos?") and sends them to Trash, as everywhere.</span></li>
+  </ol>
+</section>
+
+<!-- Q -->
+<section class="shot" id="q">
+  <h2>Q. Bookmarks tab (administrators): the definitive bookmarks everyone sees</h2>
+  <p class="sub">Shy, in the player plan: the player shows either Everyone (default) or Mine, with no copying step. Everyone is all profiles' bookmarks pooled until an administrator curates a definitive set here; from then on Everyone shows the definitive set.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#8a6a3a;--c2:#4a2a10"><span class="cover g4"></span><div class="main"><div class="label">Movie</div><h3>The Glass Harbor</h3><div class="facts"><span>2023 · 1 h 47 min</span><span class="chip ok">✓ Matched</span></div></div><div class="links"><span class="lnk"><span class="logo l-tm">TM</span>TMDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab on"><i class="ti" style="--ic:#f0c060">🔖</i>Bookmarks</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:8px;padding-top:12px">
+        <div class="row" style="gap:10px"><b style="font-size:16px">Everyone's bookmarks</b><span class="ro">· 4 · what the player shows under Everyone</span><span class="chip ok" style="margin-left:6px">Definitive set</span><span class="sp" style="flex:1"></span><span class="btn">⇩ Import</span><span class="btn">⇪ Export</span></div>
+        <table class="t" style="font-size:14px;--rowh:56px">
+          <tr><th style="width:100px"></th><th style="width:80px">Time</th><th>Name</th><th style="width:200px">From</th><th style="width:40px"></th></tr>
+          <tr><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#2a3a55,#0d1220)"></span></td><td>0:02:10</td><td>Opening titles end</td><td class="ro">You</td><td>…</td></tr>
+          <tr><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#3a5a4a,#101a14)"></span></td><td>0:18:42</td><td>The harbor survey</td><td class="ro">Chosen from Ana</td><td>…</td></tr>
+          <tr class="picked"><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#4a3a2a,#1a1008)"></span></td><td>1:03:30</td><td>The city beneath <span class="chip ac" style="margin-left:8px">staged</span></td><td class="ro">Chosen from Ana</td><td>…</td></tr>
+          <tr><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#262a3a,#0a0a12)"></span></td><td>1:39:12</td><td>Credits</td><td class="ro">You</td><td>…</td></tr>
+        </table>
+        <div class="row" style="gap:10px;margin-top:6px"><b style="font-size:16px">From profiles</b><span class="ro">· 3 · every profile's own bookmarks on this film</span></div>
+        <table class="t" style="font-size:14px;--rowh:56px">
+          <tr><th style="width:100px"></th><th style="width:80px">Time</th><th>Note</th><th style="width:200px">Owner</th><th style="width:170px"></th></tr>
+          <tr><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#3a5a4a,#101a14)"></span></td><td>0:18:40</td><td>survey scene</td><td>Ana</td><td class="ro">Already in Everyone's</td></tr>
+          <tr><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#5a3a3a,#1a0c0c)"></span></td><td>0:55:20</td><td>that song</td><td>Ana</td><td><span class="btn sm">Add to Everyone's</span></td></tr>
+          <tr><td><span style="display:block;width:80px;height:45px;border-radius:4px;background:linear-gradient(135deg,#2a4a5a,#0a1418)"></span></td><td>1:12:08</td><td>the reveal!!</td><td>Tomas</td><td><span class="btn sm">Add to Everyone's</span></td></tr>
+
+        </table>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">1 unsaved change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:520px;top:212px">1</span>
+    <span class="mk" style="left:60px;top:286px">2</span>
+    <span class="mk" style="left:1060px;top:272px">3</span>
+    <span class="mk" style="left:560px;top:446px">4</span>
+    <span class="mk" style="left:1130px;top:706px">5</span>
+    <span class="mk" style="left:1250px;top:446px">6</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Bookmarks is a tab only an administrator sees</b>, on a movie, episode, video, audiobook or book. Everyone else bookmarks in the player as before (Everyone by default, or Mine); nothing is copied and nothing is "saved to my bookmarks".</span></li>
+    <li><b>2</b><span><b>Everyone's bookmarks</b> is exactly what the player shows under Everyone. On a movie or episode every row starts with the frame at that moment (the same picture the player keeps for each bookmark), so you can see what a bookmark is before choosing it; audiobooks and books have no frame column. Until an administrator touches this list it is all profiles' bookmarks pooled (same-spot ones merged) and the chip reads "Pooled from profiles"; the first change here (adding, removing, renaming or moving one) makes it the <b>definitive set</b>, and from then on the player shows only these. "Start over from profiles" in the header's "…" throws the definitive set away and pools again. Each row's "…" offers Rename, Change time and Remove from Everyone's (the owner keeps it under Mine; nothing is deleted).</span></li>
+    <li><b>3</b><span><b>Export</b> saves this title's Everyone's set as one bookmark file (times, names and frames; never anyone's personal bookmarks). <b>Import</b> takes a bookmark file (yours, or later one fetched from an online bookmark source the way subtitles are) and opens the existing compare view: each incoming bookmark beside the nearest one in Everyone's, marked Same spot, Close, Far or New, tick what to take. What you take is staged like everything else. Export and Import exist only at the top of a family: a movie (shown here), a show or an album. An episode's or a track's tab has no Export or Import buttons; the show's tab (screen Q2) covers every episode in one file.</span></li>
+    <li><b>4</b><span><b>From profiles</b> lists each person's own bookmarks on this title, with owner, time and note. One already in Everyone's says so instead of offering a button.</span></li>
+    <li><b>5</b><span><b>Add to Everyone's</b> makes that very bookmark part of the definitive set (no copy: its owner still sees it under Mine, and anyone else's bookmark within 3 seconds of the spot is merged into it, so nobody loses one). Like every editor change it is staged: the row joins the list above marked "staged" (marker 6) and nothing is written until Save changes, where Review lists it. The Engine's same-spot merge runs when it commits.</span></li>
+    <li><b>6</b><span><b>Staged, not saved.</b> Discard leaves Everyone's as it was.</span></li>
+  </ol>
+</section>
+
+<!-- Q2 -->
+<section class="shot" id="q2">
+  <h2>Q2. Bookmarks tab on a show: every episode's set, export and import in one go</h2>
+  <p class="sub">Shy, 06:43Z: export and import for a whole show, not only one film. The show's own editor page carries the tab; each episode's row opens that episode's tab (screen Q).</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--c1:#2a4a6a;--c2:#0c1a2a"><span class="cover g2"></span><div class="main"><div class="label">Show</div><h3>Harbor Lights</h3><div class="facts"><span>2021 · 3 seasons · 24 episodes</span><span class="chip ok">✓ Matched</span></div></div><div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab"><i class="ti" style="--ic:#8ab4f8">☰</i>Contents</span><span class="tab on"><i class="ti" style="--ic:#f0c060">🔖</i>Bookmarks</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="mt" style="gap:8px;padding-top:12px">
+        <div class="row" style="gap:10px"><b style="font-size:16px">Everyone's bookmarks</b><span class="ro">· 61 across 24 episodes · 9 episodes have a definitive set</span><span class="sp" style="flex:1"></span><span class="btn">⇩ Import for the show</span><span class="btn">⇪ Export the show</span></div>
+        <table class="t" style="font-size:14px">
+          <tr><td colspan="6" style="height:40px;padding-top:12px"><b>Season 1</b> <span class="ro">· 8 episodes · 19 bookmarks</span></td></tr>
+          <tr><th style="width:90px">Episode</th><th>Title</th><th style="width:150px">Everyone's</th><th style="width:170px">Set</th><th style="width:150px">From profiles</th><th style="width:40px"></th></tr>
+          <tr><td>S1 E1</td><td>Low tide</td><td>5</td><td><span class="chip ok">Definitive</span></td><td class="ro">7</td><td>›</td></tr>
+          <tr><td>S1 E2</td><td>The wreck</td><td>3</td><td><span class="chip ok">Definitive</span></td><td class="ro">3</td><td>›</td></tr>
+          <tr><td>S1 E3</td><td>Lanterns</td><td>4</td><td class="ro">Pooled from profiles</td><td class="ro">4</td><td>›</td></tr>
+          <tr><td>S1 E4</td><td>Salt and glass</td><td>0</td><td class="ro">Pooled from profiles</td><td class="ro">0</td><td>›</td></tr>
+          <tr><td>S1 E5</td><td>Harbor master</td><td>6</td><td class="ro">Pooled from profiles</td><td class="ro">6</td><td>›</td></tr>
+          <tr><td>S1 E6</td><td>The long night</td><td>2 <span class="chip ac" style="margin-left:8px">+3 staged</span></td><td><span class="chip ac">Definitive (staged)</span></td><td class="ro">2</td><td>›</td></tr>
+          <tr><td colspan="6" style="height:40px;padding-top:12px"><b>Season 2</b> <span class="ro">· 8 episodes · 24 bookmarks</span></td></tr>
+        </table>
+      </div>
+      <div class="foot"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima. Original files stay unchanged.</small></div></div><span class="cnt">3 unsaved changes</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:60px;top:286px">1</span>
+    <span class="mk" style="left:960px;top:286px">2</span>
+    <span class="mk" style="left:60px;top:330px">3</span>
+    <span class="mk" style="left:1130px;top:360px">4</span>
+    <span class="mk" style="left:1290px;top:636px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The show's Bookmarks tab</b> is an overview, not an editing list: one row per episode with how many bookmarks Everyone sees, whether that episode has a definitive set or is still pooled from profiles, and how many personal bookmarks exist. A season or an album gets the same tab for its own members.</span></li>
+    <li><b>2</b><span><b>Export the show</b> writes one bookmark file for every episode's Everyone's set, keyed by season and episode number. <b>Import for the show</b> takes such a file (or later one fetched from an online bookmark source) and opens the compare view episode by episode: for each episode, incoming bookmarks beside the nearest existing one (Same spot, Close, Far, New), with "Take all new" for the whole show in one go. What you take is staged.</span></li>
+    <li><b>3</b><span><b>The tab follows the header dropdowns.</b> With the show selected it lists every season and episode, grouped by season; pick a season in the header's Season dropdown and the tab shows only that season's episodes; pick an episode and the tab becomes that episode's own list (screen Q). The same rule applies to an album and its tracks. Nothing else on the page changes when the dropdowns change.</span></li>
+    <li><b>4</b><span><b>Set</b> says plainly what the player shows for that episode: a definitive set an administrator made, or the pool of every profile's bookmarks.</span></li>
+    <li><b>5</b><span>The chevron opens that episode's own Bookmarks tab (screen Q) in the same window, with the show fixed in the header and the Season and Episode dropdowns at hand, so one episode after another can be tidied without closing the editor.</span></li>
+  </ol>
+</section>
+
+<!-- K -->
+<section class="shot" id="k">
+  <h2>K. A narrow desktop window (1024 wide)</h2>
+  <p class="sub">The window fills the viewport. The header wraps its controls under the title; Quick facts move under the form.</p>
+  <div class="frame"><div class="vp narrow">
+    <div class="win">
+      <div class="hero" style="--c1:#5a3a8a;--c2:#2a1858;flex-wrap:wrap;gap:14px 18px;padding:16px 20px">
+        <span class="cover g1" style="width:72px;height:108px"></span>
+        <div class="main" style="flex:1 1 400px">
+          <div class="label">The Last Signal</div><h3 style="font-size:24px">Echoes in the Dark</h3>
+          <div class="facts"><span>Episode 3 · 46 min</span><span class="chip ok">✓ Matched</span></div>
+        </div>
+        <div class="nav" style="width:100%;margin-top:0"><span class="home">⌂</span><div class="sel" style="min-width:160px"><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div><div class="sel item on" style="min-width:0;flex:1"><span class="still g3"></span><div><small>S02E03</small><span class="n">Echoes in the Dark</span></div><span class="v">▾</span></div></div>
+        <div class="links" style="top:16px;right:20px"><span class="lnk"><span class="logo l-tv">TV</span></span><span class="lnk"><span class="logo l-wd">W</span></span><span class="x">✕</span></div>
+      </div>
+      <div class="tabs" style="padding:0 20px"><span class="tab on" style="padding:14px 18px"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab" style="padding:14px 18px"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab" style="padding:14px 18px"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match</span><span class="tab" style="padding:14px 18px"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body" style="flex-direction:column;padding:16px 20px;overflow:auto"><div class="form">
+          <div class="f w"><label>Title<span class="lk">🔒 Locked</span></label><div class="in locked">Echoes in the Dark</div></div>
+          <div class="f w"><label>Overview<span class="lk">🔒 Locked</span></label><div class="in tall locked">When a forgotten relay begins transmitting again, Mara follows a voice that should no longer exist.</div></div>
+          <div class="f"><label>Air date<span class="lk">🔒 Locked</span></label><div class="in locked">14 Oct 2025</div></div>
+          <div class="f"><label>Runtime<span class="lk">🔒 Locked</span></label><div class="in locked">46 min</div></div>
+        </div><div class="qf" style="width:100%"><h4>Quick facts</h4>
+          <div class="r"><span class="i">✓</span><div><b>Matched with TheTVDB</b><small>Episode identity verified</small></div></div>
+        </div></div>
+      <div class="foot" style="padding:0 16px"><span class="btn d">🗑 Delete</span><div class="where"><span>🔒</span><div><b>File write-back off</b><small>Edits save in Tuvima.</small></div></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p faint">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:16px;top:164px">1</span>
+    <span class="mk" style="left:16px;top:560px">2</span>
+    <span class="mk" style="left:880px;top:30px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The navigation row wraps</b> to its own line under the title, full width, with the item dropdown taking the rest.</span></li>
+    <li><b>2</b><span><b>Quick facts go under the form</b> below 1280 (the v4 rule), and the body scrolls.</span></li>
+    <li><b>3</b><span><b>Provider links shrink to their logos.</b> Editing is still desktop only; there is no phone layout for the editor.</span></li>
+  </ol>
+</section>
+</body></html>

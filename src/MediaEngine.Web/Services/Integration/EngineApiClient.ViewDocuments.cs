@@ -61,6 +61,9 @@ public sealed partial class EngineApiClient
     public Task<ViewCatalogueResult<bool>> DeleteViewDocumentFieldAsync(Guid id, CancellationToken ct = default) =>
         DeleteCatalogueAsync("DELETE /view/document-fields/{id}", $"/view/document-fields/{id:D}", ct);
 
+    public Task<ViewCatalogueResult<ViewItemsEditResultDto>> EditViewItemsAsync(ViewItemsEditSetRequest request, CancellationToken ct = default) =>
+        SendCatalogueAsync<ViewItemsEditResultDto>(HttpMethod.Post, "POST /view/items/edit", "/view/items/edit", request, ct);
+
     public Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(
         ViewDocumentBulkRequest request, CancellationToken ct = default) =>
         SendCatalogueAsync<ViewDocumentBulkResultDto>(HttpMethod.Post, "POST /view/documents/bulk", "/view/documents/bulk", request, ct);
@@ -114,6 +117,27 @@ public sealed partial class EngineApiClient
             using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/documents-sort")
             {
                 Content = JsonContent.Create(new ViewDocumentsSortDto(sort)),
+            };
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }
+            ClearFailure(endpoint);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
+    }
+
+    public async Task<bool> GetViewDocumentsPicturesToPhotosAsync(CancellationToken ct = default) =>
+        (await GetAsync<ViewDocumentsPicturesDto>("GET /view/preferences/documents-pictures", "/view/preferences/documents-pictures", ct: ct))?.ToPhotos ?? false;
+
+    public async Task<bool> SetViewDocumentsPicturesToPhotosAsync(bool toPhotos, CancellationToken ct = default)
+    {
+        const string endpoint = "PUT /view/preferences/documents-pictures";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/documents-pictures")
+            {
+                Content = JsonContent.Create(new ViewDocumentsPicturesDto(toPhotos)),
             };
             using var response = await _http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }

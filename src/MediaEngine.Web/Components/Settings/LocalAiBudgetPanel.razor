@@ -2,10 +2,11 @@
 @inject UIOrchestratorService Orchestrator
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Budget page of Local AI: how much of the machine each plugin may use. Ingestion and a person's own requests are
-   never held to a budget; they only go first in the queue. Plugins with their own allowance are listed on Usage. *@
+@* The plugin allowance card on the Local AI Advanced tab: how much of the machine each plugin may use. Ingestion and a
+   person's own requests are never held to a budget; they only go first in the queue. Plugins with their own allowance are
+   listed on the Status tab. *@
 <div class="local-ai-budget" data-testid="local-ai-budget">
-    <AppCard Title="@L["LocalAiBudgetPanel_PluginAllowance"].Value" Description="@L["LocalAiBudgetPanel_HowMuchLocalAIA"].Value" Density="AppSurfaceDensity.Compact">
+    <AppSettingsGroup Heading="@L["LocalAiBudgetPanel_PluginAllowance"].Value" Helper="@L["LocalAiBudgetPanel_HowMuchLocalAIA"].Value">
         @if (_config is null)
         {
             <AppEmptyState Title="@L["Common_AIConfigurationUnavailable"].Value" Message="@L["LocalAiBudgetPanel_TheAllowanceIsHiddenUntil"].Value" />
@@ -24,7 +25,7 @@
                 <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="tl-sp-mt-2">@OverrideNote()</AppText>
             }
         }
-    </AppCard>
+    </AppSettingsGroup>
 </div>
 
 @code {

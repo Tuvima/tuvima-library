@@ -18,7 +18,7 @@
     background: rgba(91, 33, 182, 0.18);
     color: rgba(231, 223, 255, 0.96);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     cursor: pointer;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .app-active-filter-summary ::deep .app-active-filter-summary__chip .tl-icon-root {
-    font-size: 0.95rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .app-active-filter-summary ::deep .app-active-filter-summary__clear {
@@ -39,9 +39,9 @@
     padding: 0 7px;
     border: 0;
     background: transparent;
-    color: #bda7ff;
+    color: var(--tl-accent-primary-hover);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     cursor: pointer;
 }

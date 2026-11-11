@@ -1,16 +1,29 @@
 @namespace MediaEngine.Web.Components.Shared
-<AppTooltip Text="@Tooltip" Suppressed="@string.IsNullOrWhiteSpace(Tooltip)">
-    @if (!string.IsNullOrWhiteSpace(Href))
-    {
-        <a @ref="_focusTarget" href="@(Disabled ? null : Href)" target="@Target" class="@RootClass" aria-label="@(AriaLabel ?? Tooltip)" aria-disabled="@Disabled.ToString().ToLowerInvariant()" tabindex="@(Disabled ? -1 : 0)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes"><AppMaterialIcon Icon="@Icon" Size="@AppUiMaps.ToAppSize(ResolvedSize)" /></a>
-    }
-    else
-    {
-        <button @ref="_focusTarget" type="button" class="@RootClass" disabled="@Disabled" aria-label="@(AriaLabel ?? Tooltip)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes"><AppMaterialIcon Icon="@Icon" Size="@AppUiMaps.ToAppSize(ResolvedSize)" /></button>
-    }
-</AppTooltip>
+@{
+    RenderFragment control = @<AppTooltip Text="@Tooltip" Suppressed="@(string.IsNullOrWhiteSpace(Tooltip) || RepeatsVisibleLabel)">
+        @if (!string.IsNullOrWhiteSpace(Href))
+        {
+            <a @ref="_focusTarget" href="@(Disabled ? null : Href)" target="@Target" class="@RootClass" aria-label="@(AriaLabel ?? Tooltip ?? Label)" aria-disabled="@Disabled.ToString().ToLowerInvariant()" tabindex="@(Disabled ? -1 : 0)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes">@Glyph</a>
+        }
+        else
+        {
+            <button @ref="_focusTarget" type="button" class="@RootClass" disabled="@Disabled" aria-label="@(AriaLabel ?? Tooltip ?? Label)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes">@Glyph</button>
+        }
+    </AppTooltip>;
+}
+@if (!string.IsNullOrWhiteSpace(Label))
+{
+    <span class="app-icon-button-stack">
+        @control
+        <span class="app-icon-button__label">@Label</span>
+    </span>
+}
+else
+{
+    @control
+}
 @code {
-    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = string.Empty;
     [Parameter] public string? Tooltip { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
     [Parameter] public string? Href { get; set; }
@@ -19,12 +32,43 @@
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public object? Size { get; set; } = AppControlSize.Normal;
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Neutral;
+
+    /// <summary>Outlined (default, on surfaces), Text (the Plain look: bare, add <see cref="OverArtwork"/> for the soft scrim) or Filled (primary, and the Like state). Look v3 D9.</summary>
+    [Parameter] public AppButtonStyle ButtonStyle { get; set; } = AppButtonStyle.Outlined;
+
+    /// <summary>A Plain button placed over a cover or backdrop gets a soft dark scrim so it reads on any artwork.</summary>
+    [Parameter] public bool OverArtwork { get; set; }
+
+    /// <summary>With Filled: the soft purple "Like at rest" look (tinted fill, purple hairline) instead of the solid primary fill.</summary>
+    [Parameter] public bool Soft { get; set; }
+
+    /// <summary>A short name drawn under the button where the row has room (hero companions).</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>A custom glyph (for example a playback utility glyph) drawn in place of <see cref="Icon"/>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    /// <summary>A tooltip that only repeats the visible label under the button says nothing new (Look v3 D8), so it is not drawn.</summary>
+    private bool RepeatsVisibleLabel => !string.IsNullOrWhiteSpace(Label)
+        && string.Equals(Label.Trim(), Tooltip?.Trim(), StringComparison.OrdinalIgnoreCase);
     private ElementReference _focusTarget;
     public ValueTask FocusAsync() => _focusTarget.FocusAsync(preventScroll: true);
     private AppControlSize ResolvedSize => AppUiMaps.ToAppControlSize(Size);
-    private string RootClass => string.Join(" ", new[] { "app-icon-button", "tl-icon-button", AppUiMaps.SizeClass(ResolvedSize), AppUiMaps.ToneClass(Tone), Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private RenderFragment Glyph => ChildContent ?? (builder =>
+    {
+        builder.OpenComponent<AppMaterialIcon>(0);
+        builder.AddAttribute(1, nameof(AppMaterialIcon.Icon), Icon);
+        builder.AddAttribute(2, nameof(AppMaterialIcon.Size), AppIconSizes.ForControl(ResolvedSize));
+        builder.CloseComponent();
+    });
+    private string VariantClass => ButtonStyle switch
+    {
+        AppButtonStyle.Text => OverArtwork ? "app-icon-button--plain app-icon-button--over-artwork" : "app-icon-button--plain",
+        AppButtonStyle.Filled => Soft ? "app-icon-button--filled app-icon-button--soft" : "app-icon-button--filled",
+        _ => "app-icon-button--outlined",
+    };
+    private string RootClass => string.Join(" ", new[] { "app-icon-button", "tl-icon-button", VariantClass, AppUiMaps.SizeClass(ResolvedSize), AppUiMaps.ToneClass(Tone), Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
     private Task HandleClick(MouseEventArgs _) => Disabled ? Task.CompletedTask : OnClick.InvokeAsync();
 }

@@ -13,7 +13,7 @@
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     color: var(--tl-status-success);
     background: transparent;
     cursor: pointer;
@@ -21,7 +21,7 @@
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:hover,
 .system-activity-indicator-shell ::deep .system-activity-indicator:focus-visible {
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
+    background: var(--tl-bg-surface-hover);
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:focus-visible {
@@ -29,14 +29,14 @@
     outline-offset: 2px;
 }
 
-/* Two states only: blue while the Library works, green when it is idle. */
+/* Two states only: blue while the Library works, neutral when it is idle (green means healthy or done only). */
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-working {
     --system-activity-glyph: 1.4rem;
     color: var(--tl-accent-secondary);
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-idle {
-    color: var(--tl-status-success);
+    color: var(--tl-tone-neutral);
 }
 
 .system-activity-indicator__ring,
@@ -78,7 +78,7 @@
     right: 0.6rem;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: var(--tl-accent-secondary);
     animation: system-activity-dot-pulse 1.8s ease-in-out infinite;
 }
@@ -88,11 +88,7 @@
     50% { opacity: 0.45; }
 }
 
-.system-activity-indicator-shell ::deep .system-activity-indicator__idle-icon {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 1.75rem;
-}
+
 
 .system-activity-indicator__count {
     position: absolute;
@@ -103,12 +99,12 @@
     display: grid;
     place-items: center;
     padding-inline: 0.2rem;
-    border: 2px solid var(--app-surface, #1e1f27);
-    border-radius: 999px;
-    color: var(--app-surface, #1e1f27);
+    border: 2px solid var(--tl-bg-surface, #1e1f27);
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-bg-surface, #1e1f27);
     background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1;
 }
 

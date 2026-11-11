@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tuvima file-name cleaning",
+  "description": "What the Match tab's pre-fill, the Videos title cleaner and the scan read from a file or folder name (universal editor v5, D33): the noise words by family, the separators, the year rule, the season-and-episode patterns, the track and disc patterns and the edition markers. One file, so the editor and the scan behave alike. A key a person's file leaves out takes the value of the file shipped with the Engine; a person may add words of their own under custom_noise_words.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+
+    "noise_words": {
+      "description": "Words that are release noise rather than part of a title, by family (resolution, source, codec, audio, release flags, container). A word matches whole, ignoring case; a hyphen inside a word may be left out of the name (\"web-dl\" matches \"webdl\").",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "custom_noise_words": {
+      "description": "Words a person adds of their own; they are treated like the shipped noise words.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "ambiguous_words": {
+      "description": "Noise words that are also ordinary title words (\"Magnum Opus\"). They only count after \" - \" or an opening bracket.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "noise_patterns": {
+      "description": "Regular expressions for noise a word list cannot spell, such as any resolution (\\d{3,4}[pi]).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "separators": {
+      "description": "Characters read as spaces in a release-style name (one with no spaces of its own).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 1 }
+    },
+    "year": {
+      "description": "How a year is recognised in a name.",
+      "type": "object",
+      "properties": {
+        "pattern": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "season_episode_patterns": {
+      "description": "Regular expressions that read a season and an episode, with the named groups s (season) and e (episode).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "absolute_episode_patterns": {
+      "description": "Optional regular expressions that read an absolute episode number (shows numbered straight through, as anime is), with the named group e. Tried only when no season-and-episode pattern matches.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "season_folder_pattern": {
+      "description": "A regular expression for a folder that names a season (\"Season 02\", \"Specials\").",
+      "type": "string",
+      "minLength": 1
+    },
+    "track_patterns": {
+      "description": "Regular expressions that read a track number and, where there is one, a disc number, with the named groups track and disc.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "edition_markers": {
+      "description": "Words that name an edition of a title (Extended, Director's Cut, Remastered, Live). They count inside brackets or after the release noise starts.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": true
+}

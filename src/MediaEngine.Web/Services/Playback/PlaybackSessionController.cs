@@ -14,6 +14,7 @@ public sealed partial class PlaybackSessionController
     private readonly ILogger<PlaybackSessionController>? _logger;
     private readonly IUserPlaybackPreferencesAccessor? _preferences;
     private readonly ListenPlaybackClientSettings _clientSettings;
+    private readonly MusicPreviousRule _musicPrevious;
     private double _lastAudibleVolume;
     private readonly PlaybackStateMachine _stateMachine = new();
     private readonly List<ListenQueueItem> _queue = [];
@@ -93,6 +94,7 @@ public sealed partial class PlaybackSessionController
         _logger = logger;
         _preferences = preferences;
         _clientSettings = (clientSettings ?? new ListenPlaybackClientSettings()).Normalize();
+        _musicPrevious = new MusicPreviousRule(_clientSettings.MusicPreviousRestartSeconds);
         Volume = _clientSettings.DefaultVolume;
         _lastAudibleVolume = PositiveVolumeOrFallback(Volume);
         ApplyListeningSettings(UserPlaybackSettingsDto.CreateDefaults(Guid.Empty).Listening);
@@ -126,6 +128,8 @@ public sealed partial class PlaybackSessionController
     public double DurationSeconds { get; private set; }
     public double Volume { get; private set; }
     public bool IsMuted { get; private set; }
+    /// <summary>True once the player has reported its real volume; until then a zero level is not shown as muted.</summary>
+    public bool VolumeReported { get; private set; }
     public double LastAudibleVolume => _lastAudibleVolume;
 
     public double GetMuteToggleTargetVolume() => IsMuted || Volume <= 0
@@ -138,7 +142,6 @@ public sealed partial class PlaybackSessionController
     public long PlaybackStartVersion { get; private set; }
     public string Experience { get; private set; } = PlayerExperienceModes.Music;
     public bool NeedsUserGestureToStart { get; private set; }
-    public bool IsPopupOpen { get; private set; }
     public bool IsVideoExpanded { get; private set; }
     public ViewPlaybackSessionState? ViewSession { get; private set; }
     public PlaybackPresentationSurface PresentationSurface { get; private set; } = PlaybackPresentationSurface.Docked;
@@ -209,7 +212,6 @@ public sealed partial class PlaybackSessionController
         Experience = MediaKindClassifier.FromPlayerExperienceString(Experience),
         Phase = Phase,
         NeedsUserGestureToStart = NeedsUserGestureToStart,
-        IsPopupOpen = IsPopupOpen,
         IsVideoExpanded = IsVideoExpanded,
         PresentationSurface = PresentationSurface,
         CurrentError = CurrentError,
@@ -305,9 +307,6 @@ public sealed partial class PlaybackSessionController
                 break;
             case PlaybackCommandKind.PlayAudiobookHistory when command.AudiobookHistoryItem is not null:
                 await PlayAudiobookHistoryAsync(command.AudiobookHistoryItem, cancellationToken);
-                break;
-            case PlaybackCommandKind.SetPopupOpen when command.Flag.HasValue:
-                SetPopupOpen(command.Flag.Value);
                 break;
             case PlaybackCommandKind.ClosePlayer:
                 ClosePlayer();
@@ -1038,6 +1037,13 @@ public sealed partial class PlaybackSessionController
         return true;
     }
 
+    /// <summary>
+    /// What Previous does on a music player right now (unified player v2 D3): restart the song after the configured seconds of play, go to the
+    /// previous song inside them or on a second press, restart at the start of the queue. Shared by the bar, the lock screen and headsets.
+    /// </summary>
+    public PlaybackPreviousAction PressMusicPrevious() =>
+        _musicPrevious.Press(CurrentItem?.AssetId, CurrentTimeSeconds, hasPreviousSong: CurrentIndex > 0);
+
     public async Task SkipPreviousAsync(CancellationToken ct = default)
     {
         using var request = BeginPlaybackRequest(ct);
@@ -1423,6 +1429,7 @@ public sealed partial class PlaybackSessionController
         if (volume.HasValue)
         {
             var next = Math.Clamp(volume.Value, 0d, 1d);
+            VolumeReported = true;
             if (double.IsFinite(next) && next > 0d)
             {
                 _lastAudibleVolume = next;
@@ -1627,6 +1634,36 @@ public sealed partial class PlaybackSessionController
         var settings = await PlaybackSettingsAsync(ct);
         var seconds = IsVideoMode ? settings.Watching.SkipForwardSeconds : settings.Listening.SkipForwardSeconds;
         await SeekRelativeAsync(seconds, ct);
+    }
+
+    /// <summary>
+    /// Takes new skip lengths the profile just saved in Playback settings, so the bar's skip buttons, the lock screen and the keyboard use them
+    /// at once instead of at the next start. Only the pair that belongs to what is playing (video or audio) is applied.
+    /// </summary>
+    public void ApplySkipLengths(int skipBackSeconds, int skipForwardSeconds)
+    {
+        if (skipBackSeconds <= 0 || skipForwardSeconds <= 0 || SkipBackSeconds == skipBackSeconds && SkipForwardSeconds == skipForwardSeconds)
+        {
+            return;
+        }
+
+        SkipBackSeconds = skipBackSeconds;
+        SkipForwardSeconds = skipForwardSeconds;
+        NotifyChanged();
+    }
+
+    /// <summary>
+    /// A new "Autoplay next episode" choice (made in the Episodes panel) takes effect for what is playing at once, instead of at the next start.
+    /// </summary>
+    public void ApplyAutoplayNextEpisode(bool autoplay)
+    {
+        if (AutoplayNextEpisode == autoplay)
+        {
+            return;
+        }
+
+        AutoplayNextEpisode = autoplay;
+        NotifyChanged();
     }
 
     public async Task SeekRelativeAsync(double deltaSeconds, CancellationToken ct = default)
@@ -1951,9 +1988,9 @@ public sealed partial class PlaybackSessionController
 
         AudiobookSleepBoundaryTarget? capturedTarget = null;
         if (selection.Mode == AudiobookSleepTimerModes.Timer
-            && (selection.Minutes is not int requestedMinutes || !SleepTimerOptionsMinutes.Contains(requestedMinutes)))
+            && (selection.Minutes is not int requestedMinutes || !AudiobookSleepTimerLimits.IsValidMinutes(requestedMinutes)))
         {
-            throw new ArgumentOutOfRangeException(nameof(selection), "Choose one of the available sleep timer durations.");
+            throw new ArgumentOutOfRangeException(nameof(selection), "Choose a sleep timer length from 1 to 720 minutes.");
         }
         if (selection.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext)
         {
@@ -2395,17 +2432,6 @@ public sealed partial class PlaybackSessionController
         NotifyChanged();
     }
 
-    public void SetPopupOpen(bool isOpen)
-    {
-        if (IsPopupOpen == isOpen)
-        {
-            return;
-        }
-
-        IsPopupOpen = isOpen;
-        NotifyChanged();
-    }
-
     public void SetVideoExpanded(bool isExpanded)
     {
         if (IsVideoMode)
@@ -2459,7 +2485,6 @@ public sealed partial class PlaybackSessionController
         Experience = PlayerExperienceModes.Music;
         NeedsUserGestureToStart = false;
         IsPlaying = false;
-        IsPopupOpen = false;
         IsVideoExpanded = false;
         PresentationSurface = PlaybackPresentationSurface.Docked;
         CurrentError = null;
@@ -2535,7 +2560,6 @@ public sealed partial class PlaybackSessionController
         NeedsUserGestureToStart = snapshot.NeedsUserGestureToStart;
         PlaybackRequestVersion = Math.Max(PlaybackRequestVersion, snapshot.PlaybackRequestVersion);
         IsPlaying = snapshot.IsPlaying && _queue.Count > 0 && !invalidSavedRate;
-        IsPopupOpen = snapshot.IsPopupOpen;
         IsVideoExpanded = snapshot.IsVideoExpanded && IsVideoMode;
         PresentationSurface = IsVideoMode
             ? IsVideoExpanded ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.RestorableVideo
@@ -2548,8 +2572,8 @@ public sealed partial class PlaybackSessionController
             ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
             : snapshot.CurrentError;
         _stateMachine.SetTransportState(IsPlaying, NeedsUserGestureToStart, invalidSavedRate ? null : CurrentError);
-        SkipBackSeconds = snapshot.SkipBackSeconds > 0 ? snapshot.SkipBackSeconds : 15;
-        SkipForwardSeconds = snapshot.SkipForwardSeconds > 0 ? snapshot.SkipForwardSeconds : 15;
+        SkipBackSeconds = snapshot.SkipBackSeconds > 0 ? snapshot.SkipBackSeconds : _clientSettings.DefaultSkipBackSeconds;
+        SkipForwardSeconds = snapshot.SkipForwardSeconds > 0 ? snapshot.SkipForwardSeconds : _clientSettings.DefaultSkipForwardSeconds;
         SleepTimerOptionsMinutes = NormalizeSleepTimerOptions(snapshot.SleepTimerOptionsMinutes);
         PlaybackStartVersion = Math.Max(PlaybackStartVersion, snapshot.PlaybackStartVersion);
         RestoreSleepTimerState(snapshot.SleepTimerState);
@@ -2607,7 +2631,6 @@ public sealed partial class PlaybackSessionController
         RepeatMode = RepeatMode,
         NeedsUserGestureToStart = NeedsUserGestureToStart,
         IsPlaying = IsPlaying,
-        IsPopupOpen = IsPopupOpen,
         IsVideoExpanded = IsVideoExpanded,
         CurrentError = CurrentError,
         SkipBackSeconds = SkipBackSeconds,
@@ -2845,11 +2868,12 @@ public sealed partial class PlaybackSessionController
     private readonly HashSet<Guid> _adaptiveAudioAssets = [];
 
     /// <summary>
-    /// Restarts the playing video on the Engine's adaptive stream, which carries every audio track, and resumes from the same second.
+    /// Restarts the playing video on the Engine's adaptive stream, which carries every audio track, and resumes from the same second
+    /// (<paramref name="resumeSeconds"/>, the second the choice was made at, or the player's current second when none is given).
     /// A browser cannot switch the audio of a direct-play file itself (video-player-controls-and-bookmarks D10). False when the Engine
     /// could not provide the stream; the video keeps playing as it was.
     /// </summary>
-    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default)
+    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default, double? resumeSeconds = null)
     {
         if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType))
         {
@@ -2878,7 +2902,7 @@ public sealed partial class PlaybackSessionController
         }
 
         _adaptiveAudioAssets.Add(assetId);
-        _queue[index] = _queue[index] with { Manifest = manifest, StreamUrl = null, InitialPositionSeconds = CurrentTimeSeconds, StartAtExactPosition = true };
+        _queue[index] = _queue[index] with { Manifest = manifest, StreamUrl = null, InitialPositionSeconds = resumeSeconds is { } at && double.IsFinite(at) && at >= 0 ? at : CurrentTimeSeconds, StartAtExactPosition = true };
         await EnsurePlayableAsync(index, ct);
         if (index >= _queue.Count || string.IsNullOrWhiteSpace(_queue[index].StreamUrl))
         {
@@ -3744,7 +3768,7 @@ public sealed partial class PlaybackSessionController
             || state.WorkId != (item.AudiobookWorkId ?? item.WorkId)
             || state.BoundAssetId != item.AssetId || state.TimerSessionId == Guid.Empty
             || (state.Mode == AudiobookSleepTimerModes.Timer
-                && (state.DeadlineUtc is null || state.ChosenMinutes is not int minutes || !SleepTimerOptionsMinutes.Contains(minutes))))
+                && (state.DeadlineUtc is null || state.ChosenMinutes is not int minutes || !AudiobookSleepTimerLimits.IsValidMinutes(minutes))))
         {
             SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
             return;

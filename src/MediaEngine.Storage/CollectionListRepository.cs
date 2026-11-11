@@ -17,7 +17,8 @@ public sealed class CollectionListRepository : ICollectionListRepository
         SELECT collection_id AS CollectionId, source_kind AS SourceKind, source_label AS SourceLabel, source_name AS SourceName,
                source_address AS SourceAddress, shelf AS Shelf, order_by AS OrderBy, refresh AS Refresh, sync_mode AS SyncMode,
                last_refreshed_at AS LastRefreshedAt, next_refresh_at AS NextRefreshAt, entry_count AS EntryCount,
-               matched_count AS MatchedCount, unmatched_count AS UnmatchedCount, created_at AS CreatedAt, updated_at AS UpdatedAt
+               matched_count AS MatchedCount, unmatched_count AS UnmatchedCount, connection_profile_id AS ConnectionProfileId,
+               created_at AS CreatedAt, updated_at AS UpdatedAt
         FROM collection_list_sources
         """;
 
@@ -100,17 +101,17 @@ public sealed class CollectionListRepository : ICollectionListRepository
                 """
                 INSERT INTO collection_list_sources
                     (collection_id, source_kind, source_label, source_name, source_address, shelf, order_by, refresh, sync_mode,
-                     last_refreshed_at, next_refresh_at, entry_count, matched_count, unmatched_count, created_at, updated_at)
+                     last_refreshed_at, next_refresh_at, entry_count, matched_count, unmatched_count, connection_profile_id, created_at, updated_at)
                 VALUES
                     (@CollectionId, @SourceKind, @SourceLabel, @SourceName, @SourceAddress, @Shelf, @OrderBy, @Refresh, @SyncMode,
-                     @LastRefreshedAt, @NextRefreshAt, @EntryCount, @MatchedCount, @UnmatchedCount, @CreatedAt, @UpdatedAt)
+                     @LastRefreshedAt, @NextRefreshAt, @EntryCount, @MatchedCount, @UnmatchedCount, @ConnectionProfileId, @CreatedAt, @UpdatedAt)
                 ON CONFLICT(collection_id) DO UPDATE SET
                     source_kind = excluded.source_kind, source_label = excluded.source_label, source_name = excluded.source_name,
                     source_address = excluded.source_address, shelf = excluded.shelf, order_by = excluded.order_by,
                     refresh = excluded.refresh, sync_mode = excluded.sync_mode, last_refreshed_at = excluded.last_refreshed_at,
                     next_refresh_at = excluded.next_refresh_at, entry_count = excluded.entry_count,
                     matched_count = excluded.matched_count, unmatched_count = excluded.unmatched_count,
-                    updated_at = excluded.updated_at
+                    connection_profile_id = excluded.connection_profile_id, updated_at = excluded.updated_at
                 """,
                 source, tx);
 

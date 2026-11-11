@@ -4,6 +4,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.FileWrites;
+using MediaEngine.Api.Services.Networking;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.WriteBack;
@@ -25,7 +26,6 @@ using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using AuthSettingsDto = MediaEngine.Contracts.Settings.AuthSettingsDto;
 using ContractPipelineConfiguration = MediaEngine.Contracts.Settings.PipelineConfiguration;
-using ContractTranscodingSettings = MediaEngine.Contracts.Settings.TranscodingSettings;
 using FieldMappingResponse = MediaEngine.Contracts.Settings.FieldMappingDto;
 using HydrationSettingsDto = MediaEngine.Contracts.Settings.HydrationSettingsDto;
 using LibrariesConfigurationSettingsDto = MediaEngine.Contracts.Settings.LibrariesConfigurationDto;
@@ -318,64 +318,7 @@ public static class SettingsEndpoints
           .Produces(StatusCodes.Status204NoContent)
           .RequireEffectiveAdministrator();
 
-        grp.MapGet("/transcoding", (IConfigurationLoader configLoader) =>
-        {
-            return Results.Ok(SettingsContractMapper.ToContract(configLoader.LoadTranscoding()));
-        })
-        .WithName("GetTranscodingSettings")
-        .WithSummary("Returns playback encode, FFmpeg, and offline variant policy.")
-        .Produces<ContractTranscodingSettings>(StatusCodes.Status200OK)
-        .RequireEffectiveAdministrator();
-
-        grp.MapPut("/transcoding", (
-            ContractTranscodingSettings request,
-            IConfigurationLoader configLoader) =>
-        {
-            var settings = SettingsContractMapper.ToStorage(request);
-            settings.MaxConcurrentTranscodes = Math.Clamp(settings.MaxConcurrentTranscodes, 1, 8);
-            settings.ShadowStorageLimitGb = Math.Clamp(settings.ShadowStorageLimitGb, 1, 10_000);
-            settings.VariantRetentionDays = Math.Clamp(settings.VariantRetentionDays, 1, 3650);
-            settings.HardwareAcceleration = string.IsNullOrWhiteSpace(settings.HardwareAcceleration)
-                ? "auto"
-                : settings.HardwareAcceleration.Trim().ToLowerInvariant();
-            settings.MaintenanceWindow = string.IsNullOrWhiteSpace(settings.MaintenanceWindow)
-                ? "01:00-05:00"
-                : settings.MaintenanceWindow.Trim();
-            settings.VariantCachePath = string.IsNullOrWhiteSpace(settings.VariantCachePath)
-                ? ".data/variants"
-                : settings.VariantCachePath.Trim();
-            settings.DefaultMobileProfile = string.IsNullOrWhiteSpace(settings.DefaultMobileProfile)
-                ? settings.QualityProfiles.FirstOrDefault()?.Name ?? "mobile-small"
-                : settings.DefaultMobileProfile.Trim();
-            settings.AdaptiveHls.ProfileName = string.IsNullOrWhiteSpace(settings.AdaptiveHls.ProfileName)
-                ? "tv-adaptive-hls"
-                : settings.AdaptiveHls.ProfileName.Trim().ToLowerInvariant();
-            settings.AdaptiveHls.SegmentSeconds = Math.Clamp(settings.AdaptiveHls.SegmentSeconds, 2, 12);
-            settings.AdaptiveHls.AccessLifetimeMinutes = Math.Clamp(settings.AdaptiveHls.AccessLifetimeMinutes, 15, 720);
-            settings.AdaptiveHls.PreparationWaitSeconds = Math.Clamp(settings.AdaptiveHls.PreparationWaitSeconds, 1, 60);
-            settings.AdaptiveHls.CleanupIntervalMinutes = Math.Clamp(settings.AdaptiveHls.CleanupIntervalMinutes, 1, 1440);
-            settings.AdaptiveHls.Renditions = settings.AdaptiveHls.Renditions
-                .Where(rendition => rendition.Height is >= 144 and <= 4320
-                    && rendition.VideoBitrateKbps is >= 100 and <= 100_000)
-                .OrderByDescending(rendition => rendition.Height)
-                .GroupBy(rendition => rendition.Height)
-                .Select(group => group.First())
-                .Take(8)
-                .ToList();
-            foreach (var rendition in settings.AdaptiveHls.Renditions)
-            {
-                rendition.Name = string.IsNullOrWhiteSpace(rendition.Name) ? $"{rendition.Height}p" : rendition.Name.Trim();
-                rendition.MaxRateKbps = Math.Max(rendition.VideoBitrateKbps, rendition.MaxRateKbps);
-                rendition.BufferSizeKbps = Math.Max(rendition.MaxRateKbps, rendition.BufferSizeKbps);
-            }
-
-            configLoader.SaveTranscoding(settings);
-            return Results.Ok(SettingsContractMapper.ToContract(settings));
-        })
-        .WithName("UpdateTranscodingSettings")
-        .WithSummary("Saves playback encode, FFmpeg, and offline variant policy.")
-        .Produces<ContractTranscodingSettings>(StatusCodes.Status200OK)
-        .RequireEffectiveAdministrator();
+        grp.MapTranscodingSettings();
 
         // ── GET/PUT /settings/libraries ───────────────────────────────────────
         grp.MapGet("/libraries", async (
@@ -1533,6 +1476,29 @@ public static class SettingsEndpoints
         .WithName("UpdateServerGeneral")
         .WithSummary("Saves server identity and regional settings.")
         .Produces(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // ── GET / PUT /settings/server-identity ───────────────────────────────
+        // The Library's friendly name and its network name (Settings > General). Setup writes the same two values through ServerIdentityService.
+
+        grp.MapGet("/server-identity", (IConfigurationLoader configLoader) =>
+            Results.Ok(ServerIdentityService.Read(configLoader)))
+        .WithName("GetServerIdentity")
+        .WithSummary("Returns the Library's friendly name and its network name.")
+        .Produces<MediaEngine.Contracts.Setup.SetupServerIdentityDto>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
+        grp.MapPut("/server-identity", (
+            MediaEngine.Contracts.Setup.SetupServerIdentityDto request,
+            IConfigurationLoader configLoader) =>
+        {
+            var (saved, error) = ServerIdentityService.Save(configLoader, request);
+            return saved is null ? ApiErrors.BadRequest(error!) : Results.Ok(saved);
+        })
+        .WithName("UpdateServerIdentity")
+        .WithSummary("Saves the Library's friendly name; the network name follows it unless it was set by hand.")
+        .Produces<MediaEngine.Contracts.Setup.SetupServerIdentityDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 

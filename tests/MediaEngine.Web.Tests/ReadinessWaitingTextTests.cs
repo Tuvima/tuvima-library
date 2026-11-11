@@ -53,7 +53,7 @@ public sealed class ReadinessWaitingTextTests : AsyncBunitContext
 
         var status = cut.Find(".ingestion-media-list-row__status");
         Assert.Equal("Waiting for matching and artwork", status.TextContent.Trim());
-        Assert.Equal("Waiting for matching and artwork", status.GetAttribute("title"));
+        Assert.Equal("Waiting for matching and artwork", status.GetAttribute("data-overflow-tooltip"));
         Assert.Contains("Waiting for matching and artwork", cut.Find("button.ingestion-media-list-row__open").GetAttribute("aria-label"));
     }
 
@@ -86,16 +86,14 @@ public sealed class ReadinessWaitingTextTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Drawer_SaysTheSameWordsAsTheRow()
+    public void Row_SaysWhatItIsWaitingFor()
     {
         var item = Item("TV", "adding", ["matching", "placing"]);
 
-        var drawer = Render<IngestionMediaDrawer>(parameters => parameters.Add(component => component.Item, item));
         var row = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, item));
 
         var text = row.Find(".ingestion-media-list-row__status").TextContent.Trim();
         Assert.Equal("Waiting for matching and its show", text);
-        Assert.Contains(text, drawer.Find(".ingestion-drawer__progress span").TextContent);
     }
 
     [Fact]

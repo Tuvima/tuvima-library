@@ -172,7 +172,7 @@
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             $"Delete \"{item.Title}\" for good?",
             $"It is removed from your disk and can't be recovered. {DisplayFormat.FormatFileSize(item.SizeBytes)} is freed.",
-            yesText: "Delete now", cancelText: "Keep");
+            yesText: "Delete now", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         _busy = true;
         _message = null;
@@ -186,7 +186,7 @@
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             "Empty the recycle bin?",
             $"Permanently delete {total}? This can't be undone.",
-            yesText: "Empty", cancelText: "Keep");
+            yesText: "Empty", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         _busy = true;
         _message = null;

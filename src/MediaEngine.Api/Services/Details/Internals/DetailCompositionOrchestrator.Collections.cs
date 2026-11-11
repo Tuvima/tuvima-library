@@ -56,6 +56,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 EpisodeStillUrl = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
                 EpisodeStillWidthPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillWidthPx,
                 EpisodeStillHeightPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillHeightPx,
+                StandInRetryAfter = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is null
+                    ? GetValue(episodeValues, MetadataFieldConstants.EpisodeStillStandIn)
+                    : null,
                 Year = FirstText(GetValue(episodeValues, "air_date"), GetValue(episodeValues, "release_date")),
             });
         }
@@ -293,8 +296,14 @@ internal sealed partial class DetailCompositionOrchestrator
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
             .ToList();
+        // A TV show's description: the show's own provider text first (stored on the show, or on its episodes' hydration),
+        // then the longer Wikipedia-style text, and only last the one-line Wikidata description.
         var longDescription = displayDescription ?? (entityType == DetailEntityType.TvShow
-            ? GetValue(values, MetadataFieldConstants.ShortDescription)
+            ? FirstText(GetValue(values, MetadataFieldConstants.Description),
+                GetValue(values, MetadataFieldConstants.ShowDescription),
+                GetValue(tvPlaybackValues, MetadataFieldConstants.ShowDescription),
+                GetValue(values, "overview"),
+                GetValue(values, MetadataFieldConstants.ShortDescription))
             : FirstText(GetValue(values, MetadataFieldConstants.Description),
                 GetValue(values, "overview"), GetValue(values, "plot_summary"), row.Description));
         var heroSummary = entityType == DetailEntityType.TvShow ? longDescription : BuildHeroSummary(values);
@@ -353,6 +362,17 @@ internal sealed partial class DetailCompositionOrchestrator
             collectionBanner = null;
             collectionCover = tvInProgressEpisode.BackgroundUrl;
         }
+        // A folder of Other videos has no portrait cover of its own: its picture is a frame taken from a video, which fills the page's
+        // background like a film's backdrop instead of sitting as a small picture inside a cover (item 17 and D18). With no frame the
+        // folder's own picture stays as it was.
+        var isVideoFolder = entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType);
+        if (isVideoFolder && tvInProgressEpisode is null
+            && string.IsNullOrWhiteSpace(collectionBackdrop) && string.IsNullOrWhiteSpace(collectionBanner)
+            && !string.IsNullOrWhiteSpace(collectionCover))
+        {
+            collectionBackdrop = collectionCover;
+        }
+
         var collectionLogo = StringHelpers.FirstNonBlankOr(string.Empty, row.LogoUrl, GetValue(values, "logo_url"), GetValue(values, "logo"));
         IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType) || placementOnly
             ? []
@@ -431,6 +451,11 @@ internal sealed partial class DetailCompositionOrchestrator
                 .ToList();
             var (carriedWorks, _) = await EnrichTvEpisodeSubsetAsync(displayWorks, carriedEpisodeIds, enrichedEpisodeIds, ct);
             sequencePlacement = BuildPlacement(carriedWorks);
+            if (sequencePlacement is not null
+                && sequencePlacement.EmittedItems().Any(item => item.PictureIsStandIn))
+            {
+                sequencePlacement.StandInBackdropUrl = await LoadShowStandInBackdropUrlAsync(rootWorkId ?? collectionId, ct);
+            }
         }
         if (placementOnly)
         {
@@ -479,9 +504,9 @@ internal sealed partial class DetailCompositionOrchestrator
             Title = collectionTitle,
             Subtitle = entityType == DetailEntityType.TvShow ? ResolveTvContext(works) switch
             {
-                { Reason: TvEpisodeSelectionReason.AllOwnedCompleted } => "All owned episodes watched",
-                { Reason: TvEpisodeSelectionReason.RemainingOwned } => "Earlier owned episodes remain unwatched",
-                { HasGap: true } => "Next available episode - intervening episodes are not in the library",
+                { Reason: TvEpisodeSelectionReason.AllOwnedCompleted } => isVideoFolder ? "All owned videos watched" : "All owned episodes watched",
+                { Reason: TvEpisodeSelectionReason.RemainingOwned } => isVideoFolder ? "Earlier owned videos remain unwatched" : "Earlier owned episodes remain unwatched",
+                { HasGap: true } => isVideoFolder ? "Next available video - intervening videos are not in the library" : "Next available episode - intervening episodes are not in the library",
                 _ => BuildCollectionSubtitle(entityType, displayWorks, values),
             } : BuildCollectionSubtitle(entityType, displayWorks, values),
             Tagline = entityType == DetailEntityType.TvShow
@@ -1003,6 +1028,22 @@ internal sealed partial class DetailCompositionOrchestrator
     {
         var parsedTrackNumber = TryParseInt(trackNumber);
         return parsedTrackNumber.HasValue ? parsedTrackNumber.Value : zeroBasedIndex + 1;
+    }
+
+    /// <summary>An owned TV episode with no real picture of any kind, which TheTVDB has been asked for and will be asked again.</summary>
+    private static bool IsEpisodeStandIn(DetailEntityType entityType, CollectionWorkSummary work) =>
+        entityType == DetailEntityType.TvShow
+        && work.IsOwned
+        && !string.IsNullOrWhiteSpace(work.StandInRetryAfter)
+        && string.IsNullOrWhiteSpace(work.EpisodeStillUrl)
+        && string.IsNullOrWhiteSpace(work.BackgroundUrl);
+
+    /// <summary>The show's preferred landscape backdrop, which the Dashboard dims behind the number of an episode with no picture.</summary>
+    private async Task<string?> LoadShowStandInBackdropUrlAsync(Guid showWorkId, CancellationToken ct)
+    {
+        var assets = await _entityAssets.GetPreferredByEntitiesAsync([showWorkId.ToString("D")], ct);
+        var background = assets.FirstOrDefault(asset => string.Equals(asset.AssetTypeValue, "Background", StringComparison.OrdinalIgnoreCase));
+        return background is null ? null : ArtworkCanonicalHelper.StoredArtworkUrl(background, "m");
     }
 
     private async Task<IReadOnlyDictionary<string, SeasonArtworkPresentation>> LoadTvSeasonArtworkAsync(

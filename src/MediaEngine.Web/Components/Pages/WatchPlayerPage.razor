@@ -156,7 +156,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
         Subtitle = StringHelpers.FirstNonBlank(detail.EpisodeTitle, detail.Director, detail.Year),
         Album = StringHelpers.FirstNonBlank(detail.ShowName, detail.Series),
         Year = detail.Year,
-        ContentRating = detail.Rating,
+        ContentRating = VideoContentRating.Of(detail),
         SeasonNumber = detail.SeasonNumber,
         EpisodeNumber = detail.EpisodeNumber,
         EpisodeTitle = detail.EpisodeTitle,

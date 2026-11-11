@@ -5,8 +5,8 @@
     width: var(--tl-touch-target-min);
     min-width: var(--tl-touch-target-min);
     height: var(--tl-touch-target-min);
-    border-radius: 999px;
-    color: var(--app-text-primary, var(--tl-text-primary));
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-text-primary, var(--tl-text-primary));
     text-decoration: none;
     touch-action: manipulation;
 }
@@ -14,7 +14,7 @@
 .phone-downloads-action:hover,
 .phone-downloads-action:focus-visible {
     color: var(--tl-text-primary);
-    background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
+    background: var(--tl-bg-surface-hover);
 }
 
 .phone-downloads-action:focus-visible {

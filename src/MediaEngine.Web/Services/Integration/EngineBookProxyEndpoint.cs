@@ -30,11 +30,57 @@ public static class EngineBookProxyEndpoint
         "Retry-After",
     };
 
-    public static IEndpointConventionBuilder MapEngineBookProxy(this IEndpointRouteBuilder endpoints) =>
-        endpoints.MapGet(EngineBookProxyPath.FileRoute, HandleAsync)
+    public static IEndpointConventionBuilder MapEngineBookProxy(this IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup(string.Empty);
+        group.MapGet(EngineBookProxyPath.FileRoute, HandleAsync)
             .WithName("ProxyEngineBookFile")
-            .WithSummary("Streams one book or comic file from the Engine through the Dashboard origin, with byte ranges.")
-            .RequireAuthorization();
+            .WithSummary("Streams one book or comic file from the Engine through the Dashboard origin, with byte ranges.");
+        group.MapGet(EngineBookProxyPath.PagesRoute, HandlePagesAsync)
+            .WithName("ProxyEngineComicPages")
+            .WithSummary("Carries a comic's page list from the Engine to the signed-in browser.");
+        group.MapGet(EngineBookProxyPath.PageRoute, HandlePageAsync)
+            .WithName("ProxyEngineComicPage")
+            .WithSummary("Carries one comic page picture, at an allowed width, from the Engine to the signed-in browser.");
+        return group.RequireAuthorization();
+    }
+
+    public static Task HandlePagesAsync(
+        HttpContext context,
+        IHttpClientFactory httpFactory,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        ApplySafeHeaders(context.Response);
+        if (!EngineBookProxyPath.TryParsePagesPath(context.Request.Path.Value, withPage: false, out var assetId, out _)
+            || context.Request.Query.Count > 0)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return Task.CompletedTask;
+        }
+
+        return ProxyAsync(context, httpFactory, loggerFactory, EngineBookProxyPath.ToEnginePagesPath(assetId), assetId, cancellationToken);
+    }
+
+    public static Task HandlePageAsync(
+        HttpContext context,
+        IHttpClientFactory httpFactory,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        ApplySafeHeaders(context.Response);
+        if (!EngineBookProxyPath.TryParsePagesPath(context.Request.Path.Value, withPage: true, out var assetId, out var page)
+            || !EngineBookProxyPath.TryReadWidth(context.Request.Query, out var width))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return Task.CompletedTask;
+        }
+
+        // A page picture never changes for the same file, and every request is still authorised by the Engine first,
+        // so the browser may keep it briefly for the next turn (spec D18) but never share it.
+        context.Response.Headers.CacheControl = "private, max-age=3600";
+        return ProxyAsync(context, httpFactory, loggerFactory, EngineBookProxyPath.ToEnginePagePath(assetId, page, width), assetId, cancellationToken);
+    }
 
     public static async Task HandleAsync(
         HttpContext context,
@@ -51,6 +97,17 @@ public static class EngineBookProxyEndpoint
             return;
         }
 
+        await ProxyAsync(context, httpFactory, loggerFactory, EngineBookProxyPath.ToEnginePath(assetId), assetId, cancellationToken);
+    }
+
+    private static async Task ProxyAsync(
+        HttpContext context,
+        IHttpClientFactory httpFactory,
+        ILoggerFactory loggerFactory,
+        string enginePath,
+        Guid assetId,
+        CancellationToken cancellationToken)
+    {
         // The Engine decides what this person may read from their session. Without one there is nobody to
         // authorise as, so say so here instead of calling the Engine with the Dashboard's own credential alone.
         if (string.IsNullOrWhiteSpace(context.User.FindFirstValue(DashboardEngineAuthenticationHandler.SessionTokenClaim)))
@@ -59,7 +116,7 @@ public static class EngineBookProxyEndpoint
             return;
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, EngineBookProxyPath.ToEnginePath(assetId));
+        using var request = new HttpRequestMessage(HttpMethod.Get, enginePath);
         foreach (var name in ForwardedRequestHeaders)
         {
             if (context.Request.Headers.TryGetValue(name, out var values) && values.Count > 0)
@@ -130,6 +187,8 @@ public static class EngineBookProxyEndpoint
         HttpStatusCode.RequestedRangeNotSatisfiable => StatusCodes.Status416RangeNotSatisfiable,
         HttpStatusCode.Unauthorized => StatusCodes.Status401Unauthorized,
         HttpStatusCode.TooManyRequests => StatusCodes.Status429TooManyRequests,
+        // A damaged, protected or over-limit comic: the reader shows "This file can't be opened".
+        HttpStatusCode.UnprocessableEntity => StatusCodes.Status422UnprocessableEntity,
         HttpStatusCode.Forbidden or HttpStatusCode.NotFound => StatusCodes.Status404NotFound,
         _ => StatusCodes.Status502BadGateway,
     };
@@ -145,6 +204,12 @@ public static class EngineBookProxyEndpoint
 
     private static void CopyAllowedHeaders(HttpResponseMessage source, HttpResponse target)
     {
+        // A Vault title's pictures come back "no-store" and must stay that way, whatever the page route set before.
+        if (source.Headers.CacheControl?.NoStore == true)
+        {
+            target.Headers.CacheControl = "private, no-store";
+        }
+
         foreach (var header in source.Headers.Concat(source.Content.Headers))
         {
             if (ForwardedResponseHeaders.Contains(header.Key))

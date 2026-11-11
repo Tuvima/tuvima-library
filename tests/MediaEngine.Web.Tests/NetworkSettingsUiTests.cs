@@ -14,8 +14,8 @@ public sealed class NetworkSettingsUiTests
     {
         var subsections = SettingsNav.GetSubsections(SettingsSection.Network).ToArray();
 
-        Assert.Equal(["overview", "local", "remote", "advanced"], subsections.Select(item => item.Slug));
-        Assert.Equal("/settings/network/overview", SettingsNav.RouteFor(SettingsSection.Network));
+        Assert.Equal(["home", "remote", "advanced"], subsections.Select(item => item.Slug));
+        Assert.Equal("/settings/network/home", SettingsNav.RouteFor(SettingsSection.Network));
         Assert.Equal("/settings/network/remote", SettingsNav.RouteFor(SettingsSection.Network, "remote"));
     }
 
@@ -28,7 +28,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("@page \"/setup\"", setup, StringComparison.Ordinal);
         Assert.Contains("UploadBackupAsync", setup, StringComparison.Ordinal);
         Assert.Contains("SetupLibrariesStage", setup, StringComparison.Ordinal);
-        Assert.Contains("<LibrariesOverview Simple=\"true\"", media, StringComparison.Ordinal);
+        Assert.Contains("<SetupLibrariesTable", media, StringComparison.Ordinal);
         Assert.Contains("What do you have?", media, StringComparison.Ordinal);
         Assert.Contains("SetupWorkflow.StepKeys", setup, StringComparison.Ordinal);
     }
@@ -97,7 +97,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("grid-template-columns: auto minmax(0, 1fr)", dialogStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-wrap: anywhere", dialogStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("network-test-dialog__check", settingsStyles, StringComparison.Ordinal);
-        Assert.Contains("width: min(100%, 760px)", shellStyles, StringComparison.Ordinal);
+        Assert.Contains("width: min(100%, var(--tl-window-m, 640px))", shellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-x: hidden", shellStyles, StringComparison.Ordinal);
         Assert.Contains("app-dialog-host", dialogHost, StringComparison.Ordinal);
         Assert.Contains(".tl-dialog.app-dialog-host > .tl-dialog-content", appStyles, StringComparison.Ordinal);
@@ -148,6 +148,43 @@ public sealed class NetworkSettingsUiTests
         Assert.DoesNotContain("Anywhere", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("network-checklist", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Security Check", remote, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HomeNetwork_ShowsStatusAddressTestAndDiscoverySwitchWithNothingToType()
+    {
+        var home = Read(@"src/MediaEngine.Web/Components/Settings/LocalNetworkSettingsPanel.razor");
+        var overview = Read(@"src/MediaEngine.Web/Components/Settings/NetworkOverviewPanel.razor");
+
+        Assert.Contains("PreferredLocalAddress", home, StringComparison.Ordinal);
+        Assert.Contains("DiscoveryEnabled", home, StringComparison.Ordinal);
+        Assert.Contains("TestAsync", overview, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppTextField", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("PreferredServerName=", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("@bind-Value=\"Settings.Local.PreferredServerName\"", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("ServerPort", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("IPv6Support", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("NetworkInterface", home, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AdvancedNetwork_OwnsPortInterfaceAndIpv6()
+    {
+        var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
+
+        Assert.Contains("OpenPortDialog", advanced, StringComparison.Ordinal);
+        Assert.Contains("ChangeInterfaceAsync", advanced, StringComparison.Ordinal);
+        Assert.Contains("ChangeIpv6Async", advanced, StringComparison.Ordinal);
+        Assert.Contains("NetworkPortChangeDialog", advanced, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NetworkPage_NoLongerEditsTheServerName()
+    {
+        foreach (var file in new[] { "NetworkRemoteAccessSettings.razor", "NetworkOverviewPanel.razor", "LocalNetworkSettingsPanel.razor", "AdvancedNetworkSettingsPanel.razor" })
+        {
+            Assert.DoesNotContain("PreferredServerName\"", Read($@"src/MediaEngine.Web/Components/Settings/{file}"), StringComparison.Ordinal);
+        }
     }
 
     [Fact]

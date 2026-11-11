@@ -29,7 +29,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
         Assert.Empty(cut.FindAll("a[href^='/settings/overview']"));
         Assert.Empty(cut.FindAll("a[href^='/settings/recently-added']"));
-        Assert.NotEmpty(cut.FindAll(".kids-badge"));
+        Assert.NotEmpty(cut.FindAll(".app-chip"));
         Assert.NotEmpty(cut.FindAll(".top-nav-account-menu__signout"));
     }
 
@@ -51,7 +51,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll("a[href='/settings']"));
         Assert.NotEmpty(cut.FindAll("a[href='/settings/overview']"));
         Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
-        Assert.Empty(cut.FindAll(".kids-badge"));
+        Assert.Empty(cut.FindAll(".app-chip"));
     }
 
     [Fact]

@@ -84,13 +84,96 @@ public sealed class ItemExtraRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task APersonsDecision_GoesWhenItsFileIsGone()
+    public async Task APersonsDecision_IsKeptAsMissingWhenItsFileIsGone_AndGoesOnceItHasBeenMissingLongEnough()
     {
         await _extras.SetDecisionAsync(Extra("Lesson 03.mp4", ItemExtraKinds.Clip) with { Origin = ItemExtraOrigins.UserExtra });
 
-        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Lesson 03.mp4"]);
+        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Lesson 03.mp4"], DateTimeOffset.UtcNow.AddDays(-30));
+
+        var kept = Assert.Single(await _extras.ListByItemFoldersAsync([Show]));
+        Assert.True(kept.IsMissingFromDisk);
+
+        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Lesson 03.mp4"], DateTimeOffset.UtcNow.AddDays(1));
 
         Assert.Empty(await _extras.ListByItemFoldersAsync([Show]));
+    }
+
+    [Fact]
+    public async Task ARuleFoundFileThatLeavesTheDisk_KeepsItsRecordAsMissing_AndComesBackWhenTheFileDoes()
+    {
+        await _extras.SyncItemFolderAsync(Show, [Extra("Workbook.pdf", ItemExtraKinds.Document)], []);
+        var id = (await _extras.GetByPathAsync($"{Show}/Workbook.pdf"))!.Id;
+
+        await _extras.SyncItemFolderAsync(Show, [], [$"{Show}/Workbook.pdf"], DateTimeOffset.UtcNow.AddDays(-30));
+        Assert.True((await _extras.GetByPathAsync($"{Show}/Workbook.pdf"))!.IsMissingFromDisk);
+
+        await _extras.SyncItemFolderAsync(Show, [Extra("Workbook.pdf", ItemExtraKinds.Document)], [], DateTimeOffset.UtcNow.AddDays(-30));
+
+        var back = (await _extras.GetByPathAsync($"{Show}/Workbook.pdf"))!;
+        Assert.Equal(id, back.Id);
+        Assert.False(back.IsMissingFromDisk);
+    }
+
+    [Fact]
+    public async Task APersonsKindAndPlace_AreStored_AndComeBackOnTheRow()
+    {
+        await _extras.SetDecisionAsync(Extra("Season 1 trailer.mkv", ItemExtraKinds.Clip) with
+        {
+            Origin = ItemExtraOrigins.UserExtra,
+            ExtraKind = ExtraKinds.Trailer,
+            PlaceSeason = 1,
+        });
+        await _extras.SetDecisionAsync(Extra("Interview.mkv", ItemExtraKinds.Clip) with
+        {
+            Origin = ItemExtraOrigins.UserExtra,
+            ExtraKind = ExtraKinds.Interview,
+            PlaceSeason = 2,
+            PlaceEpisode = 4,
+        });
+        await _extras.SetDecisionAsync(Extra("Song video.mp4", ItemExtraKinds.Clip) with
+        {
+            Origin = ItemExtraOrigins.UserExtra,
+            ExtraKind = ExtraKinds.OtherClip,
+            PlaceTrack = 3,
+        });
+
+        var trailer = await _extras.GetByPathAsync($"{Show}/Season 1 trailer.mkv");
+        var interview = await _extras.GetByPathAsync($"{Show}/Interview.mkv");
+        var video = await _extras.GetByPathAsync($"{Show}/Song video.mp4");
+
+        Assert.Equal((ExtraKinds.Trailer, 1, (int?)null, (int?)null), (trailer!.ExtraKind, trailer.PlaceSeason, trailer.PlaceEpisode, trailer.PlaceTrack));
+        Assert.Equal((ExtraKinds.Interview, 2, 4), (interview!.ExtraKind, interview.PlaceSeason, interview.PlaceEpisode));
+        Assert.Equal(3, video!.PlaceTrack);
+    }
+
+    [Fact]
+    public async Task AFileAttachedToAnotherTitle_IsListedUnderThatTitle_AndTheRulesPassOverTheOldFolderLeavesItAlone()
+    {
+        const string other = "/library/tv/Other Show";
+        await _extras.SetDecisionAsync(Extra("Guide.pdf", ItemExtraKinds.Document, other) with
+        {
+            FilePath = $"{Show}/Guide.pdf",
+            Origin = ItemExtraOrigins.UserExtra,
+            ExtraKind = ExtraKinds.Document,
+        });
+
+        // The rule still sees the file in its own folder; it must not take the row back.
+        await _extras.SyncItemFolderAsync(Show, [Extra("Guide.pdf", ItemExtraKinds.Document)], []);
+
+        Assert.Empty(await _extras.ListByItemFoldersAsync([Show]));
+        var filed = Assert.Single(await _extras.ListByItemFoldersAsync([other]));
+        Assert.Equal(ExtraKinds.Document, filed.ExtraKind);
+    }
+
+    [Fact]
+    public async Task ARuleFoundExtra_HasNoKindOrPlaceStored()
+    {
+        await _extras.SyncItemFolderAsync(Show, [Extra("Workbook.pdf", ItemExtraKinds.Document)], []);
+
+        var found = Assert.Single(await _extras.ListByItemFoldersAsync([Show]));
+
+        Assert.Null(found.ExtraKind);
+        Assert.Null(found.PlaceSeason);
     }
 
     [Fact]

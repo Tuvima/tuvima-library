@@ -3,9 +3,7 @@
     min-height: calc(100vh - 84px);
     min-height: calc(100dvh - 84px);
     padding: 10px clamp(24px, 2.2vw, 42px) 56px;
-    background:
-        radial-gradient(circle at 45% 0%, rgba(59, 130, 246, 0.09) 0%, transparent 34%),
-        linear-gradient(180deg, rgba(4, 9, 22, 0.24) 0%, rgba(4, 9, 22, 0) 260px);
+    background: var(--tl-bg-root);
 }
 
 .browse-shell--embedded {
@@ -60,16 +58,14 @@
 
 .browse-shell__title-eyebrow {
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-weight: 600;
     color: var(--tl-text-muted);
 }
 
 .browse-shell__title-text {
     margin: 0;
     font-size: clamp(1.55rem, 1.2vw + 1rem, 2rem);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
     line-height: 1;
     color: var(--tl-text-primary);
@@ -100,24 +96,6 @@
     border-radius: 0;
     background: transparent !important;
     box-shadow: none;
-}
-
-.browse-shell__tabs-frame ::deep .tl-tabs-toolbar-content,
-.browse-shell__tabs-frame ::deep .tl-tabs-toolbar-inner,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar-content,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar-inner,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar-wrapper {
-    min-height: auto;
-}
-
-.browse-shell__tabs-frame ::deep .tl-tabs-toolbar-inner,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar-inner,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar-content,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transform: none !important;
 }
 
 .browse-shell__tabs-frame ::deep .tl-tabs-panels {
@@ -199,7 +177,7 @@
     max-width: 100%;
     min-width: 0;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
-    align-items: stretch;
+    align-items: center;
     gap: 0;
     padding-top: 15px;
     border-top: 1px solid rgba(128, 146, 180, 0.14);
@@ -208,7 +186,7 @@
 .browse-shell__control-group {
     display: grid;
     min-width: 0;
-    align-content: start;
+    align-content: center;
     gap: 10px;
     padding: 0 clamp(18px, 1.45vw, 26px);
 }
@@ -232,12 +210,12 @@
     gap: 7px;
     min-height: 48px;
     padding-inline: 12px;
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .browse-shell__control-group--browse ::deep .app-browse-mode__option .tl-icon-root {
     display: inline-block;
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .browse-shell__filter-row {
@@ -248,19 +226,36 @@
     gap: clamp(14px, 1.2vw, 22px);
 }
 
+/* Look v3 D15.1 and bug 695: the filter row is one line on one centre line, so the group names ("Browse as", "Filter by")
+   are not drawn above their controls. They stay in the page for screen readers, and show only in the phone filter sheet,
+   where each group is its own section. */
 .browse-shell__control-label {
-    color: rgba(215, 224, 240, 0.72);
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    text-transform: uppercase;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.is-sheet > .browse-shell__control-label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
 }
 
 .browse-shell__filter-selects {
     display: flex;
     min-width: 0;
-    align-items: flex-end;
+    align-items: center;
     gap: 12px;
     flex: 0 1 auto;
     flex-wrap: nowrap;
@@ -269,7 +264,7 @@
 .browse-shell__filter-selects ::deep .app-field__label {
     margin: 0 0 5px 2px;
     color: rgba(215, 224, 240, 0.78);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1;
 }
@@ -282,18 +277,16 @@
 }
 
 .browse-shell__search ::deep .tl-input-control,
-.browse-shell__facet-select ::deep .tl-input-control,
 .browse-shell__sort ::deep .tl-input-control {
     margin: 0;
 }
 
 .browse-shell__search ::deep .tl-input-slot,
 .browse-shell__search ::deep input,
-.browse-shell__facet-select ::deep .tl-input-slot,
 .browse-shell__sort ::deep .tl-input-slot {
     color: rgba(245, 247, 252, 0.95);
     font-family: var(--font-ui);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 500;
 }
 
@@ -302,7 +295,7 @@
 }
 
 .browse-shell__search ::deep .tl-icon-root {
-    font-size: 1.42rem;
+    font-size: var(--tl-icon-size-md);
 }
 
 .browse-shell__multi-select {
@@ -339,187 +332,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 7px;
     padding-inline: 12px;
-    font-size: 0.92rem;
-}
-
-.browse-shell__genre-control {
-    flex: 0 1 136px;
-    min-width: 128px;
-}
-
-.browse-shell__genre-control ::deep .browse-shell__genre-menu {
-    width: 100%;
-}
-
-.browse-shell__genre-control ::deep .browse-shell__genre-trigger {
-    display: grid;
-    width: 100%;
-    min-height: 3.5rem;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 9px;
-    padding: 0 12px;
-    border: 1px solid rgba(128, 146, 180, 0.25);
-    border-radius: 9px;
-    background: rgba(8, 16, 31, 0.8);
-    color: rgba(245, 247, 252, 0.95);
-    font-family: var(--font-ui);
-    font-size: 0.98rem;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-}
-
-.browse-shell__genre-control ::deep .browse-shell__genre-trigger:hover,
-.browse-shell__genre-control ::deep .browse-shell__genre-trigger:focus-visible,
-.browse-shell__genre-control ::deep .browse-shell__genre-trigger.is-active {
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 68%, rgba(128, 146, 180, 0.25));
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.12);
-}
-
-.browse-shell__genre-control ::deep .browse-shell__genre-trigger .tl-icon-root {
-    font-size: 1.12rem;
-    color: color-mix(in srgb, var(--tl-accent-primary) 72%, #cbd5e1);
-}
-
-.browse-shell__genre-control ::deep .browse-shell__genre-chevron {
-    color: rgba(203, 213, 225, 0.8);
-}
-
-.browse-shell__genre-panel {
-    width: min(292px, calc(100vw - 24px));
-    padding: 10px;
-    color: rgba(244, 247, 252, 0.96);
-    background: linear-gradient(180deg, #111b2e, #0c1525);
-    font-family: var(--font-ui);
-}
-
-.browse-shell__genre-search {
-    display: grid;
-    min-height: 44px;
-    grid-template-columns: 20px minmax(0, 1fr);
-    align-items: center;
-    gap: 9px;
-    padding: 0 11px;
-    border: 1px solid rgba(128, 146, 180, 0.23);
-    border-radius: 8px;
-    background: rgba(6, 13, 26, 0.58);
-    color: rgba(203, 213, 225, 0.74);
-}
-
-.browse-shell__genre-search ::deep .tl-icon-root {
-    font-size: 1.15rem;
-}
-
-.browse-shell__genre-search ::deep input {
-    width: 100%;
-    min-width: 0;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: rgba(244, 247, 252, 0.96);
-    font: inherit;
-    font-size: 0.95rem;
-}
-
-.browse-shell__genre-search ::deep input::placeholder {
-    color: rgba(148, 163, 184, 0.76);
-}
-
-.browse-shell__genre-options {
-    max-height: min(340px, 52vh);
-    margin-top: 8px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
-.browse-shell__genre-panel ::deep .browse-shell__genre-option {
-    display: grid;
-    width: 100%;
-    min-height: 36px;
-    grid-template-columns: 20px minmax(0, 1fr);
-    align-items: center;
-    gap: 10px;
-    padding: 6px 5px;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: rgba(232, 237, 247, 0.92);
-    font: inherit;
-    font-size: 0.94rem;
-    line-height: 1.2;
-    text-align: left;
-    cursor: pointer;
-}
-
-.browse-shell__genre-panel ::deep .browse-shell__genre-option:hover,
-.browse-shell__genre-panel ::deep .browse-shell__genre-option:focus-visible {
-    background: rgba(255, 255, 255, 0.045);
-    outline: none;
-}
-
-.browse-shell__genre-panel ::deep .browse-shell__genre-option strong {
-    display: block;
-    font-size: inherit;
-    font-weight: 600;
-}
-
-.browse-shell__genre-panel ::deep .browse-shell__genre-option small {
-    display: block;
-    margin-top: 3px;
-    color: rgba(166, 179, 201, 0.78);
-    font-size: 0.76rem;
-}
-
-.browse-shell__genre-checkbox {
-    display: inline-flex;
-    width: 17px;
-    height: 17px;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(160, 177, 207, 0.55);
-    border-radius: 4px;
-    color: #fff;
-    background: rgba(5, 11, 22, 0.42);
-}
-
-.browse-shell__genre-panel ::deep .browse-shell__genre-option.is-selected .browse-shell__genre-checkbox {
-    border-color: var(--tl-accent-primary);
-    background: var(--tl-accent-primary);
-}
-
-.browse-shell__genre-checkbox ::deep .tl-icon-root {
-    font-size: 0.85rem;
-}
-
-.browse-shell__genre-empty,
-.browse-shell__genre-help {
-    color: rgba(160, 174, 198, 0.78);
-    font-size: 0.76rem;
-}
-
-.browse-shell__genre-empty {
-    padding: 14px 5px;
-}
-
-.browse-shell__genre-help {
-    margin-top: 8px;
-    padding: 9px 5px 1px;
-    border-top: 1px solid rgba(128, 146, 180, 0.16);
-}
-
-.browse-shell__facet-select {
-    width: auto;
-    min-width: 160px;
-    flex: 1 1 170px;
-    max-width: 205px;
-}
-
-.browse-shell__facet-select--year {
-    min-width: 126px;
-    flex-basis: 132px;
-    max-width: 150px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .browse-shell__toggle-stack {
@@ -545,7 +358,7 @@
     min-height: 48px;
     gap: 8px;
     padding-inline: 8px;
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .browse-shell__toggle-row ::deep .app-quick-filter__indicator {
@@ -564,7 +377,7 @@
     background: rgba(8, 16, 31, 0.5);
     color: rgba(234, 239, 248, 0.9);
     font-family: var(--font-ui);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
@@ -582,26 +395,13 @@
     background: color-mix(in srgb, var(--tl-accent-primary) 10%, rgba(8, 16, 31, 0.5));
 }
 
-.browse-shell__clear-filters {
-    align-self: center;
-    min-height: 28px;
-    padding: 0 3px;
-    color: color-mix(in srgb, var(--tl-accent-primary) 68%, white);
-    border: 0;
-    background: transparent;
-    font: inherit;
-    font-size: 0.87rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
 .browse-shell__display-controls {
     display: grid;
     min-width: 416px;
     grid-template-columns: minmax(148px, 164px) minmax(108px, 120px) minmax(128px, 140px);
-    grid-template-rows: auto 48px;
-    align-content: start;
-    align-items: end;
+    grid-template-rows: 48px;
+    align-content: center;
+    align-items: center;
     gap: 8px;
     padding-left: clamp(18px, 1.45vw, 26px);
     border-left: 1px solid rgba(128, 146, 180, 0.2);
@@ -614,25 +414,41 @@
     min-width: 0;
     align-self: stretch;
 }
-.browse-shell__display-controls.is-timeline .browse-shell__display-label { grid-column: 2; }
 
+/* The timeline grouping control carries its own small name above it, so in that mode the group is two rows tall. */
+.browse-shell__display-controls.is-timeline {
+    grid-template-rows: auto 48px;
+}
+
+.browse-shell__display-controls.is-timeline .browse-shell__sort {
+    grid-row: 2;
+}
+
+/* Sort and Display names are not drawn above their controls (bug 695); they stay for screen readers and show in the phone sheet. */
 .browse-shell__sort-label,
 .browse-shell__display-label {
-    color: rgba(215, 224, 240, 0.78);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.is-sheet > .browse-shell__sort-label,
+.is-sheet > .browse-shell__display-label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    text-transform: uppercase;
-}
-
-.browse-shell__sort-label {
-    grid-column: 1;
-}
-
-.browse-shell__display-label {
-    grid-column: 2 / -1;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
 }
 
 .browse-shell__result-summary {
@@ -652,28 +468,13 @@
 .browse-shell__result-summary h2 {
     margin: 0;
     color: var(--tl-text-primary);
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
     font-size: clamp(1.35rem, 2vw, 1.8rem);
 }
 
 .browse-shell__result-summary span {
     color: var(--tl-text-muted);
-    font-size: 0.78rem;
-}
-
-.browse-shell__active-filters {
-    display: flex;
-    justify-content: flex-end;
-    gap: 7px;
-    flex-wrap: wrap;
-}
-
-.browse-shell__active-filters span {
-    padding: 0.38rem 0.62rem;
-    color: rgba(221, 214, 254, 0.94);
-    border: 1px solid rgba(136, 82, 252, 0.42);
-    border-radius: var(--tl-radius-sm);
-    background: rgba(91, 33, 182, 0.16);
+    font-size: var(--tl-font-size-xs);
 }
 
 .browse-shell__sort {
@@ -682,14 +483,14 @@
     max-width: none;
     margin: 0;
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 1;
     align-self: stretch;
 }
 
 .browse-shell__sort ::deep .tl-select-input {
     padding-right: 12px !important;
     padding-left: 12px !important;
-    font-size: 0.9rem !important;
+    font-size: var(--tl-font-size-sm) !important;
 }
 
 .browse-shell__groupings {
@@ -697,41 +498,6 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-}
-
-.browse-shell__tile-size {
-    display: grid;
-    min-height: 48px;
-    grid-template-rows: auto minmax(20px, 1fr);
-    align-content: center;
-    gap: 4px;
-    padding: 0 3px;
-    color: rgba(215, 224, 240, 0.78);
-    font-family: var(--font-ui);
-    font-size: 0.9rem;
-    font-weight: 600;
-    white-space: nowrap;
-    flex: 1 1 170px;
-    max-width: none;
-    grid-column: 2;
-    grid-row: 2;
-}
-
-.browse-shell__tile-size-control {
-    display: block;
-    align-items: center;
-    gap: 8px;
-}
-
-.browse-shell__tile-size-control ::deep .tl-icon-root {
-    display: none;
-}
-
-.browse-shell__tile-size-control ::deep input[type="range"] {
-    width: 100%;
-    min-width: 0;
-    accent-color: var(--tl-accent-primary);
-    cursor: ew-resize;
 }
 
 .browse-shell__groupings ::deep .browse-shell__grouping-button {
@@ -742,7 +508,7 @@
     min-height: 2.4rem;
     padding: 0 0.82rem;
     border: 1px solid rgba(148, 163, 184, 0.24);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(8, 14, 30, 0.46);
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
@@ -765,7 +531,7 @@
 }
 
 .browse-shell__groupings ::deep .browse-shell__grouping-icon {
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .browse-shell__layout-toggle {
@@ -780,7 +546,7 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
     flex: 0 0 auto;
     grid-column: 3;
-    grid-row: 2;
+    grid-row: 1;
 }
 
 .browse-shell__filter-surface ::deep .app-active-filter-summary {
@@ -825,7 +591,6 @@
 .browse-shell__grid {
     --media-tile-hover-clearance: 0px;
     --media-tile-hover-lift: 0px;
-    --media-tile-media-height: clamp(172px, 10vw, 236px);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
@@ -837,20 +602,6 @@
 
 .browse-shell__grid ::deep .media-tile.is-landscape {
     width: clamp(320px, 21.5vw, 520px);
-}
-
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-landscape,
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-square,
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-portrait {
-    width: min(calc(100vw - 22px), var(--media-grid-tile-size));
-}
-
-.browse-shell__grid ::deep .media-tile.is-square {
-    --media-tile-media-height: clamp(152px, 9.4vw, 218px);
-}
-
-.browse-shell__grid ::deep .media-tile.is-portrait {
-    --media-tile-media-height: clamp(198px, 12vw, 276px);
 }
 
 .browse-shell__list {
@@ -885,7 +636,7 @@
 
 .browse-shell__empty h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--tl-font-size-lg);
     color: var(--tl-text-primary);
 }
 
@@ -920,7 +671,7 @@
     }
 
     .browse-shell__filter-row {
-        align-items: flex-start;
+        align-items: center;
     }
 
     .browse-shell__toggle-row {
@@ -1003,38 +754,18 @@
         max-width: 230px;
     }
 
-    .browse-shell__tile-size {
-        flex: 1 1 168px;
-        max-width: none;
-    }
-
     .browse-shell__layout-toggle ::deep .browse-shell__layout-button {
         flex: 1;
         min-width: 0;
         gap: 5px;
         padding: 0 0.55rem;
-        font-size: 0.8rem;
-    }
-
-    .browse-shell__tabs-frame ::deep .tl-tabs-scroll-button {
-        display: none !important;
-    }
-
-    .browse-shell__tabs-frame ::deep .tl-tabs-tabbar-content,
-    .browse-shell__tabs-frame ::deep .tl-tabs-tabbar-wrapper {
-        width: 100%;
-        min-width: 0 !important;
-        overflow: hidden;
+        font-size: var(--tl-font-size-secondary);
     }
 
     .browse-shell__tabs-frame ::deep .tl-tab {
         flex: 1 1 0 !important;
         width: auto !important;
         min-width: 0 !important;
-    }
-
-    .browse-shell__grid {
-        --media-tile-media-height: clamp(154px, 42vw, 210px);
     }
 }
 
@@ -1050,9 +781,8 @@
     }
 
     .browse-shell__multi-select,
-    .browse-shell__sort,
-    .browse-shell__tile-size,
-    .browse-shell__layout-toggle {
+.browse-shell__sort,
+.browse-shell__layout-toggle {
         flex: 1 1 100%;
         width: 100%;
         max-width: none;
@@ -1068,53 +798,46 @@
     .browse-shell__display-controls {
         min-width: 0;
         grid-template-columns: 1fr;
-        grid-template-rows: auto 48px auto 48px 48px;
-    }
-
-    .browse-shell__sort-label {
-        grid-column: 1;
-        grid-row: 1;
+        grid-template-rows: 48px 48px;
     }
 
     .browse-shell__sort {
         grid-column: 1;
-        grid-row: 2;
-    }
-
-    .browse-shell__display-label {
-        grid-column: 1;
-        grid-row: 3;
-    }
-
-    .browse-shell__tile-size {
-        grid-column: 1;
-        grid-row: 4;
+        grid-row: 1;
     }
 
     .browse-shell__layout-toggle {
         grid-column: 1;
-        grid-row: 5;
+        grid-row: 2;
+    }
+
+    .browse-shell__display-controls.is-timeline {
+        grid-template-rows: 48px auto 48px;
+    }
+
+    .browse-shell__display-controls.is-timeline .browse-shell__sort {
+        grid-row: 1;
     }
 
     .browse-shell__timeline-grouping {
         grid-column: 1;
-        grid-row: 5 / 7;
+        grid-row: 2 / 4;
     }
-    .browse-shell__display-controls.is-timeline .browse-shell__display-label { grid-column: 1; }
 
     .browse-shell__layout-toggle ::deep .browse-shell__layout-button {
         flex: 1;
     }
 }
 
-/* Card size reads as text inside the phone sheet (the app.css sheet rules show it), where the slider has no tooltip to name it. */
-.browse-shell__tile-size-readout {
-    display: none;
-}
-
 /* On phones the browse-mode strip is a scroller: its track must be allowed to shrink to the screen. */
 :root[data-form-factor="phone"] .browse-shell__control-group--browse {
     grid-template-columns: minmax(0, 1fr);
+}
+
+/* The Folders filter of a library with two or more folders (Libraries v3 D18). */
+.browse-shell__folders {
+    max-width: 280px;
+    padding-block: 8px;
 }
 
 /* The library chips of a gathering tab (Watch Videos): All plus one per library the profile may see. */

@@ -24,7 +24,7 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("white-space: normal;", phone, StringComparison.Ordinal);
         Assert.Contains("overflow-wrap: anywhere;", phone, StringComparison.Ordinal);
         Assert.Contains("width: 24px;", phone, StringComparison.Ordinal);
-        Assert.Contains("width: 22px;\n    height: 22px;\n    font-size: 22px;", phone, StringComparison.Ordinal);
+        Assert.Contains("width: var(--tl-icon-size-md);\n    height: var(--tl-icon-size-md);\n    font-size: var(--tl-icon-size-md);", phone, StringComparison.Ordinal);
         // The phone top bar has no search icon (Search is a dock tab) and no wordmark (the icon only).
         Assert.DoesNotContain("layout-shell__search-action", phone, StringComparison.Ordinal);
         Assert.DoesNotContain("layout-shell__brand-lockup", phone, StringComparison.Ordinal);
@@ -94,7 +94,7 @@ public sealed class ResponsivePwaGuardrailTests
         // The dock is a floating pill that keeps its own grid row, so it never covers the last row of the page.
         var dock = layout[layout.IndexOf("html[data-form-factor=\"phone\"] .layout-shell__intent-dock {\n    display: flex;", StringComparison.Ordinal)..];
         dock = dock[..dock.IndexOf('}', StringComparison.Ordinal)];
-        Assert.Contains("border-radius: 999px;", dock, StringComparison.Ordinal);
+        Assert.Contains("border-radius: var(--tl-radius-round);", dock, StringComparison.Ordinal);
         Assert.Contains("var(--tl-safe-area-bottom)", dock, StringComparison.Ordinal);
         Assert.Contains("height: var(--tl-phone-dock-height);", dock, StringComparison.Ordinal);
         Assert.Contains("grid-row: 4;", layout, StringComparison.Ordinal);

@@ -7,7 +7,7 @@
   "icon": "images/providers/tvdb.png",
   "capability_tags": ["tv_series", "seasons", "episodes"],
   "provider_capabilities": ["identity", "metadata", "artwork", "people"],
-  "available_fields": ["show_name", "author", "year", "season_number", "episode_number", "episode_title", "episode_description", "title", "air_date", "cast_member", "cast_member_character", "cast_member_tvdb_id", "cast_member_tvdb_identity", "cast_member_profile_url", "tvdb_id", "tvdb_season_id", "tvdb_episode_id"],
+  "available_fields": ["show_name", "author", "year", "season_number", "episode_number", "episode_title", "episode_description", "show_description", "title", "air_date", "cast_member", "cast_member_character", "cast_member_tvdb_id", "cast_member_tvdb_identity", "cast_member_profile_url", "tvdb_id", "tvdb_season_id", "tvdb_episode_id"],
   "field_weights": {},
   "endpoints": { "api": "https://api4.thetvdb.com/v4" },
   "rate_limit": { "requests_per_second": 2, "burst": 2, "max_concurrency": 2 },
@@ -17,6 +17,7 @@
   "provider_id": "bf00000f-0000-4000-8000-000000000017",
   "display_name": "TheTVDB",
   "requires_api_key": true,
+  "editor_match": { "default_for": ["tv_show", "tv_season", "tv_episode"], "kinds": ["tv_show", "tv_season", "tv_episode"] },
   "language_strategy": "localized",
   "http_client": { "timeout_seconds": 20 },
   "can_handle": { "media_types": ["TV"], "entity_types": ["Work", "MediaAsset"] },
@@ -407,6 +408,36 @@
                   "number_equals": "$episode"
                 }
               ]
+            },
+            {
+              "if": [
+                {
+                  "blank": "$match"
+                }
+              ],
+              "then": [
+                {
+                  "pages": "series_episodes",
+                  "args": {
+                    "id": "$show_id"
+                  },
+                  "into": "episodes_any_language"
+                },
+                {
+                  "find": "match",
+                  "in": "$episodes_any_language",
+                  "where": [
+                    {
+                      "path": "seasonNumber",
+                      "number_equals": "$season"
+                    },
+                    {
+                      "path": "number",
+                      "number_equals": "$episode"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -527,6 +558,19 @@
                 "confidence": 0.9,
                 "json_path": "episode_en.name",
                 "trim": true
+              },
+              {
+                "claim_key": "show_description",
+                "confidence": 0.85,
+                "json_path": "show_en.overview",
+                "trim": true
+              },
+              {
+                "claim_key": "show_description",
+                "confidence": 0.8,
+                "json_path": "show.overview",
+                "trim": true,
+                "add": "if_missing_key"
               },
               {
                 "claim_key": "episode_description",
@@ -963,7 +1007,116 @@
       ]
     }
   },
+  "settings_schema": {
+    "properties": {
+      "language_strategy": {
+        "type": "string",
+        "control": "choice",
+        "title": "Language",
+        "description": "Which language the source's details come in.",
+        "group": "Details",
+        "order": 1000,
+        "enum": [
+          "source",
+          "localized",
+          "both"
+        ],
+        "enum_labels": {
+          "source": "Source defaults",
+          "localized": "Prefer localized metadata",
+          "both": "Source + localized"
+        },
+        "default": "source"
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "control": "number",
+        "title": "Request timeout",
+        "description": "How long to wait for the source before giving up.",
+        "unit": "seconds",
+        "group": "Connection",
+        "order": 1001,
+        "advanced": true,
+        "minimum": 1,
+        "maximum": 120
+      },
+      "throttle_ms": {
+        "type": "integer",
+        "control": "number",
+        "title": "Minimum request interval",
+        "description": "The shortest wait between two requests.",
+        "unit": "ms",
+        "group": "Connection",
+        "order": 1002,
+        "advanced": true,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "max_concurrency": {
+        "type": "integer",
+        "control": "number",
+        "title": "Most requests at once",
+        "description": "How many requests may be waiting for the source at the same time.",
+        "group": "Connection",
+        "order": 1003,
+        "advanced": true,
+        "minimum": 1,
+        "maximum": 32
+      },
+      "primary_endpoint": {
+        "type": "string",
+        "control": "url",
+        "title": "Primary address",
+        "description": "Where Library asks this source.",
+        "format": "url",
+        "group": "Connection",
+        "order": 1004,
+        "advanced": true
+      },
+      "weight": {
+        "type": "number",
+        "control": "number",
+        "title": "Weight",
+        "description": "How much Library trusts this source when two disagree. Set by Library.",
+        "group": "Connection",
+        "order": 1005,
+        "advanced": true,
+        "read_only": true,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "requests_per_second": {
+        "type": "number",
+        "control": "number",
+        "title": "Rate limit",
+        "description": "The most requests a second Library makes to this source.",
+        "unit": "per second",
+        "group": "Connection",
+        "order": 1006,
+        "advanced": true,
+        "read_only": true,
+        "minimum": 0,
+        "maximum": 1000
+      },
+      "cache_ttl_hours": {
+        "type": "integer",
+        "control": "number",
+        "title": "Cache time",
+        "description": "How long an answer is kept before the source is asked again.",
+        "unit": "hours",
+        "group": "Connection",
+        "order": 1007,
+        "advanced": true,
+        "read_only": true,
+        "minimum": 0,
+        "maximum": 8760
+      }
+    }
+  },
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork", "Series order"],
+    "short_description": "Finds TV shows, seasons and episodes and fills in their details and artwork.",
     "accent_color": "#21B6A8",
     "material_icon": "Tv",
     "category": "Enrichment",

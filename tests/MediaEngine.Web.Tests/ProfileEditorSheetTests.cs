@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Web.Components.Profiles;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 
 namespace MediaEngine.Web.Tests;
@@ -27,6 +28,7 @@ public sealed class ProfileEditorSheetTests
         bool selfEdit = false)
     {
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.Services.AddNativeUiServices();
         return ctx.Render<ProfileEditorSheet>(parameters => parameters
             .Add(p => p.Open, true)
             .Add(p => p.Profile, profile)
@@ -62,12 +64,12 @@ public sealed class ProfileEditorSheetTests
         var cut = Render(ctx);
 
         Assert.Contains("Add profile", cut.Find("#profile-editor-title").TextContent);
-        Assert.True(cut.Find("button.who-button--primary").HasAttribute("disabled"));
-        Assert.Empty(cut.FindAll("button.who-button--danger"));
+        Assert.True(cut.Find("button.profile-editor__save").HasAttribute("disabled"));
+        Assert.Empty(cut.FindAll("button.profile-editor__delete"));
 
         cut.Find("input.profile-editor__name").Input("Sam");
 
-        Assert.False(cut.Find("button.who-button--primary").HasAttribute("disabled"));
+        Assert.False(cut.Find("button.profile-editor__save").HasAttribute("disabled"));
     }
 
     [Fact]
@@ -83,7 +85,7 @@ public sealed class ProfileEditorSheetTests
         OpenTab(cut, "Icon");
         cut.Find("button[aria-label='fox']").Click();
         cut.Find("input[aria-label=\"Kid's profile\"]").Change(true);
-        cut.Find("button.who-button--primary").Click();
+        cut.Find("button.profile-editor__save").Click();
 
         Assert.NotNull(result);
         Assert.Equal("Sam", result!.DisplayName);
@@ -108,7 +110,7 @@ public sealed class ProfileEditorSheetTests
 
         cut.Find("input.profile-editor__name").Input("Sam");
         cut.Find("input[aria-label=\"Kid's profile\"]").Change(true);
-        cut.Find("button.who-button--primary").Click();
+        cut.Find("button.profile-editor__save").Click();
 
         Assert.True(result!.IsChild);
     }
@@ -128,7 +130,7 @@ public sealed class ProfileEditorSheetTests
 
         Assert.Empty(cut.FindAll(".avatar-picker"));
         cut.Find("input.profile-editor__name").Input("Sam");
-        cut.Find("button.who-button--primary").Click();
+        cut.Find("button.profile-editor__save").Click();
         Assert.Equal("#EC4899", result!.Color);
     }
 
@@ -194,7 +196,7 @@ public sealed class ProfileEditorSheetTests
         PickTab(cut, "Icon");
         Assert.DoesNotContain("replaces the current photo", cut.Markup);
         cut.Find("button[aria-label='cat']").Click();
-        cut.Find("button.who-button--primary").Click();
+        cut.Find("button.profile-editor__save").Click();
 
         Assert.NotNull(result);
         Assert.True(result!.RemovePhoto);
@@ -214,10 +216,10 @@ public sealed class ProfileEditorSheetTests
             cut.Find($"button.pin-pad__key[aria-label='{digit}']").Click();
         }
 
-        Assert.True(cut.Find("button.who-button--primary").HasAttribute("disabled"));
+        Assert.True(cut.Find("button.profile-editor__save").HasAttribute("disabled"));
 
         cut.Find("button.pin-pad__key[aria-label='4']").Click();
-        cut.Find("button.who-button--primary").Click();
+        cut.Find("button.profile-editor__save").Click();
 
         Assert.Equal("1234", result!.NewPin);
     }
@@ -230,7 +232,7 @@ public sealed class ProfileEditorSheetTests
         var cut = Render(ctx, Existing(hasPin: true), saved: r => result = r);
 
         ButtonWithText(cut, "Remove").Click();
-        cut.Find("button.who-button--primary").Click();
+        cut.Find("button.profile-editor__save").Click();
 
         Assert.True(result!.RemovePin);
         Assert.Null(result.NewPin);
@@ -247,7 +249,7 @@ public sealed class ProfileEditorSheetTests
         Assert.Empty(deletes);
         Assert.Contains("Delete Maya?", cut.Markup);
 
-        cut.Find(".profile-editor__confirm button.who-button--danger").Click();
+        cut.Find(".profile-editor__confirm button.profile-editor__confirm-delete").Click();
         Assert.Single(deletes);
     }
 
@@ -264,7 +266,7 @@ public sealed class ProfileEditorSheetTests
         Assert.True(choices[0].HasAttribute("checked"));
         Assert.Contains("From Maya", cut.Find(".profile-editor__confirm").TextContent);
 
-        cut.Find(".profile-editor__confirm button.who-button--danger").Click();
+        cut.Find(".profile-editor__confirm button.profile-editor__confirm-delete").Click();
         Assert.Equal(new[] { true }, deletes);
     }
 
@@ -277,7 +279,7 @@ public sealed class ProfileEditorSheetTests
 
         cut.Find("button.profile-editor__delete").Click();
         cut.FindAll(".profile-editor__confirm input[type=radio]")[1].Change(true);
-        cut.Find(".profile-editor__confirm button.who-button--danger").Click();
+        cut.Find(".profile-editor__confirm button.profile-editor__confirm-delete").Click();
 
         Assert.Equal(new[] { false }, deletes);
     }
@@ -297,7 +299,7 @@ public sealed class ProfileEditorSheetTests
         using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(), saving: true, error: "That name is taken.");
 
-        Assert.True(cut.Find("button.who-button--primary").HasAttribute("disabled"));
+        Assert.True(cut.Find("button.profile-editor__save").HasAttribute("disabled"));
         Assert.Contains("That name is taken.", cut.Find("[role='alert']").TextContent);
     }
 
@@ -308,10 +310,10 @@ public sealed class ProfileEditorSheetTests
         var closes = 0;
         var cut = Render(ctx, closed: () => closes++);
 
-        cut.Find(".profile-editor").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
-        cut.Find(".profile-editor-backdrop").Click();
+        // Escape and a press outside the window are both the shared Window frame's cancel, which the sheet routes to CloseAsync.
+        cut.InvokeAsync(() => cut.FindComponent<AppDialogFrame>().Instance.RequestCancel());
 
-        Assert.Equal(2, closes);
+        Assert.Equal(1, closes);
     }
 
     [Fact]

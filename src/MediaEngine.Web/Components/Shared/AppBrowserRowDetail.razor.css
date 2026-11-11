@@ -1,0 +1,4 @@
+.app-browser-detail > td {
+    padding: var(--tl-space-2) var(--tl-space-3) var(--tl-space-3);
+    border-bottom: 1px solid var(--tl-border-default);
+}

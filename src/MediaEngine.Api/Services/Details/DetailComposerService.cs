@@ -92,6 +92,10 @@ public sealed class DetailComposerService
             universeLinks,
             viewerCatalogue);
 
+    /// <summary>A Videos series folder opened under any non-show address opens the show page (see the orchestrator).</summary>
+    internal Task<DetailEntityType> ResolveVideoSeriesTypeAsync(DetailEntityType entityType, Guid id, CancellationToken ct = default)
+        => _composer.ResolveVideoSeriesTypeAsync(entityType, id, ct);
+
     public static bool TryParseEntityType(string value, out DetailEntityType entityType)
         => DetailPresentationPolicy.TryParseEntityType(value, out entityType);
 

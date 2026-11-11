@@ -15,7 +15,9 @@ public sealed record BookmarkPackBookmark(
     string? Chapter,
     double? ChapterStart,
     string? Note,
-    string? Description);
+    string? Description,
+    string? Locator = null,
+    byte[]? Frame = null);
 
 /// <summary>A chapter of the copy the pack is being imported on.</summary>
 public sealed record BookmarkPackChapter(string Title, double StartSeconds);

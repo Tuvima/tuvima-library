@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
@@ -178,22 +179,58 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     // -- Series ------------------------------------------------------------------
 
     [Fact]
-    public async Task Series_Apply_StoresALocalOverrideAndLeavesTheCanonicalNameAlone()
+    public async Task Series_Apply_RefusesEveryFieldWriteAndStoresNothing()
     {
         var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
 
         var result = await CreateService().RunAsync(
             Request(previewOnly: false, DetailsChange("d1", series, ("title", "Expanse"), ("description", "Mine."))), NoRefusals);
 
-        Assert.True(result.DataSaved);
-        var subject = (await _subjects.LoadAsync(series))!;
-        Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
-        Assert.Equal(["CoverArt", "Background"], subject.ArtworkSlots);
-        var title = subject.Fields.Single(field => field.Key == "title");
-        Assert.Equal("Expanse", title.Value);
-        Assert.Equal("The Expanse", title.CanonicalValue);
-        Assert.True(title.IsOverridden);
+        Assert.False(result.Valid);
+        Assert.False(result.DataSaved);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, Assert.Single(result.Changes).Reason);
+        Assert.Empty(await _overrides.LoadAsync(series) ?? new Dictionary<string, string>());
         Assert.Equal("The Expanse", (await _collections.GetByIdAsync(series))!.DisplayName);
+    }
+
+    [Fact]
+    public async Task Series_Opens_WithItsFieldsButNoPicturesToChoose()
+    {
+        var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
+        Assert.Empty(subject.ArtworkSlots);
+        Assert.Equal("The Expanse", subject.Fields.Single(field => field.Key == "title").Value);
+    }
+
+    [Fact]
+    public async Task Series_Opens_WithItsMembersInOrder_SoTheEditorCanListAndOpenThem()
+    {
+        var series = SeedGrouping(CollectionType.Series, "Dune Novels", null);
+        var second = SeedMember(series, "Dune Messiah", 2);
+        var first = SeedMember(series, "Dune", 1);
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal([first, second], subject.Members.Select(member => member.Id));
+        Assert.Equal(["Dune", "Dune Messiah"], subject.Members.Select(member => member.Title));
+        Assert.Equal([1, 2], subject.Members.Select(member => member.Number));
+    }
+
+    [Fact]
+    public async Task Series_Artwork_IsRefused_BecauseASeriesShowsItsMembersCovers()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
+        var cover = SeedAsset("cover");
+        await _artwork.LinkAsync("Collection", series, new(cover, "Primary", Preferred: false, SourceAssetType: "CoverArt"), CancellationToken.None);
+
+        var result = await CreateService().RunAsync(Request(previewOnly: false, ArtworkChange("a1", series, "CoverArt", cover)), NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.Equal(EditSessionReasons.SeriesHasNoArtwork, Assert.Single(result.Changes).Reason);
+        Assert.Null(await _artwork.GetChosenAsync("Collection", series, "Primary", CancellationToken.None));
     }
 
     [Fact]
@@ -317,9 +354,105 @@ public sealed class EditSubjectEditSessionTests : IDisposable
 
         Assert.NotNull(subject);
         Assert.Equal(EditorSubjectKinds.FictionalEntity, subject.Kind);
-        Assert.Equal(["name", "description"], subject.Fields.Select(field => field.Key));
+        Assert.Equal(["name", "description", "aliases", "belongs_to", "visibility"], subject.Fields.Select(field => field.Key));
         Assert.Equal(["CharacterPortrait", "Background"], subject.ArtworkSlots);
         Assert.Contains(subject.Facts, fact => fact.Label == "Kind" && fact.Value == "Character");
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Faction_OffersALogoSlot_AndHandAddedSaysNotOnWikidata()
+    {
+        var added = await _entities.CreateUserEntityAsync("Spacing Guild", "Organization", "Q3041974", "Dune universe", null);
+
+        var subject = await _subjects.LoadAsync(added.Id);
+
+        Assert.NotNull(subject);
+        Assert.Equal(["CharacterPortrait", "Logo", "Background"], subject.ArtworkSlots);
+        Assert.Contains(subject.Facts, fact => fact.Label == "Wikidata" && fact.Value == "Not on Wikidata, added by you" && fact.SourceLabel == "You");
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Apply_SavesAliases_AndUndoPutsThemBack()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", entity, ("aliases", "Muad'Dib\nUsul\nmuad'dib"))), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(["Muad'Dib", "Usul"], (await _entities.GetUserLinksAsync(entity))?.Aliases);
+        var subject = (await _subjects.LoadAsync(entity))!;
+        Assert.Equal("Muad'Dib\nUsul", subject.Fields.Single(field => field.Key == "aliases").Value);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Opens_WithBelongsToAndVisibilityChoices_ListingOnlyFactionsPlacesAndSpecies()
+    {
+        var hero = await SeedEntityAsync("Paul Atreides", null);
+        var faction = await _entities.CreateUserEntityAsync("House Atreides", "Organization", "Q3041974", "Dune universe", null);
+        var place = await _entities.CreateUserEntityAsync("Caladan", "Location", "Q3041974", "Dune universe", null);
+        await _entities.CreateUserEntityAsync("Stilgar", "Character", "Q3041974", "Dune universe", null);
+
+        var subject = (await _subjects.LoadAsync(hero))!;
+
+        var belongsTo = subject.Fields.Single(field => field.Key == "belongs_to");
+        Assert.Equal(EditorSubjectInputKinds.Choice, belongsTo.InputKind);
+        Assert.Equal("none", belongsTo.Value);
+        Assert.Equal(["none", place.Id.ToString("D"), faction.Id.ToString("D")], belongsTo.Options.Select(option => option.Value));
+        Assert.Equal(["Nothing", "Caladan (Place)", "House Atreides (Faction)"], belongsTo.Options.Select(option => option.Label));
+        var visibility = subject.Fields.Single(field => field.Key == "visibility");
+        Assert.Equal("shown", visibility.Value);
+        Assert.Equal(["shown", "hidden"], visibility.Options.Select(option => option.Value));
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Apply_SavesBelongsToAndHidden_AndUndoPutsThemBack()
+    {
+        var hero = await SeedEntityAsync("Paul Atreides", null);
+        var faction = await _entities.CreateUserEntityAsync("House Atreides", "Organization", "Q3041974", "Dune universe", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", hero, ("belongs_to", faction.Id.ToString("D")), ("visibility", "hidden"))), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        var saved = await _entities.GetUserLinksAsync(hero);
+        Assert.Equal(faction.Id, saved?.BelongsToEntityId);
+        Assert.True(saved?.IsHidden);
+        var subject = (await _subjects.LoadAsync(hero))!;
+        Assert.Equal(faction.Id.ToString("D"), subject.Fields.Single(field => field.Key == "belongs_to").Value);
+        Assert.Equal("hidden", subject.Fields.Single(field => field.Key == "visibility").Value);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_BelongsTo_CannotMakeACircle_OrPointAtAThingOfAnotherUniverse()
+    {
+        var guild = await _entities.CreateUserEntityAsync("Guild", "Organization", "Q3041974", "Dune universe", null);
+        var branch = await _entities.CreateUserEntityAsync("Guild Branch", "Organization", "Q3041974", "Dune universe", null);
+        var elsewhere = await _entities.CreateUserEntityAsync("Elsewhere Order", "Organization", "Q999", "Other universe", null);
+        await _entities.UpdateUserLinksAsync(branch.Id, new FictionalEntityUserLinks([], guild.Id, false));
+
+        var circle = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", guild.Id, ("belongs_to", branch.Id.ToString("D")))), NoRefusals);
+        var other = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d2", guild.Id, ("belongs_to", elsewhere.Id.ToString("D")))), NoRefusals);
+
+        Assert.False(circle.DataSaved);
+        Assert.False(other.DataSaved);
+        Assert.Null((await _entities.GetUserLinksAsync(guild.Id))?.BelongsToEntityId);
+        // The guild's own options never offer its own branch.
+        var options = (await _subjects.LoadAsync(guild.Id))!.Fields.Single(field => field.Key == "belongs_to").Options;
+        Assert.DoesNotContain(options, option => option.Value == branch.Id.ToString("D"));
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Check_RefusesABelongsToThatIsNotAChoice()
+    {
+        var hero = await SeedEntityAsync("Paul Atreides", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", hero, ("belongs_to", "somewhere"))), NoRefusals);
+
+        Assert.False(result.DataSaved);
     }
 
     [Fact]
@@ -516,6 +649,19 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         using var connection = _db.CreateConnection();
         connection.Execute("UPDATE persons SET occupation = 'Writer' WHERE id = @id;", new { id = created.Id });
         return created.Id;
+    }
+
+    private Guid SeedMember(Guid collection, string title, int ordinal)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _db.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO works (id, media_type, work_kind, collection_id, ordinal) VALUES (@id, 'Books', 'standalone', @collection, @ordinal);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'title', @title, @now);
+            """,
+            new { id = GuidSql.ToBlob(id), collection = GuidSql.ToBlob(collection), ordinal, title, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
     }
 
     private Guid SeedGrouping(CollectionType type, string name, string? description, string? qid = null)

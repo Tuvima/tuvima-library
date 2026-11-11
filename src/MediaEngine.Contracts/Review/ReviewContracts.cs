@@ -25,6 +25,9 @@ public sealed class ReviewItemDto
     [JsonPropertyName("bridge_identifiers")] public Dictionary<string, string> BridgeIdentifiers { get; init; } = [];
     [JsonPropertyName("detected_facts")] public Dictionary<string, string> DetectedFacts { get; init; } = [];
 
+    /// <summary>The library the item's file is in (as configured); null when it has none. Needs Review filters and names rows by it.</summary>
+    [JsonPropertyName("library_id")] public string? LibraryId { get; init; }
+
     /// <summary>True when the file is still in the Import folder. The Review queue shows the badge "From the Import folder".</summary>
     [JsonPropertyName("from_import_folder")] public bool FromImportFolder { get; init; }
 
@@ -49,8 +52,15 @@ public sealed class FieldOverrideDto
 
 public sealed class ReviewCountResponse
 {
+    /// <summary>Everything Needs Review lists: review items plus files that could not be matched (what the Settings notifier shows).</summary>
     [JsonPropertyName("pending_count")]
     public int PendingCount { get; init; }
+
+    [JsonPropertyName("not_matched_count")]
+    public int NotMatchedCount { get; init; }
+
+    [JsonPropertyName("not_sure_count")]
+    public int NotSureCount { get; init; }
 }
 
 /// <summary>

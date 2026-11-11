@@ -1,0 +1,138 @@
+/* Unified player v2 D25a: the shared panel surface and type (the panel frame's surface, hairline, radius and shadow; 17 px title, 13 px secondary text),
+   sitting above the bar and never over it. */
+.video-end-card {
+    position: absolute;
+    z-index: 3;
+    right: max(16px, var(--tl-safe-area-right));
+    bottom: calc(var(--playback-chrome-height, 180px) + max(16px, var(--tl-safe-area-bottom)) + 16px);
+    box-sizing: border-box;
+    width: min(360px, calc(100% - 32px));
+    display: grid;
+    gap: 12px;
+    padding: 12px 16px 12px;
+    border: 1px solid var(--playback-hairline);
+    border-radius: var(--playback-panel-radius);
+    background: var(--playback-panel-surface-video);
+    box-shadow: var(--playback-panel-shadow);
+    color: var(--playback-text);
+}
+
+.video-end-card__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.video-end-card__title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--playback-panel-title-size);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.video-end-card__countdown {
+    color: var(--playback-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+}
+
+.video-end-card__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.video-end-card__still {
+    flex: 0 0 112px;
+    width: 112px;
+    height: 63px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.video-end-card__still--empty {
+    display: grid;
+    place-items: center;
+    background: var(--playback-state-hover);
+    color: var(--playback-text-muted);
+}
+
+.video-end-card__words {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.video-end-card__name {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.video-end-card__kind {
+    color: var(--playback-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+}
+
+/* The course card's "Homework for this lesson" block (universal editor v5 D31): a heading, then one row per file. */
+.video-end-card__homework {
+    display: grid;
+    gap: 10px;
+}
+
+.video-end-card__rule {
+    width: 100%;
+    height: 1px;
+    margin: 0 0 2px;
+    border: 0;
+    background: var(--playback-hairline);
+}
+
+.video-end-card__file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.video-end-card__file .video-end-card__words {
+    flex: 1 1 auto;
+}
+
+.video-end-card__file-type {
+    flex: 0 0 44px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: var(--playback-state-hover);
+    color: var(--playback-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.video-end-card__name--file {
+    -webkit-line-clamp: 1;
+    font-size: var(--tl-font-size-secondary);
+}
+
+.video-end-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+@media (max-height: 450px) {
+    .video-end-card {
+        width: 300px;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+}

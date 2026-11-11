@@ -25,6 +25,12 @@ public partial interface IEngineApiClient
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false);
 
+    /// <summary>
+    /// POST /api/v1/playback/{assetId}/cast  -  asks the Engine for a short-lived, single-title link, bound to the live session or device, that a receiver can play with
+    /// no sign-in (unified player v2 D28). The answer says why when the Engine refuses, so the caller can show a calm line and log the reason.
+    /// </summary>
+    Task<CastSessionAttempt> CreateCastSessionAsync(Guid assetId, CancellationToken ct = default);
+
     Task<PlayerStateDto?> GetPlayerStateAsync(Guid? profileId = null, string? deviceId = null, string client = "web", CancellationToken ct = default);
 
     Task<PlayerCapabilitiesDto?> GetPlayerCapabilitiesAsync(CancellationToken ct = default);
@@ -45,23 +51,10 @@ public partial interface IEngineApiClient
 
     Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> CreateAudiobookBookmarkWithOutcomeAsync(Guid workId, CreateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default);
 
+    /// <summary>PUT /api/v1/player/audiobooks/bookmarks/{id} - renames one of the caller's own bookmarks and changes its note.</summary>
+    Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default);
+
     Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, Guid profileId, CancellationToken ct = default);
-
-    /// <summary>The bookmark packs the profile imported on a title, with their read-only pack bookmarks.</summary>
-    Task<IReadOnlyList<BookmarkPackDto>> GetBookmarkPacksAsync(Guid workId, Guid profileId, CancellationToken ct = default);
-
-    /// <summary>Builds a pack file from some of the profile's own bookmarks. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
-    Task<BookmarkPackFileDto?> ExportBookmarkPackAsync(Guid workId, Guid profileId, BookmarkPackExportRequestDto request, CancellationToken ct = default);
-
-    /// <summary>Reads a pack file and says whether it is for this title. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
-    Task<BookmarkPackPreviewDto?> InspectBookmarkPackAsync(Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default);
-
-    /// <summary>Adds a pack's bookmarks to the title. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
-    Task<BookmarkPackDto?> ImportBookmarkPackAsync(Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default);
-
-    Task<bool> SetBookmarkPackEnabledAsync(Guid packId, Guid profileId, bool isEnabled, CancellationToken ct = default);
-
-    Task<bool> DeleteBookmarkPackAsync(Guid packId, Guid profileId, CancellationToken ct = default);
 
     Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default);
 
@@ -125,6 +118,21 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /read/{assetId}/metadata  -  book metadata.</summary>
     Task<EpubBookMetadataDto?> GetBookMetadataAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>GET /read/{assetId}/format  -  which reader opens the title: "epub", "comic", "pdf" or "unsupported"; plus the title lines for the top line; null when the Engine cannot say.</summary>
+    Task<ReaderFormatDto?> GetReaderFormatAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>GET /read/{assetId}/next  -  the next owned issue in the comic's Series; null when there is none.</summary>
+    Task<ReaderNextIssueDto?> GetReaderNextIssueAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>GET /reader/{assetId}/page-bookmarks  -  the signed-in person's page bookmarks of a comic or PDF, plus Everyone's.</summary>
+    Task<List<PageBookmarkDto>> GetPageBookmarksAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>POST /reader/{assetId}/page-bookmarks  -  bookmark a page (private until an administrator promotes it).</summary>
+    Task<PageBookmarkDto?> CreatePageBookmarkAsync(Guid assetId, int page, string? label, CancellationToken ct = default);
+
+    /// <summary>DELETE /reader/page-bookmarks/{id}  -  delete one of the person's own page bookmarks.</summary>
+    Task<bool> DeletePageBookmarkAsync(Guid bookmarkId, CancellationToken ct = default);
 
     /// <summary>GET /read/{assetId}/toc  -  table of contents.</summary>
     Task<List<EpubTocEntryDto>> GetTableOfContentsAsync(Guid assetId, CancellationToken ct = default);

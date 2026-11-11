@@ -1,0 +1,37 @@
+/* Mockup screen 5: the footer holds "Reset to 1×" centered (14 px text). */
+.psf {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    justify-content: center;
+}
+
+.psf ::deep .psf__reset {
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--playback-text);
+    cursor: pointer;
+    font: 400 14px/1.45 var(--font-ui);
+    min-height: 36px;
+    padding: 4px 12px;
+}
+
+.psf ::deep .psf__reset:hover {
+    background: var(--playback-state-hover);
+}
+
+.psf ::deep .psf__reset:active {
+    background: var(--playback-state-pressed);
+}
+
+.psf ::deep .psf__reset:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+    .psf ::deep .psf__reset {
+        min-height: var(--playback-control-target);
+    }
+}

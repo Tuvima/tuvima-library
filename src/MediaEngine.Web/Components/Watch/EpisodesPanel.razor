@@ -1,0 +1,143 @@
+@namespace MediaEngine.Web.Components.Watch
+@using System.Globalization
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Episodes panel for TV (unified player v2 D19; mockup screen 9), and the Lessons panel for courses and folder videos: one list, no Up next or Chapters tabs.
+   A Season dropdown and "20 episodes" above one compact row per episode (96 x 54 still, "1. The First Wish", length and a one-line synopsis, a progress line on a
+   started episode, "Playing · 2:23 of 22:41" on the current one, an "Up next" chip on the next one). Selecting a row plays or resumes it. The footer holds the
+   "Autoplay next episode" switch, the profile preference the end card also follows. The panel's own title and the show name under it are drawn by the PlaybackPanel
+   that holds this list. *@
+<PlaybackListPanel ScrollKey="@ScrollKey">
+    <Header>
+        <div class="eps__head" data-episodes-head>
+            @if (Seasons.Count > 1)
+            {
+                <AppSelect Value="@_season" ValueChanged="SelectSeason" Options="@Seasons" FullWidth="false" Class="eps__season" AriaLabel="@(FolderVideos ? VideoPlayerWording.SectionControl : L["Common_Season"].Value)" />
+            }
+            <span class="eps__count" data-episodes-count>@CountText</span>
+        </div>
+    </Header>
+    <ChildContent>
+        @if (ShownEpisodes.Count > 0)
+        {
+            @foreach (var episode in ShownEpisodes)
+            {
+                var chosen = episode;
+                var current = chosen.WorkId == CurrentWorkId;
+                var started = !current && chosen.ProgressPercent > 0 && chosen.ProgressPercent < 100;
+                <PlaybackListRow @key="chosen.WorkId" Variant="episode" Title="@EpisodeTitle(chosen)" Secondary="@(current ? CurrentTimes : EpisodeLine(chosen))" SecondaryAccent="@(current ? CurrentStatus : null)"
+                                 ArtUrl="@StillFor(chosen)" ArtSrcSet="@(StillFor(chosen) == chosen.StillUrl ? EpisodeArtworkSrcSet(chosen) : null)" ArtFallbackText="@chosen.EpisodeNumber?.ToString(CultureInfo.InvariantCulture)"
+                                 IsCurrent="current" ProgressPercent="@(current ? CurrentPercent : started ? chosen.ProgressPercent : null)"
+                                 AriaLabel="@L["EpisodesPanel_PlayLabel", chosen.Title].Value" OnClick="@(() => EpisodeSelected.InvokeAsync(chosen.WorkId))">
+                    <TitleChip>
+                        @if (chosen.WorkId == NextEpisode?.WorkId && !current)
+                        {
+                            <span class="eps__chip" data-up-next-chip>@L["EpisodesPanel_UpNext"]</span>
+                        }
+                    </TitleChip>
+                </PlaybackListRow>
+            }
+        }
+        else
+        {
+            @for (var i = 0; i < Upcoming.Count; i++)
+            {
+                var position = i;
+                var item = Upcoming[position];
+                var entry = item.QueueEntryId;
+                <PlaybackListRow @key="entry" Variant="episode" Title="@(item.EpisodeTitle ?? item.Title)" Secondary="@PlaybackVideoRuntime.FormatQueueRuntime(item.Duration)"
+                                 ArtUrl="@(item.CoverUrl is { } cover && MediaTileArtworkUrl.SupportsRenditions(cover) ? cover : null)" ArtFallbackText="@((position + 1).ToString(CultureInfo.InvariantCulture))"
+                                 AriaLabel="@L["EpisodesPanel_PlayLabel", item.EpisodeTitle ?? item.Title].Value" OnClick="@(() => QueueSelected.InvokeAsync(entry))">
+                    <TitleChip>
+                        @if (position == 0) { <span class="eps__chip" data-up-next-chip>@L["EpisodesPanel_UpNext"]</span> }
+                    </TitleChip>
+                </PlaybackListRow>
+            }
+            @if (Upcoming.Count == 0)
+            {
+                <p class="eps__empty">@L["VideoContextPanel_NothingUpNext"]</p>
+            }
+        }
+    </ChildContent>
+    <Footer>
+        <div class="eps__autoplay"><AppSwitchRow Label="@AutoplayLabel" Value="AutoplayNextEpisode" ValueChanged="AutoplayChanged" /></div>
+    </Footer>
+</PlaybackListPanel>
+
+@code {
+    [Parameter] public IReadOnlyList<VideoOwnedEpisode> Episodes { get; set; } = [];
+
+    /// <summary>The videos queued after this one: the list of a course whose episodes the library does not hold as a season.</summary>
+    [Parameter] public IReadOnlyList<ListenQueueItem> Upcoming { get; set; } = [];
+
+    [Parameter] public Guid? CurrentWorkId { get; set; }
+    [Parameter] public VideoOwnedEpisode? NextEpisode { get; set; }
+
+    /// <summary>Seconds into the current video and its length, for "Playing · 2:23 of 22:41" and the progress line.</summary>
+    [Parameter] public double Position { get; set; }
+    [Parameter] public double Duration { get; set; }
+    [Parameter] public bool IsPlaying { get; set; }
+
+    /// <summary>True for a course or a folder of videos: sections replace seasons and the number stands without an "E".</summary>
+    [Parameter] public bool FolderVideos { get; set; }
+
+    /// <summary>True when the queue belongs to a series of lessons or a course, not to a TV show.</summary>
+    [Parameter] public bool Lessons { get; set; }
+
+    /// <summary>The show's picture, drawn on an episode that has no still of its own.</summary>
+    [Parameter] public string? FallbackArtUrl { get; set; }
+
+    [Parameter] public bool AutoplayNextEpisode { get; set; }
+    [Parameter] public EventCallback<bool> AutoplayChanged { get; set; }
+    [Parameter] public EventCallback<Guid> EpisodeSelected { get; set; }
+    [Parameter] public EventCallback<Guid> QueueSelected { get; set; }
+
+    private string? _season;
+    private Guid? _lastWork;
+
+    private IReadOnlyList<AppSelectOption> Seasons => Episodes.DistinctBy(item => item.SeasonKey).Select(item => new AppSelectOption(item.SeasonKey, item.SeasonTitle)).ToList();
+    private IReadOnlyList<VideoOwnedEpisode> ShownEpisodes => Episodes.Where(item => item.SeasonKey == _season).ToList();
+    private string ScrollKey => $"{CurrentWorkId}:{_season}";
+    private int ShownCount => ShownEpisodes.Count > 0 ? ShownEpisodes.Count : Upcoming.Count;
+    private string CountText => ShownCount == 1
+        ? L[Lessons ? "EpisodesPanel_LessonCountOne" : "EpisodesPanel_EpisodeCountOne"].Value
+        : L[Lessons ? "EpisodesPanel_LessonCount" : "EpisodesPanel_EpisodeCount", ShownCount].Value;
+
+    // A folder of videos says "video", a course "lesson", a TV show "episode" (issue 703: a folder's videos never use TV wording).
+    private string AutoplayLabel => L[FolderVideos ? "EpisodesPanel_AutoplayVideo" : Lessons ? "EpisodesPanel_AutoplayLesson" : "EpisodesPanel_Autoplay"].Value;
+    private string CurrentStatus => IsPlaying ? L["EpisodesPanel_Playing"].Value : L["EpisodesPanel_Paused"].Value;
+    private string CurrentTimes => L["EpisodesPanel_PositionOf", PlaybackSeekRail.Time(Position), PlaybackSeekRail.Time(Duration)].Value;
+    private double? CurrentPercent => Duration > 0 && double.IsFinite(Duration) ? Math.Clamp(Position / Duration * 100d, 0d, 100d) : null;
+
+    protected override void OnParametersSet()
+    {
+        if (_lastWork != CurrentWorkId || !Episodes.Any(item => item.SeasonKey == _season))
+        {
+            _season = Episodes.FirstOrDefault(item => item.WorkId == CurrentWorkId)?.SeasonKey ?? Episodes.FirstOrDefault()?.SeasonKey;
+        }
+        _lastWork = CurrentWorkId;
+    }
+
+    private void SelectSeason(string? value) => _season = value;
+
+    /// <summary>The panel's title: "Episodes" for a TV show, "Lessons" for a course or a folder of videos (D19).</summary>
+    public static string Title(IStringLocalizer<SharedStrings> L, bool tvEpisode) => tvEpisode ? L["PlayerContext_Episodes"].Value : L["PlayerContext_Lessons"].Value;
+
+    // "1. The First Wish"; a lesson or video is numbered the same way.
+    private static string EpisodeTitle(VideoOwnedEpisode episode) => episode.EpisodeNumber is int number
+        ? $"{number.ToString(CultureInfo.InvariantCulture)}. {episode.Title}" : episode.Title;
+
+    // "22:38 · one-line synopsis" (the synopsis is cut to one line by the row).
+    private static string? EpisodeLine(VideoOwnedEpisode episode) => string.Join(" · ", new[] { episode.Runtime, episode.Synopsis }.Where(part => !string.IsNullOrWhiteSpace(part))) is { Length: > 0 } line ? line : null;
+
+    // The episode's own still, then the show's picture; nothing leaves the neutral tile with the episode number.
+    private string? StillFor(VideoOwnedEpisode episode) => episode.StillUrl is { } still && MediaTileArtworkUrl.SupportsRenditions(still) ? still
+        : FallbackArtUrl is { } show && MediaTileArtworkUrl.SupportsRenditions(show) ? show : null;
+
+    public static string? EpisodeArtworkSrcSet(VideoOwnedEpisode episode) => MediaTileArtworkUrl.SrcSet(
+        MediaTileArtworkUrl.Sized(episode.StillUrl, "s"), MediaTileArtworkUrl.Sized(episode.StillUrl, "m"),
+        MediaTileArtworkUrl.Sized(episode.StillUrl, "l"), episode.StillWidthPx, episode.StillHeightPx);
+}

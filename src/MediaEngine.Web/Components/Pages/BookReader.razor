@@ -1,7 +1,9 @@
 @namespace MediaEngine.Web.Components.Pages
 
 @using System.Diagnostics
+@using MediaEngine.Contracts.Playback
 @using MediaEngine.Contracts.Reading
+@using MediaEngine.Web.Components.Watch
 @using MediaEngine.Domain.Constants
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -9,6 +11,7 @@
 @using MediaEngine.Web.Services.Playback
 
 @inject IEngineApiClient Api
+@inject DashboardSessionAccessor Session
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<BookReader> Logger
@@ -27,14 +30,14 @@
 
 <link href="css/book-reader.css" rel="stylesheet" />
 
-<div class="br-shell br-theme-@ThemeClass" data-state="@_state">
+<AppViewer Class="@($"br-shell br-theme-{ThemeClass}")" Role="" Surface="AppViewerSurface.Page" data-state="@_state">
 
     @* The script mounts the book view in here; Blazor never puts children in it. *@
     <div class="br-stage" @ref="_host"></div>
 
     <header class="br-bar br-bar--top @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
-        <AppNativeButton Class="br-icon-btn" OnClick="ExitReader" Title="@L["BookReader_BackToLibrary"].Value" AriaLabel="@L["BookReader_BackToLibrary"].Value">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppSize.Small" />
+        <AppNativeButton Class="br-icon-btn" OnClick="ExitReader" Tooltip="@L["BookReader_BackToLibrary"].Value" AriaLabel="@L["BookReader_BackToLibrary"].Value">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppIconSize.Control20" />
         </AppNativeButton>
         <div class="br-title">
             <div class="br-title-book">@_title</div>
@@ -46,20 +49,20 @@
         @if (_state == "ready")
         {
             <div class="br-actions" role="toolbar" aria-label="@L["BookReader_ReaderTools"].Value">
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "search" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Title="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "search" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
                 </AppNativeButton>
-                <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Title="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppSize.Small" />
+                <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppIconSize.Control20" />
                 </AppNativeButton>
-                <AppNativeButton Class="br-icon-btn" OnClick="AddBookmarkAsync" Title="@L["BookReader_BookmarkThisPage"].Value" AriaLabel="@L["BookReader_BookmarkThisPage"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkAdd" Size="AppSize.Small" />
+                <AppNativeButton Class="br-icon-btn" OnClick="AddBookmarkAsync" Tooltip="@L["BookReader_BookmarkThisPage"].Value" AriaLabel="@L["BookReader_BookmarkThisPage"].Value">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkAdd" Size="AppIconSize.Control20" />
                 </AppNativeButton>
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "saved" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("saved"))" Title="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppSize.Small" />
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "saved" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("saved"))" Tooltip="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppIconSize.Control20" />
                 </AppNativeButton>
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Title="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppSize.Small" />
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
                 </AppNativeButton>
             </div>
         }
@@ -76,10 +79,10 @@
             @foreach (var color in HighlightColor.All)
             {
                 <AppNativeButton Class="br-swatch" Css="@SwatchCss(color)" OnClick="@(() => CreateHighlightAsync(color, false))"
-                                 Title="@($"Highlight in {ColorName(color)}")" AriaLabel="@($"Highlight in {ColorName(color)}")" />
+                                 Tooltip="@($"Highlight in {ColorName(color)}")" AriaLabel="@($"Highlight in {ColorName(color)}")" />
             }
-            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Title="@L["BookReader_HighlightAndAddANote"].Value" AriaLabel="@L["BookReader_HighlightAndAddANote"].Value">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Size="AppSize.Small" />
+            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Tooltip="@L["BookReader_HighlightAndAddANote"].Value" AriaLabel="@L["BookReader_HighlightAndAddANote"].Value">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Size="AppIconSize.Control20" />
             </AppNativeButton>
         </AppCssElement>
     }
@@ -87,13 +90,13 @@
     @if (_state == "ready" && _editing is { } editing)
     {
         <div class="br-scrim br-scrim--clear" role="presentation" @onclick="CloseEditorAsync"></div>
-        <AppCssElement Tag="div" Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" role="dialog" aria-label="@L["BookReader_Highlight"].Value">
+        <AppPopout Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" Role="dialog" AriaLabel="@L["BookReader_Highlight"].Value">
             <div class="br-quote">@editing.SelectedText</div>
             <div class="br-swatches" role="group" aria-label="@L["BookReader_HighlightColour"].Value">
                 @foreach (var color in HighlightColor.All)
                 {
                     <AppNativeButton Class="@($"br-swatch {(string.Equals(editing.Color, color, StringComparison.OrdinalIgnoreCase) ? "br-swatch--on" : "")}")" Css="@SwatchCss(color)"
-                                     OnClick="@(() => RecolorHighlightAsync(color))" Title="@ColorName(color)" AriaLabel="@ColorName(color)"
+                                     OnClick="@(() => RecolorHighlightAsync(color))" Tooltip="@ColorName(color)" AriaLabel="@ColorName(color)"
                                      aria-pressed="@(string.Equals(editing.Color, color, StringComparison.OrdinalIgnoreCase) ? "true" : "false")" />
                 }
             </div>
@@ -102,17 +105,17 @@
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" OnClick="DeleteHighlightAsync">@L["Common_Delete"]</AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseEditorAsync">@L["Common_Done"]</AppButton>
             </div>
-        </AppCssElement>
+        </AppPopout>
     }
 
     @if (_state == "ready" && _panel is not null)
     {
         <div class="br-scrim" role="presentation" @onclick="ClosePanelAsync"></div>
-        <aside class="br-panel" role="dialog" aria-label="@PanelTitle">
+        <AppPopout Class="br-panel" Role="dialog" AriaLabel="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
-                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Title="@L["Common_Close"].Value" AriaLabel="@($"Close {PanelTitle}")">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
+                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["Common_Close"].Value" AriaLabel="@($"Close {PanelTitle}")">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppIconSize.Control20" />
                 </AppNativeButton>
             </div>
             <div class="br-panel-body">
@@ -142,8 +145,8 @@
                     <div class="br-search">
                         <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value"
                                         Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
-                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Title="@L["Nav_Search"].Value" AriaLabel="@L["Nav_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
+                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Tooltip="@L["Nav_Search"].Value" AriaLabel="@L["Nav_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
                         </AppNativeButton>
                     </div>
                     @if (_searching)
@@ -200,12 +203,15 @@
                                 {
                                     <li class="br-item">
                                         <AppNativeButton Class="br-row br-row--grow" OnClick="@(() => OpenBookmarkAsync(mark))" AriaLabel="@($"Go to bookmark {mark.Label}")">
-                                            <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)</span>
-                                            <span class="br-row-sub">@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                                            <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)@if (mark.IsGlobal) { <em class="br-global"> @L["Common_Everyone"]</em> }</span>
+                                            <span class="br-row-sub">@(string.IsNullOrWhiteSpace(mark.OwnerName) ? null : mark.OwnerName + " · ")@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
                                         </AppNativeButton>
-                                        <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppSize.Small" />
-                                        </AppNativeButton>
+                                        @if (CanChange(mark))
+                                        {
+                                            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppIconSize.Control20" />
+                                            </AppNativeButton>
+                                        }
                                     </li>
                                 }
                             </ul>
@@ -265,7 +271,7 @@
                     <p class="br-hint">@L["BookReader_TheseChoicesAreRememberedOn"]</p>
                 }
             </div>
-        </aside>
+        </AppPopout>
     }
 
     @if (!string.IsNullOrEmpty(_notice))
@@ -300,7 +306,7 @@
             </AppPageState>
         </div>
     }
-</div>
+</AppViewer>
 
 @code {
     private static readonly TimeSpan SaveInterval = TimeSpan.FromSeconds(5);
@@ -1113,6 +1119,9 @@
         await ClosePanelAsync();
         await GoToPlaceAsync(mark.CfiPosition);
     }
+
+    /// <summary>A person changes their own bookmarks. Everyone's bookmarks are made and changed in the editor's Bookmarks tab (universal editor v5 D37).</summary>
+    private static bool CanChange(ReaderBookmarkDto mark) => !mark.IsGlobal;
 
     private async Task DeleteBookmarkAsync(ReaderBookmarkDto mark)
     {

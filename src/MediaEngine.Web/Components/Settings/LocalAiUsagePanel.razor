@@ -2,8 +2,9 @@
 @inject UIOrchestratorService Orchestrator
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Usage page of Local AI: which callers used which ability over the last week, and each AI plugin's standing against its
-   hourly allowance. AI features are plugins, so every plugin row links to its card on the Plugins page. *@
+@* Two views of the same usage report. Plugins (Local AI > Status) lists each AI plugin's standing against its hourly
+   allowance; AI features are plugins, so every row links to its card on the Plugins page. Table (Local AI > Advanced) is the
+   detailed week of use by caller and ability. *@
 <div class="local-ai-usage" data-testid="local-ai-usage">
     @if (_loading)
     {
@@ -15,7 +16,9 @@
     }
     else
     {
-        <AppCard Title="@L["LocalAiUsagePanel_Plugins"].Value" Description="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value" Density="AppSurfaceDensity.Compact">
+      @if (View == LocalAiUsageView.Plugins)
+      {
+        <AppSettingsGroup Heading="@L["LocalAiUsagePanel_PluginsUsingLocalAI"].Value" Helper="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value">
             @if (_usage.Plugins.Count == 0)
             {
                 <AppEmptyState Title="@L["LocalAiUsagePanel_NoPluginUsesLocalAI"].Value" Message="@L["LocalAiUsagePanel_PluginsThatAskForLocal"].Value" />
@@ -37,9 +40,11 @@
                     }
                 </ul>
             }
-        </AppCard>
-
-        <AppCard Title="@($"Use in the last {_usage.Days} days")" Density="AppSurfaceDensity.Compact">
+        </AppSettingsGroup>
+      }
+      else
+      {
+        <AppSettingsGroup Heading="@($"Use in the last {_usage.Days} days")">
             @if (_usage.Rows.Count == 0)
             {
                 <AppEmptyState Title="@L["Common_NothingYet"].Value" Message="@L["LocalAiUsagePanel_NothingHasAskedLocalAI"].Value" />
@@ -51,8 +56,8 @@
                         <tr>
                             <th>@L["Common_UsedBy"]</th>
                             <th>@L["LocalAiUsagePanel_Ability"]</th>
-                            <th>@L["LocalAiUsagePanel_Requests"]</th>
-                            <th>@L["LocalAiUsagePanel_BusyTime"]</th>
+                            <th class="app-table__num">@L["LocalAiUsagePanel_Requests"]</th>
+                            <th class="app-table__num">@L["LocalAiUsagePanel_BusyTime"]</th>
                             <th>@L["LocalAiUsagePanel_LastUsed"]</th>
                         </tr>
                     </thead>
@@ -62,19 +67,24 @@
                             <tr @key="@($"{row.CallerKind}/{row.CallerId}/{row.Ability}")">
                                 <td>@CallerLabel(row)</td>
                                 <td>@row.Ability</td>
-                                <td>@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
-                                <td>@row.BusySeconds.ToString("0.#") s</td>
+                                <td class="app-table__num">@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
+                                <td class="app-table__num">@row.BusySeconds.ToString("0.#") s</td>
                                 <td>@row.LastUsedAt.ToLocalTime().ToString("g")</td>
                             </tr>
                         }
                     </tbody>
                 </AppTable>
             }
-        </AppCard>
+        </AppSettingsGroup>
+      }
     }
 </div>
 
 @code {
+    public enum LocalAiUsageView { Plugins, Table }
+
+    [Parameter] public LocalAiUsageView View { get; set; } = LocalAiUsageView.Table;
+
     private AiUsageResponse? _usage;
     private bool _loading = true;
 

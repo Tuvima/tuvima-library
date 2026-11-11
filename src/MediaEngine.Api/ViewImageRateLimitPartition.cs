@@ -7,6 +7,9 @@ public static class ViewImageRateLimitPartition
     {
         var endpointName = context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName;
         var purpose = endpointName is "GetViewItemThumbnail" or "GetViewItemPreview" ? "view-images" : "general";
-        return $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{purpose}";
+        // Counted per person (their session) when the Dashboard forwards the request, per address otherwise.
+        var who = MediaEngine.Api.Security.ReaderFileRateLimitPartition.SessionKey(context)
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return $"{who}:{purpose}";
     }
 }

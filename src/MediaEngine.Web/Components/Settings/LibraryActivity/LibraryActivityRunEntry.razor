@@ -1,0 +1,251 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Contracts.Library
+@inject IEngineApiClient Api
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+@implements IAsyncDisposable
+
+@* One History entry (spec library-activity D9, D11, D12, D15): a round date bubble on the line, then what was added and where, up to five small
+   covers, a plain count and Completed (or Active while it runs). Clicking opens it in place: its items as standard tiles in a scrolling area
+   that shows two rows at a time and loads more as you scroll, with a filter by kind. Episodes are stacked into one tile per show, tracks into
+   one per album. No file or enrichment detail (that lives in the item's editor). *@
+<li class="lact-entry @(Run.Status == ActivityRunStatusNames.Active ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
+    <div class="lact-entry__row">
+        <span class="lact-bubble">@Bubble</span>
+        <div class="lact-box">
+            <AppNativeButton Type="button" Class="lact-box__toggle" OnClick="ToggleAsync"
+                             aria-expanded="@(_open ? "true" : "false")" data-testid="lact-entry-toggle"
+                             AriaLabel="@($"{LibraryActivityText.Headline(Run)}, {LibraryActivityText.StatusLabel(Run.Status)}")">
+                <span class="lact-box__what">
+                    <strong>@LibraryActivityText.Headline(Run)</strong>
+                    <small data-testid="lact-entry-subtitle">@LibraryActivityText.Subtitle(Run)</small>
+                </span>
+                <span class="lact-box__covers" aria-hidden="true">
+                    @foreach (var cover in Run.Covers)
+                    {
+                        <span class="lact-cover @(cover.MediaType == "Music" ? "is-square" : null)">
+                            <LibraryActivityPicture Url="@cover.Url" DrawnPx="44" />
+                        </span>
+                    }
+                    @if (MoreCovers > 0)
+                    {
+                        <span class="lact-cover-more">+@MoreCovers.ToString("N0")</span>
+                    }
+                </span>
+                <span class="lact-box__count">@Count</span>
+                <span class="lact-box__status lact-status--@Run.Status" data-testid="lact-entry-status">
+                    @if (Run.Status == ActivityRunStatusNames.Active)
+                    {
+                        <span class="lact-dot" aria-hidden="true"></span><span>@L["LibraryActivity_Active"]</span>
+                    }
+                    else if (Run.Status == ActivityRunStatusNames.Failed)
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppIconSize.Control20" /><span>@LibraryActivityText.StatusLabel(Run.Status)</span>
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" /><span>@LibraryActivityText.StatusLabel(Run.Status)</span>
+                    }
+                </span>
+                <span class="lact-box__chevron"><AppMaterialIcon Icon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" /></span>
+            </AppNativeButton>
+        </div>
+    </div>
+
+    @if (_open)
+    {
+        @* The opened batch is its own panel under the line, indented past the date bubble (mock screen 2). *@
+        <div class="lact-open" data-testid="lact-open">
+                @if (Run.Counts.Count > 1)
+                {
+                    <div class="lact-kinds" role="group" aria-label="@L["LibraryActivity_FilterByKind"]">
+                        <AppToggleChip Pressed="@(_mediaType is null)" Class="lact-kind-chip" OnClick="@(() => PickAsync(null))">@L["LibraryActivity_AllCount", Run.ItemCount.ToString("N0")]</AppToggleChip>
+                        @foreach (var count in Run.Counts)
+                        {
+                            <AppToggleChip Pressed="@(_mediaType == count.MediaType)" Class="lact-kind-chip" OnClick="@(() => PickAsync(count.MediaType))">@KindName(count.MediaType) @count.Count.ToString("N0")</AppToggleChip>
+                        }
+                    </div>
+                }
+
+                @if (_failed)
+                {
+                    <AppAlert Tone="AppUiTone.Warning">@L["LibraryActivity_ItemsFailed"] <AppButton Label="@L["LibraryActivity_TryAgain"].Value" OnClick="@(() => PickAsync(_mediaType))" /></AppAlert>
+                }
+                else if (_loadedOnce && _groups.Count == 0)
+                {
+                    <p class="lact-empty">@L["LibraryActivity_NothingInBatch"]</p>
+                }
+                else
+                {
+                    <div class="lact-scroll" data-testid="lact-open-tiles">
+                        <div class="lact-tiles">
+                            @foreach (var group in _groups)
+                            {
+                                <LibraryActivityTile @key="group.GroupKey"
+                                                     Title="@group.Title"
+                                                     CoverUrl="@group.CoverUrl"
+                                                     MediaType="@group.MediaType"
+                                                     Route="@group.Route"
+                                                     BottomLabel="@BottomLabel(group)" />
+                            }
+                        </div>
+                        @if (_hasMore)
+                        {
+                            <div id="@SentinelId" class="lact-sentinel"><AppButton Label="@L["LibraryActivity_ShowMore"].Value" OnClick="LoadMoreAsync" Disabled="_loading" /></div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+</li>
+
+@code {
+    private const int PageSize = 24;
+
+    [Parameter, EditorRequired] public ActivityRunDto Run { get; set; } = default!;
+
+    private readonly List<ActivityGroupDto> _groups = [];
+    private bool _open;
+    private bool _loading;
+    private bool _loadedOnce;
+    private bool _failed;
+    private bool _hasMore;
+    private string? _mediaType;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<MoreCallback>? _callback;
+    private string? _observedId;
+
+    private string SentinelId => $"lact-more-{Run.Id:N}";
+
+    private string Bubble => Run.Status == ActivityRunStatusNames.Active ? "Now" : LibraryActivityText.Bubble(Run.StartedAt);
+
+    private int MoreCovers => Math.Max(0, Run.ItemCount - Run.Covers.Count);
+
+    private string Count => Run.Status == ActivityRunStatusNames.Active
+        ? $"{Run.ItemCount:N0} so far"
+        : Run.Kind == ActivityRunKindNames.Removed
+            ? $"{Run.ItemCount:N0} {(Run.ItemCount == 1 ? "item" : "items")} removed"
+            : LibraryActivityText.Counts(Run);
+
+    private static string KindName(string mediaType) => mediaType switch
+    {
+        "Movies" => "Movies",
+        "TV" => "TV",
+        "Music" => "Music",
+        "Books" => "Books",
+        "Audiobooks" => "Audiobooks",
+        "Comics" => "Comics",
+        "Videos" => "Videos",
+        _ => "Other",
+    };
+
+    // The bottom-left label: "12 new episodes", or nothing for a single movie.
+    private static string? BottomLabel(ActivityGroupDto group)
+        => group.ItemCount > 1 || group.MediaType is "TV" or "Music"
+            ? LibraryActivityText.NewLabel(group.MediaType, group.ItemCount)
+            : null;
+
+    private async Task ToggleAsync()
+    {
+        _open = !_open;
+        if (_open && !_loadedOnce)
+        {
+            await PickAsync(null);
+        }
+    }
+
+    private async Task PickAsync(string? mediaType)
+    {
+        _mediaType = mediaType;
+        _groups.Clear();
+        _hasMore = false;
+        _failed = false;
+        await LoadMoreAsync();
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var page = await Api.GetActivityRunGroupsAsync(Run.Id, _mediaType, _groups.Count, PageSize);
+            if (page is null)
+            {
+                _failed = true;
+                return;
+            }
+
+            _groups.AddRange(page.Groups.Where(group => _groups.All(existing => existing.GroupKey != group.GroupKey)));
+            _hasMore = page.HasMore;
+            _loadedOnce = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        StateHasChanged();
+        await ObserveAsync();
+    }
+
+    // The next page loads as the sentinel scrolls near; the Show more button still works where scripts cannot run.
+    private async Task ObserveAsync()
+    {
+        try
+        {
+            var wanted = _open && _hasMore ? SentinelId : null;
+            if (_observedId is not null && _observedId != wanted && _module is not null)
+            {
+                await _module.InvokeVoidAsync("disconnectById", _observedId);
+            }
+
+            _observedId = wanted;
+            if (wanted is null)
+            {
+                return;
+            }
+
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/load-more-observer.js");
+            _callback ??= DotNetObjectReference.Create(new MoreCallback(() => InvokeAsync(LoadMoreAsync)));
+            await _module.InvokeVoidAsync("observeById", wanted, _callback, new { rootMargin = "160px 0px" });
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support (a test host, a closing circuit): the Show more button still pages the tiles in.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null)
+            {
+                if (_observedId is not null)
+                {
+                    await _module.InvokeVoidAsync("disconnectById", _observedId);
+                }
+
+                await _module.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or InvalidOperationException)
+        {
+            // The circuit ended first, or the script never loaded; there is nothing left to disconnect.
+        }
+
+        _callback?.Dispose();
+    }
+
+    /// <summary>What the page-in observer calls when the end of the tiles nears the visible area.</summary>
+    public sealed class MoreCallback(Func<Task> loadMore)
+    {
+        [JSInvokable]
+        public Task LoadMoreFromObserverAsync() => loadMore();
+    }
+}

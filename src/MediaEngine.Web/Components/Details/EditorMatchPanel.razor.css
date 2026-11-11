@@ -1,0 +1,63 @@
+/* The Match tab: the provider and box slots of the first row (the row itself is EditorMatchRow), the current match and its reasons, and the compact search. */
+.tl-matchrow__provider {
+    flex: 0 1 14rem;
+    min-width: 0;
+}
+
+.tl-matchrow__field {
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+/* The current match and its reasons. */
+.tl-matchcard {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md, 8px);
+}
+
+.tl-match ::deep .tl-matchcard__art {
+    flex: 0 0 4rem;
+    width: 4rem;
+    height: 6rem;
+}
+
+.tl-matchcard__name {
+    font-size: var(--tl-font-size-lg);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-matchcard__actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+/* The compact search. */
+.tl-matchsearch {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+.tl-matchsearch__heading {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-matchsearch__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-inline-start: var(--tl-space-2);
+}
+
+.tl-matchwhy__footnote {
+    margin: 0;
+}

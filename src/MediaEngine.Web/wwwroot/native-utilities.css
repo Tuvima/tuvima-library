@@ -3,7 +3,7 @@
 *{box-sizing:border-box;margin:0;padding:0;border-width:0;border-style:solid;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent}
 body{background-color:var(--tl-palette-background);color:var(--tl-palette-text-primary);font-family:var(--tl-typography-default-family);font-size:var(--tl-typography-default-size);font-weight:var(--tl-typography-default-weight);line-height:var(--tl-typography-default-lineheight);letter-spacing:var(--tl-typography-default-letterspacing);text-transform:var(--tl-typography-default-text-transform)}
 a{color:var(--tl-palette-text-primary);text-decoration:none}
-a:focus-visible,button:focus{outline:none}
+:focus-visible{outline:var(--tl-focus-ring-width,3px) solid var(--tl-focus-ring,#A78BFA);outline-offset:var(--tl-focus-ring-offset,2px)}a:focus:not(:focus-visible),button:focus:not(:focus-visible){outline:none}
 button{overflow:visible;position:relative;display:inline-flex;align-items:center;justify-content:center;margin:0;padding:0;border:0;border-radius:0;outline:0;vertical-align:middle;color:inherit;text-decoration:none;text-transform:none;overflow:visible;cursor:pointer;user-select:none;background-color:transparent;appearance:button}
 input,button,select,textarea{margin:0;font-family:inherit;font-size:inherit;line-height:inherit}
 select{text-transform:none;word-wrap:normal}
@@ -31,9 +31,9 @@ select{text-transform:none;word-wrap:normal}
 .tl-sp-mb-4{margin-bottom:16px !important}
 .tl-sp-mb-6{margin-bottom:24px !important}
 .tl-sp-mr-2{margin-right:8px !important}
-.tl-sp-mx-4{margin-inline:16px !important}
-.tl-sp-my-2{margin-block:8px !important}
-.tl-sp-my-3{margin-block:12px !important}
+
+
+
 .tl-sp-pa-2{padding:8px !important}
 .tl-sp-pa-3{padding:12px !important}
 .tl-sp-pa-4{padding:16px !important}

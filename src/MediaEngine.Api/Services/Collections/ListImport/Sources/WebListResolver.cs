@@ -28,17 +28,14 @@ public sealed class WebListResolver
     private static readonly TimeSpan KeepFor = TimeSpan.FromMinutes(5);
 
     private const int MaximumAddressLength = 2000;
-    private const string PluginsRoute = "/settings/plugins";
 
     private readonly IReadOnlyList<IWebListSource> _sources;
-    private readonly IConfigurationLoader _configuration;
     private readonly TimeProvider _time;
     private readonly ConcurrentDictionary<string, (DateTimeOffset At, ParsedList List)> _recent = new(StringComparer.Ordinal);
 
-    public WebListResolver(IEnumerable<IWebListSource> sources, IConfigurationLoader configuration, TimeProvider? time = null)
+    public WebListResolver(IEnumerable<IWebListSource> sources, TimeProvider? time = null)
     {
         _sources = sources.ToList();
-        _configuration = configuration;
         _time = time ?? TimeProvider.System;
     }
 
@@ -74,7 +71,14 @@ public sealed class WebListResolver
     /// Reads the list a pasted address names. Returns null when the bytes are not an address at all.
     /// </summary>
     /// <exception cref="WebListRefusedException">The address cannot be used; the message says why.</exception>
-    public async Task<ParsedList?> ResolveAsync(byte[] bytes, CancellationToken ct)
+    public Task<ParsedList?> ResolveAsync(byte[] bytes, CancellationToken ct) => ResolveAsync(bytes, profileId: null, ct);
+
+    /// <summary>
+    /// Reads the list a pasted address names, as <paramref name="profileId"/>: a private or own list is read with that profile's
+    /// account on the site and nobody else's.
+    /// </summary>
+    /// <exception cref="WebListRefusedException">The address cannot be used; the message says why.</exception>
+    public async Task<ParsedList?> ResolveAsync(byte[] bytes, Guid? profileId, CancellationToken ct)
     {
         if (!TryReadAddress(bytes, out var uri) || uri is null)
         {
@@ -89,37 +93,43 @@ public sealed class WebListResolver
         }
 
         var address = source.Recognise(uri)!;
-        if (_configuration.LoadProvider(source.ProviderName) is not { Enabled: true })
+        if (!await source.IsSwitchedOnAsync(ct).ConfigureAwait(false))
         {
             throw new WebListRefusedException(
-                $"{source.DisplayName} are switched off. Turn the source on in Settings → Plugins.", PluginsRoute, "Open Plugins");
+                $"{source.DisplayName} are switched off. Turn the source on in Settings → Plugins.", source.SettingsPath, "Open Plugins");
         }
 
+        // A list read with someone's account is kept for that person only.
+        var cacheKey = $"{profileId:N}|{address.Address}";
         var now = _time.GetUtcNow();
-        if (_recent.TryGetValue(address.Address, out var recent) && now - recent.At < KeepFor)
+        if (_recent.TryGetValue(cacheKey, out var recent) && now - recent.At < KeepFor)
         {
             return recent.List;
         }
 
-        var fetch = await source.FetchAsync(address, ct).ConfigureAwait(false);
+        var fetch = await source.FetchAsync(address, profileId, ct).ConfigureAwait(false);
         switch (fetch.Failure)
         {
             case WebListFailure.None when fetch.List is { } list:
-                _recent[address.Address] = (now, list);
+                _recent[cacheKey] = (now, list);
                 Trim(now);
                 return list;
             case WebListFailure.KeyMissing:
                 throw new WebListRefusedException(
-                    $"{source.DisplayName} need your own key. Add it in Settings → Plugins.", PluginsRoute, "Open Plugins");
+                    $"{source.DisplayName} need your own key. Add it in Settings → Plugins.", source.SettingsPath, "Open Plugins");
             case WebListFailure.KeyRejected:
                 throw new WebListRefusedException(
-                    $"{source.DisplayName} did not accept the key. Check it in Settings → Plugins.", PluginsRoute, "Open Plugins");
+                    $"{source.DisplayName} did not accept the key. Check it in Settings → Plugins.", source.SettingsPath, "Open Plugins");
+            case WebListFailure.SignInNeeded when source.CanSignIn:
+                throw new WebListRefusedException(
+                    $"That list is private or your own, so it can only be read when you are signed in to {SiteOf(source)}. Sign in to {SiteOf(source)} in Settings → Profile → Accounts, then paste the address again. Or make the list public and paste its public address, or export it as a file and drop that here.",
+                    source.SignInPath, $"Sign in to {SiteOf(source)}");
             case WebListFailure.SignInNeeded:
                 throw new WebListRefusedException(
-                    $"That list is private or your own, so it can only be read when you are signed in to {SiteOf(source)}. Library cannot sign in there yet: make the list public and paste its public address, or export it as a file and drop that here.");
+                    $"That list is private or your own, so it can only be read when you are signed in to {SiteOf(source)}. Library cannot sign in there: make the list public and paste its public address, or export it as a file and drop that here.");
             case WebListFailure.NotFound:
                 throw new WebListRefusedException(
-                    $"Couldn't find that list. It may be private, or the address may be wrong. Only public lists can be read.");
+                    "Couldn't find that list. It may be private, or the address may be wrong." + (source.CanSignIn ? string.Empty : " Only public lists can be read."));
             default:
                 // The site did not answer: the collection is saved with nothing in it yet and Library tries again.
                 return new ParsedList

@@ -8,6 +8,8 @@ namespace MediaEngine.Web.Services.Ui;
 public sealed record AppDialogOptions
 {
     public AppMaxWidth? MaxWidth { get; init; }
+    /// <summary>The Window size (S 480, M 640, L 900). When left empty it is worked out from <see cref="MaxWidth"/> and the popup's own size name (see <see cref="AppWindowSizing"/>).</summary>
+    public AppWindowSize? Size { get; init; }
     public AppDialogPosition? Position { get; init; }
     public bool? FullWidth { get; init; }
     public bool? FullScreen { get; init; }
@@ -18,6 +20,10 @@ public sealed record AppDialogOptions
     /// <summary>Present as a bottom sheet on phones (and optionally tablets); desktop keeps the centred dialog.</summary>
     public AppDialogSheetMode Sheet { get; init; } = AppDialogSheetMode.Never;
     public string? BackgroundClass { get; init; }
+    /// <summary>The main button removes or discards something: outlined red, not focused, with the safe choice filled and focused (Look pass 4.3).</summary>
+    public bool Destructive { get; init; }
+    /// <summary>The small confirmation every "are you sure" uses, with a destructive main button.</summary>
+    public static AppDialogOptions DestructiveConfirm { get; } = new() { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true, Destructive = true };
 }
 
 public class AppDialogParameters : IEnumerable<KeyValuePair<string, object?>>
@@ -102,10 +108,16 @@ public sealed class AppDialogService : IAppDialogService, IDisposable
     public Task<bool?> ShowMessageBoxAsync(string? title, MarkupString message, string yesText = "OK", string? noText = null, string? cancelText = null, AppDialogOptions? options = null) => MessageBoxAsync(title, message, yesText, noText, cancelText, options);
     private async Task<bool?> MessageBoxAsync(string? title, object message, string yesText, string? noText, string? cancelText, AppDialogOptions? options)
     {
-        var parameters = new AppDialogParameters { { nameof(AppMessageBox.Message), message }, { nameof(AppMessageBox.YesText), yesText }, { nameof(AppMessageBox.NoText), noText }, { nameof(AppMessageBox.CancelText), cancelText } };
-        var dialog = await ShowAsync<AppMessageBox>(title, parameters, options ?? new() { MaxWidth = AppMaxWidth.Small, FullWidth = true });
+        var asksNo = noText is not null && cancelText is null;
+        var parameters = new AppDialogParameters { { nameof(AppMessageBox.Message), message }, { nameof(AppMessageBox.YesText), yesText }, { nameof(AppMessageBox.NoText), noText }, { nameof(AppMessageBox.CancelText), cancelText }, { nameof(AppMessageBox.Destructive), options?.Destructive ?? false } };
+        var dialog = await ShowAsync<AppMessageBox>(title, parameters, options ?? new() { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
-        return result is { Canceled: false, Data: bool answer } ? answer : null;
+        return result switch
+        {
+            { Canceled: false, Data: bool flag } => flag,
+            { Canceled: false, Data: AppConfirmResult answer } => answer == AppConfirmResult.Primary ? true : asksNo ? false : null,
+            _ => null,
+        };
     }
     internal void NotifyChanged() => Changed?.Invoke();
     public void SetFrameVisibility(Guid id, bool visible)

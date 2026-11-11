@@ -114,8 +114,8 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".phone-hero__card"));
             Assert.Single(cut.FindAll(".phone-hero__title"));
             Assert.Single(cut.FindAll(".phone-hero__meta"));
-            Assert.Single(cut.FindAll(".phone-hero__primary"));
-            Assert.InRange(cut.FindAll(".phone-hero__icon-button").Count, 0, 2);
+            Assert.Single(cut.FindAll(".tl-detail-action--primary"));
+            Assert.InRange(cut.FindAll(".hero-icon-circle").Count, 0, 2);
             Assert.Single(cut.FindAll(".phone-hero__actions"));
         }
     }
@@ -247,6 +247,10 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         { "audiobook-started", "Continue Listening", "1h 5m left" },
         { "album-unstarted", "Play album", "" },
         { "album-started", "Play album", "" },
+        { "videos-unstarted", "Play", "" },
+        { "videos-started", "Resume", "23 min left" },
+        { "othervideos-unstarted", "Play", "" },
+        { "othervideos-started", "Resume", "23 min left" },
     };
 
     private static DiscoveryHeroViewModel ForLabel(string key)
@@ -263,6 +267,8 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
             "tv" => Made("TV", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Resume S5 E1" : "Watch S1 E1"),
             "episode" => Made("TV", state: state, progress: pct, episode: started ? StartedEpisode : UnstartedEpisode, engineLabel: "Watch"),
             "audiobook" => Made("Audiobook", state: state, progress: pct, remaining: started ? 3900 : null, engineLabel: started ? "Continue" : "Play"),
+            "videos" => Made("Videos", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Continue" : "Play"),
+            "othervideos" => Made("Other videos", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Continue" : "Play"),
             _ => Made("Music", state: state, progress: pct, engineLabel: started ? "Continue" : "Play"),
         };
     }
@@ -273,8 +279,8 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
     {
         await UseAsync("phone");
         var cut = RenderPhone(ForLabel(key));
-        Assert.Equal(label, cut.Find(".phone-hero__primary-label").TextContent.Trim());
-        var details = cut.FindAll(".phone-hero__primary-detail");
+        Assert.Equal(label, cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
+        var details = cut.FindAll(".tl-detail-action-progress__label");
         if (detail.Length == 0)
         {
             Assert.Empty(details);
@@ -287,11 +293,26 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         if (key.EndsWith("-unstarted", StringComparison.Ordinal))
         {
             // An unstarted item never says Continue or Resume and never shows a 0 percent.
-            var text = cut.Find(".phone-hero__primary").TextContent;
+            var text = cut.Find(".tl-detail-action--primary").TextContent;
             Assert.DoesNotContain("Continue", text);
             Assert.DoesNotContain("Resume", text);
             Assert.DoesNotContain("0%", text);
         }
+    }
+
+    [Theory]
+    [InlineData("Videos")]
+    [InlineData("Other videos")]
+    [InlineData("YouTube")]
+    [InlineData("Something new")]
+    public void AVideoOrUnknownKindIsNeverPresentedAsABook(string kind)
+    {
+        var hero = Made(kind, state: DisplayContinuationState.InProgress, progress: 12, engineLabel: "Continue");
+
+        var label = PhoneHeroPresentation.PrimaryLabel(hero);
+
+        Assert.DoesNotContain("Read", label.Text);
+        Assert.NotEqual("Book", PhoneHeroPresentation.PlaceholderLabel(kind));
     }
 
     [Fact]
@@ -299,9 +320,9 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
     {
         await UseAsync("phone");
         var cut = RenderPhone(Made("Movie", state: DisplayContinuationState.InProgress));
-        Assert.Equal("Resume", cut.Find(".phone-hero__primary-label").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".phone-hero__primary-detail"));
-        Assert.Equal("Resume", cut.Find(".phone-hero__primary").GetAttribute("aria-label"));
+        Assert.Equal("Resume", cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".tl-detail-action-progress__label"));
+        Assert.Equal("Resume", cut.Find(".tl-detail-action--primary").GetAttribute("aria-label"));
     }
 
     [Fact]
@@ -309,7 +330,7 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
     {
         await UseAsync("phone");
         var cut = RenderPhone(Made("Book", engineLabel: "Open Series"));
-        Assert.Equal("Open Series", cut.Find(".phone-hero__primary-label").TextContent.Trim());
+        Assert.Equal("Open Series", cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
     }
 
     [Fact]
@@ -349,7 +370,10 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         Assert.Contains("height: var(--phone-hero-card-height)", Rule(css, ".phone-hero__card"));
         Assert.Contains("position: absolute", Rule(css, ".phone-hero__content"));
         var appCss = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "wwwroot", "app.css"));
-        Assert.Contains("max-height: var(--phone-hero-tap)", Rule(appCss, ".phone-hero__primary"));
+        // The phone hero uses the shared hero row (Look v3 D12); app.css holds no phone button rules of its own.
+        Assert.DoesNotContain(".phone-hero__primary", appCss);
+        Assert.DoesNotContain(".phone-hero__icon-button", appCss);
+        Assert.Contains("<HeroActionRow", File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Cinematic", "PhoneHeroCard.razor")));
     }
 
     private static string Rule(string css, string selector)
@@ -369,7 +393,7 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         {
             cut.FindAll(".phone-hero__dot")[index].Click();
             Assert.Equal("phone-hero__card", cut.Find(".phone-hero__card").ClassList.First());
-            Assert.Single(cut.FindAll(".phone-hero__primary"));
+            Assert.Single(cut.FindAll(".tl-detail-action--primary"));
             Assert.Single(cut.FindAll(".phone-hero__title-zone"));
         }
     }

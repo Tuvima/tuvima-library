@@ -66,8 +66,8 @@ public partial interface IEngineApiClient
     /// <summary>GET /metadata/{entityId}/editor-context — resolve scope-aware editor context.</summary>
     Task<MediaEditorContextDto?> GetMediaEditorContextAsync(Guid entityId, CancellationToken ct = default);
 
-    /// <summary>GET /metadata/{entityId}/navigator — resolve a series-aware media editor navigator.</summary>
-    Task<MediaEditorNavigatorDto?> GetMediaEditorNavigatorAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>GET /metadata/{entityId}/navigator — resolve a series-aware media editor navigator. <paramref name="structureOnly"/> asks for just the root and its parents (seasons, albums, series), each with its matched state, so the family tree can page the files in itself.</summary>
+    Task<MediaEditorNavigatorDto?> GetMediaEditorNavigatorAsync(Guid entityId, bool structureOnly = false, CancellationToken ct = default);
 
     /// <summary>GET /metadata/{entityId}/work-versions — bounded Work/Edition/Asset selector preserving launch identity.</summary>
     Task<MediaEditorWorkVersionSelectorDto?> GetMediaEditorWorkVersionsAsync(Guid entityId, CancellationToken ct = default);
@@ -76,7 +76,7 @@ public partial interface IEngineApiClient
     Task<MediaEditorOwnedChildSearchDto?> GetMediaEditorOwnedChildrenAsync(
         Guid entityId, string? query = null, int page = 1, int pageSize = 50,
         int? season = null, int? disc = null, int? volume = null,
-        string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default);
+        string? matchStatus = null, string? fileStatus = null, bool directOnly = false, CancellationToken ct = default);
 
     /// <summary>Freeze every matching authorized owned-file ID and revision for explicit selection.</summary>
     Task<MediaEditorOwnedChildSelectionSnapshotDto?> GetMediaEditorOwnedChildSelectionSnapshotAsync(

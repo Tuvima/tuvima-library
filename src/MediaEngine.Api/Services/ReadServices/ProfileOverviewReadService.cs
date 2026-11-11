@@ -48,8 +48,8 @@ public sealed class ProfileOverviewReadService(
                 .GroupBy(entry => entry.ActionType, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase),
             TopGenres = items
-                .Where(item => !string.IsNullOrWhiteSpace(item.Genre))
-                .GroupBy(item => item.Genre!, StringComparer.OrdinalIgnoreCase)
+                .SelectMany(item => MediaEngine.Domain.Text.GenreLabels.Split(item.Genre))
+                .GroupBy(label => label, StringComparer.OrdinalIgnoreCase)
                 .OrderByDescending(group => group.Count())
                 .Take(8)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase),

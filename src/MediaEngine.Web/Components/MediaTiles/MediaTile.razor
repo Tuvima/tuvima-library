@@ -2,14 +2,15 @@
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
 @inject NavigationManager Nav
 @inject IServiceProvider Services
-@inject IJSRuntime JS
-@inject ILogger<MediaTile> Logger
-@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
-@implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
 
+@* One tile for every cover (One tile design spec). The cover fills the tile and carries its own title on the art; nothing sits under it.
+   "..." is top right and always visible, a status label touches the top-left corner and a bottom label (the group count) touches the
+   bottom-left corner. Hover and keyboard focus draw one thin purple outline around the cover; the tile never grows or moves.
+   A video with no cover art is the two-part tile (a still on top, its title and one detail line below, D7). *@
 @if (Item.RenderAsPersonTile)
 {
     <PersonTile Item="@Item" />
@@ -22,12 +23,11 @@ else if (Item.RenderAsLandscapeGroupTile)
 {
     <MediaGroupTile Item="@Item" />
 }
-else
+else if (!_removed)
 {
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowsCompactTitleCaption ? "has-compact-caption" : "")} {(UseShelfTileSize ? "is-shelf-sized" : "")}")'
-         @ref="_cardRef"
+<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)}")'
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
     <div class="media-tile-frame">
@@ -53,6 +53,14 @@ else
                          decoding="async" />
                 }
                 <div class="media-tile-collection-wash"></div>
+                @if (ShowTileLogo)
+                {
+                    <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-landscape-logo is-banner" loading="lazy" decoding="async" />
+                }
+                else
+                {
+                    <span class="media-tile-landscape-title is-banner">@Item.Title</span>
+                }
             }
             else if (ShowPreviewStack)
             {
@@ -64,6 +72,53 @@ else
                              class="@GetStackImageClass(index)"
                              loading="lazy"
                              decoding="async" />
+                    }
+                </div>
+            }
+            else if (Item.IsStandInPicture)
+            {
+                @* TheTVDB has no picture for this episode: a marked stand-in, never a real-looking still. *@
+                <div class="media-tile-standin" data-standin="true">
+                    @if (!string.IsNullOrWhiteSpace(CardImageUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" srcset="@TileSrcSet" sizes="@Item.TileImageSizes"
+                             alt="" aria-hidden="true" class="media-tile-standin__image" loading="@CardImageLoading" decoding="async" />
+                    }
+                    else
+                    {
+                        <div class="media-tile-standin__library-tile" aria-hidden="true">
+                            <AppMaterialIcon Icon="@FallbackIcon" Class="tl-u-font-size-44px tl-u-color-rgba-255-255-255--18" />
+                        </div>
+                    }
+                    <span class="media-tile-standin__number">@Item.StandInLabel</span>
+                    <span class="media-tile-standin__tag" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
+                </div>
+            }
+            else if (IsVideoStill)
+            {
+                @* A video's still on top, its name and one detail line below (D7, D16). With no frame at all the top is a plain dark panel with a video icon. *@
+                <div class="media-tile-video-still">
+                    @if (!string.IsNullOrWhiteSpace(CardImageUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)"
+                             srcset="@TileSrcSet"
+                             sizes="@Item.TileImageSizes"
+                             alt=""
+                             aria-hidden="true"
+                             class="media-tile-video-still__image"
+                             loading="@CardImageLoading"
+                             decoding="async" />
+                    }
+                    else
+                    {
+                        <span class="media-tile-video-still__panel" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span>
+                    }
+                </div>
+                <div class="media-tile-video-text">
+                    <span class="media-tile-video-text__title" data-overflow-tooltip="@Item.Title">@Item.Title</span>
+                    @if (VideoDetail is { } detail)
+                    {
+                        <span class="media-tile-video-text__detail">@detail</span>
                     }
                 </div>
             }
@@ -83,501 +138,60 @@ else
             }
             else
             {
+                @* No cover art: a plain dark cover with the kind's icon, the title and its author or artist at the bottom (D7). *@
                 <div class="media-tile-fallback">
                     <AppMaterialIcon Icon="@FallbackIcon" Class="tl-u-font-size-44px tl-u-color-rgba-255-255-255--18" />
-                    <span>@Item.Title</span>
+                    <span class="media-tile-fallback__title">@Item.Title</span>
+                    @if (!string.IsNullOrWhiteSpace(DisplaySubtitle))
+                    {
+                        <span class="media-tile-fallback__detail">@DisplaySubtitle</span>
+                    }
                 </div>
             }
 
-            @if (Item.IsCollection && (!ShouldHideGroupKind || !ShouldHideGroupCount))
+            @if (StatusLabel is { } status)
             {
-                <div class="media-tile-group-indicators">
-                    @if (!ShouldHideGroupKind)
-                    {
-                        <span class="media-tile-group-kind">
-                            <AppMaterialIcon Icon="@GroupKindIcon" />
-                            <span>@GroupKindLabel</span>
-                        </span>
-                    }
-                    @if (!ShouldHideGroupCount && Item.PreviewTotalCount is > 0)
-                    {
-                        <span class="media-tile-group-count" aria-label="@GroupCountAriaLabel" title="@GroupCountAriaLabel">
-                            <AppMaterialIcon Icon="@GroupCountIcon" />
-                            <span>@Item.PreviewTotalCount</span>
-                        </span>
-                    }
-                </div>
+                <span class="media-tile-label media-tile-label--status">@status</span>
             }
-            @if (ShowsAlbumTrackCount)
+            @if (BottomLabel is { } bottom)
             {
-                @* An album is one tile however many songs it holds; the count is the only hint of that. *@
-                <div class="media-tile-group-indicators">
-                    <span class="media-tile-group-count" aria-label="@GroupCountAriaLabel" title="@GroupCountAriaLabel">
-                        <AppMaterialIcon Icon="@GroupCountIcon" />
-                        <span>@Item.PreviewTotalCount</span>
-                    </span>
-                </div>
+                <span class="media-tile-label media-tile-label--bottom" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
             <AppArtworkProgress Enabled="@SupportsCompletion" State="@Item.ContinuationState" Percent="@Item.ProgressPct" MediaKind="@Item.MediaKind" RemainingSeconds="@Item.RemainingSeconds" Label="@Item.ProgressLabel" />
         </div>
-
-        @if (ShowsStaticCoverIdentity)
-        {
-            <div class="media-tile-static-hover" aria-hidden="true">
-                <div class="media-tile-hover-identity-strip">
-                    @foreach (var part in HoverIdentityParts)
-                    {
-                        <span @key="part">@part</span>
-                    }
-                </div>
-            </div>
-        }
-        @if (ShowOverlaySettlingDot)
-        {
-            <span class="media-tile-settling-dot is-overlay" title="@L["Common_StillBeingMatched"].Value"><span class="media-tile-settling-dot__label">@L["Common_StillBeingMatched"]</span></span>
-        }
     </div>
 
-    @if (CaptionContent is not null) { <div class="media-tile-identity-caption">@CaptionContent</div> }
-    @if (ShowsCompactTitleCaption)
+    @if (ShowsEpisodeCaption)
     {
-        <div class="media-tile-caption" aria-hidden="true">
-            <span class="media-tile-caption__title" title="@Item.Title">@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="@L["Common_StillBeingMatched"].Value"><span class="media-tile-settling-dot__label">@L["Common_StillBeingMatched"]</span></span> }@Item.Title</span>
-            @if (!string.IsNullOrWhiteSpace(Item.Subtitle) && Item.MediaKind is not ("Movie" or "TV")) { <span class="media-tile-caption__subtitle">@Item.Subtitle</span> }
-
-            @if (!string.IsNullOrWhiteSpace(CompactIdentityYear))
-            {
-                <span class="media-tile-caption__year">@CompactIdentityYear</span>
-            }
-            @if (Item.IsKept)
-            {
-                <span class="media-tile-caption__year">@L["MediaTile_Kept"]</span>
-            }
-        </div>
-    }
-    else if (Item.IsKept)
-    {
-        @* A file kept as it is stays under the Unmatched filter, marked Kept in the card's own text, under its title (Library setup spec D65). *@
-        <div class="media-tile-caption"><span class="media-tile-caption__year">@L["MediaTile_Kept"]</span></div>
-    }
-
-    @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption))
-    {
-        <div class="media-tile-episode-caption"><strong>@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="@L["Common_StillBeingMatched"].Value"><span class="media-tile-settling-dot__label">@L["Common_StillBeingMatched"]</span></span> }@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
+        @* Only the episode lists of a show or season (their own pages) keep text under a still: the episode number and title. *@
+        <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? MediaTileLabels.EpisodeHeading(Item, episode) : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
-    @if (UsesCinematicHover && !SuppressHover)
+    @if (ShowActions)
     {
-        <div class="@HoverPanelClass"
-                 @onclick="OpenDetails"
-                 @onclick:stopPropagation="true">
-                <div class="media-tile-hover-art @(!ShowGroupCollage && string.IsNullOrWhiteSpace(ActiveHoverImageUrl) ? "is-empty" : null)"
-                     @onclick="OpenDetails"
-                     @onclick:stopPropagation="true">
-                    @if (ShowGroupCollage)
-                    {
-                        <div class="media-tile-static-group-preview">
-                            <MediaArtworkGroupPreview Items="@GroupCollageItems"
-                                                      TotalCount="@Item.PreviewTotalCount"
-                                                      AriaLabel="@($"Representative artwork from {Item.Title}")" />
-                        </div>
-                    }
-                    else if (!string.IsNullOrWhiteSpace(ActiveHoverImageUrl))
-                    {
-                        <div class="@HoverCoverStageClass">
-                            @if (UseBookPageTreatment)
-                            {
-                                <span class="media-tile-book-pages" aria-hidden="true"></span>
-                                <span class="media-tile-book-spine" aria-hidden="true"></span>
-                            }
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveHoverImageUrl, HoverDrawnPx)"
-                                 srcset="@Item.HoverImageSrcSet"
-                                 sizes="@Item.HoverImageSizes"
-                                 alt="@Item.Title"
-                                 class="media-tile-hover-image @HoverImageFitClass"
-                                 loading="lazy"
-                                 decoding="async"
-                                 @onerror="HandleHoverImageError" />
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="media-tile-hover-fallback">
-                            <AppMaterialIcon Icon="@FallbackIcon" />
-                        </div>
-                    }
-
-                    @if (ShowHoverLogo)
-                    {
-                        <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-hover-logo" loading="lazy" decoding="async" />
-                    }
-
-                    @if (!UsesCinematicHover && (UseCompactHover || ShowRichHoverFacts))
-                    {
-                        <div class="media-tile-hover-facts is-cinematic-top-facts">
-                            @if (!string.IsNullOrWhiteSpace(RatingFact))
-                            {
-                                <span class="media-tile-rating-pill">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Star" />
-                                    <span>@RatingFactDisplay</span>
-                                </span>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(HoverKindFact))
-                            {
-                                <span class="media-tile-hover-fact media-tile-hover-kind">@HoverKindFact</span>
-                            }
-                            @foreach (var fact in DisplayHoverFacts)
-                            {
-                                <span class="@HoverFactClass(fact)">@fact</span>
-                            }
-                        </div>
-                    }
-
-                </div>
-
-                @if (ShowExpandedHoverBody)
-                {
-                    <div class="media-tile-hover-body">
-                        @if (ShowHoverProgressRow)
-                        {
-                            <div class="media-tile-hover-progress" aria-label="@ProgressCompleteLabel">
-                                @if (IsCoverLedHover)
-                                {
-                                    <div class="media-tile-hover-section-label">
-                                        <AppMaterialIcon Icon="@ProgressSectionIcon" />
-                                        <span>@ProgressSectionLabel</span>
-                                    </div>
-                                }
-                                <progress class="media-tile-hover-progress-track"
-                                          value="@ProgressValue"
-                                          max="100"></progress>
-                                <span>@ProgressCompleteLabel</span>
-                            </div>
-                        }
-
-                        @if (ShowHoverHeading)
-                        {
-                            <div class="media-tile-hover-heading">
-                                <div class="media-tile-hover-title">@HoverHeadingTitle</div>
-                                @if (ShowHoverSubtitle)
-                                {
-                                    <div class="media-tile-hover-subtitle">@DisplaySubtitle</div>
-                                }
-                            </div>
-                        }
-
-                        @if (IsCoverLedHover && HoverPreviewItems.Count > 0)
-                        {
-                            <section class="media-tile-hover-context" aria-label="@HoverPreviewLabel">
-                                <div class="media-tile-hover-section-label">
-                                    <AppMaterialIcon Icon="@HoverPreviewIcon" />
-                                    <span>@HoverPreviewLabel</span>
-                                </div>
-                                <ol>
-                                    @foreach (var preview in HoverPreviewItems)
-                                    {
-                                        <li @key="preview.Id">
-                                            @if (!string.IsNullOrWhiteSpace(preview.Position))
-                                            {
-                                                <span class="media-tile-hover-context-position">@preview.Position</span>
-                                            }
-                                            <strong>@preview.Title</strong>
-                                            @if (!string.IsNullOrWhiteSpace(PreviewDuration(preview)))
-                                            {
-                                                <span class="media-tile-hover-context-duration">@PreviewDuration(preview)</span>
-                                            }
-                                        </li>
-                                    }
-                                </ol>
-                            </section>
-                        }
-
-                        @if (ShowHoverDescription)
-                        {
-                            <section class="media-tile-hover-description-block">
-                                <div class="media-tile-hover-section-label">
-                                    <AppMaterialIcon Icon="@DescriptionIcon" />
-                                    <span>@DescriptionLabel</span>
-                                </div>
-                                <p class="media-tile-hover-description">@DisplaySummary</p>
-                            </section>
-                        }
-
-                    </div>
-                }
-        </div>
+        <MediaTileActions Item="@Item" OnDeleted="@(() => { _removed = true; StateHasChanged(); })" />
     }
 </article>
 </AppCssElement>
 }
 
 @code {
-    [Parameter] public bool IsContinueCard { get; set; }
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
-    [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
-    [Parameter] public bool IsHomeSurface { get; set; }
-    /// <summary>Sizes the tile like the tiles of a compact shelf, for rows that are not a MediaTileShelf (Recently Added).</summary>
-    [Parameter] public bool UseShelfTileSize { get; set; }
-    [Parameter] public bool HideMediaKindBadge { get; set; }
-    [Parameter] public bool HideSourceBadge { get; set; }
-    [Parameter] public bool HideGroupIndicators { get; set; }
-    [Parameter] public bool HideGroupKind { get; set; }
-    [Parameter] public bool HideGroupCount { get; set; }
-    [Parameter] public bool ShowCompactCaption { get; set; }
-    [Parameter] public RenderFragment? CaptionContent { get; set; }
     [Parameter] public bool EagerArtwork { get; set; }
+    /// <summary>Draws the cover's "..." menu; off for places where a cover is only a picture.</summary>
+    [Parameter] public bool ShowActions { get; set; } = true;
+    /// <summary>The episode lists of a show or season keep the episode number and title under each still; no other tile has text under it.</summary>
+    [Parameter] public bool ShowEpisodeText { get; set; }
+    private bool _removed;
 
-    private bool ShouldHideGroupKind => HideGroupIndicators || HideGroupKind;
-    private bool ShouldHideGroupCount => HideGroupIndicators || HideGroupCount;
-    private bool ShowsAlbumTrackCount => Item.Presentation == MediaTilePresentation.Album
-        && Item.PreviewTotalCount is > 0
-        && !(Item.IsCollection && !ShouldHideGroupCount);
     private string CardImageLoading => EagerArtwork ? "eager" : "lazy";
 
-    private bool _hoverRegistered;
-    private int _hoverImageIndex;
-    private ElementReference _cardRef;
-    private IReadOnlyList<string> _hoverIdentityParts = [];
     private IReadOnlyList<ArtworkStackItem> _groupCollageItems = [];
-    private IReadOnlyList<string> _hoverImageCandidates = [];
     private IReadOnlyList<string> _previewImages = [];
-    private IReadOnlyList<ArtworkStackItem> _collectionArtworkStackItems = [];
-    private IReadOnlyList<string> _displayChips = [];
-    private IReadOnlyList<string> _rawHoverFacts = [];
-    private IReadOnlyList<string> _compactHoverFacts = [];
-    private IReadOnlyList<string> _displayHoverFacts = [];
-    private string? _displaySummary;
-    private string _hoverMetaDisplay = string.Empty;
-    private ElementReference CardElement => _cardRef;
 
-    private MediaTileHoverMode EffectiveHoverMode => MediaTileHoverPolicy.Resolve(Item, HoverMode ?? Item.HoverMode, IsHomeSurface);
-
-    private bool IsHoverEnabled => EffectiveHoverMode != MediaTileHoverMode.None;
-
-    private bool UsesGlowOnlyHover => EffectiveHoverMode == MediaTileHoverMode.GlowOnly;
-
-    private bool UsesCinematicHover =>
-        IsHoverEnabled
-        && !UsesGlowOnlyHover
-        && EffectiveHoverMode != MediaTileHoverMode.Overlay
-        && !Item.RenderAsLandscapeGroupTile
-        && MediaKindLabel is "Movie" or "TV"
-        && HasLandscapeHoverArtwork;
-
-    // Without a landscape background the portrait-to-landscape expansion would only crop the cover, so the tile keeps its cover.
-    private bool HasLandscapeHoverArtwork => Item.HoverLayout == MediaTileHoverLayout.BannerPopover;
-
-    private bool UsesStaticCoverHover => IsHoverEnabled && !UsesCinematicHover;
-
-    private bool ShowsStaticCoverIdentity =>
-        UsesStaticCoverHover
-        && !UsesGlowOnlyHover
-        && (EffectiveHoverMode == MediaTileHoverMode.Overlay || Item.Shape != MediaTileShape.Portrait);
-
-    private IReadOnlyList<string> HoverIdentityParts => _hoverIdentityParts;
-
-    private IReadOnlyList<string> BuildHoverIdentityParts()
-    {
-        var parts = new List<string>();
-        if (EffectiveHoverMode == MediaTileHoverMode.Overlay && Item.EpisodeContext is { } episode)
-        {
-            AddIdentityPart(parts, $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}");
-            return parts;
-        }
-        if (EffectiveHoverMode == MediaTileHoverMode.Overlay)
-        {
-            AddIdentityPart(parts, Item.Title);
-            return parts;
-        }
-        if (MediaKindLabel == "Comic")
-        {
-            AddIdentityPart(parts, ComicIdentityContext);
-            AddIdentityPart(parts, Item.Title);
-            AddIdentityPart(parts, HoverIdentityYear);
-            AddIdentityPart(parts, DisplaySubtitle);
-            return parts.Take(3).ToList();
-        }
-
-        AddIdentityPart(parts, Item.Title);
-        AddIdentityPart(parts, DisplaySubtitle);
-        AddIdentityPart(parts, HoverIdentityYear);
-
-        return parts.Take(3).ToList();
-    }
-
-    private string? ComicIdentityContext =>
-        StringHelpers.FirstNonBlank(
-            ExtractSeriesName(DisplaySubtitle),
-            Item.ContextLines.FirstOrDefault(value => IsMeaningfulIdentityFact(value)),
-            IsMeaningfulIdentityFact(DisplaySubtitle) ? DisplaySubtitle : null,
-            Item.HoverFacts.FirstOrDefault(value => IsMeaningfulIdentityFact(value)));
-
-    private bool IsMeaningfulIdentityFact(string? value) =>
-            !string.IsNullOrWhiteSpace(value)
-            && !string.Equals(value, Item.Title, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(value, DisplaySubtitle, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(value, MediaKindLabel, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(value, "Image", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(value, "Artwork", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(value, "Cover", StringComparison.OrdinalIgnoreCase)
-            && !IsRatingFact(value)
-            && !IsCompactMetricFact(value)
-            && !ContainsFourDigitYear(value);
-
-    private static string? ExtractSeriesName(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var separatorIndex = value.LastIndexOf(" in ", StringComparison.OrdinalIgnoreCase);
-        return separatorIndex >= 0 && separatorIndex + 4 < value.Length
-            ? value[(separatorIndex + 4)..].Trim()
-            : null;
-    }
-
-    private static bool IsCompactMetricFact(string value) =>
-        value.Contains("page", StringComparison.OrdinalIgnoreCase)
-        || value.Contains("track", StringComparison.OrdinalIgnoreCase)
-        || value.Contains("minute", StringComparison.OrdinalIgnoreCase)
-        || value.Contains(" min", StringComparison.OrdinalIgnoreCase)
-        || value.Contains("hour", StringComparison.OrdinalIgnoreCase)
-        || value.Contains(" hr", StringComparison.OrdinalIgnoreCase)
-        || value.Contains(':', StringComparison.Ordinal);
-
-    private string? HoverIdentityYear
-    {
-        get
-        {
-            if (Item.SortYear is >= 1800 and <= 2200)
-            {
-                return Item.SortYear.ToString();
-            }
-
-            return Item.HoverFacts
-                .Concat(Item.ContextLines)
-                .Select(FindFourDigitYear)
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        }
-    }
-
-    private string? CompactIdentityYear
-    {
-        get
-        {
-            if (Item.Presentation == MediaTilePresentation.TvSeries
-                && Item.GroupSummary?.EarliestYear is >= 1800 and <= 2200)
-            {
-                var start = Item.GroupSummary.EarliestYear.Value;
-                var end = Item.GroupSummary.LatestYear;
-                return end > start ? $"{start}\u2013{end}" : start.ToString();
-            }
-
-            return HoverIdentityYear;
-        }
-    }
-
-    private static void AddIdentityPart(ICollection<string> parts, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)
-            || parts.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        parts.Add(value.Trim());
-    }
-
-    private static bool ContainsFourDigitYear(string value) => !string.IsNullOrWhiteSpace(FindFourDigitYear(value));
-
-    private static string? FindFourDigitYear(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        foreach (var token in value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            var candidate = token.Trim(',', '.', '(', ')', '[', ']', '\u00b7', '/', '-');
-            if (candidate.Length == 4
-                && int.TryParse(candidate, out var year)
-                && year is >= 1800 and <= 2200)
-            {
-                return candidate;
-            }
-        }
-
-        return null;
-    }
-
-    private bool SupportsRichGroupHover =>
-        Item.IsCollection
-        && Item.Presentation is MediaTilePresentation.TvSeries
-            or MediaTilePresentation.MovieSeries
-            or MediaTilePresentation.BookSeries
-            or MediaTilePresentation.ComicSeries
-            or MediaTilePresentation.AudiobookSeries
-            or MediaTilePresentation.Album;
-
-    private bool ShowExpandedHoverBody => !UsesCinematicHover && EffectiveHoverMode == MediaTileHoverMode.Expanded && (!Item.IsCollection || SupportsRichGroupHover);
-
-    private string HoverModeClass => EffectiveHoverMode switch
-    {
-        MediaTileHoverMode.None => "is-hover-none",
-        MediaTileHoverMode.GlowOnly => "is-hover-glow-only",
-        MediaTileHoverMode.Preview => "is-hover-preview",
-        MediaTileHoverMode.Overlay => "is-hover-overlay",
-        _ => "is-hover-expanded",
-    };
-
-    private string HoverPanelClass => $"media-tile-hover-panel {ShapeClass} {HoverArtworkShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {HoverPresentationClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass}";
-
-    private bool IsCoverLedHover => Item.HoverLayout == MediaTileHoverLayout.ArtOnlyPopover;
-
-    private string HoverPresentationClass => IsCoverLedHover ? "is-cover-led" : "is-cinematic";
-
-    private string HoverArtworkShapeClass => (Item.HoverArtworkShape ?? Item.Shape) switch
-    {
-        MediaTileShape.Landscape => "has-hover-landscape-art",
-        MediaTileShape.Square => "has-hover-square-art",
-        _ => "has-hover-portrait-art",
-    };
-
-    private string TileStyle => $"{Item.ArtworkPalette?.CssVariableStyle} --media-tile-accent: {Item.AccentColor}; --media-tile-secondary-accent: {Item.SecondaryAccentColor}; {HoverAtmosphereStyle}";
-
-    private string HoverAtmosphereStyle => string.IsNullOrWhiteSpace(HoverAtmosphereImageUrl)
-        ? string.Empty
-        : $"--media-tile-hover-image: url(\"{EscapeCssString(MediaTileArtworkUrl.ForDrawnSize(HoverAtmosphereImageUrl, HoverDrawnPx) ?? HoverAtmosphereImageUrl)}\");";
-
-    private string? HoverAtmosphereImageUrl => StringHelpers.FirstNonBlank(
-        Item.HeroBackgroundImageUrl,
-        Item.HoverImageUrl,
-        Item.TileImageUrl,
-        Item.CoverUrl);
+    private string TileStyle => $"{Item.ArtworkPalette?.CssVariableStyle} --media-tile-accent: {Item.AccentColor}; --media-tile-secondary-accent: {Item.SecondaryAccentColor};";
 
     private string PaletteScopeStyle => $"display: contents; {TileStyle}";
-
-    private static string EscapeCssString(string value) =>
-        value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
-
-    private bool UseBookPageTreatment =>
-        Item.MediaKind == "Book"
-        && Item.HoverLayout == MediaTileHoverLayout.ArtOnlyPopover
-        && !Item.IsCollection;
-
-    private string HoverCoverStageClass =>
-        $"media-tile-hover-cover-stage {(UseBookPageTreatment ? "is-book-stage" : string.Empty)}";
-
-    private string? HoverKindFact => Item.MediaKind switch
-    {
-        "Book" => "Book",
-        "Comic" => "Comic",
-        "Audiobook" => "Audiobook",
-        "Music" => "Music",
-        _ => null,
-    };
 
     private string ShapeClass => Item.Shape switch
     {
@@ -608,10 +222,6 @@ else
         _ => "is-default",
     };
 
-    private string HoverLayoutClass => Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
-
-    private string HoverPlacementClass => Item.PreviewPlacement == MediaTilePreviewPlacement.Bottom ? "is-placement-bottom" : "is-placement-smart";
-
     private string SurfaceClass => Item.SurfaceKind switch
     {
         MediaTileSurfaceKind.BannerLandscape => "is-banner-surface",
@@ -619,6 +229,11 @@ else
         MediaTileSurfaceKind.ArtistPhotoSquare => "is-artist-photo-square",
         _ => "is-cover-portrait",
     };
+
+    private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner && !ShowGroupCollage;
+    private string? VideoDetail => MediaTileLabels.VideoDetail(Item);
+    private string? StatusLabel => MediaTileLabels.Status(Item, L["MediaTile_GettingDetails"].Value);
+    private string? BottomLabel => MediaTileLabels.Bottom(Item, L["MediaTile_Kept"].Value);
 
     private bool ShowCollectionBanner => Item.IsCollection && Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
 
@@ -629,95 +244,28 @@ else
         && Item.Presentation is not (MediaTilePresentation.TvSeries or MediaTilePresentation.Album)
         && GroupCollageItems.Count >= 2;
 
-    private string GroupKindLabel => Item.Presentation switch
-    {
-        MediaTilePresentation.TvSeries => "TV Show",
-        MediaTilePresentation.MovieSeries => "Movie Series",
-        MediaTilePresentation.BookSeries => "Book Series",
-        MediaTilePresentation.ComicSeries => "Comic Series",
-        MediaTilePresentation.AudiobookSeries => "Audiobook Series",
-        MediaTilePresentation.Album => "Album",
-        _ => "Collection",
-    };
+    private bool ShowPreviewStack => !ShowCollectionBanner && string.IsNullOrWhiteSpace(CardImageUrl) && PreviewImages.Count > 0 && !IsVideoStillWithoutStack;
 
-    private string GroupKindIcon => Item.Presentation switch
-    {
-        MediaTilePresentation.TvSeries => AppMaterialIcons.Outlined.LiveTv,
-        MediaTilePresentation.Album => AppMaterialIcons.Outlined.Album,
-        MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
-        MediaTilePresentation.MovieSeries => AppMaterialIcons.Outlined.VideoLibrary,
-        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Outlined.Headphones,
-        _ => AppMaterialIcons.Outlined.CollectionsBookmark,
-    };
+    // A video with no frame shows the plain panel, never a fan of other pictures.
+    private bool IsVideoStillWithoutStack => MediaTileLabels.IsVideoStillTile(Item);
 
-    private string GroupCountIcon => Item.Presentation switch
-    {
-        MediaTilePresentation.TvSeries => AppMaterialIcons.Outlined.VideoLibrary,
-        MediaTilePresentation.Album => AppMaterialIcons.Outlined.MusicNote,
-        MediaTilePresentation.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
-        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Outlined.Headphones,
-        _ => AppMaterialIcons.Outlined.Inventory2,
-    };
-
-    private string GroupCountAriaLabel
-    {
-        get
-        {
-            var count = Item.PreviewTotalCount ?? 0;
-            var noun = Item.Presentation switch
-            {
-                MediaTilePresentation.TvSeries => count == 1 ? "episode" : "episodes",
-                MediaTilePresentation.ComicSeries => count == 1 ? "issue" : "issues",
-                MediaTilePresentation.Album => count == 1 ? "track" : "tracks",
-                _ => count == 1 ? "item" : "items",
-            };
-
-            return $"{count} {noun} owned";
-        }
-    }
-
-    private bool ShowSourceBadge => !HideSourceBadge && !ShowCollectionBanner && !string.IsNullOrWhiteSpace(Item.SourceBadgeLabel);
-
-    private bool ShowPreviewStack => !ShowCollectionBanner && string.IsNullOrWhiteSpace(CardImageUrl) && PreviewImages.Count > 0;
-
-    // Tiles are 128-228px wide (the small copy covers them); the hover panel is 320-440px (the medium copy).
-    // The Engine addresses are sized here too, so a tile never fetches an original or a 2160px copy by accident.
+    // Tiles are one size (214 px wide, 112 px on a phone), so the small copy covers every tile and a 1x/2x/3x list keeps sharp screens sharp.
     private const int TileDrawnPx = 320;
-    private const int HoverDrawnPx = 440;
-
-    // Tiles are drawn up to 228px wide: when the Engine sent no width list (its size is unknown), a 1x/2x/3x list
-    // still gives sharp screens the medium copy.
-    private const int TileWidthPx = 228;
+    private const int TileWidthPx = 214;
 
     private string? TileSrcSet => Item.TileImageSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
+
+    private string StandInTooltip => string.IsNullOrWhiteSpace(Item.StandInRetryAfter)
+        ? L["MediaTile_StandIn_Tooltip"].Value
+        : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
     private string CardImageUrl => Item.TileImageUrl ?? string.Empty;
 
     private bool HasArtworkSurface => ShowCollectionBanner || !string.IsNullOrWhiteSpace(CardImageUrl) || ShowPreviewStack;
 
-    private IReadOnlyList<string> HoverImageCandidates => _hoverImageCandidates;
-
-    private string? ActiveHoverImageUrl => HoverImageCandidates.Skip(_hoverImageIndex).FirstOrDefault();
-
     private bool ShowTileLogo => Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape && !ShowPreviewStack && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
-    private bool ShowHoverLogo => Item.HoverLayout == MediaTileHoverLayout.BannerPopover && !string.IsNullOrWhiteSpace(Item.LogoUrl);
-
-    private bool ShowCollectionTitleOverlay => ShowCollectionBanner && !ShowTileLogo;
-
-    private string ProgressPercentLabel => $"{Math.Clamp(Item.ProgressPct ?? 0, 0, 100):F0}%";
-
-    private double ProgressValue => Math.Clamp(Item.ProgressPct ?? 0, 0, 100);
-
-    private string ProgressCompleteLabel => $"{ProgressPercentLabel} complete";
-
-    private string ProgressAccessibleLabel => Item.ProgressLabel ?? ProgressCompleteLabel;
-
-    private string ProgressLabel => Item.ProgressLabel ?? ProgressPercentLabel;
-
     private IReadOnlyList<string> PreviewImages => _previewImages;
-
-    private IReadOnlyList<ArtworkStackItem> CollectionArtworkStackItems => _collectionArtworkStackItems;
 
     private bool IsCollectionStackImage(string image)
     {
@@ -733,179 +281,13 @@ else
         return backdropImages.All(candidate => !string.Equals(candidate, image, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IReadOnlyList<string> DisplayChips => _displayChips;
-
-    private string? DisplaySummary => _displaySummary;
-
-    private static string? NormalizeHoverDescription(string? description)
-    {
-        if (string.IsNullOrWhiteSpace(description))
-        {
-            return null;
-        }
-
-        var value = string.Join(' ', description.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        const int maxLength = 220;
-        const int maxWords = 42;
-
-        var words = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (value.Length <= maxLength && words.Length <= maxWords)
-        {
-            return value;
-        }
-
-        var shortened = string.Join(' ', words.Take(maxWords));
-        if (shortened.Length > maxLength)
-        {
-            shortened = shortened[..maxLength].TrimEnd();
-        }
-
-        return string.IsNullOrWhiteSpace(shortened) ? null : $"{shortened}...";
-    }
-
     private string TileImageFitClass => Item.TileImageFitMode == MediaTileImageFitMode.Contain ? "is-contained" : "is-fill";
 
-    private string HoverImageFitClass => Item.HoverImageFitMode == MediaTileImageFitMode.Contain ? "is-contained" : "is-fill";
-
-    private bool ShowHoverContextLines => EffectiveHoverMode == MediaTileHoverMode.Expanded && Item.ContextLines.Count > 0;
-
-    private bool ShowHoverDescription => EffectiveHoverMode == MediaTileHoverMode.Expanded
-        && !string.IsNullOrWhiteSpace(DisplaySummary)
-        && (Item.ProgressPct is not > 0 || Item.MediaKind is "Movie" or "TV");
-
-    private IReadOnlyList<ArtworkStackItem> HoverPreviewItems => Item.Presentation switch
-    {
-        MediaTilePresentation.Album => Item.ArtworkStackItems.Take(3).ToList(),
-        MediaTilePresentation.TvSeries => Item.ArtworkStackItems.Take(2).ToList(),
-        _ => [],
-    };
-
-    private string HoverPreviewLabel => Item.Presentation switch
-    {
-        MediaTilePresentation.Album => "Track preview",
-        MediaTilePresentation.TvSeries => "Owned episodes",
-        _ => "Preview",
-    };
-
-    private string HoverPreviewIcon => Item.Presentation switch
-    {
-        MediaTilePresentation.Album => AppMaterialIcons.Outlined.GraphicEq,
-        MediaTilePresentation.TvSeries => AppMaterialIcons.Outlined.LiveTv,
-        _ => AppMaterialIcons.Outlined.List,
-    };
-
-    private string DescriptionLabel => Item.MediaKind switch
-    {
-        "Book" or "Comic" => "Preview",
-        "Music" => "Album description",
-        "TV" when Item.Presentation == MediaTilePresentation.TvSeries => "Series description",
-        _ => "Overview",
-    };
-
-    private string DescriptionIcon => Item.MediaKind switch
-    {
-        "Book" or "Comic" => AppMaterialIcons.Outlined.AutoStories,
-        "Music" or "Audiobook" => AppMaterialIcons.Outlined.Headphones,
-        "Movie" or "TV" => AppMaterialIcons.Outlined.Movie,
-        _ => AppMaterialIcons.Outlined.Info,
-    };
-
-    private static string? PreviewDuration(ArtworkStackItem item) => item.Facts
-        .FirstOrDefault(fact => fact.Contains(':', StringComparison.Ordinal)
-                                || fact.Contains(" min", StringComparison.OrdinalIgnoreCase)
-                                || fact.Contains(" hr", StringComparison.OrdinalIgnoreCase));
-
     private bool SupportsCompletion => Item.Subject != DisplaySubjectKind.TvShow && Item.Presentation != MediaTilePresentation.Album && Item.MediaKind is "Movie" or "TV" or "Book" or "Comic" or "Audiobook";
-    private bool ShowHoverProgressRow => SupportsCompletion && Item.ContinuationState == DisplayContinuationState.InProgress && Item.ProgressPct is > 0 and < 99.5;
 
-    private string ProgressSectionLabel => Item.MediaKind switch
-    {
-        "Book" or "Comic" => "Reading status",
-        "Music" or "Audiobook" => "Listening status",
-        "Movie" or "TV" => "Watching status",
-        _ => "Progress",
-    };
-
-    private string ProgressSectionIcon => Item.MediaKind switch
-    {
-        "Book" or "Comic" => AppMaterialIcons.Outlined.AutoStories,
-        "Music" or "Audiobook" => AppMaterialIcons.Outlined.Headphones,
-        "Movie" or "TV" => AppMaterialIcons.Outlined.PlayCircle,
-        _ => AppMaterialIcons.Outlined.Timeline,
-    };
-
-    private bool ShowCaption => false;
+    private bool ShowsEpisodeCaption => ShowEpisodeText && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
 
     private string? EpisodeShowCaption => Item.EpisodeContext?.ShowTitle ?? Item.Subtitle;
-
-    private string HoverHeadingTitle => Item.Subject == DisplaySubjectKind.TvEpisode && Item.EpisodeContext is { } episode
-        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}"
-        : Item.Title;
-
-    private bool ShowHoverHeading => Item.Subject == DisplaySubjectKind.TvEpisode || !ShowHoverLogo;
-
-    private bool ShowHoverSubtitle =>
-        Item.MediaKind is "Book" or "Comic" or "Audiobook" or "Music" or "Movie"
-        && !UseCompactHover
-        && !string.IsNullOrWhiteSpace(DisplaySubtitle)
-        && !CompactHoverFacts.Any(fact => string.Equals(fact, DisplaySubtitle, StringComparison.OrdinalIgnoreCase));
-
-    private IReadOnlyList<string> RawHoverFacts => _rawHoverFacts;
-
-    private IReadOnlyList<string> CompactHoverFacts => _compactHoverFacts;
-
-    private string? RatingFact => CompactHoverFacts.FirstOrDefault(IsRatingFact);
-
-    private string RatingFactDisplay => FormatRatingFactForDisplay(RatingFact);
-
-    private IReadOnlyList<string> DisplayHoverFacts => _displayHoverFacts;
-
-    private bool UseCompactHover => EffectiveHoverMode == MediaTileHoverMode.Preview && CompactHoverFacts.Count > 0 && !SupportsRichGroupHover;
-
-    private bool ShowRichHoverFacts => EffectiveHoverMode == MediaTileHoverMode.Expanded && CompactHoverFacts.Count > 0;
-
-    private static string HoverFactClass(string fact) =>
-        IsRatingFact(fact)
-            ? "media-tile-hover-fact is-rating"
-            : "media-tile-hover-fact";
-
-    private static bool IsRatingFact(string? fact)
-    {
-        if (string.IsNullOrWhiteSpace(fact))
-        {
-            return false;
-        }
-
-        return fact.Contains('\u2605')
-            || fact.Contains("IMDb", StringComparison.OrdinalIgnoreCase)
-            || fact.Contains("/10", StringComparison.OrdinalIgnoreCase)
-            || fact.StartsWith("rating", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string FormatRatingFactForDisplay(string? fact)
-    {
-        if (string.IsNullOrWhiteSpace(fact))
-        {
-            return string.Empty;
-        }
-
-        var value = fact.Trim();
-        if (value.StartsWith('\u2605'))
-        {
-            value = value[1..].Trim();
-        }
-
-        if (value.StartsWith("Rating:", StringComparison.OrdinalIgnoreCase))
-        {
-            value = value["Rating:".Length..].Trim();
-        }
-        else if (value.StartsWith("Rating", StringComparison.OrdinalIgnoreCase))
-        {
-            value = value["Rating".Length..].Trim();
-        }
-
-        return value;
-    }
 
     private string FallbackIcon => Item.Presentation switch
     {
@@ -934,85 +316,10 @@ else
         _ => string.IsNullOrWhiteSpace(Item.MediaKind) ? "Media" : Item.MediaKind,
     };
 
-    private string MediaKindIcon => MediaKindLabel switch
-    {
-        "Movie" => AppMaterialIcons.Outlined.Movie,
-        "TV" => AppMaterialIcons.Outlined.LiveTv,
-        "Music" => AppMaterialIcons.Outlined.Album,
-        "Audiobook" => AppMaterialIcons.Outlined.Headphones,
-        "Comic" => AppMaterialIcons.Outlined.AutoStories,
-        "Book" => AppMaterialIcons.Outlined.MenuBook,
-        _ => AppMaterialIcons.Outlined.LibraryBooks,
-    };
-
     private string DisplaySubtitle => Item.Subtitle ?? Item.Creator ?? string.Empty;
-
-    private string HoverMetaDisplay => _hoverMetaDisplay;
-
-    private string BuildHoverMetaDisplay()
-    {
-        if (string.IsNullOrWhiteSpace(Item.MetaText))
-        {
-            return string.Empty;
-        }
-
-        var parts = Item.MetaText.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
-        if (parts.Count > 0 && string.Equals(parts[0], MediaKindLabel, StringComparison.OrdinalIgnoreCase))
-        {
-            parts.RemoveAt(0);
-        }
-
-        parts = parts
-            .Where(part => !string.Equals(part, DisplaySubtitle, StringComparison.OrdinalIgnoreCase))
-            .Where(part => !DuplicatesHoverSubtitle(part))
-            .Where(part => !RawHoverFacts.Any(fact => string.Equals(fact, part, StringComparison.OrdinalIgnoreCase)))
-            .Where(part => !CompactHoverFacts.Any(fact => string.Equals(fact, part, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        return string.Join(" / ", parts);
-    }
-
-    private bool ShowMetaRow => !string.IsNullOrWhiteSpace(HoverMetaDisplay);
-
-    private bool DuplicatesHoverSubtitle(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(DisplaySubtitle))
-        {
-            return false;
-        }
-
-        var normalizedValue = NormalizeComparableText(value);
-        var normalizedSubtitle = NormalizeComparableText(DisplaySubtitle);
-        if (normalizedValue.Length == 0 || normalizedSubtitle.Length == 0)
-        {
-            return false;
-        }
-
-        if (string.Equals(normalizedValue, normalizedSubtitle, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return normalizedValue.Length >= 4
-            && normalizedSubtitle.Contains(normalizedValue, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string NormalizeComparableText(string value)
-    {
-        var chars = value.Trim().ToLowerInvariant()
-            .Select(character => char.IsLetterOrDigit(character) ? character : ' ')
-            .ToArray();
-
-        return string.Join(' ', new string(chars).Split(' ', StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
-
-    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override void OnParametersSet()
     {
-        _hoverImageIndex = 0;
         _previewImages = Item.PreviewImages
             .Where(image => !string.IsNullOrWhiteSpace(image))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1023,7 +330,7 @@ else
             .Where(IsCollectionStackImage)
             .Take(4)
             .ToList();
-        _collectionArtworkStackItems = Item.ArtworkStackItems.Count > 0
+        var collectionArtworkStackItems = Item.ArtworkStackItems.Count > 0
             ? Item.ArtworkStackItems
             : collectionStackPreviewImages.Select((image, index) => new ArtworkStackItem
             {
@@ -1034,79 +341,15 @@ else
                 Shape = ArtworkShape.Portrait,
                 Position = null,
             }).ToList();
-        _groupCollageItems = _collectionArtworkStackItems
+        _groupCollageItems = collectionArtworkStackItems
             .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
             .DistinctBy(item => item.Id)
             .DistinctBy(item => item.ImageUrl, StringComparer.OrdinalIgnoreCase)
             .Take(4)
             .ToList();
-        _hoverImageCandidates = (MediaKindLabel is "Movie" or "TV" ? new[] { Item.HeroBackgroundImageUrl, Item.BackgroundUrl, Item.HoverImageUrl, Item.TileImageUrl, _previewImages.FirstOrDefault() } : new[] { Item.HoverImageUrl, Item.TileImageUrl, _previewImages.FirstOrDefault() })
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Cast<string>()
-            .ToList();
-        _displayChips = (Item.VibeTags.Count > 0 ? Item.VibeTags : Item.Genres)
-            .Where(chip => !string.IsNullOrWhiteSpace(chip))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(3)
-            .ToList();
-        _displaySummary = NormalizeHoverDescription(Item.Description);
-        _rawHoverFacts = Item.HoverFacts
-            .Where(fact => !string.IsNullOrWhiteSpace(fact))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        _compactHoverFacts = _rawHoverFacts.Where(fact => !DuplicatesHoverSubtitle(fact)).Take(5).ToList();
-        _displayHoverFacts = _compactHoverFacts.Where(fact => !IsRatingFact(fact)).Take(4).ToList();
-        _hoverMetaDisplay = BuildHoverMetaDisplay();
-        _hoverIdentityParts = BuildHoverIdentityParts();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!DeviceContext.IsInitialised)
-        {
-            // The device is not known until the layout has asked the browser; registering now would be undone on touch.
-            return;
-        }
-
-        if (!UsesCinematicHover || SuppressHover)
-        {
-            if (_hoverRegistered)
-            {
-                await JS.InvokeVoidAsync("unregisterMediaTileHover", CardElement);
-                _hoverRegistered = false;
-            }
-            return;
-        }
-
-        if (!_hoverRegistered)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("registerMediaTileHover", CardElement);
-                _hoverRegistered = true;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogDebug(ex, "Could not register media tile hover behavior.");
-            }
-        }
     }
 
     private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
-
-    // Touch has no hover: the desktop preview is never rendered, and tiles whose title is only shown by that preview
-    // (cinematic Movie/TV tiles) or by the hover strip carry the compact title under the art instead.
-    private bool SuppressHover => DeviceContext.IsTouch || DeviceContext.IsPhone;
-
-    private bool ShowsCompactTitleCaption =>
-        Item.Subject != DisplaySubjectKind.TvEpisode
-        && (ShowCompactCaption || (SuppressHover && CaptionContent is null && IsHoverEnabled && (UsesCinematicHover || ShowsStaticCoverIdentity)));
-    private bool ShowsEpisodeCaption => CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
-
-    // Tiles without a title line of their own (hover-only shelves, custom caption content) carry the marker as a
-    // small corner dot so every tile still signals "still being matched" without changing its height.
-    private bool ShowOverlaySettlingDot => Item.IsSettling && !ShowsCompactTitleCaption && !ShowsEpisodeCaption;
 
     private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
 
@@ -1123,29 +366,4 @@ else
     }
 
     private static string GetStackImageClass(int index) => $"media-tile-stack-image media-tile-stack-image-{Math.Min(index, 2)}";
-
-    private void HandleHoverImageError()
-    {
-        if (_hoverImageIndex < HoverImageCandidates.Count - 1)
-        {
-            _hoverImageIndex++;
-            StateHasChanged();
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        DeviceContext.OnChanged -= DeviceChanged;
-        if (_hoverRegistered)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("unregisterMediaTileHover", CardElement);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogDebug(ex, "Could not unregister media tile hover behavior.");
-            }
-        }
-    }
 }

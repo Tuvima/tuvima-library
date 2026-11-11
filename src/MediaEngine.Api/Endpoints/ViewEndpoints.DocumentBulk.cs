@@ -168,5 +168,53 @@ public static partial class ViewEndpoints
                 ? Results.Ok(new ViewDocumentsSortDto(sort))
                 : Missing();
         }).WithName("UpdateViewDocumentsSort").Produces<ViewDocumentsSortDto>();
+
+        group.MapGet("/preferences/documents-pictures", async (IViewRequestProfileContext identity,
+            IViewProfileRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (authority.ActiveProfileId is not { } profileId)
+            {
+                return Unauthenticated();
+            }
+
+            if (!await MayUseDocumentsAsync(authority, repository, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
+            var access = await authorization.AuthorizeAsync(authority,
+                new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Preference, null, ViewResourceAction.Manage), ct);
+            return access.IsAllowed
+                ? Results.Ok(new ViewDocumentsPicturesDto((await repository.GetPreferencesAsync(profileId, ct)).DocumentsPicturesToPhotos))
+                : Access(access.Outcome);
+        }).WithName("GetViewDocumentsPictures").Produces<ViewDocumentsPicturesDto>();
+
+        group.MapPut("/preferences/documents-pictures", async ([FromBody] ViewDocumentsPicturesDto request,
+            IViewRequestProfileContext identity, IViewProfileRepository repository,
+            IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (authority.ActiveProfileId is not { } profileId)
+            {
+                return Unauthenticated();
+            }
+
+            if (!await MayUseDocumentsAsync(authority, repository, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
+            var access = await authorization.AuthorizeAsync(authority,
+                new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Preference, null, ViewResourceAction.Manage), ct);
+            if (!access.IsAllowed)
+            {
+                return Access(access.Outcome);
+            }
+
+            return await repository.SaveDocumentsPicturesToPhotosAsync(profileId, request.ToPhotos, ct)
+                ? Results.Ok(request)
+                : Missing();
+        }).WithName("UpdateViewDocumentsPictures").Produces<ViewDocumentsPicturesDto>();
     }
 }

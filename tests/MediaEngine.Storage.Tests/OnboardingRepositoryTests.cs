@@ -58,7 +58,7 @@ public sealed class OnboardingRepositoryTests : IDisposable
     public void TheWorkflowListsExactlyTheSevenSetupStepsInOrder()
     {
         var keys = _repository.Get().Steps.Select(step => step.Key).ToArray();
-        Assert.Equal(["welcome", "profile", "tools", "libraries", "vault", "metadata", "done"], keys);
+        Assert.Equal(["welcome", "profile", "tools", "vault", "libraries", "metadata", "done"], keys);
         Assert.Equal("welcome", _repository.Get().CurrentStep);
     }
 

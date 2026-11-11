@@ -82,6 +82,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<ViewDiscoveryService>();
         services.AddSingleton<ViewDocumentRuleService>();
         services.AddScoped<ViewDocumentBulkService>();
+        services.AddScoped<ViewItemsEditService>();
         services.AddScoped<ViewTrashDeletionPlanner>();
         services.AddScoped<ViewTrashDeletionService>();
         services.AddSingleton<ViewTrashRecoveryService>();
@@ -257,6 +258,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
         services.AddSingleton<ILibraryFolderTitleCountRepository, LibraryFolderTitleCountRepository>();
+        services.AddSingleton<ILibraryFolderWorkRepository, LibraryFolderWorkRepository>();
         // The first check of a newly added folder (Library setup D35, D61). The hold is registered here, before the ingestion modules,
         // so their "nothing is ever held" default does not apply.
         services.AddSingleton<FolderFirstCheckSignal>();
@@ -265,6 +267,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
         // One library's events, read from the tables that already hold them (Library pages D16).
         services.AddSingleton<ILibraryActivityReadRepository, LibraryActivityReadRepository>();
+        // The runs History reads (spec library-activity WP1): one entry per scan, refresh, fix or removal.
+        services.AddSingleton<IActivityRunStore, ActivityRunRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();
@@ -301,6 +305,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IWikidataCandidateRepository, WikidataCandidateRepository>();
 
         services.AddSingleton<IReaderBookmarkRepository, ReaderBookmarkRepository>();
+        services.AddSingleton<IPageBookmarkRepository, PageBookmarkRepository>();
         services.AddSingleton<IReaderHighlightRepository, ReaderHighlightRepository>();
         services.AddSingleton<IReaderStatisticsRepository, ReaderStatisticsRepository>();
         services.AddSingleton<IAlignmentJobRepository, AlignmentJobRepository>();

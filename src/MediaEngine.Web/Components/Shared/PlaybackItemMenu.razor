@@ -1,0 +1,323 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Progress
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+@inject IServiceProvider Services
+@inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
+
+@* The "..." beside the title (unified player v2 D23; mockup screen 12): a 272 px PlaybackPanel menu with the item's name above 44 px rows, each a 24 px
+   stroke glyph and a 16 / 500 label, separated into groups by hairlines. Add to playlist, Mark as listened / unlistened, history, the "Go to"
+   rows and Playback settings change with the media (PlaybackItemMenuCatalog); Favorite and ratings are not repeated here. The More button shows
+   selected while the menu is open, and opening it closes any other panel (the panel system allows one at a time). *@
+<PlaybackPanel @ref="_menuPanel" Kind="menu" Title="@MoreLabel" ToolId="@_toolId" ItemKey="@ItemKey" Surface="@Surface" ShowHeading="false" HeaderLine="@Item?.Title"
+               TriggerClass="playback-item-more" OpenChanged="HandleOpenChangedAsync">
+    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
+    <ChildContent>
+        <div class="playback-item-menu" role="menu" aria-label="@MoreLabel" data-playback-item-menu>
+            <PlaybackMenuRoving />
+            @foreach (var row in Rows)
+            {
+                @if (row.DividerBefore)
+                {
+                    <div class="playback-item-menu__divider" role="separator"></div>
+                }
+                <AppNativeButton Type="button" Class="playback-item-menu__row" role="menuitem" data-playback-item-action="@row.Key"
+                                 OnClick="@(() => ActivateAsync(row))">
+                    <PlaybackUtilityGlyph Glyph="@row.Glyph" />
+                    <span class="playback-item-menu__label">@row.Label</span>
+                </AppNativeButton>
+            }
+            @* Rows the host adds after the item's own. *@
+            @ExtraRows
+            @if (ShowsRemoteRow)
+            {
+                @* Play on another device... (unified player v2 D28; mockup screen 16): the browser's own AirPlay or Google Cast picker. Music and audiobooks
+                   have it here; TV and movies have it in Playback settings. It is never a bar tool. A disabled row says why under its label. *@
+                <AppNativeButton Type="button" Class="playback-item-menu__row" role="menuitem" data-playback-item-action="play-on-device"
+                                 data-remote-state="@RemoteState.ToString().ToLowerInvariant()" Disabled="@(!PlaybackRemoteRules.IsEnabled(RemoteState))"
+                                 OnClick="ActivateRemoteAsync">
+                    <span class="@(PlaybackRemoteRules.IsEnabled(RemoteState) ? "playback-item-menu__main" : "playback-item-menu__main playback-item-menu__main--dim")">
+                        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PlayOnDevice" />
+                        <span class="playback-item-menu__label">@RemoteLabel</span>
+                    </span>
+                    @if (RemoteHelper is { } reason)
+                    {
+                        <span class="playback-item-menu__sub" data-playback-remote-helper>@reason</span>
+                    }
+                </AppNativeButton>
+            }
+        </div>
+    </ChildContent>
+</PlaybackPanel>
+@* Playback settings (music and audiobooks): the host's panel, opened from this menu's row and anchored to the "..." button. *@
+@if (SettingsPanel is not null)
+{
+    @SettingsPanel(new PlaybackAnchoredPanel(_settingsOpen, EventCallback.Factory.Create<bool>(this, SettingsOpenChanged), _menuPanel?.TriggerElement))
+}
+
+@code {
+    [Parameter, EditorRequired] public PlaybackBarMedia Media { get; set; }
+    [Parameter, EditorRequired] public ListenQueueItem? Item { get; set; }
+
+    /// <summary>"dock" (the music and audiobook bar) or "video".</summary>
+    [Parameter] public string Surface { get; set; } = "dock";
+
+    /// <summary>A TV episode's show and season, once the presentation context has loaded (the Go to show and Go to season rows need them).</summary>
+    [Parameter] public Guid? ShowWorkId { get; set; }
+    [Parameter] public Guid? SeasonId { get; set; }
+
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+    [Parameter] public IPlaybackCommandSink? Commands { get; set; }
+    [Parameter] public Func<bool>? IsCurrent { get; set; }
+    [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+
+    /// <summary>Opens the Playback settings of this player. Without a panel or a handler the row opens Settings, Playback.</summary>
+    [Parameter] public EventCallback OnPlaybackSettings { get; set; }
+
+    /// <summary>The Playback settings panel the host draws (unified player v2 D14). The row opens it in place of the Settings page.</summary>
+    [Parameter] public RenderFragment<PlaybackAnchoredPanel>? SettingsPanel { get; set; }
+
+    /// <summary>Extra rows the host adds at the end of the menu (the hook packet 15 uses for "Play on another device...").</summary>
+    [Parameter] public RenderFragment? ExtraRows { get; set; }
+
+    private readonly string _toolId = $"item-actions-{Guid.NewGuid():N}";
+    private PlaybackRemoteController? _remote;
+    private PlaybackPanel? _menuPanel;
+
+    /// <summary>The "..." button, so a row added through <see cref="ExtraRows"/> can hand focus back to it once the menu has closed.</summary>
+    public ElementReference? TriggerElement => _menuPanel?.TriggerElement;
+    private bool _settingsOpen;
+    private PersonalStatusInfo? _status;
+    private (DetailEntityType Type, Guid Id)? _statusSubject;
+    private string MoreLabel => Media == PlaybackBarMedia.Music ? "More song actions" : "More actions";
+
+    private Guid? Profile => Snapshot?.ProfileId ?? Services.GetService<PlaybackSessionController>()?.ActiveProfileId;
+    private string ItemKey => $"{Item?.WorkId}:{Profile}";
+    private IEngineApiClient? Api => Services.GetService<IEngineApiClient>();
+    private IAppToastService? Toasts => Services.GetService<IAppToastService>();
+    private bool Current() => IsCurrent?.Invoke() != false;
+
+    /// <summary>The page type the Engine keeps listening, reading and watching status under for this item.</summary>
+    private (DetailEntityType Type, Guid Id)? StatusSubject => Item is null || Item.WorkId == Guid.Empty ? null : Media switch
+    {
+        // A song's work id scopes descendants only; its album and siblings stay outside the target.
+        PlaybackBarMedia.Music => (DetailEntityType.MusicAlbum, Item.WorkId),
+        PlaybackBarMedia.Audiobook => (DetailEntityType.Audiobook, Item.AudiobookWorkId ?? Item.WorkId),
+        PlaybackBarMedia.Tv => (DetailEntityType.TvEpisode, Item.WorkId),
+        _ => (DetailEntityType.Movie, Item.WorkId),
+    };
+
+    private IReadOnlyList<PlaybackItemAction> Rows => Item is null ? [] : PlaybackItemMenuCatalog.Build(new(
+        Media, Item,
+        IsDone: _status is { OwnedCount: > 0 } status ? status.CompletedCount >= status.OwnedCount : null,
+        CanMark: _status is null || _status.OwnedCount > 0,
+        ShowWorkId: ShowWorkId, SeasonId: SeasonId));
+
+    protected override void OnInitialized()
+    {
+        // Optional: a page without a remote controller simply has no Play on another device row.
+        _remote = Services.GetService<PlaybackRemoteController>();
+        if (_remote is not null)
+        {
+            _remote.Changed += OnRemoteChanged;
+        }
+    }
+
+    private void OnRemoteChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private bool ShowsRemoteRow => _remote is not null && Media is PlaybackBarMedia.Music or PlaybackBarMedia.Audiobook;
+
+    private PlaybackRemoteRowState RemoteState => _remote is null ? PlaybackRemoteRowState.NotInBrowser : PlaybackRemoteRules.Evaluate(
+        _remote.Support, _remote.Mode, Item?.AssetId is { } asset && asset != Guid.Empty, Item?.IsVault == true, _remote.LastAttemptFailed);
+
+    private string RemoteLabel => RemoteState == PlaybackRemoteRowState.Stop
+        ? L["PlaybackRemote_Stop", _remote?.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : L["PlaybackRemote_Row"].Value;
+
+    private string? RemoteHelper => RemoteState switch
+    {
+        PlaybackRemoteRowState.NotInBrowser => L["PlaybackRemote_NotInBrowser"].Value,
+        PlaybackRemoteRowState.NothingPlaying => L["PlaybackRemote_NothingPlaying"].Value,
+        PlaybackRemoteRowState.Vault => L["PlaybackRemote_Vault"].Value,
+        PlaybackRemoteRowState.CannotYet => L["PlaybackRemote_NotYet"].Value,
+        _ => null,
+    };
+
+    private async Task ActivateRemoteAsync()
+    {
+        if (_remote is null || !Current()) return;
+        CloseMenu();
+        await _remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Item?.AssetId, Item?.IsVault == true);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_statusSubject != StatusSubject)
+        {
+            _status = null;
+            _statusSubject = StatusSubject;
+        }
+    }
+
+    private async Task HandleOpenChangedAsync(bool open)
+    {
+        if (open)
+        {
+            // The cast link is fetched while the menu is open, so choosing the row can open the browser's picker inside the click (Safari).
+            if (ShowsRemoteRow && _remote is not null) _ = _remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Item?.AssetId, Item?.IsVault == true);
+            await LoadStatusAsync();
+        }
+    }
+
+    private async Task LoadStatusAsync()
+    {
+        if (StatusSubject is not { } subject || Api is not { } api) return;
+        try
+        {
+            var status = await api.GetPersonalStatusAsync(subject.Type, subject.Id);
+            if (!Current() || subject != StatusSubject) return;
+            _status = status;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Toasts?.Add(ex.Message, AppSeverity.Error);
+        }
+    }
+
+    private void CloseMenu() => Services.GetService<PlaybackTransientToolCoordinator>()?.Close(_toolId);
+
+    private Task ActivateAsync(PlaybackItemAction row)
+    {
+        if (!Current()) return Task.CompletedTask;
+        CloseMenu();
+        return row.Key switch
+        {
+            PlaybackItemActionKey.AddToPlaylist => AddToPlaylistAsync(),
+            PlaybackItemActionKey.MarkDone => ChangeStatusAsync(PersonalStatusAction.Complete),
+            PlaybackItemActionKey.MarkNotDone => ChangeStatusAsync(PersonalStatusAction.Reset),
+            PlaybackItemActionKey.History => ShowHistoryAsync(),
+            PlaybackItemActionKey.PlaybackSettings => OpenPlaybackSettingsAsync(),
+            _ => row.Route is { } route ? NavigateAsync(row.Key, route) : Task.CompletedTask,
+        };
+    }
+
+    private async Task AddToPlaylistAsync()
+    {
+        if (StatusSubject is not { } subject || Services.GetService<IAppDialogService>() is not { } dialogs) return;
+        await dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist", new AppDialogParameters<MediaMembershipDialog>
+        {
+            { d => d.Playlist, true }, { d => d.WorkIds, new[] { subject.Id } },
+        });
+    }
+
+    private async Task ChangeStatusAsync(PersonalStatusAction action)
+    {
+        if (StatusSubject is not { } subject || Api is not { } api) return;
+        try
+        {
+            var status = _status ?? await api.GetPersonalStatusAsync(subject.Type, subject.Id);
+            if (status is null || !Current() || subject != StatusSubject) return;
+            var result = await api.ChangePersonalStatusAsync(new(Guid.NewGuid(), subject.Type, subject.Id, action, status.Revision));
+            _status = await api.GetPersonalStatusAsync(subject.Type, subject.Id);
+            Toasts?.Add("Status updated.", AppSeverity.Success, options =>
+            {
+                options.Action = "Undo";
+                options.OnClick = async _ =>
+                {
+                    try { await api.UndoPersonalStatusAsync(result.CommandId); }
+                    catch (Exception ex) { Toasts?.Add(ex.Message, AppSeverity.Error); }
+                };
+            });
+        }
+        catch (Exception ex)
+        {
+            Toasts?.Add(ex.Message, AppSeverity.Error);
+        }
+    }
+
+    private async Task ShowHistoryAsync()
+    {
+        if (StatusSubject is not { } subject || Api is not { } api || Services.GetService<IAppDialogService>() is not { } dialogs) return;
+        try
+        {
+            var items = await api.GetPersonalHistoryAsync(subject.Type, subject.Id);
+            if (!Current() || subject != StatusSubject) return;
+            await dialogs.ShowAsync<PersonalHistoryDialog>(Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie ? "Watch history" : "Listening history",
+                new AppDialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
+        }
+        catch (Exception ex)
+        {
+            Toasts?.Add(ex.Message, AppSeverity.Error);
+        }
+    }
+
+    private void SettingsOpenChanged(bool open) => _settingsOpen = open;
+
+    // The "..." button exists only after the first draw; the settings panel needs it to open from, so draw once more.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && SettingsPanel is not null) StateHasChanged();
+    }
+
+    // The browser is asked once, after the first draw, whether it has the Remote Playback API, so the row is right the first time it is opened.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && ShowsRemoteRow && _remote is not null) await _remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+    }
+
+    private async Task OpenPlaybackSettingsAsync()
+    {
+        if (SettingsPanel is not null)
+        {
+            _settingsOpen = true;
+            return;
+        }
+        if (OnPlaybackSettings.HasDelegate)
+        {
+            await OnPlaybackSettings.InvokeAsync();
+            return;
+        }
+        await NavigationCompleted.InvokeAsync(null);
+        Nav.NavigateTo(PlaybackItemRoutes.PlaybackSettings);
+    }
+
+    private async Task NavigateAsync(PlaybackItemActionKey key, string route)
+    {
+        if (Item is not { } item) return;
+        // The pop-out window hands album and artist navigation to the main player window; everything else opens in this window.
+        var identity = key switch
+        {
+            PlaybackItemActionKey.GoToAlbum => ("album", item.AlbumWorkId),
+            PlaybackItemActionKey.GoToArtist => ("artist", item.ArtistPersonId),
+            _ => (string.Empty, (Guid?)null),
+        };
+        if (Snapshot is { } displayed && Commands is IPlaybackIdentityNavigationSink navigation && identity.Item2 is Guid id)
+        {
+            string? error;
+            try
+            {
+                var reply = await navigation.NavigateIdentityAsync(displayed, identity.Item1, id);
+                error = reply?.BooleanResult == true ? null : "That identity is no longer available in the main player.";
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+            }
+            if (Current() && Item?.AssetId == item.AssetId) await NavigationCompleted.InvokeAsync(error);
+            return;
+        }
+        await NavigationCompleted.InvokeAsync(null);
+        Nav.NavigateTo(route);
+    }
+
+    public void Dispose()
+    {
+        if (_remote is not null) _remote.Changed -= OnRemoteChanged;
+        CloseMenu();
+    }
+}

@@ -17,10 +17,17 @@ public sealed record VideoPlaybackIdentity(Guid ProfileId, Guid WorkId, Guid Ass
 
 public sealed record VideoOwnedEpisode(Guid WorkId, string Title, string? StillUrl, string? Synopsis,
     string? Runtime, string SeasonKey, string SeasonTitle, int? SeasonNumber, int? EpisodeNumber,
-    int? StillWidthPx = null, int? StillHeightPx = null);
+    int? StillWidthPx = null, int? StillHeightPx = null, double? ProgressPercent = null, Guid? SeasonId = null);
 public sealed record VideoPresentationContext(VideoPlaybackIdentity Identity, string? ShowTitle,
-    IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode, Guid? ShowWorkId = null)
+    IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode, Guid? ShowWorkId = null,
+    IReadOnlyList<DetailExtraCardViewModel>? Homework = null)
 {
+    /// <summary>
+    /// The supporting files shown alongside the lesson that is playing (universal editor v5 D31), for the course end card's "Homework for this
+    /// lesson" block. Always empty for a TV episode: a show's end card is untouched.
+    /// </summary>
+    public IReadOnlyList<DetailExtraCardViewModel> HomeworkFiles => Homework ?? [];
+
     public static VideoPresentationContext Empty(VideoPlaybackIdentity identity) => new(identity, null, [], null);
 }
 
@@ -58,6 +65,10 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     /// <summary>The active profile's subtitle and audio defaults, or null when they are not available.</summary>
     public async Task<SubtitleLanguageSettingsDto?> GetSubtitleSettingsAsync(CancellationToken ct) =>
         preferences is null ? null : (await preferences.GetAsync(ct))?.Subtitles;
+
+    /// <summary>The active profile's whole playback settings (the bar's chapter and bookmark marks, the remembered bookmark filter), or null.</summary>
+    public async Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(CancellationToken ct) =>
+        preferences is null ? null : await preferences.GetAsync(ct);
 
     /// <summary>
     /// Picks the audio track and subtitle a title starts with from the profile's defaults. A per-title preferred subtitle
@@ -176,7 +187,7 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             }
         }
         Check();
-        if (!IsTvEpisode(playback.CurrentItem))
+        if (!HasOwnedSequence(playback.CurrentItem))
         {
             return VideoPresentationContext.Empty(identity);
         }
@@ -220,8 +231,12 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             Check();
             break;
         }
+        // The lesson's files (those that belong to it and those shown alongside it) ride on the same page, its own Extras row; a show keeps its end card as it was.
+        IReadOnlyList<DetailExtraCardViewModel> homework = IsTvEpisode(playback.CurrentItem)
+            ? []
+            : [.. (page?.Extras ?? []).Where(card => !card.IsMissing && MediaEngine.Web.Components.Details.ExtrasRowRules.IsLessonFile(card))];
         return new(identity, sequence?.CurrentItem.EpisodeContext?.ShowTitle, episodes, next,
-            sequence?.CurrentItem.EpisodeContext?.ShowWorkId);
+            sequence?.CurrentItem.EpisodeContext?.ShowWorkId, homework);
     }
 
     public async Task<bool> PlayEpisodeAsync(VideoPlaybackIdentity identity, Guid workId, CancellationToken ct,
@@ -267,6 +282,20 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
         {
             return [];
         }
+        var videoFolder = VideoFolderWording.IsVideoFolderList(sequence.ContainerLabel, sequence.ItemLabel);
+        // The season's own id (the group's entity id) is what "Go to season" opens; an episode outside any season group has none.
+        var seasonByEpisode = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in sequence.Groups)
+        {
+            if (Guid.TryParse(group.EntityId, out var seasonId) && seasonId != Guid.Empty)
+            {
+                foreach (var groupItem in group.Items)
+                {
+                    seasonByEpisode.TryAdd(groupItem.Id, seasonId);
+                }
+            }
+        }
+
         return sequence.OrderedItems.Concat(sequence.Groups.SelectMany(group => group.Items))
             .Where(item => item.IsOwned && item.EntityType == DetailEntityType.TvEpisode)
             .Where(item => Guid.TryParse(item.Id, out var id) && id != Guid.Empty)
@@ -274,23 +303,39 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             .Select(item => new VideoOwnedEpisode(Guid.Parse(item.Id), item.EpisodeContext?.EpisodeTitle ?? item.Title,
                 item.EpisodeStillUrl, item.Description, item.Duration,
                 item.GroupKey ?? item.EpisodeContext?.SeasonNumber?.ToString() ?? "owned",
-                item.GroupTitle ?? (item.EpisodeContext?.SeasonNumber is int season ? $"Season {season}" : "Owned episodes"),
+                item.GroupTitle ?? (videoFolder ? VideoFolderWording.UnnamedSectionTitle : item.EpisodeContext?.SeasonNumber is int season ? $"Season {season}" : "Owned episodes"),
                 item.EpisodeContext?.SeasonNumber, item.EpisodeContext?.EpisodeNumber,
-                item.EpisodeStillWidthPx, item.EpisodeStillHeightPx)).ToList();
+                item.EpisodeStillWidthPx, item.EpisodeStillHeightPx, item.ProgressPercent,
+                seasonByEpisode.TryGetValue(item.Id, out var episodeSeasonId) ? episodeSeasonId : null)).ToList();
     }
 
+    /// <summary>
+    /// True for an episode of a TV show. A numbered video from a Videos or Other videos library is not one, even though it carries an episode number:
+    /// it is a lesson or a video, and the player never says "Episode" or "Season" for it (issue 703). Use <see cref="HasOwnedSequence"/> where the
+    /// behavior (the list of the other videos, Previous and Next) is wanted for both.
+    /// </summary>
     public static bool IsTvEpisode(ListenQueueItem? item) => item is not null
+        && !VideoPlayerWording.IsFolderVideo(item)
         && (item.MediaType.Contains("tv", StringComparison.OrdinalIgnoreCase)
             || item.MediaType.Equals("Television", StringComparison.OrdinalIgnoreCase)
             || !string.IsNullOrWhiteSpace(item.EpisodeNumber));
-    public static string? ContextKind(bool tv, bool movie, int ownedEpisodes, int chapters, int upcoming) =>
-        tv && ownedEpisodes > 0 ? "episodes" : !tv && movie && chapters >= 2 ? "chapters" : upcoming > 0 ? "queue" : null;
+
+    /// <summary>True when the item sits in a numbered sequence the library owns: a TV episode, or a numbered video from a Videos or Other videos library.</summary>
+    public static bool HasOwnedSequence(ListenQueueItem? item) => IsTvEpisode(item)
+        || item is not null && VideoPlayerWording.IsFolderVideo(item) && !string.IsNullOrWhiteSpace(item.EpisodeNumber);
+    /// <summary>
+    /// What the video context panel lists (player-controls-v3 D7): the season's episodes for a TV episode, Up next for a TV episode with
+    /// nothing owned beside it, Lessons for other video that belongs to a series, and nothing for a film. Chapters belong to audiobooks.
+    /// </summary>
+    public static string? ContextKind(bool tv, bool movie, int ownedEpisodes, int upcoming) =>
+        tv && ownedEpisodes > 0 ? "episodes" : movie ? null : upcoming > 0 ? "queue" : null;
 
     private static ListenQueueItem CreateItem(Guid work, Guid asset, MediaEngine.Web.Models.ViewDTOs.LibraryItemDetailViewModel detail) => new()
     {
         WorkId = work,
         AssetId = asset,
-        MediaType = "TvEpisode",
+        // A video from a Videos library stays a video (numbered, no season or episode code); everything else here is a TV episode.
+        MediaType = VideoFolderWording.IsVideoItemMediaType(detail.MediaType) ? detail.MediaType : "TvEpisode",
         Title = detail.EpisodeTitle ?? detail.Title,
         EpisodeTitle = detail.EpisodeTitle,
         Album = detail.ShowName ?? detail.Series,
@@ -309,12 +354,16 @@ public sealed class VideoEndCardState
     private VideoPlaybackIdentity? _identity;
     private Guid? _next;
     private bool _dismissed;
+    private bool _hasHomework;
     public bool Visible { get; private set; }
+
+    /// <summary>True once the viewer dismissed Up next: no countdown, no Play now. A lesson's card stays for its homework (universal editor v5 D31).</summary>
+    public bool UpNextDismissed => _dismissed;
     public double RemainingSeconds { get; private set; } = 10;
     /// <summary>False when the viewer turned autoplay off: the card stays up with no countdown and never asks to advance.</summary>
     public bool AutoAdvance { get; set; } = true;
     public void Observe(VideoPlaybackIdentity? identity, Guid? next, double position, double duration,
-        IReadOnlyList<PlaybackSegmentDto> segments)
+        IReadOnlyList<PlaybackSegmentDto> segments, bool hasHomework = false)
     {
         if (_identity != identity) { _identity = identity; _dismissed = false; _next = null; }
         var credits = segments.Where(segment => string.Equals(segment.Kind, "credits", StringComparison.OrdinalIgnoreCase)
@@ -322,18 +371,20 @@ public sealed class VideoEndCardState
             && (segment.EndSeconds is null || IsVerifiedRange(segment, duration))
             && string.Equals(segment.ReviewStatus, "verified", StringComparison.OrdinalIgnoreCase))
             .Select(segment => (double?)segment.StartSeconds).Min();
-        var eligible = identity is not null && next is not null && duration > 0 && double.IsFinite(duration)
+        _hasHomework = hasHomework;
+        var eligible = identity is not null && (next is not null || hasHomework) && duration > 0 && double.IsFinite(duration)
             && position >= (credits ?? Math.Max(0, duration - 20)) && position <= duration + 1;
         if (!eligible || _next != next)
         {
             RemainingSeconds = 10;
         }
         _next = next;
-        Visible = eligible && !_dismissed;
+        // Dismiss closes Up next; a lesson with homework keeps its card so the homework stays reachable until the video is closed.
+        Visible = eligible && (!_dismissed || hasHomework);
     }
     public bool Tick(double elapsedSeconds, bool active)
     {
-        if (!AutoAdvance || !Visible || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
+        if (!AutoAdvance || !Visible || _dismissed || _next is null || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
         {
             return false;
         }
@@ -342,7 +393,7 @@ public sealed class VideoEndCardState
     }
     public bool Tick(VideoPlaybackIdentity identity, double elapsedSeconds, bool active) =>
         identity == _identity && Tick(elapsedSeconds, active);
-    public void Dismiss() { _dismissed = true; Visible = false; }
+    public void Dismiss() { _dismissed = true; Visible = _hasHomework; }
     public static bool IsVerifiedRange(PlaybackSegmentDto segment, double duration) =>
         double.IsFinite(segment.StartSeconds) && segment.StartSeconds >= 0 && segment.StartSeconds < duration
         && segment.EndSeconds is double end && double.IsFinite(end) && end > segment.StartSeconds && end <= duration

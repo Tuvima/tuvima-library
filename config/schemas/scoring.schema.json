@@ -7,7 +7,45 @@
     "conflict_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
     "conflict_epsilon": { "type": "number", "minimum": 0, "maximum": 1 },
     "stale_claim_decay_days": { "type": "integer", "minimum": 0 },
-    "stale_claim_decay_factor": { "type": "number", "minimum": 0, "maximum": 1 }
+    "stale_claim_decay_factor": { "type": "number", "minimum": 0, "maximum": 1 },
+    "match_verdict": {
+      "type": "object",
+      "description": "The Match tab's Strong / Possible / Check verdict (universal editor v5).",
+      "properties": {
+        "strong_min_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "possible_min_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "strong_min_agreeing_facts": { "type": "integer", "minimum": 1 },
+        "identity_facts": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["title", "number", "identifier"] }
+        },
+        "runtime_tolerance_minutes": { "type": "number", "minimum": 0 },
+        "track_length_tolerance_seconds": { "type": "number", "minimum": 0 },
+        "evidence_facts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["title", "year", "number", "creator", "runtime", "track_length", "identifier"] }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "music_match": {
+      "type": "object",
+      "description": "The Match tab's music flow: releases listed and how the release and track to suggest are chosen.",
+      "properties": {
+        "max_releases": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "release_title_points": { "type": "integer", "minimum": 0 },
+        "release_track_count_exact_points": { "type": "integer", "minimum": 0 },
+        "release_track_count_more_points": { "type": "integer", "minimum": 0 },
+        "track_title_points": { "type": "integer", "minimum": 0 },
+        "track_number_points": { "type": "integer", "minimum": 0 },
+        "track_length_points": { "type": "integer", "minimum": 0 },
+        "track_min_points": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true
 }

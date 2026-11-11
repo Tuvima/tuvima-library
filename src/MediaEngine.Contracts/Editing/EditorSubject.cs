@@ -36,6 +36,9 @@ public static class EditorSubjectInputKinds
 
     /// <summary>A list of short labels, separated by semicolons (library tags).</summary>
     public const string Chips = "chips";
+
+    /// <summary>One value picked from the field's <see cref="EditorSubjectFieldDto.Options"/> (a Universe thing's "belongs to").</summary>
+    public const string Choice = "choice";
 }
 
 /// <summary>
@@ -70,6 +73,25 @@ public sealed class EditorSubjectDto
     /// <summary>Facts from providers, shown read-only beside the fields (a person's occupation, birth date, nationality).</summary>
     [JsonPropertyName("facts")]
     public List<EditorSubjectFactDto> Facts { get; init; } = [];
+
+    /// <summary>For a Series: its members in order, so the editor can list them (locked) and open any one of them. Empty for every other kind.</summary>
+    [JsonPropertyName("members")]
+    public List<EditorSubjectMemberDto> Members { get; init; } = [];
+}
+
+/// <summary>One member of a Series: the book, film or comic the editor opens when it is chosen.</summary>
+public sealed class EditorSubjectMemberDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; init; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = string.Empty;
+
+    /// <summary>The member's place in the Series; null when the Series gives it none.</summary>
+    [JsonPropertyName("number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Number { get; init; }
 }
 
 /// <summary>One Details field of an editor subject.</summary>
@@ -100,6 +122,20 @@ public sealed class EditorSubjectFieldDto
     /// <summary>The name of the source the canonical value comes from, shown beside the reset link.</summary>
     [JsonPropertyName("source_label")]
     public string? SourceLabel { get; init; }
+
+    /// <summary>For <see cref="EditorSubjectInputKinds.Choice"/>: the values the person can pick from, in the order shown.</summary>
+    [JsonPropertyName("options")]
+    public List<EditorSubjectOptionDto> Options { get; init; } = [];
+}
+
+/// <summary>One pickable value of a choice field.</summary>
+public sealed class EditorSubjectOptionDto
+{
+    [JsonPropertyName("value")]
+    public string Value { get; init; } = string.Empty;
+
+    [JsonPropertyName("label")]
+    public string Label { get; init; } = string.Empty;
 }
 
 /// <summary>A read-only fact with its label.</summary>

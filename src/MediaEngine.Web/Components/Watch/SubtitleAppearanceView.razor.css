@@ -1,0 +1,197 @@
+/* Mockup screen 4, in the 400 px panel with no body padding: a 140 px preview strip over a still (8 px margin, 6 px radius), the uppercase "Style"
+   label (.mh), three preset tiles (.sty: 8 px gaps, 10 px padding, "Aa" 22 / 700 with the name at 13 px), Text size and Background rows (.kv: 15 px
+   text, a segmented control at the right), a hairline, and the Custom appearance row (.pr). */
+.sav {
+    padding-bottom: 4px;
+}
+
+.sav__preview {
+    background: linear-gradient(160deg, rgb(78 107 140), rgb(36 59 102) 60%, rgb(91 59 74));
+    border-radius: 6px;
+    height: 140px;
+    margin: 8px;
+    position: relative;
+}
+
+.sav__preview ::deep .sav__preview-line {
+    border-radius: 4px;
+    bottom: 14px;
+    left: 50%;
+    max-width: calc(100% - 24px);
+    padding: 4px 10px;
+    position: absolute;
+    text-align: center;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.sav__heading {
+    color: var(--playback-text-muted);
+    display: flex;
+    font: 400 12px/1.45 var(--font-ui);
+    padding: 10px 16px 4px;
+}
+
+.sav__presets {
+    display: flex;
+    gap: 8px;
+    padding: 0 8px;
+}
+
+.sav ::deep .sav__tile {
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    padding: 10px;
+    position: relative;
+    text-align: center;
+}
+
+.sav ::deep .sav__tile:hover {
+    background: var(--playback-state-hover);
+}
+
+.sav ::deep .sav__tile.is-on {
+    border-color: var(--playback-accent);
+}
+
+.sav__tile--contrast,
+.sav__tile--contrast:hover {
+    background: black;
+}
+
+.sav ::deep .sav__tile:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.sav__aa {
+    display: block;
+    font: 700 22px/1.45 var(--font-ui);
+}
+
+.sav__tile--large .sav__aa {
+    font-size: 26px;
+}
+
+.sav__tile-label {
+    color: var(--playback-text-secondary);
+    display: block;
+    font: 400 13px/1.45 var(--font-ui);
+}
+
+.sav__tick {
+    align-items: center;
+    background: var(--playback-accent);
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    height: 18px;
+    justify-content: center;
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    width: 18px;
+}
+
+.sav__tick ::deep .playback-utility-glyph {
+    flex-basis: 12px;
+    height: 12px;
+    stroke-width: 2.4;
+    width: 12px;
+}
+
+.sav__row {
+    align-items: center;
+    display: flex;
+    font: 400 15px/1.45 var(--font-ui);
+    justify-content: space-between;
+    padding: 8px 10px;
+}
+
+.sav__row--first {
+    margin-top: 8px;
+}
+
+/* The shared segmented control, shaped like the mockup's .seg: a 1 px hairline, 8 px radius, 7 / 14 padded cells at 14 / 500, the chosen cell solid purple. */
+.sav__row ::deep .app-segmented-control {
+    background: transparent;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    gap: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.sav__row ::deep .app-segmented-control__item {
+    background: transparent;
+    border-radius: 0;
+    color: var(--playback-text-secondary);
+    font: 500 14px/1.45 var(--font-ui);
+    min-height: 0;
+    padding: 7px 14px;
+}
+
+.sav__row ::deep .app-segmented-control__item.is-selected {
+    background: var(--playback-accent);
+    color: white;
+}
+
+.sav__divider {
+    background: var(--playback-hairline);
+    height: 1px;
+    margin: 6px 8px;
+}
+
+.sav ::deep .sav__custom {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    font: 500 16px/1.45 var(--font-ui);
+    gap: 2px 12px;
+    margin: 0 8px;
+    min-height: var(--playback-panel-row-height);
+    padding: 4px 10px;
+    text-align: left;
+    width: calc(100% - 16px);
+}
+
+.sav ::deep .sav__custom:hover {
+    background: var(--playback-state-hover);
+}
+
+.sav ::deep .sav__custom:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.sav__custom-chevron {
+    color: var(--playback-text-secondary);
+    display: inline-flex;
+    margin-left: auto;
+}
+
+.sav__custom-chevron ::deep .playback-utility-glyph {
+    flex-basis: 20px;
+    height: 20px;
+    stroke-width: 1.8;
+    width: 20px;
+}
+
+.sav__custom-sub {
+    color: var(--playback-text-secondary);
+    flex-basis: 100%;
+    font: 400 13px/1.45 var(--font-ui);
+    order: 10;
+}

@@ -21,7 +21,9 @@ public sealed class LibraryKindsConfiguration
     /// The kinds that ship with the Library, in the order they are listed. This is the same list as the shipped
     /// <c>config/library_kinds.json</c>; it stands in when that file is missing and is what the import folder is drawn from.
     /// </summary>
-    public static List<LibraryKindDefinition> BuiltIn() =>
+    public static List<LibraryKindDefinition> BuiltIn() => [.. Shipped().Select(WithWords)];
+
+    private static List<LibraryKindDefinition> Shipped() =>
     [
         Kind("movies", LibraryAreas.Watch, "Movies", "Movie", MediaType.Movies, ["tmdb", "subdl"], LibraryKindGroupings.Movie, "Movies",
             LibraryKindMisfits.Unmatched, "Feature films, one file or folder per film.", 1),
@@ -29,8 +31,8 @@ public sealed class LibraryKindsConfiguration
             LibraryKindMisfits.Unmatched, "Series with seasons and episodes, one folder per show.", 2),
         Kind("youtube", LibraryAreas.Watch, "YouTube", "PlayCircle", MediaType.Videos, ["youtube"], LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Unmatched, "Videos saved from YouTube, found by the video ID in the file name.", 3),
-        Kind("other_videos", LibraryAreas.Watch, "Videos", "VideoLibrary", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
-            LibraryKindMisfits.Keep, "Courses, talks and downloads. Nothing is looked up.", 4, allowsMultiple: true),
+        Kind("other_videos", LibraryAreas.Watch, "Videos", "OndemandVideo", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
+            LibraryKindMisfits.Keep, "Courses, talks and downloads. Nothing is looked up.", 4),
         Kind("adult_content", LibraryAreas.Watch, "Adult content", "Slideshow", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Keep, "Adult videos and pictures. Nothing is looked up by default.", 5),
         Kind("music", LibraryAreas.Listen, "Music", "MusicNote", MediaType.Music, ["musicbrainz", "apple_api", "lrclib"], LibraryKindGroupings.MusicAlbum, "Music",
@@ -38,13 +40,13 @@ public sealed class LibraryKindsConfiguration
         Kind("audiobooks", LibraryAreas.Listen, "Audiobooks", "Headphones", MediaType.Audiobooks, ["apple_api"], LibraryKindGroupings.Audiobook, "Audiobooks",
             LibraryKindMisfits.Unmatched, "Spoken books, one file or folder per book.", 2),
         Kind("other_audio", LibraryAreas.Listen, "Other audio", "AudioFile", MediaType.Music, null, LibraryKindGroupings.FolderAndTags, "default",
-            LibraryKindMisfits.Keep, "Random audio files, recordings and lectures, shown by folder and the tags inside the files.", 3, allowsMultiple: true),
+            LibraryKindMisfits.Keep, "Random audio files, recordings and lectures, shown by folder and the tags inside the files.", 3),
         Kind("books", LibraryAreas.Read, "Books", "MenuBook", MediaType.Books, ["apple_api"], LibraryKindGroupings.BookSeries, "Books",
             LibraryKindMisfits.Unmatched, "EPUB and PDF books.", 1),
         Kind("comics", LibraryAreas.Read, "Comics", "AutoStories", MediaType.Comics, ["comicvine"], LibraryKindGroupings.ComicSeries, "Comics",
             LibraryKindMisfits.Unmatched, "CBZ and CBR comics and manga.", 2),
         Kind("other_reading", LibraryAreas.Read, "Other reading", "Description", MediaType.Books, null, LibraryKindGroupings.FolderAndTags, "default",
-            LibraryKindMisfits.Keep, "Loose books and documents with no match, shown by folder and the details inside the files.", 3, allowsMultiple: true),
+            LibraryKindMisfits.Keep, "Loose books and reading material with no match, shown by folder and the details inside the files.", 3),
         new LibraryKindDefinition
         {
             Key = "photos",
@@ -97,6 +99,37 @@ public sealed class LibraryKindsConfiguration
             Available = true,
         },
     ];
+
+    // The hover-card words of each shipped kind (Libraries v3 D24); the same text as the shipped config/library_kinds.json.
+    private static readonly Dictionary<string, (string Explainer, string[] Examples, string LibraryDoes)> Words = new(StringComparer.Ordinal)
+    {
+        ["movies"] = ("Feature films, one file or folder per film.", ["Dune", "Heat", "Paddington"], "Looks up posters, cast and details."),
+        ["tv"] = ("Shows with seasons and episodes, one folder per show.", ["Severance", "The Wire", "Bluey"], "Looks up posters, episodes and details."),
+        ["youtube"] = ("Videos saved from YouTube, grouped by channel.", ["A channel folder", "Saved playlists"], "Matches each video by its YouTube ID."),
+        ["other_videos"] = ("Anything watchable that is not a film or show.", ["Courses", "Talks", "Downloads"], "Keeps your files as they are; nothing is looked up."),
+        ["adult_content"] = ("Adult videos and pictures, kept in the Vault.", ["Videos", "Pictures"], "Keeps your files as they are; nothing is looked up."),
+        ["music"] = ("Albums and songs, tagged or in artist and album folders.", ["Abbey Road", "Kind of Blue"], "Looks up covers, artists and track details."),
+        ["audiobooks"] = ("Spoken books, one file or folder per book.", ["Project Hail Mary", "Dune"], "Looks up covers, narrators and details."),
+        ["other_audio"] = ("Audio that is not music or a book.", ["Lectures", "Recordings", "Podcasts"], "Shows files by folder and the tags inside them."),
+        ["books"] = ("EPUB and PDF books.", ["Neuromancer", "Piranesi"], "Looks up covers, authors and series."),
+        ["comics"] = ("CBZ and CBR comics and manga.", ["Saga", "Akira"], "Looks up covers, series and issue details."),
+        ["other_reading"] = ("Reading material that is not a book or comic.", ["Manuals", "Papers", "Magazines"], "Shows files by folder and the details inside them."),
+        ["photos"] = ("Pictures and videos from phones and cameras, together.", ["A phone dump", "Camera roll"], "Sorts each file by what it is, then by date and place."),
+        ["personal_videos"] = ("Videos from phones and cameras.", ["Birthdays", "Holidays"], "Keeps them with the day they were taken."),
+        ["documents"] = ("PDFs, Office files and photos of paper.", ["Receipts", "Manuals", "Letters"], "Makes the text inside searchable."),
+    };
+
+    private static LibraryKindDefinition WithWords(LibraryKindDefinition kind)
+    {
+        if (Words.TryGetValue(kind.Key, out var words))
+        {
+            kind.Explainer = words.Explainer;
+            kind.Examples = [.. words.Examples];
+            kind.LibraryDoes = words.LibraryDoes;
+        }
+
+        return kind;
+    }
 
     private static LibraryKindDefinition Kind(
         string key,
@@ -182,6 +215,18 @@ public sealed class LibraryKindDefinition
     /// <summary>The (i) text beside the kind in Add folder.</summary>
     [JsonPropertyName("tooltip")]
     public string Tooltip { get; set; } = string.Empty;
+
+    /// <summary>One plain sentence on what belongs in the kind, for its hover card in Add library; empty falls back to the tooltip.</summary>
+    [JsonPropertyName("explainer")]
+    public string Explainer { get; set; } = string.Empty;
+
+    /// <summary>Two or three examples for the hover card.</summary>
+    [JsonPropertyName("examples")]
+    public List<string> Examples { get; set; } = [];
+
+    /// <summary>One line on what Library does with the kind, for the hover card.</summary>
+    [JsonPropertyName("library_does")]
+    public string LibraryDoes { get; set; } = string.Empty;
 
     /// <summary>Position among the kinds of its area.</summary>
     [JsonPropertyName("order")]

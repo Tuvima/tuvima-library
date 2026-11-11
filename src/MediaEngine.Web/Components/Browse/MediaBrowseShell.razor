@@ -21,9 +21,11 @@
 
 @inject IEngineApiClient ApiClient
 @inject IServiceProvider Services
+@inject ListEditLauncher EditLauncher
+@inject EditorHost Editor
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
-@inject MediaReactionService Reactions
+@inject SavedItemService SavedItems
 @inject PlaybackSessionController Playback
 @inject ListenAudioDragService AudioDrag
 @inject NavigationManager Nav
@@ -85,6 +87,19 @@
                                  aria-pressed="@(_libraryChip == chip.Id ? "true" : "false")"
                                  OnClick="@(() => OnLibraryChipChanged(chip.Id))" />
                     }
+                </div>
+            }
+
+            @if (ActiveFolders.Count >= 2)
+            {
+                @* The Folders filter (Libraries v3 D18): a library with two or more folders can be narrowed to the titles of one. *@
+                <div class="browse-shell__folders" data-folders-filter>
+                    <AppSelect Label="@L["MediaBrowseShell_Folders"].Value"
+                               AriaLabel="@L["MediaBrowseShell_Folders"].Value"
+                               Value="@(ActiveFolderId ?? string.Empty)"
+                               ValueChanged="@((string? value) => OnFolderChanged(value))"
+                               Options="@FolderOptions"
+                               Size="AppControlSize.Compact" />
                 </div>
             }
 
@@ -246,10 +261,11 @@
                     </div>
 
                     <div class="browse-shell__display-controls @(IsTimelineGrouping ? "is-timeline" : "") @(inSheet ? "is-sheet" : "")">
-                        @if (IsTimelineGrouping) { <div class="browse-shell__timeline-grouping"><AppTimelineGroupingControl Value="@_timelineGrouping" ValueChanged="TimelineGroupingChanged" /></div> }
+                        @if (IsTimelineGrouping) { <div class="browse-shell__timeline-grouping"><AppTimelineGroupingControl Inline="true" Value="@_timelineGrouping" ValueChanged="TimelineGroupingChanged" /></div> }
                         <span class="browse-shell__sort-label">@L["Common_Sort"]</span>
                         <span class="browse-shell__display-label">@L["Common_Display"]</span>
                         <AppSelect T="string"
+                                   AriaLabel="@L["Common_Sort"].Value"
                                    Value="@_sortBy"
                                    ValueChanged="OnSortChanged"
                                    Variant="AppVariant.Outlined"
@@ -260,31 +276,12 @@
                                 <AppSelectItem T="string" @key="option.Value" Value="@option.Value">@option.Label</AppSelectItem>
                             }
                         </AppSelect>
-                        @if (!UseListLayout)
-                        {
-                            <label class="browse-shell__tile-size" title="@L["MediaBrowseShell_AdjustTileSize"].Value">
-                                <span>@L["Common_TileSize"]</span>
-                                <span class="browse-shell__tile-size-readout">@L["MediaBrowseShell_CardSize", TileSizeLabel]</span>
-                                <span class="browse-shell__tile-size-control">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
-                                    <AppNativeInput Type="range"
-                                                    Value="@TileSizePx"
-                                                    Min="@TileSizeMinPx"
-                                                    Max="@TileSizeMaxPx"
-                                                    Step="8"
-                                                    AriaLabel="@L["Common_TileSize"].Value"
-                                                    OnInput="OnTileSizeChanged" />
-                                </span>
-                            </label>
-                        }
-
                         @if (SupportsLayoutToggle && !IsTimelineGrouping)
                         {
                             <div class="browse-shell__layout-toggle" role="group" aria-label="@L["MediaBrowseShell_ViewMode"].Value">
                                 <AppNativeButton Type="button"
                                                  Class="@LayoutToggleClass(LibraryLayoutMode.Card)"
                                                  AriaLabel="@L["MediaBrowseShell_ShowCards"].Value"
-                                                 Title="@L["MediaBrowseShell_ShowCards"].Value"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.Card ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.Card))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />
@@ -293,7 +290,6 @@
                                 <AppNativeButton Type="button"
                                                  Class="@LayoutToggleClass(LibraryLayoutMode.List)"
                                                  AriaLabel="@L["MediaBrowseShell_ShowList"].Value"
-                                                 Title="@L["MediaBrowseShell_ShowList"].Value"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.List ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.List))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" />
@@ -329,7 +325,7 @@
     @if (_loading && !_hasLoadedOnce)
     {
         <div class="browse-shell__loading">
-            <AppSpinner Indeterminate="true" Size="AppSize.Large" Class="tl-u-color-tl-text-faint" />
+            <AppSpinner Indeterminate="true" Size="AppSize.Large" Class="tl-u-color-tl-text-muted" />
         </div>
     }
     else if (_loadFailed)
@@ -367,7 +363,7 @@
             @if (!IsContainerGrouping)
             {
                 @* Ticked rows get the selection bar and the right-hand "Edit N items" panel (universal editor spec D14). Filters, sort and scroll stay. *@
-                <BulkEditHost Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAfterBulkSaveAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
+                <BulkListEntry Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAfterBulkSaveAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
             }
             <LibraryConfigurableTable Columns="@ActiveColumns"
                                       VisibleColumnKeys="@VisibleColumnKeys"
@@ -395,7 +391,7 @@
                 <AppButton ButtonStyle="AppButtonStyle.Text"
                            Tone="AppUiTone.Neutral"
                            StartIcon="@AppMaterialIcons.Outlined.PendingActions"
-                           Href="/settings/ingestion">
+                           Href="/settings/libraries">
                     @L["MediaBrowseShell_OpenIngestionActivity"]
                 </AppButton>
             }
@@ -406,7 +402,6 @@
         <AppTimelineResults Items="@_cards"
                             Grouping="@_timelineGrouping" ShowGroupingControl="false" Descending="@(_sortBy != "oldest")"
                             Index="@_timelineIndex" OnJumpYear="JumpTimelineYearAsync"
-                            TileSizePx="@TileSizePx"
                             YearSemantic="@CurrentTab.YearSemantic"
                             ItemNoun="@CurrentTab.TimelineItemNoun" />
     }
@@ -417,12 +412,6 @@
     else
     {
         <MediaTileGrid Items="@_cards"
-                       HoverMode="@GridHoverMode"
-                       HideMediaKindBadges="true"
-                       HideSourceBadges="true"
-                       HideGroupKind="true"
-                       ShowCompactCaptions="true"
-                       TileSizePx="@TileSizePx"
                        Class="browse-shell__grid" />
     }
 
@@ -478,7 +467,6 @@
 
     private readonly HashSet<Guid> _selectedItems = [];
     private readonly List<MediaTileViewModel> _cards = [];
-    private readonly Dictionary<string, int> _tileSizes = new(StringComparer.OrdinalIgnoreCase);
 
     private string _activeTabId = string.Empty;
     private string _grouping = "all";
@@ -522,6 +510,26 @@
 
     // The library the browse asks for: the tab's own library, or the chip chosen on a gathering tab.
     private Guid? ActiveLibraryId => _libraryChip ?? CurrentTab.LibraryId;
+
+    // The Folders filter (Libraries v3 D18): offered only when the library in view has two or more folders; null is "All folders".
+    private string? _folder;
+
+    private IReadOnlyList<MediaEngine.Contracts.Display.BrowseFolderDto> ActiveFolders =>
+        _libraryChip is Guid chip
+            ? CurrentTab.LibraryChips.FirstOrDefault(item => item.Id == chip)?.Folders ?? []
+            : CurrentTab.Folders;
+
+    private string? ActiveFolderId => ActiveFolders.Any(item => item.Id == _folder) ? _folder : null;
+
+    private IReadOnlyList<AppSelectOption> FolderOptions =>
+        [new("", L["MediaBrowseShell_AllFolders"].Value), .. ActiveFolders.Select(item => new AppSelectOption(item.Id, item.Name))];
+
+    private async Task OnFolderChanged(string? folderId)
+    {
+        _folder = string.IsNullOrEmpty(folderId) ? null : folderId;
+        ClearActiveGroupState();
+        await NavigateAndReloadAsync(reloadData: true, replace: true);
+    }
 
     private BrowseTabPreset CurrentTab =>
         Preset.Tabs.FirstOrDefault(tab => string.Equals(tab.Id, _activeTabId, StringComparison.OrdinalIgnoreCase))
@@ -658,24 +666,6 @@
         "finished" => "Finished",
         _ => _status,
     };
-    private MediaTileHoverMode GridHoverMode => MediaTileHoverMode.GlowOnly;
-    private int TileSizePx => _tileSizes.TryGetValue(_activeTabId, out var size) ? size : DefaultTileSizePx;
-    private string TileSizeLabel
-    {
-        get
-        {
-            var position = (double)(TileSizePx - TileSizeMinPx) / Math.Max(1, TileSizeMaxPx - TileSizeMinPx);
-            return position < 0.34 ? "Small" : position > 0.66 ? "Large" : "Medium";
-        }
-    }
-    private int TileSizeMinPx => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? 96 : 128;
-    private int TileSizeMaxPx => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? 208 : 248;
-    private int DefaultTileSizePx => CurrentTab.MediaType switch
-    {
-        "Music" => 136,
-        "Audiobooks" => 176,
-        _ => 128,
-    };
     private string EmptyStateTitle =>
         _unmatched
             ? "Nothing unmatched here."
@@ -754,6 +744,7 @@
         StateContainer.MediaAddedReceived += OnMediaAdded;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         Playback.Changed += OnPlaybackChanged;
+        Editor.Closed += OnEditorClosed;
     }
 
     private void OnPlaybackChanged(PlaybackChangeKind kind)
@@ -844,11 +835,6 @@
         _selectedThemes.UnionWith(state.Themes ?? []);
         var query = System.Web.HttpUtility.ParseQueryString(new Uri(address).Query);
         _requestedTrackId = Guid.TryParse(query["track"], out var trackId) ? trackId : null;
-        if (state.TileSize is int tileSize)
-        {
-            _tileSizes[_activeTabId] = Math.Clamp(tileSize, TileSizeMinPx, TileSizeMaxPx);
-        }
-
         ClearActiveGroupState();
     }
 
@@ -999,6 +985,7 @@
         _status,
         _unmatched,
         _libraryChip,
+        _folder,
         _sortBy,
         _layout,
         _activeProfileId?.ToString("N") ?? string.Empty);
@@ -1025,6 +1012,7 @@
             sort: _sortBy,
             libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null,
+            folder: ActiveFolderId,
             ct: ct);
 
         if (ct.IsCancellationRequested) return true;
@@ -1089,6 +1077,7 @@
             sort: _sortBy,
             libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null,
+            folder: ActiveFolderId,
             ct: ct);
 
         // A newer browse request (or leaving the page) cancelled this one; the newer load owns the state.
@@ -1159,8 +1148,8 @@
         var mediaType = CurrentTab.MediaType;
 
         var groups = systemGroupField is not null
-            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null)
-            : await ApiClient.GetContentGroupsAsync(libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null);
+            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null, folder: ActiveFolderId)
+            : await ApiClient.GetContentGroupsAsync(libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null, folder: ActiveFolderId);
         if (systemGroupField is null)
         {
             groups = groups
@@ -1192,7 +1181,8 @@
                 profileId: _activeProfileId,
                 sort: _sortBy,
                 libraryId: ActiveLibraryId,
-                unmatched: _unmatched ? true : null);
+                unmatched: _unmatched ? true : null,
+                folder: ActiveFolderId);
 
             if (qualifyingPage is not null)
             {
@@ -1303,7 +1293,8 @@
             limit: 1,
             profileId: _activeProfileId,
             libraryId: ActiveLibraryId,
-            unmatched: _unmatched ? true : null);
+            unmatched: _unmatched ? true : null,
+            folder: ActiveFolderId);
         _facets = facetPage?.Facets;
     }
 
@@ -1662,6 +1653,7 @@
         _status = string.Empty;
         _unmatched = false;
         _libraryChip = null;
+        _folder = null;
         _selectedYears.Clear();
         _selectedVibes.Clear();
         _selectedThemes.Clear();
@@ -1693,15 +1685,6 @@
         _layout = layout;
         _selectedItems.Clear();
         await NavigateAndReloadAsync(reloadData: true);
-    }
-
-    private void OnTileSizeChanged(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), out var requestedSize))
-        {
-            _tileSizes[_activeTabId] = Math.Clamp(requestedSize, TileSizeMinPx, TileSizeMaxPx);
-            _ = NavigateAndReloadAsync(reloadData: false, replace: true);
-        }
     }
 
     private async Task OnSearchChanged(string _)
@@ -1798,6 +1781,7 @@
     private async Task OnLibraryChipChanged(Guid? libraryId)
     {
         _libraryChip = libraryId;
+        _folder = null;
         _unmatched = false;
         ClearActiveGroupState();
         await NavigateAndReloadAsync(reloadData: true, replace: true);
@@ -1811,10 +1795,20 @@
             return;
         }
         var kind = IsMusicSongsGrouping ? ProfileEntityKind.Song : ProfileEntityKindForBrowse();
-        var current = await Reactions.GetReactionAsync(workId, _activeProfileId, kind);
-        var next = current is MediaReaction.Like or MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Like;
-        await Reactions.SetReactionAsync(workId, next, _activeProfileId, kind);
-        Snackbar.Add(next == MediaReaction.Neutral ? "Removed from Favorites." : "Added to Favorites.", AppSeverity.Success);
+        // The heart is saved-item membership (a song's Favorites, My List for everything else); it never sets or clears Like or Dislike.
+        var membership = await SavedItems.ToggleAsync(kind, workId);
+        if (membership is null)
+        {
+            Snackbar.Add(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppSeverity.Warning);
+            return;
+        }
+
+        var isSong = kind == ProfileEntityKind.Song;
+        Snackbar.Add(
+            membership.IsSaved
+                ? L[isSong ? "ViewPage_FavoriteAdded" : "MediaTile_AddedToMyList"].Value
+                : L[isSong ? "ViewPage_FavoriteRemoved" : "MediaTile_RemovedFromMyList"].Value,
+            AppSeverity.Success);
         await LoadBrowseContentAsync();
     }
 
@@ -2031,46 +2025,39 @@
         return Task.CompletedTask;
     }
 
+    // Edit opens the pop-over editor over this list (universal editor v3 D6): nothing navigates away, the list keeps its filters, sort and
+    // scroll, and it reloads its rows when the pop-over closes with a change (the Engine's own answer says whether this item may be edited).
     private async Task OpenItemEditorAsync(Guid entityId)
     {
         var item = ActiveTableItems.FirstOrDefault(candidate => candidate.EntityId == entityId)
                    ?? _items.FirstOrDefault(candidate => candidate.EntityId == entityId);
-
-        await OpenEditorAsync(
-            entityId,
-            item?.Title,
-            item?.Creator ?? item?.ContextLabel,
-            item?.CoverUrl,
-            item?.MediaType,
-            reloadOrigin: true);
-    }
-
-    // Edit opens the item's own page with the editor already on, on the Details tool (universal editor spec D2): the same bar and panel as
-    // everywhere else, not a pop-up. The list behind keeps its filters, sort and scroll for when the person comes back.
-    private Task OpenEditorAsync(
-        Guid entityId,
-        string? title,
-        string? subtitle,
-        string? coverUrl,
-        string? mediaType,
-        bool reloadOrigin)
-    {
-        if (entityId == Guid.Empty || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        if (entityId == Guid.Empty)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        var item = ActiveTableItems.FirstOrDefault(candidate => candidate.EntityId == entityId)
-                   ?? _items.FirstOrDefault(candidate => candidate.EntityId == entityId);
-        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.Details, null));
-        Nav.NavigateTo(item is not null ? MediaNavigation.ForLibraryItem(item) : $"/details/work/{entityId:D}");
-        return Task.CompletedTask;
+        _awaitingSingleEdit = true;
+        if (!await EditLauncher.OpenAsync(ListEditTarget.ForLibraryRow(entityId, item?.Title, item?.MediaType)))
+        {
+            _awaitingSingleEdit = false;
+        }
     }
 
-    private async Task RefreshOriginAsync(bool reloadOrigin = true)
+    // True from the moment a row's Edit opened the pop-over until it closes, so a bulk edit (which reloads through its own save) is not reloaded twice.
+    private bool _awaitingSingleEdit;
+
+    private void OnEditorClosed(EditorClosedEventArgs closed)
     {
-        if (reloadOrigin)
-            await LoadBrowseContentAsync();
+        if (!_awaitingSingleEdit)
+        {
+            return;
+        }
+
+        _awaitingSingleEdit = false;
+        if (closed.Changed)
+        {
+            _ = InvokeAsync(ReloadAfterBulkSaveAsync);
+        }
     }
 
     private static string NormalizeEditorMediaType(string? mediaType)
@@ -2174,11 +2161,6 @@
         if (!string.Equals(_sortBy, ResolveSort(null), StringComparison.OrdinalIgnoreCase))
         {
             queryParts.Add($"sort={Uri.EscapeDataString(_sortBy)}");
-        }
-
-        if (TileSizePx != DefaultTileSizePx)
-        {
-            queryParts.Add($"tile={TileSizePx}");
         }
 
         return queryParts.Count == 0 ? path : $"{path}?{string.Join("&", queryParts)}";
@@ -2371,7 +2353,6 @@
         Presentation = card.Presentation,
         SurfaceKind = card.SurfaceKind,
         HoverLayout = card.HoverLayout,
-        HoverMode = card.HoverMode,
         TileTextMode = card.TileTextMode,
         PreviewPlacement = card.PreviewPlacement,
         TileImageUrl = card.TileImageUrl,
@@ -2490,6 +2471,7 @@
         StateContainer.MediaAddedReceived -= OnMediaAdded;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Playback.Changed -= OnPlaybackChanged;
+        Editor.Closed -= OnEditorClosed;
         _mediaAddedReloadCts?.Cancel();
         _mediaAddedReloadCts?.Dispose();
         _browseRequestCts?.Cancel();

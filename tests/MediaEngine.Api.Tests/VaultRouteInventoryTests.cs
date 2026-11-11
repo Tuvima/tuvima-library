@@ -28,6 +28,7 @@ public sealed class VaultRouteInventoryTests
         ("/api/v1/display/artwork/assets/", "Shared artwork only; Vault artwork is kept apart in vault_artwork"),
         ("/api/v1/display/artwork/media-assets/", "The handler authorizes the file through the catalogue"),
         ("/api/v1/display/artwork/universes/", "Universe artwork listing; entities are limited by the authorized projection"),
+        ("/api/v1/editor-bookmarks/", "Administrators only, and EditorBookmarksService answers a Vault title with a refusal (it asks the Vault library repository first), a family lists only its owned members and leaves out any in the Vault"),
         ("/api/v1/vault/", "The whole group is behind the Vault gate and answers not found when Vault mode is off"),
         ("/assets/", "Capabilities answer empty exactly as for an unknown id"),
         ("/api/v1/extras/", "An Extra opens only when the caller may open a file of its title (CatalogueResourceAuthorizationService), and a Vault library has no Extras"),
@@ -64,6 +65,12 @@ public sealed class VaultRouteInventoryTests
         ("/works/{workId:guid}/editions", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
         ("/works/{workId:guid}/cast", "The handler answers not found unless the catalogue authorization allows a file of the work"),
         ("/library/editor-subjects/{id:guid}", "People, Series, curated collections and Universes are never files, so a Vault item cannot be one; the handler still asks the edit session's catalogue refusal check for the id (EditSessionAccessService) and answers not found for anything that is not such a subject"),
+        ("/library/editor-subjects/{id:guid}/history", "Universes and their characters, places and factions are never files, so a Vault item cannot be one; Administrator-only, returns only a label, a sentence and a time, and the handler asks the edit session's catalogue refusal check (EditSessionAccessService) for the id first"),
+        ("/library/editor-subjects/things/{id:guid}", "The id is a character, place or faction of a Universe that someone added by hand, never a file, so a Vault item cannot be one; Administrator-only, returns no content, and the handler asks the edit session's catalogue refusal check (EditSessionAccessService) for the id first"),
+        ("/library/editor-quick-facts/{id:guid}", "Administrator-only; returns counts, sizes and lengths with no title, path or item id; the handler asks the edit session's catalogue refusal check (EditSessionAccessService) for the id first, and a person count carries the Vault predicate"),
+        ("/plugins/{pluginId}/page/items/{key}/{itemId}", "The id is a row in a plugin's settings list (a server, a connection), not a catalogue item; the route needs plugins-manage and returns only a plain sentence, and a Vault-gated list answers not found without the Vault gate"),
+        ("/plugins/{pluginId}/page/items/{key}/{itemId}/test", "The id is a row in a plugin's settings list (a server, a connection), not a catalogue item; the route needs plugins-manage and returns only a plain sentence, and a Vault-gated list answers not found without the Vault gate"),
+        ("/plugins/{pluginId}/page/items/{key}/{itemId}/secret/{field}", "The id is a row in a plugin's settings list (a server, a connection), not a catalogue item; the route needs plugins-manage and returns only a plain sentence, and a Vault-gated list answers not found without the Vault gate"),
     ];
 
     [Fact]

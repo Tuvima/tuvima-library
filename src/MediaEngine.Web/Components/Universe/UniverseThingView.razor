@@ -1,0 +1,167 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Services.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
+
+@* One thing of a Universe on its own page (spec universe-contents, section 4.2): its picture or logo, name and kind, a short
+   description with where it comes from, the Works you own that it appears in, and the things it is connected to. A thing that
+   cannot be placed in what you have watched or read shows only its name and picture until you reach it. Read-only on every
+   device; Edit opens the pop-over editor, on a desktop for administrators. *@
+<article class="universe-thing" data-universe-thing>
+    <a class="universe-thing__back" href="@BackHref" data-thing-back>@L["UniverseThing_Back", UniverseName]</a>
+
+    <header class="universe-thing__header">
+        <span class="universe-thing__picture @(IsLogo ? "universe-thing__picture--logo" : string.Empty)" aria-hidden="true">
+            @if (HeaderPicture is { Length: > 0 } picture)
+            {
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(picture, 192)" alt="" decoding="async" />
+            }
+            else
+            {
+                <span class="universe-thing__initial">@Initial(Thing.Label)</span>
+            }
+        </span>
+        <div class="universe-thing__copy">
+            <p class="universe-thing__kind">
+                @Thing.KindLabel
+                @if (Thing.AddedByUser)
+                {
+                    <span class="universe-thing__chip" data-added-by-you>@L["UniverseContents_AddedByYou"]</span>
+                }
+            </p>
+            <h1 class="universe-thing__title">@Thing.Label</h1>
+
+            @if (Thing.DetailsHidden)
+            {
+                <p class="universe-thing__hidden" data-details-hidden>@L["UniverseThing_Hidden"]</p>
+            }
+            else
+            {
+                @if (Thing.Description is { Length: > 0 } description)
+                {
+                    <p class="universe-thing__description" data-thing-description>@description</p>
+                    @if (SourceLine is { Length: > 0 } sourceLine)
+                    {
+                        <p class="universe-thing__source" data-thing-source>@sourceLine</p>
+                    }
+                }
+                else
+                {
+                    <p class="universe-thing__source" data-thing-no-description>@L["UniverseThing_NoDescription"]</p>
+                }
+
+                @if (Thing.Aliases.Count > 0)
+                {
+                    <p class="universe-thing__aliases" data-thing-aliases>@L["UniverseThing_AlsoKnownAs"] @string.Join(", ", Thing.Aliases)</p>
+                }
+            }
+
+            @if (CanEdit)
+            {
+                <div class="universe-thing__actions">
+                    @* Edit is in the "..." menu (universal editor v4): it opens the pop-over editor over this page. *@
+                    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
+                                     AriaLabel="@L["Common_MoreActions"].Value"
+                                     Class="universe-thing__more"
+                                     Disabled="@EditBusy">
+                        <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="OnEdit" />
+                    </AppOverflowMenu>
+                </div>
+            }
+        </div>
+    </header>
+
+    @if (Thing.AppearsIn.Count > 0)
+    {
+        <section class="universe-thing__section" aria-labelledby="universe-thing-appears-title">
+            <h2 class="universe-thing__heading" id="universe-thing-appears-title">@L["UniverseThing_AppearsIn"]</h2>
+            <ul class="universe-thing__rail" data-thing-appears-in>
+                @foreach (var work in Thing.AppearsIn)
+                {
+                    <li class="universe-thing__tile" @key="work.WorkQid">
+                        <span class="universe-thing__work-cover" aria-hidden="true">
+                            @if (work.CoverUrl is { Length: > 0 } cover)
+                            {
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 136)" alt="" loading="lazy" decoding="async" />
+                            }
+                            else
+                            {
+                                <span class="universe-thing__initial">@Initial(work.Label)</span>
+                            }
+                        </span>
+                        <span class="universe-thing__name">@work.Label</span>
+                        @if (work.Role is { Length: > 0 } role)
+                        {
+                            <span class="universe-thing__note">@role</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @foreach (var group in Thing.Related)
+    {
+        <section class="universe-thing__section" aria-labelledby="@GroupId(group)" @key="group.Key">
+            <header class="universe-thing__group-header">
+                <h2 class="universe-thing__heading" id="@GroupId(group)">@group.Label</h2>
+                <span class="universe-thing__count">@group.Count</span>
+            </header>
+            <ul class="universe-thing__rail" aria-label="@group.Label" data-thing-related="@group.Key">
+                @foreach (var link in group.Things)
+                {
+                    <li class="universe-thing__tile @(link.LogoUrl is { Length: > 0 } ? "universe-thing__tile--logo" : string.Empty)" @key="link.Id">
+                        <a class="universe-thing__link" href="@ThingHref(link)">
+                            <span class="universe-thing__work-cover" aria-hidden="true">
+                                @if ((link.LogoUrl ?? link.PictureUrl) is { Length: > 0 } linkPicture)
+                                {
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(linkPicture, 136)" alt="" loading="lazy" decoding="async" />
+                                }
+                                else
+                                {
+                                    <span class="universe-thing__initial">@Initial(link.Label)</span>
+                                }
+                            </span>
+                            <span class="universe-thing__name">@link.Label</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public UniverseThingDto Thing { get; set; } = default!;
+
+    /// <summary>Whether the person may edit; the page decides (administrator on a desktop).</summary>
+    [Parameter] public bool CanEdit { get; set; }
+
+    [Parameter] public bool EditBusy { get; set; }
+
+    [Parameter] public EventCallback OnEdit { get; set; }
+
+    private string BackHref => $"/universe/{Uri.EscapeDataString(Thing.UniverseQid)}";
+
+    private string UniverseName => Thing.UniverseLabel is { Length: > 0 } label ? label : "this Universe";
+
+    // Factions and Objects (and Places and Species when they have one) show the whole logo on a plain tile.
+    private bool IsLogo => Thing.LogoUrl is { Length: > 0 };
+
+    private string? HeaderPicture => Thing.LogoUrl is { Length: > 0 } logo ? logo : Thing.PictureUrl;
+
+    private string? SourceLine => Thing.DescriptionSource switch
+    {
+        "wikidata" => L["UniverseThing_FromWikidata"].Value,
+        "fandom" => L["UniverseThing_FromFandom"].Value,
+        "you" => L["UniverseThing_Yours"].Value,
+        _ => null,
+    };
+
+    private string ThingHref(UniverseThingLinkDto link) => $"/universe/{Uri.EscapeDataString(Thing.UniverseQid)}/things/{link.Id:D}";
+
+    private static string GroupId(UniverseThingRelatedGroupDto group) => $"universe-thing-{group.Key}";
+
+    private static string Initial(string label) =>
+        label.Trim() is { Length: > 0 } text ? text[..1].ToUpperInvariant() : "?";
+}

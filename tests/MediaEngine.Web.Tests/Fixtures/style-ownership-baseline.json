@@ -24,7 +24,7 @@
   },
   "totals": {
     "important": 1762,
-    "deep": 2832
+    "deep": 2824
   },
   "initialFiles": {
     "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
@@ -246,10 +246,6 @@
     "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
       "important": 6,
       "deep": 16
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
-      "important": 0,
-      "deep": 11
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
       "important": 0,
@@ -515,10 +511,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css": {
-      "important": 1,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css": {
       "important": 6,
       "deep": 13
@@ -542,10 +534,6 @@
     "src/MediaEngine.Web/Components/Settings/IngestionRecentlyAddedPreview.razor.css": {
       "important": 0,
       "deep": 3
-    },
-    "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css": {
-      "important": 3,
-      "deep": 9
     },
     "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
       "important": 0,
@@ -575,10 +563,6 @@
       "important": 3,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css": {
-      "important": 0,
-      "deep": 7
-    },
     "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css": {
       "important": 1,
       "deep": 14
@@ -599,10 +583,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
-      "important": 0,
-      "deep": 6
-    },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
       "deep": 2
@@ -618,10 +598,6 @@
     "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css": {
-      "important": 0,
-      "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css": {
       "important": 0,
@@ -711,10 +687,6 @@
       "important": 0,
       "deep": 18
     },
-    "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor.css": {
-      "important": 0,
-      "deep": 37
-    },
     "src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor.css": {
       "important": 0,
       "deep": 4
@@ -751,10 +723,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
       "deep": 1
@@ -788,10 +756,6 @@
       "deep": 20
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": {
-      "important": 0,
-      "deep": 2
-    },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
       "important": 0,
       "deep": 2
     },
@@ -913,6 +877,10 @@
     }
   },
   "files": {
+    "src/MediaEngine.Web/Components/Shared/PlaybackListRow.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
     "src/MediaEngine.Web/Shared/MainLayout.razor.css": {
       "important": 10,
       "deep": 37
@@ -1141,33 +1109,21 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
-      "important": 0,
-      "deep": 19
-    },
     "src/MediaEngine.Web/Components/Listen/ListenNavigationSection.razor.css": {
       "important": 0,
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": {
       "important": 0,
-      "deep": 29
+      "deep": 1
     },
     "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css": {
       "important": 0,
       "deep": 21
     },
-    "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css": {
-      "important": 28,
-      "deep": 23
-    },
     "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
       "important": 0,
-      "deep": 21
-    },
-    "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css": {
-      "important": 0,
-      "deep": 9
+      "deep": 6
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css": {
       "important": 0,
@@ -1179,31 +1135,15 @@
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
       "important": 0,
-      "deep": 8
-    },
-    "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css": {
-      "important": 0,
-      "deep": 4
+      "deep": 11
     },
     "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackQualityBadge.razor.css": {
-      "important": 0,
-      "deep": 1
-    },
-    "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css": {
-      "important": 0,
-      "deep": 7
-    },
     "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
       "important": 6,
       "deep": 15
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
-      "important": 0,
-      "deep": 9
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
       "important": 0,
@@ -1219,7 +1159,7 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css": {
       "important": 0,
-      "deep": 30
+      "deep": 24
     },
     "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor.css": {
       "important": 0,
@@ -1251,7 +1191,7 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
       "important": 15,
-      "deep": 103
+      "deep": 75
     },
     "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
       "important": 0,
@@ -1347,11 +1287,11 @@
     },
     "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css": {
       "important": 0,
-      "deep": 86
+      "deep": 75
     },
-    "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css": {
+    "src/MediaEngine.Web/Components/Pages/NowPlayingPage.razor.css": {
       "important": 0,
-      "deep": 2
+      "deep": 5
     },
     "src/MediaEngine.Web/Components/Pages/RecentlyAddedPage.razor.css": {
       "important": 0,
@@ -1469,10 +1409,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css": {
-      "important": 1,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css": {
       "important": 0,
       "deep": 14
@@ -1487,10 +1423,6 @@
     },
     "src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css": {
       "important": 1,
-      "deep": 7
-    },
-    "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css": {
-      "important": 3,
       "deep": 7
     },
     "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
@@ -1521,10 +1453,6 @@
       "important": 3,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css": {
-      "important": 0,
-      "deep": 7
-    },
     "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css": {
       "important": 1,
       "deep": 14
@@ -1545,10 +1473,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
-      "important": 0,
-      "deep": 6
-    },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
       "deep": 2
@@ -1564,10 +1488,6 @@
     "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css": {
-      "important": 0,
-      "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css": {
       "important": 0,
@@ -1677,10 +1597,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor.css": {
-      "important": 0,
-      "deep": 37
-    },
     "src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor.css": {
       "important": 0,
       "deep": 4
@@ -1703,31 +1619,19 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css": {
       "important": 0,
-      "deep": 9
-    },
-    "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css": {
-      "important": 0,
-      "deep": 7
+      "deep": 8
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
       "important": 1,
-      "deep": 31
-    },
-    "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
-      "important": 0,
-      "deep": 0
+      "deep": 22
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
-      "deep": 1
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css": {
       "important": 0,
-      "deep": 30
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": {
       "important": 13,
@@ -1741,6 +1645,10 @@
       "important": 0,
       "deep": 8
     },
+    "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css": {
+      "important": 0,
+      "deep": 14
+    },
     "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
       "important": 0,
       "deep": 4
@@ -1751,19 +1659,23 @@
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css": {
       "important": 0,
-      "deep": 20
+      "deep": 9
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": {
       "important": 0,
-      "deep": 2
+      "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
+    "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css": {
       "important": 0,
-      "deep": 2
+      "deep": 14
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css": {
+      "important": 0,
+      "deep": 1
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css": {
       "important": 4,
-      "deep": 2
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css": {
       "important": 1,
@@ -1825,13 +1737,9 @@
       "important": 0,
       "deep": 7
     },
-    "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css": {
-      "important": 0,
-      "deep": 4
-    },
     "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
       "important": 0,
-      "deep": 9
+      "deep": 12
     },
     "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css": {
       "important": 0,
@@ -1868,6 +1776,126 @@
     "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
       "important": 0,
       "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackLyricsAlternatives.razor.css": {
+      "important": 0,
+      "deep": 10
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackLyricsFooter.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackLyricsMenu.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Listen/QueuePanel.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackListTabs.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPanel.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackRowMenu.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedFooter.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Shared/SleepTimerCustomView.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor.css": {
+      "important": 0,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor.css": {
+      "important": 0,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Watch/SubtitleFindView.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css": {
+      "important": 0,
+      "deep": 1
     }
   },
   "lineExceptions": {},
@@ -3847,6 +3875,654 @@
       "destination": "src/MediaEngine.Web/wwwroot/native-fields.css",
       "reason": "Native adorned fields own their inner input height and minimum; reserve two original global control-sizing priorities so a bordered frame includes its border rather than overflowing.",
       "important": 2
+    },
+    {
+      "selectors": [
+        ".playback-shell ::deep .playback-popover-trigger",
+        ".playback-shell ::deep .playback-song-actions button",
+        ".playback-shell ::deep .playback-utility-glyph",
+        ".playback-shell__text ::deep a",
+        ".playback-shell__timeline ::deep .playback-seek-rail--dock"
+      ],
+      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "deep": 15,
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "reason": "The persistent bar is now drawn by one shared shell for music, audiobooks, TV and movies; the dock rules that styled the audio bar's trigger buttons, glyphs, song actions and links moved there with the markup (the audio bar went from 29 to 14 deep rules).",
+      "important": 0
+    },
+    {
+      "selectors": [
+        ".playback-item-menu__row ::deep .playback-utility-glyph"
+      ],
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "deep": 1,
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "reason": "The item actions menu rows ask the shared glyph for the mockup's 24 px size; the identity zone's own text and action rules left the bar shell, which keeps two fewer deep rules than it was budgeted.",
+      "important": 0
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".asv__check ::deep .playback-utility-glyph"
+      ],
+      "reason": "The Audio & subtitles choice rows draw their selected check glyph (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".asa__action ::deep .playback-utility-glyph",
+        ".asa[data-layout=\"rows\"] .asa__action ::deep .playback-utility-glyph"
+      ],
+      "reason": "The Audio & subtitles footer actions size their leading glyphs (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        ".sav__preview ::deep .sav__preview-line",
+        ".sav__tick ::deep .playback-utility-glyph",
+        ".sav__row ::deep .app-segmented-control",
+        ".sav__row ::deep .app-segmented-control__item",
+        ".sav__row ::deep .app-segmented-control__item.is-selected",
+        ".sav__custom-chevron ::deep .playback-utility-glyph"
+      ],
+      "reason": "The Subtitle appearance view styles the preview line, preset ticks, segmented controls and chevron (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".psp__row ::deep .psp__select"
+      ],
+      "reason": "The old speed control was deleted when Speed became its own panel (unified player v2 WP6). The Playback settings panel lays the browser's own skip-length list invisibly over each row, which needs one deep rule; its glyph sizes use the glyph's size variables instead."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".playback-speed-panel ::deep .playback-popover-trigger"
+      ],
+      "reason": "The Speed panel keeps the 44 px speed trigger the deleted speed control gave the phone player and the media viewer (unified player v2 WP6)."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsAlternatives.razor.css",
+      "important": 0,
+      "deep": 10,
+      "selectors": [
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer:not(:disabled):hover",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer:not(:disabled):active",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer:disabled",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer:focus-visible",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__back:focus-visible",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer span",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__offer small",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__back",
+        ".playback-lyrics-alternatives ::deep .playback-lyrics-alternatives__back:hover"
+      ],
+      "reason": "The \"Other lyrics\" view styles its Go back and offer rows, which are App* buttons; a class passed to a child component is not reachable by this view's isolated styles, so each rule goes through its own root with a deep selector. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsFooter.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".playback-lyrics-footer ::deep .playback-lyrics-footer__more",
+        ".playback-lyrics-footer ::deep .playback-lyrics-footer__more:hover",
+        ".playback-lyrics-footer ::deep .playback-lyrics-footer__more:active",
+        ".playback-lyrics-footer ::deep .playback-lyrics-footer__more[aria-expanded=\"true\"]",
+        ".playback-lyrics-footer ::deep .playback-lyrics-footer__more:focus-visible"
+      ],
+      "reason": "The lyrics footer styles its More button, an App* button, through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsMenu.razor.css",
+      "important": 0,
+      "deep": 4,
+      "selectors": [
+        ".playback-lyrics-menu ::deep .playback-lyrics-menu__row",
+        ".playback-lyrics-menu ::deep .playback-lyrics-menu__row:hover",
+        ".playback-lyrics-menu ::deep .playback-lyrics-menu__row:active",
+        ".playback-lyrics-menu ::deep .playback-lyrics-menu__row:focus-visible"
+      ],
+      "reason": "The lyrics options menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Listen/QueuePanel.razor.css",
+      "important": 0,
+      "deep": 7,
+      "selectors": [
+        ".qp__heading ::deep .qp__clear",
+        ".qp__heading ::deep .qp__clear:hover:not(:disabled)",
+        ".qp__heading ::deep .qp__clear:disabled",
+        ".qp__heading ::deep .qp__clear:focus-visible",
+        ".qp__drop ::deep .qp__handle",
+        ".qp__drop ::deep .qp__handle:hover",
+        ".qp__drop ::deep .qp__handle:focus-visible"
+      ],
+      "reason": "The Queue panel styles its Clear buttons and drag handles, which are App* buttons, through their own headings and rows. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".playback-item-menu ::deep .playback-item-menu__row",
+        ".playback-item-menu ::deep .playback-item-menu__row:hover"
+      ],
+      "reason": "The Item actions menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".playback-item-menu ::deep .playback-item-menu__row:active",
+        ".playback-item-menu ::deep .playback-item-menu__row:focus-visible"
+      ],
+      "reason": "The Item actions menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackListTabs.razor.css",
+      "important": 0,
+      "deep": 4,
+      "selectors": [
+        ".plt ::deep .plt__tab",
+        ".plt ::deep .plt__tab:hover",
+        ".plt ::deep .plt__tab.is-on",
+        ".plt ::deep .plt__tab:focus-visible"
+      ],
+      "reason": "The shared list tabs style their tab buttons, which are App* buttons, through the tab strip root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackPanel.razor.css",
+      "important": 0,
+      "deep": 3,
+      "selectors": [
+        ".playback-panel ::deep .playback-panel__frame",
+        ".playback-panel[data-playback-popover-surface=\"video\"] ::deep .playback-panel__frame",
+        ".playback-panel:not(.playback-panel--sheet) ::deep .playback-panel__frame"
+      ],
+      "reason": "The panel frame is the AppPopout the panel draws, so its frame rules go through the panel root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackRowMenu.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".prm ::deep .prm__row",
+        ".prm ::deep .prm__row:hover:not(:disabled)",
+        ".prm ::deep .prm__row:active:not(:disabled)",
+        ".prm ::deep .prm__row:disabled",
+        ".prm ::deep .prm__row:focus-visible"
+      ],
+      "reason": "The row menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".psp__footer ::deep .psp__reset",
+        ".psp__footer ::deep .psp__reset:hover",
+        ".psp__footer ::deep .psp__reset:active",
+        ".psp__footer ::deep .psp__reset:focus-visible",
+        ".psp__footer ::deep .psp__reset"
+      ],
+      "reason": "The Playback settings footer styles its Reset button, an App* button, through its own footer wrapper. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedFooter.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".psf ::deep .psf__reset",
+        ".psf ::deep .psf__reset:hover",
+        ".psf ::deep .psf__reset:active",
+        ".psf ::deep .psf__reset:focus-visible",
+        ".psf ::deep .psf__reset"
+      ],
+      "reason": "The Speed footer styles its Reset button, an App* button, through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        ".psv ::deep .psv__preset",
+        ".psv ::deep .psv__preset:hover",
+        ".psv ::deep .psv__preset:active",
+        ".psv ::deep .psv__preset.is-selected",
+        ".psv ::deep .psv__preset.is-selected:hover",
+        ".psv ::deep .psv__preset:focus-visible"
+      ],
+      "reason": "The Speed presets are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerCustomView.razor.css",
+      "important": 0,
+      "deep": 4,
+      "selectors": [
+        ".stc ::deep .stc__input",
+        ".stc ::deep .stc__input:focus-visible",
+        ".stc ::deep .stc__input[aria-invalid=\"true\"]",
+        ".stc ::deep .stc__set"
+      ],
+      "reason": "The Custom duration field and Set timer button are App* controls, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerCustomView.razor.css",
+      "important": 0,
+      "deep": 3,
+      "selectors": [
+        ".stc ::deep .stc__set:hover",
+        ".stc ::deep .stc__set:active",
+        ".stc ::deep .stc__set:focus-visible"
+      ],
+      "reason": "The Custom duration field and Set timer button are App* controls, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor.css",
+      "important": 0,
+      "deep": 10,
+      "selectors": [
+        ".stp__footer ::deep .stp__extend",
+        ".stp__footer ::deep .stp__cancel",
+        ".stp__footer ::deep .stp__extend:hover",
+        ".stp__footer ::deep .stp__cancel:hover",
+        ".stp__footer ::deep .stp__cancel:hover",
+        ".stp__footer ::deep .stp__extend:active",
+        ".stp__footer ::deep .stp__cancel:active",
+        ".stp__footer ::deep .stp__extend:focus-visible",
+        ".stp__footer ::deep .stp__cancel:focus-visible",
+        ".stp__footer ::deep .stp__extend"
+      ],
+      "reason": "The Sleep timer footer buttons are App* buttons, so their rules go through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".stp__footer ::deep .stp__cancel"
+      ],
+      "reason": "The Sleep timer footer buttons are App* buttons, so their rules go through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor.css",
+      "important": 0,
+      "deep": 10,
+      "selectors": [
+        ".stv ::deep .stv__preset",
+        ".stv ::deep .stv__preset:hover",
+        ".stv ::deep .stv__preset:active",
+        ".stv ::deep .stv__preset.is-selected",
+        ".stv ::deep .stv__preset.is-selected:hover",
+        ".stv ::deep .stv__preset:focus-visible",
+        ".stv ::deep .stv__row",
+        ".stv ::deep .stv__row:hover:not(:disabled)",
+        ".stv ::deep .stv__row:active:not(:disabled)",
+        ".stv ::deep .stv__row:focus-visible"
+      ],
+      "reason": "The Sleep timer presets and rows are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".stv ::deep .stv__row:disabled"
+      ],
+      "reason": "The Sleep timer presets and rows are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "important": 0,
+      "deep": 4,
+      "selectors": [
+        ".asa ::deep .asa__action",
+        ".asa[data-layout=\"bar\"] ::deep .asa__action:first-child",
+        ".asa ::deep .asa__action:hover",
+        ".asa ::deep .asa__action:active"
+      ],
+      "reason": "The Audio and subtitles action rows are App* buttons, so their rules go through the strip root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "important": 0,
+      "deep": 3,
+      "selectors": [
+        ".asa ::deep .asa__action:focus-visible",
+        ".asa ::deep .asa__action .playback-utility-glyph",
+        ".asa[data-layout=\"rows\"] ::deep .asa__action"
+      ],
+      "reason": "The Audio and subtitles action rows are App* buttons, so their rules go through the strip root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".asp-footer ::deep .asp-footer__reset"
+      ],
+      "reason": "The Subtitle appearance footer Reset button is an App* button, so its rules go through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".asp-footer ::deep .asp-footer__reset:hover",
+        ".asp-footer ::deep .asp-footer__reset:active"
+      ],
+      "reason": "The Subtitle appearance footer Reset button is an App* button, so its rules go through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".asp-footer ::deep .asp-footer__reset:focus-visible",
+        ".asp-footer ::deep .asp-footer__reset"
+      ],
+      "reason": "The Subtitle appearance footer Reset button is an App* button, so its rules go through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".sav ::deep .sav__tile"
+      ],
+      "reason": "The Subtitle appearance style tiles and Custom row are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        ".sav ::deep .sav__tile:hover",
+        ".sav ::deep .sav__tile.is-on",
+        ".sav ::deep .sav__tile:focus-visible",
+        ".sav ::deep .sav__custom",
+        ".sav ::deep .sav__custom:hover",
+        ".sav ::deep .sav__custom:focus-visible"
+      ],
+      "reason": "The Subtitle appearance style tiles and Custom row are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleFindView.razor.css",
+      "important": 0,
+      "deep": 9,
+      "selectors": [
+        ".sfv ::deep .sfv__search",
+        ".sfv ::deep .sfv__preferred",
+        ".sfv ::deep .sfv__search",
+        ".sfv ::deep .sfv__search:hover:not(:disabled)",
+        ".sfv ::deep .sfv__search:disabled",
+        ".sfv ::deep .sfv__preferred",
+        ".sfv ::deep .sfv__preferred:hover",
+        ".sfv ::deep .sfv__search:focus-visible",
+        ".sfv ::deep .sfv__preferred:focus-visible"
+      ],
+      "reason": "The Find subtitles buttons are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "important": 0,
+      "deep": 8,
+      "selectors": [
+        ".psp ::deep .psp__row",
+        ".psp ::deep .psp__row:hover",
+        ".psp ::deep .psp__row:active",
+        ".psp ::deep .psp__row:focus-visible",
+        ".psp ::deep .psp__row:disabled",
+        ".psp ::deep .psp__row:disabled:hover",
+        ".psp ::deep .psp__row:disabled .playback-utility-glyph",
+        ".psp ::deep .psp__row:disabled .psp__label"
+      ],
+      "reason": "The Play on another device row and the other panel rows are App* buttons, so their rules go through the panel root (.psp ::deep .psp__row); until now they targeted the button inside AppNativeButton and never applied. (unified player v2 WP15 review fix: scoped styles never reach a class passed to a child component.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
+      "important": 0,
+      "deep": 8,
+      "selectors": [
+        ".playback-lyrics ::deep .playback-lyrics__line",
+        ".playback-lyrics ::deep button.playback-lyrics__line",
+        ".playback-lyrics ::deep button.playback-lyrics__line:hover",
+        ".playback-lyrics ::deep button.playback-lyrics__line:focus-visible",
+        ".playback-lyrics ::deep .playback-lyrics__line.is-active",
+        ".playback-lyrics ::deep .playback-lyrics__link",
+        ".playback-lyrics ::deep .playback-lyrics__link:hover",
+        ".playback-lyrics ::deep .playback-lyrics__link:focus-visible"
+      ],
+      "reason": "The timed lyric lines and the About links are App* buttons, so each rule gets a twin through the lyrics root; the plain rule only reached the untimed paragraph. (unified player v2 WP15 review fix.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackListRow.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".plr ::deep .plr__main",
+        ".plr ::deep button.plr__main",
+        ".plr ::deep button.plr__main::after",
+        ".plr ::deep button.plr__main:focus-visible",
+        ".plr ::deep button.plr__main:focus-visible::after"
+      ],
+      "reason": "The row body is an AppNativeButton when the row is actionable, so its rules get a twin through the row root. (unified player v2 WP15 review fix.)"
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Pages/NowPlayingPage.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".np__top ::deep button",
+        ".np__top ::deep button:hover",
+        ".np__top ::deep button:active",
+        ".np__top ::deep button:focus-visible",
+        ".np__top ::deep .np__back"
+      ],
+      "reason": "The Now playing page replaces the desktop Now playing scene (unified player v2 WP10). Its Back to library and Close are AppNativeButtons inside the top row, so their look is reached with deep rules from that row (scoped styles never reach a class passed to a child component); the deleted scene gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css",
+      "important": 0,
+      "deep": 7,
+      "selectors": [
+        ".playback-tool-row ::deep .playback-popover-trigger",
+        ".playback-tool-row ::deep .playback-popover-trigger.playback-shell__chip",
+        ".playback-tool-row ::deep .playback-utility-glyph"
+      ],
+      "reason": "The phone's one row of tools (unified player v2 WP13) draws the panel triggers that PlaybackPanel, the speed panel and the sleep timer panel render, so the tool-button look is reached with deep rules from the row (a class inside a child component is never reached by scoped styles). The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".playback-shell--phone .playback-shell__tools > ::deep :first-child"
+      ],
+      "reason": "A video player on a phone (WP13) centers its four tools, so the bar's push-to-the-right rule for the first tool is switched off for it. The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css",
+      "important": 0,
+      "deep": 3,
+      "selectors": [
+        ".video-playback-host__phone-header ::deep .playback-popover-trigger",
+        ".video-playback-host__phone-header ::deep .playback-popover-trigger:focus-visible",
+        ".video-playback-host__phone-header ::deep .playback-utility-glyph"
+      ],
+      "reason": "The phone's video header (WP13) holds the Playback settings trigger, which PlaybackPanel draws, so its look is reached with deep rules from the header. The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".playback-identity ::deep .playback-identity__expand",
+        ".playback-identity ::deep .playback-identity__expand:focus-visible"
+      ],
+      "reason": "The phone's collapsed bar (WP13) is one AppNativeButton holding the picture and the text, so its look is reached with deep rules from the identity zone. The deleted phone transport controls gave up the same number."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        "::deep .tl-hnav__trigger",
+        "::deep .tl-hnav__trigger--item",
+        "::deep .tl-hnav__trigger:hover",
+        "::deep .tl-hnav__trigger.is-open",
+        "::deep .tl-hnav__img"
+      ],
+      "reason": "The editor header's Season and item dropdown buttons and their stills are App* controls, so their rules go through the nav root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        "::deep .tl-editor-header__wash",
+        "::deep .tl-editor-header__img",
+        "::deep .tl-editor-header__link",
+        "::deep .tl-editor-header__link:hover"
+      ],
+      "reason": "The editor header's cover gradient, cover picture and provider links are App* components, so their rules go through the header root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        "::deep .tl-extra-viewer__lightbox",
+        "::deep .tl-extra-viewer__lightbox > img"
+      ],
+      "reason": "The picture lightbox is an AppViewer, so its rules go through a wrapper of the viewer's own (Editor v5 WP7 moved the viewer out of the Extra page). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        "::deep .tl-matchcard__art"
+      ],
+      "reason": "The current match card's picture is an AppImage, so its size rule goes through the Match panel root (Editor v5 fix: scoped styles never reach a class passed to a child component). The budget comes from the deleted old editor shell."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".tl-fbrowser ::deep .tl-fbrowser__search",
+        ".tl-fbrowser ::deep .tl-fbrowser__select"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".tl-fbside ::deep .tl-fbside__item",
+        ".tl-fbside ::deep .tl-fbside__item.is-selected"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".tl-fbtable ::deep .tl-fbtable__sort"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".tl-fbfolders ::deep .tl-fbfolders__row"
+      ],
+      "reason": "The supporting-files browser (Editor v5 WP8) passes its classes to App* controls (search field, selects, row buttons, menus), so their look is reached with deep rules from the component root. The budget comes from the old owned-child browser the new browser replaces."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css",
+      "important": 0,
+      "deep": 13,
+      "selectors": [
+        ".view-hnav ::deep .view-hnav__home.is-current",
+        ".view-hnav ::deep .view-hnav__trigger",
+        ".view-hnav__panel ::deep .view-hnav__option"
+      ],
+      "reason": "The View editor header (Editor v5 WP14) draws the item dropdown on the v5 frame and passes its classes to App* controls (icon button, row buttons, image), so their look is reached with deep rules from the component root. The budget comes from the shared media editor shell, which no longer exists."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".tl-editor-header ::deep .tl-editor-header__img"
+      ],
+      "reason": "The View editor header (Editor v5 WP14) passes its picture class to the shared image control, so the rule is reached with a deep rule from the header root. The budget comes from the shared media editor shell, which no longer exists."
     }
   ],
   "finalBundleBytes": 1283347,

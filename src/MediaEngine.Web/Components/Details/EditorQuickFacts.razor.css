@@ -1,0 +1,77 @@
+/* Quick Facts: the read-only accent card beside the form (universal editor v4 D4; v5 screens A and K). It sits to the right of the form and moves
+   under it when the editor window is narrower than 1280 px (see EditorDetailsPanel.razor.css). */
+.tl-quick-facts {
+    display: flex;
+    flex: 0 0 18.75rem;
+    flex-direction: column;
+    align-self: flex-start;
+    width: 18.75rem;
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid color-mix(in srgb, var(--tl-accent-primary) 45%, var(--tl-bg-surface));
+    border-radius: var(--tl-radius-lg, 0.625rem);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary) 20%, var(--tl-bg-surface)), color-mix(in srgb, var(--tl-accent-primary) 9%, var(--tl-bg-surface)));
+}
+
+.tl-quick-facts__title {
+    margin: 0 0 var(--tl-space-2);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-quick-facts__row {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    padding: var(--tl-space-3) 0;
+    border-top: 1px solid var(--tl-divider);
+}
+
+.tl-quick-facts__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2.125rem;
+    height: 2.125rem;
+    border-radius: 50%;
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-accent-primary-hover);
+}
+
+.tl-quick-facts__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-quick-facts__value {
+    overflow-wrap: anywhere;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-quick-facts__label {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-quick-facts__note {
+    margin-top: var(--tl-space-2);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-surface) 70%, transparent);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+@media (max-width: 1180px) {
+    .tl-quick-facts {
+        flex: 0 0 auto;
+        width: auto;
+        align-self: stretch;
+    }
+}

@@ -1,2 +1,2 @@
 .continue-across-media { min-width:0; }
-.continue-across-media h2 { margin:0 0 12px; font-size:var(--tl-font-size-xl); }
+.continue-across-media h2 { margin:0 0 12px; font-size:var(--tl-font-size-shelf-title); line-height:var(--tl-line-height-heading); font-weight:600; }

@@ -77,7 +77,7 @@
                                Class="@TabClass(tab.Id)"
                                aria-current="@(IsTabSelected(tab.Id) ? "page" : null)"
                                OnClick="@(() => OnTabChanged(tabIndex))">
-                        <AppMaterialIcon Icon="@tab.Icon" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />
                         <span>@tab.Label</span>
                     </AppButton>
 
@@ -2019,7 +2019,7 @@
             <div class="collection-flow__covers">
                 @foreach (var item in _previewResult.Items.Take(12))
                 {
-                    <div class="collection-flow__cover" title="@item.Title">
+                    <div class="collection-flow__cover">
                         @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
                         {
                             <img src="@MediaTileArtworkUrl.ForDrawnSize(item.CoverUrl, 120)"
@@ -2183,8 +2183,8 @@
                     {
                         <span class="app-artwork-picker__placeholder"><AppMaterialIcon Icon="@CollectionTypeIcon" /></span>
                     }
-                    <span class="app-artwork-picker__edit" title="Edit artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
-                    <InputFile class="app-artwork-picker__input" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
+                    <span class="app-artwork-picker__edit"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
+                    <InputFile class="app-artwork-picker__input" aria-label="Edit artwork" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
                 </label>
             }
             <AppTextField T="string"
@@ -2278,7 +2278,7 @@
                            Value="@(_randomOrder ? "random" : "set")"
                            ValueChanged="OnRandomOrderChanged"
                            ToStringFunc="@(value => value == "random" ? "Random (a new pick each day)" : "In the order set by this collection")"
-                           Label=L["EditingVideoOrder_Order"].Value
+                           Label=L["Common_Order"].Value
                            Variant="AppVariant.Outlined"
                            Class="collection-editor-field">
                     <AppSelectItem T="string" Value="@("set")">In the order set by this collection</AppSelectItem>
@@ -2360,7 +2360,7 @@
                             @foreach (var choice in IconChoices)
                             {
                                 <AppSelectItem T="string" Value="@choice.Icon">
-                                    <AppMaterialIcon Icon="@choice.Icon" Size="AppSize.Small" />
+                                    <AppMaterialIcon Icon="@choice.Icon" Size="AppIconSize.Control20" />
                                     @choice.Label
                                 </AppSelectItem>
                             }
@@ -2795,7 +2795,7 @@
                                 else
                                 {
                                     <span class="collection-editor-item-art collection-editor-item-art--placeholder" aria-hidden="true">
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ImageNotSupported" Size="AppSize.Small" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ImageNotSupported" Size="AppIconSize.Control20" />
                                     </span>
                                 }
                                 <div class="collection-editor-preview-copy">

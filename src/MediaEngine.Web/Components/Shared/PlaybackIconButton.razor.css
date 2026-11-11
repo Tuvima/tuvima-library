@@ -1,70 +1,63 @@
+/* One icon button for every playback surface (unified player v2 D6): a 24 px stroke glyph in a 44 px target. Hover is a soft translucent white
+   (8% on the bar, 12% over video), pressed 16%, selected the purple-soft background, disabled 38% with no hover, keyboard focus a 2 px purple
+   ring 2 px off the button. Nothing scales, glows or gets an underline. Every colour comes from the shared tokens. */
 .playback-icon-button-shell { min-width: 0; display: inline-flex; }
+.playback-icon-button-shell--surface-video { --playback-state-hover: var(--playback-state-hover-video); }
 
 .playback-icon-button-shell ::deep .playback-icon-button {
-
-    background: transparent;
+    align-content: center;
+    align-items: center;
+    background-color: transparent;
+    /* A host that wants a hit area larger than the fill sets --playback-icon-button-fill-clip: content-box and --playback-icon-button-fill-inset (the touch rule). */
+    background-clip: var(--playback-icon-button-fill-clip, border-box);
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--tl-control-radius);
+    box-sizing: border-box;
     color: var(--playback-text);
     cursor: pointer;
-    display: grid;
-
-    gap: 4px;
-    grid-template-rows: 44px auto;
+    display: inline-grid;
+    gap: 0;
+    height: var(--playback-control-target);
     justify-items: center;
-    min-height: 68px;
-
-    padding: 4px;
+    min-height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: var(--playback-icon-button-fill-inset, 0);
+    place-items: center;
+    position: relative;
     text-align: center;
     text-decoration: none;
-    width: 100%;
-    isolation: isolate;
-    position: relative;
+    transition: background-color 120ms ease, color 120ms ease;
+    width: var(--playback-control-target);
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover,
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):focus-visible,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover { background-color: var(--playback-state-hover); }
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):active { background-color: var(--playback-state-pressed); }
+
+/* Selected: a tool whose panel is open, Shuffle on, Repeat on, subtitles showing, speed not 1x, a sleep timer running. */
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-selected,
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active {
-    color: var(--tl-accent-primary);
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled)[aria-pressed="true"],
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled)[aria-expanded="true"] {
+    background-color: var(--playback-state-selected);
+    color: var(--tl-accent-primary-hover);
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button__visual::before {
-    background: transparent;
-    border-radius: 8px;
-    content: "";
-    height: 44px;
-    left: 50%;
-    pointer-events: none;
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 44px;
-    z-index: -1;
+/* A muted speaker is shown by its crossed glyph, not by a purple background. */
+.playback-icon-button-shell ::deep .playback-icon-button--mute.is-active:not(:disabled) {
+    background-color: transparent;
+    color: var(--playback-text);
 }
+.playback-icon-button-shell ::deep .playback-icon-button--mute.is-active:not(:disabled):hover { background-color: var(--playback-state-hover); }
 
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover .playback-icon-button__visual::before,
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):focus-visible .playback-icon-button__visual::before,
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-selected .playback-icon-button__visual::before,
-.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active .playback-icon-button__visual::before {
-    background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(136, 82, 252, 0.18)));
-}
-
-.playback-icon-button-shell ::deep .playback-icon-button__visual {
-    isolation: isolate;
-    position: relative;
-    z-index: 0;
-}
-
-.playback-icon-button-shell ::deep .playback-icon-button:focus-visible .playback-icon-button__visual::before {
-    outline: 2px solid var(--playback-focus-ring, var(--tl-accent-primary));
-    outline-offset: 2px;
-}
 .playback-icon-button-shell ::deep .playback-icon-button:focus-visible {
-    outline: none;
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button:disabled { cursor: default; opacity: .45; }
+.playback-icon-button-shell ::deep .playback-icon-button:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
 
 .playback-icon-button-shell ::deep .playback-icon-button__visual {
     align-items: center;
@@ -72,91 +65,34 @@
     border: 0;
     box-shadow: none;
     display: inline-flex;
-    height: 44px;
+    height: var(--playback-control-glyph);
     justify-content: center;
     min-width: 0;
-    width: 44px;
+    position: relative;
+    width: var(--playback-control-glyph);
+}
+
+.playback-icon-button-shell ::deep .playback-icon-button__visual .playback-utility-glyph {
+    flex-basis: var(--playback-control-glyph);
+    height: var(--playback-control-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__icon {
     color: currentColor;
-    height: 22px;
     fill: currentColor;
-    font-size: 22px !important;
-    width: 22px;
+    font-size: var(--playback-control-glyph) !important;
+    height: var(--playback-control-glyph);
+    width: var(--playback-control-glyph);
 }
 
-/* Dense dock tools are square 44px hit targets with a centered 22px glyph. */
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button {
-    align-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    grid-template-rows: 22px;
-    height: 44px;
-    min-height: 44px;
-    min-width: 44px;
-    padding: 0;
-    width: 44px;
-}
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button__visual {
-    height: 22px;
-    width: 22px;
-}
-/* Full and phone utility buttons retain useful labels but never add icon rings. */
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button {
-    align-content: start;
-    grid-template-rows: 44px auto;
-    min-height: 68px;
-    min-width: 44px;
-    padding: 0;
-}
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button {
-    align-content: center;
-    align-items: center;
-    grid-template-rows: 22px;
-    height: 44px;
-    min-height: 44px;
-    min-width: 44px;
-    padding: 0;
-    width: 44px;
-}
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__visual {
-    height: 22px;
-    width: 22px;
-}
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button {
-    grid-template-rows: 44px auto;
-    min-height: 68px;
-    min-width: 44px;
-    padding: 2px 0;
-    width: 44px;
-}
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button__visual {
-    height: 44px;
-    width: 44px;
-}
-
-.playback-icon-button-shell--appearance-bare ::deep .playback-icon-button {
-    background: transparent;
-}
-.playback-icon-button-shell--appearance-bare ::deep .playback-icon-button__visual {
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-}
-.playback-icon-button-shell--appearance-bare.playback-icon-button-shell--surface-dock.playback-icon-button-shell--sleep-timer ::deep .playback-icon-button {
-    position: relative;
-}
-
-/* All presentations use the same icon-only utility target. */
-.playback-icon-button-shell ::deep .playback-icon-button {
-    align-content: center; align-items: center; box-sizing: border-box;
-    grid-template-rows: 22px; gap: 0; height: 44px; min-height: 44px;
-    min-width: 44px; padding: 0; width: 44px;
-}
-.playback-icon-button-shell ::deep .playback-icon-button__visual { height: 22px; width: 22px; }
-.playback-icon-button-shell ::deep .playback-icon-button.is-active .playback-icon-button__visual::before,
-.playback-icon-button-shell ::deep .playback-icon-button.is-selected .playback-icon-button__visual::before {
-    border: 1px solid var(--tl-accent-primary);
+/* Repeat one: the small "1" sits over the middle of the loop. */
+.playback-icon-button-shell ::deep .playback-icon-button__badge {
+    font: 700 var(--playback-badge-size)/1 var(--font-ui);
+    left: 50%;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }

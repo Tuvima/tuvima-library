@@ -27,7 +27,7 @@
     flex-direction: column;
     width: min(100% - 5rem, 106rem);
     margin: 0 auto;
-    color: #f7f8fc;
+    color: var(--tl-text-primary);
 }
 
 .tl-detail-primary-module--sequence .tl-detail-primary-module__viewport,
@@ -110,7 +110,7 @@
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__copy strong {
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__copy small {
@@ -132,12 +132,12 @@
     padding: 0.4rem 0.7rem;
 
     color: rgba(255, 255, 255, 0.68);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 
 }
 
 ::deep .tl-detail-primary-module__filter.is-active {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 70%, #321a78), var(--tl-detail-primary, #8852FC));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 70%, var(--tl-accent-primary-active)), var(--tl-detail-primary, var(--tl-accent-primary)));
 
 }
 
@@ -147,7 +147,7 @@
     min-width: 1.15rem;
     height: 1.15rem;
     border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: rgba(255, 255, 255, 0.62);
     font-size: var(--tl-font-size-xs);
 }
@@ -162,7 +162,6 @@
     color: rgba(255, 255, 255, 0.48);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.1em;
-    text-transform: uppercase;
 }
 
 .tl-detail-primary-module__role-filter select {
@@ -231,8 +230,8 @@
 
 .tl-detail-primary-module__item:hover .tl-detail-primary-module__art,
 .tl-detail-primary-module__item:focus-visible .tl-detail-primary-module__art {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 76%, #fff);
-    box-shadow: 0 0 1.25rem color-mix(in srgb, var(--tl-detail-primary, #8852FC) 42%, transparent);
+    border-color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 76%, var(--tl-text-on-accent));
+    box-shadow: 0 0 1.25rem color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 42%, transparent);
 }
 
 .tl-detail-primary-module__copy {
@@ -249,7 +248,7 @@
 }
 
 .tl-detail-primary-module__copy strong {
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
 }
 
@@ -331,58 +330,57 @@
     padding: 0.2rem 0.48rem;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(5, 9, 17, 0.82);
     box-shadow: 0 0.25rem 0.8rem rgba(0, 0, 0, 0.28);
     color: rgba(255, 255, 255, 0.92);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.07em;
     line-height: 1;
     text-overflow: ellipsis;
-    text-transform: uppercase;
     white-space: nowrap;
     backdrop-filter: blur(0.55rem);
 }
 
 .tl-detail-primary-module__media-type .tl-icon-root {
-    font-size: 0.9rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .tl-detail-primary-module__media-type--read {
-    color: #c8ffbb;
+    color: var(--tl-status-success);
 }
 
 .tl-detail-primary-module__media-type--watch {
-    color: #d4c6ff;
+    color: var(--tl-accent-primary-hover);
 }
 
 .tl-detail-primary-module__media-type--listen {
-    color: #ffe3a1;
+    color: var(--tl-accent-collection-hover);
 }
 
 ::deep .tl-detail-primary-module__filter--read {
-    color: #bff5b5;
+    color: var(--tl-status-success);
 }
 
 ::deep .tl-detail-primary-module__filter--watch {
-    color: #cdbfff;
+    color: var(--tl-accent-primary-hover);
 }
 
 ::deep .tl-detail-primary-module__filter--listen {
-    color: #ffe2a3;
+    color: var(--tl-accent-collection-hover);
 }
 
 ::deep .tl-detail-primary-module__filter--read.is-active {
-    background: linear-gradient(135deg, #255f42, #3e9a61);
+    background: linear-gradient(135deg, var(--tl-status-success), var(--tl-status-success));
 }
 
 ::deep .tl-detail-primary-module__filter--watch.is-active {
-    background: linear-gradient(135deg, #47278c, #7447df);
+    background: linear-gradient(135deg, var(--tl-accent-primary-active), var(--tl-accent-primary));
 }
 
 ::deep .tl-detail-primary-module__filter--listen.is-active {
-    background: linear-gradient(135deg, #72531e, #aa7830);
+    background: linear-gradient(135deg, var(--tl-accent-collection), var(--tl-accent-collection));
 }
 
 @media (min-width: 840px) and (max-height: 800px) {
@@ -439,13 +437,13 @@
     border-radius: 0;
     background: transparent;
     color: rgba(244, 247, 252, 0.74);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     white-space: nowrap;
 }
 
 ::deep .tl-detail-primary-module__filter:not(:disabled) {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 64%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 64%, var(--tl-text-on-accent));
 }
 
 ::deep .tl-detail-primary-module__filter-count {
@@ -454,9 +452,9 @@
     min-width: 1.55rem;
     min-height: 1.55rem;
     padding-inline: 0.35rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 36%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 36%, transparent);
+    border-radius: var(--tl-radius-pill);
+    background: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 13%, transparent);
     color: inherit;
     font-size: var(--tl-font-size-xs);
     font-variant-numeric: tabular-nums;
@@ -472,7 +470,7 @@
 ::deep .tl-detail-primary-module__filter:hover,
 ::deep .tl-detail-primary-module__filter:focus-visible {
     background: rgba(255, 255, 255, 0.065);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 ::deep .tl-detail-primary-module__role-filter.is-active,
@@ -480,9 +478,9 @@
 ::deep .tl-detail-primary-module__filter--read.is-active,
 ::deep .tl-detail-primary-module__filter--watch.is-active,
 ::deep .tl-detail-primary-module__filter--listen.is-active {
-    background: linear-gradient(135deg, #4f2fbd, #7447ef);
+    background: linear-gradient(135deg, var(--tl-accent-primary-active), var(--tl-accent-primary));
     box-shadow: inset 0 0 0 1px rgba(189, 168, 255, 0.26);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 
 ::deep .tl-detail-primary-module__filter.is-active .tl-detail-primary-module__filter-count {

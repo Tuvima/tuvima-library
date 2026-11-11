@@ -252,6 +252,11 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
                 Request(previewOnly: true, new EditSessionChange { Id = "number", Kind = EditSessionChangeKinds.Relationship, EntityId = song, TargetId = album.ToString(), Token = "position:0" }),
                 NoRefusals);
             Assert.Equal(EditSessionReasons.BadPosition, Assert.Single(invalid.Changes).Reason);
+
+            var noPlace = await Service().RunAsync(
+                Request(previewOnly: true, new EditSessionChange { Id = "place", Kind = EditSessionChangeKinds.Relationship, EntityId = song, TargetId = okComputer.ToString(), Token = EditSessionPosition.PlaceToken(0) }),
+                NoRefusals);
+            Assert.Equal(EditSessionReasons.BadPosition, Assert.Single(noPlace.Changes).Reason);
         }
 
         using (_callers.Use(new EditSessionCaller(LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Nothing)))
@@ -358,6 +363,112 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
         Assert.Equal(EditSessionReasons.NoFiles, Assert.Single(result.Changes).Reason);
     }
 
+    // ----- the Match tab's TV and music flows, saved (universal editor v5, 3c) --------------------------------------------------
+
+    [Fact]
+    public async Task ASongMatchedToDisc2Track3OfAnotherAlbum_PreviewsTheMove_AndSavingMovesItAndItsFileIntoThatAlbum()
+    {
+        var (okComputer, _) = OkComputerAlbum();
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out var oldPath, out var asset);
+        var bestOf = _world.Work(song).Parent!.Value;
+        var (karmaPolice, _, _) = _world.AddChild(bestOf, "Music", "Karma Police", 5);
+        var candidate = EditorMatchCandidates.ForMusicTrack(
+            "0b1c2d3e-0000-4000-8000-000000000001", "0b1c2d3e-0000-4000-8000-000000000002", "OK Computer", "Radiohead", "1997", true,
+            "0b1c2d3e-0000-4000-8000-000000000003", "Paranoid Android", "Radiohead", disc: 2, track: 3, lengthSeconds: 387, disambiguation: "2017 remaster");
+
+        var placement = await PlanAsync(song, candidate);
+
+        Assert.NotNull(placement);
+        Assert.Equal(okComputer, placement.DestinationId);
+        Assert.StartsWith("The Best Of", placement.CurrentParentLabel, StringComparison.Ordinal);
+        Assert.StartsWith("OK Computer", placement.ParentLabel, StringComparison.Ordinal);
+        Assert.True(placement.Managed);
+        Assert.Equal(bestOf, placement.CurrentParentId);
+        Assert.Equal(1, placement.CurrentParentKeeps);
+        Assert.Equal(3, placement.Position);
+        Assert.Equal("3", candidate.SuggestedFields["track_number"]);
+        Assert.Equal("2", candidate.SuggestedFields["disc_number"]);
+        Assert.Equal("0b1c2d3e-0000-4000-8000-000000000003", candidate.BridgeIds["musicbrainz_recording_id"]);
+
+        using (_callers.Use(Caller()))
+        {
+            var result = await Service().RunAsync(
+                Request(previewOnly: false, SavedIdentity("match", song, candidate), Relationship("move", song, okComputer, EditSessionPosition.PlaceToken(placement.Position!.Value)), FileMove("files", song)), NoRefusals);
+
+            Assert.True(result.DataSaved);
+            Assert.All(result.Changes, change => Assert.Equal(EditSessionChangeStatuses.Ok, change.Status));
+        }
+
+        // The match that was saved names the exact release, recording, disc and track the person chose.
+        var saved = Assert.Single(_writer.Requests);
+        Assert.Equal("2", saved.SuggestedFields["disc_number"]);
+        Assert.Equal("3", saved.SuggestedFields["track_number"]);
+        Assert.Equal("0b1c2d3e-0000-4000-8000-000000000003", saved.BridgeIds["musicbrainz_recording_id"]);
+
+        // The new album holds the song at the chosen track (3) beside its own songs; the old album keeps its other song at its own place.
+        Assert.Equal(okComputer, _world.Work(song).Parent);
+        Assert.Equal(3, _world.Work(song).Ordinal);
+        Assert.Equal(0, _world.Scalar<long>("SELECT COUNT(*) FROM works WHERE parent_work_id = @bestOf AND id = @song;", new { bestOf, song }));
+        Assert.Equal(2, _world.Scalar<long>("SELECT COUNT(*) FROM works WHERE parent_work_id = @okComputer;", new { okComputer }));
+        Assert.Equal(bestOf, _world.Work(karmaPolice).Parent);
+        Assert.Equal(5, _world.Work(karmaPolice).Ordinal);
+        Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM works WHERE parent_work_id = @bestOf;", new { bestOf }));
+        Assert.False(File.Exists(oldPath));
+        Assert.Equal("OK Computer (1997)", Path.GetFileName(Path.GetDirectoryName(Files.StoredPath(asset))));
+    }
+
+    [Fact]
+    public async Task AWronglyFolderedEpisodeMatchedToAnotherShowsSeason_MovesIntoThatSeasonWithItsManagedFile()
+    {
+        var wrongShow = _world.AddParent("TV", "Signal Lost");
+        _world.Put(wrongShow, "year", "2015");
+        var wrongSeason = _world.AddParent("TV", string.Empty, wrongShow, ordinal: 2);
+        var rightShow = _world.AddParent("TV", "The Last Signal");
+        _world.Put(rightShow, "year", "2019");
+        var collection = _world.AddSeriesCollection("tvdb:100", [
+            ("s2e3", "tvdb:100:season:2", 3, "Echoes in the Dark", null)]);
+        _world.Scalar<long>("UPDATE works SET collection_id = @collection WHERE id = @rightShow; SELECT 0;", new { collection, rightShow });
+        _world.AddParent("TV", string.Empty, rightShow, ordinal: 1);
+        var rightSeason = _world.AddParent("TV", string.Empty, rightShow, ordinal: 2);
+        var oldPath = MoveFileWorld.WriteFile(Files.Managed, "TV/Signal Lost (2015)/Season 02/Signal Lost - s02e03 - Echoes in the Dark.mkv");
+        var (episode, _, asset) = _world.AddChild(wrongSeason, "TV", "Echoes in the Dark", 3, filePath: oldPath);
+        _world.Put(asset!.Value, "title", "Echoes in the Dark");
+        _world.Put(asset.Value, "media_type", "TV");
+        _world.Put(asset.Value, "season_number", "2");
+        _world.Put(asset.Value, "episode_number", "3");
+        var candidate = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 46);
+
+        var placement = await PlanAsync(episode, candidate);
+
+        Assert.NotNull(placement);
+        Assert.Equal(rightSeason, placement.DestinationId);
+        Assert.True(placement.Managed);
+        Assert.Equal(Path.GetFullPath(oldPath), placement.FromPath);
+        Assert.Contains("The Last Signal", placement.ToPath, StringComparison.Ordinal);
+        Assert.Contains("Season 02", placement.ToPath, StringComparison.Ordinal);
+
+        using (_callers.Use(Caller()))
+        {
+            var result = await Service().RunAsync(
+                Request(previewOnly: false, Identity("match", episode), Relationship("move", episode, rightSeason), FileMove("files", episode)), NoRefusals);
+
+            Assert.True(result.DataSaved);
+            Assert.All(result.Changes, change => Assert.Equal(EditSessionChangeStatuses.Ok, change.Status));
+        }
+
+        Assert.Equal(rightSeason, _world.Work(episode).Parent);
+        Assert.False(File.Exists(oldPath));
+        Assert.Contains("The Last Signal", Files.StoredPath(asset.Value), StringComparison.Ordinal);
+        Assert.True(File.Exists(Files.StoredPath(asset.Value)));
+    }
+
+    private Task<EditorMatchPlacementDto?> PlanAsync(Guid item, ItemCanonicalRetailCandidateDto candidate) =>
+        new EditorMatchPlacementService(
+            _world.Service,
+            _world.Repository,
+            new ItemCanonicalRepository(_world.Database, NullLogger<ItemCanonicalRepository>.Instance),
+            Files.Organizer).PlanAsync(item, candidate, LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Everything);
+
     // ----- helpers ---------------------------------------------------------------------------------------------------------------
 
     private EditSessionService Service(IEditSessionChangeHandler? extra = null, IAutoOrganizeService? organizer = null)
@@ -415,12 +526,33 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
         }),
     };
 
-    private static EditSessionChange Relationship(string id, Guid item, Guid destination) => new()
+    // The identity change as the Dashboard stages it: the exact request a chosen record produces (mirrors EditorMatchRules.RequestFor).
+    private static EditSessionChange SavedIdentity(string id, Guid item, MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => new()
+    {
+        Id = id,
+        Kind = EditSessionChangeKinds.Identity,
+        EntityId = item,
+        TargetId = EditSessionIdentityTarget.Serialize(new ReplaceRetailMatchRequestDto
+        {
+            TargetKind = "work",
+            TargetFieldGroup = "track",
+            ProviderId = candidate.ProviderId,
+            ProviderName = candidate.ProviderName,
+            ProviderItemId = candidate.ProviderItemId ?? string.Empty,
+            CoverUrl = candidate.CoverUrl,
+            RequiredFields = new Dictionary<string, string>(candidate.RequiredFields, StringComparer.OrdinalIgnoreCase),
+            SuggestedFields = new Dictionary<string, string>(candidate.SuggestedFields, StringComparer.OrdinalIgnoreCase),
+            BridgeIds = new Dictionary<string, string>(candidate.BridgeIds, StringComparer.OrdinalIgnoreCase),
+        }),
+    };
+
+    private static EditSessionChange Relationship(string id, Guid item, Guid destination, string? token = null) => new()
     {
         Id = id,
         Kind = EditSessionChangeKinds.Relationship,
         EntityId = item,
         TargetId = destination.ToString(),
+        Token = token,
     };
 
     private static EditSessionChange Position(string id, Guid item, Guid album, int number) => new()
@@ -463,6 +595,9 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
     {
         public List<string> Calls { get; } = [];
 
+        /// <summary>The requests the no-move write was given, in order.</summary>
+        public List<ReplaceRetailMatchRequestDto> Requests { get; } = [];
+
         public Action<string>? OnCall { get; set; }
 
         /// <summary>A plain-English refusal the check gives.</summary>
@@ -478,6 +613,7 @@ public sealed class EditSessionMatchHandlerTests : IDisposable
         {
             var call = "replace-without-moving:" + entityId;
             Calls.Add(call);
+            Requests.Add(request);
             OnCall?.Invoke(call);
             return Task.FromResult(Failure is null ? Results.Ok(new ItemCanonicalApplyResponseDto { EntityId = entityId }) : ApiErrors.BadRequest(Failure));
         }

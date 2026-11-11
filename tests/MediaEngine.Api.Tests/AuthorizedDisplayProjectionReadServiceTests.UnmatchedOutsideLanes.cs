@@ -451,7 +451,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 INSERT INTO audiobook_listen_history (id, profile_id, work_id, asset_id, title, position_seconds, device_id, client, started_at, ended_at)
                 VALUES (@history, @profile, @duplicate, @duplicateAsset, 'Heard', 90, 'd', 'web', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
                 INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@profile, 'Audiobook', @duplicate, CURRENT_TIMESTAMP);
-                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@profile, 'Audiobook', @duplicate, 'Love', CURRENT_TIMESTAMP);
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@profile, 'Audiobook', @duplicate, 'Like', CURRENT_TIMESTAMP);
                 INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@profile, @duplicate, '["car"]', 1, CURRENT_TIMESTAMP);
                 """,
                 new

@@ -41,6 +41,9 @@ internal sealed class TestViewProfileRepository(ViewProfilePolicy? policy = null
 
     public Task<bool> SaveDocumentsSortAsync(Guid profileId, string? sort, CancellationToken ct = default) =>
         throw new NotSupportedException();
+
+    public Task<bool> SaveDocumentsPicturesToPhotosAsync(Guid profileId, bool toPhotos, CancellationToken ct = default) =>
+        throw new NotSupportedException();
 }
 
 internal sealed class TestAllowAuthorizationEvaluator : IAuthorizationEvaluator

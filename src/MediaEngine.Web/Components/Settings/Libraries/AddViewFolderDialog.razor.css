@@ -3,7 +3,7 @@
     display: grid;
     gap: var(--tl-space-5);
     box-sizing: border-box;
-    width: min(calc(100vw - 64px), 560px);
+    width: 100%;
     max-width: 100%;
     padding-block: var(--tl-space-3) var(--tl-space-4);
 }
@@ -18,7 +18,6 @@
     font-size: var(--tl-font-size-sm);
     font-weight: 600;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
 }
 
 .add-view-folder__line {
@@ -60,4 +59,4 @@
     white-space: nowrap;
 }
 
-.add-view-folder__text--empty { color: var(--tl-text-secondary); }
+.add-view-folder__picker { display: grid; gap: var(--tl-space-3); }

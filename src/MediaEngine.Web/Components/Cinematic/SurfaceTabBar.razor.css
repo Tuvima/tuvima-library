@@ -30,7 +30,7 @@
 .surface-tab-bar__count {
     min-width: 1.45rem;
     padding: 0.12rem 0.38rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(255, 255, 255, 0.08);
     font-size: var(--tl-font-size-xs);
     text-align: center;

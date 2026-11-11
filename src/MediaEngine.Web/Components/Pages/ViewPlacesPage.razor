@@ -1,6 +1,8 @@
 @page "/view/places"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@implements IDisposable
+@inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
 @inject UIOrchestratorService Orchestrator
@@ -29,20 +31,16 @@ else
                      Hotspots="@_atlas.Hotspots" ThumbnailUrl="HotspotThumbnail" JourneyEnabled="@_journey" ShowNavigation="false" OnHotspotSelected="SelectHotspotAsync" />
             <div class="view-atlas__toolbar" aria-label="@L["ViewPlacesPage_AtlasFilters"].Value">
                 <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions"].Value" AriaLabel="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions2"].Value" /></label>
-                <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="@L["ViewPlacesPage_FilterPlacesByTime"].Value"><option value="">@L["ViewPlacesPage_AllTime"]</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
+                <AppSelect Native="true" Value="@TimePresetValue" ValueChanged="TimePresetChangedAsync" aria-label="@L["ViewPlacesPage_FilterPlacesByTime"].Value"><option value="">@L["ViewPlacesPage_AllTime"]</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppSelect>
                 <div class="view-atlas__types" role="group" aria-label="@L["Common_MediaType"].Value"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">@L["ApiKeys_AllKeysRevoked"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">@L["Common_Photos"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">@L["ViewPlacesPage_Videos"]</AppNativeButton></div>
                 <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />@L["Common_Filters"]</AppNativeButton>
             </div>
             @if (_filtersOpen)
             {
                 <section class="view-atlas__filter-sheet" aria-label="@L["ViewPlacesPage_PlacesFilters"].Value">
-                    @if (Workspace.Scopes is not null)
-                    {
-                        <label><span>@L["ViewPlacesPage_LibraryScope"]</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="@L["ViewPlacesPage_AuthorizedPlacesScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
-                    }
                     <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="@L["ViewPlacesPage_FavoritesOnly"].Value" /><small>@L["ViewPlacesPage_ShowMappedMediaMarkedAs"]</small></div>
                     @if (_atlas.UnmappedAssetCount > 0) { <AppButton Label="@($"Without location ({_atlas.UnmappedAssetCount:N0})")" OnClick="ShowUnmappedAsync" /> }
-                    @if (_favoritesOnly) { <AppNativeButton Type="button" Class="view-atlas__clear-filter" OnClick="@(_ => ClearAdvancedFiltersAsync())">@L["Common_ClearFilters"]</AppNativeButton> }
+                    @if (_favoritesOnly) { <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="@(() => ClearAdvancedFiltersAsync())" Label="@L["Common_ClearFilters"].Value" /> }
                 </section>
             }
             <div class="view-atlas__compass" role="toolbar" aria-label="@L["ViewPlacesPage_MemoryCompass"].Value">
@@ -98,7 +96,7 @@ else
     private bool _initializing = true, _loading, _storyLoading, _showUnmapped, _journey, _filtersOpen, _favoritesOnly;
     private IReadOnlyList<LocalAssetDto> _unmapped = [];
 
-    protected override async Task OnInitializedAsync() { _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAtlasAsync(); }
+    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAtlasAsync(); }
     // The atlas histogram remains monthly and contextual while the selector controls
     // the calendar precision used by the range handles. This prevents Year mode from
     // collapsing a multi-year library into a handful of oversized bars.
@@ -123,7 +121,7 @@ else
         _search = value?.ToString() ?? string.Empty; _searchCts?.Cancel(); _searchCts?.Dispose(); var pending = _searchCts = new CancellationTokenSource();
         try { await Task.Delay(250, pending.Token); await LoadAtlasAsync(); } catch (OperationCanceledException) { }
     }
-    private async Task TimePresetChangedAsync(ChangeEventArgs args) { _year = int.TryParse(args.Value?.ToString(), out var year) ? year : null; _from = _year.HasValue ? new DateTimeOffset(_year.Value, 1, 1, 0, 0, 0, TimeSpan.Zero) : null; _to = _year.HasValue ? new DateTimeOffset(_year.Value, 12, 31, 23, 59, 59, 999, TimeSpan.Zero) : null; await LoadAtlasAsync(); }
+    private async Task TimePresetChangedAsync(string? selected) { _year = int.TryParse(selected, out var year) ? year : null; _from = _year.HasValue ? new DateTimeOffset(_year.Value, 1, 1, 0, 0, 0, TimeSpan.Zero) : null; _to = _year.HasValue ? new DateTimeOffset(_year.Value, 12, 31, 23, 59, 59, 999, TimeSpan.Zero) : null; await LoadAtlasAsync(); }
     private async Task SetMediaKindAsync(string? kind) { _mediaKind = kind; await LoadAtlasAsync(); }
     private string TimePresetValue => _year?.ToString() ?? string.Empty;
     private string TypeClass(string? kind) => string.Equals(_mediaKind, kind, StringComparison.Ordinal) ? "is-active" : string.Empty;
@@ -184,14 +182,11 @@ else
     private async Task FavoritesChangedAsync(bool value) { _favoritesOnly = value; await LoadAtlasAsync(); }
     private async Task ClearAdvancedFiltersAsync() { _favoritesOnly = false; await LoadAtlasAsync(); }
     private string HotspotThumbnail(ViewAtlasHotspotDto hotspot) => _profileId.HasValue ? GrantUrl(hotspot.RepresentativeLibraryId, hotspot.RepresentativeAssetId, ViewMediaResourceKind.Thumbnail, ViewMediaResourceRole.Primary, Workspace.ScopeKind, Workspace.ScopeProfileId) : string.Empty;
-    private async Task ScopeChangedAsync(ChangeEventArgs args)
+    public void Dispose() => Workspace.ScopeChanged -= ScopeSwitchedAsync;
+    private async Task ScopeSwitchedAsync()
     {
-        var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return;
-        Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
-        if (await Workspace.SelectScopeAsync(kind, profile)) { _grants.Clear(); CloseStory(); _active = null; _atlas = null; await LoadAtlasAsync(); }
+        await InvokeAsync(async () => { _grants.Clear(); CloseStory(); _active = null; _atlas = null; await LoadAtlasAsync(); StateHasChanged(); });
     }
-    private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId);
-    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private void OpenItem(LocalAssetDto item) => _active = item;
     private void CloseViewer() => _active = null;
     private int ActiveIndex => _active is null ? -1 : StoryItems.ToList().FindIndex(item => item.Id == _active.Id);
@@ -216,8 +211,8 @@ else
     private void ClearSelection() { _selected.Clear(); _selectionAnchor = null; }
     private void BeginDrag(Guid id) => AssetDrag.Begin(_selected.Contains(id) ? _selected : [id]); private void EndDrag() => AssetDrag.Clear();
     private async Task ToggleFavoriteAsync() { if (_active is null) return; var value = !_active.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_active.Id, value)) UpdateActive(_active with { Favorite = value }); }
-    private async Task ArchiveAsync() { if (_active is not null && await ApiClient.ArchiveViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
-    private async Task TrashAsync() { if (_active is not null && await ApiClient.TrashViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
+    private async Task ArchiveAsync() { if (_active is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
+    private async Task TrashAsync() { if (_active is not null && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
     private async Task AddToGalleryAsync(Guid galleryId) { if (_active is not null) await ApiClient.AddViewGalleryItemsAsync(galleryId, [_active.Id]); }
     private void UpdateActive(LocalAssetDto item) { _active = item; if (_placeMedia is not null) _placeMedia = _placeMedia with { Items = _placeMedia.Items.Select(existing => existing.Id == item.Id ? item : existing).ToList() }; if (_showUnmapped) _unmapped = _unmapped.Select(existing => existing.Id == item.Id ? item : existing).Where(existing => !existing.Latitude.HasValue || !existing.Longitude.HasValue).ToList(); }
     private string AssetUrl(LocalAssetDto item, ViewMediaResourceKind kind, ViewMediaResourceRole role = ViewMediaResourceRole.Primary) { if (!_profileId.HasValue) return string.Empty; var scope = ItemScope(item); return GrantUrl(item.LibraryId, item.Id, kind, role, scope.Kind, scope.ProfileId); }

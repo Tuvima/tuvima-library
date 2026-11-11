@@ -410,6 +410,9 @@ MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkEntityVariant
   Aspect: System.String | nullability=not-null | accessors=get,init
   SourceProvider: System.String | nullability=nullable | accessors=get,init
   SourceUrl: System.String | nullability=nullable | accessors=get,init
+  FileSizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  FileName: System.String | nullability=nullable | accessors=get,init
+  ContentType: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkEntityWorkspaceDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -1428,6 +1431,7 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupsRe
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.RestoreFromDestinationRequest
   DestinationId: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
+  KeysPin: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
   Id: System.String | nullability=nullable | accessors=get,set
@@ -1688,6 +1692,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionLi
   OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
   UnmatchedCount: System.Int32 | nullability=not-null | accessors=get,init
   Unmatched: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionListEntryDto> | nullability=not-null | accessors=get,init
+  NeedsSignIn: System.Boolean | nullability=not-null | accessors=get,init
+  SignInHref: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionLocationPlacementSummary
   collection_id: System.Guid | nullability=not-null | accessors=get,init
@@ -2420,9 +2426,26 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailExtraCardViewM
   Kind: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
   Subtitle: System.String | nullability=nullable | accessors=get,init
+  ExtraKind: System.String | nullability=not-null | accessors=get,init
+  Place: System.String | nullability=nullable | accessors=get,init
+  Badge: System.String | nullability=nullable | accessors=get,init
   ItemCount: System.Int32 | nullability=not-null | accessors=get,init
   PreviewIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  Group: System.String | nullability=nullable | accessors=get,init
+  ScopeKey: System.String | nullability=not-null | accessors=get,init
+  ScopeSource: System.String | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  FileBadge: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  AlongsideLabel: System.String | nullability=nullable | accessors=get,init
+  AlongsideAssetId: System.String | nullability=nullable | accessors=get,init
+  ScopeAssetId: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
   AiResults: MediaEngine.Contracts.Details.DetailAiResultsViewModel | nullability=nullable | accessors=get,init
@@ -2450,6 +2473,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
   SeasonNumber: System.String | nullability=nullable | accessors=get,init
   EpisodeNumber: System.String | nullability=nullable | accessors=get,init
   EpisodeTitle: System.String | nullability=nullable | accessors=get,init
+  EpisodePicture: System.String | nullability=nullable | accessors=get,init
   Network: System.String | nullability=nullable | accessors=get,init
   SeasonCount: System.String | nullability=nullable | accessors=get,init
   EpisodeCount: System.String | nullability=nullable | accessors=get,init
@@ -2515,6 +2539,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   IsUnmatched: System.Boolean | nullability=not-null | accessors=get,set
   UnmatchedAssets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel> | nullability=not-null | accessors=get,set
   Extras: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailExtraCardViewModel> | nullability=not-null | accessors=get,set
+  ExtrasCardsPerGroup: System.Int32 | nullability=not-null | accessors=get,set
   CollectionInfo: MediaEngine.Contracts.Details.DetailCollectionInfoViewModel | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
@@ -2770,6 +2795,8 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewMode
   EpisodeStillUrl: System.String | nullability=nullable | accessors=get,init
   EpisodeStillWidthPx: System.Int32? | nullability=nullable | accessors=get,init
   EpisodeStillHeightPx: System.Int32? | nullability=nullable | accessors=get,init
+  PictureIsStandIn: System.Boolean | nullability=not-null | accessors=get,init
+  StandInRetryAfter: System.String | nullability=nullable | accessors=get,init
   EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | nullability=nullable | accessors=get,init
   ProgressPercent: System.Double? | nullability=nullable | accessors=get,init
   PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
@@ -2829,16 +2856,166 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
   OrderedItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,set
   AlsoInThisWorld: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceGroupViewModel> | nullability=not-null | accessors=get,set
+  StandInBackdropUrl: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
   ContainerId: System.String | nullability=not-null | accessors=get,init
   ContainerTitle: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkChangesDto
+  GroupName: System.String | nullability=nullable | accessors=get,init
+  ClearGroup: System.Boolean | nullability=not-null | accessors=get,init
+  NoGroup: System.Boolean | nullability=not-null | accessors=get,init
+  Role: System.String | nullability=nullable | accessors=get,init
+  ClearRole: System.Boolean | nullability=not-null | accessors=get,init
+  ScopeKey: System.String | nullability=nullable | accessors=get,init
+  UseFolderLocation: System.Boolean | nullability=not-null | accessors=get,init
+  AddTags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  RemoveTags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  ClearTitle: System.Boolean | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  ClearDescription: System.Boolean | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  NoAlongside: System.Boolean | nullability=not-null | accessors=get,init
+  UseGuessedAlongside: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkDeleteRequest
+  Ids: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkDeleteResultDto
+  Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileDeleteItemResultDto> | nullability=not-null | accessors=get,init
+  Removed: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkItemResultDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkStatuses
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest
+  Ids: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Changes: MediaEngine.Contracts.Details.SupportingFileBulkChangesDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileBulkUpdateResultDto
+  Preview: System.Boolean | nullability=not-null | accessors=get,init
+  Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileBulkItemResultDto> | nullability=not-null | accessors=get,init
+  Changed: System.Int32 | nullability=not-null | accessors=get,init
+  Moves: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SupportingFilePlannedMoveDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileDeleteItemResultDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  Disk: System.String | nullability=nullable | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileDiskOutcomes
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  OwnTitle: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  GroupId: System.String | nullability=nullable | accessors=get,init
+  Group: System.String | nullability=nullable | accessors=get,init
+  GroupSource: System.String | nullability=nullable | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  RoleIsSetByYou: System.Boolean | nullability=not-null | accessors=get,init
+  ScopeKey: System.String | nullability=not-null | accessors=get,init
+  InferredScopeKey: System.String | nullability=not-null | accessors=get,init
+  ScopeSource: System.String | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  InferredAlongsideKey: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileGroupDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  SortOrder: System.Int32 | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileListDefaults
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileListDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileRowDto> | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  TotalAll: System.Int32 | nullability=not-null | accessors=get,init
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  PageSize: System.Int32 | nullability=not-null | accessors=get,init
+  PageCount: System.Int32 | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileGroupDto> | nullability=not-null | accessors=get,init
+  UngroupedCount: System.Int32 | nullability=not-null | accessors=get,init
+  WhereOptions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileWhereOptionDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileMoveStatuses
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFilePlannedMoveDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  From: System.String | nullability=not-null | accessors=get,init
+  To: System.String | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileRowDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Type: System.String | nullability=not-null | accessors=get,init
+  Badge: System.String | nullability=not-null | accessors=get,init
+  TypeLabel: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  HasOwnTitle: System.Boolean | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  WhereKey: System.String | nullability=not-null | accessors=get,init
+  WhereLabel: System.String | nullability=not-null | accessors=get,init
+  ScopeSource: System.String | nullability=not-null | accessors=get,init
+  AlongsideKey: System.String | nullability=nullable | accessors=get,init
+  AlongsideLabel: System.String | nullability=nullable | accessors=get,init
+  GroupId: System.String | nullability=nullable | accessors=get,init
+  Group: System.String | nullability=nullable | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileSearchHitDto
+  OwnerId: System.Guid | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=not-null | accessors=get,init
+  ScopeLabel: System.String | nullability=not-null | accessors=get,init
+  Type: System.String | nullability=not-null | accessors=get,init
+  TypeLabel: System.String | nullability=not-null | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SupportingFileWhereOptionDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Level: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+  ParentKey: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.TvEpisodeDetailRoute
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.UniverseLinkViewModel
   Qid: System.String | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
+  SeriesCount: System.Int32 | nullability=not-null | accessors=get,init
+  WorkCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DebugBridgeHint
   Key: System.String | nullability=not-null | accessors=get,init
@@ -2927,6 +3104,10 @@ MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DevHarnessWi
 
 MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DevHarnessWipeScope
 
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseFolderDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseLibraryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
@@ -2934,6 +3115,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseLibraryDto
   Area: System.String | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
   HasFolders: System.Boolean | nullability=not-null | accessors=get,init
+  Folders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.BrowseFolderDto> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayActionDto
   Type: System.String | nullability=not-null | accessors=get,init
@@ -3014,6 +3196,8 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardDto
   SortYear: System.Int32 | nullability=not-null | accessors=get,init
   ListMetadata: MediaEngine.Contracts.Display.DisplayCardListMetadataDto | nullability=nullable | accessors=get,init
   IsSettling: System.Boolean | nullability=not-null | accessors=get,init
+  IsNew: System.Boolean? | nullability=nullable | accessors=get,init
+  UniverseQid: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardFlagsDto
   IsPlayable: System.Boolean | nullability=not-null | accessors=get,init
@@ -3144,6 +3328,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroDto
   Genres: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   PreviewItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayCardPreviewItemDto> | nullability=not-null | accessors=get,init
   PreviewTotalCount: System.Int32? | nullability=nullable | accessors=get,init
+  CollageUrls: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   IsContinued: System.Boolean | nullability=not-null | accessors=get,init
   SuggestedBy: System.String | nullability=nullable | accessors=get,init
   SuggestedReason: System.String | nullability=nullable | accessors=get,init
@@ -3291,6 +3476,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.UniversalSearchResul
   Relevance: System.Double | nullability=not-null | accessors=get,init
   Facts: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   PreviewItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.UniversalSearchPreviewItemDto> | nullability=not-null | accessors=get,init
+  SupportingFile: MediaEngine.Contracts.Details.SupportingFileSearchHitDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.UniversalSearchSectionDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -3309,6 +3495,9 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
   TargetId: System.String | nullability=nullable | accessors=get,init
   Slot: System.String | nullability=nullable | accessors=get,init
   Token: System.String | nullability=nullable | accessors=get,init
+  OrderedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+  SupportingFiles: MediaEngine.Contracts.Details.SupportingFileBulkUpdateRequest | nullability=nullable | accessors=get,init
+  Bookmarks: MediaEngine.Contracts.Playback.EditorBookmarkChangeDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeKinds
 
@@ -3320,6 +3509,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeRes
   Reason: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeStatuses
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChildRematchTarget
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionExtraMove
 
@@ -3342,6 +3533,440 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionResult
   DataSaved: System.Boolean | nullability=not-null | accessors=get,init
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChangeResult> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionSiblingMatchTarget
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionThingAdd
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionVideo
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorCoverColorsDto
+  PrimaryHex: System.String | nullability=nullable | accessors=get,init
+  SecondaryHex: System.String | nullability=nullable | accessors=get,init
+  AccentHex: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorCurrentMatchDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Record: MediaEngine.Contracts.Editing.EditorMatchedRecordDto | nullability=nullable | accessors=get,init
+  WikidataQid: System.String | nullability=nullable | accessors=get,init
+  WikidataUrl: System.String | nullability=nullable | accessors=get,init
+  Why: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchEvidenceRowDto> | nullability=not-null | accessors=get,init
+  Verdict: System.String | nullability=nullable | accessors=get,init
+  Pinned: System.Boolean | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorCurrentMatchSources
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorCurrentMatchStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFileFactsDto
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+  Quality: System.String | nullability=nullable | accessors=get,init
+  Container: System.String | nullability=nullable | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  FileName: System.String | nullability=nullable | accessors=get,init
+  Folder: System.String | nullability=nullable | accessors=get,init
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,init
+  IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFileGuessDto
+  ExtraKind: System.String | nullability=not-null | accessors=get,set
+  Season: System.Int32? | nullability=nullable | accessors=get,set
+  Episode: System.Int32? | nullability=nullable | accessors=get,set
+  Track: System.Int32? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFileSortingDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  CanSort: System.Boolean | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  TitleKind: System.String | nullability=not-null | accessors=get,set
+  TitleName: System.String | nullability=nullable | accessors=get,set
+  CanBeExtra: System.Boolean | nullability=not-null | accessors=get,set
+  InTitleFolder: System.Boolean | nullability=not-null | accessors=get,set
+  ExtraKinds: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Guess: MediaEngine.Contracts.Editing.EditorFileGuessDto | nullability=nullable | accessors=get,set
+  FolderFiles: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorFolderFileDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFileSortingTitleKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFolderEntryDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  Path: System.String | nullability=not-null | accessors=get,init
+  IsFolder: System.Boolean | nullability=not-null | accessors=get,init
+  State: System.String | nullability=nullable | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  ItemId: System.Guid? | nullability=nullable | accessors=get,init
+  SupportingFileId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFolderEntryStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFolderFileDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  CanBeExtra: System.Boolean | nullability=not-null | accessors=get,set
+  Guess: MediaEngine.Contracts.Editing.EditorFileGuessDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFolderTreeDto
+  RootName: System.String | nullability=not-null | accessors=get,init
+  Folder: System.String | nullability=not-null | accessors=get,init
+  ParentFolder: System.String | nullability=nullable | accessors=get,init
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Offset: System.Int32 | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorFolderEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  Finished: System.Boolean | nullability=not-null | accessors=get,set
+  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorFollowUpStepDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStepDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpSteps
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorGroupMatchDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  TargetLabel: System.String | nullability=not-null | accessors=get,init
+  Lines: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorGroupMatchLineDto> | nullability=not-null | accessors=get,init
+  MessageCode: System.String | nullability=nullable | accessors=get,init
+  SubjectMediaType: System.String | nullability=nullable | accessors=get,init
+  SubjectScopeId: System.String | nullability=nullable | accessors=get,init
+  SubjectTargetGroup: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorGroupMatchKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorGroupMatchLineDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  NumberText: System.String | nullability=nullable | accessors=get,init
+  TargetTitle: System.String | nullability=nullable | accessors=get,init
+  Verdict: System.String | nullability=nullable | accessors=get,init
+  Reasons: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchReasonDto> | nullability=not-null | accessors=get,init
+  Fits: System.Boolean | nullability=not-null | accessors=get,init
+  NoteCode: System.String | nullability=nullable | accessors=get,init
+  NoteValue: System.String | nullability=nullable | accessors=get,init
+  Candidate: MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto | nullability=nullable | accessors=get,init
+  Placement: MediaEngine.Contracts.Editing.EditorMatchPlacementDto | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorGroupMatchRequestDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  EntityIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,set
+  SeriesId: System.String | nullability=nullable | accessors=get,set
+  SeasonNumber: System.Int32? | nullability=nullable | accessors=get,set
+  ReleaseId: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderAlongsideDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderConfigDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  InlineSupportingFiles: System.Int32 | nullability=not-null | accessors=get,init
+  CardsPerGroup: System.Int32 | nullability=not-null | accessors=get,init
+  RowsPerPage: System.Int32 | nullability=not-null | accessors=get,init
+  ItemListPageSize: System.Int32 | nullability=not-null | accessors=get,init
+  Tabs: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  FactsLine: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  QuickFacts: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  MatchFields: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Root: MediaEngine.Contracts.Editing.EditorHeaderRootDto | nullability=not-null | accessors=get,init
+  CurrentId: System.Guid | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  LabelIsKind: System.Boolean | nullability=not-null | accessors=get,init
+  ShowHome: System.Boolean | nullability=not-null | accessors=get,init
+  HomeId: System.Guid? | nullability=nullable | accessors=get,init
+  HomeIsCurrent: System.Boolean | nullability=not-null | accessors=get,init
+  SecondLevel: MediaEngine.Contracts.Editing.EditorHeaderSecondLevelDto | nullability=nullable | accessors=get,init
+  ShowItemDropdown: System.Boolean | nullability=not-null | accessors=get,init
+  Level: MediaEngine.Contracts.Editing.EditorHeaderLevelDto | nullability=not-null | accessors=get,init
+  FolderButton: MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto | nullability=nullable | accessors=get,init
+  Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | nullability=nullable | accessors=get,init
+  FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | nullability=nullable | accessors=get,init
+  Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
+  FolderName: System.String | nullability=not-null | accessors=get,init
+  PathLabel: System.String | nullability=not-null | accessors=get,init
+  RelativeFolder: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderLevelDto
+  LevelId: System.Guid? | nullability=nullable | accessors=get,init
+  LevelTitle: System.String | nullability=nullable | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Offset: System.Int32 | nullability=not-null | accessors=get,init
+  PageSize: System.Int32 | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorNavItemDto> | nullability=not-null | accessors=get,init
+  SupportingFiles: MediaEngine.Contracts.Editing.EditorHeaderSupportingFilesDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderLevelEntryDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  SupportingFileCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderRootDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSecondLevelDto
+  Label: System.String | nullability=not-null | accessors=get,init
+  CurrentId: System.Guid? | nullability=nullable | accessors=get,init
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorHeaderLevelEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSupportingFileDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  TypeBadge: System.String | nullability=not-null | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  RoleLabel: System.String | nullability=not-null | accessors=get,init
+  Group: System.String | nullability=nullable | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+  ShownAlongside: MediaEngine.Contracts.Editing.EditorHeaderAlongsideDto | nullability=nullable | accessors=get,init
+  IsCurrent: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSupportingFilesDto
+  ScopeKey: System.String | nullability=nullable | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  TotalInRoot: System.Int32 | nullability=not-null | accessors=get,init
+  ShowAll: System.Boolean | nullability=not-null | accessors=get,init
+  Files: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorHeaderSupportingFileDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorKindNames
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchBestGuessDto
+  ProviderName: System.String | nullability=not-null | accessors=get,set
+  ProviderItemId: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Year: System.String | nullability=nullable | accessors=get,set
+  ImageUrl: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchCandidates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchCandidates+Extra
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchContextDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  ParsedTitle: System.String | nullability=nullable | accessors=get,set
+  ParsedShow: System.String | nullability=nullable | accessors=get,set
+  ParsedSeason: System.Int32? | nullability=nullable | accessors=get,set
+  ParsedEpisode: System.Int32? | nullability=nullable | accessors=get,set
+  ParsedYear: System.String | nullability=nullable | accessors=get,set
+  ParsedAbsolute: System.Int32? | nullability=nullable | accessors=get,set
+  BestGuess: MediaEngine.Contracts.Editing.EditorMatchBestGuessDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchEditionDto
+  Year: System.String | nullability=nullable | accessors=get,init
+  Publisher: System.String | nullability=nullable | accessors=get,init
+  Format: System.String | nullability=nullable | accessors=get,init
+  Language: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchEvidenceRowDto
+  Field: System.String | nullability=not-null | accessors=get,init
+  YourFile: System.String | nullability=nullable | accessors=get,init
+  MatchedRecord: System.String | nullability=nullable | accessors=get,init
+  Score: System.Double? | nullability=nullable | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Verdict: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchEvidenceStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchFailedProviderDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchFieldDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+  From: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchIdentifierDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchIdentifierKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchLocalEvidenceDto
+  FileTitle: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  Season: System.Int32? | nullability=nullable | accessors=get,init
+  EpisodeTitle: System.String | nullability=nullable | accessors=get,init
+  Disc: System.Int32? | nullability=nullable | accessors=get,init
+  Creator: System.String | nullability=nullable | accessors=get,init
+  MeasuredSeconds: System.Double? | nullability=nullable | accessors=get,init
+  MeasuredText: System.String | nullability=nullable | accessors=get,init
+  Identifiers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchIdentifierDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchMessageCodes
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchPlacementDto
+  DestinationId: System.Guid? | nullability=nullable | accessors=get,init
+  ParentLabel: System.String | nullability=nullable | accessors=get,init
+  CurrentParentLabel: System.String | nullability=nullable | accessors=get,init
+  CurrentParentId: System.Guid? | nullability=nullable | accessors=get,init
+  CurrentParentKeeps: System.Int32? | nullability=nullable | accessors=get,init
+  Position: System.Int32? | nullability=nullable | accessors=get,init
+  Managed: System.Boolean | nullability=not-null | accessors=get,init
+  FromPath: System.String | nullability=nullable | accessors=get,init
+  ToPath: System.String | nullability=nullable | accessors=get,init
+  BlockedReason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchPlacementRequestDto
+  Candidate: MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchProviderDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  IsDefault: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchProviderStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchReasonDto
+  Fact: System.String | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Text: System.String | nullability=not-null | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchResultDto
+  Candidate: MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto | nullability=not-null | accessors=get,init
+  ProviderName: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Creator: System.String | nullability=nullable | accessors=get,init
+  LengthText: System.String | nullability=nullable | accessors=get,init
+  ImageUrl: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  SourceUrl: System.String | nullability=nullable | accessors=get,init
+  KindText: System.String | nullability=nullable | accessors=get,init
+  Verdict: System.String | nullability=not-null | accessors=get,init
+  Reasons: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchReasonDto> | nullability=not-null | accessors=get,init
+  Editions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchResultDto> | nullability=not-null | accessors=get,init
+  Edition: MediaEngine.Contracts.Editing.EditorMatchEditionDto | nullability=nullable | accessors=get,init
+  IsSuggested: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchSearchRequestDto
+  Provider: System.String | nullability=nullable | accessors=get,set
+  Fields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchSearchResultDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Provider: System.String | nullability=not-null | accessors=get,init
+  Query: System.String | nullability=not-null | accessors=get,init
+  RetriedWithoutPunctuation: System.Boolean | nullability=not-null | accessors=get,init
+  Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchResultDto> | nullability=not-null | accessors=get,init
+  FailedProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchFailedProviderDto> | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+  Evidence: MediaEngine.Contracts.Editing.EditorMatchLocalEvidenceDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchSetupDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=nullable | accessors=get,init
+  NoProvider: System.Boolean | nullability=not-null | accessors=get,init
+  NoProviderMessage: System.String | nullability=nullable | accessors=get,init
+  Providers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchProviderDto> | nullability=not-null | accessors=get,init
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchFieldDto> | nullability=not-null | accessors=get,init
+  Evidence: MediaEngine.Contracts.Editing.EditorMatchLocalEvidenceDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchVerdictRequestDto
+  Candidate: MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchVerdicts
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchedRecordDto
+  ProviderId: System.String | nullability=not-null | accessors=get,init
+  ProviderName: System.String | nullability=not-null | accessors=get,init
+  ProviderItemId: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Creator: System.String | nullability=nullable | accessors=get,init
+  ImageUrl: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  SourceUrl: System.String | nullability=nullable | accessors=get,init
+  Source: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMusicDiscDto
+  Number: System.Int32 | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Tracks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMusicTrackDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMusicReleaseDto
+  ReleaseId: System.String | nullability=not-null | accessors=get,init
+  ReleaseGroupId: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Artist: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  Format: System.String | nullability=nullable | accessors=get,init
+  Country: System.String | nullability=nullable | accessors=get,init
+  TrackCount: System.Int32 | nullability=not-null | accessors=get,init
+  HasCover: System.Boolean | nullability=not-null | accessors=get,init
+  ImageUrl: System.String | nullability=nullable | accessors=get,init
+  SourceUrl: System.String | nullability=nullable | accessors=get,init
+  IsCurrent: System.Boolean | nullability=not-null | accessors=get,init
+  IsSuggested: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMusicReleaseTracksDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Release: MediaEngine.Contracts.Editing.EditorMusicReleaseDto | nullability=not-null | accessors=get,init
+  Discs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMusicDiscDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMusicReleasesDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Query: System.String | nullability=not-null | accessors=get,init
+  Releases: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMusicReleaseDto> | nullability=not-null | accessors=get,init
+  MessageCode: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMusicTrackDto
+  RecordingId: System.String | nullability=nullable | accessors=get,init
+  ReleaseTrackId: System.String | nullability=nullable | accessors=get,init
+  Disc: System.Int32 | nullability=not-null | accessors=get,init
+  Track: System.Int32 | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Artist: System.String | nullability=nullable | accessors=get,init
+  LengthSeconds: System.Double? | nullability=nullable | accessors=get,init
+  LengthText: System.String | nullability=nullable | accessors=get,init
+  Disambiguation: System.String | nullability=nullable | accessors=get,init
+  IsSuggested: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorNavItemDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Code: System.String | nullability=nullable | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  StillUrl: System.String | nullability=nullable | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  IsCurrent: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorNavItemStates
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -3350,6 +3975,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectDto
   ArtworkSlots: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   Fields: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFieldDto> | nullability=not-null | accessors=get,init
   Facts: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFactDto> | nullability=not-null | accessors=get,init
+  Members: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectMemberDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectFactDto
   Label: System.String | nullability=not-null | accessors=get,init
@@ -3364,10 +3990,216 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectFieldDt
   CanonicalValue: System.String | nullability=not-null | accessors=get,init
   IsOverridden: System.Boolean | nullability=not-null | accessors=get,init
   SourceLabel: System.String | nullability=nullable | accessors=get,init
+  Options: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectOptionDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectInputKinds
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectMemberDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectOptionDto
+  Value: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSuggestDetailsDto
+  SupportingFileId: System.Guid | nullability=not-null | accessors=get,init
+  Source: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Author: System.String | nullability=nullable | accessors=get,init
+  PageCount: System.Int32? | nullability=nullable | accessors=get,init
+  FirstLines: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSuggestDetailsSources
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFileDto
+  TitleId: System.Guid | nullability=not-null | accessors=get,init
+  File: MediaEngine.Contracts.Details.SupportingFileDto | nullability=not-null | accessors=get,init
+  Type: System.String | nullability=not-null | accessors=get,init
+  TypeLabel: System.String | nullability=not-null | accessors=get,init
+  Badge: System.String | nullability=not-null | accessors=get,init
+  MimeType: System.String | nullability=not-null | accessors=get,init
+  Folder: System.String | nullability=nullable | accessors=get,init
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Roles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorSupportingFileRoleDto> | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Places: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorSupportingFilePlaceDto> | nullability=not-null | accessors=get,init
+  ScopeLabel: System.String | nullability=not-null | accessors=get,init
+  FolderScopeLabel: System.String | nullability=not-null | accessors=get,init
+  AlongsideLabel: System.String | nullability=nullable | accessors=get,init
+  DescriptionMaxCharacters: System.Int32 | nullability=not-null | accessors=get,init
+  Header: MediaEngine.Contracts.Editing.EditorHeaderDto | nullability=nullable | accessors=get,init
+  Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFilePlaceDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Level: System.String | nullability=not-null | accessors=get,init
+  ParentKey: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSupportingFileRoleDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorUniverseKindDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Singular: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  Available: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorUniverseThingDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  PictureUrl: System.String | nullability=nullable | accessors=get,init
+  AddedByUser: System.Boolean | nullability=not-null | accessors=get,init
+  Hidden: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorUniverseThingsDto
+  UniverseId: System.Guid | nullability=not-null | accessors=get,init
+  UniverseQid: System.String | nullability=not-null | accessors=get,init
+  UniverseName: System.String | nullability=not-null | accessors=get,init
+  Kinds: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorUniverseKindDto> | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=nullable | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Offset: System.Int32 | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  Things: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorUniverseThingDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictDto
+  Conflict: System.Boolean | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  WikidataLabel: System.String | nullability=nullable | accessors=get,init
+  WikidataYear: System.String | nullability=nullable | accessors=get,init
+  WikidataType: System.String | nullability=nullable | accessors=get,init
+  ProviderName: System.String | nullability=nullable | accessors=get,init
+  ProviderYear: System.String | nullability=nullable | accessors=get,init
+  ProviderTitle: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictReasons
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictRequestDto
+  Qid: System.String | nullability=nullable | accessors=get,set
+  ProviderId: System.String | nullability=nullable | accessors=get,set
+  ProviderName: System.String | nullability=nullable | accessors=get,set
+  ProviderItemId: System.String | nullability=nullable | accessors=get,set
+  ProviderTitle: System.String | nullability=nullable | accessors=get,set
+  ProviderYear: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto
+  Fact: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Yours: System.String | nullability=nullable | accessors=get,init
+  Wikidata: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataEvidenceFacts
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataEvidenceStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataIdentityDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Qid: System.String | nullability=nullable | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Type: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Url: System.String | nullability=nullable | accessors=get,init
+  Offline: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataMessageCodes
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataRelations
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataResultDto
+  Qid: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Type: System.String | nullability=nullable | accessors=get,init
+  Fact: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Relation: System.String | nullability=not-null | accessors=get,init
+  CanApply: System.Boolean | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  Url: System.String | nullability=nullable | accessors=get,init
+  Evidence: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataSearchRequestDto
+  Query: System.String | nullability=nullable | accessors=get,set
+  Paste: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataSearchResultDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorWikidataResultDto> | nullability=not-null | accessors=get,init
+  FromPaste: System.Boolean | nullability=not-null | accessors=get,init
+  MessageCode: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchPreviewDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  SeriesId: System.String | nullability=not-null | accessors=get,set
+  ShowName: System.String | nullability=not-null | accessors=get,set
+  SeasonNumber: System.Int32 | nullability=not-null | accessors=get,set
+  MatchableCount: System.Int32 | nullability=not-null | accessors=get,set
+  Rows: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EpisodeSiblingMatchRowDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchRowDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  SourceFileName: System.String | nullability=not-null | accessors=get,set
+  EpisodeNumber: System.Int32 | nullability=not-null | accessors=get,set
+  TargetEpisodeId: System.String | nullability=nullable | accessors=get,set
+  TargetTitle: System.String | nullability=nullable | accessors=get,set
+  Found: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchTarget
+  SeriesId: System.String | nullability=not-null | accessors=get,set
+  SeasonNumber: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ExtraFileChoice
+  Action: System.String | nullability=not-null | accessors=get,init
+  ExtraKind: System.String | nullability=nullable | accessors=get,init
+  Season: System.Int32? | nullability=nullable | accessors=get,init
+  Episode: System.Int32? | nullability=nullable | accessors=get,init
+  Track: System.Int32? | nullability=nullable | accessors=get,init
+  TitleId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ItemQuickFactCountDto
+  Label: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ItemQuickFactsDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  RuntimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+  BestQuality: System.String | nullability=nullable | accessors=get,init
+  DirectOwned: System.Int32 | nullability=not-null | accessors=get,init
+  DirectTotal: System.Int32 | nullability=not-null | accessors=get,init
+  LeafOwned: System.Int32 | nullability=not-null | accessors=get,init
+  LeafTotal: System.Int32 | nullability=not-null | accessors=get,init
+  ReadOnlyLibrary: System.Boolean | nullability=not-null | accessors=get,set
+  ItemCount: System.Int32? | nullability=nullable | accessors=get,init
+  Owner: System.String | nullability=nullable | accessors=get,init
+  Roles: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  CountsByKind: System.Collections.Generic.List<MediaEngine.Contracts.Editing.ItemQuickFactCountDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ItemQuickFactsKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ShowChildRematchPreviewDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  SeriesId: System.String | nullability=not-null | accessors=get,set
+  ShowName: System.String | nullability=not-null | accessors=get,set
+  EpisodeCount: System.Int32 | nullability=not-null | accessors=get,set
+  MatchableCount: System.Int32 | nullability=not-null | accessors=get,set
+  NotFoundCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ShowChildRematchTarget
+  SeriesId: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Import.MediaEngine.Contracts.Import.ImportApplyRequest
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -3825,6 +4657,13 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileD
   Reason: System.String | nullability=nullable | accessors=get,init
   IsSidecar: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileScopeDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  ItemRemains: System.Boolean | nullability=not-null | accessors=get,init
+  RemainingFiles: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto
   Kind: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -3854,6 +4693,7 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPrevi
   GoesToRecycleBin: System.Boolean | nullability=not-null | accessors=get,init
   Fingerprint: System.String | nullability=not-null | accessors=get,init
   Group: MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto | nullability=nullable | accessors=get,init
+  FileScope: MediaEngine.Contracts.Items.LibraryItemDeletionFileScopeDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
@@ -3943,6 +4783,15 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   UniverseSummary: MediaEngine.Contracts.Items.LibraryItemUniverseSummaryDto | nullability=nullable | accessors=get,init
   LookupState: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemFileDeletionPreviewRequest
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemFileDeletionRequest
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemHistoryDto
   Id: System.String | nullability=not-null | accessors=get,init
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -4014,6 +4863,8 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoIdentifyStateRespon
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderEntryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  AddedAt: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderGroupDto
   ParentId: System.Guid | nullability=not-null | accessors=get,init
@@ -4049,6 +4900,73 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesTargetDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
   VideoCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityCoverDto
+  Url: System.String | nullability=nullable | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityGroupDto
+  GroupKey: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Route: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityPurgeRequest
+  OlderThan: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityPurgeResultDto
+  Removed: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunCountDto
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=not-null | accessors=get,init
+  LibraryName: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  EndedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  Counts: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityRunCountDto> | nullability=not-null | accessors=get,init
+  Covers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityCoverDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunGroupsDto
+  EntryId: System.Guid | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityGroupDto> | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunKindNames
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunStatusNames
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunsDto
+  Runs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityRunDto> | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  LastCompletedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleCardDto
+  GroupKey: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Route: System.String | nullability=nullable | accessors=get,init
+  TotalCount: System.Int32 | nullability=not-null | accessors=get,init
+  Markers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityTitleMarkerDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleMarkerDto
+  EntryId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleSearchDto
+  Titles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityTitleCardDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckDto
   State: System.String | nullability=not-null | accessors=get,set
@@ -4501,6 +5419,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAssetTim
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  EditorLimits: MediaEngine.Contracts.LocalAssets.ViewEditorLimitsDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAtlasHotspotDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -4749,6 +5668,9 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
   UsageCount: System.Int32 | nullability=not-null | accessors=get,init
   CanManage: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentsPicturesDto
+  ToPhotos: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentsSortDto
   Sort: System.String | nullability=nullable | accessors=get,init
 
@@ -4775,6 +5697,10 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDuplicat
   ScanHour: System.Int32 | nullability=not-null | accessors=get,init
   LastScanAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDuplicateGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewEditorLimitsDto
+  InlineItems: System.Int32 | nullability=not-null | accessors=get,init
+  PageSize: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFilingLayoutDto
   Pattern: System.String | nullability=not-null | accessors=get,init
@@ -4872,12 +5798,71 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewIntakeSu
   LayoutPattern: System.String | nullability=not-null | accessors=get,init
   Rejected: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewIntakeRejectedDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsDocumentEdit
+  SetTitle: System.Boolean | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  SetCorrespondent: System.Boolean | nullability=not-null | accessors=get,init
+  Correspondent: System.String | nullability=nullable | accessors=get,init
+  SetDocumentType: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentType: System.String | nullability=nullable | accessors=get,init
+  SetDocumentDate: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentDate: System.DateOnly? | nullability=nullable | accessors=get,init
+  SetArchiveNumber: System.Boolean | nullability=not-null | accessors=get,init
+  ArchiveNumber: System.String | nullability=nullable | accessors=get,init
+  SetNotes: System.Boolean | nullability=not-null | accessors=get,init
+  Notes: System.String | nullability=nullable | accessors=get,init
+  FieldValues: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueRequest> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditLimits
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditRefusalDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditRequest
+  ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  SetDescription: System.Boolean | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  TagsAdd: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  TagsRemove: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  PeopleAdd: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  PeopleRemove: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  CapturedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  CapturedShiftSeconds: System.Int64? | nullability=nullable | accessors=get,init
+  CapturedReset: System.Boolean | nullability=not-null | accessors=get,init
+  Location: MediaEngine.Contracts.LocalAssets.UpdateLocalAssetLocationRequest | nullability=nullable | accessors=get,init
+  GalleryAddIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
+  GalleryRemoveIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
+  CreateGalleryName: System.String | nullability=nullable | accessors=get,init
+  Document: MediaEngine.Contracts.LocalAssets.ViewItemsDocumentEdit | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditResultDto
+  Saved: System.Boolean | nullability=not-null | accessors=get,init
+  Valid: System.Boolean | nullability=not-null | accessors=get,init
+  ChangedCount: System.Int32 | nullability=not-null | accessors=get,init
+  Refusals: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewItemsEditRefusalDto> | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+  CreatedGalleryId: System.Guid? | nullability=nullable | accessors=get,init
+  DayMoves: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditSetRequest
+  Edits: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewItemsEditRequest> | nullability=not-null | accessors=get,init
+  PreviewOnly: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsRemovedResponse
   Removed: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMissingFileSettingsDto
   RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
   DefaultRetentionDays: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOnThisDayDto
+  Years: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto
+  Year: System.Int32 | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  Cover: MediaEngine.Contracts.LocalAssets.LocalAssetDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOtherHouseholdDto
   HouseholdId: System.Guid | nullability=not-null | accessors=get,init
@@ -4986,7 +5971,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewScopeRes
   AvailableScopes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewScopeOptionDto> | nullability=not-null | accessors=get,init
   CanBrowseOtherPeople: System.Boolean | nullability=not-null | accessors=get,init
   CanViewDocuments: System.Boolean | nullability=not-null | accessors=get,init
-  CanFileSharedInbox: System.Boolean | nullability=not-null | accessors=get,init
+  CanEditSharedDocuments: System.Boolean | nullability=not-null | accessors=get,init
   CanViewPhotos: System.Boolean | nullability=not-null | accessors=get,init
   CanViewPersonalVideos: System.Boolean | nullability=not-null | accessors=get,init
 
@@ -5292,6 +6277,7 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalLinke
   ResolutionTier: System.String | nullability=nullable | accessors=get,set
   Confidence: System.Double | nullability=not-null | accessors=get,set
   MatchScores: MediaEngine.Contracts.Search.FieldMatchScoresDto | nullability=nullable | accessors=get,set
+  ReasonText: System.String | nullability=nullable | accessors=get,set
   BridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   MediaTypeMetadata: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   LinkState: System.String | nullability=not-null | accessors=get,set
@@ -5318,6 +6304,7 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalRetai
   ExtraFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   CompositeScore: System.Double | nullability=not-null | accessors=get,set
   MatchScores: MediaEngine.Contracts.Search.FieldMatchScoresDto | nullability=nullable | accessors=get,set
+  ReasonText: System.String | nullability=nullable | accessors=get,set
   LinkState: System.String | nullability=not-null | accessors=get,set
   LinkStatusLabel: System.String | nullability=not-null | accessors=get,set
   IsApplicable: System.Boolean | nullability=not-null | accessors=get,set
@@ -5340,6 +6327,7 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearc
   SearchMode: System.String | nullability=not-null | accessors=get,set
   MaxCandidates: System.Int32 | nullability=not-null | accessors=get,set
   ProviderName: System.String | nullability=nullable | accessors=get,set
+  LookupFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto
   ProviderErrors: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -5369,7 +6357,6 @@ MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ReplaceRetailMatch
   RequiredFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   SuggestedFields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   BridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
-  ClearAutoAlignedWikidata: System.Boolean | nullability=not-null | accessors=get,set
   ReviewItemId: System.Guid? | nullability=nullable | accessors=get,set
   ExpectedIdentityRevision: System.String | nullability=nullable | accessors=get,set
 
@@ -5583,6 +6570,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorAssetSe
   Container: System.String | nullability=nullable | accessors=get,set
   AudioTracks: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorAssetAudioTrackDto> | nullability=not-null | accessors=get,set
   SubtitleLanguages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Folder: System.String | nullability=nullable | accessors=get,set
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorContextDto
   LaunchEntityId: System.Guid | nullability=not-null | accessors=get,set
@@ -5602,6 +6591,7 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorContext
   DisplayOverrides: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   InitialScope: System.String | nullability=not-null | accessors=get,set
   Scopes: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopeDto> | nullability=not-null | accessors=get,set
+  Header: MediaEngine.Contracts.Editing.EditorHeaderDto | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionCoverAffectedFileDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init
@@ -5740,6 +6730,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorNavigat
   CanSelectAsEditorTarget: System.Boolean | nullability=not-null | accessors=get,set
   CanQuarantine: System.Boolean | nullability=not-null | accessors=get,set
   QuarantineCount: System.Int32 | nullability=not-null | accessors=get,set
+  MatchState: System.String | nullability=not-null | accessors=get,set
+  MatchReason: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedChildDto
   AssetId: System.Guid | nullability=not-null | accessors=get,set
@@ -5764,6 +6756,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedCh
   SourceFileName: System.String | nullability=not-null | accessors=get,set
   SourceFilePath: System.String | nullability=not-null | accessors=get,set
   MatchState: System.String | nullability=not-null | accessors=get,set
+  MatchReason: System.String | nullability=nullable | accessors=get,set
+  FileSizeBytes: System.Int64? | nullability=nullable | accessors=get,set
   FileState: System.String | nullability=not-null | accessors=get,set
   SeasonNumber: System.Int32? | nullability=nullable | accessors=get,set
   DiscNumber: System.Int32? | nullability=nullable | accessors=get,set
@@ -5816,6 +6810,7 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairing
   Conflicts: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   CanSave: System.Boolean | nullability=not-null | accessors=get,init
   SaveLimitation: System.String | nullability=nullable | accessors=get,init
+  ReasonText: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingChildDto
   ChildId: System.String | nullability=not-null | accessors=get,init
@@ -6118,6 +7113,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvMatchBrowserEpis
   IsCurrent: System.Boolean | nullability=not-null | accessors=get,init
   HasFile: System.Boolean | nullability=not-null | accessors=get,init
   FileEntityId: System.Guid? | nullability=nullable | accessors=get,init
+  RuntimeMinutes: System.Int32? | nullability=nullable | accessors=get,init
+  AbsoluteNumber: System.Int32? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvMatchBrowserEpisodesDto
   SeriesId: System.String | nullability=not-null | accessors=get,init
@@ -6138,6 +7135,10 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvMatchBrowserSeas
   SeriesId: System.String | nullability=not-null | accessors=get,init
   ShowName: System.String | nullability=not-null | accessors=get,init
   Seasons: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Metadata.TvMatchBrowserSeasonDto> | nullability=not-null | accessors=get,init
+  Genre: System.String | nullability=nullable | accessors=get,init
+  Overview: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  ImageUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvMatchBrowserShowDto
   SeriesId: System.String | nullability=not-null | accessors=get,init
@@ -6601,6 +7602,10 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkD
   Description: System.String | nullability=nullable | accessors=get,init
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  InEveryone: System.Boolean | nullability=not-null | accessors=get,init
+  FrameUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init
@@ -6668,28 +7673,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookSleepTime
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookStartKinds
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkClosenessLabels
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackChapterDto
   Title: System.String | nullability=not-null | accessors=get,init
   StartSeconds: System.Double | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackDto
-  Id: System.Guid | nullability=not-null | accessors=get,init
-  WorkId: System.Guid | nullability=not-null | accessors=get,init
-  Name: System.String | nullability=not-null | accessors=get,init
-  Author: System.String | nullability=nullable | accessors=get,init
-  IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
-  IsAligned: System.Boolean | nullability=not-null | accessors=get,init
-  ImportedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
-  Bookmarks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PackBookmarkDto> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackExportRequestDto
-  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  BookmarkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
-  Name: System.String | nullability=not-null | accessors=get,init
-  Author: System.String | nullability=nullable | accessors=get,init
-  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
-  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackFileDto
   FileName: System.String | nullability=not-null | accessors=get,init
@@ -6698,26 +7686,59 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackFileDt
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackImportModes
 
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackImportRequestDto
-  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  ContentBase64: System.String | nullability=not-null | accessors=get,init
-  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
-  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
-  Mode: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackLimits
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackMatchResults
 
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkPackPreviewDto
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkRowChoices
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetCompareDto
   Name: System.String | nullability=not-null | accessors=get,init
   Author: System.String | nullability=nullable | accessors=get,init
   BookmarkCount: System.Int32 | nullability=not-null | accessors=get,init
   Match: System.String | nullability=not-null | accessors=get,init
   Reason: System.String | nullability=not-null | accessors=get,init
   CanAlignByChapter: System.Boolean | nullability=not-null | accessors=get,init
-  AlreadyImported: System.Boolean | nullability=not-null | accessors=get,init
+  RowsReady: System.Boolean | nullability=not-null | accessors=get,init
+  SkippedCount: System.Int32 | nullability=not-null | accessors=get,init
+  AppliesToGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkSetCompareRowDto> | nullability=not-null | accessors=get,init
+  GlobalCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetCompareRowDto
+  Index: System.Int32 | nullability=not-null | accessors=get,init
+  Incoming: MediaEngine.Contracts.Playback.BookmarkSetItemDto | nullability=not-null | accessors=get,init
+  Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | nullability=nullable | accessors=get,init
+  GapSeconds: System.Double? | nullability=nullable | accessors=get,init
+  GapChapters: System.Int32? | nullability=nullable | accessors=get,init
+  GapPages: System.Int32? | nullability=nullable | accessors=get,init
+  Closeness: System.String | nullability=not-null | accessors=get,init
+  DefaultChoice: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetExistingDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  Locator: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetItemDto
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  EndSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ChapterTitle: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Locator: System.String | nullability=nullable | accessors=get,init
+  FrameBase64: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetRequestDto
+  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  ContentBase64: System.String | nullability=not-null | accessors=get,init
+  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
+  Mode: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastReceivers
 
@@ -6892,6 +7913,106 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadKind
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadListDto
   Downloads: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.DeviceDownloadDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkChangeDto
+  Ops: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkOp> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkCompareRequestDto
+  ContentBase64: System.String | nullability=not-null | accessors=get,init
+  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
+  Mode: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkImportItem
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  EndSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ChapterTitle: System.String | nullability=nullable | accessors=get,init
+  Locator: System.String | nullability=nullable | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  PositionKind: System.String | nullability=nullable | accessors=get,init
+  FrameBase64: System.String | nullability=nullable | accessors=get,init
+  Name: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  ReplacesBookmarkId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkLimits
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOp
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  BookmarkId: System.Guid? | nullability=nullable | accessors=get,init
+  Name: System.String | nullability=nullable | accessors=get,init
+  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkImportItem> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOpKinds
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOverviewDto
+  RootId: System.Guid | nullability=not-null | accessors=get,init
+  RootTitle: System.String | nullability=not-null | accessors=get,init
+  EveryoneTotal: System.Int32 | nullability=not-null | accessors=get,init
+  MemberCount: System.Int32 | nullability=not-null | accessors=get,init
+  DefinitiveCount: System.Int32 | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkOverviewGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOverviewGroupDto
+  GroupId: System.Guid? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  BookmarkCount: System.Int32 | nullability=not-null | accessors=get,init
+  Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkOverviewRowDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkOverviewRowDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Code: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.Int32? | nullability=nullable | accessors=get,init
+  EveryoneCount: System.Int32 | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  ProfileCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkRowDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  PositionKind: System.String | nullability=not-null | accessors=get,init
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  EndSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  ChapterTitle: System.String | nullability=nullable | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  FrameUrl: System.String | nullability=nullable | accessors=get,init
+  InEveryone: System.Boolean | nullability=not-null | accessors=get,init
+  CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkShowCompareDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  BookmarkCount: System.Int32 | nullability=not-null | accessors=get,init
+  UnmatchedEpisodes: System.Int32 | nullability=not-null | accessors=get,init
+  Episodes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkShowCompareEpisodeDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkShowCompareEpisodeDto
+  SeasonNumber: System.Int32 | nullability=not-null | accessors=get,init
+  EpisodeNumber: System.Int32 | nullability=not-null | accessors=get,init
+  WorkId: System.Guid? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Compare: MediaEngine.Contracts.Playback.BookmarkSetCompareDto | nullability=nullable | accessors=get,init
+  NewCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarkStates
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EditorBookmarksDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Everyone: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkRowDto> | nullability=not-null | accessors=get,init
+  FromProfiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EditorBookmarkRowDto> | nullability=not-null | accessors=get,init
+  AssetId: System.Guid? | nullability=nullable | accessors=get,init
+  HasTimes: System.Boolean | nullability=not-null | accessors=get,init
+  CanExchange: System.Boolean | nullability=not-null | accessors=get,init
+  HasFrames: System.Boolean | nullability=not-null | accessors=get,init
+  RunningTimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   AssetId: System.Guid | nullability=not-null | accessors=get,init
@@ -6929,7 +8050,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackComm
   LyricTrackId: System.Guid? | nullability=nullable | accessors=get,init
   IdentityKind: System.String | nullability=nullable | accessors=get,init
   IdentityId: System.Guid? | nullability=nullable | accessors=get,init
-  PopupWindowId: System.Guid? | nullability=nullable | accessors=get,init
   Index: System.Int32? | nullability=nullable | accessors=get,init
   ExpectedQueueRevision: System.Int64? | nullability=nullable | accessors=get,init
   OutputDeviceId: System.String | nullability=nullable | accessors=get,init
@@ -7012,14 +8132,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.OfflineVariantDto
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.OfflineVariantStatuses
 
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PackBookmarkDto
-  Id: System.Guid | nullability=not-null | accessors=get,init
-  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
-  EndSeconds: System.Double? | nullability=nullable | accessors=get,init
-  ChapterTitle: System.String | nullability=nullable | accessors=get,init
-  Note: System.String | nullability=nullable | accessors=get,init
-  Description: System.String | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackAnalyticsDto
   SessionCount: System.Int64 | nullability=not-null | accessors=get,init
   CompletedCount: System.Int64 | nullability=not-null | accessors=get,init
@@ -7087,6 +8199,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
   MarkCompleteThresholdPercent: System.Int32 | nullability=not-null | accessors=get,set
   TrackPartiallyPlayedItems: System.Boolean | nullability=not-null | accessors=get,set
   SyncProgressBetweenBookAndAudiobook: System.Boolean | nullability=not-null | accessors=get,set
+  ShowChapterMarks: System.Boolean? | nullability=nullable | accessors=get,set
+  ShowBookmarksOnBar: System.Boolean | nullability=not-null | accessors=get,set
+  BookmarkFilter: System.String | nullability=not-null | accessors=get,set
   SpoilerLevel: System.String | nullability=not-null | accessors=get,set
   ShowVaultInNavigation: System.Boolean | nullability=not-null | accessors=get,set
   SyncAcrossDevices: System.Boolean | nullability=not-null | accessors=get,set
@@ -7118,6 +8233,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDt
   ConversionReason: System.String | nullability=nullable | accessors=get,init
   SourceBitrateKbps: System.Int32? | nullability=nullable | accessors=get,init
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | nullability=not-null | accessors=get,init
+  ScrubPreviewIndexUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPreferenceValues
 
@@ -7446,6 +8562,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ReadingSettingsDto
   FontSizePx: System.Int32 | nullability=not-null | accessors=get,set
   LineHeight: System.Decimal | nullability=not-null | accessors=get,set
   PageWidth: System.String | nullability=not-null | accessors=get,set
+  PageFit: System.String | nullability=not-null | accessors=get,set
+  PageBackground: System.String | nullability=not-null | accessors=get,set
+  ShowBookmarksOnBar: System.Boolean | nullability=not-null | accessors=get,set
+  PageLayouts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+  ComicDirections: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.RefreshTextTracksResponse
   operation_id: System.Guid? | nullability=nullable | accessors=get,init
@@ -7458,9 +8579,21 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.RefreshTextTracksR
   track_id: System.Guid? | nullability=nullable | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SetBookmarkPackEnabledRequestDto
-  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
-  IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ScrubPreviewIndexDto
+  Version: System.Int32 | nullability=not-null | accessors=get,init
+  IntervalSeconds: System.Double | nullability=not-null | accessors=get,init
+  TileWidth: System.Int32 | nullability=not-null | accessors=get,init
+  TileHeight: System.Int32 | nullability=not-null | accessors=get,init
+  Columns: System.Int32 | nullability=not-null | accessors=get,init
+  Rows: System.Int32 | nullability=not-null | accessors=get,init
+  FrameCount: System.Int32 | nullability=not-null | accessors=get,init
+  DurationSeconds: System.Double | nullability=not-null | accessors=get,init
+  Sheets: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ScrubPreviewStatusDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  BytesUsed: System.Int64 | nullability=not-null | accessors=get,init
+  FfmpegAvailable: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   DefaultSubtitleLanguage: System.String | nullability=not-null | accessors=get,set
@@ -7472,6 +8605,12 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSe
   SubtitleBackground: System.Boolean | nullability=not-null | accessors=get,set
   SubtitlePosition: System.String | nullability=not-null | accessors=get,set
   SubtitleStyle: System.String | nullability=not-null | accessors=get,set
+  SubtitleFont: System.String | nullability=not-null | accessors=get,set
+  SubtitleShadow: System.Boolean | nullability=not-null | accessors=get,set
+  SubtitleColor: System.String | nullability=not-null | accessors=get,set
+  SubtitleTextOpacity: System.Int32 | nullability=not-null | accessors=get,set
+  SubtitleBackgroundColor: System.String | nullability=not-null | accessors=get,set
+  SubtitleBackgroundOpacity: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   provider: System.String | nullability=not-null | accessors=get,init
@@ -7514,6 +8653,10 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   IsLocallyExported: System.Boolean | nullability=not-null | accessors=get,set
   Url: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
+  Label: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegmentRequest
   Kind: System.String | nullability=nullable | accessors=get,init
   StartSeconds: System.Double? | nullability=nullable | accessors=get,init
@@ -7522,6 +8665,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegm
   Source: System.String | nullability=nullable | accessors=get,init
   IsSkippable: System.Boolean? | nullability=nullable | accessors=get,init
   ReviewStatus: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateScrubPreviewSettingRequestDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpsertAudiobookChapterTitleOverrideRequestDto
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
@@ -7594,6 +8740,10 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActionDto
   Priority: System.Int32 | nullability=not-null | accessors=get,set
   Edits: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActivityCapDto
+  MaxEntries: System.Int32 | nullability=not-null | accessors=get,set
+  MaxDays: System.Int32 | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginActivityEntryDto
   Id: System.Int64 | nullability=not-null | accessors=get,set
   OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
@@ -7664,10 +8814,15 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionDto
   Description: System.String | nullability=not-null | accessors=get,set
   Linked: System.Boolean | nullability=not-null | accessors=get,set
   LinkedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  CanSignIn: System.Boolean | nullability=not-null | accessors=get,set
+  SignInNeedsSetup: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionLinkRequest
   Value: System.String | nullability=not-null | accessors=get,set
   Agreed: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionsListResponse
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginConnectionsResponse> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionsResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
@@ -7684,6 +8839,24 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDependenciesRe
   WaitingFor: System.String | nullability=nullable | accessors=get,set
   Needs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeedDto> | nullability=not-null | accessors=get,set
   NeededBy: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeededByDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDescriptions
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInCheckResponse
+  Status: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+  IntervalSeconds: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInStartRequest
+  Agreed: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInStartResponse
+  UserCode: System.String | nullability=not-null | accessors=get,set
+  VerificationUrl: System.String | nullability=not-null | accessors=get,set
+  ExpiresInSeconds: System.Int32 | nullability=not-null | accessors=get,set
+  IntervalSeconds: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInStatuses
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto
   Id: System.String | nullability=not-null | accessors=get,set
@@ -7733,6 +8906,49 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginEnabledRespons
   plugin_id: System.String | nullability=not-null | accessors=get,init
   enabled: System.Boolean | nullability=not-null | accessors=get,init
   also_changed: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileCheckRequest
+  Text: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileCheckResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileProblemDto
+  Line: System.Int32 | nullability=not-null | accessors=get,set
+  Column: System.Int32 | nullability=not-null | accessors=get,set
+  Severity: System.String | nullability=not-null | accessors=get,set
+  Code: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Text: System.String | nullability=not-null | accessors=get,set
+  State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileSaveResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Saved: System.Boolean | nullability=not-null | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+  Text: System.String | nullability=not-null | accessors=get,set
+  State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
+  Reloaded: System.Boolean | nullability=not-null | accessors=get,set
+  Health: System.String | nullability=not-null | accessors=get,set
+  HealthSummary: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileStateDto
+  FileName: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  ErrorCount: System.Int32 | nullability=not-null | accessors=get,set
+  NoteCount: System.Int32 | nullability=not-null | accessors=get,set
+  DiffersFromShipped: System.Boolean | nullability=not-null | accessors=get,set
+  HasShippedCopy: System.Boolean | nullability=not-null | accessors=get,set
+  Editable: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHealthCheckDto
   Status: System.String | nullability=not-null | accessors=get,set
@@ -7911,6 +9127,12 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProviderInfoDt
   About: System.String | nullability=not-null | accessors=get,set
   SignupUrl: System.String | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProvides
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProvidesCardDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Sentence: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -7939,6 +9161,28 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRequirementDto
   VersionRange: System.String | nullability=nullable | accessors=get,set
   Optional: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestoreItemDto
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=not-null | accessors=get,set
+  Action: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestorePreviewResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginRestoreItemDto> | nullability=not-null | accessors=get,set
+  MatchingCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestoreResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginRestoreResultItemDto> | nullability=not-null | accessors=get,set
+  RestoredCount: System.Int32 | nullability=not-null | accessors=get,set
+  ResetCount: System.Int32 | nullability=not-null | accessors=get,set
+  FailedCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestoreResultItemDto
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   saved: System.Boolean | nullability=not-null | accessors=get,init
@@ -7957,6 +9201,134 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginServiceLookupR
   status: System.String | nullability=not-null | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init
   result: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupActionDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupCardDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  NeedsAttention: System.Boolean | nullability=not-null | accessors=get,set
+  Access: MediaEngine.Contracts.Plugins.PluginAccessDto | nullability=nullable | accessors=get,set
+  Credentials: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupCredentialDto> | nullability=not-null | accessors=get,set
+  Links: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupLinkDto> | nullability=not-null | accessors=get,set
+  Provides: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Supplies: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Controls: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupControlDto> | nullability=not-null | accessors=get,set
+  Actions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupActionDto> | nullability=not-null | accessors=get,set
+  Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupDestinationDto> | nullability=not-null | accessors=get,set
+  DataLeaving: System.String | nullability=nullable | accessors=get,set
+  VaultWords: System.String | nullability=nullable | accessors=get,set
+  Text: System.String | nullability=nullable | accessors=get,set
+  Facts: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupFactDto> | nullability=not-null | accessors=get,set
+  File: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupChangeResult
+  Ok: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+  ItemId: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupChoiceDto
+  Value: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupControlDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Control: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Placeholder: System.String | nullability=not-null | accessors=get,set
+  Unit: System.String | nullability=not-null | accessors=get,set
+  Group: System.String | nullability=not-null | accessors=get,set
+  Order: System.Int32 | nullability=not-null | accessors=get,set
+  Advanced: System.Boolean | nullability=not-null | accessors=get,set
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,set
+  Scope: System.String | nullability=not-null | accessors=get,set
+  Minimum: System.Double? | nullability=nullable | accessors=get,set
+  Maximum: System.Double? | nullability=nullable | accessors=get,set
+  Integer: System.Boolean | nullability=not-null | accessors=get,set
+  Choices: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupChoiceDto> | nullability=not-null | accessors=get,set
+  Value: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
+  DefaultValue: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
+  ShowWhen: MediaEngine.Contracts.Plugins.PluginSetupShowWhenDto | nullability=nullable | accessors=get,set
+  Requires: MediaEngine.Contracts.Plugins.PluginSetupRequirementDto | nullability=nullable | accessors=get,set
+  Configured: System.Boolean? | nullability=nullable | accessors=get,set
+  SignInMethod: System.String | nullability=nullable | accessors=get,set
+  GroupList: MediaEngine.Contracts.Plugins.PluginSetupGroupListDto | nullability=nullable | accessors=get,set
+  StoredIn: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupCredentialDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Help: System.String | nullability=not-null | accessors=get,set
+  Required: System.Boolean | nullability=not-null | accessors=get,set
+  MinimumLength: System.Int32? | nullability=nullable | accessors=get,set
+  MaximumLength: System.Int32? | nullability=nullable | accessors=get,set
+  Scope: System.String | nullability=not-null | accessors=get,set
+  SignInMethod: System.String | nullability=nullable | accessors=get,set
+  Configured: System.Boolean? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupDestinationDto
+  Host: System.String | nullability=not-null | accessors=get,set
+  Sends: System.String | nullability=not-null | accessors=get,set
+  MaxRequestsPerMinute: System.Int32? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupFactDto
+  Label: System.String | nullability=not-null | accessors=get,set
+  Value: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupGroupItemDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Subtitle: System.String | nullability=nullable | accessors=get,set
+  State: System.String | nullability=nullable | accessors=get,set
+  KeyMissing: System.Boolean | nullability=not-null | accessors=get,set
+  Locked: System.Boolean | nullability=not-null | accessors=get,set
+  Values: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupGroupListDto
+  ItemTitle: System.String | nullability=not-null | accessors=get,set
+  AddLabel: System.String | nullability=not-null | accessors=get,set
+  RowActions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupControlDto> | nullability=not-null | accessors=get,set
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupGroupItemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupItemRequest
+  Values: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupLinkDto
+  Role: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Url: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupNoteDto
+  Where: System.String | nullability=not-null | accessors=get,set
+  Word: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupPageResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  PluginName: System.String | nullability=not-null | accessors=get,set
+  Definition: System.String | nullability=not-null | accessors=get,set
+  Cards: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupCardDto> | nullability=not-null | accessors=get,set
+  ThingsToKnow: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupNoteDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupRequirementDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupSecretRequest
+  Value: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupShowWhenDto
+  Setting: System.String | nullability=not-null | accessors=get,set
+  Value: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupValueRequest
+  Value: System.Text.Json.JsonElement | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSourceComparisonDto
   From: System.String | nullability=not-null | accessors=get,set
@@ -8009,6 +9381,13 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
   MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
   Category: System.String | nullability=not-null | accessors=get,set
+  Provides: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  ProvidesCards: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginProvidesCardDto> | nullability=not-null | accessors=get,set
+  RequiresLocalAi: System.Boolean | nullability=not-null | accessors=get,set
+  ShortDescription: System.String | nullability=not-null | accessors=get,set
+  LongDescription: System.String | nullability=not-null | accessors=get,set
+  IconPath: System.String | nullability=nullable | accessors=get,set
+  Removable: System.Boolean | nullability=not-null | accessors=get,set
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SupportedPlatforms: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   IsCompatible: System.Boolean | nullability=not-null | accessors=get,set
@@ -8240,8 +9619,23 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.AlignmentJobDto
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,set
   CompletedAt: System.DateTime? | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageDto
+  Number: System.Int32 | nullability=not-null | accessors=get,init
+  Width: System.Int32 | nullability=not-null | accessors=get,init
+  Height: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ComicPageListDto
+  PageCount: System.Int32 | nullability=not-null | accessors=get,init
+  RightToLeft: System.Boolean | nullability=not-null | accessors=get,init
+  Widths: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
+  Pages: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Reading.ComicPageDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateAlignmentRequestDto
   AudiobookAssetId: System.Guid | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreatePageBookmarkRequestDto
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateReaderBookmarkRequestDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
@@ -8278,6 +9672,16 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubTocEntryDto
   FragmentId: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.List<MediaEngine.Contracts.Reading.EpubTocEntryDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.PageBookmarkDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Page: System.Int32 | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  IsYours: System.Boolean | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
+  CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   UserId: System.String | nullability=not-null | accessors=get,init
@@ -8285,7 +9689,15 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   CfiPosition: System.String | nullability=nullable | accessors=get,init
   Label: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderFormatDto
+  Format: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Subtitle: System.String | nullability=nullable | accessors=get,init
+  Series: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -8299,6 +9711,13 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   Color: System.String | nullability=not-null | accessors=get,init
   NoteText: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderNextIssueDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Series: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderStatisticsDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -8566,8 +9985,37 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.MovieTvSuggestionDto
   PosterUrl: System.String | nullability=nullable | accessors=get,init
   Overview: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewBestGuessDto
+  Action: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Source: System.String | nullability=nullable | accessors=get,init
+  ImageUrl: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewKinds
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewListDto
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Review.NeedsReviewRowDto> | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  NotMatchedTotal: System.Int32 | nullability=not-null | accessors=get,init
+  NotSureTotal: System.Int32 | nullability=not-null | accessors=get,init
+  Skip: System.Int32 | nullability=not-null | accessors=get,init
+  Take: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewRowDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
+  LibraryName: System.String | nullability=nullable | accessors=get,init
+  LastTriedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  BestGuess: MediaEngine.Contracts.Review.NeedsReviewBestGuessDto | nullability=nullable | accessors=get,init
+  Review: MediaEngine.Contracts.Review.ReviewItemDto | nullability=nullable | accessors=get,init
+  Unmatched: MediaEngine.Contracts.Library.UnmatchedItemDto | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewCountResponse
   PendingCount: System.Int32 | nullability=not-null | accessors=get,init
+  NotMatchedCount: System.Int32 | nullability=not-null | accessors=get,init
+  NotSureCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewDismissResponse
   dismissed: System.Boolean | nullability=not-null | accessors=get,init
@@ -8594,6 +10042,7 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewItemDto
   CoverUrl: System.String | nullability=nullable | accessors=get,init
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
   FromImportFolder: System.Boolean | nullability=not-null | accessors=get,init
   FromMerge: System.Boolean | nullability=not-null | accessors=get,init
 
@@ -8859,6 +10308,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExcludedFileDto
   ExcludedBy: System.String | nullability=nullable | accessors=get,set
   Reason: System.String | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExcludedFileReasons
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExternalAuthProviderDto
   Id: System.String | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -9120,6 +10571,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
   Misfit: System.String | nullability=not-null | accessors=get,set
   DefaultHandling: System.String | nullability=not-null | accessors=get,set
   Tooltip: System.String | nullability=not-null | accessors=get,set
+  Explainer: System.String | nullability=not-null | accessors=get,set
+  Examples: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  LibraryDoes: System.String | nullability=not-null | accessors=get,set
   Order: System.Int32 | nullability=not-null | accessors=get,set
   BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
   PluginId: System.String | nullability=nullable | accessors=get,set
@@ -9161,6 +10615,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   Id: System.String | nullability=not-null | accessors=get,set
   Path: System.String | nullability=not-null | accessors=get,set
   ManagementMode: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=nullable | accessors=get,set
   SourceType: System.String | nullability=not-null | accessors=get,set
   IncludeSubdirectories: System.Boolean | nullability=not-null | accessors=get,set
   AccessMode: System.String | nullability=not-null | accessors=get,set
@@ -9630,6 +11085,15 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SaveSeriesMissingI
   ContainerKey: System.String | nullability=not-null | accessors=get,init
   ShowMissing: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ScrubPreviewSettings
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  IntervalSeconds: System.Int32 | nullability=not-null | accessors=get,set
+  TileWidth: System.Int32 | nullability=not-null | accessors=get,set
+  Columns: System.Int32 | nullability=not-null | accessors=get,set
+  Rows: System.Int32 | nullability=not-null | accessors=get,set
+  BackfillPerPass: System.Int32 | nullability=not-null | accessors=get,set
+  BackfillIntervalMinutes: System.Int32 | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SeriesMissingItemPreferenceDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
@@ -9831,6 +11295,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TranscodingSetting
   CleanupLruEnabled: System.Boolean | nullability=not-null | accessors=get,set
   DefaultMobileProfile: System.String | nullability=not-null | accessors=get,set
   AdaptiveHls: MediaEngine.Contracts.Settings.AdaptiveHlsSettings | nullability=not-null | accessors=get,set
+  ScrubPreviews: MediaEngine.Contracts.Settings.ScrubPreviewSettings | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIAppStoreLinksContract
   AppStore: System.String | nullability=not-null | accessors=get,set
@@ -9989,6 +11454,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ViewStorageSummary
   Sources: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.NetworkNameRules
+
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorRefusalCodes
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorRequest
@@ -10081,6 +11548,7 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupRestoreConfirmation
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupServerIdentityDto
   ServerName: System.String | nullability=not-null | accessors=get,init
   HostName: System.String | nullability=not-null | accessors=get,init
+  HostNameDerived: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupSignInModes
 
@@ -10122,6 +11590,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupArchiveDto
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
   IncludesSecrets: System.Boolean | nullability=not-null | accessors=get,init
+  IncludesKeys: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupContentsDto
   Profiles: System.Int32 | nullability=not-null | accessors=get,init
@@ -10129,6 +11598,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupContentsDto
   PersonalItems: System.Int32 | nullability=not-null | accessors=get,init
   Titles: System.Int32 | nullability=not-null | accessors=get,init
   FileOnlyTitles: System.Int32 | nullability=not-null | accessors=get,init
+  IncludesKeys: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupStateDto
   FileOnlyTitles: System.Int32 | nullability=not-null | accessors=get,init
@@ -10136,7 +11606,11 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupStateDto
   StillWaiting: System.Int32 | nullability=not-null | accessors=get,init
   LatestRestore: MediaEngine.Contracts.System.LatestRestoreDto | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ConfirmSetupRestoreRequest
+  KeysPin: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.CreateBackupRequest
+  KeysPin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
   StepNumber: System.Int32 | nullability=not-null | accessors=get,init
@@ -10195,11 +11669,14 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.RestoreValidationResul
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreRequest
   FileName: System.String | nullability=not-null | accessors=get,init
+  KeysPin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreResultDto
   Scheduled: System.Boolean | nullability=not-null | accessors=get,init
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
+  KeysStatus: System.String | nullability=nullable | accessors=get,init
+  RestoredKeys: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskDto
   Key: System.String | nullability=not-null | accessors=get,set
@@ -10575,6 +12052,27 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseConnection
   Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto> | nullability=not-null | accessors=get,init
   Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseContentsDto
+  Sections: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseContentsSectionDto> | nullability=not-null | accessors=get,init
+  Timeline: MediaEngine.Contracts.Universe.UniverseTimelineDto | nullability=nullable | accessors=get,init
+  HiddenCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseContentsSectionDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  Tiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseContentsTileDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseContentsTileDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Qid: System.String | nullability=nullable | accessors=get,init
+  PictureUrl: System.String | nullability=nullable | accessors=get,init
+  LogoUrl: System.String | nullability=nullable | accessors=get,init
+  AddedByUser: System.Boolean | nullability=not-null | accessors=get,init
+  NoPlotDetails: System.Boolean | nullability=not-null | accessors=get,init
+  PictureSource: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseDetailRef
   qid: System.String | nullability=not-null | accessors=get,init
   label: System.String | nullability=not-null | accessors=get,init
@@ -10735,6 +12233,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniversePageDto
   Standalone: MediaEngine.Contracts.Display.DisplayShelfDto | nullability=nullable | accessors=get,init
   Missing: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseShelfMissingDto> | nullability=not-null | accessors=get,init
   Enrichment: MediaEngine.Contracts.Universe.UniverseEnrichmentStateDto | nullability=not-null | accessors=get,init
+  Contents: MediaEngine.Contracts.Universe.UniverseContentsDto | nullability=nullable | accessors=get,init
   GraphEntityCount: System.Int32 | nullability=not-null | accessors=get,init
   GraphRelationshipCount: System.Int32 | nullability=not-null | accessors=get,init
 
@@ -10761,6 +12260,60 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourcedAda
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto
   Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | nullability=not-null | accessors=get,init
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseThingDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  UniverseQid: System.String | nullability=not-null | accessors=get,init
+  UniverseLabel: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  KindLabel: System.String | nullability=not-null | accessors=get,init
+  Qid: System.String | nullability=nullable | accessors=get,init
+  AddedByUser: System.Boolean | nullability=not-null | accessors=get,init
+  PictureUrl: System.String | nullability=nullable | accessors=get,init
+  PictureSource: System.String | nullability=nullable | accessors=get,init
+  LogoUrl: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  DescriptionSource: System.String | nullability=nullable | accessors=get,init
+  Aliases: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  DetailsHidden: System.Boolean | nullability=not-null | accessors=get,init
+  AppearsIn: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseThingWorkDto> | nullability=not-null | accessors=get,init
+  Related: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseThingRelatedGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseThingLinkDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  PictureUrl: System.String | nullability=nullable | accessors=get,init
+  LogoUrl: System.String | nullability=nullable | accessors=get,init
+  AddedByUser: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseThingRelatedGroupDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  Things: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseThingLinkDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseThingWorkDto
+  WorkQid: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=nullable | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Role: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseTimelineDto
+  DefaultOrder: System.String | nullability=not-null | accessors=get,init
+  StoryOrderAvailable: System.Boolean | nullability=not-null | accessors=get,init
+  Stops: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseTimelineStopDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseTimelineStopDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  PictureUrl: System.String | nullability=nullable | accessors=get,init
+  StoryYear: System.Double? | nullability=nullable | accessors=get,init
+  ReleaseYear: System.Int32? | nullability=nullable | accessors=get,init
+  WorkLabel: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.AttachVaultFolderRequest
   FolderPath: System.String | nullability=not-null | accessors=get,init

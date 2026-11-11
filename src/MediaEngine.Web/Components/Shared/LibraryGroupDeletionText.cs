@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Items;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Components.Shared;
@@ -29,7 +30,8 @@ public static class LibraryGroupDeletionText
         var type = items.Select(item => item.MediaType).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
         var singular = type.ToLowerInvariant() switch
         {
-            "tv" or "videos" => "episode",
+            "tv" => "episode",
+            "videos" => VideoFolderWording.ItemLabel.ToLowerInvariant(),
             "music" => "track",
             "books" => "book",
             "audiobooks" => "audiobook",
@@ -44,9 +46,20 @@ public static class LibraryGroupDeletionText
     {
         var count = group.TitlesOwned;
         var titles = $"{DisplayFormat.FormatCount(count)} {Noun(items, count)}";
-        return group.Kind == "show" && group.SubGroups.Count > 0
-            ? $"{DisplayFormat.FormatCount(group.SubGroups.Count)} {(group.SubGroups.Count == 1 ? "season" : "seasons")} · {titles}"
-            : titles;
+        if (group.Kind != "show" || group.SubGroups.Count == 0)
+        {
+            return titles;
+        }
+
+        return $"{SubGroupCount(group, items)} · {titles}";
+    }
+
+    // A folder of Other videos has sections, not seasons (item 17).
+    private static string SubGroupCount(LibraryItemDeletionGroupDto group, IReadOnlyCollection<LibraryItemDeletionItemDto> items)
+    {
+        var isVideoFolder = items.Any(item => VideoFolderWording.IsVideoFolderMediaType(item.MediaType));
+        var subGroups = group.SubGroups.Count;
+        return $"{DisplayFormat.FormatCount(subGroups)} {(isVideoFolder ? (subGroups == 1 ? "section" : "sections") : subGroups == 1 ? "season" : "seasons")}";
     }
 
     /// <summary>"Season 3: 6 of 10 episodes owned" for every part that is only partly owned; empty when all of it is.</summary>
@@ -54,6 +67,37 @@ public static class LibraryGroupDeletionText
         [.. group.SubGroups
             .Where(part => part.Owned < part.Total)
             .Select(part => $"{part.Title}: {DisplayFormat.FormatCount(part.Owned)} of {DisplayFormat.FormatCount(part.Total)} {Noun(items, part.Total)} owned")];
+
+    /// <summary>
+    /// The one sentence that says what goes with the group (universal editor v5 D29): "Its 2 seasons, 24 episodes and 238 supporting files will
+    /// be removed from the Library." A clause whose count is not known (0) is left out rather than invented; null when none is known.
+    /// </summary>
+    public static string? RemovalSentence(LibraryItemDeletionGroupDto group, IReadOnlyCollection<LibraryItemDeletionItemDto> items, int supportingFiles)
+    {
+        var clauses = new List<string>();
+        if (group.Kind == "show" && group.SubGroups.Count > 0)
+        {
+            clauses.Add(SubGroupCount(group, items));
+        }
+
+        if (group.TitlesOwned > 0)
+        {
+            clauses.Add($"{DisplayFormat.FormatCount(group.TitlesOwned)} {Noun(items, group.TitlesOwned)}");
+        }
+
+        if (supportingFiles > 0)
+        {
+            clauses.Add($"{DisplayFormat.FormatCount(supportingFiles)} supporting {(supportingFiles == 1 ? "file" : "files")}");
+        }
+
+        if (clauses.Count == 0)
+        {
+            return null;
+        }
+
+        var list = clauses.Count == 1 ? clauses[0] : $"{string.Join(", ", clauses.Take(clauses.Count - 1))} and {clauses[^1]}";
+        return $"Its {list} will be removed from the Library.";
+    }
 
     /// <summary>The Series warning (D11): the books go with it.</summary>
     public static string? SeriesLine(LibraryItemDeletionGroupDto group, IReadOnlyCollection<LibraryItemDeletionItemDto> items) =>

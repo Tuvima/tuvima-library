@@ -6,26 +6,26 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// The tab set each detail page type offers (item-detail spec, section 4). No page offers a Universe,
-/// Related, Characters, Portrayals or Relationships tab.
+/// Related, Details, Characters, Portrayals or Relationships tab.
 /// </summary>
 public sealed class DetailTabCatalogTests
 {
     public static TheoryData<DetailEntityType, string[]> ExpectedSets => new()
     {
-        { DetailEntityType.Movie, ["overview", "cast", "details"] },
-        { DetailEntityType.TvShow, ["overview", "cast", "details"] },
-        { DetailEntityType.TvSeason, ["overview", "cast", "details"] },
-        { DetailEntityType.TvEpisode, ["overview", "cast", "details"] },
-        { DetailEntityType.MusicAlbum, ["overview", "details"] },
-        { DetailEntityType.Audiobook, ["overview", "tracks", "details"] },
-        { DetailEntityType.Book, ["overview", "credits", "details"] },
-        { DetailEntityType.Work, ["overview", "credits", "details"] },
-        { DetailEntityType.ComicIssue, ["overview", "credits", "details"] },
-        { DetailEntityType.MovieSeries, ["overview", "details"] },
-        { DetailEntityType.BookSeries, ["overview", "details"] },
-        { DetailEntityType.ComicSeries, ["overview", "details"] },
-        { DetailEntityType.Collection, ["overview", "details"] },
-        { DetailEntityType.Universe, ["overview", "details"] },
+        { DetailEntityType.Movie, ["overview", "cast"] },
+        { DetailEntityType.TvShow, ["overview", "cast"] },
+        { DetailEntityType.TvSeason, ["overview", "cast"] },
+        { DetailEntityType.TvEpisode, ["overview", "cast"] },
+        { DetailEntityType.MusicAlbum, ["overview"] },
+        { DetailEntityType.Audiobook, ["overview", "tracks"] },
+        { DetailEntityType.Book, ["overview", "credits"] },
+        { DetailEntityType.Work, ["overview", "credits"] },
+        { DetailEntityType.ComicIssue, ["overview", "credits"] },
+        { DetailEntityType.MovieSeries, ["overview"] },
+        { DetailEntityType.BookSeries, ["overview"] },
+        { DetailEntityType.ComicSeries, ["overview"] },
+        { DetailEntityType.Collection, ["overview"] },
+        { DetailEntityType.Universe, ["overview"] },
         { DetailEntityType.Person, ["overview"] },
     };
 
@@ -81,6 +81,7 @@ public sealed class DetailTabCatalogTests
 
             Assert.DoesNotContain("universe", keys);
             Assert.DoesNotContain("related", keys);
+            Assert.DoesNotContain("details", keys);
         }
     }
 

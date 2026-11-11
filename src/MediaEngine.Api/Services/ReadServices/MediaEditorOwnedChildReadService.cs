@@ -118,7 +118,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         string? matchStatus,
         string? fileStatus,
         CancellationToken ct,
-        IReadOnlyList<string>? allowedSegments = null)
+        IReadOnlyList<string>? allowedSegments = null,
+        bool directOnly = false)
     {
         ct.ThrowIfCancellationRequested();
         page = Math.Max(1, page);
@@ -156,6 +157,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 fileStatus = normalizedFileStatus,
                 applySegmentFilter = allowedSegments is not null ? 1 : 0,
                 allowedSegments = allowedSegments?.Count > 0 ? allowedSegments : ["<none>"],
+                directOnly = directOnly ? 1 : 0,
                 limit = pageSize,
                 offset = (page - 1) * pageSize,
             };
@@ -191,7 +193,9 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 "asset",
                 row.EditionReleaseId,
                 row.ParentWorkId,
-                selectionRevisions[row.AssetId])).ToList();
+                selectionRevisions[row.AssetId],
+                BuildMatchReason(row),
+                row.FileSizeBytes > 0 ? row.FileSizeBytes : null)).ToList();
 
             return new MediaEditorOwnedChildSearchEnvelope(
                 parentEntityId, page, pageSize, totalCount, items);
@@ -237,6 +241,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 fileStatus = string.IsNullOrWhiteSpace(fileStatus) ? null : fileStatus.Trim(),
                 applySegmentFilter = 1,
                 allowedSegments = allowedSegments.Count > 0 ? allowedSegments : ["<none>"],
+                directOnly = 0,
                 limit = 1001,
                 offset = 0,
             };
@@ -365,6 +370,32 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         });
     }
 
+    /// <summary>
+    /// The plain-words reason an owned file is not matched (the editor's family tree shows it beside the amber "not matched" mark);
+    /// null when it is matched. Built only from what this row already holds, so it names what to look at, not a guess.
+    /// </summary>
+    internal static string? BuildMatchReason(string matchState, string mediaType, string? matchedNumber, int? seasonNumber)
+    {
+        if (string.Equals(matchState, "matched", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return mediaType switch
+        {
+            "TV" when seasonNumber is null || string.IsNullOrWhiteSpace(matchedNumber)
+                => "The file name has no season and episode number, and no show on a provider matches it yet.",
+            "TV" => "No show, season or episode on a provider matches this file yet.",
+            "Music" => "No album or song on a provider matches this file yet.",
+            "Books" or "Audiobooks" or "Comics" => "No book or issue on a provider matches this file yet.",
+            "Videos" => "This video is not in a series.",
+            _ => "No provider matches this file yet.",
+        };
+    }
+
+    private static string? BuildMatchReason(OwnedChildRow row) =>
+        BuildMatchReason(row.MatchState, row.MediaType, row.MatchedNumber, row.SeasonNumber);
+
     private static string BuildCountSql() => $"""
         WITH RECURSIVE work_tree(id, parent_work_id, depth) AS (
             SELECT w.id, w.parent_work_id, 0 FROM works w WHERE w.id = @parentWorkId
@@ -390,7 +421,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                WorkOrdinal, WorkOrdinalSort, WorkWikidataQid, EditionWikidataQid,
                MatchedTitle, MatchedNumber,
                SourceFilePath, MatchState, FileState,
-               SeasonNumber, DiscNumber, VolumeNumber
+               SeasonNumber, DiscNumber, VolumeNumber, FileSizeBytes
         FROM candidates
         ORDER BY
             CASE WHEN SeasonNumber IS NULL THEN 1 ELSE 0 END, SeasonNumber,
@@ -448,10 +479,14 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                    NULLIF((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('episode_number', 'track_number', 'issue_number', 'part_number') LIMIT 1), ''),
                    CAST(w.ordinal AS TEXT)) AS MatchedNumber,
                ma.file_path_root AS SourceFilePath,
-               CASE WHEN EXISTS (
+               CASE WHEN w.media_type = 'Videos'
+                   -- A video has no provider record to match: it counts as matched once it belongs to a series (universal editor v3.1).
+                   THEN CASE WHEN EXISTS (SELECT 1 FROM works series WHERE series.id = w.parent_work_id AND series.work_kind = 'parent')
+                             THEN 'matched' ELSE 'unmatched' END
+                   WHEN EXISTS (
                    SELECT 1 FROM canonical_values identity_value
                    WHERE identity_value.entity_id IN (ma.id, w.id)
-                     AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
+                     AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'tmdb_episode_id', 'tvdb_episode_id', 'tvdb_season_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
                      AND NULLIF(identity_value.value, '') IS NOT NULL)
                    THEN 'matched' ELSE 'unmatched' END AS MatchState,
                COALESCE(NULLIF(ma.writeback_status, ''), 'unknown') AS FileState,
@@ -460,7 +495,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                    (SELECT parent_ordinal.ordinal FROM works parent_ordinal WHERE parent_ordinal.id = w.parent_work_id)) AS INTEGER) AS SeasonNumber,
                CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'disc_number' LIMIT 1) AS INTEGER) AS DiscNumber,
                CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'volume_number' LIMIT 1) AS INTEGER) AS VolumeNumber,
-               w.ordinal AS WorkOrdinal
+               w.ordinal AS WorkOrdinal,
+               (SELECT fhc.size_bytes FROM file_hash_cache fhc WHERE fhc.sha256 = ma.content_hash LIMIT 1) AS FileSizeBytes
         FROM work_tree tree
         INNER JOIN works w ON w.id = tree.id
         INNER JOIN editions e ON e.work_id = w.id
@@ -469,6 +505,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
           AND ma.status = 'Normal'
           AND ma.is_orphaned = 0
           AND (@applySegmentFilter = 0 OR (ma.library_id || '|' || w.media_type) IN @allowedSegments)
+          AND (@directOnly = 0 OR w.parent_work_id = @parentWorkId)
           AND (tree.depth > 0 OR NOT EXISTS (
               SELECT 1 FROM works descendant
               INNER JOIN editions descendant_edition ON descendant_edition.work_id = descendant.id
@@ -490,9 +527,11 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
           AND (@season IS NULL OR CAST(COALESCE((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'season_number' LIMIT 1), (SELECT ordinal FROM works WHERE id = w.parent_work_id)) AS INTEGER) = @season)
           AND (@disc IS NULL OR CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'disc_number' LIMIT 1) AS INTEGER) = @disc)
           AND (@volume IS NULL OR CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'volume_number' LIMIT 1) AS INTEGER) = @volume)
-          AND (@matchStatus IS NULL OR @matchStatus = CASE WHEN EXISTS (
+          AND (@matchStatus IS NULL OR @matchStatus = CASE WHEN w.media_type = 'Videos'
+              THEN CASE WHEN EXISTS (SELECT 1 FROM works series WHERE series.id = w.parent_work_id AND series.work_kind = 'parent') THEN 'matched' ELSE 'unmatched' END
+              WHEN EXISTS (
               SELECT 1 FROM canonical_values identity_value WHERE identity_value.entity_id IN (ma.id, w.id)
-              AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
+              AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'tmdb_episode_id', 'tvdb_episode_id', 'tvdb_season_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
               AND NULLIF(identity_value.value, '') IS NOT NULL) THEN 'matched' ELSE 'unmatched' END)
           AND (@fileStatus IS NULL OR lower(COALESCE(NULLIF(ma.writeback_status, ''), 'unknown')) = lower(@fileStatus))
         """;
@@ -525,6 +564,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         public int? SeasonNumber { get; init; }
         public int? DiscNumber { get; init; }
         public int? VolumeNumber { get; init; }
+        public long? FileSizeBytes { get; init; }
     }
 
     private sealed class IdentityPiece

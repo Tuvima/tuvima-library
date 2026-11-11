@@ -5,9 +5,11 @@ namespace MediaEngine.Application.Services;
 
 public interface IMediaEditorNavigationReadService
 {
+    /// <param name="structureOnly">True returns only the root and the parent nodes (seasons, albums, series), each with its matched state, for a family tree that pages the files in separately.</param>
     Task<MediaEditorNavigatorEnvelope?> GetNavigatorAsync(
         Guid entityId,
-        CancellationToken ct);
+        CancellationToken ct,
+        bool structureOnly = false);
 }
 
 public interface IMediaEditorOwnedChildReadService
@@ -37,7 +39,8 @@ public interface IMediaEditorOwnedChildReadService
         string? matchStatus,
         string? fileStatus,
         CancellationToken ct,
-        IReadOnlyList<string>? allowedSegments = null);
+        IReadOnlyList<string>? allowedSegments = null,
+        bool directOnly = false);
 }
 
 public interface IMediaEditorMembershipReadService

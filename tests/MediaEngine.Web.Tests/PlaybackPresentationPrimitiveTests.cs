@@ -24,7 +24,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     public void IconUtilitiesKeepStateNamesAndBothToggleStatesWithoutVisibleValues(bool active, string expected)
     {
         var control = new PlaybackControlDefinition(PlaybackControlKey.Shuffle, "Shuffle", active ? "Shuffle on" : "Shuffle off",
-            string.Empty, PlaybackControlPlacement.Utility, "shuffle", ValueText: "visible value", BadgeText: "badge", IsActive: active);
+            PlaybackUtilityGlyphKind.Shuffle, PlaybackControlPlacement.Utility, "shuffle", ValueText: "visible value", BadgeText: "badge", IsActive: active);
         var cut = Render<PlaybackIconButton>(parameters => parameters.Add(component => component.Control, control).Add(component => component.Surface, "phone"));
         var button = cut.Find("button");
         Assert.Equal(control.AriaLabel, button.GetAttribute("aria-label"));
@@ -61,7 +61,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     public void OrdinaryUtilityIsNotPretendedToBeAToggle()
     {
         var cut = Render<PlaybackIconButton>(parameters => parameters.Add(component => component.Control,
-            new PlaybackControlDefinition(PlaybackControlKey.Bookmarks, "Bookmark", "Add bookmark", string.Empty,
+            new PlaybackControlDefinition(PlaybackControlKey.Bookmarks, "Bookmark", "Add bookmark", PlaybackUtilityGlyphKind.Bookmark,
                 PlaybackControlPlacement.ToolStrip, "bookmark", IsActive: true)));
         Assert.Null(cut.Find("button").GetAttribute("aria-pressed"));
     }
@@ -69,9 +69,9 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     [Fact]
     public async Task ToolsAreMutuallyExclusiveAndItemChangeClosesOnlyTheTemporaryPanel()
     {
-        var first = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Queue")
+        var first = Render<PlaybackPanel>(parameters => parameters.Add(component => component.Title, "Queue")
             .Add(component => component.ItemKey, "song-one").AddChildContent("Queue contents"));
-        var second = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Lyrics").AddChildContent("Lyrics contents"));
+        var second = Render<PlaybackPanel>(parameters => parameters.Add(component => component.Title, "Lyrics").AddChildContent("Lyrics contents"));
         await first.InvokeAsync(() => first.Instance.OpenAsync(false));
         Assert.Contains("Queue contents", first.Markup);
         await second.InvokeAsync(() => second.Instance.OpenAsync(true));
@@ -86,7 +86,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     [Fact]
     public async Task PhonePopoverUsesTheModalSharedSheetAndToolDismissalClosesOnlyItsContent()
     {
-        var cut = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Queue").AddChildContent("Upcoming songs"));
+        var cut = Render<PlaybackPanel>(parameters => parameters.Add(component => component.Title, "Queue").AddChildContent("Upcoming songs"));
         await cut.InvokeAsync(() => cut.Instance.SetViewport(true));
         await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
         Assert.Equal("true", cut.Find("section[role='dialog']").GetAttribute("aria-modal"));
@@ -95,21 +95,24 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AHoverOpenedPopoverReportedBackAsOpen_IsNotPinned_AndSoStillClosesWhenTheMouseLeaves()
+    public async Task APanelReportedBackAsOpenThroughTheControlledParameter_HasOneOwner_AndOneCloseReleasesIt()
     {
+        // Video v2 root cause (the pinned Speed panel): the host echoes the panel's own report back through the controlled Open
+        // parameter. The echo must not open it a second time, and the single owner must be able to close it.
         var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
         var open = (bool?)false;
-        var cut = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Speed").Add(component => component.ToolId, "speed")
-            .Add(component => component.HoverPreview, true).Add(component => component.Open, open)
+        var cut = Render<PlaybackPanel>(parameters => parameters.Add(component => component.Title, "Speed").Add(component => component.ToolId, "speed")
+            .Add(component => component.Open, open)
             .Add(component => component.OpenChanged, EventCallback.Factory.Create<bool>(this, _ => { })).AddChildContent("Slider"));
 
-        await cut.InvokeAsync(() => cut.Instance.OpenAsync(false));
-        // The host echoes the popover's own report back through the controlled Open parameter.
+        await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
         cut.Render(parameters => parameters.Add(component => component.Title, "Speed").Add(component => component.ToolId, "speed")
-            .Add(component => component.HoverPreview, true).Add(component => component.Open, true).AddChildContent("Slider"));
+            .Add(component => component.Open, true).AddChildContent("Slider"));
 
         Assert.Equal("speed", tools.OpenToolId);
-        Assert.False(tools.IsPinnedFor("speed"));
+        await cut.InvokeAsync(() => tools.Close("speed"));
+        Assert.Null(tools.OpenToolId);
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-playback-popover-panel]")));
     }
 
     [Theory]
@@ -119,15 +122,15 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     {
         var module = JSInterop.SetupModule("./js/playback-popover.js");
         module.Mode = JSRuntimeMode.Loose;
-        var cut = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Queue")
+        var cut = Render<PlaybackPanel>(parameters => parameters.Add(component => component.Title, "Queue")
             .AddChildContent("Upcoming songs"));
         await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-playback-popover-panel]")));
-        var release = module.SetupVoid("update", call => call.Arguments.Count == 5 && Equals(call.Arguments[2], false));
+        var release = module.SetupVoid("update", call => call.Arguments.Count == 4 && Equals(call.Arguments[2], false));
         var closing = cut.InvokeAsync(() => cut.Instance.CloseFromBrowserAsync(restoreFocus));
         cut.WaitForAssertion(() => Assert.Single(release.Invocations));
         var invocation = release.Invocations.Single();
-        Assert.Equal(restoreFocus, invocation.Arguments[4]);
+        Assert.Equal(restoreFocus, invocation.Arguments[3]);
         Assert.Single(cut.FindAll("[data-playback-popover-panel]")); // Blazor must wait for portal release.
         release.SetVoidResult();
         await closing;
@@ -140,7 +143,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     {
         var module = JSInterop.SetupModule("./js/playback-popover.js");
         module.Mode = JSRuntimeMode.Loose;
-        var cut = Render<PlaybackPopover>(parameters => parameters.Add(component => component.Title, "Chapters")
+        var cut = Render<PlaybackPanel>(parameters => parameters.Add(component => component.Title, "Chapters")
             .AddChildContent("Actual chapters"));
         await cut.InvokeAsync(() => cut.Instance.SetViewport(true));
         await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
@@ -206,32 +209,5 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
         tools.Close();
         Assert.Null(tools.OpenToolId);
         Assert.False(tools.IsPinnedDock("queue"));
-    }
-
-    [Fact]
-    public void SpeedAndSleepTriggersAreIconsWhileTheirAccessibleNamesRetainCurrentState()
-    {
-        var speed = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Value, 1.75));
-        var select = speed.FindComponent<PlaybackPopover>().Instance;
-        Assert.NotNull(select.TriggerContent);
-        Assert.Contains("1.75x", select.Title);
-        var sleep = Render<PlaybackSleepTimerControl>(parameters => parameters.Add(component => component.State,
-            new AudiobookSleepTimerStateDto { Mode = AudiobookSleepTimerModes.EndNext, TargetChapterTitle = "Part two" }));
-        Assert.Contains("End of next chapter: Part two", sleep.FindComponent<AppSelect>().Instance.AriaLabel);
-        Assert.DoesNotContain("playback-sleep-timer__trigger-status", sleep.Markup);
-    }
-
-    [Fact]
-    public async Task ControlledSpeedMenuCanReopenAfterAnotherToolForcesItClosed()
-    {
-        var cut = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Open, true));
-        var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
-        Assert.True(cut.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded") == "true");
-        await cut.InvokeAsync(() => tools.Open("queue", true));
-        cut.WaitForAssertion(() => Assert.False(cut.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded") == "true"));
-        cut.Render(parameters => parameters.Add(component => component.Open, false));
-        cut.Render(parameters => parameters.Add(component => component.Open, true));
-        cut.WaitForAssertion(() => Assert.True(cut.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded") == "true"));
-        Assert.NotEqual("queue", tools.OpenToolId);
     }
 }

@@ -4,7 +4,8 @@ namespace MediaEngine.Domain.Configuration;
 
 /// <summary>
 /// How Videos libraries read file and folder names. Loaded from <c>config/videos.json</c>; the defaults below apply
-/// when the file is missing so a fresh install behaves the same.
+/// when the file is missing so a fresh install behaves the same. The release noise and the separators of a name are not here: they
+/// live in <c>config/filename_cleaning.json</c> (universal editor v5, D33).
 /// </summary>
 public sealed class VideoNamingConfiguration
 {
@@ -35,18 +36,6 @@ public sealed class VideoTitleCleaningConfiguration
     /// <summary>Drop a number at the start of a name ("01 - Intro" becomes "Intro").</summary>
     [JsonPropertyName("strip_leading_number")]
     public bool StripLeadingNumber { get; set; } = true;
-
-    /// <summary>Characters read as spaces.</summary>
-    [JsonPropertyName("word_separators")]
-    public List<string> WordSeparators { get; set; } = ["_", "."];
-
-    /// <summary>Release tags removed from the end of a name, such as resolution and codec.</summary>
-    [JsonPropertyName("remove_tags")]
-    public List<string> RemoveTags { get; set; } =
-    [
-        "2160p", "1440p", "1080p", "720p", "480p", "360p", "4k", "uhd", "hdr", "web-dl", "webdl", "webrip", "bluray", "bdrip", "dvdrip", "hdtv",
-        "x264", "x265", "h264", "h265", "hevc", "avc", "aac", "ac3", "dts", "mp4", "mkv", "av1", "vp9", "opus",
-    ];
 
     /// <summary>Drop a trailing <c>[youtubeid]</c> from the visible title.</summary>
     [JsonPropertyName("strip_youtube_id_suffix")]

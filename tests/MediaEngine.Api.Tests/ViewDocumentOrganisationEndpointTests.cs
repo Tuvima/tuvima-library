@@ -85,6 +85,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         builder.Services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
         builder.Services.AddSingleton<IDocumentBulkRepository, DocumentBulkRepository>();
         builder.Services.AddScoped<ViewDocumentBulkService>();
+        builder.Services.AddScoped<ViewItemsEditService>();
         builder.Services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
         builder.Services.AddSingleton<DocumentRulesQueue>();
         builder.Services.AddSingleton<ViewDocumentRuleService>();
@@ -98,6 +99,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         builder.Services.AddSingleton<IViewResourceStore, ViewResourcePersistenceService>();
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(_ => new AllowEvaluator(() => DenyViewAccess));
         builder.Services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(new FixedEditorConfiguration());
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
         builder.Services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
@@ -235,6 +237,8 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
             (HttpMethod.Get, "/view/documents/export", null),
             (HttpMethod.Get, "/view/preferences/documents-sort", null),
             (HttpMethod.Put, "/view/preferences/documents-sort", JsonContent.Create(new ViewDocumentsSortDto("title"))),
+            (HttpMethod.Get, "/view/preferences/documents-pictures", null),
+            (HttpMethod.Put, "/view/preferences/documents-pictures", JsonContent.Create(new ViewDocumentsPicturesDto(true))),
             (HttpMethod.Put, $"/view/galleries/{savedView:D}/shares", JsonContent.Create(new ViewGallerySharesRequest([]))),
             (HttpMethod.Post, "/view/galleries", JsonContent.Create(new ViewGalleryRequest("Saved", ViewGalleryKind.Smart, SmartRuleJson: DocumentViewRule()))),
             (HttpMethod.Get, $"/view/galleries/{savedView:D}", null),
@@ -588,6 +592,9 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
 
         var listed = await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>($"/view/assets?scope=mine&kind=document&galleryId={view.Id:D}");
         Assert.Equal(invoice, Assert.Single(listed!.Items).Id);
+        // A read of a gallery's photos carries the editor's limits from config/editor.json (the editor's header navigation needs them); a read with no gallery does not.
+        Assert.Equal(new ViewEditorLimitsDto(FixedEditorConfiguration.Inline, FixedEditorConfiguration.Page), listed.EditorLimits);
+        Assert.Null((await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>("/view/assets?scope=mine&kind=document"))!.EditorLimits);
         // The view and the page filters narrow each other.
         var narrowed = await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>($"/view/assets?scope=mine&kind=document&galleryId={view.Id:D}&docTo=2000-01-01");
         Assert.Empty(narrowed!.Items);
@@ -674,37 +681,30 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
-    public async Task ASharedLibraryDocumentIsSkippedInBulkWithAClearReasonExceptMarkFiledForAnAdministrator()
+    public async Task ASharedLibraryDocumentIsSkippedInBulkWithAClearReasonForEveryone()
     {
         var household = Guid.NewGuid();
         var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
         var member = await CreatePerson("StandardUser", household);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
         var sharedDocument = await AddSharedDocument(shared.LibraryId, "Shared lease", 'f');
-        var mine = await AddDocument(admin, 'a');
 
-        // Another household member cannot file it, however they ask.
-        _actor.Current = member.Authority;
-        var memberAttempt = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MarkFiled));
-        Assert.Equal(ViewDocumentBulkService.SharedFilingReason, Assert.Single(memberAttempt.Items).Reason);
-        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
+        // Shared documents are tagged and edited one at a time, never in bulk, by an administrator or anyone else.
+        foreach (var person in new[] { member, admin })
+        {
+            _actor.Current = person.Authority;
+            foreach (var operation in new[] { ViewDocumentBulkOperations.MarkFiled, ViewDocumentBulkOperations.MoveToTrash })
+            {
+                var attempt = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], operation));
+                Assert.Equal((0, 1), (attempt.Done, attempt.Skipped));
+                Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(attempt.Items).Reason);
+            }
 
-        // An administrator still cannot edit it in bulk, but can mark it filed to empty the Shared Inbox.
-        _actor.Current = admin.Authority;
-        var tagged = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.AddTags, Tags: ["Mine now"]));
-        Assert.Equal((0, 1), (tagged.Done, tagged.Skipped));
-        Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(tagged.Items).Reason);
+            var tagged = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.AddTags, Tags: ["Mine now"]));
+            Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(tagged.Items).Reason);
+        }
+
         Assert.Empty(_assets.Find(sharedDocument)!.Tags);
-        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
-
-        var result = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument, mine], ViewDocumentBulkOperations.MarkFiled));
-        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == sharedDocument).Status);
-        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == mine).Status);
-        Assert.Equal(ViewDocumentFilingStates.Filed, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
-
-        // The other bulk operations still skip a Shared document even once it is filed.
-        var trash = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MoveToTrash));
-        Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(trash.Items).Reason);
         Assert.Null(_assets.Find(sharedDocument)!.TrashedAt);
     }
 
@@ -797,53 +797,61 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
-    public async Task OnlyAHouseholdOrServerAdministratorFilesADocumentInTheSharedInbox()
+    public async Task AnyAdultWhoMayUseDocumentsCanTagAndEditASharedDocument_ButOutsidersAndBlockedProfilesCannot()
     {
         var household = Guid.NewGuid();
-        var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
-        var serverAdmin = await CreatePerson("StandardUser", household, serverAdmin: true);
         var member = await CreatePerson("StandardUser", household);
-        var child = await CreatePerson("RestrictedProfile", household);
         var childWithDocuments = await CreatePerson("RestrictedProfile", household);
         await _policies.SavePolicyAsync(ViewProfilePolicy.Default(childWithDocuments.ProfileId, restricted: true) with { DocumentsEnabled = true });
+        var childWithoutDocuments = await CreatePerson("RestrictedProfile", household);
         var otherHousehold = await CreatePerson("StandardUser", Guid.NewGuid(), householdAdmin: true);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
-        var first = await AddSharedDocument(shared.LibraryId, "Shared first", '5');
-        var second = await AddSharedDocument(shared.LibraryId, "Shared second", '6');
-        var third = await AddSharedDocument(shared.LibraryId, "Shared third", '7');
-        var request = new FileViewDocumentFromInboxRequest(AcceptSuggestions: false);
+        var document = await AddSharedDocument(shared.LibraryId, "Shared lease", '5');
+        var sharedPhoto = await AddSharedPhoto(shared.LibraryId, '6');
 
-        async Task<HttpStatusCode> FileAsync(Person person, Guid id)
+        async Task<HttpStatusCode> TagAsync(Person person, Guid id, string tag)
         {
             _actor.Current = person.Authority;
-            using var response = await _client.PostAsJsonAsync($"/view/items/{id:D}/inbox/file", request);
+            using var response = await _client.PutAsJsonAsync($"/view/items/{id:D}/tags", new UpdateLocalAssetTagsRequest([tag]));
             return response.StatusCode;
         }
 
-        bool IsFiled(Guid id) => _assets.Find(id)!.DocumentInfo!.FilingState == ViewDocumentFilingStates.Filed;
+        async Task<HttpStatusCode> EditAsync(Person person, string title)
+        {
+            _actor.Current = person.Authority;
+            using var response = await _client.PutAsJsonAsync($"/view/items/{document:D}/document-details",
+                new UpdateViewDocumentDetailsRequest(Title: title, Correspondent: "City Water", Tags: ["Utilities"]));
+            return response.StatusCode;
+        }
 
-        // Everyone else sees the Shared Inbox read-only; nothing changes.
-        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(member, first));
-        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(childWithDocuments, first));
-        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(child, first));
-        Assert.Equal(HttpStatusCode.NotFound, await FileAsync(otherHousehold, first));
-        Assert.False(IsFiled(first));
+        // A non-administrator adult tags a shared document straight away; nothing waits to be filed.
+        Assert.Equal(HttpStatusCode.OK, await TagAsync(member, document, "Home"));
+        Assert.Contains("Home", _assets.Find(document)!.Tags);
+        Assert.Equal(HttpStatusCode.OK, await EditAsync(member, "Lease 2026"));
+        var edited = _assets.Find(document)!;
+        Assert.Equal("Lease 2026", edited.Title);
+        Assert.Equal("City Water", edited.DocumentInfo!.Correspondent?.Name);
 
-        // The same rule tells the Dashboard whether to offer File on a Shared Inbox card.
-        Assert.False(ViewSharedInboxAccess.CanFile(member.Authority));
-        Assert.False(ViewSharedInboxAccess.CanFile(child.Authority));
-        Assert.False(ViewSharedInboxAccess.CanFile(childWithDocuments.Authority));
-        Assert.True(ViewSharedInboxAccess.CanFile(admin.Authority));
-        Assert.True(ViewSharedInboxAccess.CanFile(serverAdmin.Authority));
+        // A child follows their Documents switch.
+        Assert.Equal(HttpStatusCode.OK, await EditAsync(childWithDocuments, "Lease 2027"));
+        Assert.NotEqual(HttpStatusCode.OK, await EditAsync(childWithoutDocuments, "Not allowed"));
+        Assert.NotEqual(HttpStatusCode.OK, await EditAsync(otherHousehold, "Not allowed"));
+        Assert.Equal("Lease 2027", _assets.Find(document)!.Title);
 
-        Assert.Equal(HttpStatusCode.OK, await FileAsync(admin, first));
-        Assert.True(IsFiled(first));
-        Assert.Equal(HttpStatusCode.OK, await FileAsync(serverAdmin, second));
-        Assert.True(IsFiled(second));
-        // A second tap changes nothing and is not an error; a photo or an unknown id is not an Inbox document.
-        Assert.Equal(HttpStatusCode.OK, await FileAsync(admin, first));
-        Assert.Equal(HttpStatusCode.NotFound, await FileAsync(admin, Guid.NewGuid()));
-        Assert.False(IsFiled(third));
+        // Shared photos are not part of this: they stay read-only for a member.
+        Assert.NotEqual(HttpStatusCode.OK, await TagAsync(member, sharedPhoto, "Nope"));
+        Assert.Empty(_assets.Find(sharedPhoto)!.Tags);
+
+        // The same rule tells the Dashboard whether to offer editing in Shared (the scopes answer reads it).
+        foreach (var (person, expected) in new[] { (member, true), (childWithDocuments, true), (childWithoutDocuments, false) })
+        {
+            Assert.Equal(expected, ViewSharedDocumentAccess.CanEdit(await _policies.GetPolicyAsync(person.ProfileId)));
+        }
+
+        // The Shared Library has no Inbox: its own count is zero and filing through the Inbox is for your own documents only.
+        _actor.Current = member.Authority;
+        using var filing = await _client.PostAsJsonAsync($"/view/items/{document:D}/inbox/file", new FileViewDocumentFromInboxRequest(AcceptSuggestions: false));
+        Assert.Equal(HttpStatusCode.NotFound, filing.StatusCode);
     }
 
     [Fact]
@@ -918,6 +926,22 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
+    public async Task ThePictureDropChoiceIsRememberedPerProfile()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var bob = await CreatePerson("StandardUser");
+        _actor.Current = alice.Authority;
+        Assert.False((await _client.GetFromJsonAsync<ViewDocumentsPicturesDto>("/view/preferences/documents-pictures"))!.ToPhotos);
+
+        using var saved = await _client.PutAsJsonAsync("/view/preferences/documents-pictures", new ViewDocumentsPicturesDto(true));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.True((await _client.GetFromJsonAsync<ViewDocumentsPicturesDto>("/view/preferences/documents-pictures"))!.ToPhotos);
+
+        _actor.Current = bob.Authority;
+        Assert.False((await _client.GetFromJsonAsync<ViewDocumentsPicturesDto>("/view/preferences/documents-pictures"))!.ToPhotos);
+    }
+
+    [Fact]
     public async Task TheDocumentsSortIsRememberedPerProfileAndOnlyKnownSortsAreAccepted()
     {
         var alice = await CreatePerson("StandardUser");
@@ -967,6 +991,19 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         while (cursor is not null);
 
         Assert.Equal(ids, seen);
+    }
+
+    [Fact]
+    public void TheOnThisDayRouteAsksOnlyForPhotosAndVideosInTheCallersOwnAndSharedScopes()
+    {
+        // The route fixes its scopes (never taken from the request) and its kinds, so a document or another person's photo cannot reach the strip.
+        // Marker for the review table: on-this-day-route-asks-for-images-and-videos
+        var source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
+        var start = source.IndexOf("\"/assets/on-this-day\"", StringComparison.Ordinal);
+        var route = source[start..source.IndexOf("GetViewOnThisDay", start, StringComparison.Ordinal)];
+        Assert.Contains("new[] { ViewScopeKind.Mine, ViewScopeKind.Shared }", route, StringComparison.Ordinal);
+        Assert.Contains("MediaKinds: [LocalAssetMediaKinds.Image, LocalAssetMediaKinds.Video]", route, StringComparison.Ordinal);
+        Assert.DoesNotContain("string? scope", route, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1657,6 +1694,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     private const string GalleryRead = "AGalleryNeverShowsOrCountsDocumentsToAProfileWithoutThem_SharedOrSmart";
     private const string GalleryWrite = "AProfileWithoutDocumentsCannotAddMoveOrCountDocumentsInAGallery";
     private const string TagSuggestions = "TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments";
+    private const string OnThisDayKinds = "TheOnThisDayRouteAsksOnlyForPhotosAndVideosInTheCallersOwnAndSharedScopes";
     private const string TimelineIndex = "TheTimelineIndexNeverCountsOrSearchesDocumentsForAProfileWithoutThem";
     private const string ContributionRoutes = "ContributionRoutesAnswerFilteredOrNotFoundOrRefusedForAReviewerWithoutDocuments";
     private const string ContributionService = "AReviewerWithoutDocumentsNeverSeesADocumentInAContribution";
@@ -1701,6 +1739,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
         ["GET /view/assets/added-by"] = Covers(AddedByCounts, "/view/assets/added-by"),
+        ["GET /view/assets/on-this-day"] = Covers(OnThisDayKinds, "on-this-day-route-asks-for-images-and-videos"),
         ["GET /view/assets/timeline-index"] = Covers(TimelineIndex, "timeline-index"),
         ["GET /view/catalogue"] = Refused,
         ["GET /view/document-rules"] = Refused,
@@ -1724,6 +1763,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/places/atlas"] = Covers(Discovery, "QueryAtlas"),
         ["GET /view/places/media"] = Covers(Discovery, "QueryPlaceAssets"),
         ["GET /view/preferences"] = NoItems + "the person's own settings",
+        ["GET /view/preferences/documents-pictures"] = Refused,
         ["GET /view/preferences/documents-sort"] = Refused,
         ["GET /view/scopes"] = NoItems + "scope names only",
         ["GET /view/share-targets"] = NoItems + "profile names only",
@@ -1750,6 +1790,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["POST /view/document-rules/test"] = Refused,
         ["POST /view/document-types"] = Refused,
         ["POST /view/documents/bulk"] = Refused,
+        ["POST /view/items/edit"] = Covers("AProfileWithoutDocumentsCannotEditADocumentWithTheOneSave", "/view/items/edit"),
         ["POST /view/galleries"] = Covers(GalleryWrite, "PostAsJsonAsync(\"/view/galleries\""),
         ["POST /view/galleries/{id:guid}/items"] = Covers(GalleryWrite, "PostAsJsonAsync($\"/view/galleries/{gallery.Id:D}/items\""),
         ["POST /view/items/{id:guid}/archive"] = Covers(Lifecycle, "/archive"),
@@ -1785,6 +1826,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["PUT /view/items/{id:guid}/people"] = Refused,
         ["PUT /view/items/{id:guid}/tags"] = Refused,
         ["PUT /view/preferences"] = NoItems + "the person's own settings",
+        ["PUT /view/preferences/documents-pictures"] = Refused,
         ["PUT /view/preferences/documents-sort"] = Refused,
         ["PUT /view/tags/{id:guid}"] = Refused,
 
@@ -1853,6 +1895,18 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         }
 
         return directory?.FullName ?? throw new InvalidOperationException("Could not locate the repository root.");
+    }
+
+    private sealed class FixedEditorConfiguration : MediaEngine.Domain.Contracts.IEditorConfigurationSource
+    {
+        public const int Inline = 3;
+        public const int Page = 17;
+
+        public MediaEngine.Domain.Configuration.EditorConfiguration Current { get; } = new()
+        {
+            InlineSupportingFiles = Inline,
+            ItemListPageSize = Page,
+        };
     }
 
     private sealed class Person(Guid profileId, Guid libraryId, RequestAuthority authority)

@@ -20,4 +20,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\RealFfmpeg.cs" Link="Shared\RealFfmpeg.cs" />
+  </ItemGroup>
+
 </Project>

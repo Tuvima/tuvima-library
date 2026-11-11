@@ -108,23 +108,6 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void SettingsPage_OverviewApps_SitsUnderPersonalAndProfileInTheBreadcrumb()
-    {
-        Services.AddSingleton(new AppStoreLinks());
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/overview/apps");
-
-        var cut = Render<Settings>(parameters => parameters
-            .Add(page => page.Section, "overview")
-            .Add(page => page.Subsection, "apps"));
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview-apps]")));
-        var crumbs = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span").Select(item => item.TextContent.Trim()).ToArray();
-        Assert.Equal(["Settings", "Personal", "Profile", "Apps"], crumbs);
-        Assert.Equal("/settings/overview", cut.Find(".settings-breadcrumbs a[href='/settings/overview']").GetAttribute("href"));
-        Assert.Equal("Apps", cut.Find(".settings-breadcrumbs [aria-current=page]").TextContent.Trim());
-    }
-
-    [Fact]
     public void ProfileMenu_KeepsTheSecureAccountCardAboveTheName()
     {
         var cut = OpenProfileMenu(canManageProfiles: false, secureAccount: true);
@@ -132,5 +115,42 @@ public sealed partial class UiShellRenderTests
         var panel = cut.Find(".top-nav-account-menu__panel");
         Assert.True(panel.Children[0].ClassList.Contains("top-nav-account-menu__secure-card"));
         Assert.True(panel.Children[1].ClassList.Contains("top-nav-account-menu__header"));
+    }
+
+    [Fact]
+    public void SettingsEntry_CarriesTheNeedsReviewCount_AndTheCountGoesAwayAtZero()
+    {
+        var withCount = Render<TopNavAccountMenu>(parameters => parameters
+            .Add(menu => menu.DisplayName, "Shy")
+            .Add(menu => menu.CanManageProfiles, true)
+            .Add(menu => menu.ReviewCount, 14));
+        withCount.Find(".top-nav-account-menu__trigger").Click();
+
+        var settings = withCount.FindAll("a[role=menuitem]").Single(link => link.GetAttribute("href") == "/settings");
+        var badge = settings.QuerySelector("[data-testid=settings-review-count]")!;
+        Assert.Equal("14", badge.TextContent.Trim());
+        Assert.Equal("14 need review", badge.GetAttribute("aria-label"));
+
+        var none = OpenProfileMenu(canManageProfiles: true);
+        Assert.Empty(none.FindAll("[data-testid=settings-review-count]"));
+    }
+
+    [Fact]
+    public void TheShellGivesTheMenuTheCountOnlyToAdministrators_NeverToAKidsProfile()
+    {
+        var layout = System.IO.File.ReadAllText(System.IO.Path.Combine(RepoRootForSource(), "src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
+
+        Assert.Contains("ReviewCount=\"@(CanViewReview && !_isKids ? _reviewCount : 0)\"", layout, StringComparison.Ordinal);
+    }
+
+    private static string RepoRootForSource()
+    {
+        var dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
+        return dir?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
 }

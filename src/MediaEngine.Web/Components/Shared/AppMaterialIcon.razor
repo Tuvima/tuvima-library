@@ -11,7 +11,7 @@
     [Parameter] public string? Css { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public AppColor Color { get; set; } = AppColor.Default;
-    [Parameter] public AppSize Size { get; set; } = AppSize.Medium;
+    [Parameter] public AppIconSize Size { get; set; } = AppIconSize.Row24;
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     private string RootClass => $"tl-icon tl-icon-root tl-svg-icon tl-icon-size-{Size.ToString().ToLowerInvariant()} tl-color-{Color.ToString().ToLowerInvariant()} {Class}";
 }

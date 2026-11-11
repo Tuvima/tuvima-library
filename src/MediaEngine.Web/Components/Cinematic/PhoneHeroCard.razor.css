@@ -24,8 +24,8 @@
     overflow: hidden;
     height: var(--phone-hero-card-height);
     border-radius: var(--tl-radius-lg, 1.25rem);
-    background: #0b0f19;
-    color: var(--tl-text-primary, #f8fafc);
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
 }
 
 .phone-hero__link {
@@ -35,7 +35,7 @@
 }
 
 .phone-hero__link:focus-visible {
-    outline: 3px solid var(--tl-accent-primary, #8852fc);
+    outline: 3px solid var(--tl-accent-primary);
     outline-offset: -4px;
 }
 
@@ -54,13 +54,25 @@
     object-position: center top;
 }
 
-/* A cover keeps its own shape and is never stretched to fill: it only ever shrinks to fit. */
+/* A blurred copy of the cover fills the card, so a cover never sits in an empty dark area. */
+.phone-hero__cover-blur {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(1.75rem) saturate(1.15) brightness(0.65);
+    transform: scale(1.2);
+}
+
+/* The cover is drawn large at its own shape (it scales up to the height below, never stretched); a wide one only shrinks to the card's width. */
 .phone-hero__cover {
+    position: relative;
     align-self: start;
-    max-width: 62%;
-    max-height: 58%;
+    max-width: 78%;
     width: auto;
-    height: auto;
+    height: 64%;
+    object-fit: contain;
     margin-top: var(--tl-space-4, 1rem);
     border-radius: var(--tl-radius-md, 0.75rem);
     box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
@@ -91,9 +103,8 @@
 
 .phone-hero__placeholder-word {
     font-size: var(--tl-font-size-sm, 0.9rem);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .phone-hero__content {
@@ -122,7 +133,7 @@
 .phone-hero__tag {
     display: inline-block;
     padding: 0.1rem 0.55rem;
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-pill);
     background: rgba(255, 255, 255, 0.12);
     color: var(--tl-text-secondary, rgba(248, 250, 252, 0.78));
     font-size: var(--tl-font-size-xs, 0.75rem);
@@ -180,10 +191,10 @@
     width: 100%;
     height: 0.25rem;
     border: 0;
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-round, 999px);
     appearance: none;
     background: rgba(255, 255, 255, 0.2);
-    color: var(--tl-accent-primary, #8852fc);
+    color: var(--tl-accent-primary);
     overflow: hidden;
 }
 
@@ -192,11 +203,11 @@
 }
 
 .phone-hero__progress::-webkit-progress-value {
-    background: var(--tl-accent-primary, #8852fc);
+    background: var(--tl-accent-primary);
 }
 
 .phone-hero__progress::-moz-progress-bar {
-    background: var(--tl-accent-primary, #8852fc);
+    background: var(--tl-accent-primary);
 }
 
 .phone-hero__actions {
@@ -204,22 +215,6 @@
     align-items: center;
     gap: var(--tl-space-2, 0.5rem);
     margin-top: var(--tl-space-2, 0.5rem);
-}
-
-.phone-hero__primary-label,
-.phone-hero__primary-detail {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* The time or percent after the action word: quieter and allowed to shrink first, so the button is one line and never taller than the tap size. */
-.phone-hero__primary-detail {
-    flex: 0 1 auto;
-    font-size: var(--tl-font-size-sm, 0.9rem);
-    font-weight: 500;
-    opacity: 0.88;
 }
 
 .phone-hero__dots {
@@ -233,11 +228,11 @@
     display: block;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-round, 999px);
     background: rgba(255, 255, 255, 0.38);
 }
 
 .phone-hero__dot.is-active .phone-hero__dot-mark {
     width: 1.5rem;
-    background: var(--tl-accent-primary, #8852fc);
+    background: var(--tl-accent-primary);
 }

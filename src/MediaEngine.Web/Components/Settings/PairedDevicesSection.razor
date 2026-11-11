@@ -6,7 +6,7 @@
 @inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
-<SettingsSectionPanel Title="@L["PairedDevicesSection_PairedDevices"].Value" Icon="@AppMaterialIcons.Outlined.Devices"
+<SettingsSectionPanel Title="@L["PairedDevicesSection_PairedDevices"].Value"
                       Description="@L["PairedDevicesSection_PhonesAndTVsPairedWith"].Value">
     @if (_loading)
     {
@@ -62,7 +62,7 @@
                             <td>
                                 @if (device.Platform == "mobile" && People.Count > 0)
                                 {
-                                    <AppNativeSelect Value="@(device.BackupProfileId?.ToString() ?? string.Empty)"
+                                    <AppSelect Native="true" Value="@(device.BackupProfileId?.ToString() ?? string.Empty)"
                                                      ValueChanged="@(value => SetBackupAsync(device, value))"
                                                      aria-label="@($"Whose photos {device.DeviceName} backs up")">
                                         <option value="">@L["PairedDevicesSection_NotChosen"]</option>
@@ -70,7 +70,7 @@
                                         {
                                             <option value="@person.Id">@person.DisplayName</option>
                                         }
-                                    </AppNativeSelect>
+                                    </AppSelect>
                                 }
                                 else if (device.Platform == "mobile")
                                 {

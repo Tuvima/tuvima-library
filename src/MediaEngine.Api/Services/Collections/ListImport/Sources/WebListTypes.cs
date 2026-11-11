@@ -32,7 +32,7 @@ public enum WebListFailure
     /// <summary>The site refused the key.</summary>
     KeyRejected,
 
-    /// <summary>The list is private (or is the person's own) and needs the person to be signed in to the site, which is not set up.</summary>
+    /// <summary>The list is private (or is the person's own) and needs the person to be signed in to the site.</summary>
     SignInNeeded,
 }
 
@@ -61,9 +61,24 @@ public interface IWebListSource : IListSourceFetcher
     /// <summary>True when the source needs the person's own key before it can read a list.</summary>
     bool NeedsKey { get; }
 
+    /// <summary>True when a person can sign in to the site, so a private or their own list can be read (the sentence for a refused list then points at the sign-in).</summary>
+    bool CanSignIn { get; }
+
+    /// <summary>Where an administrator turns the source on and adds its key. A path in the Dashboard.</summary>
+    string SettingsPath { get; }
+
+    /// <summary>Where a person signs in to the site, when <see cref="CanSignIn"/>. A path in the Dashboard.</summary>
+    string SignInPath { get; }
+
+    /// <summary>True when the source is switched on right now. Read fresh each time, so the switch applies at once.</summary>
+    Task<bool> IsSwitchedOnAsync(CancellationToken ct);
+
     /// <summary>The address, when it is one of this source's list addresses.</summary>
     WebListAddress? Recognise(Uri address);
 
-    /// <summary>Reads the whole list. Never throws for a site that is down or a list that is missing.</summary>
-    Task<WebListFetch> FetchAsync(WebListAddress address, CancellationToken ct);
+    /// <summary>
+    /// Reads the whole list. Never throws for a site that is down or a list that is missing. <paramref name="profileId"/> is the
+    /// profile asking, so a source with sign-in can read a private list with that profile's own account and nobody else's.
+    /// </summary>
+    Task<WebListFetch> FetchAsync(WebListAddress address, Guid? profileId, CancellationToken ct);
 }

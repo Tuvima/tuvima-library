@@ -1,5 +1,4 @@
 .media-tile-shelf {
-        --media-tile-media-height: clamp(192px, 18.4vw, 232px);
         --media-tile-shelf-view-all-width: clamp(96px, 8vw, 140px);
         display: flex;
         flex-direction: column;
@@ -9,7 +8,6 @@
     }
 
     .media-tile-shelf:has(.media-tile:hover),
-    .media-tile-shelf:has(.media-tile.is-hover-active),
     .media-tile-shelf:focus-within {
         z-index: 30;
     }
@@ -29,9 +27,9 @@
 
     .media-tile-shelf-title {
         margin: 0;
-        font-family: Georgia, 'Times New Roman', serif;
+        font-family: var(--font-reader);
         font-size: clamp(1.4rem, 2vw, 2rem);
-        font-weight: 700;
+        font-weight: 600;
         line-height: 1;
         color: rgba(248, 250, 252, 0.96);
     }
@@ -39,7 +37,7 @@
     .media-tile-shelf-subtitle {
         margin: 0;
         font-family: var(--font-ui);
-        font-size: 0.92rem;
+        font-size: var(--tl-font-size-sm);
         line-height: 1.5;
         color: rgba(148, 163, 184, 0.88);
     }
@@ -56,10 +54,9 @@
         color: rgba(248, 250, 252, 0.8);
         text-decoration: none;
         font-family: var(--font-ui);
-        font-size: 0.76rem;
-        font-weight: 700;
+        font-size: var(--tl-font-size-xs);
+        font-weight: 600;
         letter-spacing: 0.14em;
-        text-transform: uppercase;
         white-space: nowrap;
     }
 
@@ -73,16 +70,7 @@
         gap: clamp(11px, 1.1vw, 17px);
     }
 
-    .media-tile-shelf--compact ::deep .media-tile.is-portrait,
-    .media-tile-shelf--compact ::deep .media-tile.is-square {
-        --media-tile-media-height: clamp(176px, 16.1vw, 240px);
-    }
-
-    .media-tile-shelf--compact ::deep .media-tile.is-landscape {
-        --media-tile-media-height: clamp(134px, 12.9vw, 162px);
-    }
-
-    @media (max-width: 640px) {
+@media (max-width: 640px) {
         .media-tile-shelf--compact .media-tile-shelf-track {
             grid-template-columns: minmax(0, 1fr);
         }
@@ -136,11 +124,10 @@
     color: rgba(248, 250, 252, 0.88);
     text-decoration: none;
     font-family: var(--font-ui);
-    font-size: 0.76rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
     letter-spacing: 0.14em;
-    text-transform: uppercase;
-    border-radius: var(--app-radius-md);
+    border-radius: var(--tl-radius-md);
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.04);
 }
@@ -152,7 +139,7 @@
 }
 
 .media-tile-shelf-view-all:focus-visible {
-    outline: 3px solid var(--tl-focus-ring, #a78bfa);
+    outline: 3px solid var(--tl-focus-ring, var(--tl-accent-primary-hover));
     outline-offset: 3px;
 }
 

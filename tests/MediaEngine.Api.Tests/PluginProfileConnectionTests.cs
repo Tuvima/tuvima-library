@@ -32,6 +32,7 @@ public sealed class PluginProfileConnectionTests : IDisposable
     private readonly ConfigurationDirectoryLoader _loader;
     private readonly PluginCatalog _catalog;
     private readonly PluginProfileConnectionService _service;
+    private readonly PluginDeviceSignInService _signIn;
     private readonly PluginProfileConnectionRepository _repository;
     private readonly Guid _ana = Guid.NewGuid();
     private readonly Guid _ben = Guid.NewGuid();
@@ -45,6 +46,7 @@ public sealed class PluginProfileConnectionTests : IDisposable
         _catalog = new PluginCatalog([new ConnectPlugin()], new PluginSettingsService(_loader), _loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         _repository = new PluginProfileConnectionRepository(_kit.Database);
         _service = new PluginProfileConnectionService(_catalog, _repository, new PluginOutboxRepository(_kit.Database), new DataProtectionSecretStore(new EphemeralDataProtectionProvider()), TimeProvider.System);
+        _signIn = new PluginDeviceSignInService(_catalog, _service, new Storage.Secrets.ConfigFolderSecretsStore(Path.Combine(_root, "config")), new NoHttpFactory(), TimeProvider.System, NullLogger<PluginDeviceSignInService>.Instance);
         AddProfile(_ana, "Ana");
         AddProfile(_ben, "Ben");
     }
@@ -95,7 +97,7 @@ public sealed class PluginProfileConnectionTests : IDisposable
     {
         await _service.LinkAsync(PluginId, _ana, "user_token", Token, default);
 
-        var outcome = await Execute(await PluginEndpoints.GetPluginConnectionAsync(PluginId, _kit.Http(), _service, ResolverFor(_ana), default));
+        var outcome = await Execute(await PluginEndpoints.GetPluginConnectionAsync(PluginId, _kit.Http(), _service, _signIn, ResolverFor(_ana), default));
 
         Assert.Equal(200, outcome.Status);
         Assert.DoesNotContain(Token, outcome.Body, StringComparison.Ordinal);
@@ -140,7 +142,7 @@ public sealed class PluginProfileConnectionTests : IDisposable
     [Fact]
     public async Task SomeoneNotInAProfile_CannotLinkAnything()
     {
-        var outcome = await Execute(await PluginEndpoints.GetPluginConnectionAsync(PluginId, _kit.Http(), _service, ResolverFor(null), default));
+        var outcome = await Execute(await PluginEndpoints.GetPluginConnectionAsync(PluginId, _kit.Http(), _service, _signIn, ResolverFor(null), default));
 
         Assert.Equal(400, outcome.Status);
     }
@@ -160,7 +162,7 @@ public sealed class PluginProfileConnectionTests : IDisposable
     [Fact]
     public async Task AnUnknownPlugin_IsNotFound()
     {
-        var outcome = await Execute(await PluginEndpoints.GetPluginConnectionAsync("tuvima.test.nope", _kit.Http(), _service, ResolverFor(_ana), default));
+        var outcome = await Execute(await PluginEndpoints.GetPluginConnectionAsync("tuvima.test.nope", _kit.Http(), _service, _signIn, ResolverFor(_ana), default));
 
         Assert.Equal(404, outcome.Status);
     }
@@ -224,6 +226,11 @@ public sealed class PluginProfileConnectionTests : IDisposable
         context.Response.Body = body;
         await result.ExecuteAsync(context);
         return (context.Response.StatusCode, Encoding.UTF8.GetString(body.ToArray()));
+    }
+
+    private sealed class NoHttpFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => throw new InvalidOperationException("No request should be made.");
     }
 
     private sealed class FixedResolver(RequestAuthority authority) : IRequestAuthorityResolver

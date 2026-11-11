@@ -647,7 +647,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             DELETE FROM offline_variants WHERE owner_profile_id=@profileId;
             DELETE FROM user_states WHERE user_id=@profileId;
             DELETE FROM user_taste_profiles WHERE user_id=@profileId;
-            DELETE FROM reader_bookmarks WHERE user_id=@profileText;
             DELETE FROM reader_highlights WHERE user_id=@profileText;
             DELETE FROM reader_statistics WHERE user_id=@profileText;
             """, new { profileId, profileText = profileId.ToString("D"), trashEmptied = SystemActionType.PersonalTrashEmptied }, transaction);

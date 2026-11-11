@@ -5,7 +5,7 @@
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="@L["DocumentOrganisationSettings_OrganisingDocuments"].Value" Description="@L["DocumentOrganisationSettings_TagsCorrespondentsDocumentTypesAnd"].Value">
+<AppSettingsGroup Heading="@L["DocumentOrganisationSettings_OrganisingDocuments"].Value" Helper="@L["DocumentOrganisationSettings_TagsCorrespondentsDocumentTypesAnd"].Value">
     @if (_loading)
     {
         <p role="status">@L["DocumentOrganisationSettings_LoadingYourLists"]</p>
@@ -27,7 +27,7 @@
     {
         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     [Parameter] public bool ReadOnly { get; set; }
@@ -239,7 +239,7 @@
             row.Count == 0
                 ? "Nothing you can see uses it right now. If anything else does, it is taken off there too."
                 : $"It is used on {row.Count} {(row.Count == 1 ? "item" : "items")} you can see, and it is taken off every other item that carries it as well, including any you cannot see. Nothing else about them changes.",
-            "Remove", "Keep");
+            "Remove", "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;

@@ -30,10 +30,10 @@
     display: inline-grid;
     place-items: center;
     border: 1px solid rgba(246, 240, 232, 0.14);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: rgba(246, 240, 232, 0.72);
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-credit-group--secondary {
@@ -45,18 +45,18 @@
     min-height: 2.35rem;
     padding: 0 0.85rem;
     border: 1px solid rgba(246, 240, 232, 0.14);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(246, 240, 232, 0.06);
     color: rgba(246, 240, 232, 0.82);
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
     cursor: pointer;
 }
 
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:hover,
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:focus-visible {
     border-color: rgba(246, 240, 232, 0.28);
-    color: #fff8eb;
+    color: var(--tl-text-primary);
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group {
@@ -82,10 +82,9 @@
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group__heading h2 {
     color: rgba(246, 240, 232, 0.92);
-    font-size: 0.82rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
     letter-spacing: 0.16em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-grid {

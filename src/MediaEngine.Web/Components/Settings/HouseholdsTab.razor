@@ -25,8 +25,7 @@ else
 {
     <div class="households-tab" data-households-tab>
         <SettingsSectionPanel Title="@L["HouseholdsTab_Households"].Value"
-                              Description="@L["HouseholdsTab_EachHouseholdHasItsOwn"].Value"
-                              Icon="@AppMaterialIcons.Outlined.Home">
+                              Description="@L["HouseholdsTab_EachHouseholdHasItsOwn"].Value">
             <Actions>
                 <AppButton Label="@L["Common_AddHousehold"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary"
                            ButtonStyle="AppButtonStyle.Filled" Disabled="@(_adding || _busy)" OnClick="BeginAdd" />
@@ -300,7 +299,7 @@ else
         ClearMessages();
         if (await Dialogs.ShowMessageBoxAsync($"Remove {household.Name}?",
                 "The household is removed for good. It can only be removed while it has no people, sign-ins or shared photos.",
-                yesText: "Remove", cancelText: "Cancel") != true)
+                yesText: "Remove", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true)
         {
             return;
         }

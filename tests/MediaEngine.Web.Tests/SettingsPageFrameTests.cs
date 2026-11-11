@@ -23,7 +23,6 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
     {
         var cut = Render<SettingsPageFrame>(parameters => parameters
             .Add(frame => frame.Breadcrumbs, Trail)
-            .Add(frame => frame.Eyebrow, "Personal")
             .Add(frame => frame.Title, "Security")
             .Add(frame => frame.Description, "Password, email and extra protection.")
             .AddChildContent("<p id=\"page-body\">Body</p>"));
@@ -32,7 +31,7 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
         Assert.Equal("Security", cut.Find("nav.settings-breadcrumbs span[aria-current='page']").TextContent);
         Assert.Equal("Security", cut.Find("h1").TextContent);
         Assert.Contains("Password, email and extra protection.", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Personal", cut.Find(".app-page-header__eyebrow").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".app-page-header__eyebrow"));
         Assert.NotNull(cut.Find("[data-settings-frame-slot='content'] #page-body"));
     }
 
@@ -49,6 +48,54 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-settings-frame-slot='tabs']"));
         Assert.Single(cut.FindAll("[data-settings-frame-slot='header']"));
         Assert.Single(cut.FindAll("[data-settings-frame-slot='content']"));
+    }
+
+    [Fact]
+    public async Task Frame_DrawsAPagesHeaderActionAtTheRightOfTheTitleRow_AndDropsItWhenThePageClearsIt()
+    {
+        SettingsHeaderActions? slot = null;
+        // The frame hands its slot to the page through a cascading value; a page sets it and the header draws it.
+        var cut = Render<SettingsPageFrame>(parameters => parameters
+            .Add(frame => frame.Title, "Libraries")
+            .Add(frame => frame.ChildContent, (RenderFragment)(builder =>
+            {
+                builder.OpenComponent<HeaderActionProbe>(0);
+                builder.AddAttribute(1, nameof(HeaderActionProbe.OnSlot), new Action<SettingsHeaderActions>(actions => slot = actions));
+                builder.CloseComponent();
+            })));
+
+        Assert.NotNull(slot);
+        var header = cut.Find("[data-settings-frame-slot='header']");
+        Assert.Equal("Add thing", header.QuerySelector(".app-page-header__actions button")!.TextContent);
+        Assert.Empty(cut.Find("[data-settings-frame-slot='content']").QuerySelectorAll("#header-probe-button"));
+
+        await cut.InvokeAsync(() => slot!.Set(null));
+
+        Assert.Empty(cut.FindAll(".app-page-header__actions"));
+    }
+
+    private sealed class HeaderActionProbe : ComponentBase
+    {
+        private readonly RenderFragment _button = builder =>
+        {
+            builder.OpenElement(0, "button");
+            builder.AddAttribute(1, "id", "header-probe-button");
+            builder.AddContent(2, "Add thing");
+            builder.CloseElement();
+        };
+
+        [CascadingParameter] public SettingsHeaderActions? Actions { get; set; }
+
+        [Parameter] public Action<SettingsHeaderActions>? OnSlot { get; set; }
+
+        protected override void OnInitialized()
+        {
+            Actions?.Set(_button);
+            if (Actions is not null)
+            {
+                OnSlot?.Invoke(Actions);
+            }
+        }
     }
 
     [Fact]

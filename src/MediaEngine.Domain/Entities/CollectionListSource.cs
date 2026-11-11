@@ -37,6 +37,13 @@ public sealed class CollectionListSource
     public int EntryCount { get; set; }
     public int MatchedCount { get; set; }
     public int UnmatchedCount { get; set; }
+
+    /// <summary>
+    /// The profile whose own account on the list's site was used to read it (Trakt sign-in, Plugin architecture spec C13). A scheduled
+    /// refresh has no signed-in person, so it reads the list with this profile's token. Null when no account was needed.
+    /// </summary>
+    public Guid? ConnectionProfileId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

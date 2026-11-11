@@ -26,7 +26,7 @@ else
             tasks list under System > @L["LogRetentionPanel_ScheduledTasksSaysWhenIt"]
         </AppAlert>
 
-        <AppCard Title="@L["Common_Events"].Value" Description="@L["LogRetentionPanel_TheReadableLogOfWhat"].Value">
+        <AppSettingsGroup Heading="@L["Common_Events"].Value" Helper="@L["LogRetentionPanel_TheReadableLogOfWhat"].Value">
             <div class="log-retention__fields">
                 <AppTextField Label="@L["LogRetentionPanel_KeepEventsForDays"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_activityDays" ValueChanged="@(v => Edit(ref _activityDays, v))"
@@ -40,9 +40,9 @@ else
             <p class="log-retention__usage" data-testid="retention-activity-usage">
                 @L["LogRetentionPanel_EventsStoredNow", DisplayFormat.FormatCount(_status.ActivityEventCount)]
             </p>
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["LogRetentionPanel_TechnicalLogFiles"].Value" Description="The Engine's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
+        <AppSettingsGroup Heading="@L["LogRetentionPanel_TechnicalLogFiles"].Value" Helper="The Engine's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
             <div class="log-retention__fields">
                 <AppTextField Label="@L["LogRetentionPanel_KeepFilesForDays"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_logDays" ValueChanged="@(v => Edit(ref _logDays, v))"
@@ -56,7 +56,7 @@ else
             <p class="log-retention__usage" data-testid="retention-log-usage">
                 @FileUsage(_status)
             </p>
-        </AppCard>
+        </AppSettingsGroup>
 
         @if (!string.IsNullOrWhiteSpace(_error))
         {

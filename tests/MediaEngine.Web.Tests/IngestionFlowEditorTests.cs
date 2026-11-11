@@ -115,7 +115,7 @@ public sealed class IngestionFlowEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ProviderPages_LightPlugins_AndNotLibraryAndIngestion()
+    public void ProviderPages_LightPlugins_AndNotLibraries()
     {
         var context = new MediaEngine.Web.Services.Navigation.SettingsMenuContext(
             AdministrationAllowed: true, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
@@ -124,9 +124,9 @@ public sealed class IngestionFlowEditorTests : AsyncBunitContext
             .SelectMany(group => group.Items)
             .ToList();
 
-        var ingestion = items.Single(item => item.Label == "Library & Ingestion");
+        var libraries = items.Single(item => item.Label == "Libraries");
         var plugins = items.Single(item => item.Label == "Plugins");
-        Assert.DoesNotContain("/settings/metadata/providers", ingestion.ActiveRoutes!);
+        Assert.DoesNotContain("/settings/metadata/providers", libraries.ActiveRoutes!);
         Assert.DoesNotContain("/settings/metadata/providers", plugins.ActiveRoutes!);
     }
 

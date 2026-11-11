@@ -151,7 +151,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.DoesNotContain("Server administrator", rows[0].TextContent);
         Assert.Contains("Kids", rows[1].TextContent);
         Assert.DoesNotContain("You", rows[1].TextContent);
-        Assert.Equal(["Home"], cut.FindAll(".profiles-tab__group .settings-section-card__title").Select(title => title.TextContent));
+        Assert.Equal(["Home"], cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
         Assert.Equal("list", cut.Find(".profiles-tab__list").GetAttribute("role"));
         Assert.All(rows, row => Assert.Single(row.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Edit"));
         Assert.Single(cut.FindAll(".profiles-tab__row--add"));
@@ -174,7 +174,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        Assert.Equal(["Home", "Cabin"], cut.FindAll(".profiles-tab__group .settings-section-card__title").Select(title => title.TextContent));
+        Assert.Equal(["Home", "Cabin"], cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
         var cabin = cut.Find($"[data-household-group='{OtherHouseholdId}']");
         Assert.Contains("Alex", cabin.TextContent);
         Assert.DoesNotContain("Sam", cabin.TextContent);
@@ -255,7 +255,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.Find(".profiles-tab__row--add").Click();
         cut.WaitForAssertion(() => Assert.Equal("Add profile", cut.Find("#profile-editor-title").TextContent));
         cut.Find("input.profile-editor__name").Input("Sam");
-        cut.Find(".who-button--primary").Click();
+        cut.Find(".profile-editor__save").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/households/{HouseholdId:D}/people"));
     }
@@ -275,7 +275,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.Find("button[aria-label='Add profile to Cabin']").Click();
         cut.WaitForAssertion(() => Assert.Equal("Add profile", cut.Find("#profile-editor-title").TextContent));
         cut.Find("input.profile-editor__name").Input("Casey");
-        cut.Find(".who-button--primary").Click();
+        cut.Find(".profile-editor__save").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/households/{OtherHouseholdId:D}/people"));
         Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/households/{HouseholdId:D}/people");
@@ -355,7 +355,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.Find(".profiles-tab__row--add").Click();
         cut.WaitForAssertion(() => Assert.Equal("Add profile", cut.Find("#profile-editor-title").TextContent));
         cut.Find("input.profile-editor__name").Input("Sam");
-        cut.Find(".who-button--primary").Click();
+        cut.Find(".profile-editor__save").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("A household holds up to 8 people.", cut.Find(".who-page__error").TextContent));
     }
@@ -427,7 +427,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.Equal("PG", body.RootElement.GetProperty("read_level").GetString());
         Assert.Equal("G", body.RootElement.GetProperty("listen_level").GetString());
         Assert.False(body.RootElement.GetProperty("show_unrated").GetBoolean());
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-kid-settings-saved]")));
+        cut.WaitForAssertion(() => Assert.False(string.IsNullOrWhiteSpace(cut.Find("[data-kid-settings-saved]").TextContent)));
         Assert.Empty(cut.FindAll(".app-save-bar"));
     }
 

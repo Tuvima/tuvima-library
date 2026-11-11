@@ -1,11 +1,12 @@
 .cinematic-hero-carousel {
     --cinematic-hero-rotation-duration: 8s;
-    --cinematic-hero-height: clamp(34rem,80svh,calc(100svh - var(--app-topbar-height,65px)));
+    --cinematic-hero-height: clamp(22rem,var(--tl-hero-height),calc(100svh - var(--app-topbar-height,65px)));
     --cinematic-hero-min-height: var(--cinematic-hero-height);
+    --lc-topbar: var(--app-topbar-height, 65px);
     position: relative;
     min-height: var(--cinematic-hero-min-height);
     isolation: isolate;
-    background: #05070c;
+    background: var(--tl-bg-root);
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -33,7 +34,7 @@
     align-items: flex-end;
     box-sizing: border-box;
     padding:
-        calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 2rem)
+        var(--lc-content-top, calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 2rem))
         max(5.5rem, 6vw)
         4.5rem;
     pointer-events: none;
@@ -57,7 +58,7 @@
 }
 
 .cinematic-hero-carousel__detail-link:focus-visible {
-    outline: 3px solid var(--tl-accent-primary, #8852FC);
+    outline: 3px solid var(--tl-accent-primary);
     outline-offset: -6px;
 }
 
@@ -69,15 +70,29 @@
     max-width: calc(100% - 6rem);
     padding: 0.48rem 0.72rem;
     border: 1px solid rgba(255, 255, 255, 0.13);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(5, 7, 12, 0.46);
     color: rgba(248, 250, 252, 0.82);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.11em;
-    text-transform: uppercase;
     backdrop-filter: blur(0.8rem);
 }
+
+/* A video's label sits in the text column right over its title instead of at the top right (Home hero mock). */
+.cinematic-hero-carousel__context--above-title {
+    position: static;
+    width: fit-content;
+    max-width: 100%;
+    margin-bottom: 0.6rem;
+    pointer-events: auto;
+}
+
+/* The button row stays the shared row; a folder's Open button is one of its companions (Look v3 D12). */
+.cinematic-hero-carousel__actions {
+    display: contents;
+}
+
 
 /* Landing typography fits the shorter stage; shared foreground geometry stays
    with HeroBackdrop for Home and details. */
@@ -120,7 +135,7 @@
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: transparent;
     cursor: pointer;
 }
@@ -139,7 +154,7 @@
     width: 1.65rem;
     height: 0.22rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(226, 232, 240, 0.3);
     box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
 }
@@ -152,14 +167,14 @@
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item.is-active .cinematic-hero-carousel__dash {
     width: 3rem;
     height: 0.38rem;
-    background: var(--tl-accent-primary, #8852FC);
+    background: var(--tl-accent-primary);
 }
 
 .cinematic-hero-carousel__dash-fill {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 65%, white);
+    background: color-mix(in srgb, var(--tl-accent-primary) 65%, white);
     transform: scaleX(0);
     transform-origin: left center;
     animation: cinematic-hero-dash-fill var(--cinematic-hero-rotation-duration, 8000ms) linear forwards;
@@ -201,7 +216,7 @@
     place-items: center;
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: rgba(5, 7, 12, 0.58);
     color: rgba(248, 250, 252, 0.9);
     cursor: pointer;
@@ -227,7 +242,7 @@
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__control:focus-visible {
     border-color: rgba(255, 255, 255, 0.42);
     background: rgba(20, 23, 31, 0.84);
-    color: #fff;
+    color: var(--tl-text-on-accent);
 }
 ::deep .cinematic-hero__track-preview {
     order: 7;
@@ -242,8 +257,8 @@
     align-items: center;
     justify-content: space-between;
     color: rgba(248, 250, 252, 0.9);
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
 }
 
 ::deep .cinematic-hero__track-preview-heading small {
@@ -265,7 +280,7 @@
     grid-template-columns: 1.5rem minmax(0, 1fr);
     gap: 0.45rem;
     color: rgba(226, 232, 240, 0.74);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 ::deep .cinematic-hero__track-preview a,
@@ -279,13 +294,13 @@
 
 ::deep .cinematic-hero__track-preview a:hover,
 ::deep .cinematic-hero__track-preview a:focus-visible {
-    color: #fff;
+    color: var(--tl-text-on-accent);
     text-decoration: underline;
 }
 
 @media (min-width: 721px) and (max-height: 760px) {
     .cinematic-hero-carousel {
-        --cinematic-hero-height:72svh;
+        --cinematic-hero-height:var(--tl-hero-height);
     }
 }
 
@@ -301,7 +316,7 @@
         width: 100%;
         max-width: 100%;
         min-width: 0;
-        padding-top: max(calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 4.5rem), 28svh);
+        padding-top: var(--lc-content-top, max(calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 4.5rem), 28svh));
         padding-bottom: calc(4rem + var(--tl-safe-area-bottom, 0px));
         padding-left: calc(var(--tl-safe-area-left, 0px) + 56px);
         padding-right: calc(var(--tl-safe-area-right, 0px) + 56px);
@@ -393,7 +408,7 @@
     }
 }
 
-.cinematic-hero-carousel ::deep .tl-detail-media-stage__overlay { background:linear-gradient(90deg,#05070ce6,transparent 70%),linear-gradient(0deg,#05070c,transparent 70%); }
+.cinematic-hero-carousel ::deep .tl-detail-media-stage__overlay { background:linear-gradient(90deg,color-mix(in srgb,var(--tl-bg-root) 90%,transparent),transparent 70%),linear-gradient(0deg,var(--tl-bg-root),transparent 70%); }
 
 /* Touch: vertical panning stays with the browser so the page still scrolls; horizontal swipes go to the carousel. */
 @media (hover: none), (pointer: coarse) {
@@ -407,4 +422,19 @@
     --cinematic-hero-min-height: 0;
     min-height: 0;
     background: transparent;
+}
+
+/* The "Recently added music" slide: eight covers in a grid on the right of the hero (Home, detail and tiles spec D4). */
+.cinematic-hero-carousel__collage { position: absolute; top: 50%; right: clamp(1.5rem, 5vw, 4rem); z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(46%, 34rem); transform: translateY(-50%); pointer-events: none; }
+.cinematic-hero-carousel__collage img { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
+
+/* A cover-led book, comic or audiobook hero on a narrow stage: the hero grows to its content, the large cover sits above the text, and the
+   text starts below it (issue 709). The cover itself is placed by HeroBackdrop.razor.css from --lc-narrow-h. */
+@media (width < 840px) {
+    .cinematic-hero-carousel--cover-led {
+        --cinematic-hero-height: auto;
+        --cinematic-hero-min-height: 0px;
+        --lc-narrow-h: min(24rem, 44svh);
+        --lc-content-top: calc(var(--lc-topbar) + var(--tl-safe-area-top, 0px) + 1rem + var(--lc-narrow-h) + 1.25rem);
+    }
 }

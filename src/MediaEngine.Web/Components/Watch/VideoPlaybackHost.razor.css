@@ -1,30 +1,18 @@
-.video-playback-host { position:fixed; inset:auto auto 0 0; width:1px; height:1px; opacity:0; pointer-events:none; overflow:hidden; background:#000; color:var(--playback-text); }
+.video-playback-host { position:fixed; inset:auto auto 0 0; width:1px; height:1px; opacity:0; pointer-events:none; overflow:hidden; background:var(--tl-viewer-black); color:var(--playback-text); }
 .video-playback-host.is-expanded { inset:0; width:100%; height:100%; opacity:1; pointer-events:auto; overflow:visible; z-index:1450; }
-.video-playback-host__media { display:block; width:100%; height:100%; object-fit:contain; background:#000; }
+.video-playback-host__media { display:block; width:100%; height:100%; object-fit:contain; background:var(--tl-viewer-black); }
 .video-playback-host__segments { position:absolute; left:8px; right:8px; top:18px; height:7px; pointer-events:none; z-index:1; }
 .video-playback-host__segments ::deep .video-playback-host__segment { position:absolute; height:7px; background:rgba(255,255,255,.18); border-inline:1px solid rgba(255,255,255,.48); }
 .video-playback-host ::deep .playback-icon-button-shell--surface-video { width:44px; flex:0 0 44px; }
 .video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button { width:44px; min-width:44px; height:44px; min-height:44px; padding:0; justify-content:center; }
 .video-playback-host ::deep .playback-icon-button__visual { width:22px; height:22px; }
-.video-playback-host ::deep .video-playback-host__icon { display:grid; place-items:center; width:44px; height:44px; min-width:44px; padding:0; border:0; border-radius:8px; background:transparent; color:#fff; cursor:pointer; }
-.video-playback-host ::deep .video-playback-host__icon .tl-icon-root { width:22px; height:22px; font-size:22px; }
+.video-playback-host ::deep .video-playback-host__icon { display:grid; place-items:center; width:44px; height:44px; min-width:44px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--tl-on-scrim); cursor:pointer; }
+.video-playback-host ::deep .video-playback-host__icon .playback-utility-glyph { --playback-glyph-size:var(--tl-icon-size-md); }
 .video-playback-host ::deep .video-playback-host__icon:focus-visible { outline:2px solid var(--playback-accent); outline-offset:2px; }
 .video-playback-host ::deep .video-playback-host__icon:hover { background:var(--playback-accent-soft); }
-.video-playback-host__paused-title { position:absolute; inset:0; display:grid; align-content:center; justify-items:center; gap:6px; padding:0 15%; text-align:center; background:rgba(0,0,0,.35); color:#fff; opacity:0; pointer-events:none; transition:opacity .25s ease; }
-.video-playback-host__paused-title[data-paused="true"] { opacity:1; }
-.video-playback-host__paused-title strong { font-family:var(--font-ui); font-size:clamp(1.4rem,3vw,2.4rem); font-weight:600; }
-.video-playback-host__paused-title small,.video-playback-host__paused-title span { color:var(--playback-text-secondary); font-size:1rem; }
 .video-playback-host__status { position:absolute; top:20%; left:50%; transform:translateX(-50%); padding:12px 20px; background:rgba(0,0,0,.6); border-radius:8px; }
-.video-playback-host__skip-segment { position:absolute; right:0; bottom:100%; display:flex; align-items:center; gap:8px; padding:4px 6px 4px 14px; background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; }
-.video-playback-host__end-card { position:absolute; right:max(16px,var(--tl-safe-area-right)); bottom:calc(var(--playback-chrome-height,180px) + max(16px,var(--tl-safe-area-bottom)) + 16px); width:min(320px,calc(100% - 32px)); padding:14px; display:grid; gap:10px; background:rgba(13,18,28,.94); border:1px solid var(--playback-border); border-radius:10px; z-index:3; }
-.video-playback-host__end-card-content { display:flex; gap:10px; align-items:center; }
-.video-playback-host__end-card-content img { width:112px; height:63px; object-fit:cover; border-radius:5px; }
-.video-playback-host__end-card-content > span { display:grid; gap:4px; min-width:0; }
-.video-playback-host__end-card-content strong { font-size:.9rem; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
-.video-playback-host__end-card-content span span { color:var(--playback-text-secondary); font-size:.8rem; }
-.video-playback-host__end-card-actions { display:flex; justify-content:flex-end; gap:8px; }
-.video-playback-host__end-card-actions ::deep button:first-child { border:1px solid var(--playback-accent); }
-@media(max-height:450px) { .video-playback-host__controls { gap:0; } .video-playback-host__end-card { width:280px; padding:8px; } }
+.video-playback-host__skip-segment { position:absolute; right:0; bottom:100%; display:flex; align-items:center; gap:8px; padding:4px 6px 4px 14px; background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.35); border-radius:8px; color:var(--tl-on-scrim); }
+@media(max-height:450px) { .video-playback-host__controls { gap:0; } }
 .video-playback-restore {
     position: fixed;
     z-index: 1320;
@@ -64,6 +52,56 @@
 }
 
 
-.video-playback-host__end-card-placeholder { display:grid; place-items:center; width:112px; height:63px; flex:0 0 112px; background:rgba(255,255,255,.05); color:var(--playback-text-muted); border-radius:5px; }
 
 .video-playback-host__media { font-size:clamp(var(--tl-font-size-xs),1.15vw,var(--tl-font-size-lg)); }
+
+/* The phone's header over the picture (unified player v2 D26): the title and second line at the left, Playback settings and Close at the right. */
+.video-playback-host__phone-header {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+}
+
+.video-playback-host__phone-title {
+    color: var(--playback-text);
+    flex: 1;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The Playback settings trigger is drawn by PlaybackPanel, so the bar's tool-button look is repeated for the header: 44 px, transparent, selected in soft purple. */
+.video-playback-host__phone-header ::deep .playback-popover-trigger {
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    display: grid;
+    height: var(--playback-control-target);
+    min-width: var(--playback-control-target);
+    padding: 0;
+    place-items: center;
+    width: var(--playback-control-target);
+}
+
+.video-playback-host__phone-header ::deep .playback-popover-trigger:not(:disabled):is([aria-expanded="true"], [aria-pressed="true"], .is-on) {
+    background: var(--playback-state-selected);
+    color: var(--tl-accent-primary-hover);
+}
+
+.video-playback-host__phone-header ::deep .playback-popover-trigger:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.video-playback-host__phone-header ::deep .playback-utility-glyph {
+    height: var(--playback-control-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
+}

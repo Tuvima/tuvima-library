@@ -133,7 +133,7 @@ public static class BackupDestinationEndpoints
 
             try
             {
-                return Results.Ok(await orchestrator.RestoreFromDestinationAsync(destination, request.Name, ct).ConfigureAwait(false));
+                return Results.Ok(await orchestrator.RestoreFromDestinationAsync(destination, request.Name, ct, request.KeysPin).ConfigureAwait(false));
             }
             catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or BackupDestinationException or FileNotFoundException or ArgumentException)
             {

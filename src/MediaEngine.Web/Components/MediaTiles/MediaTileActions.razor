@@ -1,0 +1,262 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Domain.Services
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject NavigationManager Nav
+@inject IServiceProvider Services
+@inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
+@inject ILogger<MediaTileActions> Logger
+@* The cover's one button (One tile design D3, D4): "..." sits top right, always visible, and holds Add to My List (first, on every device),
+   Restart (only once started), Open Universe (when there is one), Edit (desktop only) and Delete (administrators on a desktop). A Continue
+   tile adds "Go to ..." first and "Remove from Continue" after Restart (D8). It sits beside the cover's link, never inside it. Edit opens the
+   pop-over editor over the page; nothing navigates away. It is not drawn when it would be empty. *@
+@if (_target is not null || IsContinue)
+{
+    <div class="media-tile-actions" data-media-tile-actions>
+        <OverflowActionMenu Actions="MenuActions" ButtonClass="media-tile-action app-icon-button app-icon-button--plain app-icon-button--over-artwork app-control--compact" TriggerIcon="@AppMaterialIcons.Outlined.MoreVert" KeepOrder="true" OnActionSelected="SelectAsync" />
+    </div>
+}
+
+@code {
+    private MediaTileActionTarget? _target;
+    private Guid _loadedFor;
+    private bool _isSaved;
+    private bool _busy;
+    private SavedItemService? _saved;
+
+    [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
+
+    /// <summary>Raised after the title was deleted, so the cover can leave the row.</summary>
+    [Parameter] public EventCallback OnDeleted { get; set; }
+
+    /// <summary>True on a Continue tile: its menu starts with "Go to ..." and holds "Remove from Continue" (D8).</summary>
+    [Parameter] public bool IsContinue { get; set; }
+
+    /// <summary>Raised when "Remove from Continue" is chosen; the tile hides itself and tells the Engine.</summary>
+    [Parameter] public EventCallback OnRemoveFromContinue { get; set; }
+
+    private const string OpenUniverseKey = "open-universe";
+    private const string GoToKey = "go-to";
+    private const string RemoveFromContinueKey = "remove-from-continue";
+
+    private string ListLabel => _isSaved ? L["MediaTile_RemoveFromMyList"].Value : L["MediaTile_AddToMyList"].Value;
+
+    private IReadOnlyList<DetailAction> MenuActions
+    {
+        get
+        {
+            var actions = new List<DetailAction>();
+            // A Continue tile plays when tapped, so its page is one row away (D8): named by what it is.
+            if (IsContinue)
+            {
+                actions.Add(new DetailAction { Key = GoToKey, Label = GoToLabel, Icon = "arrow_forward" });
+            }
+
+            if (_target is not null)
+            {
+                actions.Add(new DetailAction
+                {
+                    Key = DetailActionKeys.MyList,
+                    Label = ListLabel,
+                    Icon = _isSaved ? "playlist_add_check" : "playlist_add",
+                });
+            }
+
+            if (MediaTileActionTarget.IsStarted(Item))
+            {
+                actions.Add(new DetailAction { Key = "restart", Label = L["MediaTile_Restart"].Value, Icon = "restart_alt" });
+            }
+
+            if (IsContinue)
+            {
+                actions.Add(new DetailAction { Key = RemoveFromContinueKey, Label = L["MediaTile_RemoveFromContinue"].Value, Icon = "close" });
+            }
+
+            // Only when the Engine says this title's Universe page can open, so the row is never a dead link (Universe entry points spec).
+            if (!string.IsNullOrWhiteSpace(Item.UniverseQid))
+            {
+                actions.Add(new DetailAction { Key = OpenUniverseKey, Label = L["MediaTile_OpenUniverse"].Value, Icon = "open_in_new" });
+            }
+
+            // Editing is desktop-only (EditorDeviceRule); the Engine's own answer for this item is read when Edit is chosen.
+            if (_target is not null && EditorDeviceRule.CanEdit(DeviceContext))
+            {
+                actions.Add(new DetailAction { Key = DetailActionKeys.Edit, Label = L["MediaTile_Edit"].Value, Icon = "edit" });
+            }
+
+            if (_target is { } target && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>()))
+            {
+                actions.Add(target.IsGroup
+                    ? DetailMenuGrouping.DeleteGroupAction(target.GroupKind == LibraryGroupKinds.Album ? L["MediaTile_DeleteAlbum"].Value
+                        : VideoFolderWording.IsVideoFolderMediaType(Item.MediaKind) ? "Delete folder…" : L["MediaTile_DeleteShow"].Value)
+                    : DetailMenuGrouping.DeleteFromLibraryAction);
+            }
+
+            return actions;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _saved = Services.GetService<SavedItemService>();
+        if (_saved is not null)
+        {
+            _saved.Changed += SavedChanged;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _target = MediaTileActionTarget.For(Item);
+        if (_target is null || _saved is null || _loadedFor == _target.Id)
+        {
+            return;
+        }
+
+        _loadedFor = _target.Id;
+        await RefreshSavedAsync();
+    }
+
+    private async Task RefreshSavedAsync()
+    {
+        if (_target is null || _saved is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _isSaved = (await _saved.GetMembershipAsync(_target.SavedKind, _target.Id)).IsSaved;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogDebug(ex, "Could not read whether {Title} is on My List.", _target.Title);
+        }
+    }
+
+    private void SavedChanged() => _ = InvokeAsync(async () =>
+    {
+        await RefreshSavedAsync();
+        StateHasChanged();
+    });
+
+    private async Task ToggleListAsync()
+    {
+        if (_target is null || _saved is null || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var membership = await _saved.ToggleAsync(_target.SavedKind, _target.Id);
+            if (membership is not null)
+            {
+                _isSaved = membership.IsSaved;
+                Services.GetService<IAppToastService>()?.Add(_isSaved ? L["MediaTile_AddedToMyList"].Value : L["MediaTile_RemovedFromMyList"].Value, AppSeverity.Success);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private string GoToLabel => MediaTileActionTarget.GoToKind(Item) switch
+    {
+        "show" => L["MediaTile_GoToShow"].Value,
+        "folder" => "Go to folder",
+        "movie" => L["MediaTile_GoToMovie"].Value,
+        "book" => L["MediaTile_GoToBook"].Value,
+        "audiobook" => L["MediaTile_GoToAudiobook"].Value,
+        "comic" => L["MediaTile_GoToComic"].Value,
+        "album" => L["MediaTile_GoToAlbum"].Value,
+        "series" => L["MediaTile_GoToSeries"].Value,
+        _ => L["MediaTile_GoToTitle"].Value,
+    };
+
+    private async Task SelectAsync(DetailAction action)
+    {
+        if (action.Key == GoToKey)
+        {
+            Nav.NavigateTo(MediaTileActionTarget.GoToUrl(Item));
+            return;
+        }
+
+        if (action.Key == RemoveFromContinueKey)
+        {
+            await OnRemoveFromContinue.InvokeAsync();
+            return;
+        }
+
+        if (_target is null)
+        {
+            return;
+        }
+
+        switch (action.Key)
+        {
+            case DetailActionKeys.MyList:
+                await ToggleListAsync();
+                break;
+            case "restart":
+                Nav.NavigateTo(MediaTileActionTarget.RestartUrl(Item));
+                break;
+            case OpenUniverseKey:
+                if (!string.IsNullOrWhiteSpace(Item.UniverseQid))
+                {
+                    Nav.NavigateTo($"/universe/{Uri.EscapeDataString(Item.UniverseQid)}");
+                }
+
+                break;
+            case DetailActionKeys.Edit:
+                if (Services.GetService<ListEditLauncher>() is { } launcher)
+                {
+                    await launcher.OpenAsync(_target.ToEditTarget());
+                }
+
+                break;
+            case DetailActionKeys.DeleteFromLibrary:
+                await DeleteAsync();
+                break;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var toasts = Services.GetService<IAppToastService>();
+        var dialogs = Services.GetService<IAppDialogService>();
+        if (_target is null || toasts is null || dialogs is null
+            || LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), toasts))
+        {
+            return;
+        }
+
+        var deleted = _target.IsGroup
+            ? await LibraryItemDeletionFlow.RunGroupAsync(dialogs, toasts, new LibraryGroupTarget(_target.Id, _target.GroupKind!, _target.Title, [])) is not null
+            : await LibraryItemDeletionFlow.RunAsync(dialogs, toasts, [_target.Id], _target.Title) != LibraryItemDeletionFlowOutcome.Canceled;
+        if (deleted)
+        {
+            await OnDeleted.InvokeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_saved is not null)
+        {
+            _saved.Changed -= SavedChanged;
+        }
+    }
+}

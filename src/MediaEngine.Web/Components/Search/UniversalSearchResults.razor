@@ -81,6 +81,32 @@
                         </ul>
                     </section>
                 }
+                else if (IsSupportingFiles(resultSection))
+                {
+                    @* Supporting files found by title, description or file name (universal editor v5 item 18): a row each with its type badge, title and the
+                       title it belongs to. The Engine already applied the owner's visibility, so a file in a title this profile cannot see is never here.
+                       A row opens the file in the Extras viewer. *@
+                    <section class="universal-results__section" aria-labelledby="@SectionId(resultSection)" data-testid="search-supporting-files">
+                        <header>
+                            <h2 id="@SectionId(resultSection)">@resultSection.Title</h2>
+                        </header>
+                        <ul class="universal-results__files">
+                            @foreach (var result in resultSection.Results)
+                            {
+                                <li @key="@($"{result.EntityType}:{result.Id}")">
+                                    <a href="@FileHref(result)" class="universal-results__file @(IsSelected(result) ? "is-selected" : null)" data-testid="search-supporting-file"
+                                       @onfocus="@(() => SelectAsync(result))" @onmouseenter="@(() => SelectAsync(result))">
+                                        <span class="universal-results__file-type" aria-hidden="true">@FileBadge(result)</span>
+                                        <span class="universal-results__file-copy">
+                                            <strong>@result.Title</strong>
+                                            <small>@FileOwnerLine(result)</small>
+                                        </span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
                 else
                 {
                     <section class="universal-results__section" aria-labelledby="@SectionId(resultSection)">
@@ -127,12 +153,7 @@
         @if (!Compact && ActiveResult is not null)
         {
             <aside class="universal-results__preview" aria-label="@L["UniversalSearchResults_SearchResultPreview"].Value">
-                <AppNativeButton Type="button"
-                                 Class="universal-results__preview-close"
-                                 AriaLabel="@L["UniversalSearchResults_ClosePreview"].Value"
-                                 OnClick="@(() => ClearSelectionAsync())">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-                </AppNativeButton>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" Class="universal-results__preview-close" AriaLabel="@L["UniversalSearchResults_ClosePreview"].Value" Tooltip="@L["UniversalSearchResults_ClosePreview"].Value" OnClick="@(() => ClearSelectionAsync())" />
                 <div class="@ArtworkClass("universal-results__preview-art", ActiveResult)">
                     @if (!string.IsNullOrWhiteSpace(ActiveResult.ArtworkUrl))
                     {
@@ -196,6 +217,21 @@
     private Task SelectAsync(UniversalSearchResultDto result) => SelectedResultChanged.InvokeAsync(result);
     private Task ClearSelectionAsync() => SelectedResultChanged.InvokeAsync(null);
     private static bool IsFileMissing(UniversalSearchSectionDto section) => section.Key == "file-missing";
+    private static bool IsSupportingFiles(UniversalSearchSectionDto section) => section.Key == "supporting-files";
+
+    // A supporting file opens in the Extras viewer; every other result opens its own page.
+    private static string FileHref(UniversalSearchResultDto result) => $"/extras/{Uri.EscapeDataString(result.Id.ToString("D"))}";
+
+    private static string FileBadge(UniversalSearchResultDto result) => (result.SupportingFile?.TypeLabel ?? result.Facts.FirstOrDefault() ?? string.Empty).ToUpperInvariant();
+
+    // "in The Last Signal · Season 2": the title the file belongs to, and where in it.
+    private string FileOwnerLine(UniversalSearchResultDto result)
+    {
+        var hit = result.SupportingFile;
+        var owner = string.IsNullOrWhiteSpace(hit?.OwnerName) ? result.Subtitle ?? string.Empty : hit.OwnerName;
+        var where = string.IsNullOrWhiteSpace(hit?.ScopeLabel) ? owner : $"{owner} · {hit.ScopeLabel}";
+        return string.Format(L["UniversalSearchResults_InTitle"].Value, where);
+    }
     private static string SectionId(UniversalSearchSectionDto item) => $"search-section-{item.Key}";
     private bool IsSelected(UniversalSearchResultDto result) => ActiveResult?.Id == result.Id && ActiveResult.EntityType == result.EntityType;
 

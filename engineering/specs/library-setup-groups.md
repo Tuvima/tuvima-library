@@ -291,3 +291,7 @@ Built in the cloud and validated locally in one batch. **Start only after the lo
 ## Plain English summary
 
 Settings > Libraries gets a front door with five cards: Watch, Listen, Read, View and, only when you've switched on Vault mode, the Vault. Click one to see the things you can add there (for example Movies, TV Shows, YouTube and Other videos under Watch; personal videos under View), and click again for the folder list you already know. One Add folder button runs a short three-step guide: what is it, which folder, and whether Library should leave it alone (the recommended choice) or tidy it. First-run setup asks the same simple question, "What do you have?". Nothing about how your files are read, kept or deleted changes, and the Vault stays completely invisible unless you've turned it on.
+
+## Gaps and drift (audit 2026-11-03)
+
+- WP1 to WP4, WP6, WP9 and WP14 are replaced by the rail, the setup table and Needs Review but still read as Built. Suggested status: Built, partly superseded. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

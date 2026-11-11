@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-service.schema.json",
+  "title": "Tuvima service (separate program) plugin manifest",
+  "allOf": [ { "$ref": "plugin-manifest-common.schema.json" } ],
+  "required": ["kind", "service"],
+  "properties": {
+    "kind": { "const": "service" },
+    "service": {
+      "type": "object",
+      "description": "command and arguments, or address for a program that is already running; health_path, lookup_path, max_memory_mb, startup_seconds."
+    }
+  }
+}

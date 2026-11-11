@@ -28,7 +28,7 @@
 .log-export__hint {
     margin: 2px 0 0;
     color: var(--tl-text-muted);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .log-export__area-list {

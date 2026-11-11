@@ -38,7 +38,7 @@ internal sealed partial class DetailCompositionOrchestrator
         string currentDisplayTitle,
         CancellationToken ct)
     {
-        var labels = ResolveSequenceLabels(entityType);
+        var labels = ResolveSequenceLabels(entityType, detail.MediaType);
         var availableContainers = new List<SequenceContainerOptionViewModel>();
         var localContainer = await ResolveLocalSequenceContainerOptionAsync(workId, entityType, detail.MediaType, ct);
         if (localContainer is not null)
@@ -275,7 +275,7 @@ internal sealed partial class DetailCompositionOrchestrator
             var positionSort = SeriesPositionPairs.SortValueOf(row.SeriesPlacementPosition)
                 ?? row.PositionSort
                 ?? TryParseSeriesPositionSort(positionLabel);
-            var group = ResolveSequenceGroup(entityType, row.SeasonLabel);
+            var group = ResolveSequenceGroup(entityType, row.SeasonLabel, detail.MediaType);
             var artworkKind = entityType == DetailEntityType.TvEpisode ? "background" : "cover";
             return new SequenceItemViewModel
             {
@@ -320,7 +320,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 : detail.SeriesPosition;
             var fallbackPositionNumber = TryParseSeriesPosition(fallbackPositionLabel);
             var fallbackPositionSort = TryParseSeriesPositionSort(fallbackPositionLabel);
-            var fallbackGroup = ResolveSequenceGroup(entityType, FirstText(detail.SeasonNumber, GetDetailCanonicalValue(detail, MetadataFieldConstants.SeasonNumber)));
+            var fallbackGroup = ResolveSequenceGroup(entityType, FirstText(detail.SeasonNumber, GetDetailCanonicalValue(detail, MetadataFieldConstants.SeasonNumber)), detail.MediaType);
             items.Add(new SequenceItemViewModel
             {
                 Id = workId.ToString("D"),

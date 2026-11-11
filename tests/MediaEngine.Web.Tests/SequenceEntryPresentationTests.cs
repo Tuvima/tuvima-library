@@ -32,7 +32,7 @@ public sealed class SequenceEntryPresentationTests : AsyncBunitContext
     }
 
     [Fact]
-    public void CompletedEntryKeepsCompletionSeparateFromSequencePosition()
+    public void CompletedSeriesEntryShowsNoCheckmark_AndKeepsItsPosition()
     {
         var cut = Render<SequenceEntryContent>(parameters => parameters
             .Add(component => component.Item, new SequenceItemViewModel
@@ -45,8 +45,25 @@ public sealed class SequenceEntryPresentationTests : AsyncBunitContext
             .Add(component => component.Title, "The First Coast"));
 
         Assert.Equal("1", cut.Find(".tl-series-item__node").TextContent);
-        Assert.Equal("Completed", cut.Find(".tl-series-item__completed-badge .sr-only").TextContent);
+        Assert.Empty(cut.FindAll(".tl-series-item__completed-badge"));
         Assert.NotNull(cut.Find("[aria-label='Artwork unavailable']"));
         Assert.Empty(cut.FindAll("[role='progressbar']"));
+    }
+
+    [Fact]
+    public void CompletedEpisodeKeepsItsWatchedCheck()
+    {
+        var cut = Render<SequenceEntryContent>(parameters => parameters
+            .Add(component => component.Item, new SequenceItemViewModel
+            {
+                Title = "Pilot",
+                IsOwned = true,
+                ProgressState = LibraryProgressState.Completed,
+            })
+            .Add(component => component.IsSeasonContainer, true)
+            .Add(component => component.Title, "Pilot")
+            .Add(component => component.DisplayTitle, "Pilot"));
+
+        Assert.Equal("Completed", cut.Find(".tl-series-item__completed-badge .sr-only").TextContent);
     }
 }

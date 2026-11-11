@@ -150,6 +150,10 @@ public sealed partial class IngestionEngine
             else if (await _extrasScanner.ClaimsFileAsync(candidate.Path, context.Library, ct).ConfigureAwait(false))
             {
                 _logger.LogInformation("\"{FileName}\" is an Extra of its title; it is kept with the title, not ingested", Path.GetFileName(candidate.Path));
+                // The file was noticed (and a work row opened) before this check, and nothing after it runs, so close the
+                // row here; otherwise it stays "queued, discovered" forever and the activity strip never says done.
+                var extraOperation = await EnsureIngestionOperationAsync(candidate, MediaOperationStage.Queued, ct).ConfigureAwait(false);
+                await CompleteOperationAsync(extraOperation, "Kept with its title as an Extra.", ct).ConfigureAwait(false);
                 return;
             }
         }

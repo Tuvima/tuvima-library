@@ -14,10 +14,9 @@
 }
 
 .settings-page-canvas {
-    --settings-section-icon-size: 28px;
     min-width: 0;
-    font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
-    font-size: 16px;
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-md);
     line-height: 1.5;
 }
 
@@ -30,7 +29,7 @@
     display: block;
     margin-bottom: 6px;
     color: var(--tl-text-secondary);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
 }
 
@@ -43,10 +42,10 @@
     z-index: 1;
     top: 50%;
     left: 14px;
-    width: 20px;
-    height: 20px;
+    width: var(--tl-icon-size-sm);
+    height: var(--tl-icon-size-sm);
     color: var(--tl-text-secondary);
-    font-size: 20px;
+    font-size: var(--tl-icon-size-sm);
     pointer-events: none;
     transform: translateY(-50%);
 }
@@ -59,8 +58,8 @@
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-lg);
     background-color: var(--tl-bg-surface-raised);
-    font-size: 16px;
-    font-weight: 700;
+    font-size: var(--tl-font-size-md);
+    font-weight: 600;
 }
 
 .settings-page-canvas ::deep .tl-page {
@@ -68,29 +67,24 @@
     padding: 0;
 }
 
-.settings-page-canvas ::deep .settings-helper-text {
-    color: var(--tl-text-muted);
-}
-
 .settings-page-canvas ::deep .tl-table-root,
 .settings-page-canvas ::deep table {
-    font-size: 15px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .settings-page-canvas ::deep .app-table th,
 .settings-page-canvas ::deep .tl-table-head .tl-table-cell {
     color: var(--tl-text-muted);
-    font-size: 13px;
-    font-weight: 700;
+    font-size: var(--tl-font-size-secondary);
+    font-weight: 600;
     line-height: 1.35;
     letter-spacing: .045em;
-    text-transform: uppercase;
 }
 
 .settings-page-canvas ::deep .app-table td,
 .settings-page-canvas ::deep .tl-table-body .tl-table-cell {
     min-height: 52px;
-    font-size: 15px;
+    font-size: var(--tl-font-size-sm);
     line-height: 1.45;
 }
 
@@ -115,7 +109,7 @@
 .settings-page-canvas ::deep .app-control .tl-input-slot,
 .settings-page-canvas ::deep .app-control .tl-select-input,
 .settings-page-canvas ::deep .app-native-select {
-    font-size: 15px !important;
+    font-size: var(--tl-font-size-sm) !important;
 }
 
 .settings-page-canvas ::deep .app-select .tl-input-slot,
@@ -124,234 +118,6 @@
     text-overflow: clip !important;
 }
 
-.settings-page-canvas ::deep .settings-select-row {
-    min-height: 56px !important;
-    padding: 7px 0 !important;
-}
-
-.settings-page-canvas ::deep .settings-select-row__label {
-    font-size: 15px !important;
-    line-height: 1.35 !important;
-}
-
-.settings-page-canvas ::deep .settings-field--number-control {
-    width: clamp(11rem, 16vw, 13rem) !important;
-    min-width: 11rem !important;
-}
-
-.settings-page-canvas ::deep .settings-field--text-control {
-    width: clamp(13rem, 20vw, 18rem) !important;
-    min-width: 13rem !important;
-}
-
-.settings-page-canvas ::deep .settings-tab-panel {
-    padding-top: var(--tl-space-4, 16px);
-}
-
-.settings-page-canvas ::deep .settings-section-card {
-    height: 100%;
-    border-color: var(--tl-border-subtle);
-    border-radius: var(--tl-radius-lg, 12px);
-    background: var(--tl-bg-surface, rgba(17, 29, 49, .78));
-    box-shadow: none;
-}
-
-.settings-page-canvas ::deep .settings-section-card__header {
-    display: flex;
-    align-items: center;
-    min-height: var(--settings-section-icon-size) !important;
-    gap: 12px;
-    margin-bottom: var(--tl-space-4, 16px);
-}
-
-.settings-page-canvas ::deep .settings-section-card__heading {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-}
-
-.settings-page-canvas ::deep .settings-section-header--divided {
-    margin-bottom: 0 !important;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--tl-border-subtle);
-}
-
-.settings-page-canvas ::deep .settings-section-header__title {
-    margin: 0;
-}
-
-.settings-page-canvas ::deep .settings-section-header__actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    flex: 0 0 auto;
-    white-space: nowrap;
-}
-
-@media (max-width: 600px) {
-    .settings-page-canvas ::deep .settings-section-card__header {
-        flex-wrap: wrap;
-    }
-
-    .settings-page-canvas ::deep .settings-section-header__actions {
-        flex-basis: 100%;
-        margin-left: 0;
-    }
-}
-
-.settings-page-canvas ::deep .settings-section-card__title {
-    color: var(--tl-text-primary);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.3;
-}
-
-.settings-page-canvas ::deep .settings-section-card__description {
-    margin-top: 3px;
-    color: var(--tl-text-muted);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 1.45;
-}
-
-.settings-page-canvas ::deep .settings-section-card__header .tl-icon-root {
-    flex: 0 0 var(--settings-section-icon-size);
-    width: var(--settings-section-icon-size) !important;
-    height: var(--settings-section-icon-size) !important;
-    color: var(--tl-text-secondary);
-    font-size: var(--settings-section-icon-size) !important;
-}
-
-/* Shared, readable treatment for settings actions that expose a numeric
-   interval. Pages supply only the icon, value, label, and behavior. */
-.settings-page-canvas ::deep .settings-interval-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
-    gap: 8px;
-    width: 100%;
-    min-height: 58px;
-    margin-top: 10px;
-}
-
-.settings-page-canvas ::deep .settings-interval-action {
-    width: 100%;
-    min-width: 0;
-    min-height: 54px !important;
-    height: 54px !important;
-    padding: 7px 8px !important;
-    color: var(--tl-text-secondary);
-    border: 0;
-    background: transparent;
-}
-
-.settings-page-canvas ::deep .settings-interval-action .tl-button-label {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-}
-
-.settings-page-canvas ::deep .settings-interval-action .tl-icon-root {
-    width: 28px !important;
-    height: 28px !important;
-    color: var(--tl-text-primary) !important;
-    font-size: 28px !important;
-}
-
-.settings-page-canvas ::deep .settings-interval-action__copy {
-    display: flex;
-    min-width: 0;
-    align-items: flex-start;
-    flex-direction: column;
-}
-
-.settings-page-canvas ::deep .settings-interval-action__value {
-    color: var(--tl-text-primary);
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1.2;
-    white-space: nowrap;
-}
-
-.settings-page-canvas ::deep .settings-interval-action__label {
-    margin-top: 1px;
-    color: var(--tl-text-secondary);
-    font-size: 13px;
-    line-height: 1.25;
-}
-
-.settings-page-canvas ::deep .settings-interval-action:hover,
-.settings-page-canvas ::deep .settings-interval-action:focus-visible {
-    color: var(--tl-accent-primary-hover);
-}
-
-.settings-page-canvas ::deep .settings-interval-action:focus-visible {
-    outline: 2px solid var(--tl-focus-ring);
-    outline-offset: 3px;
-    border-radius: 6px;
-}
-
-.settings-page-canvas ::deep .settings-section-card__header .tl-typography {
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.3;
-}
-
-.settings-page-canvas ::deep .settings-experience-grid {
-    display: grid;
-    grid-template-columns: minmax(240px, 1.6fr) repeat(4, minmax(112px, 1fr));
-    gap: var(--tl-space-3, 12px);
-}
-
-.settings-page-canvas ::deep .settings-experience-profile,
-.settings-page-canvas ::deep .settings-summary-metric {
-    min-width: 0;
-}
-
-.settings-page-canvas ::deep .settings-preference-row {
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) auto !important;
-    align-items: center;
-    gap: var(--tl-space-3, 12px);
-    min-height: 60px !important;
-    padding: 10px 0 !important;
-    border-bottom: 1px solid var(--tl-divider);
-}
-
-.settings-page-canvas ::deep .settings-preference-row__icon {
-    display: grid !important;
-    width: 22px !important;
-    height: 22px !important;
-    place-items: center !important;
-    color: var(--app-text-secondary) !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-}
-
-.settings-page-canvas ::deep .settings-preference-row__icon .tl-icon-root {
-    width: 19px !important;
-    height: 19px !important;
-    color: currentColor !important;
-    font-size: 19px !important;
-}
-
-.settings-page-canvas ::deep .settings-preference-row__text .tl-typography-body1 {
-    color: var(--tl-text-primary) !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    line-height: 1.3 !important;
-}
-
-.settings-page-canvas ::deep .settings-preference-row__text .tl-typography-caption {
-    color: var(--tl-text-muted) !important;
-    font-size: 14px !important;
-    line-height: 1.45 !important;
-}
-
-.settings-page-canvas ::deep .settings-preference-row .tl-switch,
 .settings-page-canvas ::deep .app-switch-row .tl-switch {
     align-self: center;
     justify-self: end !important;
@@ -364,58 +130,19 @@
     margin: 0 !important;
 }
 
-.settings-page-canvas ::deep .settings-slider-block {
-    padding: 8px 0 6px !important;
-}
-
 .settings-page-canvas ::deep .settings-slider {
     margin: 0 !important;
     padding: 2px 10px !important;
 }
 
-.settings-page-canvas ::deep .settings-slider-scale {
-    position: relative;
-    display: block !important;
-    height: 17px;
-    margin: 2px 10px 0 !important;
-    padding: 0 !important;
-    color: var(--app-text-muted) !important;
-    font-size: 13px !important;
-    line-height: 1.2 !important;
-}
-
-.settings-page-canvas ::deep .settings-slider-mark {
-    position: absolute;
-    left: var(--settings-slider-position);
-    color: var(--app-text-muted);
-    font-size: 13px;
-    line-height: 1.2;
-    white-space: nowrap;
-    transform: translateX(-50%);
-}
-
-.settings-page-canvas ::deep .settings-slider-mark:first-child {
-    transform: none;
-}
-
-.settings-page-canvas ::deep .settings-slider-mark:last-child {
-    transform: translateX(-100%);
-}
-
-.settings-page-canvas ::deep .settings-preference-row:last-child {
-    border-bottom: 0;
-}
-
-.settings-page-canvas ::deep .settings-reading-preview,
-.settings-page-canvas ::deep .settings-subtitle-preview {
+.settings-page-canvas ::deep .settings-reading-preview {
     overflow: hidden;
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-lg);
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty,
-.settings-page-canvas ::deep .app-card .app-page-state--empty,
-.settings-page-canvas ::deep .settings-section-card .app-page-state--empty {
+.settings-page-canvas ::deep .app-settings-group .app-page-state--empty {
     min-height: 0;
     align-items: flex-start;
     gap: 4px;
@@ -424,23 +151,13 @@
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__title,
-.settings-page-canvas ::deep .app-card .app-page-state--empty .app-page-state__title {
-    font-size: 15px;
+.settings-page-canvas ::deep .app-settings-group .app-page-state--empty .app-page-state__title {
+    font-size: var(--tl-font-size-sm);
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__message,
-.settings-page-canvas ::deep .app-card .app-page-state--empty .app-page-state__message {
-    font-size: 14px;
-}
-
-@media (max-width: 1100px) {
-    .settings-page-canvas ::deep .settings-experience-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .settings-page-canvas ::deep .settings-experience-profile {
-        grid-column: 1 / -1;
-    }
+.settings-page-canvas ::deep .app-settings-group .app-page-state--empty .app-page-state__message {
+    font-size: var(--tl-font-size-sm);
 }
 
 @media (max-width: 840px) {
@@ -449,9 +166,8 @@
     }
 
     .settings-page-canvas ::deep small,
-    .settings-page-canvas ::deep .tl-typography-caption,
-    .settings-page-canvas ::deep .settings-helper-text {
-        font-size: 14px !important;
+    .settings-page-canvas ::deep .tl-typography-caption{
+        font-size: var(--tl-font-size-sm) !important;
         line-height: 1.45 !important;
     }
 
@@ -459,7 +175,7 @@
     .settings-page-canvas ::deep textarea,
     .settings-page-canvas ::deep select,
     .settings-page-canvas ::deep .tl-input-slot {
-        font-size: 16px !important;
+        font-size: var(--tl-font-size-md) !important;
     }
 
     .settings-mobile-navigation {
@@ -467,306 +183,13 @@
     }
 }
 
-@media (max-width: 600px) {
-    .settings-page-canvas ::deep .settings-experience-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .settings-page-canvas ::deep .settings-select-row {
-        grid-template-columns: 1fr !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-    }
-
-    .settings-page-canvas ::deep .settings-field--row-control,
-    .settings-page-canvas ::deep .settings-field--number-control,
-    .settings-page-canvas ::deep .settings-field--text-control {
-        width: 100% !important;
-        min-width: 0 !important;
-        justify-self: stretch !important;
-    }
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-panel {
-    padding-top: 16px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--dense {
-    min-height: auto !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card__header {
-    min-height: 26px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card__header .tl-icon-root {
-    width: 28px !important;
-    height: 28px !important;
-    font-size: 28px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card__header .tl-typography {
-    font-size: 1.08rem !important;
-    font-family: var(--font-ui) !important;
-    font-size: var(--tl-control-font-size-md) !important;
-    font-weight: var(--tl-control-font-weight) !important;
-    line-height: var(--tl-control-line-height) !important;
-    letter-spacing: var(--tl-control-letter-spacing) !important;
-    line-height: 1.25 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .tl-icon-root,
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .tl-typography {
-    color: var(--tl-accent-primary) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .tl-icon-root,
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .tl-typography {
-    color: #60a5fa !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-summary-strip {
-    padding: 20px 24px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-experience-grid {
-    display: grid !important;
-    grid-template-columns: minmax(270px, 1.9fr) repeat(5, minmax(112px, 1fr));
-    align-items: center !important;
-    gap: 0 !important;
-    width: 100% !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-experience-profile {
-    min-width: 0 !important;
-    padding-right: 26px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-experience-profile .tl-avatar {
-    width: 68px !important;
-    height: 68px !important;
-    font-size: 1.35rem !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-summary-metric {
-    min-width: 0 !important;
-    padding: 4px 18px !important;
-    border-left: 1px solid var(--tl-divider) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-summary-metric .tl-icon-root {
-    width: 32px !important;
-    height: 32px !important;
-    font-size: 32px !important;
-    margin-bottom: 5px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-summary-metric .tl-typography-caption {
-    display: block !important;
-    font-size: var(--tl-control-font-size-md) !important;
-    line-height: 1.15 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-summary-metric .tl-typography-subtitle1 {
-    margin-top: 2px !important;
-    font-size: 1.18rem !important;
-    line-height: 1.25 !important;
-    font-weight: 700 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row {
-    display: grid !important;
-    grid-template-columns: 34px minmax(0, 1fr) auto !important;
-    align-items: center !important;
-    gap: 12px !important;
-    min-height: 48px !important;
-    padding: 7px 0 !important;
-    border-bottom: 1px solid var(--tl-divider) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:last-child {
-    border-bottom: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row__icon {
-    display: grid !important;
-    width: 28px !important;
-    height: 28px !important;
-    place-items: center !important;
-    border-radius: 999px !important;
-    background: rgba(124, 77, 255, 0.13) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row__icon .tl-icon-root {
-    width: 22px !important;
-    height: 22px !important;
-    font-size: 22px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon,
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n + 2) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(1) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(2) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(3) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(4) .settings-preference-row__icon {
-    color: var(--app-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row__icon .tl-icon-root {
-    color: currentColor !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row__text {
-    min-width: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row__text .tl-typography-body1 {
-    font-size: 0.96rem !important;
-    font-weight: 600 !important;
-    line-height: 1.2 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row__text .tl-typography-caption {
-    font-size: 0.84rem !important;
-    line-height: 1.22 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row .tl-switch {
-    justify-self: end !important;
-    margin: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-select-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    min-height: 42px;
-    padding: 4px 0;
-    border-bottom: 1px solid var(--tl-divider);
-}
-
-:where(.settings-admin-panel) ::deep .settings-select-row:last-child {
-    border-bottom: 0;
-}
-
-:where(.settings-admin-panel) ::deep .settings-select-row__label {
-    min-width: 0;
-    color: var(--app-text-secondary) !important;
-    font-size: 0.84rem !important;
-    font-weight: 600 !important;
-    line-height: 1.2 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-field--row-control {
-    width: clamp(10.5rem, 14vw, 12rem) !important;
-    min-width: 10.5rem !important;
-    margin-bottom: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-field--menu-control {
-    justify-self: end !important;
-    margin-bottom: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-field--number-control {
-    width: clamp(9rem, 14vw, 11rem) !important;
-    min-width: 9rem !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-field--text-control {
-    width: clamp(11rem, 18vw, 15rem) !important;
-    min-width: 11rem !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-slider-block {
-    display: block;
-    padding: 2px 0 4px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-slider-header {
-    margin-bottom: 0 !important;
-}
-
 :where(.settings-admin-panel) ::deep .settings-slider {
     margin: 0 !important;
     padding: 0 8px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-slider-scale {
-    margin-top: -8px !important;
-    padding: 0 15px !important;
-    color: var(--app-text-muted) !important;
-}
-
 :where(.settings-admin-panel) ::deep .settings-plugin-summary {
     padding: 18px 22px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(135px, 1fr)) minmax(140px, auto);
-    align-items: center;
-    gap: 18px;
-    width: 100%;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    padding: 0 18px;
-    border-left: 1px solid var(--tl-divider);
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric:first-child {
-    border-left: 0;
-    padding-left: 0;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .tl-icon-root {
-    width: 30px;
-    height: 30px;
-    font-size: 30px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .tl-typography-caption,
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .tl-typography-subtitle1 {
-    line-height: 1.2;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__actions {
-    display: flex;
-    justify-content: flex-end;
 }
 
 :where(.settings-admin-panel) ::deep .settings-plugin-manager {
@@ -776,92 +199,10 @@
     align-items: start;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-filter-row {
-    flex-wrap: wrap;
-}
-
 :where(.settings-admin-panel) ::deep .settings-plugin-list {
     max-height: 620px;
     overflow: auto;
     padding-right: 2px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item {
-    display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    min-height: 74px;
-    padding: 10px 12px;
-    color: var(--app-text-primary);
-    text-align: left;
-    border: 1px solid var(--tl-divider);
-    border-radius: 8px;
-    background: rgba(8, 13, 24, 0.38);
-    cursor: pointer;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item:hover,
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item:focus-visible,
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item--selected {
-    border-color: rgba(124, 77, 255, 0.75);
-    background: rgba(124, 77, 255, 0.14);
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__icon,
-:where(.settings-admin-panel) ::deep .settings-plugin-detail-header__icon {
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    background: rgba(124, 77, 255, 0.18);
-    color: #a78bfa;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__icon {
-    width: 42px;
-    height: 42px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__body {
-    display: grid;
-    min-width: 0;
-    gap: 3px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__title {
-    overflow: hidden;
-    font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__meta {
-    overflow: hidden;
-    color: var(--app-text-muted);
-    font-size: 0.8rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips span {
-    padding: 2px 7px;
-    color: var(--app-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    line-height: 1.2;
-    border: 1px solid var(--tl-divider);
-    border-radius: 999px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips .settings-plugin-list-item__chip--warning {
-    color: #fbbf24;
-    border-color: rgba(251, 191, 36, 0.45);
 }
 
 :where(.settings-admin-panel) ::deep .settings-plugin-detail-header {
@@ -871,26 +212,8 @@
     gap: 16px;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-detail-header__icon {
-    width: 56px;
-    height: 56px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-detail-header__copy {
-    min-width: 0;
-}
-
 :where(.settings-admin-panel) ::deep .settings-plugin-chiprow {
     flex-wrap: wrap;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
-    margin-top: 18px;
-}
-
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
-    border-color: rgba(239, 68, 68, 0.4) !important;
-    background: rgba(69, 10, 10, 0.16) !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-plugin-danger-header {
@@ -905,76 +228,16 @@
     margin-bottom: 0;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-json-editor textarea {
-    font-family: Consolas, "Courier New", monospace !important;
-    font-size: 0.86rem !important;
-    line-height: 1.45 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-glance-item {
-    min-width: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-reading-preview,
-:where(.settings-admin-panel) ::deep .settings-subtitle-preview {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 10px !important;
-    padding: 18px !important;
-    background: rgba(5, 8, 14, 0.42) !important;
-}
-
 @media (max-width: 1100px) {
-:where(.settings-admin-panel) ::deep .settings-experience-grid {
-        grid-template-columns: 1fr 1fr !important;
-        row-gap: 16px !important;
-    }
-
-}
-
-@media (max-width: 1100px) {
-:where(.settings-admin-panel) ::deep .settings-summary-metric {
-        padding: 0 !important;
-        border-left: 0 !important;
-    }
-
-}
-
-@media (max-width: 1100px) {
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__grid,
 :where(.settings-admin-panel) ::deep .settings-plugin-manager {
         grid-template-columns: 1fr 1fr;
     }
 
 }
 
-@media (max-width: 1100px) {
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__actions {
-        justify-content: flex-start;
-    }
-
-}
-
 @media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-experience-grid {
-        grid-template-columns: 1fr !important;
-    }
-
-}
-
-@media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__grid,
 :where(.settings-admin-panel) ::deep .settings-plugin-manager {
         grid-template-columns: 1fr;
-    }
-
-}
-
-@media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric {
-        padding: 0;
-        border-left: 0;
     }
 
 }

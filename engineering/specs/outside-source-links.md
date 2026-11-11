@@ -106,3 +106,7 @@ Root causes found (from reading the code; not yet confirmed on real media):
 ## Plain English summary
 
 TheTVDB links are broken because we link by a number, while TheTVDB's site wants a show's short name; fixing it means building links in one shared place and using an address that works. The band-member links likely fail because the page they lead to refuses to open for people none of your files credit; we'll let it open as a light page. The spec has five small pieces, plus three quick checks on your PC.
+
+## Gaps and drift (audit 2026-11-03)
+
+- WP1 live address check not done; TheTVDB dereferrer form unproven live. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

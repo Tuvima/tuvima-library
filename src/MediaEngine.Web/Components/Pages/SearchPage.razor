@@ -94,13 +94,7 @@
 
             @if (!inSheet)
             {
-                <AppNativeButton Type="button"
-                                 Class="search-page__more-filters"
-                                 Disabled="true"
-                                 Title="@L["SearchPage_ContextualFiltersBecomeAvailableWhen"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
-                    <span>@L["SearchPage_MoreFilters"]</span>
-                </AppNativeButton>
+                <AppTooltip Text="@L["SearchPage_ContextualFiltersBecomeAvailableWhen"].Value"><AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.FilterList" Disabled="true" Label="@L["SearchPage_MoreFilters"].Value" /></AppTooltip>
             }
         </div>
         </ChildContent>

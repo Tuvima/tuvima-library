@@ -18,6 +18,13 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "Feature films, one file or folder per film.",
+      "explainer": "Feature films, one file or folder per film.",
+      "examples": [
+        "Dune",
+        "Heat",
+        "Paddington"
+      ],
+      "library_does": "Looks up posters, cast and details.",
       "order": 1,
       "built_in": true,
       "available": true
@@ -39,6 +46,13 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "Series with seasons and episodes, one folder per show.",
+      "explainer": "Shows with seasons and episodes, one folder per show.",
+      "examples": [
+        "Severance",
+        "The Wire",
+        "Bluey"
+      ],
+      "library_does": "Looks up posters, episodes and details.",
       "order": 2,
       "built_in": true,
       "available": true
@@ -59,6 +73,12 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "Videos saved from YouTube, found by the video ID in the file name.",
+      "explainer": "Videos saved from YouTube, grouped by channel.",
+      "examples": [
+        "A channel folder",
+        "Saved playlists"
+      ],
+      "library_does": "Matches each video by its YouTube ID.",
       "order": 3,
       "built_in": true,
       "available": true
@@ -67,7 +87,7 @@
       "key": "other_videos",
       "area": "watch",
       "label": "Videos",
-      "icon": "VideoLibrary",
+      "icon": "OndemandVideo",
       "format": "Videos",
       "lookup": "none",
       "grouping": "video_series_folder",
@@ -75,11 +95,16 @@
       "misfit": "keep",
       "default_handling": "read_only",
       "tooltip": "Courses, talks and downloads. Nothing is looked up.",
+      "explainer": "Anything watchable that is not a film or show.",
+      "examples": [
+        "Courses",
+        "Talks",
+        "Downloads"
+      ],
+      "library_does": "Keeps your files as they are; nothing is looked up.",
       "order": 4,
       "built_in": true,
-      "available": true,
-      "allows_multiple": true,
-      "max_libraries": 5
+      "available": true
     },
     {
       "key": "adult_content",
@@ -93,6 +118,12 @@
       "misfit": "keep",
       "default_handling": "read_only",
       "tooltip": "Adult videos and pictures. Nothing is looked up by default.",
+      "explainer": "Adult videos and pictures, kept in the Vault.",
+      "examples": [
+        "Videos",
+        "Pictures"
+      ],
+      "library_does": "Keeps your files as they are; nothing is looked up.",
       "order": 5,
       "built_in": true,
       "available": true
@@ -115,6 +146,12 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "Albums and songs, tagged or in artist and album folders.",
+      "explainer": "Albums and songs, tagged or in artist and album folders.",
+      "examples": [
+        "Abbey Road",
+        "Kind of Blue"
+      ],
+      "library_does": "Looks up covers, artists and track details.",
       "order": 1,
       "built_in": true,
       "available": true
@@ -135,6 +172,12 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "Spoken books, one file or folder per book.",
+      "explainer": "Spoken books, one file or folder per book.",
+      "examples": [
+        "Project Hail Mary",
+        "Dune"
+      ],
+      "library_does": "Looks up covers, narrators and details.",
       "order": 2,
       "built_in": true,
       "available": true
@@ -151,11 +194,16 @@
       "misfit": "keep",
       "default_handling": "read_only",
       "tooltip": "Random audio files, recordings and lectures, shown by folder and the tags inside the files.",
+      "explainer": "Audio that is not music or a book.",
+      "examples": [
+        "Lectures",
+        "Recordings",
+        "Podcasts"
+      ],
+      "library_does": "Shows files by folder and the tags inside them.",
       "order": 3,
       "built_in": true,
-      "available": true,
-      "allows_multiple": true,
-      "max_libraries": 5
+      "available": true
     },
     {
       "key": "books",
@@ -173,6 +221,12 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "EPUB and PDF books.",
+      "explainer": "EPUB and PDF books.",
+      "examples": [
+        "Neuromancer",
+        "Piranesi"
+      ],
+      "library_does": "Looks up covers, authors and series.",
       "order": 1,
       "built_in": true,
       "available": true
@@ -193,6 +247,12 @@
       "misfit": "unmatched",
       "default_handling": "read_only",
       "tooltip": "CBZ and CBR comics and manga.",
+      "explainer": "CBZ and CBR comics and manga.",
+      "examples": [
+        "Saga",
+        "Akira"
+      ],
+      "library_does": "Looks up covers, series and issue details.",
       "order": 2,
       "built_in": true,
       "available": true
@@ -208,12 +268,17 @@
       "naming_template": "default",
       "misfit": "keep",
       "default_handling": "read_only",
-      "tooltip": "Loose books and documents with no match, shown by folder and the details inside the files.",
+      "tooltip": "Loose books and reading material with no match, shown by folder and the details inside the files.",
+      "explainer": "Reading material that is not a book or comic.",
+      "examples": [
+        "Manuals",
+        "Papers",
+        "Magazines"
+      ],
+      "library_does": "Shows files by folder and the details inside them.",
       "order": 3,
       "built_in": true,
-      "available": true,
-      "allows_multiple": true,
-      "max_libraries": 5
+      "available": true
     },
     {
       "key": "photos",
@@ -227,6 +292,12 @@
       "misfit": "keep",
       "default_handling": "read_only",
       "tooltip": "Pictures from phones and cameras. View sorts them by date and place.",
+      "explainer": "Pictures and videos from phones and cameras, together.",
+      "examples": [
+        "A phone dump",
+        "Camera roll"
+      ],
+      "library_does": "Sorts each file by what it is, then by date and place.",
       "order": 1,
       "built_in": true,
       "available": true
@@ -243,6 +314,12 @@
       "misfit": "keep",
       "default_handling": "read_only",
       "tooltip": "Videos from phones and cameras, kept with the day they were taken.",
+      "explainer": "Videos from phones and cameras.",
+      "examples": [
+        "Birthdays",
+        "Holidays"
+      ],
+      "library_does": "Keeps them with the day they were taken.",
       "order": 2,
       "built_in": true,
       "available": true
@@ -259,6 +336,13 @@
       "misfit": "keep",
       "default_handling": "read_only",
       "tooltip": "PDFs, Office files and photos of paper. Text inside them can be searched.",
+      "explainer": "PDFs, Office files and photos of paper.",
+      "examples": [
+        "Receipts",
+        "Manuals",
+        "Letters"
+      ],
+      "library_does": "Makes the text inside searchable.",
       "order": 3,
       "built_in": true,
       "available": true

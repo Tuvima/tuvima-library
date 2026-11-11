@@ -1,5 +1,4 @@
 .media-hub-shelf {
-    --media-tile-media-height: clamp(158px, 11.2vw, 198px);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -8,24 +7,7 @@
     z-index: 1;
 }
 
-.media-hub-shelf--read {
-    --media-tile-media-height: clamp(178px, 15.3vw, 236px);
-}
-
-.media-hub-shelf--listen {
-    --media-tile-media-height: clamp(168px, 10.4vw, 184px);
-}
-
-.media-hub-shelf--continue.media-hub-shelf--watch {
-    --media-tile-media-height: clamp(128px, 8.8vw, 166px);
-}
-
-.media-hub-shelf--continue.media-hub-shelf--listen {
-    --media-tile-media-height: clamp(132px, 9vw, 168px);
-}
-
 ::deep .media-tile-shelf {
-    --media-tile-media-height: inherit;
     gap: 0;
 }
 
@@ -64,18 +46,6 @@
 
 ::deep .media-tile-shelf-window {
     overflow: visible;
-}
-
-.media-hub-shelf--listen ::deep .media-tile.is-square {
-    --media-tile-media-height: clamp(192px, 12.5vw, 220px);
-}
-
-.media-hub-shelf--listen ::deep .media-tile.is-portrait {
-    --media-tile-media-height: clamp(280px, 18.2vw, 322px);
-}
-
-.media-hub-shelf--listen ::deep .media-tile.is-landscape {
-    --media-tile-media-height: clamp(192px, 12.5vw, 220px);
 }
 
 ::deep .media-tile-shelf-arrow {

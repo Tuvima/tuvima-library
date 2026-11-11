@@ -1,0 +1,82 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* The header of the View editor on the v5 frame (universal editor v5 D25, mock-up screens L and P): the same header the library editor draws
+   (tl-editor-header), with a landscape picture (a photo, a video's first frame or a document's first page; a small stack of the first pictures for
+   a group), the gallery it was opened from as the label, the title, one line of facts and, in the nav row, the way around the gallery. There is no
+   Season or Section dropdown and no Match. Read-only. *@
+<header class="tl-editor-header" data-kind="@KindKey" data-gradient="none">
+    <div class="@(Stack.Count > 1 ? "tl-editor-header__cover tl-editor-header__cover--stack" : "tl-editor-header__cover")" aria-hidden="true">
+        @if (Stack.Count > 1)
+        {
+            @foreach (var (url, index) in Stack.Select((url, index) => (url, index)))
+            {
+                <span class="@($"tl-editor-header__layer tl-editor-header__layer--{index}")"><AppImage Src="@url" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" /></span>
+            }
+        }
+        else if (Stack.Count == 1)
+        {
+            <AppImage Src="@Stack[0]" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+        }
+        else
+        {
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoAlbum" Size="AppIconSize.Tile32" />
+        }
+    </div>
+    <div class="tl-editor-header__body">
+        @if (!string.IsNullOrWhiteSpace(Label))
+        {
+            <div class="tl-editor-header__label">@Label</div>
+        }
+        <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" data-overflow-tooltip="@Title">@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Facts))
+        {
+            <div class="tl-editor-header__line"><div class="tl-editor-header__facts">@Facts</div></div>
+        }
+        <ViewEditHeaderNav Session="Session" />
+    </div>
+</header>
+
+@code {
+    private const int StackSize = 3;
+
+    [Parameter, EditorRequired] public ViewEditSession Session { get; set; } = default!;
+
+    private ViewEditStage Stage => Session.Active;
+
+    private string KindKey => Session.IsGallery ? "view_gallery" : Stage.IsGroup ? "multiple" : "view_item";
+
+    /// <summary>The pictures of the cover: one for an item, the first few for a group, none for a gallery.</summary>
+    private IReadOnlyList<string> Stack => Session.IsGallery
+        ? []
+        : [.. Stage.Items.Take(Stage.IsGroup ? StackSize : 1).Select(item => item.ThumbnailUrl).Where(url => !string.IsNullOrWhiteSpace(url))];
+
+    /// <summary>The gallery the item was opened from; a photo outside a gallery has no label.</summary>
+    private string? Label => Session.IsGallery ? null : Session.Rail?.GalleryName;
+
+    private string Title => Session.IsGallery
+        ? (string.IsNullOrWhiteSpace(Session.Gallery!.Name) ? L["ViewEdit_NewGallery"].Value : Session.Gallery.Name)
+        : Stage.ItemLabel();
+
+    private string Kind => Session.IsGallery ? L["ViewEdit_KindGallery"].Value
+        : Stage.IsGroup ? L["ViewEdit_KindSelection"].Value
+        : Stage.Items[0].MediaKind switch
+        {
+            ViewMediaKinds.Video => L["ViewEdit_KindVideo"].Value,
+            ViewMediaKinds.Document => L["ViewEdit_KindDocument"].Value,
+            _ => L["ViewEdit_KindPhoto"].Value,
+        };
+
+    private string Facts => Session.IsGallery ? string.Join(" · ", new[] { Kind, GalleryCount() }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : Stage.IsGroup ? string.Join(" · ", new[] { ViewEditFacts.DateRange(Stage.Items), ViewEditFacts.FormatSummary(Stage.Items) }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : string.Join(" · ", new[] { Kind, ViewEditFacts.HeaderLine(Stage.Items[0]) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    // "40 photos" for a gallery that has its photos (a saved one, or a new one started from a selection).
+    private string? GalleryCount()
+    {
+        var gallery = Session.Gallery!;
+        var count = gallery.Original?.ItemCount ?? gallery.StartingMembers.Count;
+        return count <= 0 ? null : count == 1 ? L["ViewEdit_FactGalleryOnePhoto"].Value : string.Format(L["ViewEdit_FactGalleryPhotos"].Value, count);
+    }
+}

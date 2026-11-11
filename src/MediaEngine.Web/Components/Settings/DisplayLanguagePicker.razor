@@ -7,22 +7,22 @@
 @* Language, then Region. Region appears only when the chosen language has regional spellings (English, French). *@
 <div class="display-language-picker" data-testid="display-language-picker">
     <label>@L["Settings_Language"]
-        <AppNativeSelect Value="@LanguagePart" OnChange="@(args => LanguageChanged(args.Value?.ToString()))">
+        <AppSelect Native="true" Value="@LanguagePart" ValueChanged="@(selected => LanguageChanged(selected))">
             @foreach (var tag in AppCultures.LanguageTags)
             {
                 <option value="@AppCultures.LanguageOf(tag)">@AppCultures.NativeName(AppCultures.LanguageOf(tag) == "en" ? "en" : tag)</option>
             }
-        </AppNativeSelect>
+        </AppSelect>
     </label>
-    @if (Regions.Count > 0)
+    @if (ShowRegion && Regions.Count > 0)
     {
         <label>@L["Settings_Region"]
-            <AppNativeSelect Value="@Resolved" OnChange="@(args => RegionChanged(args.Value?.ToString()))">
+            <AppSelect Native="true" Value="@Resolved" ValueChanged="@(selected => RegionChanged(selected))">
                 @foreach (var tag in Regions)
                 {
                     <option value="@tag">@RegionName(tag)</option>
                 }
-            </AppNativeSelect>
+            </AppSelect>
         </label>
     }
 </div>
@@ -31,6 +31,8 @@
     /// <summary>The chosen display language as a full tag such as "en-GB". Plain "en" counts as US English.</summary>
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    /// <summary>False in first-run setup: the spelling variant is not asked there; it follows the browser (US English otherwise) and stays in Settings.</summary>
+    [Parameter] public bool ShowRegion { get; set; } = true;
 
     private string Resolved => AppCultures.Resolve(Value);
     private string LanguagePart => AppCultures.LanguageOf(Resolved);
@@ -47,7 +49,10 @@
         if (string.IsNullOrWhiteSpace(language)) return Task.CompletedTask;
         // Keep the region when the new language still offers it, otherwise use the language's first region (or the plain language).
         var regions = AppCultures.RegionsFor(language);
-        var next = regions.Count > 0 ? regions[0] : AppCultures.Resolve(language);
+        var browser = AppCultures.Resolve(CultureInfo.CurrentUICulture.Name);
+        var next = !ShowRegion && string.Equals(AppCultures.LanguageOf(browser), language, StringComparison.OrdinalIgnoreCase)
+            ? browser
+            : regions.Count > 0 ? regions[0] : AppCultures.Resolve(language);
         return ValueChanged.InvokeAsync(next);
     }
 

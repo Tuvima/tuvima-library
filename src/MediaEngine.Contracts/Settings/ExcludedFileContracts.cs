@@ -2,6 +2,17 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Contracts.Settings;
 
+/// <summary>The reasons an excluded file can carry on the wire (<see cref="ExcludedFileDto.Reason"/>).</summary>
+public static class ExcludedFileReasons
+{
+    public const string AsIs = "as_is";
+    public const string Protected = "protected";
+    public const string DeleteFailed = "delete_failed";
+
+    /// <summary>A person chose Ignore in "What is this file?" (universal editor v4 D20); Settings reads it as "Ignored by you".</summary>
+    public const string IgnoredByYou = "ignored_by_you";
+}
+
 /// <summary>
 /// A media file that stayed on disk when its title was deleted from the library, so scans skip it until it is added back. Only the
 /// file name and a readable folder label travel; the real disk path never leaves the Engine.
@@ -32,7 +43,7 @@ public sealed class ExcludedFileDto
     [JsonPropertyName("excluded_by")]
     public string? ExcludedBy { get; set; }
 
-    /// <summary>Why the file stayed: <c>as_is</c>, <c>protected</c> or <c>delete_failed</c>.</summary>
+    /// <summary>Why the file stayed: <c>as_is</c>, <c>protected</c>, <c>delete_failed</c>, or <c>ignored_by_you</c> when a person ignored it (see <see cref="ExcludedFileReasons"/>).</summary>
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
 }

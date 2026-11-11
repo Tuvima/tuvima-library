@@ -76,7 +76,7 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
         _onInstall = _ => new(true, Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 30)));
         var cut = Render<ToolsRequirementsTab>(parameters => parameters.Add(p => p.PollInterval, TimeSpan.FromHours(1)));
 
-        cut.FindAll("[data-tool-id=ffmpeg] button").Single(button => button.TextContent.Trim() == "Install for me").Click();
+        cut.FindAll("[data-tool-id=ffmpeg] button").Single(button => button.TextContent.Trim() == "Install").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Downloading 30%", cut.Find("[data-tool-id=ffmpeg]").TextContent, StringComparison.Ordinal));
         Assert.Equal(["ffmpeg"], _installs);
@@ -84,13 +84,13 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ToolsPage_ForABrokenTool_OffersDownloadAgain_AndStartsTheSameInstall()
+    public void ToolsPage_ForABrokenTool_OffersInstall_AndStartsTheSameInstall()
     {
         _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Problem, canDownloadAgain: true));
         _onInstall = _ => new(true, Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 5)));
         var cut = Render<ToolsRequirementsTab>(parameters => parameters.Add(p => p.PollInterval, TimeSpan.FromHours(1)));
 
-        cut.FindAll("[data-tool-id=ffmpeg] button").Single(button => button.TextContent.Trim() == "Download again").Click();
+        cut.FindAll("[data-tool-id=ffmpeg] button").Single(button => button.TextContent.Trim() == "Install").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["ffmpeg"], _installs));
     }
@@ -126,7 +126,7 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
 
         var cut = Render<ToolsRequirementsTab>();
 
-        Assert.DoesNotContain(cut.FindAll("[data-tool-id=ffmpeg] button"), button => button.TextContent.Trim() == "Install for me");
+        Assert.DoesNotContain(cut.FindAll("[data-tool-id=ffmpeg] button"), button => button.TextContent.Trim() == "Install");
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
         var cut = Render<ToolsRequirementsTab>();
 
         Assert.Contains("ExifTool", cut.Find("[data-tool-id=exiftool]").TextContent, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("[data-tool-id=exiftool] button"), button => button.TextContent.Trim() == "Install for me");
+        Assert.Contains(cut.FindAll("[data-tool-id=exiftool] button"), button => button.TextContent.Trim() == "Install");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

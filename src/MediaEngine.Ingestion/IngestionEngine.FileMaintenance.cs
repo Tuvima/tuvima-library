@@ -199,8 +199,10 @@ public sealed partial class IngestionEngine
                 return false;
             }
 
-            var fresh = await _hasher.ComputeAsync(keptPath, ct).ConfigureAwait(false);
-            return string.Equals(fresh.Hex, expectedHash, StringComparison.OrdinalIgnoreCase);
+            // The files were matched by their quick fingerprint; removing one needs every byte of both read now.
+            var fresh = await _hasher.ComputeFullAsync(keptPath, ct).ConfigureAwait(false);
+            var duplicate = await _hasher.ComputeFullAsync(duplicatePath, ct).ConfigureAwait(false);
+            return string.Equals(fresh.Hex, duplicate.Hex, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -10,5 +10,5 @@
 
 .recycle-bin-entry:hover,
 .recycle-bin-entry:focus-visible {
-    color: var(--tl-text-default);
+    color: var(--tl-text-primary);
 }

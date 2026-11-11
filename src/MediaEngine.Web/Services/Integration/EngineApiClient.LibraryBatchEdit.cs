@@ -8,43 +8,34 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
-    public async Task<LibraryBatchEditOutcome<LibraryBatchEditPreview>> PreviewLibraryBatchEditAsync(
-        LibraryBatchEditPreviewRequest request, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        const string endpoint = "POST /library/batch-edit/preview";
-        try
-        {
-            using var response = await _http.PostAsJsonAsync("/library/batch-edit/preview", request, ct);
-            return await ReadBatchEditOutcomeAsync<LibraryBatchEditPreview>(response, endpoint, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            return LibraryBatchEditOutcome<LibraryBatchEditPreview>.Failed(LibraryBatchEditOutcomeStatus.Unavailable);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
-        {
-            return BatchEditFailure<LibraryBatchEditPreview>(endpoint, ex);
-        }
-    }
+    public Task<LibraryBatchEditOutcome<LibraryBatchEditPreview>> PreviewLibraryBatchEditAsync(
+        LibraryBatchEditPreviewRequest request, CancellationToken ct = default) =>
+        PostBatchEditAsync<LibraryBatchEditPreviewRequest, LibraryBatchEditPreview>(
+            "/library/batch-edit/preview", request, "POST /library/batch-edit/preview", ct);
 
-    public async Task<LibraryBatchEditOutcome<LibraryBatchEditResult>> ApplyLibraryBatchEditAsync(
-        LibraryBatchEditRequest request, CancellationToken ct = default)
+    public Task<LibraryBatchEditOutcome<LibraryBatchEditResult>> ApplyLibraryBatchEditAsync(
+        LibraryBatchEditRequest request, CancellationToken ct = default) =>
+        PostBatchEditAsync<LibraryBatchEditRequest, LibraryBatchEditResult>(
+            "/library/batch-edit", request, "POST /library/batch-edit", ct);
+
+    // The one raw POST behind every typed-outcome batch call (the library batch edit, the edit session, supporting files): a refusal keeps its
+    // plain-English reason, the Engine being unreachable is told apart, and nothing is retried.
+    private async Task<LibraryBatchEditOutcome<TResult>> PostBatchEditAsync<TRequest, TResult>(
+        string path, TRequest request, string endpoint, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string endpoint = "POST /library/batch-edit";
         try
         {
-            using var response = await _http.PostAsJsonAsync("/library/batch-edit", request, ct);
-            return await ReadBatchEditOutcomeAsync<LibraryBatchEditResult>(response, endpoint, ct);
+            using var response = await _http.PostAsJsonAsync(path, request, ct);
+            return await ReadBatchEditOutcomeAsync<TResult>(response, endpoint, ct);
         }
         catch (OperationCanceledException)
         {
-            return LibraryBatchEditOutcome<LibraryBatchEditResult>.Failed(LibraryBatchEditOutcomeStatus.Unavailable);
+            return LibraryBatchEditOutcome<TResult>.Failed(LibraryBatchEditOutcomeStatus.Unavailable);
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
         {
-            return BatchEditFailure<LibraryBatchEditResult>(endpoint, ex);
+            return BatchEditFailure<TResult>(endpoint, ex);
         }
     }
 

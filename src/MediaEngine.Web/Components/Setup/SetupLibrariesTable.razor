@@ -1,0 +1,183 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Libraries step's one table (first-run setup rework D4): Library, Area, Folders and Status, with one Add library button. Nothing is scanned during setup,
+   so every status says Pending and the "in your collection" figure is left out. Edit sits at the end of each row; View's kinds (Photos, Personal videos, Documents) are one row each, like Movies, and open their own Edit window. Every change saves
+   through the setup session. Phones read the table but change nothing. Settings shows the same four columns once libraries are scanning. *@
+<div class="setup-libs" data-setup-libraries-table>
+    @if (ReadOnly)
+    {
+        <p class="setup-libs__note">@L["Common_UseADesktopOrTablet"]</p>
+    }
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
+    }
+    @{ var rows = Rows; }
+    @if (rows.Count > 0)
+    {
+        <LibraryAreaChips Areas="@Areas" Counts="@AreaCounts" Selected="@_area" SelectedChanged="@(key => { _area = key; return Task.CompletedTask; })" />
+    }
+    @if (!ReadOnly && rows.Count > 0)
+    {
+        <div class="setup-libs__toolbar">
+            <AppButton Label="@L["Common_AddLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddAsync" />
+        </div>
+    }
+    @if (rows.Count == 0)
+    {
+        <div class="setup-libs__empty" data-empty="none">
+            <h3>@L["LibrariesOverview_NoLibrariesYet"]</h3>
+            <p>@L["LibrariesOverview_AddOneForEachKind"]</p>
+            @if (!ReadOnly)
+            {
+                <AppButton Label="@L["Common_AddLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddAsync" />
+            }
+        </div>
+    }
+    else
+    {
+        <AppTable CardsOn="AppTableCardsMode.Phone" Class="setup-libs__table">
+            <caption class="sr-only">@L["SetupLibraries_TableCaption"]</caption>
+            <thead>
+                <tr>
+                    <th data-card-role="title">@L["SetupLibraries_ColLibrary"]</th>
+                    <th data-card-role="subtitle">@L["Common_Area"]</th>
+                    <th>@L["SetupLibraries_ColFolders"]</th>
+                    <th data-card-role="value">@L["Models_Status"]</th>
+                    <th data-card-role="hidden"><span class="sr-only">@L["Common_Actions"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in rows.Where(row => _area is null || string.Equals(row.AreaKey, _area, StringComparison.OrdinalIgnoreCase)))
+                {
+                    <tr @key="row.Key" data-library="@row.Key">
+                        <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
+                        <td data-card-role="subtitle">@row.AreaLabel</td>
+                        <td class="setup-libs__folders">
+                            @if (row.ViewFolders is { Count: > 0 } viewFolders)
+                            {
+                                <LibraryFoldersPopover Items="@viewFolders" LibraryName="@row.Name" />
+                            }
+                            else if (row.Library is { Sources.Count: > 0 } library)
+                            {
+                                <LibraryFoldersPopover Sources="@library.Sources" LibraryName="@row.Name" />
+                            }
+                        </td>
+                        <td data-card-role="value"><AppStatusBadge Text="@L["SetupLibraries_Pending"].Value" Tone="AppUiTone.Neutral" Icon="@AppMaterialIcons.Outlined.Schedule" /></td>
+                        <td data-card-role="hidden" class="setup-libs__actions">
+                            @if (!ReadOnly)
+                            {
+                                <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
+                                           aria-label="@L["LibrariesOverview_EditNamed", row.Name].Value" OnClick="@(() => EditAsync(row))" data-edit="@row.Key" />
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </AppTable>
+    }
+</div>
+
+@code {
+    private sealed record Row(string Key, string Name, string AreaKey, string AreaLabel, LibraryTypeOption Type, LibraryFolderDto? Library, IReadOnlyList<FolderListItem>? ViewFolders);
+
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    /// <summary>View's shared folders; null when they could not be read.</summary>
+    [Parameter] public IReadOnlyList<ViewSourceAdminDto>? ViewFolders { get; set; }
+    [Parameter] public string? SetupSession { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>True once the Vault was turned on in this setup, so Add library offers it (and only then).</summary>
+    [Parameter] public bool VaultOn { get; set; }
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private string? _error;
+    private string? _area;
+
+    private IReadOnlyList<LibraryGroup> Areas => Kinds.Visible(false);
+
+    private IReadOnlyDictionary<string, int> AreaCounts => Rows.GroupBy(row => row.AreaKey, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+    // Edit: the same window as Settings, saving through the setup session (nothing is scanned or moved during setup).
+    private async Task EditAsync(Row row)
+    {
+        if (row.ViewFolders is not null)
+        {
+            await EditViewKindAsync(row);
+            return;
+        }
+
+        if (row.Library is null) return;
+        var parameters = new AppDialogParameters<LibraryEditDialog>
+        {
+            { component => component.Library, row.Library },
+            { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
+            { component => component.Scope, Scope },
+        };
+        var dialog = await DialogService.ShowAsync<LibraryEditDialog>(string.Empty, parameters, LibraryEditDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false })
+        {
+            _error = null;
+            await Changed.InvokeAsync();
+        }
+    }
+
+    // A View kind's Edit window (View folders spec D4): the same anatomy, saving to the Shared Library's folders.
+    private async Task EditViewKindAsync(Row row)
+    {
+        var parameters = new AppDialogParameters<ViewKindEditDialog>
+        {
+            { component => component.Kind, row.Type },
+            { component => component.Configuration, Configuration },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<ViewKindEditDialog>(string.Empty, parameters, ViewKindEditDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false })
+        {
+            _error = null;
+            await Changed.InvokeAsync();
+        }
+    }
+
+    private FolderAddScope Scope => new(true, SetupSession);
+
+    private IReadOnlyList<Row> Rows
+    {
+        get
+        {
+            var rows = new List<Row>();
+            foreach (var area in LibraryGroupCatalog.Definitions.Where(area => area.Key != LibraryGroupCatalog.VaultKey))
+            {
+                if (area.Key == LibraryTypeCatalog.ViewArea)
+                {
+                    // One row per View kind that has folders: Photos, Personal videos, Documents (View folders spec D1).
+                    foreach (var kind in Kinds.ViewKinds)
+                    {
+                        var folders = ViewFolderRules.ListItems(ViewFolders ?? [], kind.Key);
+                        if (folders.Count > 0) rows.Add(new Row(kind.Key, kind.Label, area.Key, area.Label, kind, null, folders));
+                    }
+
+                    continue;
+                }
+
+                rows.AddRange(LibraryListing.RowsFor(Kinds, area.Key, Configuration, null, null, null, showVault: false)
+                    .Where(row => row.Library is not null)
+                    .Select(row => new Row(row.Key, row.Name, area.Key, area.Label, row.Type, row.Library, null)));
+            }
+
+            return rows;
+        }
+    }
+
+    private Task AddAsync() => LibraryAddFlow.OpenAsync(
+        DialogService, Configuration, Kinds, null, vaultVisible: VaultOn, setup: true, SetupSession,
+        _ => { _error = null; return Changed.InvokeAsync(); });
+}

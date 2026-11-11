@@ -22,4 +22,4 @@
 .view-contribution-items em { color: var(--tl-status-error); font-style: normal; }
 .view-contribution-events > div { border-left: 2px solid var(--tl-border-subtle); padding-left: .85rem; }
 .view-contribution-events span, .view-contribution-events p { color: var(--tl-text-secondary); margin: .15rem 0 0; }
-@media (max-width: 720px) { .view-contributions-page { padding: .75rem; } .view-contributions-header, .view-contributions-controls { align-items: stretch; flex-direction: column; } .view-contribution-detail__summary, .view-contribution-decision { display: grid; grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .view-contributions-page { padding: .75rem; } .view-contributions-header, .view-contributions-controls { align-items: stretch; flex-direction: column; } .view-contribution-detail__summary, .view-contribution-decision { display: grid; grid-template-columns: 1fr; } }

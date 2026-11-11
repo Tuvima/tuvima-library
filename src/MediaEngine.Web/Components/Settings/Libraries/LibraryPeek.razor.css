@@ -1,0 +1,29 @@
+.lib-peek { position: relative; min-width: 0; }
+
+/* Opens below its tile so a first row is never cut off by the top of the window; the window has room beneath a single row of tiles. */
+.lib-peek__tip {
+    position: absolute;
+    /* Lines up with the tile's own left edge, so the first tile of a row never pushes it past the window's edge. */
+    inset-inline-start: 0;
+    top: calc(100% + 8px);
+    z-index: 20;
+    display: grid;
+    gap: 6px;
+    width: 260px;
+    max-width: min(260px, calc(100vw - 48px));
+    padding: 12px 14px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md, 10px);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-primary);
+    box-shadow: var(--tl-shadow-md, 0 8px 24px rgb(0 0 0 / 0.35));
+    font-size: var(--tl-font-size-sm);
+    text-align: start;
+    pointer-events: none;
+}
+
+.lib-peek__tip p { margin: 0; }
+.lib-peek__about { color: var(--tl-text-primary); }
+.lib-peek__examples,
+.lib-peek__does,
+.lib-peek__note { color: var(--tl-text-secondary); }

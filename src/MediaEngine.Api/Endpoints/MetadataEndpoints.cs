@@ -7,6 +7,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Details.Internals;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
@@ -358,12 +359,19 @@ public static partial class MetadataEndpoints
             IFileWriteQueue fileWrites,
             IEventPublisher publisher,
             ILoggerFactory loggerFactory,
+            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             if (request.Fields.Count == 0)
             {
                 return ApiErrors.BadRequest("At least one field override is required.");
             }
+
+            if (await seriesGuard.IsSeriesAsync(entityId, ct))
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesIsReadOnly);
+            }
+
 
             var now = DateTimeOffset.UtcNow;
             var updatedKeys = new List<string>();
@@ -617,6 +625,8 @@ public static partial class MetadataEndpoints
             IMetadataEditorRepository metadataData,
             IEnumerable<IExternalMetadataProvider> providers,
             IWorkDetailReadService workDetailReadService,
+            EditorHeaderReadService editorHeader,
+            HttpContext http,
             CancellationToken ct) =>
         {
             var context = await ResolveEditorScopeContextAsync(entityId, canonicalRepo, libraryItemRepo, metadataData, ct);
@@ -624,6 +634,9 @@ public static partial class MetadataEndpoints
             {
                 return ApiErrors.NotFound($"Editor context for {entityId} not found.");
             }
+
+            // The header (universal editor v5): the way around the family, the cover's colours, the editor's numbers and the file facts.
+            var header = await editorHeader.GetHeaderAsync(context.LaunchWorkId, await CollectionEndpoints.ResolveViewerProfileIdAsync(http, ct), ct);
 
             var fieldScopes = context.Scopes
                 .Where(scope => !string.Equals(scope.FieldEntityKind, "File", StringComparison.OrdinalIgnoreCase))
@@ -759,6 +772,7 @@ public static partial class MetadataEndpoints
                 DisplayOverrideKeys = context.DisplayOverrideKeys.ToList(),
                 DisplayOverrides = new Dictionary<string, string>(context.DisplayOverrides, StringComparer.OrdinalIgnoreCase),
                 InitialScope = context.InitialScope,
+                Header = header,
                 Scopes = context.Scopes.Select(scope =>
                 {
                     var scopeIdentity = context.ScopeIdentitySummaries.TryGetValue(scope.FieldEntityId, out var resolvedScopeIdentity)
@@ -784,7 +798,7 @@ public static partial class MetadataEndpoints
                         CanEditFields = scope.CanEditFields,
                         CanEditArtwork = scope.CanEditArtwork,
                         ArtworkSlots = ArtworkScopeService.GetScopedArtworkSlots(scope.MediaType, scope.ScopeId).ToList(),
-                        ArtworkPresentation = scope.ScopeId == "series" && scope.MediaType != "TV" ? "automatic_group" : "single",
+                        ArtworkPresentation = ArtworkScopeService.IsAutomaticGroupScope(scope.ScopeId, scope.MediaType) ? "automatic_group" : "single",
                         AvailableTabs = capabilities.AvailableTabs.ToList(),
                         ContentTabLabel = capabilities.ContentTabLabel,
                         RetailIdentityMode = capabilities.RetailIdentityMode,
@@ -1076,9 +1090,16 @@ public static partial class MetadataEndpoints
             ArtworkScopeService artworkScopeService,
             HttpRequest httpRequest,
             ILoggerFactory loggerFactory,
+            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             var coverLogger = loggerFactory.CreateLogger("CoverUpload");
+
+            if (await seriesGuard.IsSeriesAsync(entityId, ct))
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
+            }
+
 
             if (!httpRequest.HasFormContentType)
             {
@@ -1448,6 +1469,7 @@ public static partial class MetadataEndpoints
             IMetadataEditorRepository metadataData,
             ArtworkScopeService artworkScopeService,
             HttpRequest httpRequest,
+            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             var normalizedAssetType = ArtworkScopeService.NormalizeUploadedArtworkType(assetType);
@@ -1455,6 +1477,12 @@ public static partial class MetadataEndpoints
             {
                 return ApiErrors.BadRequest("Artwork type must be CoverArt, Background, or Logo.");
             }
+
+            if (await seriesGuard.IsSeriesAsync(entityId, ct))
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
+            }
+
 
             if (!httpRequest.HasFormContentType)
             {
@@ -2227,6 +2255,12 @@ public static partial class MetadataEndpoints
 
         MapTvdbScopedMatchEndpoints(group);
         MapTvMatchBrowserEndpoints(group);
+        MapTvAbsoluteEpisodeEndpoint(group);
+        MapEditorMusicMatchEndpoints(group);
+        MapMatchContextEndpoints(group);
+        MapEditorHeaderEndpoints(group);
+        MapEditorWikidataEndpoints(group);
+        MapFileSortingEndpoints(group);
         MapArtworkWritebackEndpoints(group);
         MapArtworkWritebackStatusesEndpoint(group);
         return app;
@@ -3046,6 +3080,57 @@ public static partial class MetadataEndpoints
                 }
                 break;
 
+            case "Videos":
+                // A folder of Other videos (a course, a saved channel): a series, its sections (sub-folders) and its videos. Every
+                // scope's field id is the work it edits, so the id a page or the item dropdown passes is the id the scope answers to.
+                // The words are the folder's own (VideoFolderWording): never Season, Episode or S01E02.
+                var isVideoSectionLaunch = isParentLaunch && hasParentScope;
+                var videoSectionWorkId = isVideoSectionLaunch
+                    ? launch.WorkId
+                    : !isParentLaunch && hasParentScope && launch.ParentWorkId!.Value != rootWorkId
+                        ? launch.ParentWorkId!.Value
+                        : Guid.Empty;
+                var hasVideoSeries = hasDistinctRoot || isParentLaunch;
+                var videoSeriesTitle = StringHelpers.FirstNonBlankOr(string.Empty, rootTitle, seriesName, itemTitle);
+
+                if (hasVideoSeries)
+                {
+                    scopes.Add(new EditorScopeResolution(
+                        "series", "Series", 0, rootWorkId, "Work", rootWorkId, "Work",
+                        videoSeriesTitle, VideoFolderWording.KindLabel, videoSeriesTitle, "item",
+                        "Series details and its picture live here.", null,
+                        CanEditFields: true, CanEditArtwork: true, MediaType: mediaType,
+                        ArtworkFolderPath: seriesFolder ?? containerFolder,
+                        RepresentativeMediaFilePath: launch.RepresentativeMediaFilePath));
+                }
+
+                if (videoSectionWorkId != Guid.Empty)
+                {
+                    var sectionTitle = isVideoSectionLaunch ? itemTitle : VideoFolderWording.SectionLabel;
+                    scopes.Add(new EditorScopeResolution(
+                        "section", VideoFolderWording.SectionLabel, 1, videoSectionWorkId, "Work", videoSectionWorkId, "Work",
+                        sectionTitle, videoSeriesTitle, sectionTitle, "item",
+                        "Section details and its picture live here.",
+                        "The Series picture is managed on the Series scope.",
+                        CanEditFields: true, CanEditArtwork: true, MediaType: mediaType,
+                        ArtworkFolderPath: containerFolder,
+                        RepresentativeMediaFilePath: launch.RepresentativeMediaFilePath));
+                }
+
+                if (!isParentLaunch)
+                {
+                    scopes.Add(new EditorScopeResolution(
+                        "video", VideoFolderWording.ItemLabel, hasVideoSeries ? (videoSectionWorkId != Guid.Empty ? 2 : 1) : 0,
+                        launch.WorkId, "Work", launch.WorkId, "Work",
+                        itemTitle, hasVideoSeries ? videoSeriesTitle : itemYear, itemTitle, "item",
+                        "Video details and its picture live here.",
+                        hasVideoSeries ? $"The Series picture is managed on {videoSeriesTitle}." : null,
+                        CanEditFields: true, CanEditArtwork: true, MediaType: mediaType,
+                        ArtworkFolderPath: containerFolder,
+                        RepresentativeMediaFilePath: launch.RepresentativeMediaFilePath));
+                }
+                break;
+
             default:
                 scopes.Add(new EditorScopeResolution(
                     "item",
@@ -3089,6 +3174,8 @@ public static partial class MetadataEndpoints
             "Audiobooks" when string.Equals(launchWorkKind, "parent", StringComparison.OrdinalIgnoreCase) => "series",
             "Audiobooks" => "audiobook",
             "Movies" => "item",
+            "Videos" when string.Equals(launchWorkKind, "parent", StringComparison.OrdinalIgnoreCase) => launch.ParentWorkId.HasValue ? "section" : "series",
+            "Videos" => "video",
             _ => scopes[0].ScopeId,
         };
 

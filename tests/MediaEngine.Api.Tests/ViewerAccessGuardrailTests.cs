@@ -67,6 +67,7 @@ public sealed class ViewerAccessGuardrailTests
         ["src/MediaEngine.Domain/Contracts/IRecursiveIdentityService.cs"] = ("contract", "documents what ingestion writes"),
         ["src/MediaEngine.Application/Services/IReadServices.cs"] = ("contract", "the read service contracts; each people read takes a viewer catalogue"),
         ["src/MediaEngine.Storage/PersonRepository.cs"] = ("vault-predicate", "the presence credits carry the Vault predicate"),
+        ["src/MediaEngine.Storage/ItemQuickFactsRepository.cs"] = ("vault-predicate", "the editor's Quick Facts count of a person's works carries the Vault predicate; administrator-only route, counts only"),
         ["src/MediaEngine.Storage/PersonCreditSql.cs"] = ("owner", "the credit SQL building block"),
         ["src/MediaEngine.Storage/CollectionRuleEvaluator.cs"] = ("vault-predicate", "rule evaluation carries the Vault predicate"),
         ["src/MediaEngine.Storage/VaultLibraryRepository.cs"] = ("owner", "decides whether a person is known only from Vault files"),

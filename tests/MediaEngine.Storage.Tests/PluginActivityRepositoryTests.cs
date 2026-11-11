@@ -62,6 +62,20 @@ public sealed class PluginActivityRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task TrimOlderThan_DropsOnlyThatPluginsLinesBeforeTheCutoff()
+    {
+        await _repo.AddAsync(Entry("a", PluginActivityKind.Note, "old a", at: Now.AddDays(-20)), 100);
+        await _repo.AddAsync(Entry("a", PluginActivityKind.Note, "new a", at: Now.AddDays(-2)), 100);
+        await _repo.AddAsync(Entry("b", PluginActivityKind.Note, "old b", at: Now.AddDays(-20)), 100);
+
+        var removed = await _repo.TrimOlderThanAsync("a", Now.AddDays(-14));
+
+        Assert.Equal(1, removed);
+        Assert.Equal(["new a"], (await _repo.GetRecentAsync("a", 10, false)).Select(row => row.Summary));
+        Assert.Equal(["old b"], (await _repo.GetRecentAsync("b", 10, false)).Select(row => row.Summary));
+    }
+
+    [Fact]
     public async Task OnlyTheNewestLinesPerPluginAreKept()
     {
         for (var number = 1; number <= 5; number++)

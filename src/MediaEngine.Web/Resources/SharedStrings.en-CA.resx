@@ -92,7 +92,34 @@
   <data name="Common_FavoritesRequireAnActiveProfile" xml:space="preserve">
     <value>Favourites require an active profile.</value>
   </data>
-  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
-    <value>Favourites could not be updated. Try again when the Engine reconnects.</value>
+  <data name="ViewEdit_HistoryFavorite" xml:space="preserve">
+    <value>Marked as a favourite</value>
+  </data>
+  <data name="ViewActions_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
+  <data name="ViewPage_FavoriteAdded" xml:space="preserve">
+    <value>Added to Favourites.</value>
+  </data>
+  <data name="ViewPage_FavoriteRemoved" xml:space="preserve">
+    <value>Removed from Favourites.</value>
+  </data>
+  <data name="PlayerSettings_Colour" xml:space="preserve">
+    <value>Text colour</value>
+  </data>
+  <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
+    <value>Background colour</value>
+  </data>
+  <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
+    <value>Font, colours and opacity</value>
+  </data>
+  <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
+    <value>Add song to Favourites</value>
+  </data>
+  <data name="PlaybackIdentity_RemoveSongFromFavorites" xml:space="preserve">
+    <value>Remove song from Favourites</value>
+  </data>
+  <data name="PlaybackIdentity_FavoritesNeedProfile" xml:space="preserve">
+    <value>Favourites need an active profile.</value>
   </data>
 </root>

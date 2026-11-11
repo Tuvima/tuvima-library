@@ -11,9 +11,10 @@
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject IStringLocalizer<SharedStrings> L
 
-@* Add library: two screens, one question each. Screen 1 "What is it?" is only the content type of the area the person is standing in; screen 2 "Choose your
-   Movies folder" is the folder (Browse opens the shared "Choose source folder" pop-up, the same one Add folder uses) and a name that is already filled in. Add
-   library saves the library with that folder, starts a scan and opens the new library's page: no "go to..." question and no toast. Who can see a library is never
+@* Add library (Libraries v3 D17, D21, D23): three steps in one fixed window, one question each, drawn from square tiles. 1 "Where does it belong?" is the area
+   (Watch, Listen, Read, View); 2 "What is it?" is that area's kinds; 3 "Where is it?" is the folder window, with the folder's friendly name at the top and the
+   Read-only / Managed choice under the list. The library itself is never named: its name is its kind (Movies is Movies). A kind that already has a library takes the
+   folder as a second folder of it. Add library saves the library with that folder, starts a scan and opens the new library's page: no "go to..." question and no toast. Who can see a library is never
    asked here (library access D1), and the ordinary Add library says nothing about the Vault. The Vault is its own area: opened from it (StartAreaKey or
    StartAccessKey set to vault) the dialog offers Movies, TV Shows, Music, Books, Adult content and Other, and the library is made in the Vault (library access D6).
    First-run setup uses the same dialog with Simple on and stays where it is. *@
@@ -21,42 +22,76 @@
                 Title="@Heading"
                 Subtitle="@Lead"
                 Size="Large"
+                HostClass="@ServerFolderPicker.HostClass"
                 OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="create-library" data-step="@_step">
             @if (_step == 1)
             {
-                @if (!_vaultMode && Areas.Count > 1)
-                {
-                    <div class="create-library__areas" data-area-tabs>
-                        <AppSegmentedControl Options="@AreaOptions"
-                                             Value="@_area"
-                                             ValueChanged="ChooseAreaAsync"
-                                             AriaLabel="@L["Common_Area"].Value"
-                                             Disabled="@_saving" />
-                    </div>
-                }
-
+                <div class="create-library__tiles" role="group" aria-label="@L["Common_Area"].Value" data-area-tiles>
+                    @foreach (var group in Areas)
+                    {
+                        <LibraryTile Title="@group.Label"
+                                     Icon="@group.Icon"
+                                     AreaKey="@group.Key"
+                                     About="@AreaDescription(group.Key)"
+                                     Examples="@AreaExamples(group)"
+                                     Selected="@(!_vaultMode && group.Key == _area)"
+                                     Disabled="@_saving"
+                                     OnClick="@(() => ChooseAreaAsync(group.Key))" />
+                    }
+                    @if (VaultRowShown)
+                    {
+                        <LibraryTile Title="@L["CreateLibrary_VaultTitle"].Value"
+                                     Icon="@AppMaterialIcons.Outlined.Lock"
+                                     AreaKey="@LibraryGroupCatalog.VaultKey"
+                                     About="@L["CreateLibrary_VaultInfo"].Value"
+                                     Selected="@_vaultMode"
+                                     Disabled="@_saving"
+                                     OnClick="@(() => ChooseAreaAsync(LibraryGroupCatalog.VaultKey))" />
+                    }
+                </div>
+            }
+            else if (_step == 2)
+            {
+                <p class="create-library__area-line" data-area-line>
+                    <span class="create-library__chip lib-area--@(_vaultMode ? "vault" : _area)">@(_vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label)</span>
+                    @if (!_vaultMode || VaultRowShown)
+                    {
+                        <AppButton Label="@L["Common_Change"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="BackAsync" />
+                    }
+                </p>
                 @if (KindsOfArea.Count == 0)
                 {
                     <AppQuietNote>@L["CreateLibraryDialog_ThereAreNoContentTypes"]</AppQuietNote>
                 }
                 else
                 {
-                    <div class="create-library__rows" role="group" aria-label="@L["Common_ContentType"].Value">
+                    <div class="create-library__tiles" role="group" aria-label="@L["Common_ContentType"].Value" data-kind-tiles>
                         @foreach (var kind in KindsOfArea)
                         {
                             var availability = AvailabilityOf(kind);
-                            <AppChoiceRow Title="@LabelOf(kind)"
-                                          Description="@(availability.Reason ?? DescriptionOf(kind))"
-                                          Icon="@kind.Icon"
-                                          IconClass="@LibraryKindLook.TileClass(kind)"
-                                          Selected="@(kind.Key == _kindKey)"
-                                          Disabled="@(_saving || !availability.Enabled)"
-                                          OnClick="@(() => ChooseKindAsync(kind))" />
+                            <LibraryTile Title="@LabelOf(kind)"
+                                         Icon="@kind.Icon"
+                                         AreaKey="@kind.Area.ToLowerInvariant()"
+                                         About="@kind.Explainer"
+                                         Examples="@kind.Examples"
+                                         LibraryDoes="@kind.LibraryDoes"
+                                         Note="@(availability.Reason ?? ExistingNote(kind))"
+                                         Badge="@(HasLibrary(kind) ? L["CreateLibrary_Added"].Value : null)"
+                                         Selected="@(kind.Key == _kindKey)"
+                                         Disabled="@(_saving || !availability.Enabled)"
+                                         OnClick="@(() => ChooseKindAsync(kind))" />
                         }
                     </div>
                 }
+            }
+            else if (_step == 4)
+            {
+                <div class="create-library__check" data-fit="@_fit" role="status" aria-live="polite">
+                    <AppMaterialIcon Icon="@FitIcon" />
+                    <div><strong>@FitTitle</strong><p>@FitText</p></div>
+                </div>
             }
             else
             {
@@ -65,12 +100,38 @@
                                         Inline="true"
                                         HideConfirm="true"
                                         MediaType="@Kind?.MediaTypes.FirstOrDefault()"
+                                        KindLabel="@(Kind is null ? null : LabelOf(Kind))"
                                         SelectionMode="@PickerMode"
-                                        KindKey="@_kindKey"
                                         SetupSession="@SetupSession"
                                         InitialPath="@_pickerStart"
-                                        OnValidationChanged="FolderChecked" />
+                                        ShowFolderName="true"
+                                        FolderName="@_folderName"
+                                        FolderNameChanged="FolderNameChanged"
+                                        OfferHandling="@(!IsVaultChoice)"
+                                        ManagedAllowed="@ManagedAllowed"
+                                        OnHandlingChanged="HandlingChanged"
+                                        OnPathChanged="PathChosen">
+                        <TopContent>
+                            @* Step line, then the area and kind (read only). The folder's friendly name comes first inside the folder window. *@
+                            <div class="create-library__chips" data-picker-chips>
+                                @if (!(_vaultMode && Simple))
+                                {
+                                    <span class="create-library__chip lib-area--@(_vaultMode ? "vault" : _area)">@(_vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label)</span>
+                                }
+                                <span class="create-library__chip">@(Kind is null ? string.Empty : LabelOf(Kind))</span>
+                            </div>
+                        </TopContent>
+                    </ServerFolderPicker>
                     <p class="create-library__line" data-scan-line>@ScanLine</p>
+                    @if (HeldWords is { } held)
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" data-testid="create-library-held">
+                            @held
+                            <AppActionBar Align="AppHorizontalAlignment.Start">
+                                <AppButton Label="@L["CreateLibraryDialog_ConnectASource"].Value" Size="AppControlSize.Compact" OnClick="ConnectASource" />
+                            </AppActionBar>
+                        </AppAlert>
+                    }
                 </div>
             }
 
@@ -85,43 +146,43 @@
             @if (_step == 1)
             {
                 <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="NextAsync" />
+            }
+            else if (_step == 2)
+            {
+                <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="BackAsync" />
                 <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Kind is null)" OnClick="NextAsync" />
+            }
+            else if (_step == 4)
+            {
+                @if (_fit == FitLooksRight)
+                {
+                    <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="FinishAsync" />
+                }
+                else
+                {
+                    <AppButton Label="@L["CreateLibrary_ChooseAnother"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="BackAsync" />
+                    @if (_fit == FitHeadsUp)
+                    {
+                        <AppButton Label="@L["CreateLibrary_AddAnyway"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" OnClick="CreateAsync" />
+                    }
+                }
             }
             else
             {
-                <div class="create-library__name" data-library-name>
-                    <AppTextField Label="@L["Common_LibraryName"].Value"
-                                  Value="@_name"
-                                  ValueChanged="NameChanged"
-                                  MaxLength="@MaxNameLength"
-                                  ReadOnly="@_saving"
-                                  Error="@(NameProblem is not null)"
-                                  ErrorText="@NameProblem" />
-                    <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
-                </div>
                 <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="BackAsync" />
-                <AppButton Label="@L["Common_AddLibrary"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanCreate)" OnClick="CreateAsync" />
+                <AppButton Label="@(Kind is { } chosen && HasLibrary(chosen) ? L["Common_AddFolder"].Value : L["Common_AddLibrary"].Value)" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanCreate)" OnClick="AddClickedAsync" />
             }
         </AppActionBar>
     </FooterContent>
 </AppDialogShell>
 
 @code {
-    /// <summary>The most characters a library name may have.</summary>
-    public const int MaxNameLength = 80;
-
     /// <summary>The kind that is only ever offered with the Vault tick (Libraries spec D12, D21).</summary>
     public const string AdultContentKindKey = "adult_content";
 
-    /// <summary>The centred dialog every host opens Add library with.</summary>
-    public static AppDialogOptions DialogOptions { get; } = new()
-    {
-        MaxWidth = AppMaxWidth.Large,
-        FullWidth = true,
-        CloseButton = false,
-        NoHeader = true,
-        CloseOnEscapeKey = true,
-    };
+    /// <summary>The centred dialog every host opens Add library with: the one folder window (Libraries v3 D21).</summary>
+    public static AppDialogOptions DialogOptions => ServerFolderPicker.DialogOptions;
 
     // Watch, Listen and Read make a new library; View's three kinds always exist, so its tab goes straight to the View folder pop-up (Libraries spec D8, Q6).
     private static readonly string[] OfferedAreas = ["watch", "listen", "read", "view"];
@@ -149,15 +210,28 @@
     /// <summary>False when the host carries on with what it was doing (Move to Vault continues from its preview) instead of opening the new library.</summary>
     [Parameter] public bool OpenCreated { get; set; } = true;
 
-    // 1 = "What is it?", 2 = "Choose your ... folder".
+    // 1 = area, 2 = type, 3 = "Choose your ... folder", 4 = the check after adding (Looks right / Heads up / Already used).
     private int _step = 1;
+    private const string FitLooksRight = "looks_right";
+    private const string FitHeadsUp = "heads_up";
+    private const string FitAlreadyUsed = "already_used";
+    private string _fit = FitLooksRight;
+    private string? _fitDetail;
+    private string _createdId = string.Empty;
+    private bool _areaChosen;
     private string _area = "watch";
     private string? _kindKey;
-    private string _name = string.Empty;
-    private bool _nameTouched;
+    // The folder's friendly name and handling, reported by the folder window (Libraries v3 D18, D19). The library itself is never named by the person.
+    private string _folderName = string.Empty;
+    private string _handling = FolderHandlingWords.ReadOnlyKey;
     // True when opened for the Vault; never changed afterwards, because the dialog has no Vault choice.
     private bool _vaultMode;
+    private bool AreaChosen => _areaChosen;
+    // The Vault row is offered only once the Vault is on for this person (and, in setup, only after it was turned on there).
+    private bool VaultRowShown => VaultAllowed && VaultVisible;
     private ServerFolderValidationResultDto? _folder;
+    // The folder path the picker has selected so far (a plain choice, not checked).
+    private string _chosenPath = string.Empty;
     // Where the folder picker opens: the folder already chosen when the content type changes under it.
     private string? _pickerStart;
     private int _pickerKey;
@@ -181,23 +255,61 @@
     private IReadOnlyList<LibraryTypeOption> KindsOfArea => _vaultMode
         ? [.. VaultKindKeys.Select(Kinds.Find).OfType<LibraryTypeOption>()]
         : Kinds.TryGetGroup(_area) is { } group
-            ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey)]
+            ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey && !LibraryTypeCatalog.IsHiddenFromAdd(kind))]
             : [];
 
-    private string StepText => $"Step {_step} of 2";
+    // The folder step names the area beside the step, in the header that never scrolls (Libraries fixes, item 3b).
+    private string? StepText => _step switch
+    {
+        3 when _vaultMode && Simple => "Step 3 of 3",
+        3 => $"Step 3 of 3 · {(_vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label)}",
+        < 3 => $"Step {_step} of 3",
+        _ => null,
+    };
 
-    // The plain video kind is called "Videos" everywhere else (import folder, Change what this folder is); only this dialog says "Other".
-    private static string LabelOf(LibraryTypeOption kind) => kind.Key == "other_videos" ? "Other" : kind.Label;
+    // The name a kind goes by everywhere: the kind list's label ("Videos", "Other audio", "Photos and Videos").
+    private static string LabelOf(LibraryTypeOption kind) => LibraryTypeCatalog.AddChoiceLabel(kind);
 
-    private static string DescriptionOf(LibraryTypeOption kind) => kind.Key == "other_videos"
-        ? "Anything else, like home videos, recordings or clips. Nothing is looked up."
-        : kind.Tooltip;
+    private static string DescriptionOf(LibraryTypeOption kind) => kind.Key switch
+    {
+        "other_videos" => "Anything else, like home videos, recordings or clips. Nothing is looked up.",
+        "photos" => "A dump of your phone or camera: pictures and videos together. Library sorts each file by what it is.",
+        _ => kind.Tooltip,
+    };
 
-    private string Heading => _step == 1 ? "What is it?" : $"Choose your {(Kind is { } chosen ? LabelOf(chosen) : "library")} folder";
+    private string Heading => _step switch
+    {
+        1 => "Where does it belong?",
+        2 => "What is it?",
+        4 => _fit switch { FitHeadsUp => "Heads up", FitAlreadyUsed => "Already used", _ => "Looks right" },
+        _ => Kind is { } chosen && HasLibrary(chosen) ? $"Add a folder to {LibraryNameOf(chosen)}" : Kind is { } picked ? $"Where are your {LabelOf(picked)}?" : "Where is it?",
+    };
 
-    private string? Lead => _step == 1
-        ? (_vaultMode ? "Stored in the Vault, away from everyone without Vault access." : $"Pick the kind of {AreaNoun} you have.")
-        : $"Pick the folder on the Library server that holds your {Plural}.";
+    private string? Lead => _step switch
+    {
+        1 => "Pick the area it belongs in. The library is named for what it is, so there is nothing to type.",
+        2 => _vaultMode ? "Stored in the Vault, away from everyone without Vault access." : $"Pick the kind of {AreaNoun} you have.",
+        4 => null,
+        _ => $"Pick the folder on the Library server that holds your {Plural}. Give it a friendly name if you like.",
+    };
+
+    private static string AreaDescription(string area) => area switch
+    {
+        "watch" => "Movies, TV shows and home videos",
+        "listen" => "Music, audiobooks and podcasts",
+        "read" => "Books and comics",
+        "view" => "Photos, videos and documents",
+        _ => string.Empty,
+    };
+
+    private string FitIcon => _fit switch { FitHeadsUp => AppMaterialIcons.Outlined.WarningAmber, FitAlreadyUsed => AppMaterialIcons.Outlined.ErrorOutline, _ => AppMaterialIcons.Outlined.CheckCircle };
+    private string FitTitle => _fit switch
+    {
+        FitHeadsUp => L["CreateLibrary_HeadsUpTitle"].Value,
+        FitAlreadyUsed => L["CreateLibrary_AlreadyUsedTitle"].Value,
+        _ => L["CreateLibrary_LooksRightTitle"].Value,
+    };
+    private string FitText => _fitDetail ?? string.Empty;
 
     // "Movies" reads "movies" in the middle of a sentence; "TV shows" and "YouTube" keep their capitals, and the "Other" kinds just say files.
     private string Plural
@@ -220,74 +332,82 @@
 
     private LibraryTypeOption? Kind => _kindKey is null ? null : KindsOfArea.FirstOrDefault(kind => kind.Key == _kindKey);
 
-    // A kind that holds one library cannot start a second (its folders merge instead); a kind that holds several stops at its limit.
+    // One library per kind (Libraries v3 D17): a kind that already has a library takes the new folder as a second folder of it, so it stays pickable.
     private (bool Enabled, string? Reason) AvailabilityOf(LibraryTypeOption kind)
     {
-        // View's kinds always exist; they take folders, never a second library.
-        if (!_vaultMode && string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal))
-        {
-            return (true, null);
-        }
-
         // Each content type has one Vault library beside its ordinary one; the Engine refuses a second in any case.
         if (_vaultMode && Configuration.Libraries.Any(library => library.IsVault && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)))
         {
             return (false, $"You already have a Vault-protected {LabelOf(kind)} library. Add a folder to it instead.");
         }
 
-        // Ordinary libraries never count toward the Vault's own, so the Vault list is open once its own check passes.
-        if (_vaultMode)
-        {
-            return (true, null);
-        }
-
-        var held = LibraryRollup.LibrariesOf(Configuration, kind).Count;
-        if (!kind.AllowsMultiple)
-        {
-            return held >= 1 ? (false, $"You already have a {LabelOf(kind)} library. Add a folder to it instead.") : (true, null);
-        }
-
-        return held >= kind.MaxLibraries
-            ? (false, $"You already have {kind.MaxLibraries} {kind.PluralLabel} libraries, the most you can keep. Add a folder to one of them instead.")
-            : (true, null);
+        return (true, null);
     }
+
+    // The library an ordinary kind already has; View's kinds always exist and are not counted as "has a library" here.
+    private bool HasLibrary(LibraryTypeOption kind) => !_vaultMode && !string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal) && LibraryRollup.LibrariesOf(Configuration, kind).Count > 0;
+
+    private string? ExistingNote(LibraryTypeOption kind) => HasLibrary(kind) ? $"You already have a {LibraryNameOf(kind)} library. Add a folder to {LibraryNameOf(kind)} instead." : null;
+
+    private IReadOnlyList<string> AreaExamples(LibraryGroup group) => [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey && !LibraryTypeCatalog.IsHiddenFromAdd(kind)).Select(LabelOf)];
 
     // A Vault library's folders are added as they are (read-only); a folder Library manages in the Vault is part of the Vault update.
     private bool IsVaultChoice => _vaultMode;
 
-    private string PickerMode => Kind is { DefaultHandling: "managed" } && !IsVaultChoice ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
+    private string PickerMode => Handling == AddFolderHandling.Managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary;
 
-    // Read-only (As-is) unless the kind's own default is Managed.
-    private AddFolderHandling Handling => Kind is { DefaultHandling: "managed" } && !IsVaultChoice ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly;
+    // Read-only unless the person picks Managed in the folder window (Libraries v3 D19); a Vault library's folders are always added as they are.
+    private AddFolderHandling Handling => !IsVaultChoice && _handling == FolderHandlingWords.ManagedKey && ManagedAllowed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly;
 
-    // The name must be there, fit, and be new within the area ("Home videos" twice would be two rows nobody could tell apart).
-    private string? NameProblem
-    {
-        get
-        {
-            var name = _name.Trim();
-            if (name.Length == 0) return _nameTouched ? "Give the library a name." : null;
-            if (name.Length > MaxNameLength) return $"Use {MaxNameLength} characters or fewer.";
-            return NameTaken(name) ? $"You already have a library called \"{name}\" in this area. Choose a different name." : null;
-        }
-    }
+    // Managed is offered for kinds whose Engine rules identify, file and name their files (they look details up); a plain kind keeps files as they are.
+    private bool ManagedAllowed => !IsVaultChoice && Kind is { } kind && LibraryKindLook.ManagedOffered(kind);
 
-    // A Vault library is compared only with other Vault libraries, and an ordinary one only with the ordinary ones in its area, so the ordinary list never
-    // tells anyone that a Vault library of that name exists.
-    private bool NameTaken(string name) => Configuration.Libraries.Any(library =>
-        library.IsVault == _vaultMode
-        && (_vaultMode || string.Equals(library.Area, _area, StringComparison.OrdinalIgnoreCase))
-        && string.Equals(library.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
+    // The library is named for its kind and the person never types it (Libraries v3 D17). A Vault library carries the "Private" stem.
+    private string LibraryNameOf(LibraryTypeOption kind) => IsVaultChoice ? VaultNameStem(LabelOf(kind)) : LibraryTypeCatalog.AddChoiceLabel(kind);
 
-    private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
+    // Nothing is checked while browsing; the folder is looked at once, when Add library is pressed (the picker keeps only a chosen path).
+    private bool FolderUsable => !string.IsNullOrWhiteSpace(_chosenPath);
 
     private bool CanCreate => !_saving
-        && !string.IsNullOrWhiteSpace(_name)
-        && _name.Trim().Length <= MaxNameLength
-        && NameProblem is null
         && Kind is not null
         && AvailabilityOf(Kind).Enabled
         && FolderUsable;
+
+    // Movies, TV Shows and Comics wait for a source that can identify them (Plugins screens v4 D38); the dialog says so before the
+    // library is made. First-run setup has no signed-in plugin list, so it says nothing.
+    private IReadOnlySet<string> _heldKinds = new HashSet<string>();
+
+    private string? HeldWords => _kindKey is { } key && _heldKinds.Contains(key)
+        ? L[key switch
+        {
+            "movies" => "CreateLibraryDialog_NothingCanIdentifyFilms",
+            "tv" => "CreateLibraryDialog_NothingCanIdentifyShows",
+            _ => "CreateLibraryDialog_NothingCanIdentifyComics",
+        }].Value
+        : null;
+
+    private void ConnectASource()
+    {
+        Dialog.Cancel();
+        Navigation.NavigateTo("/settings/plugins");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Simple || SetupSession is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _heldKinds = LibraryFolderHealth.HeldKinds(await Api.GetPluginsAsync());
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // The plugin list could not be read: the dialog simply does not show the line.
+        }
+    }
 
     protected override void OnInitialized()
     {
@@ -299,31 +419,48 @@
         _area = start?.Key ?? "watch";
         var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && AvailabilityOf(kind).Enabled);
         _kindKey = (wanted ?? KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled))?.Key;
-        // A host that already knows the content type (Move to Vault, a dropped file) goes straight to the folder; Back changes the type.
-        _step = wanted is not null ? 2 : 1;
-        PrefillName();
+        // A host that already knows the content type (Move to Vault, a dropped file) goes straight to the folder; one that knows the area goes to the type;
+        // otherwise the person starts by choosing the area. Back walks the other way.
+        _areaChosen = !string.IsNullOrWhiteSpace(StartAreaKey) || _vaultMode;
+        _step = wanted is not null ? 3 : _areaChosen ? 2 : 1;
     }
 
     private async Task NextAsync()
     {
+        if (_step == 1)
+        {
+            _step = 2;
+            return;
+        }
+
         if (Kind is not { } kind) return;
-        if (IsViewArea)
+        if (IsViewArea && _step == 2)
         {
             await AddViewFolderAsync(kind);
             return;
         }
 
-        _step = 2;
+        _step = 3;
+        _folder = null;
     }
 
     // A different area shows its own content types, with the first one that can still take a library chosen.
     private Task ChooseAreaAsync(string area)
     {
-        if (_saving || string.Equals(_area, area, StringComparison.Ordinal)) return Task.CompletedTask;
+        if (_saving) return Task.CompletedTask;
+        _areaChosen = true;
+        _error = null;
+        if (string.Equals(area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase))
+        {
+            _vaultMode = VaultAllowed;
+            _kindKey = KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled)?.Key;
+                return Task.CompletedTask;
+        }
+
+        _vaultMode = false;
         _area = area;
         _error = null;
         _kindKey = KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled)?.Key;
-        PrefillName();
         return Task.CompletedTask;
     }
 
@@ -346,7 +483,7 @@
 
     private Task BackAsync()
     {
-        _step = 1;
+        _step = Math.Max(1, _step == 4 ? 3 : _step - 1);
         _error = null;
         return Task.CompletedTask;
     }
@@ -355,7 +492,6 @@
     {
         if (_kindKey == kind.Key) return Task.CompletedTask;
         _kindKey = kind.Key;
-        PrefillName();
         RestartPicker();
         return Task.CompletedTask;
     }
@@ -363,44 +499,26 @@
     // The folder is checked for the content type, so a new type checks it again (the picker is rebuilt on the folder already chosen).
     private void RestartPicker()
     {
-        _pickerStart = _folder?.Path;
+        _pickerStart = string.IsNullOrWhiteSpace(_chosenPath) ? null : _chosenPath;
         _pickerKey++;
         _error = null;
-    }
-
-    // The name starts as the content type's name (a second "Videos" becomes "Videos 2") and follows the type until the person types their own.
-    private void PrefillName()
-    {
-        if (_nameTouched) return;
-        var kind = Kind;
-        if (kind is null)
-        {
-            _name = string.Empty;
-            return;
-        }
-
-        var stem = IsVaultChoice ? VaultNameStem(LabelOf(kind)) : LabelOf(kind);
-        var suggestion = stem;
-        for (var number = 2; NameTaken(suggestion); number++)
-        {
-            suggestion = $"{stem} {number}";
-        }
-
-        _name = suggestion;
     }
 
     // "Private Movies" beside "Movies" (the library the Vault shortcuts make carries the same stem).
     private static string VaultNameStem(string kindLabel) => $"Private {kindLabel}";
 
-    private void NameChanged(string? value)
+    private void FolderNameChanged(string value) => _folderName = value;
+
+    private void HandlingChanged(string value)
     {
-        _name = value ?? string.Empty;
-        _nameTouched = true;
+        _handling = value;
+        _folder = null;
     }
 
-    private Task FolderChecked(ServerFolderValidationResultDto? folder)
+    private Task PathChosen(string path)
     {
-        _folder = folder;
+        _chosenPath = path;
+        _folder = null;
         _error = null;
         StateHasChanged();
         return Task.CompletedTask;
@@ -410,7 +528,7 @@
     // opened only for someone who sees Vault libraries; otherwise the dialog just closes, so nothing about it shows on the page.
     private async Task CreateVaultAsync(LibraryTypeOption kind, ServerFolderValidationResultDto folder)
     {
-        var created = await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, _name.Trim(), folder.Path));
+        var created = await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, LibraryNameOf(kind), folder.Path));
         if (created is not { Ok: true })
         {
             _error = Api.LastError ?? "The library could not be created. Check the folder and try again.";
@@ -422,6 +540,93 @@
         if (OnCreated is not null) await OnCreated(id);
         Dialog.Close(AppDialogResult.Ok(id));
         if (VaultVisible && OpenCreated && id.Length > 0) Navigation.NavigateTo($"/settings/libraries/{id}");
+    }
+
+    // Add library on the folder step: look inside the folder first (the picker itself reads nothing but the folder list), then show Looks right, Heads up or Already used.
+    // A Vault library skips the look, because its answers never name anything outside the Vault.
+    private async Task AddClickedAsync()
+    {
+        if (!CanCreate || Kind is not { } kind) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            var request = new ValidateServerFolderRequest { ManualPath = _chosenPath, SelectionMode = PickerMode, KindKey = kind.Key };
+            var checkedFolder = Simple ? await Api.ValidateSetupServerFolderAsync(request, SetupSession) : await Api.ValidateServerFolderAsync(request);
+            if (checkedFolder is null)
+            {
+                _error = Api.LastError ?? "The folder could not be checked. Try again.";
+                return;
+            }
+
+            _folder = checkedFolder;
+            if (IsVaultChoice)
+            {
+                // A Vault library skips the look, because its answers never name anything outside the Vault.
+                if (!checkedFolder.CanSelect)
+                {
+                    _error = checkedFolder.Issues.FirstOrDefault()?.Message ?? "This folder cannot be used.";
+                    return;
+                }
+            }
+            else
+            {
+                var duplicate = checkedFolder.Issues.FirstOrDefault(issue => issue.Code == "already_configured");
+                if (duplicate is not null)
+                {
+                    _fit = FitAlreadyUsed;
+                    _fitDetail = duplicate.Message;
+                    _step = 4;
+                    return;
+                }
+
+                if (!checkedFolder.CanSelect)
+                {
+                    _error = checkedFolder.Issues.FirstOrDefault()?.Message ?? "This folder cannot be used.";
+                    return;
+                }
+
+                if (Handling == AddFolderHandling.Managed && checkedFolder.SupportedFileCount is > 0)
+                {
+                    // Managed on a folder that already holds files (Libraries v3 D19): say what will happen before it does.
+                    _fit = FitHeadsUp;
+                    _fitDetail = FolderHandlingWords.ManagedOnFilesWarning;
+                    _step = 4;
+                    return;
+                }
+
+                var other = checkedFolder.Issues.FirstOrDefault(issue => issue.Code == "looks_like_other_kind");
+                var empty = checkedFolder.SupportedFileCount == 0 && !checkedFolder.SupportedFileCountUnavailable;
+                if (other is not null || empty)
+                {
+                    _fit = FitHeadsUp;
+                    _fitDetail = other?.Message ?? $"We did not find any {Plural} here. Check it is the right folder, or add it anyway and fill it later.";
+                    _step = 4;
+                    return;
+                }
+
+                _fit = FitLooksRight;
+                _fitDetail = checkedFolder.SupportedFileCount is { } found and > 0
+                    ? $"Found {found:N0}{(checkedFolder.SupportedFileCountCapped ? "+" : string.Empty)} {checkedFolder.SupportedFileKindLabel ?? "media"} files. {(Simple ? "Library will scan them once setup is finished." : "Library is scanning them now.")}"
+                    : "The folder is ready. Library will look inside as soon as it can.";
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+
+        await CreateAsync();
+    }
+
+    private string? FolderLabel => string.IsNullOrWhiteSpace(_folderName) ? null : _folderName.Trim();
+
+    // The library is saved, then the check's result stays on screen until Done (Looks right) so the person sees what Library found.
+    private async Task FinishAsync()
+    {
+        Dialog.Close(AppDialogResult.Ok(_createdId));
+        if (!Simple && OpenCreated && _createdId.Length > 0) Navigation.NavigateTo($"/settings/libraries/{_createdId}");
+        await Task.CompletedTask;
     }
 
     private async Task CreateAsync()
@@ -437,29 +642,38 @@
                 return;
             }
 
+            var existing = HasLibrary(kind) ? LibraryRollup.LibrariesOf(Configuration, kind).FirstOrDefault() : null;
             var plan = new AddFolderPlan(
                 kind.Key,
                 folder,
                 Handling,
-                MarkNewMediaHere: Handling == AddFolderHandling.Managed,
-                NewLibraryName: _name.Trim(),
-                CreateNewLibrary: true,
-                Access: LibraryAccessChoices.Standard);
+                MarkNewMediaHere: Handling == AddFolderHandling.Managed && existing is null,
+                LibraryId: existing?.Id,
+                NewLibraryName: LibraryNameOf(kind),
+                CreateNewLibrary: existing is null,
+                Access: LibraryAccessChoices.Standard,
+                Label: FolderLabel);
             var result = await AddService.AddAsync(plan, Kinds, Configuration, Scope);
             if (!result.Saved || string.IsNullOrWhiteSpace(result.LibraryId))
             {
                 _error = result.Error ?? "The library could not be created. Check the folder and try again.";
+                _step = 3;
                 return;
             }
 
-            var libraryId = result.LibraryId;
+            _createdId = result.LibraryId;
             // A scan starts at once so the library page opens on a library that is already filling. Setup scans later, with everything else. A scan
             // that cannot start shows as the library's own status, where Scan now is one click away.
             if (!Simple) await Api.TriggerRescanAsync(folder.Path);
 
-            if (OnCreated is not null) await OnCreated(libraryId);
-            Dialog.Close(AppDialogResult.Ok(libraryId));
-            if (!Simple && OpenCreated) Navigation.NavigateTo($"/settings/libraries/{libraryId}");
+            if (OnCreated is not null) await OnCreated(_createdId);
+            // The result stays on screen with Done; a Heads up the person added anyway closes the same way.
+            if (_fit == FitHeadsUp)
+            {
+                _fit = FitLooksRight;
+                _fitDetail = "Added. Library will use the folder as it is.";
+            }
+            _step = 4;
         }
         finally
         {

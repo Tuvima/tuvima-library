@@ -34,6 +34,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapLibraryFolderActionEndpoints();
         app.MapFolderFirstCheckEndpoints();
         app.MapStreamEndpoints();
+        app.MapScrubPreviewEndpoints();
         app.MapHlsStreamEndpoints();
         app.MapCastEndpoints();
         app.MapViewEndpoints();
@@ -41,6 +42,8 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapViewClientEndpoints();
         app.MapPlaybackEndpoints();
         app.MapPlayerEndpoints();
+        app.MapBookmarkFrameEndpoints();
+        app.MapEditorBookmarkEndpoints();
         app.MapCompanionEndpoints();
         app.MapPlaybackTelemetryEndpoints();
         app.MapPlaybackSegmentEndpoints();
@@ -72,6 +75,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapProgressEndpoints();
         app.MapActivityEndpoints();
         app.MapLibraryActivity();
+        app.MapActivityRuns();
         app.MapPersonalActivityEndpoints();
         app.MapPersonalTasteEndpoints();
         app.MapLogEndpoints();
@@ -81,6 +85,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapCollectionClientEndpoints();
         app.MapDetailEndpoints();
         app.MapExtrasEndpoints();
+        app.MapSupportingFileEndpoints();
         app.MapUniverseGraphEndpoints();
         app.MapUniverseAppearanceEndpoints();
         app.MapSharedEntityEditorEndpoints();

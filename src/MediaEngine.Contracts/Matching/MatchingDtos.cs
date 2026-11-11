@@ -29,6 +29,14 @@ public sealed class ItemCanonicalSearchRequestDto
     /// <summary>Searches only this retail provider (the editor's "Search in" choice, by its <c>name</c>). Null or empty searches every provider that fits the item.</summary>
     [JsonPropertyName("provider_name")]
     public string? ProviderName { get; set; }
+
+    /// <summary>
+    /// Identifiers the person typed that the chosen provider can look up directly, by the search field its lookup strategy needs
+    /// (<c>isbn</c>, <c>isrc</c>, <c>comic_vine_id</c> ...). They go to the provider as search fields, never as search words.
+    /// </summary>
+    [JsonPropertyName("lookup_fields")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, string>? LookupFields { get; set; }
 }
 
 /// <summary>A retail provider the editor can search in.</summary>
@@ -136,6 +144,10 @@ public sealed class ItemCanonicalRetailCandidateDto
     [JsonPropertyName("match_scores")]
     public FieldMatchScoresDto? MatchScores { get; set; }
 
+    /// <summary>One short sentence saying why the confidence is what it is ("Title and year match; author differs"), worded from <see cref="MatchScores"/>. Null when the scoring gave nothing to say.</summary>
+    [JsonPropertyName("reason_text")]
+    public string? ReasonText { get; set; }
+
     [JsonPropertyName("link_state")]
     public string LinkState { get; set; } = "provider_only";
 
@@ -201,6 +213,10 @@ public sealed class ItemCanonicalLinkedCandidateDto
 
     [JsonPropertyName("match_scores")]
     public FieldMatchScoresDto? MatchScores { get; set; }
+
+    /// <summary>One short sentence saying why the confidence is what it is, worded from <see cref="MatchScores"/>. Null when the scoring gave nothing to say.</summary>
+    [JsonPropertyName("reason_text")]
+    public string? ReasonText { get; set; }
 
     [JsonPropertyName("bridge_ids")]
     public Dictionary<string, string> BridgeIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -404,9 +420,6 @@ public sealed class ReplaceRetailMatchRequestDto
 
     [JsonPropertyName("bridge_ids")]
     public Dictionary<string, string> BridgeIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-
-    [JsonPropertyName("clear_auto_aligned_wikidata")]
-    public bool ClearAutoAlignedWikidata { get; set; } = true;
 
     [JsonPropertyName("review_item_id")]
     public Guid? ReviewItemId { get; set; }

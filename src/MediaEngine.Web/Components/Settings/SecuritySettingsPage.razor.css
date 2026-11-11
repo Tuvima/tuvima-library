@@ -31,7 +31,7 @@
 
 .security-sheet__section-title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .security-sheet__section p {
@@ -71,7 +71,7 @@
 .security-sheet__row span,
 .security-sheet__hint {
     color: var(--tl-text-muted);
-    font-size: .875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .security-sheet__actions {
@@ -82,13 +82,13 @@
 }
 
 .security-sheet__warning {
-    color: var(--tl-palette-warning);
+    color: var(--tl-status-warning);
 }
 
 /* Quiet one-line reminder after "Not now": calm, no alert colour. */
 .security-settings__note {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     line-height: 1.4;
 }

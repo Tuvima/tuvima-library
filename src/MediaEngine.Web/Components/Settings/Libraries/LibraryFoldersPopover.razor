@@ -1,0 +1,121 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
+@implements IDisposable
+
+@* "N folders" as a button (Libraries and folder picker D3): it opens a small list of the library's real paths, each with its online or offline state and a copy
+   button. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
+<span class="lib-folders" @onclick:stopPropagation="true">
+    <span @ref="_anchor" class="lib-folders__anchor">
+    <AppButton Label="@Label"
+               EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+               ButtonStyle="AppButtonStyle.Text"
+               Size="AppControlSize.Compact"
+               Class="lib-folders__button"
+               aria-haspopup="dialog"
+               aria-expanded="@(_open ? "true" : "false")"
+               data-folder-count
+               OnClick="Toggle" />
+    </span>
+    @if (_open && DeviceContext.IsPhone)
+    {
+        @* Phones: the list is a bottom sheet (D13). *@
+        <AppDialogFrame Open="true" Title="@PanelLabel" DialogOptions="SheetOptions" Class="lib-folders__sheet" OnCancel="CloseAsync">
+            @ListBody
+        </AppDialogFrame>
+    }
+    else if (_open)
+    {
+        @* Drawn through the shared popover so it sits in the top layer and no table row or card can clip it. *@
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" Size="AppPopoutSize.Panel" Role="dialog" AriaLabel="@PanelLabel" Class="lib-folders__panel">
+            <div data-folder-list @onkeydown="KeyDown">
+                @ListBody
+            </div>
+        </AppPopover>
+    }
+</span>
+
+@code {
+    private RenderFragment ListBody => __builder =>
+    {
+            <div class="lib-folders__inner">
+            <ul class="lib-folders__list">
+                @foreach (var source in Rows)
+                {
+                    var issue = IssueFor(source);
+                    <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
+                        <span class="lib-folders__path" data-overflow-tooltip="@source.Path">@source.Path</span>
+                        <span class="lib-folders__state">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.ContentCopy"
+                                       Tooltip="@L["LibraryFoldersPopover_CopyPath"].Value"
+                                       AriaLabel="@L["LibraryFoldersPopover_CopyThisPath", source.Path].Value"
+                                       OnClick="@(() => CopyAsync(source.Path))" />
+                    </li>
+                }
+            </ul>
+            <div class="lib-folders__foot">
+                <span aria-live="polite">@_copied</span>
+                <AppButton Label="@L["LibraryFoldersPopover_Close"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="Close" />
+            </div>
+            </div>
+    };
+
+    /// <summary>A library's folders; use <see cref="Items"/> instead for folders that are not a library's (View folders).</summary>
+    [Parameter] public IReadOnlyList<LibrarySourceDto> Sources { get; set; } = [];
+    /// <summary>The same list from neutral items (View folders spec D5); when set it is shown instead of <see cref="Sources"/>.</summary>
+    [Parameter] public IReadOnlyList<FolderListItem>? Items { get; set; }
+    [Parameter] public string LibraryName { get; set; } = "library";
+    /// <summary>Folder path to its problem (offline, no access); null while the folder checks have not finished, so nothing is claimed.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+
+    private bool _open;
+    private string? _copied;
+    private ElementReference _anchor;
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+    private void PopoverChanged(bool open) => _open = open;
+    private Task CloseAsync()
+    {
+        _open = false;
+        return Task.CompletedTask;
+    }
+
+    private IReadOnlyList<FolderListItem> Rows => Items ?? [.. Sources.Select(source => new FolderListItem(source.Id, source.Path))];
+
+    private string Label => Rows.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Rows.Count].Value;
+    private string PanelLabel => L["LibraryFoldersPopover_FoldersOf", LibraryName].Value;
+
+    private string? IssueFor(FolderListItem source) => source.Issue ?? (PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null);
+
+    private void Toggle()
+    {
+        _open = !_open;
+        _copied = null;
+    }
+
+    private void Close() => _open = false;
+
+    private void KeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") _open = false;
+    }
+
+    private async Task CopyAsync(string path)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", path);
+            _copied = L["LibraryFoldersPopover_Copied"].Value;
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            _copied = L["LibraryFoldersPopover_CouldNotCopy"].Value;
+        }
+    }
+}

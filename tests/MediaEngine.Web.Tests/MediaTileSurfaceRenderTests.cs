@@ -69,7 +69,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             ProgressPct = 42,
             DetailsNavigationUrl = "/details/work/fixture",
             PrimaryNavigationUrl = "/resume/fixture",
-            HoverMode = MediaTileHoverMode.GlowOnly
         };
         var items = new List<MediaTileViewModel> { Item("Book", MediaTileShape.Portrait), Item("TV", MediaTileShape.Landscape), Item("Audiobook", MediaTileShape.Square) };
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = items }));
@@ -83,124 +82,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Contains("Fixture creator", cards[0].TextContent);
         Assert.Contains("42% complete", cards[0].TextContent);
         Assert.Equal("42", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
-    }
-
-    [Fact]
-    public void EpisodeCardHasOneDetailLinkVisibleIdentityAndAccessibleSavedProgress()
-    {
-        var show = Guid.NewGuid(); var episode = Guid.NewGuid(); var asset = Guid.NewGuid();
-        var item = new MediaTileViewModel
-        {
-            Id = episode,
-            WorkId = episode,
-            AssetId = asset,
-            Title = "The episode",
-            Subtitle = "S2 E5",
-            MediaKind = "TV",
-            Subject = MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
-            ContinuationState = MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
-            Shape = MediaTileShape.Landscape,
-            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
-            TileImageUrl = "/episode-small.jpg",
-            HoverImageUrl = "/episode-medium.jpg",
-            BackgroundUrl = "/episode-medium.jpg",
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            Description = "This episode's short synopsis.",
-            ProgressPct = 42,
-            RemainingSeconds = 600,
-            DetailsNavigationUrl = MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(show, episode, "watch"),
-        };
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true).Add(c => c.ShowCompactCaption, true));
-        var link = Assert.Single(cut.FindAll("a")); Assert.Equal(item.DetailsNavigationUrl, link.GetAttribute("href"));
-        Assert.Contains("S2 E5", cut.Find(".media-tile-episode-caption").TextContent);
-        Assert.Empty(cut.FindAll(".media-tile-progress-caption"));
-        Assert.Contains("10 min remaining", cut.Find("[role=progressbar]").GetAttribute("aria-valuetext"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-description"));
-        Assert.Same(link, cut.Find(".media-tile-episode-caption").Closest("a"));
-        link.Click();
-        Assert.EndsWith(item.DetailsNavigationUrl, Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
-        Assert.DoesNotContain("button", cut.Find("article").InnerHtml, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void MediaTile_ReadCardKeepsItsRestingGeometryAndShowsNoHoverText()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            Title = "Leviathan Wakes",
-            Subtitle = "The Expanse, Book 1",
-            Description = "This belongs on the detail page only.",
-            HoverFacts = ["James S. A. Corey", "M", "2011", "592 pages", "★ 4.3"],
-            MediaKind = "Book",
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/art/leviathan-wakes.jpg",
-            HoverImageUrl = "/art/leviathan-wakes.jpg",
-            NavigationUrl = "/details/work/1",
-            DetailsNavigationUrl = "/details/work/1",
-            PrimaryNavigationUrl = "/read/1",
-            PrimaryActionLabel = "Read",
-            ProgressPct = 42,
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
-
-        Assert.Equal("Leviathan Wakes", cut.Find(".media-tile").GetAttribute("aria-label"));
-        Assert.NotEmpty(cut.FindAll(".media-tile-image"));
-        Assert.Empty(cut.FindAll(".media-tile-caption"));
-        Assert.Empty(cut.FindAll(".media-tile-badge"));
-        Assert.Empty(cut.FindAll(".media-tile-quality-badge"));
-        Assert.Empty(cut.FindAll(".media-tile-source-badge"));
-        Assert.Empty(cut.FindAll(".media-tile-progress-strip"));
-        Assert.Empty(cut.FindAll(".media-tile-logo"));
-        Assert.NotEmpty(cut.FindAll("div[style*='display: contents']"));
-        Assert.Contains("--media-tile-hover-image", cut.Markup);
-        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll(".media-tile-static-hover"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
-        Assert.DoesNotContain(item.Description, cut.Markup);
-        Assert.Empty(cut.FindAll("button"));
-        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "registerMediaTileHover");
-    }
-
-    [Fact]
-    public void MediaTileGrid_WatchCardsOnlyHighlightCoverArt()
-    {
-        var movie = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            Title = "The Shining",
-            Description = "This cinematic copy belongs on Home, Discover, and details.",
-            MediaKind = "Movie",
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/art/the-shining-cover.jpg",
-            HoverImageUrl = "/art/the-shining-background.jpg",
-            HeroBackgroundImageUrl = "/art/the-shining-background.jpg",
-            NavigationUrl = "/watch/movie/the-shining",
-            DetailsNavigationUrl = "/watch/movie/the-shining",
-        };
-
-        var cut = Render<MediaTileGrid>(parameters => parameters.Add(component => component.Items, [movie]));
-        var tile = cut.FindComponent<MediaTile>();
-
-        Assert.Equal(MediaTileHoverMode.GlowOnly, tile.Instance.HoverMode);
-        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
-        Assert.DoesNotContain("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll(".media-tile-static-hover"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
-        Assert.DoesNotContain(movie.Description, cut.Markup);
-        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "registerMediaTileHover");
     }
 
     [Fact]
@@ -240,172 +121,11 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         MediaKind = "Audiobook",
         Shape = MediaTileShape.Square,
         SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-        HoverMode = MediaTileHoverMode.GlowOnly,
         NavigationUrl = $"/details/audiobook/{workId:D}",
         DetailsNavigationUrl = $"/details/audiobook/{workId:D}",
         PrimaryNavigationUrl = resumeUrl,
         ProgressPct = progress,
     };
-
-    [Fact]
-    public void MediaTileGrid_CanRenderCompactCaptionAndAspectSafeUserSizing()
-    {
-        var movie = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            Title = "All of Us Strangers",
-            Subtitle = "Andrew Scott",
-            SortYear = 2023,
-            MediaKind = "Movie",
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            TileImageUrl = "/art/all-of-us-strangers.jpg",
-            NavigationUrl = "/watch/movie/all-of-us-strangers",
-            DetailsNavigationUrl = "/watch/movie/all-of-us-strangers",
-        };
-
-        var cut = Render<MediaTileGrid>(parameters => parameters
-            .Add(component => component.Items, [movie])
-            .Add(component => component.ShowCompactCaptions, true)
-            .Add(component => component.TileSizePx, 168));
-
-        var grid = cut.Find(".media-tile-grid");
-        Assert.Contains("is-size-controlled", grid.ClassList);
-        Assert.Contains("media-tile-grid--size-168", grid.ClassList);
-        Assert.Null(grid.GetAttribute("style"));
-        Assert.Equal("All of Us Strangers", cut.Find(".media-tile-caption__title").TextContent);
-        Assert.Empty(cut.FindAll(".media-tile-caption__subtitle"));
-        Assert.Equal("2023", cut.Find(".media-tile-caption__year").TextContent);
-        Assert.True(cut.FindComponent<MediaTile>().Instance.ShowCompactCaption);
-    }
-
-    [Fact]
-    public void MediaTile_UsesCanonicalTvShowYearRangeInCompactCaption()
-    {
-        var show = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "The Wire",
-            Subtitle = "TV show in The Wire",
-            SortYear = 2002,
-            MediaKind = "TV",
-            Shape = MediaTileShape.Portrait,
-            Presentation = MediaTilePresentation.TvSeries,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            TileImageUrl = "/art/the-wire.jpg",
-            NavigationUrl = "/details/tvshow/the-wire",
-            GroupSummary = new MediaTileGroupSummaryViewModel
-            {
-                EarliestYear = 2002,
-                LatestYear = 2008,
-            },
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters
-            .Add(component => component.Item, show)
-            .Add(component => component.ShowCompactCaption, true));
-
-        Assert.Equal("2002\u20132008", cut.Find(".media-tile-caption__year").TextContent);
-        Assert.Empty(cut.FindAll(".media-tile-caption__subtitle"));
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void MediaTile_ShowsStillBeingMatchedMarkerOnlyWhileSettling(bool isSettling)
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Dune",
-            MediaKind = "Book",
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            TileImageUrl = "/art/dune.jpg",
-            NavigationUrl = "/details/work/dune",
-            DetailsNavigationUrl = "/details/work/dune",
-            IsSettling = isSettling,
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters
-            .Add(component => component.Item, item)
-            .Add(component => component.ShowCompactCaption, true));
-
-        var dots = cut.FindAll(".media-tile-caption__title .media-tile-settling-dot");
-        Assert.Equal(isSettling, dots.Count == 1);
-        Assert.Equal(isSettling, cut.Markup.Contains("Still being matched", StringComparison.Ordinal));
-        Assert.Empty(cut.FindAll(".media-tile-frame .media-tile-settling-dot"));
-        Assert.Empty(cut.FindAll("[aria-live]"));
-        if (isSettling)
-        {
-            Assert.Equal("Still being matched", dots[0].GetAttribute("title"));
-            Assert.Equal("Still being matched", cut.Find(".media-tile-settling-dot__label").TextContent);
-            Assert.Contains("Still being matched", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
-        }
-    }
-
-    [Theory]
-    [InlineData("compact", ".media-tile-caption__title .media-tile-settling-dot")]
-    [InlineData("no-caption", ".media-tile-frame > .media-tile-settling-dot.is-overlay")]
-    [InlineData("custom-caption", ".media-tile-frame > .media-tile-settling-dot.is-overlay")]
-    [InlineData("episode", ".media-tile-episode-caption strong .media-tile-settling-dot")]
-    public void MediaTile_SettlingDot_AppearsExactlyOnceInEveryCaptionVariant(string variant, string dotSelector)
-    {
-        var episode = variant == "episode";
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = episode ? "Pilot" : "Discovery",
-            MediaKind = episode ? "TV" : "Music",
-            Subject = episode ? MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode : MediaEngine.Contracts.Display.DisplaySubjectKind.Album,
-            Shape = episode ? MediaTileShape.Portrait : MediaTileShape.Square,
-            SurfaceKind = episode ? MediaTileSurfaceKind.CoverPortrait : MediaTileSurfaceKind.CoverSquare,
-            TileImageUrl = "/art/x.jpg",
-            NavigationUrl = "/details/x",
-            DetailsNavigationUrl = "/details/x",
-            IsSettling = true,
-            EpisodeContext = episode ? new MediaEngine.Contracts.Display.DisplayEpisodeContextDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "The Show", "Pilot", 1, 1, MediaEngine.Contracts.Display.DisplayContinuationState.Unstarted, null, null) : null,
-        };
-
-        var cut = Render<MediaTile>(parameters =>
-        {
-            parameters.Add(component => component.Item, item);
-            parameters.Add(component => component.ShowCompactCaption, variant == "compact");
-            if (variant == "custom-caption")
-            {
-                parameters.Add(component => component.CaptionContent, (Microsoft.AspNetCore.Components.RenderFragment)(builder => builder.AddContent(0, "Custom")));
-            }
-        });
-
-        Assert.Single(cut.FindAll(dotSelector));
-        Assert.Single(cut.FindAll(".media-tile-settling-dot"));
-        Assert.Contains("Still being matched", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
-    }
-
-    [Fact]
-    public void MediaTileGrid_CanHideRedundantTvShowGroupIndicator()
-    {
-        var show = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "The Expanse",
-            MediaKind = "TV",
-            Shape = MediaTileShape.Portrait,
-            Presentation = MediaTilePresentation.TvSeries,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            IsCollection = true,
-            TileImageUrl = "/art/the-expanse.jpg",
-            NavigationUrl = "/watch/tv/the-expanse",
-        };
-
-        var cut = Render<MediaTileGrid>(parameters => parameters
-            .Add(component => component.Items, [show])
-            .Add(component => component.HideGroupIndicators, true));
-
-        Assert.Empty(cut.FindAll(".media-tile-group-indicators"));
-        Assert.True(cut.FindComponent<MediaTile>().Instance.HideGroupIndicators);
-    }
 
     [Fact]
     public void MediaTile_DetailsSurfaceIsSemanticLinkWithVisibleKeyboardFocus()
@@ -450,7 +170,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Shape = MediaTileShape.Portrait,
             SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
             HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileImageUrl = "/art/saga-three.jpg",
             NavigationUrl = "/comic/saga-three",
             DetailsNavigationUrl = "/comic/saga-three",
@@ -460,7 +179,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
         Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
     }
 
     [Fact]
@@ -539,25 +258,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Single(cut.FindAll("article.media-tile"));
     }
 
-    [Fact]
-    public void MediaGroupTile_PutsTheNameAndCountsBelowTheStackWithACornerWord()
-    {
-        var group = CreateGroupTile();
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
-
-        Assert.Equal("Foundation Series", cut.Find(".media-group-tile__name").TextContent.Trim());
-        Assert.Equal("Series", cut.Find(".media-group-tile__kind").TextContent.Trim());
-        Assert.Equal("2 books", cut.Find(".media-count-line__item").GetAttribute("title"));
-        Assert.Single(cut.FindAll(".media-group-tile__stack"));
-        Assert.Equal(2, cut.FindAll(".media-group-tile__cover").Count);
-
-        // The name and counts follow the picture in the same link, never inside it.
-        Assert.Empty(cut.FindAll(".media-group-tile__picture .media-group-tile__name"));
-        Assert.Empty(cut.FindAll(".media-group-tile__picture .media-count-line"));
-        Assert.Empty(cut.FindAll(".media-group-tile__open-cue"));
-        Assert.Empty(cut.FindAll("button"));
-    }
-
     [Theory]
     [InlineData(MediaTileGroupKind.Collection, "Collection")]
     [InlineData(MediaTileGroupKind.Series, "Series")]
@@ -603,26 +303,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaGroupTile_IsOneLinkWithOneLiftAndGlowHoverAndNoPopover()
-    {
-        var group = CreateGroupTile();
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
-
-        Assert.Single(cut.FindAll("a.media-group-tile__link"));
-        Assert.Equal("/details/bookseries/foundation", cut.Find("a.media-group-tile__link").GetAttribute("href"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-
-        cut.Find("a.media-group-tile__link").Click();
-        var nav = Services.GetRequiredService<NavigationManager>();
-        Assert.EndsWith("/details/bookseries/foundation", nav.Uri, StringComparison.Ordinal);
-
-        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css"));
-        Assert.Contains(".media-group-tile__link:hover .media-group-tile__picture", css, StringComparison.Ordinal);
-        Assert.Contains("translateY(-4px)", css, StringComparison.Ordinal);
-        Assert.Contains("@media (prefers-reduced-motion: reduce)", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void MediaTile_DrawsAPersonGroupAsTheRoundPersonTile()
     {
         var personId = Guid.NewGuid();
@@ -642,31 +322,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Single(cut.FindAll("a.person-tile"));
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.person-tile").GetAttribute("href"));
         Assert.Empty(cut.FindAll(".media-group-tile"));
-        Assert.Equal("2 movies", cut.Find(".media-count-line__item").GetAttribute("title"));
-    }
-
-    [Fact]
-    public void MediaTile_DrawsAPlaylistAsTheSquareTileWithItsOwnCover()
-    {
-        var playlist = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Late night jazz",
-            IsCollection = true,
-            IsPlaylist = true,
-            Presentation = MediaTilePresentation.Album,
-            CoverUrl = "/art/jazz.jpg",
-            NavigationUrl = "/listen/music/playlists/1",
-            MediaCounts = [new MediaTileMediaCountViewModel(AppMaterialIcons.Outlined.MusicNote, "songs", 30)],
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, playlist));
-
-        Assert.Equal("Late night jazz", cut.Find(".media-square-tile__name").TextContent.Trim());
-        Assert.Equal("Playlist", cut.Find(".media-square-tile__kind").TextContent.Trim());
-        Assert.Equal("30 songs", cut.Find(".media-count-line__item").GetAttribute("title"));
-        Assert.Single(cut.FindAll(".media-square-tile__cover"));
-        Assert.Empty(cut.FindAll("article.media-tile"));
+        Assert.Equal("2 movies", cut.Find(".media-count-line__item").ParentElement!.GetAttribute("data-playback-tooltip"));
     }
 
     [Fact]
@@ -741,7 +397,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Contains("book-1.jpg", sources[0], StringComparison.Ordinal);
         Assert.Contains("album.jpg", sources[1], StringComparison.Ordinal);
         Assert.Contains("movie.jpg", sources[2], StringComparison.Ordinal);
-        Assert.Equal(["4 books", "1 audiobooks", "1 movies"], cut.FindAll(".media-count-line__item").Select(node => node.GetAttribute("title")));
+        Assert.Equal("6 titles", cut.Find(".media-tile-label--bottom").TextContent.Trim());
     }
 
     [Fact]
@@ -754,7 +410,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
                 WorkId = Guid.NewGuid(),
                 Title = $"Card {index}",
                 NavigationUrl = $"/details/{index}",
-                HoverMode = MediaTileHoverMode.Expanded,
             })
             .ToList();
 
@@ -772,45 +427,11 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Equal(0, _createCollectionRequestCount);
     }
 
-    [Fact]
-    public void MediaTile_EnrichedLogoReplacesHoverTitleButNotRestingArtwork()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            Title = "Arrival",
-            HoverFacts = ["PG-13", "2016", "1h 56m", "★ 7.9"],
-            MediaKind = "Movie",
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/art/arrival-poster.jpg",
-            HoverImageUrl = "/art/arrival-background.jpg",
-            LogoUrl = "/art/arrival-logo.png",
-            NavigationUrl = "/watch/movie/1",
-            PrimaryNavigationUrl = "/watch/player/1",
-            PrimaryActionLabel = "Play",
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
-
-        Assert.Empty(cut.FindAll(".media-tile-logo"));
-        Assert.NotEmpty(cut.FindAll(".media-tile-hover-logo"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-title"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-facts"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-body"));
-        Assert.Equal("/art/arrival-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
-        Assert.Equal("/art/arrival-logo.png", cut.Find(".media-tile-hover-logo").GetAttribute("src"));
-    }
-
     private static MediaTileViewModel CreateShelfItem(string title) => new()
     {
         Id = Guid.NewGuid(),
         Title = title,
         NavigationUrl = $"/details/{title.ToLowerInvariant()}",
-        HoverMode = MediaTileHoverMode.None,
     };
 
     private static MediaTileViewModel CreateGroupTile() => new()
@@ -823,7 +444,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Presentation = MediaTilePresentation.BookSeries,
         GroupKind = MediaTileGroupKind.Series,
         SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
-        HoverMode = MediaTileHoverMode.Expanded,
         NavigationUrl = "/details/bookseries/foundation",
         PrimaryNavigationUrl = "/details/bookseries/foundation",
         PrimaryActionLabel = "Open Series",
@@ -888,7 +508,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Presentation = MediaTilePresentation.BookSeries,
             SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
             HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileImageUrl = "/art/foundation-bg.jpg",
             HoverImageUrl = "/art/foundation-bg.jpg",
             NavigationUrl = "/details/bookseries/foundation",
@@ -1030,91 +649,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaTile_TvShowDisplaysOwnedEpisodeCountWithoutEpisodeCollage()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Foundation",
-            MediaKind = "TV",
-            WorkId = Guid.NewGuid(),
-            Shape = MediaTileShape.Portrait,
-            Presentation = MediaTilePresentation.TvSeries,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/shows/foundation.jpg",
-            HoverImageUrl = "/shows/foundation-background.jpg",
-            NavigationUrl = "/watch/tv/show/1",
-            IsCollection = true,
-            PreviewTotalCount = 12,
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
-
-        Assert.Contains("TV Show", cut.Find(".media-tile-group-kind").TextContent);
-        Assert.Equal("12 episodes owned", cut.Find(".media-tile-group-count").GetAttribute("aria-label"));
-        Assert.Empty(cut.FindAll(".media-artwork-group-preview"));
-        Assert.DoesNotContain("is-collection-card", cut.Find("article.media-tile").ClassList);
-        Assert.DoesNotContain("is-collection-hover", cut.Find(".media-tile-hover-panel").ClassList);
-        Assert.Contains("is-banner-popover", cut.Find(".media-tile-hover-panel").ClassList);
-        Assert.Equal("/shows/foundation-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-body"));
-    }
-
-    [Fact]
-    public async Task MediaTile_MovieWithoutLandscapeBackgroundKeepsItsCoverOnHome()
-    {
-        await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
-            .InitialiseAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false));
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Portrait Only",
-            MediaKind = "Movie",
-            WorkId = Guid.NewGuid(),
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/movies/portrait.jpg",
-            HoverImageUrl = "/movies/portrait.jpg",
-            NavigationUrl = "/watch/movie/1",
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
-
-        var article = cut.Find("article.media-tile");
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.DoesNotContain("is-cinematic-hover", article.ClassList);
-        Assert.Contains("is-static-cover-hover", article.ClassList);
-        Assert.Equal("/movies/portrait.jpg", cut.Find(".media-tile-image").GetAttribute("src"));
-        Assert.DoesNotContain(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
-    }
-
-    [Fact]
-    public void MediaTile_CanHideRedundantTvKindWithoutHidingEpisodeCount()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Foundation",
-            MediaKind = "TV",
-            Shape = MediaTileShape.Portrait,
-            Presentation = MediaTilePresentation.TvSeries,
-            IsCollection = true,
-            PreviewTotalCount = 12,
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters
-            .Add(component => component.Item, item)
-            .Add(component => component.HideGroupKind, true));
-
-        Assert.Empty(cut.FindAll(".media-tile-group-kind"));
-        Assert.Equal("12 episodes owned", cut.Find(".media-tile-group-count").GetAttribute("aria-label"));
-    }
-
-    [Fact]
     public void MediaTile_CardClickAlwaysOpensDetails()
     {
         var details = "/details/work/1";
@@ -1139,7 +673,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         cut.Find(".media-tile-media").Click();
         var nav = Services.GetRequiredService<NavigationManager>();
         Assert.EndsWith(details, nav.Uri, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
     }
 
     [Theory]
@@ -1160,7 +694,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Shape = mediaKind is "Movie" or "TV" ? MediaTileShape.Landscape : MediaTileShape.Portrait,
             SurfaceKind = mediaKind is "Movie" or "TV" ? MediaTileSurfaceKind.BannerLandscape : MediaTileSurfaceKind.CoverPortrait,
             HoverLayout = mediaKind is "Movie" or "TV" ? MediaTileHoverLayout.BannerPopover : MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileImageUrl = "/art/playable.jpg",
             HoverImageUrl = "/art/playable.jpg",
             NavigationUrl = "/details/work",
@@ -1171,7 +704,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         cut.Find(".media-tile-media").Click();
 
         var nav = Services.GetRequiredService<NavigationManager>();
@@ -1194,7 +727,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Shape = MediaTileShape.Square,
             SurfaceKind = MediaTileSurfaceKind.CoverSquare,
             HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileImageUrl = "/art/song.jpg",
             HoverImageUrl = "/art/song.jpg",
             NavigationUrl = "/listen/music/songs",
@@ -1204,7 +736,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         };
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         cut.Find(".media-tile-media").Click();
 
         var playback = Services.GetRequiredService<PlaybackSessionController>();
@@ -1234,109 +766,14 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             ProgressPct = 42,
         };
 
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Empty(cut.FindAll("button"));
-        Assert.Contains("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
+        Assert.DoesNotContain("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
 
         cut.Find(".media-tile-media").Click();
         var nav = Services.GetRequiredService<NavigationManager>();
         Assert.EndsWith(details, nav.Uri, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void MediaTile_AudioUsesStaticCoverHoverWithoutActions()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            Title = "Long Audiobook",
-            MediaKind = "Audiobook",
-            Shape = MediaTileShape.Square,
-            HoverArtworkShape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/art/audio.jpg",
-            HoverImageUrl = "/art/audio.jpg",
-            NavigationUrl = "/listen/audiobook/1",
-            PrimaryNavigationUrl = "/listen/audiobook/1",
-            PrimaryActionLabel = "Play",
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
-
-        Assert.Empty(cut.FindAll("button"));
-        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-    }
-
-    [Fact]
-    public void MediaTile_AlbumUsesStaticSquareCoverIdentityWithoutTrackPreviewActions()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            CollectionId = Guid.NewGuid(),
-            Title = "Midnight Echo",
-            Subtitle = "Nova Vale",
-            MediaKind = "Music",
-            Shape = MediaTileShape.Square,
-            HoverArtworkShape = MediaTileShape.Square,
-            Presentation = MediaTilePresentation.Album,
-            SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/art/midnight-echo.jpg",
-            HoverImageUrl = "/art/midnight-echo.jpg",
-            NavigationUrl = "/listen/music/albums/midnight-echo",
-            PrimaryNavigationUrl = "/listen/music/albums/midnight-echo",
-            PrimaryActionLabel = "Play Album",
-            IsCollection = true,
-            HoverFacts = ["2026", "12 tracks", "43 min"],
-            ArtworkStackItems = Enumerable.Range(1, 4)
-                .Select(index => new ArtworkStackItem
-                {
-                    Id = index.ToString(),
-                    WorkId = Guid.NewGuid(),
-                    AssetId = Guid.NewGuid(),
-                    Title = $"Track {index}",
-                    ImageUrl = "/art/midnight-echo.jpg",
-                    MediaType = "Music",
-                    Shape = ArtworkShape.Square,
-                    Position = index.ToString(),
-                    Facts = [$"{index + 2}:00"],
-                })
-                .ToList(),
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
-
-        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll("button"));
-    }
-
-    [Fact]
-    public void MediaTile_CssAndJavascriptSeparateStaticCoverAndCinematicHoverModes()
-    {
-        var root = FindRepoRoot();
-        var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css"));
-        var script = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
-        Assert.Contains("is-viewport-mounted", css);
-        Assert.Contains("position:fixed", css.Replace(" ", ""));
-        Assert.Contains("offsetHeight", script);
-        Assert.Contains("window.updateMediaTileShelfStableHeight", script);
-        var show = script[script.IndexOf("window.showMediaTileHover = function")..script.IndexOf("window.clearMediaTileHover = function")];
-        Assert.Contains("panel.classList.add('is-inline-expanded')", show);
-        Assert.DoesNotContain("window.mountMediaTileHover", show);
-        Assert.Contains("cardEl.closest('.media-tile-grid')", script);
-        Assert.Contains("prefers-reduced-motion: reduce", script);
-        Assert.DoesNotContain("window.lockMediaTileHoverRowScroll(cardEl);", script);
-        Assert.DoesNotContain("media-tile-hover-actions", css);
-        Assert.DoesNotContain("media-tile-hover-host", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Shared/MainLayout.razor")));
     }
 
     [Theory]
@@ -1364,66 +801,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ContinueEpisodeOverlaySeparatesEpisodeIdentityFromShowCaption()
-    {
-        var show = Guid.NewGuid(); var episode = Guid.NewGuid(); var asset = Guid.NewGuid();
-        var item = new MediaTileViewModel
-        {
-            Id = episode,
-            Title = "Solo Leveling",
-            MediaKind = "TV",
-            Subject = MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
-            Shape = MediaTileShape.Landscape,
-            TileImageUrl = "/still.jpg",
-            EpisodeContext = new(show, episode, asset, "Solo Leveling", "I am Used to It", 1, 1,
-                MediaEngine.Contracts.Display.DisplayContinuationState.InProgress, 120, 1440),
-            ContinuationState = MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
-            ProgressPct = 10,
-            DetailsNavigationUrl = "/details/tvshow/episode"
-        };
-        var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
-        var overlay = cut.Find(".media-tile-static-hover").TextContent;
-        Assert.Contains("S1 E1", overlay);
-        Assert.Contains("I am Used to It", overlay);
-        Assert.DoesNotContain("Solo Leveling", overlay);
-        Assert.Equal("Solo Leveling", cut.Find(".media-tile-episode-caption span").TextContent);
-        Assert.Contains("S1 E1", cut.Find(".media-tile-episode-caption strong").TextContent);
-        Assert.Single(cut.FindAll("a"));
-        var home = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
-        Assert.Equal("Solo Leveling", home.Find(".pickup-title").TextContent);
-        Assert.Equal("S1 E1 · I am Used to It", home.Find(".pickup-subtitle").TextContent);
-    }
-
-    [Theory]
-    [InlineData("Movie")]
-    [InlineData("TV")]
-    public async Task OnlyHomeWatchDiscoveryRegistersExpansion(string kind)
-    {
-        // The hover script waits until the layout has told the circuit which device this is.
-        await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
-            .InitialiseAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false));
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Title",
-            MediaKind = kind,
-            Shape = MediaTileShape.Portrait,
-            TileImageUrl = "/cover.jpg",
-            HoverImageUrl = "/background.jpg",
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            DetailsNavigationUrl = "/details/work/title"
-        };
-        var watch = Render<MediaTile>(p => p.Add(c => c.Item, item));
-        Assert.Empty(watch.FindAll(".media-tile-hover-panel"));
-        Assert.Contains("is-hover-glow-only", watch.Find("article").ClassList);
-        Assert.DoesNotContain(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
-        var home = Render<MediaTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
-        Assert.Single(home.FindAll(".media-tile-hover-panel"));
-        Assert.Contains(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
-    }
-
-    [Fact]
     public void ContinueKeepsAccessibleProgressWithoutVisibleBarLabel()
     {
         var item = new MediaTileViewModel
@@ -1441,8 +818,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Equal("41", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
         Assert.Contains("41% complete", cut.Find(".pickup-progress-text").TextContent);
         var lane = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
-        Assert.Single(lane.FindAll(".media-tile-static-hover"));
-        Assert.Contains("is-hover-overlay", lane.Find("article").ClassList);
+        Assert.Equal("41", lane.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
+        Assert.Contains("continue-tile", lane.Find("article").ClassList);
+        // The title is always on the tile, even with no logo or backdrop (blank-tile fix).
+        Assert.Equal("Continue movie", lane.Find(".continue-tile__title").TextContent);
     }
 
     private static string FindRepoRoot()

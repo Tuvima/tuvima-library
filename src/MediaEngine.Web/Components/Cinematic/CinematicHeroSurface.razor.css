@@ -11,7 +11,7 @@
     --hero-backdrop-top-rgb: var(--hero-bg-rgb);
     --hero-backdrop-middle-rgb: var(--hero-bg-rgb);
     --hero-backdrop-bottom-rgb: var(--hero-bg-rgb);
-    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8852FC));
+    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, var(--tl-accent-primary)));
     position: relative;
     height: var(--cinematic-hero-height, 95svh) !important;
     min-height: var(--cinematic-hero-min-height, 95svh) !important;
@@ -157,7 +157,7 @@
     --hero-backdrop-top-rgb: var(--hero-bg-rgb);
     --hero-backdrop-middle-rgb: var(--hero-bg-rgb);
     --hero-backdrop-bottom-rgb: var(--hero-bg-rgb);
-    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8852FC));
+    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, var(--tl-accent-primary)));
     --hero-focus-x: 68%;
     --hero-focus-y: 42%;
     position: relative;
@@ -245,10 +245,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: rgba(255, 248, 235, 0.94);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     letter-spacing: 0;
-    text-transform: uppercase;
 }
 
 @media (max-width: 840px) {

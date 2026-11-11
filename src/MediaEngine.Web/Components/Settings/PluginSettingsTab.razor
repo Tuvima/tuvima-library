@@ -52,9 +52,7 @@ else
 }
 
 @code {
-    private readonly JsonSerializerOptions _json = MediaEngineJson.Web;
     private readonly Dictionary<string, PluginHealthResponse> _health = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, IReadOnlyList<OperationDto>> _jobs = new(StringComparer.OrdinalIgnoreCase);
     private List<PluginSummaryResponse> _plugins = [];
     private readonly HashSet<string> _healthLoading = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _disposed = new();
@@ -71,7 +69,7 @@ else
     private readonly Dictionary<string, PluginDependenciesResponse> _dependencies = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PluginLibraryLimitResponse> _libraryLimits = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PluginActivityResponse> _activity = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, PluginCheckNowResponse> _checkNow = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _usedIn = new(StringComparer.OrdinalIgnoreCase);
     private string? _editLibrariesFor;
     private HashSet<string> _pickedLibraries = [];
 
@@ -115,53 +113,57 @@ else
     }
 
     private string? _search;
-    private string _statusFilter = "all";
-    private string _mediaFilter = "all";
+    private IReadOnlyCollection<string> _statusTicks = [];
+    private IReadOnlyCollection<string> _showTicks = [];
     private string _sort = "name";
     private string _layout = AppLayoutSwitch.Cards;
-    private bool _officialOnly;
     private string _categoryTab = "all";
     private int _page = 1;
 
+    // Status ticks and Show ticks (Plugins and Integrations screens v4 D41): several may be ticked at once; a plugin matches when
+    // it fits any ticked word of a menu, and must fit both menus when both have ticks.
     private static readonly IReadOnlyList<AppSelectOption> StatusOptions =
     [
-        new("all", "All"),
-        new("enabled", "Enabled"),
-        new("disabled", "Disabled"),
-        new("attention", "Needs attention"),
+        new("on", "On"),
+        new("off", "Off"),
+        new("needs-key", "Needs a key"),
+        new("missing-tools", "Missing tools"),
+        new("waiting-ai", "Waiting for Local AI"),
+        new("broken", "Broken"),
     ];
 
-    private static readonly IReadOnlyList<AppSelectOption> MediaOptions =
+    private static readonly IReadOnlyList<AppSelectOption> ShowOptions =
     [
-        new("all", "All media"),
-        new("books", "Books"),
-        new("comics", "Comics"),
-        new("audiobooks", "Audiobooks"),
-        new("movies", "Movies"),
-        new("tv", "TV"),
-        new("music", "Music"),
-        new("photos", "Photos"),
+        new("official", "Official"),
+        new("private", "Private"),
+        new("ai", "Needs Local AI"),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> SortOptions =
     [
         new("name", "Name"),
         new("status", "Status"),
-        new("category", "Category"),
     ];
 
+    // Named for when Library uses the plugin (v4 D31).
     private static readonly (string Key, string Label)[] Categories =
     [
-        (PluginCategories.Metadata, "Metadata"),
-        (PluginCategories.MediaProcessing, "Media processing"),
-        (PluginCategories.Services, "Services"),
-        (PluginCategories.Utilities, "Utilities"),
+        (PluginCategories.Intake, "Getting items in"),
+        (PluginCategories.Enrichment, "After import"),
+        (PluginCategories.Accounts, "Accounts & lists"),
     ];
 
-    private static string CategoryLabel(PluginSummaryResponse plugin) =>
-        Categories.FirstOrDefault(category => category.Key == PluginCategories.Resolve(plugin.Category)).Label ?? "Utilities";
+    private static string SectionExplainer(string key) => key switch
+    {
+        PluginCategories.Intake => "Used while Library reads new files and works out what they are.",
+        PluginCategories.Accounts => "Connect your accounts and lists on other services.",
+        _ => "Used after an item is in, to fill in details, artwork and lyrics.",
+    };
 
-    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _mediaFilter != "all" || _officialOnly;
+    private static string CategoryLabel(PluginSummaryResponse plugin) =>
+        Categories.FirstOrDefault(category => category.Key == PluginCategories.Resolve(plugin.Category)).Label ?? "After import";
+
+    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusTicks.Count > 0 || _showTicks.Count > 0;
 
     private HealthWord WordOf(PluginSummaryResponse plugin)
     {
@@ -185,29 +187,45 @@ else
 
         var term = _search.Trim();
         bool Has(string? text) => text?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
-        return Has(plugin.Name) || Has(plugin.Description) || Has(plugin.Id) || Has(CategoryLabel(plugin))
-            || plugin.MediaTypes.Any(Has)
+        return Has(plugin.Name) || Has(plugin.ShortDescription) || Has(plugin.Description) || Has(plugin.Id) || Has(CategoryLabel(plugin))
+            || plugin.Provides.Any(Has)
             || plugin.Capabilities.Any(capability => Has(capability.Name) || Has(capability.Description));
     }
 
-    private bool MatchesStatus(PluginSummaryResponse plugin) => _statusFilter switch
+    private bool MatchesStatus(PluginSummaryResponse plugin)
     {
-        "enabled" => plugin.Enabled,
-        "disabled" => !plugin.Enabled,
-        "attention" => NeedsAttention(plugin),
-        _ => true,
-    };
+        if (_statusTicks.Count == 0)
+            return true;
 
-    // A plugin with no media types applies to every type, so it stays under any media filter.
-    private bool MatchesMedia(PluginSummaryResponse plugin) =>
-        _mediaFilter == "all" || plugin.MediaTypes.Count == 0 || plugin.MediaTypes.Contains(_mediaFilter, StringComparer.OrdinalIgnoreCase);
+        var status = StatusOf(plugin);
+        return _statusTicks.Any(tick => tick switch
+        {
+            "on" => plugin.Enabled,
+            "off" => !plugin.Enabled,
+            var key => status.Key == key,
+        });
+    }
+
+    private bool MatchesShow(PluginSummaryResponse plugin) =>
+        _showTicks.Count == 0 || _showTicks.Any(tick => tick switch
+        {
+            "official" => IsOfficial(plugin),
+            "private" => IsPrivate(plugin),
+            "ai" => plugin.RequiresLocalAi,
+            _ => false,
+        });
+
+    private static bool IsOfficial(PluginSummaryResponse plugin) =>
+        string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPrivate(PluginSummaryResponse plugin) =>
+        string.Equals(plugin.TrustLevel, "private", StringComparison.OrdinalIgnoreCase);
 
     // Everything that narrows the list except the category tab, so the tab counts add up to what each tab would show.
     private List<PluginSummaryResponse> FilteredIgnoringTab() => _plugins
         .Where(MatchesSearch)
         .Where(MatchesStatus)
-        .Where(MatchesMedia)
-        .Where(plugin => !_officialOnly || string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase))
+        .Where(MatchesShow)
         .ToList();
 
     private List<PluginSummaryResponse> VisiblePlugins()
@@ -217,7 +235,6 @@ else
         return (_sort switch
         {
             "status" => list.OrderByDescending(plugin => plugin.Enabled).ThenBy(plugin => plugin.Name, StringComparer.OrdinalIgnoreCase),
-            "category" => list.OrderBy(plugin => CategoryLabel(plugin), StringComparer.OrdinalIgnoreCase).ThenBy(plugin => plugin.Name, StringComparer.OrdinalIgnoreCase),
             _ => list.OrderBy(plugin => plugin.Name, StringComparer.OrdinalIgnoreCase),
         }).ToList();
     }
@@ -235,9 +252,8 @@ else
     private void ClearFilters()
     {
         _search = null;
-        _statusFilter = "all";
-        _mediaFilter = "all";
-        _officialOnly = false;
+        _statusTicks = [];
+        _showTicks = [];
         _page = 1;
     }
 
@@ -257,7 +273,6 @@ else
             </AppListPageHeader>
         }
         <PluginUploadDialog Open="@_uploadOpen" OnClosed="@(() => { _uploadOpen = false; })" OnUploaded="@UploadedAsync" />
-        <AppSummaryStrip AriaLabel="Plugin summary" Items="@SummaryItems()" />
         @if (_plugins.Count == 0)
         {
             <AppEmptyState Title="No plugins installed" Message="The Engine did not return any installed extensions.">
@@ -273,14 +288,12 @@ else
                                     Placeholder="@L["PluginSettingsTab_SearchPluginsByNameOr"].Value"
                                     Narrowed="@Narrowed"
                                     OnClear="@ClearFilters">
-                    <AppSelect Label="Status" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
-                               ValueChanged="@(value => Narrow(() => _statusFilter = value ?? "all"))" />
-                    <AppSelect Label="Media" Value="@_mediaFilter" Options="@MediaOptions" Native="true" FullWidth="false"
-                               ValueChanged="@(value => Narrow(() => _mediaFilter = value ?? "all"))" />
-                    <AppSelect Label="Sort" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
+                    <AppTickMenu Label="Status" Options="@StatusOptions" Selected="@_statusTicks"
+                                 SelectedChanged="@(ticks => Narrow(() => _statusTicks = ticks))" />
+                    <AppTickMenu Label="Show" Options="@ShowOptions" Selected="@_showTicks"
+                                 SelectedChanged="@(ticks => Narrow(() => _showTicks = ticks))" />
+                    <AppSelect Label="Sort" HideLabel="true" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
-                    <AppSwitchRow Label="Official Tuvima" ImageIcon="images/tuvima-icon.svg" Value="@_officialOnly"
-                                  ValueChanged="@(value => Narrow(() => _officialOnly = value))" />
                     <AppLayoutSwitch StorageKey="tuvima.plugins.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Plugins layout" />
                 </AppSearchFilterRow>
             }
@@ -303,31 +316,50 @@ else
             }
             else
             {
-                @if (_layout == AppLayoutSwitch.List && !DeviceContext.IsMobile)
+                @* Grouped by when plugins run (v5 D45): a plugin appears once, in the section of its category. *@
+                var pageItems = visible.Skip((_page - 1) * PageSize).Take(PageSize).ToList();
+                @foreach (var category in Categories)
                 {
-                    @PluginRows(visible.Skip((_page - 1) * PageSize).Take(PageSize).ToList())
-                }
-                else
-                {
-                    <div class="app-card-grid" role="list">
-                        @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
+                    var inSection = pageItems.Where(plugin => PluginCategories.Resolve(plugin.Category) == category.Key).ToList();
+                    if (inSection.Count == 0)
+                        continue;
+
+                    var all = visible.Where(plugin => PluginCategories.Resolve(plugin.Category) == category.Key).ToList();
+                    var attention = all.Count(plugin => StatusOf(plugin).NeedsAdministrator);
+                    <section class="plugin-section" aria-labelledby="@($"plugin-section-{category.Key}")" data-testid="plugin-section" data-section="@category.Key">
+                        <header class="plugin-section__head">
+                            <h3 id="@($"plugin-section-{category.Key}")">@category.Label</h3>
+                            <span class="plugin-section__count" data-testid="plugin-section-count">@all.Count</span>
+                            <span class="plugin-section__health" data-testid="plugin-section-health">@(attention == 0 ? "All fine" : $"{attention} need{(attention == 1 ? "s" : string.Empty)} attention")</span>
+                            <p class="plugin-section__explainer">@SectionExplainer(category.Key)</p>
+                        </header>
+                        @if (_layout == AppLayoutSwitch.List && !DeviceContext.IsMobile)
                         {
-                            var focused = IsFocused(plugin);
-                            <div role="listitem"
-                                 @key="plugin.Id"
-                                 id="@CardElementId(plugin.Id)"
-                                 class="@(focused ? "settings-plugin-card-focus" : null)"
-                                 data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
+                            @PluginRows(inSection)
                         }
-                    </div>
+                        else
+                        {
+                            <div class="app-card-grid" role="list">
+                                @foreach (var plugin in inSection)
+                                {
+                                    var focused = IsFocused(plugin);
+                                    <div role="listitem"
+                                         @key="plugin.Id"
+                                         id="@CardElementId(plugin.Id)"
+                                         class="@(focused ? "settings-plugin-card-focus" : null)"
+                                         data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
+                                }
+                            </div>
+                        }
+                    </section>
                 }
                 <AppPager Total="@visible.Count" PageSize="@PageSize" Page="@_page" Noun="plugins" PageChanged="@(page => _page = page)" />
             }
         }
     </div>;
 
-    // The plugin's own page (Plugins and Integrations screens v3 D17): header, then Overview, Settings, Access and Activity as
-    // real addresses so a tab can be bookmarked or shared.
+    // The plugin's own page (Plugins and Integrations screens v4 D33): one short column. The header is the logo with its dot, the name,
+    // one status sentence and the switch. Two tabs, Set up (the default) and Activity, are real addresses so a tab can be shared.
     private RenderFragment PluginDetailPage()
     {
         if (DetailPlugin is not { } plugin)
@@ -337,233 +369,259 @@ else
             </AppEmptyState>;
         }
 
-        _health.TryGetValue(plugin.Id, out var health);
-        var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
-        var pill = StatusPill(plugin, state);
+        var status = StatusOf(plugin);
         var canChange = !DeviceContext.IsMobile;
-        var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
-        var hasSettings = HasSettingsTab(plugin);
-        var tab = DetailTab is "settings" && hasSettings ? "settings" : DetailTab is "access" or "activity" ? DetailTab : "overview";
-        var tabs = new List<AppCountTab> { new("overview", "Overview", null, DetailHref(plugin.Id, "overview")) };
-        if (hasSettings)
-            tabs.Add(new("settings", "Settings", null, DetailHref(plugin.Id, "settings")));
-        tabs.Add(new("access", "Access", null, DetailHref(plugin.Id, "access")));
-        tabs.Add(new("activity", "Activity", null, DetailHref(plugin.Id, "activity")));
+        // The File tab is for a computer (the same rule as editing an item); on a tablet or phone it is absent (v6 D65).
+        var canSeeFile = MediaEngine.Web.Services.Editing.EditorDeviceRule.CanEdit(DeviceContext);
+        var tab = DetailTab switch { "activity" => "activity", "file" when canSeeFile => "file", _ => "setup" };
+        var tabs = new List<AppCountTab>
+        {
+            new("setup", "Set up", null, DetailHref(plugin.Id, "setup")),
+            new("activity", "Activity", null, DetailHref(plugin.Id, "activity")),
+        };
+        if (canSeeFile)
+        {
+            tabs.Add(new("file", "File", null, DetailHref(plugin.Id, "file")));
+        }
 
-        return @<div class="plugin-page" data-testid="plugin-page">
-            <header class="plugin-page__header">
-                <span class="plugin-page__logo">
-                    @if (ProviderLogo(plugin, 48) is { } logo)
-                    {
-                        @logo
-                    }
-                    else
-                    {
-                        <AppMaterialIcon Icon="@PluginIcon(plugin)" />
-                    }
-                </span>
-                <div class="plugin-page__title">
-                    <h2>@plugin.Name</h2>
-                    <p>@plugin.Description</p>
-                    @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
-                    {
-                        <small data-testid="plugin-approval">Turned on by @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</small>
-                    }
-                    <div class="plugin-page__pills">
-                        <AppStatusBadge Text="@CategoryLabel(plugin)" Tone="AppUiTone.Neutral" />
-                        @MediaPills(plugin)
-                        @if (official)
-                        {
-                            <AppOfficialPill />
-                        }
-                        else
-                        {
-                            <AppStatusBadge Text="@TrustLabel(plugin.TrustLevel)" Tone="@TrustTone(plugin.TrustLevel)" />
-                        }
-                        @if (pill.Text is not null)
-                        {
-                            <AppStatusBadge Text="@pill.Text" Tone="@(pill.Tone ?? AppUiTone.Neutral)" Title="@pill.Title" />
-                        }
-                    </div>
-                </div>
-                @if (canChange)
+        // One shared frame draws the header, status sentence and tabs for every plugin and integration page (v6 D60, D69).
+        return @<AppDetailPageFrame Title="@plugin.Name"
+                                    Logo="@TileLogo(plugin, 52)"
+                                    StatusTone="@status.Tone"
+                                    StatusSentence="@HeaderSentence(plugin, status)"
+                                    Tabs="@tabs"
+                                    SelectedTab="@tab"
+                                    RootTestId="plugin-page"
+                                    StatusTestId="plugin-status-sentence">
+            <TitleExtra>
+                @if (IsOfficial(plugin)) { <AppOfficialPill IconSize="16" Text="Official" /> }
+            </TitleExtra>
+            <Actions>
+                @if (canChange && SwitchState(plugin, canChange) is { } on)
                 {
-                    <div class="plugin-page__actions">
-                        @if (SwitchState(plugin, canChange) is { } on)
-                        {
-                            <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))"
-                                          Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
-                        }
-                        <AppRowMenu AriaLabel="@($"More actions for {plugin.Name}")" Items="@PluginMenuItems(plugin)" />
-                    </div>
+                    <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))"
+                                  Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
                 }
-            </header>
-            <AppCountTabs Tabs="@tabs" Selected="@tab" AriaLabel="@($"{plugin.Name} sections")" />
-            @switch (tab)
-            {
-                case "settings":
-                    @if (IsProvider(plugin))
-                    {
-                        <ProviderDetail ProviderKey="@plugin.Id" Plugin="@plugin" Section="settings" Changed="@ReloadAsync" />
-                    }
-                    else
-                    {
-                        @PluginSettingsPanel(plugin)
-                    }
-                    break;
-                case "access":
-                    @PluginAccessSection(plugin)
-                    break;
-                case "activity":
+            </Actions>
+            <ChildContent>
+                @if (tab == "activity")
+                {
                     @PluginActivitySection(plugin)
-                    break;
-                default:
-                    @PluginOverview(plugin, state)
-                    break;
-            }
-        </div>;
+                }
+                else
+                {
+                    @PluginSetUp(plugin, status, tab == "file" ? "file" : "setup")
+                }
+            </ChildContent>
+        </AppDetailPageFrame>;
     }
 
-    private bool HasSettingsTab(PluginSummaryResponse plugin) => IsProvider(plugin)
-        ? plugin.Provider is { AlwaysOn: false }
-        : GetSettingEntries(plugin).Any();
-
-    private RenderFragment PluginOverview(PluginSummaryResponse plugin, StateCardHealthResult state)
+    // The header's one sentence, with when it was last checked where the Engine keeps that (v6 D60): "Working · last checked 4 minutes ago."
+    private string HeaderSentence(PluginSummaryResponse plugin, TileStatus status)
     {
-        if (IsProvider(plugin))
-            return @<ProviderDetail ProviderKey="@plugin.Id" Plugin="@plugin" Section="overview" Changed="@ReloadAsync" />;
+        var checkedWords = IsProvider(plugin) ? ProviderLastChecked(plugin) : null;
+        if (string.IsNullOrWhiteSpace(checkedWords) || checkedWords.StartsWith("Not checked", StringComparison.Ordinal))
+        {
+            return status.Sentence;
+        }
 
+        return status.Sentence.TrimEnd('.') + " · " + char.ToLowerInvariant(checkedWords[0]) + checkedWords[1..];
+    }
+
+    // Set up: the cards come from the plugin's page model, in this order, each absent when the plugin has nothing to say (v4 D33):
+    // Access, What it provides, Settings, Privacy, About.
+    private RenderFragment PluginSetUp(PluginSummaryResponse plugin, TileStatus status, string section)
+    {
+        _health.TryGetValue(plugin.Id, out var health);
+        var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
         var missing = MissingToolText(plugin, state.Word);
         var waiting = WaitingFor(plugin);
-        return @<div class="settings-plugin-tab-body" data-testid="plugin-overview">
-            @if (waiting.Count > 0 || missing is not null)
+        var attentionAsked = AttentionRequested();
+        return @<div class="plugin-page__setup" data-testid="plugin-setup">
+            @if (waiting.Count > 0 || missing is not null || (plugin.RequiresLocalAi && Attention.LocalAiBlocked) || (attentionAsked && status.NeedsAdministrator))
             {
-                <AppAlert Tone="AppUiTone.Warning" data-testid="plugin-overview-attention">
-                    @(waiting.Count > 0 ? $"It is waiting for {string.Join(" and ", waiting)}." : missing)
+                <AppAlert Tone="AppUiTone.Warning" Class="@(attentionAsked ? "settings-plugin-card-focus" : null)" data-highlighted="@(attentionAsked ? "true" : null)" data-testid="plugin-overview-attention">
+                    @(plugin.RequiresLocalAi && Attention.LocalAiBlocked ? "It is waiting for Local AI." : waiting.Count > 0 ? $"It is waiting for {string.Join(" and ", waiting)}." : missing ?? status.Sentence)
                     <AppActionBar Align="AppHorizontalAlignment.Start">
-                        @if (missing is not null)
+                        @if (plugin.RequiresLocalAi && Attention.LocalAiBlocked)
+                        {
+                            <AppButton Label="Set up Local AI" Href="/settings/ai" Size="AppControlSize.Compact" />
+                        }
+                        else if (missing is not null)
                         {
                             <AppButton Label="Open Tools & requirements" Href="/settings/tools" Size="AppControlSize.Compact" />
                         }
-                        <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" Size="AppControlSize.Compact" OnClick="@(() => CheckNowAsync(plugin))" />
+                        <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" Size="AppControlSize.Compact" OnClick="@(() => CheckHealthAsync(plugin))" />
                     </AppActionBar>
                 </AppAlert>
             }
-            <section class="settings-plugin-detail-section" aria-label="What it does">
-                <AppText Typo="AppTypo.subtitle1">What it does</AppText>
-                <AppText Typo="AppTypo.body2">@plugin.Description</AppText>
-                @if (plugin.Capabilities.Count > 0)
-                {
-                    <ul>
-                        @foreach (var capability in plugin.Capabilities) { <li>@capability.Name@(string.IsNullOrWhiteSpace(capability.Description) ? null : $": {capability.Description}")</li> }
-                    </ul>
-                }
-            </section>
-            @PluginVersionSection(plugin)
-            @PluginRemovalSection(plugin)
+            @* One generator draws every plugin's page from the page model the Engine builds out of the plugin's JSON (v5 D46). *@
+            <PluginSetupPage Plugin="@plugin"
+                             Section="@section"
+                             CanChange="@(!DeviceContext.IsMobile)"
+                             Attention="@attentionAsked"
+                             ToolMissing="@(missing is not null)"
+                             LocalAiBlocked="@(plugin.RequiresLocalAi && Attention.LocalAiBlocked)"
+                             LastChecked="@(IsProvider(plugin) ? ProviderLastChecked(plugin) : null)"
+                             ProvidesExtra="@(IsProvider(plugin) ? ProviderUsedIn(plugin) : null)"
+                             SettingsExtra="@PluginWhoAndLibraries(plugin)"
+                             PrivacyExtra="@PluginPrivacyExtra(plugin)"
+                             AboutExtra="@PluginAboutExtra(plugin)"
+                             MoreExtra="@PluginMoreExtra(plugin)"
+                             Changed="@RefreshAsync" />
         </div>;
     }
 
-    // The List view (Plugins and Integrations screens v3 D27): one 56 px row per plugin with the same status pill, switch and menu.
+    // The List view (Plugins and Integrations screens v4 D40): dot and logo, name, what it provides, one status sentence, the switch
+    // and one button. 56 px rows; nothing wraps at 1280.
     private RenderFragment PluginRows(IReadOnlyList<PluginSummaryResponse> plugins) => @<AppTable Class="settings-plugin-rows" data-testid="plugin-rows">
         <thead>
-            <tr><th scope="col">Plugin</th><th scope="col">Status</th><th scope="col">Category</th><th scope="col">Works on</th><th scope="col"><span class="settings-plugin-rows__sr">Switch</span></th><th scope="col"><span class="settings-plugin-rows__sr">Actions</span></th></tr>
+            <tr><th scope="col">Plugin</th><th scope="col">Provides</th><th scope="col"><span class="settings-plugin-rows__sr">Switch</span></th><th scope="col" class="settings-plugin-rows__narrow">Health</th><th scope="col" class="settings-plugin-rows__narrow">Settings</th></tr>
         </thead>
         <tbody>
             @foreach (var plugin in plugins)
             {
-                _health.TryGetValue(plugin.Id, out var health);
-                var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
-                var pill = StatusPill(plugin, state);
-                var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
+                var status = StatusOf(plugin);
                 var focused = IsFocused(plugin);
                 <tr @key="plugin.Id" id="@CardElementId(plugin.Id)" data-plugin-row="@plugin.Id" class="@(focused ? "settings-plugin-card-focus" : null)" data-focused="@(focused ? "true" : null)">
                     <td>
                         <div class="settings-plugin-rows__name">
-                            <span class="settings-plugin-rows__logo">
-                                @if (ProviderLogo(plugin, 32) is { } logo) { @logo } else { <AppMaterialIcon Icon="@PluginIcon(plugin)" /> }
-                            </span>
+                            @TileLogo(plugin, 32)
                             <span class="settings-plugin-rows__copy">
-                                <a href="@DetailHref(plugin.Id, "overview")">@plugin.Name</a>
-                                @if (official) { <img class="app-official-pill__icon" src="images/tuvima-icon.svg" alt="Official Tuvima" title="Made by Tuvima" width="16" height="16" /> }
-                                <small>@plugin.Description</small>
+                                <a href="@DetailHref(plugin.Id)">@plugin.Name</a>
+                                @if (IsPrivate(plugin)) { <span class="settings-plugin-rows__private">Private</span> }
+                                @if (status.KeyMissing) { <a class="plugin-foot__pill" href="@DetailHref(plugin.Id, "setup", true)" data-testid="plugin-key-missing">+ Add key</a> }
+                                <small data-overflow-tooltip="@plugin.LongDescription">@plugin.ShortDescription</small>
                             </span>
                         </div>
                     </td>
-                    <td>@if (pill.Text is not null) { <AppStatusBadge Text="@pill.Text" Tone="@(pill.Tone ?? AppUiTone.Neutral)" Title="@pill.Title" /> }</td>
-                    <td>@CategoryLabel(plugin)</td>
-                    <td><div class="settings-plugin-rows__media">@MediaPills(plugin)</div></td>
+                    <td><PluginProvidesLine Plugin="@plugin" /></td>
                     <td>
                         @if (SwitchState(plugin, true) is { } on)
                         {
                             <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))" Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
                         }
                     </td>
-                    <td>
-                        <div class="settings-plugin-rows__actions">
-                            <AppButton Label="Configure" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(plugin.Id))" />
-                            <AppRowMenu AriaLabel="@($"More actions for {plugin.Name}")" Items="@PluginMenuItems(plugin)" />
-                        </div>
-                    </td>
+                    <td class="settings-plugin-rows__narrow"><AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" /></td>
+                    <td class="settings-plugin-rows__narrow">@PluginGear(plugin, status)</td>
                 </tr>
             }
         </tbody>
     </AppTable>;
 
-    private IReadOnlyList<AppSummaryItem> SummaryItems()
-    {
-        var attention = _plugins.Count(NeedsAttention);
-        return
-        [
-            new("installed", _plugins.Count.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Extension, AppSummaryTone.Accent),
-            new("switched on", _plugins.Count(plugin => plugin.Enabled).ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.CheckCircle, AppSummaryTone.Ok),
-            new("need attention", attention.ToString(CultureInfo.InvariantCulture), attention == 0 ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.Warning, attention == 0 ? AppSummaryTone.Mute : AppSummaryTone.Warn),
-        ];
-    }
-
+    // A tile says five things and no more (v4 D30): logo with its status dot, name and switch, what it provides, a short description
+    // (the full text on hover) and one button that is the fix when something is wrong.
     private RenderFragment PluginCard(PluginSummaryResponse plugin)
     {
-        _health.TryGetValue(plugin.Id, out var health);
-        var run = StateCardHealth.LatestRun(_tasks, plugin.Id);
-        var state = StateCardHealth.ForPlugin(plugin, health, run);
+        var status = StatusOf(plugin);
         // Phones read the cards; switching and configuring plugins stays on desktop and tablet.
         var canChange = !DeviceContext.IsMobile;
-        var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
-        var pill = StatusPill(plugin, state);
-        return @<AppStateCard Name="@plugin.Name"
-                              Kind="StateCardKind.Plugin"
-                              Compact="true"
-                              Icon="@PluginIcon(plugin)"
-                              Logo="@ProviderLogo(plugin, 40)"
-                              KindText="@CategoryLabel(plugin)"
-                              Description="@plugin.Description"
-                              IsOn="@SwitchState(plugin, canChange)"
-                              IsOnChanged="@(value => SetEnabledAsync(plugin, value))"
-                              SwitchDisabledReason="@SwitchDisabledReason(plugin)"
-                              Health="@state.Word"
-                              StatusPillText="@pill.Text"
-                              StatusPillTone="@pill.Tone"
-                              StatusPillTitle="@pill.Title"
-                              LastProblem="@(IsProvider(plugin) ? null : state.LastProblem)"
-                              AllowedTo="@plugin.AllowedTo"
-                              SendsDataOut="@(!string.IsNullOrWhiteSpace(plugin.SendsDataTo))"
-                              SendsDataTo="@plugin.SendsDataTo"
-                              LastActivity="@StateCardHealth.ActivityTime(run)"
-                              Loading="@(!IsProvider(plugin) && _healthLoading.Contains(plugin.Id))"
-                              ShowFacts="false"
-                              Footer="@PluginFooter(plugin, state.Word, canChange)">
-            <Badges>
-                @MediaPills(plugin)
-                @if (official)
+        return @<AppListCard Title="@plugin.Name"
+                             Description="@plugin.ShortDescription"
+                             DescriptionTitle="@plugin.LongDescription"
+                             Class="@(IsPrivate(plugin) ? "app-list-card--private" : null)"
+                             data-state-card="plugin"
+                             data-health="@WordOf(plugin).ToString().ToLowerInvariant()">
+            <Logo>@TileLogo(plugin, 40)</Logo>
+            <Aside>
+                @if (SwitchState(plugin, canChange) is { } on)
                 {
-                    <AppOfficialPill />
+                    <AppSwitchRow Value="@on"
+                                  ValueChanged="@(value => SetEnabledAsync(plugin, value))"
+                                  Disabled="@(SwitchDisabledReason(plugin) is not null)"
+                                  AriaLabel="@($"Switch {plugin.Name} on or off")"
+                                  StopClickPropagation="true" />
                 }
-                else
-                {
-                    <AppStatusBadge Text="@TrustLabel(plugin.TrustLevel)" Tone="@TrustTone(plugin.TrustLevel)" />
-                }
-            </Badges>
-        </AppStateCard>;
+            </Aside>
+            <ChildContent>
+                <PluginProvidesLine Plugin="@plugin" Mode="PluginProvidesMode.Icons" />
+            </ChildContent>
+            <Footer>
+                @* The fixed footer (v5 D43, D44): tick bottom left, "Key missing" beside it only when a key is missing, gear bottom right. *@
+                <span class="plugin-foot__health">
+                    <AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" />
+                    @if (status.KeyMissing)
+                    {
+                        <a class="plugin-foot__pill" href="@DetailHref(plugin.Id, "setup", true)" data-testid="plugin-key-missing">+ Add key</a>
+                    }
+                </span>
+                @PluginGear(plugin, status)
+            </Footer>
+        </AppListCard>;
+    }
+
+    private sealed record TileStatus(AppStatusDotTone Tone, string Sentence, string Key, bool KeyMissing = false)
+    {
+        /// <summary>The gear turns amber when the administrator has something to do (amber or red tick).</summary>
+        public bool NeedsAdministrator => Tone is AppStatusDotTone.Attention or AppStatusDotTone.Broken;
+    }
+
+    // The one status a tile, row and page header shows (v4 D29): a dot colour, one sentence, a filter key and the button's words.
+    // When the dot is amber or red the button is the fix; otherwise it is Configure.
+    private TileStatus StatusOf(PluginSummaryResponse plugin)
+    {
+        if (IsProvider(plugin) && plugin.Provider is { } provider)
+        {
+            if (provider.AlwaysOn)
+                return new(AppStatusDotTone.Off, "Always on", "always-on");
+            if (provider.RequiresKey && !provider.KeyPresent)
+                return new(AppStatusDotTone.Attention, "Needs a key", "needs-key", KeyMissing: true);
+            if (!plugin.Enabled)
+                return new(AppStatusDotTone.Off, "Off", "off");
+            return _providerStatus.TryGetValue(plugin.Id, out var providerStatus) && ProviderIsFailing(providerStatus)
+                ? new(AppStatusDotTone.Broken, providerStatus.LastFailureReason ?? "Not responding", "broken")
+                : new(AppStatusDotTone.Working, "Working", "working");
+        }
+
+        if (plugin.RequiresLocalAi && Attention.LocalAiBlocked)
+            return new(AppStatusDotTone.Attention, "Waiting for Local AI", "waiting-ai");
+
+        _health.TryGetValue(plugin.Id, out var health);
+        var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
+        if (WaitingFor(plugin) is { Count: > 0 } waiting)
+            return new(AppStatusDotTone.Attention, $"Waiting for {string.Join(" and ", waiting)}", "waiting");
+
+        if (MissingToolText(plugin, state.Word) is { } missing)
+            return new(AppStatusDotTone.Attention, missing, "missing-tools");
+
+        return state.Word switch
+        {
+            HealthWord.NeedsAttention => new(AppStatusDotTone.Attention, state.LastProblem ?? "Needs attention", "needs-attention"),
+            HealthWord.Broken => new(AppStatusDotTone.Broken, state.LastProblem ?? "Not working", "broken"),
+            HealthWord.Off => new(AppStatusDotTone.Off, "Off", "off"),
+            _ when !plugin.Enabled => new(AppStatusDotTone.Off, "Off", "off"),
+            _ => new(AppStatusDotTone.Working, "Working", "working"),
+        };
+    }
+
+    // The gear (v5 D43): on every tile and row, always opens the plugin's own page. It turns amber when the administrator has
+    // something to do; the page then opens with the part that needs attention highlighted.
+    private RenderFragment PluginGear(PluginSummaryResponse plugin, TileStatus status) => @<AppIconButton Icon="@AppMaterialIcons.Outlined.Settings"
+                                 Tooltip="@($"Open {plugin.Name}")"
+                                 AriaLabel="@($"Open {plugin.Name}")"
+                                 Href="@DetailHref(plugin.Id, "setup", status.NeedsAdministrator)"
+                                 Tone="@(status.NeedsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)"
+                                 data-testid="plugin-gear"
+                                 data-attention="@(status.NeedsAdministrator ? "true" : null)" />;
+
+    // A provider shows its bundled brand logo (an uploaded one overrides it); a plugin that runs on Local AI has no brand logo,
+    // so its box is a purple sparkle (v4 D32); any other plugin keeps the extension icon.
+    private RenderFragment TileLogo(PluginSummaryResponse plugin, int size)
+    {
+        var compact = size > 32 ? AppControlSize.Normal : AppControlSize.Compact;
+        if (plugin.RequiresLocalAi)
+        {
+            return @<AppProviderLogo Icon="@AppMaterialIcons.Outlined.AutoAwesome" AccentColor="#7E57C2" FallbackText="AI" Size="@compact" AltText="" />;
+        }
+
+        if (IsProvider(plugin))
+        {
+            var (colour, icon) = Services.GetService<ProviderCatalogueService>()?.GetAccent(plugin.Id) ?? (string.Empty, AppMaterialIcons.Outlined.Extension);
+            var image = string.IsNullOrWhiteSpace(plugin.IconPath) ? null : "/" + plugin.IconPath.TrimStart('/');
+            return @<AppProviderLogo ImageUrl="@image" Icon="@icon" AccentColor="@colour" FallbackText="@plugin.Name[..1]" Size="@compact" AltText="" />;
+        }
+
+        return @<AppProviderLogo Icon="@PluginIcon(plugin)" FallbackText="@plugin.Name[..1]" Size="@compact" AltText="" />;
     }
 
     // One status pill per tile (Plugins and Integrations screens v3 D19): Working, Off, Always on, Broken, or the amber reason
@@ -662,27 +720,6 @@ else
         return $"Requires {string.Join(" or ", names)}";
     }
 
-    private RenderFragment? PluginFooter(PluginSummaryResponse plugin, HealthWord word, bool canChange)
-    {
-        if (!canChange && word != HealthWord.Broken)
-            return null;
-
-        return @<div class="settings-plugin-card-actions">
-            @if (word == HealthWord.Broken && !IsProvider(plugin))
-            {
-                <AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" Size="AppControlSize.Compact" OnClick="@ReloadAsync" />
-            }
-            else
-            {
-                <AppButton Label="Configure" StartIcon="@AppMaterialIcons.Outlined.Settings" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(plugin.Id))" />
-            }
-            @if (canChange)
-            {
-                <AppRowMenu AriaLabel="@($"More actions for {plugin.Name}")" Items="@PluginMenuItems(plugin)" />
-            }
-        </div>;
-    }
-
     // The "..." menu opens the matching tab of the plugin's own page.
     private IReadOnlyList<AppRowMenuItem> PluginMenuItems(PluginSummaryResponse plugin)
     {
@@ -709,9 +746,11 @@ else
     }
 
     // A plugin that cannot work here cannot be switched on; once it is on, switching off is always allowed.
-    private static string? SwitchDisabledReason(PluginSummaryResponse plugin) =>
+    private string? SwitchDisabledReason(PluginSummaryResponse plugin) =>
         plugin.Provider is { RequiresKey: true, KeyPresent: false } && !plugin.Enabled
         ? "Add your key first."
+        : plugin.RequiresLocalAi && Attention.LocalAiBlocked && !plugin.Enabled
+        ? "Waiting for Local AI. Set it up first."
         : !plugin.IsCompatible && !plugin.Enabled
         ? string.IsNullOrWhiteSpace(plugin.CompatibilityProblem) ? "This plugin cannot be switched on here." : plugin.CompatibilityProblem
         : null;
@@ -732,49 +771,17 @@ else
         _ => AppUiTone.Neutral,
     };
 
-    private RenderFragment PluginSettingsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
-        @{ var settingEntries = GetSettingEntries(plugin).ToList(); var primarySettings = settingEntries.Where(setting => !setting.Advanced).ToList(); var advancedSettings = settingEntries.Where(setting => setting.Advanced).ToList(); }
-        @if (settingEntries.Count == 0)
-        {
-            <AppEmptyState Title="No plugin settings" Message="This plugin does not expose user-configurable settings." />
-        }
-        else
-        {
-            @foreach (var setting in primarySettings) { @SettingEditor(plugin, setting) }
-            @if (advancedSettings.Count > 0)
+    // Who can use it and which libraries it works on: two rows inside the Settings card (v4 D33).
+    private RenderFragment PluginWhoAndLibraries(PluginSummaryResponse plugin) => @<text>
+        <dt>Who can use it</dt>
+        <dd data-testid="plugin-detail-sections">@AudienceWords(plugin.Access.Audience)</dd>
+        <dt>Libraries</dt>
+        <dd>
+            @LimitedToWords(plugin)
+            @if (!DeviceContext.IsMobile && _libraryLimits.ContainsKey(plugin.Id))
             {
-                <AppExpansionPanels Elevation="0" Dense="true" Class="tl-sp-mb-2">
-                    <AppExpansionPanel Text="Advanced settings">
-                        @foreach (var setting in advancedSettings) { @SettingEditor(plugin, setting) }
-                    </AppExpansionPanel>
-                </AppExpansionPanels>
+                <AppButton Label="Change" Size="AppControlSize.Compact" OnClick="@(() => BeginEditLibraries(plugin))" />
             }
-        }
-    </div>;
-
-    // The plugin's own page (Plugins and Integrations screens v3 D17): the sections the v2 detail panel held, now on the tabs.
-    private RenderFragment PluginAccessSection(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body" data-testid="plugin-detail-sections">
-        <section class="settings-plugin-detail-section" aria-label="Access">
-            <AppText Typo="AppTypo.subtitle1">Access</AppText>
-            <AppTable Class="settings-plugin-job-table">
-                <tbody>
-                    <tr><td>Who can use it</td><td>@AudienceWords(plugin.Access.Audience)</td></tr>
-                    <tr><td>Works on</td><td>@(plugin.MediaTypes.Count == 0 ? "All kinds of media" : string.Join(", ", plugin.MediaTypes.Select(ToTitle)))</td></tr>
-                    <tr><td>Vault items</td><td>@(string.IsNullOrWhiteSpace(plugin.Access.VaultWords) ? "Not used on Vault items" : plugin.Access.VaultWords)</td></tr>
-                    <tr><td>What leaves this machine</td><td>@DataLeavingWords(plugin)</td></tr>
-                    <tr><td>How heavy</td><td>@WeightWords(plugin.Access.WeightClass)</td></tr>
-                    <tr>
-                        <td>Limited to</td>
-                        <td>
-                            @LimitedToWords(plugin)
-                            @if (!DeviceContext.IsMobile && _libraryLimits.ContainsKey(plugin.Id))
-                            {
-                                <AppButton Label="Change" Size="AppControlSize.Compact" OnClick="@(() => BeginEditLibraries(plugin))" />
-                            }
-                        </td>
-                    </tr>
-                </tbody>
-            </AppTable>
             @if (string.Equals(_editLibrariesFor, plugin.Id, StringComparison.OrdinalIgnoreCase) && _libraryLimits.TryGetValue(plugin.Id, out var limit))
             {
                 <div class="settings-plugin-library-picker" data-testid="plugin-library-picker">
@@ -792,98 +799,103 @@ else
                     </AppActionBar>
                 </div>
             }
-        </section>
-        <section class="settings-plugin-detail-section" aria-label="Capabilities and AI permissions">
-            <AppText Typo="AppTypo.subtitle1">Capabilities &amp; AI permissions</AppText>
-            @PluginCapabilitiesPanel(plugin)
-        </section>
-        <section class="settings-plugin-detail-section" aria-label="Needs and needed by">
-            <AppText Typo="AppTypo.subtitle1">Needs</AppText>
-            @{ var needs = NeedLines(plugin); }
-            @if (needs.Count == 0 && WaitingFor(plugin).Count == 0)
-            {
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">It does not need anything else.</AppText>
-            }
-            else
-            {
-                <ul data-testid="plugin-needs">
-                    @foreach (var name in WaitingFor(plugin)) { <li>@name</li> }
-                    @foreach (var need in needs) { <li>@need</li> }
-                </ul>
-            }
-            <AppText Typo="AppTypo.subtitle1">Needed by</AppText>
-            @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0)
-            {
-                <ul data-testid="plugin-needed-by">
-                    @foreach (var dependant in dependencies.NeededBy) { <li>@dependant.Name</li> }
-                </ul>
-            }
-            else
-            {
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing else depends on it.</AppText>
-            }
-        </section>
-    </div>;
-
-    private RenderFragment PluginActivitySection(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
-        <section class="settings-plugin-detail-section" aria-label="Activity">
-            <AppText Typo="AppTypo.subtitle1">Activity</AppText>
-            <AppActionBar Align="AppHorizontalAlignment.Start">
-                <AppButton Label="Check now" StartIcon="@AppMaterialIcons.Outlined.HealthAndSafety" Size="AppControlSize.Compact" OnClick="@(() => CheckNowAsync(plugin))" />
-            </AppActionBar>
-            @if (_checkNow.TryGetValue(plugin.Id, out var checkNow))
-            {
-                <AppAlert Tone="@CheckNowTone(checkNow.Result)" data-testid="plugin-check-now">
-                    @checkNow.Summary
-                    @foreach (var step in checkNow.Steps)
-                    {
-                        <div>@(step.Ok ? "✓" : "✕") @step.Label@(string.IsNullOrWhiteSpace(step.Detail) ? null : $" - {step.Detail}")</div>
-                    }
-                </AppAlert>
-            }
-            else if (_health.TryGetValue(plugin.Id, out var health))
-            {
-                <AppAlert Tone="@HealthTone(health.Status)">@health.Status</AppAlert>
-            }
-            @if (_activity.TryGetValue(plugin.Id, out var activity) && activity.Entries.Count > 0)
-            {
-                @if (activity.PausedUntil is { } pausedUntil)
-                {
-                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Paused until @pausedUntil.ToLocalTime().ToString("g").</AppText>
-                }
-                <ul data-testid="plugin-activity">
-                    @foreach (var entry in activity.Entries.Take(8))
-                    {
-                        <li>@entry.OccurredAt.ToLocalTime().ToString("g"): @entry.Summary@(string.IsNullOrWhiteSpace(entry.ReasonWords) ? null : $" - {entry.ReasonWords}")</li>
-                    }
-                </ul>
-            }
-            else if (_jobs.TryGetValue(plugin.Id, out var jobs) && jobs.Count > 0)
-            {
-                <ul data-testid="plugin-activity">
-                    @foreach (var job in jobs.Take(5))
-                    {
-                        <li>@job.OperationType: @job.Status@(string.IsNullOrWhiteSpace(job.ResultSummary) ? null : $" - {job.ResultSummary}")</li>
-                    }
-                </ul>
-            }
-            else
-            {
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing has run yet.</AppText>
-            }
-        </section>
-        <section class="settings-plugin-detail-section" aria-label="Health and jobs">
-            <AppText Typo="AppTypo.subtitle1">Health &amp; Jobs</AppText>
-            @PluginHealthJobsPanel(plugin)
-        </section>
-    </div>;
-
-    private RenderFragment PluginVersionSection(PluginSummaryResponse plugin) => @<text>
-        <section class="settings-plugin-detail-section" aria-label="Update note">
-            <AppText Typo="AppTypo.subtitle1">Version @plugin.Version</AppText>
-            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@(string.IsNullOrWhiteSpace(plugin.Access.Changelog) ? "No update note for this version." : plugin.Access.Changelog)</AppText>
-        </section>
+        </dd>
     </text>;
+
+    // Inside the Privacy card: what the plugin is allowed to do, and its capabilities, in the Engine's own words.
+    private RenderFragment PluginPrivacyExtra(PluginSummaryResponse plugin) => @<text>
+        @if (plugin.AllowedTo.Count > 0)
+        {
+            <ul data-testid="plugin-allowed-to">
+                @foreach (var line in plugin.AllowedTo) { <li>@line</li> }
+            </ul>
+        }
+        @if (plugin.Capabilities.Count > 0 || plugin.ToolRequirements.Count > 0 || plugin.AiPermissions.Count > 0)
+        {
+            <AppTable Class="settings-plugin-job-table">
+                <tbody>
+                    @foreach (var capability in plugin.Capabilities) { <tr><td>@capability.Name</td><td>@capability.Description</td></tr> }
+                    @foreach (var requirement in plugin.ToolRequirements) { <tr><td>Required tool</td><td>@requirement</td></tr> }
+                    @foreach (var permission in plugin.AiPermissions) { <tr><td>AI permission</td><td>@permission</td></tr> }
+                </tbody>
+            </AppTable>
+        }
+    </text>;
+
+    // In the side column after the version: what it needs and what needs it (only when there is something to say), and removing it.
+    // Official plugins can be switched off but not removed, and the page says so.
+    private RenderFragment PluginAboutExtra(PluginSummaryResponse plugin) => @<text>
+        @{ var needs = WaitingFor(plugin).Concat(NeedLines(plugin)).ToList(); }
+        @if (needs.Count > 0)
+        {
+            <dt>Needs</dt>
+            <dd data-testid="plugin-needs">@string.Join(", ", needs)</dd>
+        }
+        @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0)
+        {
+            <dt>Needed by</dt>
+            <dd data-testid="plugin-needed-by">@string.Join(", ", dependencies.NeededBy.Select(dependant => dependant.Name))</dd>
+        }
+        @if (!DeviceContext.IsMobile)
+        {
+            <dt>Remove</dt>
+            @if (plugin.Removable)
+            {
+                <dd>@PluginRemovalSection(plugin)</dd>
+            }
+            else
+            {
+                <dd data-testid="plugin-not-removable">Official plugins can be switched off, not removed.</dd>
+            }
+        }
+    </text>;
+
+    // Folded away in the side column: who turned it on.
+    private RenderFragment PluginMoreExtra(PluginSummaryResponse plugin) => @<text>
+        @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
+        {
+            <dt>Turned on</dt>
+            <dd data-testid="plugin-approval">By @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</dd>
+        }
+    </text>;
+
+    // Where a metadata source is used: the one line that says so, with the way to change it.
+    private RenderFragment? ProviderUsedIn(PluginSummaryResponse plugin) => !_usedIn.TryGetValue(plugin.Id, out var words)
+        ? null
+        : @<p class="provider-about" data-testid="provider-used-in">
+            @words
+            <AppButton Label="Open Matching" Href="/settings/matching" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
+        </p>;
+
+    // "Last checked ..." for a metadata source, from the status the Engine keeps for it.
+    private string? ProviderLastChecked(PluginSummaryResponse plugin)
+    {
+        if (!_providerStatus.TryGetValue(plugin.Id, out var status))
+        {
+            return null;
+        }
+
+        var value = status.ConnectionCheckedAt ?? status.LastSuccessAt ?? status.LastFailureAt;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Not checked yet.";
+        }
+
+        if (!DateTimeOffset.TryParse(value, out var when))
+        {
+            return "Last checked a while ago.";
+        }
+
+        var words = StateCardHealth.RelativeTime(when, DateTimeOffset.UtcNow);
+        return words.EndsWith("ago", StringComparison.Ordinal) || words == "Just now"
+            ? $"Last checked {words.ToLowerInvariant()}."
+            : $"Last checked on {words}.";
+    }
+
+    // Activity (D59): the plugin's slice of the activity timeline, failures first. The tab is always there.
+    private RenderFragment PluginActivitySection(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
+        <PluginActivityTimeline Activity="@(_activity.GetValueOrDefault(plugin.Id))" />
+    </div>;
 
     private RenderFragment PluginRemovalSection(PluginSummaryResponse plugin) => @<text>
         <section class="settings-plugin-detail-section" aria-label="Removing this plugin">
@@ -900,21 +912,6 @@ else
         _ => "Administrators only",
     };
 
-    private static string WeightWords(string weight) => weight switch
-    {
-        "heavy" => "Heavy: works when the machine is idle",
-        "medium" => "Medium",
-        _ => "Light",
-    };
-
-    private static string DataLeavingWords(PluginSummaryResponse plugin)
-    {
-        if (!string.IsNullOrWhiteSpace(plugin.Access.DataLeaving))
-            return plugin.Access.DataLeaving;
-
-        return string.IsNullOrWhiteSpace(plugin.SendsDataTo) ? "Nothing" : plugin.SendsDataTo;
-    }
-
     private string LimitedToWords(PluginSummaryResponse plugin)
     {
         if (!_libraryLimits.TryGetValue(plugin.Id, out var limit) || !limit.Limited)
@@ -923,13 +920,6 @@ else
         var names = limit.Libraries.Where(library => library.Selected).Select(library => library.Name).ToList();
         return names.Count == 0 ? "All libraries" : string.Join(", ", names);
     }
-
-    private static AppUiTone CheckNowTone(string result) => result switch
-    {
-        "working" => AppUiTone.Success,
-        "not_working" => AppUiTone.Error,
-        _ => AppUiTone.Warning,
-    };
 
     // Everything the plugin needs, in plain words: other plugins with how they stand, then Local AI, tools, sources and host services.
     private IReadOnlyList<string> NeedLines(PluginSummaryResponse plugin)
@@ -1005,13 +995,14 @@ else
         {
             var dependencies = ApiClient.GetPluginDependenciesAsync(pluginId, _disposed.Token);
             var libraries = ApiClient.GetPluginLibrariesAsync(pluginId, _disposed.Token);
-            var activity = ApiClient.GetPluginActivityAsync(pluginId, 20, _disposed.Token);
+            var activity = ApiClient.GetPluginActivityAsync(pluginId, 100, _disposed.Token);
             if (await dependencies is { } loadedDependencies)
                 _dependencies[pluginId] = loadedDependencies;
             if (await libraries is { } loadedLibraries)
                 _libraryLimits[pluginId] = loadedLibraries;
             if (await activity is { } loadedActivity)
                 _activity[pluginId] = loadedActivity;
+            await LoadUsedInAsync(pluginId);
         }
         catch (OperationCanceledException)
         {
@@ -1020,6 +1011,23 @@ else
 
         if (!_disposed.IsCancellationRequested)
             await InvokeAsync(StateHasChanged);
+    }
+
+    // A metadata source says where it is used (the media kinds whose flows include it).
+    private async Task LoadUsedInAsync(string pluginId)
+    {
+        if (DetailPlugin is not { } plugin || !IsProvider(plugin) || Services.GetService<MetadataSettingsStateService>() is not { } state)
+            return;
+
+        var snapshot = await state.LoadAsync();
+        if (snapshot.ProviderFor(pluginId) is not { } provider)
+            return;
+
+        var kinds = provider.Participations
+            .Select(participation => MetadataSettingsStateService.MediaTypeLabel(participation.MediaType))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _usedIn[pluginId] = kinds.Count == 0 ? "Not used in any flow yet." : "Used in: " + string.Join(", ", kinds) + ".";
     }
 
     // Who is waiting for whom is read for every plugin once, so a card can say "Waiting for ..." without being opened.
@@ -1046,79 +1054,11 @@ else
             await InvokeAsync(StateHasChanged);
     }
 
-    private async Task CheckNowAsync(PluginSummaryResponse plugin)
-    {
-        var result = await ApiClient.CheckPluginNowAsync(plugin.Id);
-        if (result is not null)
-            _checkNow[plugin.Id] = result;
-
-        await CheckHealthAsync(plugin);
-        await LoadJobsAsync(plugin);
-        var activity = await ApiClient.GetPluginActivityAsync(plugin.Id, 20);
-        if (activity is not null)
-            _activity[plugin.Id] = activity;
-    }
-
-    private RenderFragment PluginHealthJobsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
-        <AppActionBar Align="AppHorizontalAlignment.Start">
-            <AppButton Label="Check health" StartIcon="@AppMaterialIcons.Outlined.HealthAndSafety" Size="AppControlSize.Compact" OnClick="@(() => CheckHealthAsync(plugin))" />
-            <AppButton Label="Refresh jobs" StartIcon="@AppMaterialIcons.Outlined.History" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" OnClick="@(() => LoadJobsAsync(plugin))" />
-        </AppActionBar>
-        @if (_health.TryGetValue(plugin.Id, out var health))
-        {
-            <AppAlert Tone="@HealthTone(health.Status)">
-                @health.Status
-                @if (health.Checks.Count > 0) { <span> - @string.Join(" ", health.Checks.Select(c => c.Message).Where(m => !string.IsNullOrWhiteSpace(m)))</span> }
-            </AppAlert>
-        }
-        else
-        {
-            <AppAlert Tone="AppUiTone.Info">Health has not been checked during this visit.</AppAlert>
-        }
-        @if (_jobs.TryGetValue(plugin.Id, out var jobs) && jobs.Count > 0)
-        {
-            <AppTable Class="settings-plugin-job-table">
-                <thead><tr><th>Status</th><th>Type</th><th>Progress</th><th>Result</th></tr></thead>
-                <tbody>
-                    @foreach (var job in jobs.Take(8))
-                    {
-                        <tr><td>@job.Status</td><td>@job.OperationType</td><td>@job.ItemsCompleted / @job.ItemsTotal</td><td>@(job.ResultSummary ?? "-")</td></tr>
-                    }
-                </tbody>
-            </AppTable>
-        }
-        else
-        {
-            <AppEmptyState Title="No recent jobs" Message="The Engine has not returned any recent jobs for this plugin." />
-        }
-    </div>;
-
-    private RenderFragment PluginCapabilitiesPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
-        @if (plugin.Capabilities.Count == 0 && plugin.ToolRequirements.Count == 0 && plugin.AiPermissions.Count == 0)
-        {
-            <AppEmptyState Title="No declared capabilities" Message="This plugin does not publish capability metadata." />
-        }
-        else
-        {
-            <AppTable Class="settings-plugin-job-table">
-                <tbody>
-                    @foreach (var capability in plugin.Capabilities) { <tr><td>@capability.Name</td><td>@capability.Description</td></tr> }
-                    @foreach (var requirement in plugin.ToolRequirements) { <tr><td>Required tool</td><td>@requirement</td></tr> }
-                    @foreach (var permission in plugin.AiPermissions) { <tr><td>AI permission</td><td>@permission</td></tr> }
-                </tbody>
-            </AppTable>
-        }
-    </div>;
-
-    private RenderFragment DangerPanel(PluginSummaryResponse plugin) => @<AppCard Class="settings-plugin-danger-card">
+    private RenderFragment DangerPanel(PluginSummaryResponse plugin) => @<AppSettingsGroup Heading="Danger zone" Helper="Destructive plugin actions are kept separate from everyday settings." Tone="AppSettingsGroupTone.Danger" Class="settings-plugin-danger-card">
         <div class="settings-plugin-danger-header">
-            <div>
-                <AppText Typo="AppTypo.subtitle1">Danger Zone</AppText>
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Destructive plugin actions are kept separate from everyday settings.</AppText>
-            </div>
-            @if (plugin.IsBuiltIn)
+            @if (!plugin.Removable)
             {
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Built-in plugins can be disabled, but cannot be deleted.</AppText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Official plugins can be switched off, but not removed.</AppText>
             }
             else if (string.Equals(_deletePluginId, plugin.Id, StringComparison.OrdinalIgnoreCase))
             {
@@ -1167,7 +1107,7 @@ else
                            OnClick="@(() => BeginDeleteAsync(plugin))" />
             }
         </div>
-    </AppCard>;
+    </AppSettingsGroup>;
 
     protected override async Task OnInitializedAsync()
     {
@@ -1306,6 +1246,28 @@ else
         await LoadAsync();
     }
 
+    // After a change on the plugin's page the list is read again without the loading skeleton, so the page stays where it is.
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _plugins = (await Orchestrator.GetPluginsAsync()).OrderBy(p => p.Name).ToList();
+            Attention.ReportPlugins(_plugins.Where(plugin => !IsProvider(plugin)).ToList());
+            await LoadProviderStatusAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _error = L["PluginSettingsTab_PluginSettingsCouldNotBe"].Value;
+        }
+
+        if (DetailPlugin is { } plugin && !IsProvider(plugin))
+        {
+            await CheckHealthAsync(plugin);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     // Each switched-on plugin that loaded gets one health check in the background; its card shows a quiet placeholder
     // until the answer arrives. A plugin that is off or broken needs no check to know its word.
     private void StartHealthChecks(IEnumerable<PluginSummaryResponse> plugins)
@@ -1357,11 +1319,15 @@ else
     }
 
     // Configure opens the plugin's own page; the tab it opens on is Overview unless a menu item asked for another.
-    private void ConfigurePlugin(string pluginId, string tab = "overview") =>
+    private void ConfigurePlugin(string pluginId, string tab = "setup") =>
         Navigation.NavigateTo(DetailHref(pluginId, tab));
 
-    private static string DetailHref(string pluginId, string tab) =>
-        $"/settings/plugins/{Uri.EscapeDataString(pluginId)}" + (tab == "overview" ? string.Empty : "/" + tab);
+    private static string DetailHref(string pluginId, string tab = "setup", bool attention = false) =>
+        $"/settings/plugins/{Uri.EscapeDataString(pluginId)}" + (tab == "setup" ? string.Empty : "/" + tab) + (attention ? "?attention=1" : string.Empty);
+
+    // The gear of a plugin that needs the administrator links with ?attention=1.
+    private bool AttentionRequested() =>
+        new Uri(Navigation.Uri).Query.Split('&', '?').Contains("attention=1", StringComparer.Ordinal);
 
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
     {
@@ -1408,40 +1374,6 @@ else
         Snackbar.Add($"{plugin.Name} {(enabled ? "enabled" : "disabled")}.", AppSeverity.Success);
     }
 
-    private async Task SaveSettingAsync(PluginSummaryResponse plugin, string key, JsonElement value)
-    {
-        plugin.Settings[key] = value;
-        if (!await Orchestrator.SavePluginSettingsAsync(plugin.Id, plugin.Settings))
-        {
-            Snackbar.Add(L["PluginSettingsTab_PluginSettingCouldNotBe"].Value, AppSeverity.Error);
-            return;
-        }
-    }
-
-    private async Task SaveRawSettingAsync(PluginSummaryResponse plugin, string key, string rawJson)
-    {
-        try
-        {
-            var element = JsonSerializer.Deserialize<JsonElement>(rawJson);
-            await SaveSettingAsync(plugin, key, element);
-        }
-        catch (JsonException ex)
-        {
-            Snackbar.Add($"Setting value is invalid: {ex.Message}", AppSeverity.Error);
-        }
-    }
-
-    private async Task SaveNumberSettingAsync(PluginSummaryResponse plugin, string key, string? raw)
-    {
-        if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-        {
-            Snackbar.Add(L["PluginSettingsTab_SettingNumberIsInvalid"].Value, AppSeverity.Error);
-            return;
-        }
-
-        await SaveSettingAsync(plugin, key, JsonSerializer.SerializeToElement(parsed, _json));
-    }
-
     // Removing says first what would have no source, and that what the plugin already saved stays.
     private async Task BeginDeleteAsync(PluginSummaryResponse plugin)
     {
@@ -1486,235 +1418,6 @@ else
             _health[plugin.Id] = result;
     }
 
-    private async Task LoadJobsAsync(PluginSummaryResponse plugin)
-    {
-        _jobs[plugin.Id] = await Orchestrator.GetPluginJobsAsync(plugin.Id);
-    }
-
-    private RenderFragment SettingEditor(PluginSummaryResponse plugin, PluginSettingDefinition setting)
-    {
-        var options = GetSelectOptions(setting);
-        if (options.Count > 0)
-        {
-            return @<AppSelect Label="@setting.Label"
-                               Value="@ReadSettingText(setting.Value)"
-                               ValueChanged="@(v => SaveStringSettingAsync(plugin, setting, v))"
-                               Options="@options"
-                               HelpText="@setting.HelpText" />;
-        }
-
-        if (IsBooleanSetting(setting))
-        {
-            return @<AppSwitchRow Label="@setting.Label"
-                                 Description="@setting.HelpText"
-                                 Icon="@AppMaterialIcons.Outlined.ToggleOn"
-                                 Value="@ReadBoolean(setting.Value)"
-                                 ValueChanged="@(v => SaveSettingAsync(plugin, setting.Key, JsonSerializer.SerializeToElement(v, _json)))" />;
-        }
-
-        if (IsNumberSetting(setting))
-        {
-            return @<AppTextField Label="@setting.Label"
-                                  Value="@ReadNumberText(setting.Value)"
-                                  ValueChanged="@(v => SaveNumberSettingAsync(plugin, setting, v))"
-                                  HelpText="@setting.HelpText"
-                                  InputType="AppInputType.Number" />;
-        }
-
-        if (IsStringSetting(setting))
-        {
-            return @<AppTextField Label="@setting.Label"
-                                  Value="@ReadString(setting.Value)"
-                                  ValueChanged="@(v => SaveStringSettingAsync(plugin, setting, v))"
-                                  HelpText="@setting.HelpText"
-                                  Placeholder="@setting.Key"
-                                  InputType="@TextInputType(setting)" />;
-        }
-
-        return @<AppTextarea Label="@setting.Label"
-                             Value="@setting.Value.GetRawText()"
-                             ValueChanged="@(v => SaveRawSettingAsync(plugin, setting.Key, v ?? "null"))"
-                             HelpText="@setting.HelpText"
-                             Lines="4" />;
-    }
-
-    private IEnumerable<PluginSettingDefinition> GetSettingEntries(PluginSummaryResponse plugin)
-    {
-        var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var order = 0;
-        if (TryGetSchemaProperties(plugin.SettingsSchema, out var properties))
-        {
-            foreach (var property in properties.EnumerateObject())
-            {
-                var value = plugin.Settings.TryGetValue(property.Name, out var current)
-                    ? current
-                    : ReadDefaultValue(property.Value);
-                emitted.Add(property.Name);
-                yield return new PluginSettingDefinition(property.Name, value, property.Value, order++);
-            }
-        }
-
-        foreach (var setting in plugin.Settings
-                     .Where(kvp => !emitted.Contains(kvp.Key))
-                     .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
-        {
-            yield return new PluginSettingDefinition(setting.Key, setting.Value, null, order++);
-        }
-    }
-
-    private async Task SaveStringSettingAsync(PluginSummaryResponse plugin, PluginSettingDefinition setting, string? raw)
-    {
-        var value = CoerceStringValue(setting, raw ?? string.Empty);
-        await SaveSettingAsync(plugin, setting.Key, value);
-    }
-
-    private async Task SaveNumberSettingAsync(PluginSummaryResponse plugin, PluginSettingDefinition setting, string? raw)
-    {
-        if (IsIntegerSetting(setting))
-        {
-            if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInteger))
-            {
-                Snackbar.Add(L["PluginSettingsTab_SettingNumberIsInvalid"].Value, AppSeverity.Error);
-                return;
-            }
-
-            await SaveSettingAsync(plugin, setting.Key, JsonSerializer.SerializeToElement(parsedInteger, _json));
-            return;
-        }
-
-        if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-        {
-            Snackbar.Add(L["PluginSettingsTab_SettingNumberIsInvalid"].Value, AppSeverity.Error);
-            return;
-        }
-
-        await SaveSettingAsync(plugin, setting.Key, JsonSerializer.SerializeToElement(parsed, _json));
-    }
-
-    private static bool TryGetSchemaProperties(JsonElement? schema, out JsonElement properties)
-    {
-        if (schema is { ValueKind: JsonValueKind.Object } root
-            && root.TryGetProperty("properties", out properties)
-            && properties.ValueKind == JsonValueKind.Object)
-        {
-            return true;
-        }
-
-        properties = default;
-        return false;
-    }
-
-    private static JsonElement ReadDefaultValue(JsonElement definition)
-    {
-        if (definition.ValueKind == JsonValueKind.Object
-            && definition.TryGetProperty("default", out var defaultValue)
-            && defaultValue.ValueKind is not JsonValueKind.Undefined)
-        {
-            return defaultValue.Clone();
-        }
-
-        var type = ReadSchemaString(definition, "type");
-        return type?.ToLowerInvariant() switch
-        {
-            "boolean" or "bool" => JsonSerializer.SerializeToElement(false),
-            "integer" or "int" => JsonSerializer.SerializeToElement(0),
-            "number" => JsonSerializer.SerializeToElement(0d),
-            "array" => JsonSerializer.SerializeToElement(Array.Empty<string>()),
-            "object" => JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
-            _ => JsonSerializer.SerializeToElement(string.Empty),
-        };
-    }
-
-    private static JsonElement CoerceStringValue(PluginSettingDefinition setting, string raw)
-    {
-        if (IsIntegerSetting(setting) && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
-            return JsonSerializer.SerializeToElement(integer);
-        if (IsNumberSetting(setting) && double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
-            return JsonSerializer.SerializeToElement(number);
-        if (IsBooleanSetting(setting) && bool.TryParse(raw, out var boolean))
-            return JsonSerializer.SerializeToElement(boolean);
-        return JsonSerializer.SerializeToElement(raw);
-    }
-
-    private static bool IsBooleanSetting(PluginSettingDefinition setting) =>
-        IsSchemaType(setting, "boolean", "bool") || setting.Value.ValueKind is JsonValueKind.True or JsonValueKind.False;
-
-    private static bool IsIntegerSetting(PluginSettingDefinition setting) =>
-        IsSchemaType(setting, "integer", "int");
-
-    private static bool IsNumberSetting(PluginSettingDefinition setting) =>
-        IsIntegerSetting(setting) || IsSchemaType(setting, "number") || setting.Value.ValueKind == JsonValueKind.Number;
-
-    private static bool IsStringSetting(PluginSettingDefinition setting) =>
-        IsSchemaType(setting, "string") || setting.Value.ValueKind == JsonValueKind.String;
-
-    private static bool IsSchemaType(PluginSettingDefinition setting, params string[] types)
-    {
-        var type = ReadSchemaString(setting.Schema, "type");
-        return type is not null && types.Contains(type, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static bool ReadBoolean(JsonElement value) =>
-        value.ValueKind switch
-        {
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.String when bool.TryParse(value.GetString(), out var parsed) => parsed,
-            _ => false,
-        };
-
-    private static IReadOnlyList<AppSelectOption> GetSelectOptions(PluginSettingDefinition setting)
-    {
-        if (setting.Schema is not { ValueKind: JsonValueKind.Object } schema
-            || !schema.TryGetProperty("enum", out var values)
-            || values.ValueKind != JsonValueKind.Array)
-        {
-            return [];
-        }
-
-        return values.EnumerateArray()
-            .Select(value => new AppSelectOption(ReadSettingText(value), ToTitle(ReadSettingText(value))))
-            .ToList();
-    }
-
-    private static AppInputType TextInputType(PluginSettingDefinition setting) =>
-        string.Equals(ReadSchemaString(setting.Schema, "format"), "password", StringComparison.OrdinalIgnoreCase)
-        || ReadSchemaBool(setting.Schema, "secret")
-            ? AppInputType.Password
-            : AppInputType.Text;
-
-    private static string ReadString(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
-
-    private static string ReadSettingText(JsonElement value) =>
-        value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString() ?? string.Empty,
-            JsonValueKind.Number => value.GetRawText(),
-            JsonValueKind.True => "true",
-            JsonValueKind.False => "false",
-            _ => value.GetRawText(),
-        };
-
-    private static string ReadNumberText(JsonElement value) =>
-        value.TryGetDouble(out var parsed)
-            ? parsed.ToString(CultureInfo.InvariantCulture)
-            : "0";
-
-    private static string? ReadSchemaString(JsonElement? schema, string propertyName) =>
-        schema is { ValueKind: JsonValueKind.Object } element
-        && element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
-
-    private static bool ReadSchemaBool(JsonElement? schema, string propertyName) =>
-        schema is { ValueKind: JsonValueKind.Object } element
-        && element.TryGetProperty(propertyName, out var property)
-        && property.ValueKind is JsonValueKind.True or JsonValueKind.False
-        && property.GetBoolean();
-
-    private static AppUiTone HealthTone(string status) => string.Equals(status, "healthy", StringComparison.OrdinalIgnoreCase) ? AppUiTone.Success : AppUiTone.Warning;
-
     private static string PluginIcon(PluginSummaryResponse plugin) => plugin.Id switch
     {
         var id when id.Contains("commercial", StringComparison.OrdinalIgnoreCase) => AppMaterialIcons.Outlined.LiveTv,
@@ -1732,21 +1435,4 @@ else
             : string.Concat(char.ToUpperInvariant(text[0]), text[1..]);
     }
 
-    private sealed record PluginSettingDefinition(
-        string Key,
-        JsonElement Value,
-        JsonElement? Schema,
-        int Order)
-    {
-        public string Label => ReadSchemaString(Schema, "title")
-            ?? ReadSchemaString(Schema, "label")
-            ?? ToTitle(Key);
-
-        public string? HelpText => ReadSchemaString(Schema, "description")
-            ?? ReadSchemaString(Schema, "help_text");
-
-        public bool Advanced => ReadSchemaBool(Schema, "advanced")
-            || ReadSchemaBool(Schema, "ui:advanced")
-            || ReadSchemaBool(Schema, "x-advanced");
-    }
 }

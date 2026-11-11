@@ -77,6 +77,11 @@ public static class CollectionEndpoints
             {
                 return ApiErrors.Forbidden("The active profile cannot access this collection.");
             }
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                // A Series is a grouping that comes from its members' matches and is never edited (universal editor v5 D7).
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesIsReadOnly);
+            }
             if (body.Fields.Count == 0 || body.Fields.Keys.Any(key => key is not ("title" or "description")))
             {
                 return ApiErrors.BadRequest("Collection overrides support title and description only.");
@@ -1150,15 +1155,19 @@ public static class CollectionEndpoints
         group.MapGet("/content-groups", async (
             Guid? libraryId,
             bool? unmatched,
+            string? folder,
             ICollectionRepository collectionRepo,
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
             IUnmatchedAssetRepository unmatchedAssets,
+            BrowseFolderScope folderScope,
             CancellationToken ct) =>
         {
             var collections = await collectionRepo.GetContentGroupsAsync(ct);
-            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing).
-            var visibleWorkIds = await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct);
+            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing); folder narrows them to one folder of the library.
+            var visibleWorkIds = BrowseFolderScope.Narrow(
+                await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct),
+                await folderScope.WorksAsync(folder, libraryId, ct));
             var primaryAssetIds = await browseReadService.GetPrimaryAssetIdsAsync(
                 collections.SelectMany(collection => collection.Works)
                     .Where(work => visibleWorkIds.Contains(work.Id))
@@ -1338,13 +1347,17 @@ public static class CollectionEndpoints
             string? groupField,
             Guid? libraryId,
             bool? unmatched,
+            string? folder,
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
             IUnmatchedAssetRepository unmatchedAssets,
+            BrowseFolderScope folderScope,
             CancellationToken ct) =>
         {
-            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing).
-            var visibleWorkIds = await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct);
+            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing); folder narrows them to one folder of the library.
+            var visibleWorkIds = BrowseFolderScope.Narrow(
+                await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct),
+                await folderScope.WorksAsync(folder, libraryId, ct));
             var result = await browseReadService.GetSystemViewGroupsAsync(
                 mediaType, groupField, ct, visibleWorkIds);
             var normalizedGroups = NormalizeSystemViewGroups(result, mediaType, groupField);
@@ -1782,6 +1795,12 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
+            // A Series takes no picture of its own: its tile is the automatic stack of its members' covers (universal editor v5 D24).
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
+            }
+
             if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
@@ -1867,6 +1886,12 @@ public static class CollectionEndpoints
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
+            }
+
+            // A Series takes no picture of its own: its tile is the automatic stack of its members' covers (universal editor v5 D24).
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
             }
 
             if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))

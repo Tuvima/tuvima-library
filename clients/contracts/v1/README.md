@@ -30,3 +30,8 @@ Client rules:
 Changing an existing v1 field name, type, meaning, route, or required status is
 a breaking change and requires a new major API path. New optional fields are
 allowed when all clients remain tolerant readers.
+
+Player contract: the order, names, defaults, panels, lock-screen fields and
+television and car layouts of the player are in
+[player-controls.md](player-controls.md); every client reads that file and a
+contracts test keeps it equal to the Dashboard.

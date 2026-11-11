@@ -9,7 +9,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <AppFocusTrap DefaultFocus="true">
-<div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="@L["MediaViewerShell_MediaViewer"].Value" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
+<AppViewer @ref="_viewer" Class="@($"media-viewer{(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")}")" Label="@L["MediaViewerShell_MediaViewer"].Value" tabindex="-1" OnKeyDown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
         <div class="media-viewer__identity">
@@ -43,7 +43,7 @@
                             <div class="playback-video-controls__right">
                             @if (_videoTextTracks.Count > 0)
                             {
-                                <PlaybackPopover Title="@L["Common_Subtitles"].Value" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
+                                <PlaybackPanel Title="@L["Common_Subtitles"].Value" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
                                     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
                                     <ChildContent><PlaybackSheetList>
                                         <PlaybackSheetRow IsActive="@(!_videoTextTracks.Any(track => track.Selected))" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = "-1" }))" AriaLabel="@L["MediaViewerShell_SubtitlesOff"].Value"><strong>@L["Common_Off"]</strong></PlaybackSheetRow>
@@ -52,9 +52,10 @@
                                             <PlaybackSheetRow IsActive="@track.Selected" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = track.Index.ToString() }))" AriaLabel="@($"Select {track.Label} subtitles")"><strong>@track.Label</strong></PlaybackSheetRow>
                                         }
                                     </PlaybackSheetList></ChildContent>
-                                </PlaybackPopover>
+                                </PlaybackPanel>
                             }
-                            <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
+                            <PlaybackSpeedPanel Rate="@_videoSpeed" RateChanged="SetVideoSpeedAsync" Surface="video" ItemKey="@Item.PreviewUrl"
+                                                TriggerText="@PlaybackSpeedChoices.Format(_videoSpeed)" IsOn="@(!PlaybackSpeedChoices.IsNormal(_videoSpeed))" />
                             @if (_videoAudioTracks.Count > 1)
                             {
                                 <AppNativeSelect Value="@(_videoAudioTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "0")" OnChange="SelectVideoAudioTrackAsync" aria-label="@L["MediaViewerShell_AudioTrack"].Value">
@@ -100,18 +101,32 @@
             </aside>
         }
     </div>
-</div>
+</AppViewer>
 </AppFocusTrap>
 
 @code {
     private RenderFragment ViewerActions => @<div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
             @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
-            @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }</AppNativeSelect> }
-            @ContextActions
+            @if (Capabilities.CanAddToGallery)
+            {
+                @* The app's own menu (opens in the top layer, a bottom sheet on phones), the same one every other "Add to Gallery" uses; not a native select. *@
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.PhotoLibrary" AriaLabel="Add item to Gallery" SheetTitle="Add to Gallery" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
+                    @foreach (var gallery in Galleries)
+                    {
+                        <AppMenuItem Label="@gallery.Name" Icon="@AppMaterialIcons.Outlined.PhotoAlbum" OnClick="@(() => OnAddToGallery.InvokeAsync(gallery.Id))" />
+                    }
+                    @if (OnCreateGallery.HasDelegate)
+                    {
+                        <AppMenuItem Label="@L["Common_NewGallery"].Value" Icon="@AppMaterialIcons.Outlined.Add" DividerBefore="@(Galleries.Count > 0)" OnClick="@(() => OnCreateGallery.InvokeAsync())" />
+                    }
+                </AppOverflowMenu>
+            }
             @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
-            @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a> }
+            @if (Capabilities.CanDownload) { <AppTooltip Text="Download original"><a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a></AppTooltip> }
             @if (Capabilities.CanArchive) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
+            @if (Capabilities.CanHide) { <AppIconButton Icon="@AppMaterialIcons.Outlined.VisibilityOff" Tooltip="Hide" AriaLabel="Hide item" OnClick="OnHide" /> }
             @if (Capabilities.CanRestore) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
+            @ContextActions
             @if (Capabilities.CanTrash) { <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
             @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="@(ShowInfo ? "Hide information" : "Show information")" AriaLabel="Toggle information panel" aria-pressed="@(ShowInfo ? "true" : "false")" OnClick="ToggleInfo" /> }
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
@@ -132,11 +147,18 @@
     [Parameter] public EventCallback OnNext { get; set; }
     [Parameter] public EventCallback OnFavorite { get; set; }
     [Parameter] public EventCallback OnArchive { get; set; }
+    [Parameter] public EventCallback OnHide { get; set; }
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
+
+    /// <summary>Starts a new Gallery holding this item. Left unset (phones, tablets) the Gallery list offers only the existing ones.</summary>
+    [Parameter] public EventCallback OnCreateGallery { get; set; }
+
     private IJSObjectReference? _chromeModule;
-    private ElementReference _root, _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
+    private AppViewer? _viewer;
+    private ElementReference _root => _viewer?.Root ?? default;
+    private ElementReference _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
     private string? _observedVideoUrl; private double _videoPosition, _videoDuration, _videoVolume = 1, _videoSpeed = 1; private bool _videoIsPlaying, _videoIsMuted, _videoCanPiP, _videoCanFullscreen;
     private int _videoSkipBackSeconds = 10, _videoSkipForwardSeconds = 30;
     private IReadOnlyList<ViewerVideoTrack> _videoTextTracks = [], _videoAudioTracks = [];
@@ -231,7 +253,6 @@
         if (InfoOpenChanged.HasDelegate)
             await InfoOpenChanged.InvokeAsync(_showInfo);
     }
-    private Task GalleryChanged(ChangeEventArgs args) => Guid.TryParse(args.Value?.ToString(), out var id) ? OnAddToGallery.InvokeAsync(id) : Task.CompletedTask;
     private async Task PreviousAsync() { await FitAsync(); await OnPrevious.InvokeAsync(); }
     private async Task NextAsync() { await FitAsync(); await OnNext.InvokeAsync(); }
     private async Task ZoomInAsync() { _zoom = Math.Min(4, _zoom <= 1 ? 1.25 : _zoom + .25); if (_module is not null) await _module.InvokeVoidAsync("setZoom", _stage, _zoom); }

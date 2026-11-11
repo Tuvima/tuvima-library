@@ -85,6 +85,38 @@ internal sealed partial class DetailCompositionOrchestrator
         _collectionLists = collectionLists;
     }
 
+    /// <summary>
+    /// A Videos series (a course or saved-channel folder) is a show: its page is the show page. Any other address that
+    /// reaches a Videos series folder (a Collection, Movie series or single-work address) names a page that has no row for it
+    /// and would answer "not found", so those addresses open the show page instead. Every other id and type is unchanged.
+    /// </summary>
+    public async Task<DetailEntityType> ResolveVideoSeriesTypeAsync(
+        DetailEntityType entityType,
+        Guid id,
+        CancellationToken ct = default)
+    {
+        if (entityType is not (DetailEntityType.Collection or DetailEntityType.MovieSeries or DetailEntityType.Work or DetailEntityType.Movie))
+        {
+            return entityType;
+        }
+
+        using var conn = _db.CreateConnection();
+        var isVideoSeries = await conn.ExecuteScalarAsync<long>(new CommandDefinition(
+            """
+            -- readiness: detail page of one item opened by id
+            SELECT EXISTS (
+                SELECT 1 FROM works w
+                WHERE w.id = @id
+                  AND w.work_kind = 'parent'
+                  AND w.parent_work_id IS NULL
+                  AND LOWER(w.media_type) = 'videos'
+                  AND EXISTS (SELECT 1 FROM works child WHERE child.parent_work_id = w.id));
+            """,
+            new { id = GuidSql.ToBlob(id) },
+            cancellationToken: ct));
+        return isVideoSeries == 1 ? DetailEntityType.TvShow : entityType;
+    }
+
     public async Task<DetailPageViewModel?> BuildAsync(
         DetailEntityType entityType,
         Guid id,

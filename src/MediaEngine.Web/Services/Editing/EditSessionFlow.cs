@@ -4,10 +4,10 @@ using MediaEngine.Web.Services.Navigation;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// What a person does with the universal editor on one detail page, kept off the screens so the bar, the Esc key and the overlay's
-/// leave guard all follow the same rules: pick a tool, close the panel (edit mode and the pending list stay, spec D22), Cancel (asks
-/// "Unsaved changes" first when anything is pending), and Save changes (check, then save, with the reason for every change that failed).
-/// It follows <see cref="EditingModeContext"/>: turning that on starts the <see cref="EditSessionState"/>, turning it off ends it.
+/// What a person does with the pop-over editor, kept off the screens so the window, the Esc key and the overlay's leave guard all
+/// follow the same rules: pick a tool, switch item, Cancel (asks "Unsaved changes" first when anything is pending), and Save changes
+/// (check, then save, with the reason for every change that failed).
+/// It follows <see cref="EditingModeContext"/>: opening that starts the <see cref="EditSessionState"/>, closing it ends it.
 /// </summary>
 public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource, IDisposable
 {
@@ -32,13 +32,12 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _saver = saver;
         _trail = trail;
         _confirmDiscard = confirmDiscard;
-        _mode.UseStagedEditor = true;
         _mode.Changed += OnModeChanged;
     }
 
     public EditSessionState Session => _session;
 
-    /// <summary>Raised after a save that reached the library, so the page can refresh before edit mode ends.</summary>
+    /// <summary>Raised after a save that reached the library, so the page can refresh before the editor closes.</summary>
     public Func<Task>? Saved { get; set; }
 
     /// <summary>What the last successful save wrote, for the confirmation ribbon (universal editor v2, D7); null until a save, and cleared when the ribbon is dismissed or editing starts again.</summary>
@@ -81,6 +80,12 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// <summary>Raised after the item being edited changed, so the page can move the Artwork picker and the History block with it.</summary>
     public Func<Task>? ItemSwitched { get; set; }
 
+    /// <summary>
+    /// Moves the editor to a supporting file of the title being edited (Review's Edit on a file's row). Set by the editor host; unset, a file
+    /// row cannot be jumped to. True when the file is open afterwards.
+    /// </summary>
+    public Func<Guid, Task<bool>>? OpenSupportingFile { get; set; }
+
     /// <summary>The changes the last save did not accept, with the Engine's reasons. Empty when nothing failed.</summary>
     public IReadOnlyList<EditSessionFailure> Failures { get; private set; } = [];
 
@@ -98,14 +103,14 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
     IReadOnlyList<string> IReviewSource.FileWriteMediaTypes => MediaTypes?.Invoke() ?? [];
 
-    /// <summary>This save's own answer to "Save changes into the files" (null follows the library). Reset when edit mode ends.</summary>
+    /// <summary>This save's own answer to "Save changes into the files" (null follows the library). Reset when the editor closes.</summary>
     public bool? WriteIntoFiles { get; set; }
 
     public event Action? Changed;
 
     public void Dispose() => _mode.Changed -= OnModeChanged;
 
-    /// <summary>Keeps the session in step with edit mode and keeps the open tool in step with the section the panel hosts.</summary>
+    /// <summary>Keeps the session in step with the editor and keeps the open tool in step with the section the panel hosts.</summary>
     public void Sync()
     {
         if (_mode is { IsOn: true, CanEdit: true })
@@ -133,7 +138,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             _session.SetTool(open);
         }
-        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.History)
+        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.Bookmarks or EditTool.History or EditTool.Preview)
         {
             _session.SetTool(null);
         }
@@ -157,6 +162,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             EditTool.Details => await _mode.ShowSectionAsync(EditingSection.Details),
             EditTool.History => await _mode.ShowSectionAsync(EditingSection.History),
+            EditTool.Preview => _mode.Fields.SupportingFile is not null && await _mode.ShowSectionAsync(EditingSection.Preview),
+            EditTool.Bookmarks => await _mode.ShowSectionAsync(EditingSection.Bookmarks),
             EditTool.Artwork => _mode.Fields.CanEditArtwork && await _mode.ShowSectionAsync(EditingSection.Artwork),
             EditTool.Match => _mode.Fields.CanMatch && await _mode.ShowSectionAsync(EditingSection.Match),
             _ => false,
@@ -167,7 +174,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         }
     }
 
-    /// <summary>The panel's close button: closes the panel only. Edit mode and the pending list stay; no question is asked.</summary>
+    /// <summary>The panel's close button: closes the panel only. The pending list stays; no question is asked.</summary>
     public async Task<bool> ClosePanelAsync()
     {
         if (!_session.IsActive)
@@ -188,7 +195,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         return true;
     }
 
-    /// <summary>Cancel: leaves edit mode and drops the pending changes, asking "Unsaved changes" first when there are any. False means the person stayed.</summary>
+    /// <summary>Cancel: closes the editor and drops the pending changes, asking "Unsaved changes" first when there are any. False means the person stayed.</summary>
     public async Task<bool> LeaveAsync()
     {
         if (!_mode.IsOn)
@@ -210,7 +217,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
             if (!_mode.IsOn)
             {
-                // Edit mode ended while the question was open (the title was removed): there is nothing left to discard.
+                // The editor closed while the question was open (the title was removed): there is nothing left to discard.
                 return true;
             }
         }
@@ -256,8 +263,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     }
 
     /// <summary>
-    /// Save changes: checks every pending change, saves them, and on success leaves edit mode. A change that fails stays in the list with
-    /// its reason, so nothing is lost. Returns true only when everything was saved and edit mode ended.
+    /// Save changes: checks every pending change, saves them, and on success closes the editor. A change that fails stays in the list with
+    /// its reason, so nothing is lost. Returns true only when everything was saved and the editor closed.
     /// </summary>
     public async Task<bool> SaveAsync()
     {
@@ -301,6 +308,10 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         // Counted before the applied changes leave the list: the ribbon says how many this save wrote.
         var savedCount = _session.Pending.ChangeCount;
         var savedItems = _session.Pending.Changes.Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
+        // Only a saved match starts the Engine's finishing work, so only those items have named steps to watch.
+        var matchedItems = _session.Pending.Changes
+            .Where(change => change.Kind is EditSessionChangeKinds.Identity or EditSessionChangeKinds.SiblingMatch or EditSessionChangeKinds.ChildRematch)
+            .Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
         if (Saved is { } refresh)
         {
             await refresh();
@@ -321,7 +332,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _session.End();
         WriteIntoFiles = null;
         _mode.Leave();
-        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems);
+        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems, matchedItems);
         Changed?.Invoke();
         return true;
     }
@@ -340,7 +351,14 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     public bool RemoveReviewRow(EditReviewRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        return row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
+        if (row.JumpId is { } fileId && row.FieldKey is { } fileKey)
+        {
+            return _session.Pending.ClearSupportingFileField(fileId, fileKey);
+        }
+
+        return row.Kind == EditSessionChangeKinds.Bookmarks && row.FieldKey is { } opId
+            ? _session.Pending.ClearBookmarkOp(row.EntityId, opId)
+            : row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
     }
 
     /// <summary>Whether Review's Edit can reach the row's item: any staged item can be switched to (spec D7), so it is offered whenever editing is active.</summary>
@@ -356,6 +374,22 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         ArgumentNullException.ThrowIfNull(row);
         if (!_session.IsActive || Saving || !CanJumpTo(row))
         {
+            return;
+        }
+
+        // A supporting file is opened through the editor, which knows the title it belongs to.
+        if (row.JumpId is { } fileId)
+        {
+            if (_session.ActiveItem?.EntityId != fileId && (OpenSupportingFile is null || !await OpenSupportingFile(fileId)))
+            {
+                return;
+            }
+
+            if (_session.ActiveTool != row.Tool)
+            {
+                await SelectToolAsync(row.Tool);
+            }
+
             return;
         }
 
@@ -474,10 +508,19 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             what = failure.Kind switch
             {
                 EditSessionChangeKinds.Artwork => "Artwork",
-                EditSessionChangeKinds.Identity => "Match",
+                EditSessionChangeKinds.Identity or EditSessionChangeKinds.MatchRemoval => "Match",
+                EditSessionChangeKinds.WikidataLink or EditSessionChangeKinds.WikidataRemoval => "Wikidata link",
                 EditSessionChangeKinds.Relationship => "Relationship",
                 EditSessionChangeKinds.FileMove => "File move",
                 EditSessionChangeKinds.ExtraMove => "Extras move",
+                EditSessionChangeKinds.VideoSeries => "Series",
+                EditSessionChangeKinds.VideoOrder => "Order",
+                EditSessionChangeKinds.VideoRename => "File names",
+                EditSessionChangeKinds.SiblingMatch => "Other episodes",
+                EditSessionChangeKinds.ChildRematch => "Seasons and episodes",
+                EditSessionChangeKinds.ThingAdd => "New item",
+                EditSessionChangeKinds.SupportingFiles => "Supporting file",
+                EditSessionChangeKinds.Bookmarks => "Everyone's bookmarks",
                 _ => "Details",
             };
         }
@@ -490,6 +533,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         EditingSection.Artwork => EditTool.Artwork,
         EditingSection.Match => EditTool.Match,
         EditingSection.History => EditTool.History,
+        EditingSection.Preview => EditTool.Preview,
+        EditingSection.Bookmarks => EditTool.Bookmarks,
         EditingSection.Details => EditTool.Details,
         _ => null,
     };
@@ -505,4 +550,4 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 /// What a save wrote: how many changes and when, shown in the confirmation ribbon after the window closes, and which items they were on so
 /// the ribbon can say when the Engine's follow-up work for them arrives.
 /// </summary>
-public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null);
+public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null, IReadOnlyList<Guid>? MatchedItemIds = null);

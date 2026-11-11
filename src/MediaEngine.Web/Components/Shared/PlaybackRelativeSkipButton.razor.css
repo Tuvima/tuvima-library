@@ -27,7 +27,7 @@
     height: var(--playback-relative-skip-size);
     min-width: var(--playback-relative-skip-size);
     border: 0;
-    border-radius: 999px;
+    border-radius: 8px;
     background: transparent;
     color: currentColor;
     cursor: pointer;
@@ -39,12 +39,12 @@
     transition: transform 110ms ease, background 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
-.playback-relative-skip ::deep .playback-relative-skip__button:hover,
-.playback-relative-skip ::deep .playback-relative-skip__button:focus-visible {
-    border-radius: 50% !important;
-    background: var(--playback-accent-soft) !important;
-    color: var(--playback-accent);
-    box-shadow: inset 0 0 0 1px var(--playback-accent-border) !important;
+/* Unified player v2 D6: hover is a translucent white fill, never a ring or a color change. */
+.playback-relative-skip ::deep .playback-relative-skip__button:not(:disabled):hover {
+    background: var(--playback-state-hover);
+    border-radius: 8px;
+    box-shadow: none;
+    color: var(--playback-text);
 }
 
 .playback-relative-skip ::deep .playback-relative-skip__button:focus-visible {
@@ -52,8 +52,13 @@
     outline-offset: 2px;
 }
 
-.playback-relative-skip ::deep .playback-relative-skip__button:active {
-    transform: scale(0.96);
+.playback-relative-skip ::deep .playback-relative-skip__button:not(:disabled):active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-relative-skip ::deep .playback-relative-skip__button:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
 }
 
 .playback-relative-skip ::deep .playback-relative-skip__svg {
@@ -84,8 +89,8 @@
 .playback-relative-skip ::deep .playback-relative-skip__number {
     fill: currentColor;
     font-family: var(--font-ui);
-    font-size: 13.6px;
-    font-weight: 700;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
     line-height: 1;
@@ -94,7 +99,7 @@
 }
 
 .playback-relative-skip ::deep .playback-relative-skip__number--one-digit {
-    font-size: 14.4px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .playback-relative-skip ::deep .playback-relative-skip__number--three-digit {
@@ -106,4 +111,29 @@
         --playback-relative-skip-size: 50px;
         --playback-relative-skip-svg-size: 48px;
     }
+}
+
+/* The persistent bar's skip buttons (unified player v2 D6): the same 24 px glyph in a 44 px target as every other bar button, with the seconds
+   written small over the middle of the arrow. */
+.playback-relative-skip--bar {
+    --playback-relative-skip-size: var(--playback-control-target);
+}
+
+.playback-relative-skip--bar .playback-relative-skip__bar-glyph {
+    fill: none;
+    height: var(--playback-control-glyph);
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
+}
+
+.playback-relative-skip--bar .playback-relative-skip__bar-number {
+    font: 700 var(--playback-badge-size)/1 var(--font-ui);
+    left: 50%;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -30%);
 }

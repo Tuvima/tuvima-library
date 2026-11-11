@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-official.schema.json",
+  "title": "Tuvima official (in-process .NET) plugin manifest",
+  "allOf": [ { "$ref": "plugin-manifest-common.schema.json" } ],
+  "properties": {
+    "kind": { "const": "official" },
+    "entry_assembly": { "type": "string" },
+    "entry_type": { "type": "string" }
+  }
+}

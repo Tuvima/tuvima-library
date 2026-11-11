@@ -87,6 +87,48 @@ public sealed class DisplayRecentTests
         if (type == "all") { Assert.Equal(Added.AddDays(2), result.Single(i => i.Catalogue!.Id == album).AddedAt); Assert.Equal(Added.AddDays(1), result.Single(i => i.Catalogue!.Id == show).AddedAt); }
     }
     [Fact]
+    public void OneHundredEpisodesOfOneShow_AreOneHomeTile()
+    {
+        var show = Guid.NewGuid();
+        var rows = Enumerable.Range(1, 100).Select(n => { var row = Work("TV", show, $"Episode {n}"); row.EpisodeNumber = n.ToString(); return row; }).ToList();
+
+        var result = RecentCatalogueReadService.Compose(rows, new DisplayCardBuilder(), "watch", null, 100);
+
+        Assert.Single(result);
+        Assert.Equal(show, result[0].Catalogue!.Id);
+    }
+
+    [Fact]
+    public void BooksOfOneSeries_AreOneHomeTile_WithTheirCount_AndASingleBookStaysSingle()
+    {
+        var series = Guid.NewGuid();
+        var rows = Enumerable.Range(1, 6).Select(n => { var row = Work("Books", Guid.NewGuid(), $"Book {n}"); row.CollectionId = series; row.CollectionTitle = "The Expanse"; row.Series = "The Expanse"; return row; }).ToList();
+        rows.Add(Work("Books", Guid.NewGuid(), "Standalone"));
+
+        var result = RecentCatalogueReadService.Compose(rows, new DisplayCardBuilder(), "read", null, 100);
+
+        Assert.Equal(2, result.Count);
+        var rolled = result.Single(item => item.Catalogue!.Id == series).Catalogue!;
+        Assert.Equal(6, rolled.PreviewTotalCount);
+        Assert.Contains(result, item => item.Catalogue!.Title == "Standalone");
+    }
+
+    [Fact]
+    public void RankGroups_FollowTheSameRollUp_SoPagesAndTilesAgree()
+    {
+        var series = Guid.NewGuid();
+        var candidates = Enumerable.Range(1, 3).Select(_ => new RecentCandidate { WorkId = Guid.NewGuid(), RootWorkId = Guid.Empty, CollectionId = series, MediaType = "Books", AddedAt = Added }).ToList();
+        candidates.Add(new RecentCandidate { WorkId = Guid.NewGuid(), RootWorkId = Guid.Empty, MediaType = "Books", AddedAt = Added });
+
+        var groups = RecentCatalogueReadService.RankGroups(candidates, "read", null);
+
+        Assert.Equal(2, groups.Count);
+        var rolled = groups.Single(group => group.Id == series);
+        Assert.Equal(3, rolled.MemberWorkIds!.Count);
+        Assert.Equal("catalogue:" + series.ToString("N"), rolled.Key);
+    }
+
+    [Fact]
     public void ViewKeysFollowRfcGuidOrder()
     {
         var a = Guid.Parse("00000001-ffff-ffff-ffff-ffffffffffff"); var b = Guid.Parse("00000100-0000-0000-0000-000000000000");

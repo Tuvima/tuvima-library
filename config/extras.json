@@ -1,0 +1,118 @@
+{
+  "$schema": "./schemas/extras.schema.json",
+  "version": "1",
+
+  "accepted_types": {
+    "documents": [".pdf", ".txt", ".md", ".epub"],
+    "pictures": [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".heic", ".tif", ".tiff"],
+    "videos": [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"],
+    "audio": [".mp3", ".m4a", ".flac", ".ogg", ".wav", ".opus", ".aac", ".wma", ".m4b"]
+  },
+
+  "hidden_types": {
+    "extensions": [
+      ".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".iso",
+      ".nfo", ".xml", ".json", ".yml", ".yaml", ".ini", ".cfg", ".db", ".log", ".bak",
+      ".srt", ".sub", ".ass", ".ssa", ".vtt", ".idx", ".sup", ".lrc",
+      ".cue", ".m3u", ".m3u8", ".sfv", ".md5", ".sha1", ".torrent", ".url", ".lnk", ".exe", ".dll"
+    ],
+    "picture_sidecar_name_pattern": "^(?:.*[-_. ])?(?:poster|folder|cover|fanart|banner|logo|clearlogo|clearart|landscape|thumb|backdrop|background|disc|discart|cdart|front|back|albumart(?:small|large)?|show|season(?:[-_. ]?(?:\\d+|specials|all))?(?:[-_. ](?:poster|banner|landscape|fanart))?)$"
+  },
+
+  "ignored_folders": ["@eaDir", "metadata", "extrafanart", "extrathumbs", "trickplay", "$RECYCLE.BIN", "System Volume Information", "lost+found"],
+
+  "transient_files": {
+    "name_prefixes": [".", "~$"],
+    "name_suffixes": [".part", ".partial", ".crdownload"],
+    "names": ["Thumbs.db"]
+  },
+
+  "hint_folders": [
+    "extras", "extra", "featurettes", "behind the scenes", "bonus", "bonus features", "bonus material", "trailers",
+    "samples", "sample", "deleted scenes", "interviews", "shorts", "making of",
+    "documents", "materials", "resources"
+  ],
+
+  "group_parent_folders": ["extras", "extra", "bonus", "bonus features", "bonus material", "documents", "materials", "resources"],
+
+  "folder_roles": {
+    "trailers": "trailer",
+    "featurettes": "featurette",
+    "behind the scenes": "behind_the_scenes",
+    "making of": "behind_the_scenes",
+    "deleted scenes": "deleted_scene",
+    "interviews": "interview",
+    "shorts": "clip",
+    "samples": "clip",
+    "sample": "clip",
+    "worksheets": "worksheet",
+    "homework": "worksheet",
+    "exercises": "worksheet",
+    "guides": "guide",
+    "transcripts": "transcript",
+    "notes": "notes",
+    "booklets": "booklet",
+    "pictures": "pictures"
+  },
+
+  "role_words": [
+    { "role": "trailer", "words": ["trailer", "trailers", "teaser", "teasers", "promo", "promos"] },
+    { "role": "featurette", "words": ["featurette", "featurettes"] },
+    { "role": "behind_the_scenes", "words": ["behind the scenes", "behindthescenes", "behind", "bts", "making of", "the making of", "makingof"] },
+    { "role": "deleted_scene", "words": ["deleted scene", "deleted scenes", "deletedscene", "deleted", "outtake", "outtakes", "blooper", "bloopers", "gag reel"] },
+    { "role": "interview", "words": ["interview", "interviews"] },
+    { "role": "worksheet", "words": ["workbook", "exercise", "exercises", "homework", "worksheet", "worksheets", "assignment", "assignments"] },
+    { "role": "guide", "words": ["guide", "guidebook", "handbook", "manual", "companion", "cheat sheet", "cheatsheet"] },
+    { "role": "transcript", "words": ["transcript", "transcripts", "subtitle", "subtitles", "lyrics", "script"] },
+    { "role": "booklet", "words": ["booklet", "liner", "liner notes", "artbook", "art book", "sketchbook"] },
+    { "role": "notes", "words": ["notes", "readme"] }
+  ],
+
+  "roles": {
+    "document": [
+      { "id": "guide", "label": "Guide" },
+      { "id": "worksheet", "label": "Worksheet" },
+      { "id": "transcript", "label": "Transcript" },
+      { "id": "notes", "label": "Notes" },
+      { "id": "booklet", "label": "Booklet" },
+      { "id": "other", "label": "Other" }
+    ],
+    "clip": [
+      { "id": "trailer", "label": "Trailer" },
+      { "id": "featurette", "label": "Featurette" },
+      { "id": "behind_the_scenes", "label": "Behind the scenes" },
+      { "id": "deleted_scene", "label": "Deleted scene" },
+      { "id": "interview", "label": "Interview" },
+      { "id": "clip", "label": "Clip" }
+    ],
+    "picture": [
+      { "id": "pictures", "label": "Pictures" }
+    ]
+  },
+
+  "default_roles": { "document": "other", "clip": "clip", "picture": "pictures" },
+
+  "role_families": {
+    "document": { "id": "documents", "label": "Documents" },
+    "clip": { "id": "videos", "label": "Videos" },
+    "picture": { "id": "pictures", "label": "Pictures" }
+  },
+
+  "document_hint_words": [
+    "workbook", "guide", "guidebook", "handbook", "manual", "booklet", "bonus", "extra", "extras", "companion", "artbook", "art book",
+    "sketchbook", "worksheet", "cheat sheet", "cheatsheet", "liner notes", "lyrics", "script", "readme", "notes", "making of", "preview"
+  ],
+
+  "clip_suffix_words": [
+    "trailer", "featurette", "behindthescenes", "deleted", "deletedscene", "interview", "scene", "short", "other", "sample", "makingof", "bonus",
+    "behind the scenes", "making of", "deleted scene", "deleted scenes"
+  ],
+
+  "season_words": ["season", "series", "staffel", "saison", "temporada"],
+  "specials_words": ["specials", "special"],
+  "episode_words": ["episode", "ep", "e", "lesson", "chapter", "part", "session", "module", "class", "day", "video"],
+
+  "title_separators": ["_", "-", "."],
+
+  "missing_file_keep_days": 30
+}

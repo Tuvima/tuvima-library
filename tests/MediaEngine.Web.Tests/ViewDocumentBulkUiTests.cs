@@ -33,7 +33,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     private readonly Handler _handler = new();
     private readonly DeviceContextService _device;
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<AppToastHost> _toasts;
+    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _toasts;
 
     public ViewDocumentBulkUiTests()
     {
@@ -50,7 +50,16 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
         _dialogs = Render<AppDialogHost>();
-        _toasts = Render<AppToastHost>();
+        _toasts = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
+    }
+
+    // Trash asks once first (spec view-section WP1): click the bar's Trash, then answer "Move to Trash" in the dialog.
+    private async Task ClickTrashAndConfirmAsync(IRenderedComponent<ViewDocumentsPage> cut)
+    {
+        var host = Render<AppDialogHost>();
+        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        host.WaitForAssertion(() => Assert.Contains("to Trash?", host.Markup, StringComparison.Ordinal));
+        await host.InvokeAsync(() => host.FindAll("footer button").Single(button => button.TextContent.Trim() == "Move to Trash").Click());
     }
 
     private IRenderedComponent<ViewDocumentsPage> RenderLoaded()
@@ -159,7 +168,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         await ChangeAsync(cut, ".view-document-card__select input", 0, true);
         await ChangeAsync(cut, ".view-document-card__select input", 1, true);
 
-        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        await ClickTrashAndConfirmAsync(cut);
 
         cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
         using var body = JsonDocument.Parse(_handler.LastBulkBody!);
@@ -183,7 +192,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
             await ChangeAsync(cut, ".view-document-card__select input", index, true);
         }
 
-        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        await ClickTrashAndConfirmAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("Updated 1 of 3 documents.", cut.Find(".view-documents-bulk-report").TextContent, StringComparison.Ordinal));
         var reasons = cut.FindAll(".view-documents-bulk-report__reasons li").Select(item => item.TextContent.Trim()).ToList();
@@ -191,7 +200,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddingTagsAsksWhichTagsFirstAndThenSendsThemByName()
+    public async Task TheOrganiseMenuOffersTheEditorInsteadOfOneDialogPerAction()
     {
         var cut = RenderLoaded();
         await EnterSelectModeAsync(cut);
@@ -199,17 +208,13 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
 
         await ClickAsync(cut, ".view-selection-toolbar button[aria-haspopup=menu]");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role=menuitem]")));
-        await ClickAsync(cut, "[role=menuitem]", item => item.TextContent.Contains("Add tags", StringComparison.Ordinal));
+        var items = cut.FindAll("[role=menuitem]").Select(item => item.TextContent.Trim()).ToList();
 
-        _dialogs.WaitForAssertion(() => Assert.Contains("Add tags", _dialogs.Markup, StringComparison.Ordinal));
-        await InputAsync(_dialogs, "input[aria-label='Tag to add']", "Receipts");
-        await SubmitAsync(_dialogs, "form.app-tag-input");
-        await ClickAsync(_dialogs, "button", button => button.TextContent.Contains("Apply to 1 document", StringComparison.Ordinal));
-
-        cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
-        using var body = JsonDocument.Parse(_handler.LastBulkBody!);
-        Assert.Equal(ViewDocumentBulkOperations.AddTags, body.RootElement.GetProperty("operation").GetString());
-        Assert.Equal("Receipts", body.RootElement.GetProperty("tags")[0].GetString());
+        // Tags, correspondent, type and date are edited together in the one editor window (spec photos-documents-editor), not asked one by one.
+        Assert.Contains("Edit", items);
+        Assert.Contains("Mark filed", items);
+        Assert.DoesNotContain(items, item => item.Contains("Add tags", StringComparison.Ordinal) || item.Contains("Set correspondent", StringComparison.Ordinal));
+        Assert.Null(_handler.LastBulkBody);
     }
 
     [Fact]
@@ -430,7 +435,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
             await ChangeAsync(cut, ".view-document-card__select input", index, true);
         }
 
-        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        await ClickTrashAndConfirmAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("Updated 1 of 3 documents.", cut.Find(".view-documents-bulk-report").TextContent, StringComparison.Ordinal));
         var reasons = cut.FindAll(".view-documents-bulk-report__reasons li").Select(item => item.TextContent.Trim()).ToList();

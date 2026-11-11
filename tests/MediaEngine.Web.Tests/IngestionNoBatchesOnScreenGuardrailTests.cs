@@ -10,13 +10,9 @@ public sealed class IngestionNoBatchesOnScreenGuardrailTests
 {
     private static readonly string[] LivePageSources =
     [
-        "Components/Settings/IngestionTasksTab.razor",
-        "Components/Settings/IngestionNowPanel.razor",
+        "Components/Settings/Libraries/LibraryStatusLine.razor",
         "Components/Settings/IngestionMediaCard.razor",
         "Components/Settings/IngestionFacetIndicators.razor",
-        "Components/Settings/IngestionAddedSummary.razor",
-        "Components/Settings/IngestionMediaDrawer.razor",
-        "Components/Settings/IngestionScanAction.razor",
         "Components/Settings/IngestionNowText.cs",
         "Components/Settings/IngestionNowWindow.cs",
     ];
@@ -61,12 +57,6 @@ public sealed class IngestionNoBatchesOnScreenGuardrailTests
         Assert.DoesNotContain("runId", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("itemId", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("LoadBatchBreadcrumbAsync", settings, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void TheDrawer_HasNoViewBatchButton()
-    {
-        Assert.DoesNotContain("View batch", Read("Components/Settings/IngestionMediaDrawer.razor"), StringComparison.Ordinal);
     }
 
     [Fact]

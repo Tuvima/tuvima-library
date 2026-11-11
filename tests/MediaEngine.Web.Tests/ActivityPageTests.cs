@@ -90,8 +90,31 @@ public sealed class ActivityPageTests : AsyncBunitContext
     /// <summary>Opens the Filters popover (desktop), the way a person does, so the Type, date, Outcome and Device controls are drawn.</summary>
     private static void OpenFilters(IRenderedComponent<ActivityPage> cut)
     {
-        cut.Find("[data-activity-filters-button]").Click();
+        if (cut.FindAll("[data-activity-filters]").Count == 0)
+        {
+            cut.Find("[data-activity-filters-button]").Click();
+        }
+
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-activity-filters]")));
+    }
+
+    private static IRenderedComponent<ActivityPage> OpenedFilters(IRenderedComponent<ActivityPage> cut)
+    {
+        OpenFilters(cut);
+        return cut;
+    }
+
+    /// <summary>Scope, Group by, Show every session and Export sit behind Filters, so a test opens it (once) before using them.</summary>
+    private static AngleSharp.Dom.IElement InFilters(IRenderedComponent<ActivityPage> cut, string selector)
+    {
+        OpenFilters(cut);
+        return cut.Find(selector);
+    }
+
+    private static IReadOnlyList<AngleSharp.Dom.IElement> InFiltersAll(IRenderedComponent<ActivityPage> cut, string selector)
+    {
+        OpenFilters(cut);
+        return cut.FindAll(selector);
     }
 
     // ---- items ---------------------------------------------------------------------------------------------------------------
@@ -186,7 +209,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage();
 
         Assert.Equal(["a", "b"], RowIds(cut));
-        Assert.Empty(cut.FindAll("[data-activity-scope]"));
+        Assert.Empty(InFiltersAll(cut, "[data-activity-scope]"));
         Assert.Equal(["Refresh"], ActionMenuItems(cut));
         Assert.DoesNotContain("Delete history", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("data-activity-person", cut.Markup, StringComparison.Ordinal);
@@ -240,9 +263,9 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage();
 
         cut.WaitForAssertion(() => Assert.Equal(
-            ["Me", "Household: Home", "Anna", "Ben"], OptionLabels(cut, "[data-activity-scope]")));
-        Assert.DoesNotContain("Everyone", cut.Find("[data-activity-scope]").TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("Mary", cut.Find("[data-activity-scope]").TextContent, StringComparison.Ordinal);
+            ["Me", "Household: Home", "Anna", "Ben"], OptionLabels(OpenedFilters(cut), "[data-activity-scope]")));
+        Assert.DoesNotContain("Everyone", InFilters(cut, "[data-activity-scope]").TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Mary", InFilters(cut, "[data-activity-scope]").TextContent, StringComparison.Ordinal);
         Assert.Equal(["Refresh"], ActionMenuItems(cut));
         Assert.DoesNotContain("Delete history", cut.Markup, StringComparison.Ordinal);
     }
@@ -253,13 +276,13 @@ public sealed class ActivityPageTests : AsyncBunitContext
         SignIn(Role.HouseholdAdministrator);
         _engine.OnList = _ => Page([Entry("a", person: "Anna")]);
         var cut = RenderPage();
-        Assert.NotEmpty(cut.FindAll("[data-activity-export]"));
+        Assert.NotEmpty(InFiltersAll(cut, "[data-activity-export]"));
 
-        cut.Find("[data-activity-scope]").Change($"household:{HomeHousehold:D}");
+        InFilters(cut, "[data-activity-scope]").Change($"household:{HomeHousehold:D}");
 
         cut.WaitForAssertion(() => Assert.Equal($"household:{HomeHousehold:D}", _engine.Lists.Last().Scope));
         // Exporting other people's activity is a server-administrator action; the Engine would refuse, so the button is not offered.
-        Assert.Empty(cut.FindAll("[data-activity-export]"));
+        Assert.Empty(InFiltersAll(cut, "[data-activity-export]"));
     }
 
     [Fact]
@@ -274,11 +297,11 @@ public sealed class ActivityPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(
             ["Me", "Everyone", "Household: Cabin", "Household: Home", "Anna (Home)", "Ben (Home)", "Mary (Cabin)"],
-            OptionLabels(cut, "[data-activity-scope]")));
+            OptionLabels(OpenedFilters(cut), "[data-activity-scope]")));
         Assert.Empty(cut.FindAll("[data-activity-person]"));
         Assert.Equal("Search titles and devices", cut.Find(".activity-toolbar__search input").GetAttribute("placeholder"));
 
-        cut.Find("[data-activity-scope]").Change("everyone");
+        InFilters(cut, "[data-activity-scope]").Change("everyone");
 
         cut.WaitForAssertion(() => Assert.Equal(["Anna", "Ben"], cut.FindAll("[data-activity-person]").Select(cell => cell.TextContent).ToArray()));
         Assert.Equal("everyone", _engine.Lists.Last().Scope);
@@ -287,7 +310,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         Assert.Equal("Search titles, people and devices", cut.Find(".activity-toolbar__search input").GetAttribute("placeholder"));
 
         // Back to Me: the column goes again.
-        cut.Find("[data-activity-scope]").Change("me");
+        InFilters(cut, "[data-activity-scope]").Change("me");
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-activity-person]")));
     }
 
@@ -297,9 +320,9 @@ public sealed class ActivityPageTests : AsyncBunitContext
         SignIn(Role.ServerAdministrator);
         _engine.OnList = _ => Page([Entry("a", person: "Mary")], others: true);
         var cut = RenderPage();
-        cut.WaitForAssertion(() => Assert.Contains("Mary (Cabin)", cut.Find("[data-activity-scope]").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("Mary (Cabin)", InFilters(cut, "[data-activity-scope]").TextContent, StringComparison.Ordinal));
 
-        cut.Find("[data-activity-scope]").Change($"profile:{MaryProfile:D}");
+        InFilters(cut, "[data-activity-scope]").Change($"profile:{MaryProfile:D}");
 
         cut.WaitForAssertion(() => Assert.Equal($"profile:{MaryProfile:D}", _engine.Lists.Last().Scope));
         Assert.Equal("Mary", cut.Find("[data-activity-person]").TextContent);
@@ -314,7 +337,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage(scope: $"profile:{AnnaProfile:D}");
 
         Assert.Equal($"profile:{AnnaProfile:D}", _engine.Lists.First().Scope);
-        Assert.Equal($"profile:{AnnaProfile:D}", cut.Find("[data-activity-scope]").GetAttribute("value"));
+        Assert.Equal($"profile:{AnnaProfile:D}", InFilters(cut, "[data-activity-scope]").GetAttribute("value"));
     }
 
     [Fact]
@@ -328,7 +351,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         SignIn(Role.HouseholdAdministrator);
         var other = RenderPage(scope: $"profile:{MaryProfile:D}");
         Assert.Equal("me", _engine.Lists.Single().Scope);
-        Assert.Equal("me", other.Find("[data-activity-scope]").GetAttribute("value"));
+        Assert.Equal("me", InFilters(other, "[data-activity-scope]").GetAttribute("value"));
     }
 
     [Fact]
@@ -339,10 +362,10 @@ public sealed class ActivityPageTests : AsyncBunitContext
 
         var cut = RenderPage(standalone: true, scope: "everyone");
 
-        Assert.Empty(cut.FindAll("[data-activity-scope]"));
+        Assert.Empty(InFiltersAll(cut, "[data-activity-scope]"));
         Assert.Equal(["Refresh"], ActionMenuItems(cut));
         Assert.Equal("me", _engine.Lists.Single().Scope);
-        Assert.NotEmpty(cut.FindAll("[data-activity-export]"));
+        Assert.NotEmpty(InFiltersAll(cut, "[data-activity-export]"));
         Assert.DoesNotContain(_identity.Paths, path => path is "/access/profiles" or "/access/households");
         Assert.Equal("true", cut.Find("[data-activity-page]").GetAttribute("data-activity-standalone"));
     }
@@ -395,15 +418,18 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage();
 
         var toolbar = cut.Find("[data-activity-toolbar]");
-        // Scope, search, Filters, Group by, the every-session switch, Export and the more menu share one row.
-        Assert.NotNull(toolbar.QuerySelector("[data-activity-scope]"));
+        // Only search, the two dates, Filters and the more menu are in front.
         Assert.NotNull(toolbar.QuerySelector(".activity-toolbar__search input"));
+        Assert.NotNull(toolbar.QuerySelector("[data-activity-from]"));
+        Assert.NotNull(toolbar.QuerySelector("[data-activity-to]"));
         Assert.NotNull(toolbar.QuerySelector("[data-activity-filters-button]"));
-        Assert.NotNull(toolbar.QuerySelector("select[aria-label='Group the list']"));
-        Assert.NotNull(toolbar.QuerySelector("input[role='switch']"));
-        Assert.NotNull(toolbar.QuerySelector("[data-activity-export]"));
         Assert.NotNull(toolbar.QuerySelector("button[aria-label='Activity actions']"));
-        // Type, dates, Outcome and Device are not an open form above the list.
+        // Scope, Device, Outcome, Show every session and Export sit behind Filters.
+        Assert.Null(toolbar.QuerySelector("[data-activity-scope]"));
+        Assert.Null(toolbar.QuerySelector("[data-activity-device-filter]"));
+        Assert.Null(toolbar.QuerySelector("[data-activity-outcome-filter]"));
+        Assert.Null(toolbar.QuerySelector("input[role='switch']"));
+        Assert.Null(toolbar.QuerySelector("[data-activity-export]"));
         Assert.Empty(cut.FindAll("[data-activity-filters]"));
         Assert.Empty(cut.FindAll("[data-activity-filters-count]"));
         Assert.Equal("false", cut.Find("[data-activity-filters-button]").GetAttribute("aria-expanded"));
@@ -412,11 +438,12 @@ public sealed class ActivityPageTests : AsyncBunitContext
 
         Assert.Equal("true", cut.Find("[data-activity-filters-button]").GetAttribute("aria-expanded"));
         var popover = cut.Find(".activity-filters-popover");
+        Assert.NotNull(popover.QuerySelector("[data-activity-scope]"));
         Assert.NotNull(popover.QuerySelector("[data-activity-kind-filter='watch']"));
-        Assert.NotNull(popover.QuerySelector("[data-activity-from]"));
-        Assert.NotNull(popover.QuerySelector("[data-activity-to]"));
         Assert.NotNull(popover.QuerySelector("[data-activity-outcome-filter]"));
         Assert.NotNull(popover.QuerySelector("[data-activity-device-filter]"));
+        Assert.NotNull(popover.QuerySelector("input[role='switch']"));
+        Assert.NotNull(popover.QuerySelector("[data-activity-export]"));
     }
 
     [Fact]
@@ -492,7 +519,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         Assert.Equal("Yesterday", headings[1]);
         Assert.Equal(3, headings.Length);
 
-        cut.Find("select[aria-label='Group the list']").Change("month");
+        InFilters(cut, "select[aria-label='Group the list']").Change("month");
         cut.WaitForAssertion(() => Assert.Equal("This month", cut.FindAll(".activity-section__heading")[0].TextContent));
         // Dates only change the headings: the Engine is still asked for single entries.
         Assert.False(_engine.Lists.Last().GroupByTitle);
@@ -527,7 +554,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         _engine.OnList = request => request.GroupByTitle ? Page([tremors]) : Page([Entry("t3", title: "Tremors")]);
         var cut = RenderPage();
 
-        cut.Find("select[aria-label='Group the list']").Change("title");
+        InFilters(cut, "select[aria-label='Group the list']").Change("title");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-activity-group]")));
 
         Assert.True(_engine.Lists.Last().GroupByTitle);
@@ -563,13 +590,13 @@ public sealed class ActivityPageTests : AsyncBunitContext
             : Page([Entry("t2"), Entry("t1")]);
         var cut = RenderPage();
         // Only the title list has groups to flatten, so the switch is off the table until it is chosen.
-        Assert.True(cut.Find("input[role='switch']").HasAttribute("disabled"));
+        Assert.True(InFilters(cut, "input[role='switch']").HasAttribute("disabled"));
 
-        cut.Find("select[aria-label='Group the list']").Change("title");
+        InFilters(cut, "select[aria-label='Group the list']").Change("title");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-activity-group]")));
-        Assert.False(cut.Find("input[role='switch']").HasAttribute("disabled"));
+        Assert.False(InFilters(cut, "input[role='switch']").HasAttribute("disabled"));
 
-        cut.Find("input[role='switch']").Change(true);
+        InFilters(cut, "input[role='switch']").Change(true);
 
         cut.WaitForAssertion(() => Assert.Equal(["t2", "t1"], RowIds(cut)));
         Assert.False(_engine.Lists.Last().GroupByTitle);
@@ -741,7 +768,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(_engine.Lists, list => list.Cursor == "c1"));
 
         // The person changes the scope, so the list is read again from the top while the old Load more is still waiting.
-        cut.Find("[data-activity-scope]").Change("everyone");
+        InFilters(cut, "[data-activity-scope]").Change("everyone");
         cut.WaitForAssertion(() => Assert.Equal(["z"], RowIds(cut)));
 
         // The new list has more to load, so the page watches its end even though the old load has not finished.
@@ -810,14 +837,14 @@ public sealed class ActivityPageTests : AsyncBunitContext
         SignIn(Role.ServerAdministrator);
         _engine.OnList = _ => Page([Entry("a")]);
         var cut = RenderPage();
-        cut.Find("[data-activity-scope]").Change("everyone");
+        InFilters(cut, "[data-activity-scope]").Change("everyone");
         cut.WaitForAssertion(() => Assert.Equal("everyone", _engine.Lists.Last().Scope));
         OpenFilters(cut);
         cut.Find("[data-activity-kind-filter='watch']").Change(true);
         cut.Find("[data-activity-outcome-filter]").Change("not_finished");
         cut.WaitForAssertion(() => Assert.Equal("not_finished", _engine.Lists.Last().Outcome));
 
-        var export = cut.Find("[data-activity-export]");
+        var export = InFilters(cut, "[data-activity-export]");
 
         Assert.Equal("a", export.TagName.ToLowerInvariant());
         Assert.NotNull(export.GetAttribute("download"));
@@ -887,7 +914,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
             : PersonalActivityOutcome<PersonalActivityPageDto>.Ok(Page([Entry("a", person: "Anna")], others: true));
         var cut = RenderPage();
 
-        cut.Find("[data-activity-scope]").Change("everyone");
+        InFilters(cut, "[data-activity-scope]").Change("everyone");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".admin-unlock")));
         Assert.NotEmpty(cut.FindAll("[data-activity-state='locked']"));
@@ -961,7 +988,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         SignIn(Role.ServerAdministrator);
         _engine.OnList = _ => Page([Entry("a")]);
         var cut = RenderPage();
-        cut.WaitForAssertion(() => Assert.Contains("Anna (Home)", cut.Find("[data-activity-scope]").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("Anna (Home)", InFilters(cut, "[data-activity-scope]").TextContent, StringComparison.Ordinal));
         OpenDelete(cut);
         cut.Find("[data-activity-delete-before]").Input("2026-01-01");
         cut.WaitForAssertion(() => Assert.Single(_engine.Previews));

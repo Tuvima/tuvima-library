@@ -8,7 +8,7 @@ public sealed class UiCleanupGuardTests
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
 
         Assert.Contains("<AppPageState", source, StringComparison.Ordinal);
-        Assert.Contains("<LibraryFoldersPanel", source, StringComparison.Ordinal);
+        Assert.Contains("<LibrariesOverview", source, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryCardStyle", source, StringComparison.Ordinal);
         Assert.DoesNotContain("PreviewStyle", source, StringComparison.Ordinal);
         Assert.DoesNotContain("tl-card--compact", source, StringComparison.Ordinal);
@@ -23,7 +23,7 @@ public sealed class UiCleanupGuardTests
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor");
 
         Assert.Contains("<AppButton", source, StringComparison.Ordinal);
-        Assert.Contains("access-credential-secret", source, StringComparison.Ordinal);
+        Assert.Contains("integration-key__value", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/IntegrationKeyDialogs.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("<MudButton", source, StringComparison.Ordinal);
         Assert.DoesNotContain("style=\"font-family: monospace", source, StringComparison.Ordinal);
     }

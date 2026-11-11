@@ -17,14 +17,7 @@ else
                      OnLaneHidden="OnLaneHidden" />
 
         <MediaTileShelf Shelf="@Shelf.ToMediaTileShelf()"
-                        HoverMode="@HoverMode"
-                        IsHomeSurface="@(SectionType == MediaHubSectionType.Watch)"
-                        HideSourceBadges="@HideSourceBadges"
-                        HideGroupIndicators="@HideGroupIndicators"
-                        HideGroupKind="@HideGroupKind"
                         ShowHeader="false"
-                        ShowCompactCaptions="true"
-                        KeepCurrentTileSize="@(SectionType == MediaHubSectionType.Listen)"
                         UseContinueWatchingOrListeningTiles="@UseContinueWatchingOrListeningTiles" />
     </section>
 }
@@ -32,26 +25,12 @@ else
 @code {
     [Parameter, EditorRequired] public MediaHubShelfViewModel Shelf { get; set; } = default!;
     [Parameter, EditorRequired] public MediaHubSectionType SectionType { get; set; }
-    [Parameter] public bool HideSourceBadges { get; set; }
     /// <summary>Raised with the shelf key after a collection lane is hidden for this profile.</summary>
     [Parameter] public EventCallback<string> OnLaneHidden { get; set; }
 
     private string RootClass => $"media-hub-shelf media-hub-shelf--{SectionType.ToString().ToLowerInvariant()} {(Shelf.IsContinueShelf ? "media-hub-shelf--continue" : null)}";
 
-    private MediaTileHoverMode HoverMode => SectionType == MediaHubSectionType.Listen
-        ? MediaTileHoverMode.GlowOnly
-        : MediaTileHoverMode.Expanded;
-
-    private bool HideGroupIndicators =>
-        SectionType == MediaHubSectionType.Listen
-        && Shelf.Items.Count > 0
-        && Shelf.Items.All(item => item.Presentation == MediaTilePresentation.Album);
-
-    private bool HideGroupKind =>
-        SectionType == MediaHubSectionType.Watch
-        && string.Equals(Shelf.Key, "tv-shows", StringComparison.OrdinalIgnoreCase);
-
     private bool UseContinueWatchingOrListeningTiles =>
         Shelf.IsContinueShelf
-        && SectionType is MediaHubSectionType.Watch or MediaHubSectionType.Listen;
+        && SectionType is MediaHubSectionType.Watch or MediaHubSectionType.Read or MediaHubSectionType.Listen;
 }

@@ -416,6 +416,25 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
+    public async Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(
+        string? kind, string? libraryId, int skip, int take, CancellationToken ct = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["skip"] = skip.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["take"] = take.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["kind"] = string.IsNullOrWhiteSpace(kind) ? null : kind,
+            ["library"] = string.IsNullOrWhiteSpace(libraryId) ? null : libraryId,
+        };
+        // A failed load is reported, never returned as an empty list.
+        var list = await GetAsync<MediaEngine.Contracts.Review.NeedsReviewListDto>("GET /review/queue", "/review/queue", query, ct: ct);
+        return list is null
+            ? ct.IsCancellationRequested
+                ? new NeedsReviewListAttempt(new MediaEngine.Contracts.Review.NeedsReviewListDto(), null)
+                : new NeedsReviewListAttempt(null, LastError ?? "The Engine did not return the review list.")
+            : new NeedsReviewListAttempt(list, null);
+    }
+
     public async Task<ReviewItemViewModel?> GetReviewItemAsync(
         Guid id, CancellationToken ct = default)
     {
@@ -1942,6 +1961,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 PositionLabel = placement.PositionLabel,
                 PositionText = placement.PositionText,
                 PositionSummary = placement.PositionSummary,
+                StandInBackdropUrl = NormalizeOptionalUrl(placement.StandInBackdropUrl),
                 OrderingType = placement.OrderingType,
                 PreviousItem = NormalizeSequenceItem(placement.PreviousItem),
                 CurrentItem = NormalizeSequenceItem(placement.CurrentItem) ?? new SequenceItemViewModel(),
@@ -1988,6 +2008,8 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 EpisodeStillUrl = NormalizeOptionalUrl(item.EpisodeStillUrl),
                 EpisodeStillWidthPx = item.EpisodeStillWidthPx,
                 EpisodeStillHeightPx = item.EpisodeStillHeightPx,
+                PictureIsStandIn = item.PictureIsStandIn,
+                StandInRetryAfter = item.StandInRetryAfter,
                 Id = item.Id,
                 EntityType = item.EntityType,
                 Title = item.Title,

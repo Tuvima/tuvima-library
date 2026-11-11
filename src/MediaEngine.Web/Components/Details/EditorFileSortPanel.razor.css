@@ -1,0 +1,125 @@
+/* "What is this file?" in Match & Identity (universal editor v4, D20). Four single-choice rows, one small form under the chosen row, and
+   the folder's other unsorted files as plain rows. Tokens only; no rounded-end pills. */
+.tl-filesort {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    margin-top: var(--tl-space-4);
+    padding-top: var(--tl-space-4);
+    border-top: 1px solid var(--tl-border-default);
+}
+
+.tl-filesort__heading,
+.tl-filesort__subheading {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    color: var(--tl-text-muted);
+}
+
+.tl-filesort__file {
+    margin: 0;
+    font-weight: var(--tl-font-weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+/* The four "What is this file?" choices are choice tiles (Look v3 D13): icon above the name. */
+.tl-filesort__choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: var(--tl-space-2);
+}
+
+.tl-filesort__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+}
+
+.tl-filesort__hint {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-filesort__searchrow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tl-space-2);
+}
+
+.tl-filesort__searchrow > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tl-filesort__results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+.tl-filesort__numbers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3);
+}
+
+.tl-filesort__number {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-filesort__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-3);
+}
+
+.tl-filesort__summary {
+    margin-right: auto;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-filesort__folder {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+}
+
+.tl-filesort__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-3);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-filesort__row--staged {
+    color: var(--tl-status-success);
+}
+
+.tl-filesort__name {
+    flex: 1 1 8rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-filesort__tag {
+    padding: 0 var(--tl-space-2);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-sm);
+    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-muted);
+}

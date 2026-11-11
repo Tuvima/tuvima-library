@@ -46,6 +46,7 @@ public sealed class DisplayCardBuilder
             Badges = BuildBadges(mediaKind, row.Quality, StringHelpers.FirstNonBlank(row.Network, row.Source)),
             SortYear = ParseSortYear(row.Year),
             IsSettling = row.IsUpdatingDetails,
+            UniverseQid = row.UniverseQid,
             ListMetadata = new DisplayCardListMetadataDto(
                 row.Author,
                 row.Artist,
@@ -180,7 +181,7 @@ public sealed class DisplayCardBuilder
             .GroupBy(TvShowGroupId)
             .Select(group => group.Count() == 1 && group.Key == group.First().WorkId
                 ? FromWork(group.First(), "watch", progressByWork?.GetValueOrDefault(group.First().WorkId))
-                : ToTvShowCard(group.Key, group.ToList(), progressByWork) is { } show ? show with { MediaType = "Videos" } : null)
+                : ToTvShowCard(group.Key, group.ToList(), progressByWork, videoFolder: true) is { } show ? show with { MediaType = VideoFolderWording.FolderMediaType } : null)
             .Where(card => card is not null)
             .Cast<DisplayCardDto>()
             .OrderByDescending(card => card.SortTimestamp)
@@ -325,7 +326,8 @@ public sealed class DisplayCardBuilder
         Guid showRootWorkId,
         IReadOnlyList<DisplayWorkRow> works,
         IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork,
-        DisplayTvShowSummary? summary = null)
+        DisplayTvShowSummary? summary = null,
+        bool videoFolder = false)
     {
         if (works.Count == 0)
         {
@@ -342,9 +344,22 @@ public sealed class DisplayCardBuilder
             .First();
         var artwork = RootArtworkFor(representative);
         var title = StringHelpers.FirstNonBlank(representative.ShowName, representative.Series, representative.Title, representative.CollectionTitle) ?? "TV Show";
-        var action = new DisplayActionDto("openShow", "Open Show", showRootWorkId, null, null, $"/details/tvshow/{showRootWorkId:D}?context=watch");
+        // A folder of Other videos is a plain list of videos with named sections: it never says Show, Season or Episode (item 17).
+        var action = videoFolder
+            ? new DisplayActionDto("openFolder", VideoFolderWording.OpenLabel, showRootWorkId, null, null, $"/details/tvshow/{showRootWorkId:D}?context=watch")
+            : new DisplayActionDto("openShow", "Open Show", showRootWorkId, null, null, $"/details/tvshow/{showRootWorkId:D}?context=watch");
         var previewItems = BuildSeriesPreviewItems("TV", works, tvShowRootId: showRootWorkId, progressByWork: progressByWork);
+        if (videoFolder)
+        {
+            previewItems = previewItems.Select(item => item with { Position = null }).ToList();
+        }
+
         summary ??= SummarizeTvShow(works);
+        if (videoFolder)
+        {
+            var sections = works.Select(work => work.SeasonNumber).Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            summary = summary with { Subtitle = VideoFolderWording.SectionsLine(sections) ?? VideoFolderWording.VideoCount(summary.EpisodeCount) };
+        }
         var premiereYear = summary.PremiereYear;
         var endYear = summary.EndYear;
 
@@ -357,7 +372,7 @@ public sealed class DisplayCardBuilder
             GroupingType: "tvSeries",
             Title: title,
             Subtitle: summary.Subtitle,
-            Facts: TvShowFacts(title, summary, representative),
+            Facts: TvShowFacts(title, summary, representative, videoFolder),
             Artwork: artwork,
             PreferredShape: PreferredShape("TV", artwork.BackgroundUrl, artwork.BannerUrl, artwork.SquareUrl),
             Presentation: "tvSeries",
@@ -380,10 +395,11 @@ public sealed class DisplayCardBuilder
                 OwnedCount = summary.EpisodeCount,
                 EarliestYear = premiereYear > 0 ? premiereYear : null,
                 LatestYear = endYear > 0 ? endYear : premiereYear > 0 ? premiereYear : null,
-                RelationshipLabel = "TV show",
+                RelationshipLabel = videoFolder ? VideoFolderWording.KindLabel : "TV show",
             },
             SortYear = premiereYear,
             IsSettling = summary.IsSettling,
+            UniverseQid = works.Select(work => work.UniverseQid).FirstOrDefault(qid => !string.IsNullOrWhiteSpace(qid)),
         };
     }
 
@@ -757,7 +773,8 @@ public sealed class DisplayCardBuilder
     private static IReadOnlyList<string> TvShowFacts(
         string title,
         DisplayTvShowSummary summary,
-        DisplayWorkRow representative)
+        DisplayWorkRow representative,
+        bool videoFolder = false)
     {
         var facts = BuildFacts(
                 "TV",
@@ -772,7 +789,7 @@ public sealed class DisplayCardBuilder
                 representative.Rating,
                 durationSeconds: representative.FileDurationSeconds)
             .ToList();
-        facts.Insert(Math.Min(2, facts.Count), CollectionCountLabel("TV", summary.EpisodeCount));
+        facts.Insert(Math.Min(2, facts.Count), videoFolder ? VideoFolderWording.VideoCount(summary.EpisodeCount) : CollectionCountLabel("TV", summary.EpisodeCount));
         facts.AddRange(DisplayMediaRules.SplitValues(representative.Genre)
             .Where(value => !string.Equals(value, "TV", StringComparison.OrdinalIgnoreCase))
             .Take(2));
@@ -1429,7 +1446,8 @@ public sealed class DisplayCardBuilder
         return score;
     }
 
-    private static Guid TvShowGroupId(DisplayWorkRow work)
+    /// <summary>The root a show or a folder of videos is grouped under: the work's root, else its collection, else the work itself.</summary>
+    internal static Guid TvShowGroupId(DisplayWorkRow work)
     {
         if (work.RootWorkId != Guid.Empty)
         {

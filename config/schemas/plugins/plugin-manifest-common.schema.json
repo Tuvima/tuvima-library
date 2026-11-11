@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-manifest-common.schema.json",
+  "title": "Words every Tuvima plugin manifest (plugin.json) shares",
+  "type": "object",
+  "required": ["id", "name"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string" },
+    "kind": { "enum": ["official", "declarative", "service", "sandboxed"] },
+    "minimum_library_version": { "type": "string" },
+    "maximum_library_version": { "type": ["string", "null"] },
+    "description": { "type": "string" },
+    "short_description": { "type": "string", "maxLength": 90 },
+    "provides": { "type": "array", "items": { "type": "string" } },
+    "category": { "type": "string" },
+    "media_types": { "type": "array", "items": { "type": "string" } },
+    "permissions": { "type": "array", "items": { "type": "string" } },
+    "network": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["host", "sends"],
+        "properties": {
+          "host": { "type": "string" },
+          "sends": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "max_requests_per_minute": { "type": "integer", "minimum": 1, "maximum": 600 }
+        }
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "sign_in": { "type": "object" }
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "properties": {
+        "signup_url": { "type": "string" },
+        "help_url": { "type": "string" },
+        "terms_url": { "type": "string" },
+        "privacy_url": { "type": "string" }
+      }
+    },
+    "default_settings": { "type": "object" },
+    "settings_schema": { "$ref": "plugin-settings.schema.json" },
+    "declaration": { "type": "object" },
+    "supported_languages": { "type": "array", "items": { "type": "string" } },
+    "supported_platforms": { "type": "array", "items": { "type": "string" } }
+  }
+}

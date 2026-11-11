@@ -11,7 +11,7 @@
 }
 
 .playback-primary-button-shell--appearance-dock {
-    --playback-primary-glyph:#fff;
+    --playback-primary-glyph: var(--tl-on-scrim);
     --playback-primary-size:60px;
     --playback-primary-visual-size:var(--playback-primary-size);
     height: var(--playback-primary-size);
@@ -34,9 +34,9 @@
     align-items: center;
     background: transparent !important;
     border: 2.5px solid var(--playback-accent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     box-shadow: var(--playback-primary-shadow);
-    color: var(--playback-primary-glyph, #fff) !important;
+    color: var(--playback-primary-glyph, var(--tl-on-scrim)) !important;
     cursor: pointer;
     display: inline-flex;
     height: var(--playback-primary-visual-size, var(--playback-primary-size));
@@ -65,7 +65,7 @@
     background:transparent;
     border:2.5px solid var(--playback-accent);
     box-sizing:border-box;
-    border-radius:999px;
+    border-radius:var(--tl-radius-round);
     box-shadow: var(--playback-primary-shadow);
     content: "";
     height: var(--playback-primary-visual-size);
@@ -108,8 +108,9 @@
 }
 
 .playback-primary-button-shell ::deep .playback-primary-button__icon {
-    color: var(--playback-primary-glyph, #fff) !important;
-    font-size: var(--playback-primary-icon-size) !important;
+    --playback-glyph-size: var(--playback-primary-icon-size);
+    --playback-glyph-stroke: 1.8;
+    color: var(--playback-primary-glyph, var(--tl-on-scrim)) !important;
     height: var(--playback-primary-icon-size);
     line-height: 1;
     display: block;
@@ -128,9 +129,94 @@
     background: transparent !important;
     border: 2.5px solid var(--playback-accent);
     box-shadow: none;
-    color: #fff !important;
+    color: var(--tl-on-scrim) !important;
 }
 .playback-primary-button-shell--appearance-video ::deep .playback-primary-button__icon {
-    color: #fff !important;
-    fill: #fff !important;
+    color: var(--tl-on-scrim) !important;
+}
+
+/* The persistent bar's Play (unified player v2 D6): a 32 px stroke glyph in a 48 px target. No ring, no glow, no lift; the shared hover,
+   pressed, disabled and focus states of the other bar buttons. The button is this component's own child, so these rules need no deep selector. */
+.playback-primary-button-shell--bar {
+    --playback-primary-size: var(--playback-play-target);
+    --playback-primary-icon-size: var(--playback-play-glyph);
+    height: var(--playback-play-target);
+    width: var(--playback-play-target);
+}
+
+.playback-bar-play {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    height: var(--playback-play-target);
+    justify-content: center;
+    padding: 0;
+    transition: background-color 120ms ease;
+    width: var(--playback-play-target);
+}
+
+.playback-bar-play:not(:disabled):hover {
+    background: var(--playback-state-hover);
+}
+
+.playback-bar-play:not(:disabled):active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-bar-play:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-bar-play:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-bar-play .playback-utility-glyph {
+    flex-basis: var(--playback-play-glyph);
+    height: var(--playback-play-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-play-glyph);
+}
+
+/* The phone's Play (unified player v2 D26; mockup screen 15): a 64 px white disc with a black glyph. The disc is the target; pressed darkens it. */
+.playback-phone-play {
+    align-items: center;
+    background: var(--playback-text);
+    border: 0;
+    border-radius: 50%;
+    color: var(--playback-surface);
+    cursor: pointer;
+    display: inline-flex;
+    height: 64px;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 120ms ease;
+    width: 64px;
+}
+
+.playback-phone-play:not(:disabled):active {
+    background: color-mix(in srgb, var(--playback-text) 82%, var(--playback-surface));
+}
+
+.playback-phone-play:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}
+
+.playback-phone-play:disabled {
+    cursor: default;
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.playback-phone-play .playback-utility-glyph {
+    flex-basis: var(--playback-play-glyph);
+    height: var(--playback-play-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-play-glyph);
 }

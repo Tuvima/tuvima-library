@@ -24,7 +24,7 @@ public static class LibraryAddFlow
         {
             { component => component.Configuration, configuration },
             { component => component.Kinds, kinds },
-            { component => component.StartAreaKey, string.IsNullOrWhiteSpace(areaKey) ? "watch" : areaKey },
+            { component => component.StartAreaKey, string.IsNullOrWhiteSpace(areaKey) ? null : areaKey },
             { component => component.VaultVisible, vaultVisible },
             { component => component.OpenCreated, !setup },
             { component => component.Simple, setup },

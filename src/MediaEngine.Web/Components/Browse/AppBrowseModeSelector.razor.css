@@ -1,66 +1,52 @@
+/* Browse-as strip: the shared segmented-control look (Look pass v2 A5), same tokens as AppSegmentedControl. */
 .app-browse-mode {
     display: flex;
+    gap: var(--tl-space-1);
     width: max-content;
     max-width: 100%;
     overflow-x: auto;
-    border: 1px solid rgba(128, 146, 180, 0.22);
-    border-radius: 10px;
-    background: rgba(8, 16, 31, 0.64);
+    padding: var(--tl-space-1);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-bg-surface-raised);
     scrollbar-width: thin;
 }
 
 .app-browse-mode ::deep .app-browse-mode__option {
     display: inline-flex;
-    min-height: 42px;
+    min-height: var(--tl-control-height-md);
     align-items: center;
-    gap: 7px;
-    padding: 0 14px;
+    gap: var(--tl-space-2);
+    padding: 0 var(--tl-control-padding-x);
     border: 0;
-    border-right: 1px solid rgba(128, 146, 180, 0.15);
+    border-radius: var(--tl-radius-md);
     background: transparent;
-    color: rgba(220, 228, 241, 0.82);
+    color: var(--tl-text-secondary);
     font: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: var(--tl-control-font-size-md);
+    font-weight: var(--tl-control-font-weight);
     white-space: nowrap;
     cursor: pointer;
 }
 
-.app-browse-mode ::deep .app-browse-mode__option:last-child {
-    border-right: 0;
-}
-
-.app-browse-mode ::deep .app-browse-mode__option:first-child {
-    border-radius: 9px 0 0 9px;
-}
-
-.app-browse-mode ::deep .app-browse-mode__option:last-child {
-    border-radius: 0 9px 9px 0;
-}
-
-.app-browse-mode ::deep .app-browse-mode__option:only-child {
-    border-radius: 9px;
-}
-
 .app-browse-mode ::deep .app-browse-mode__option:hover,
 .app-browse-mode ::deep .app-browse-mode__option:focus-visible {
-    color: #fff;
-    background: rgba(124, 92, 255, 0.1);
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface-hover);
     outline: none;
 }
 
 .app-browse-mode ::deep .app-browse-mode__option:focus-visible {
-    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--tl-accent-primary) 76%, white);
+    box-shadow: inset 0 0 0 2px var(--tl-focus-ring);
 }
 
 .app-browse-mode ::deep .app-browse-mode__option.is-selected {
-    color: #fff;
-    background: linear-gradient(135deg, rgba(92, 53, 173, 0.82), rgba(72, 37, 141, 0.68));
-    box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.28);
+    color: var(--tl-text-on-accent);
+    background: var(--tl-gradient-primary);
 }
 
 .app-browse-mode ::deep .app-browse-mode__option .tl-icon-root {
-    font-size: 1.05rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 html[data-form-factor="phone"] .app-browse-mode {
@@ -74,13 +60,13 @@ html[data-form-factor="phone"] .app-browse-mode::-webkit-scrollbar {
 }
 
 html[data-form-factor="phone"] .app-browse-mode[data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
 }
 
 html[data-form-factor="phone"] .app-browse-mode[data-scroll-more-start="true"] {
-    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to left, black calc(100% - 2.5rem), transparent);
 }
 
 html[data-form-factor="phone"] .app-browse-mode[data-scroll-more-start="true"][data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, transparent, black 2.5rem, var(--tl-bg-root) calc(100% - 2.5rem), transparent);
 }

@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#070A12",
-  "theme_color": "#0B1020",
+  "background_color": "#101115",
+  "theme_color": "#14151A",
   "categories": ["entertainment", "books", "music", "video"],
   "prefer_related_applications": false,
   "icons": [

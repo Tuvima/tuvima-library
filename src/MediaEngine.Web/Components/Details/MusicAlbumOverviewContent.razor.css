@@ -25,7 +25,7 @@
 
 .tl-music-album-overview__heading h2 {
     margin: 0;
-    color: var(--tl-palette-primary-lighten, #a98cff);
+    color: var(--tl-accent-primary-hover, #a98cff);
     font-size: clamp(1.15rem, 1.35vw, 1.5rem);
     line-height: 1.2;
 }
@@ -33,7 +33,7 @@
 .tl-music-album-overview__heading span,
 .tl-music-album-overview__empty {
     color: rgba(225, 231, 242, 0.64);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .tl-music-album-overview ::deep .tl-embedded-audio {

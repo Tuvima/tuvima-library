@@ -25,11 +25,11 @@
 
 .playback-sheet-handle-button__bar {
     background: color-mix(in srgb, var(--playback-text-muted) 48%, transparent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     display: block;
-    height: 6px;
+    height: 4px;
     transition: background 0.16s ease, transform 0.16s ease;
-    width: 68px;
+    width: 36px;
 }
 
 .playback-sheet-handle-button-shell ::deep .playback-sheet-handle-button:hover .playback-sheet-handle-button__bar,

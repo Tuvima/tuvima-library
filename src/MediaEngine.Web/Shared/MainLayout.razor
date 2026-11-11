@@ -44,6 +44,9 @@
 <MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
 <AppPopoverHost />
 <AppDialogHost />
+<MediaEngine.Web.Components.Details.EditorPopover />
+<MediaEngine.Web.Components.Details.ViewEditorPopover />
+<MediaEngine.Web.Components.Details.ViewSavedRibbon />
 <AppToastHost />
 <NsfwLockWatcher ActiveProfileId="@_activeProfileId" IsKids="@_isKids" />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
@@ -135,17 +138,19 @@
                 </span>
             }
 
-            <span class="layout-shell__my-list-slot">
+            <span class="layout-shell__my-list-slot@(IsMyListOpen ? " is-open" : string.Empty)">
                 <AppTooltip Text="@L["TopBar_MyList"]" Placement="AppPlacement.Bottom">
                     <AppNativeButton Type="button"
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
-                                     OnClick="@(_ => OpenForMe())">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder"
+                                     OnClick="@(_ => OpenMyLibrary())">
+                        <AppMaterialIcon Icon="@(IsMyListOpen ? AppMaterialIcons.Filled.Bookmark : AppMaterialIcons.Outlined.BookmarkBorder)"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>
             </span>
+
+            <NowPlayingNavButton />
 
             <span class="layout-shell__activity-slot">
                 <SystemActivityIndicator CanOpenSystemActivity="@CanViewSystemActivity" />
@@ -167,6 +172,7 @@
                                    Profiles="@_profiles"
                                    PluginMenu="@_pluginMenu"
                                    IsKids="@_isKids"
+                                   ReviewCount="@(CanViewReview && !_isKids ? _reviewCount : 0)"
                                    ShowSignOut="true" />
             </span>
         </AppStack>
@@ -182,16 +188,16 @@
     @if (ShouldShowEngineStatusBanner)
     {
         <div class="layout-shell__engine-banner" role="status" aria-live="polite">
-            <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppSize.Small" />
+            <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppIconSize.Control20" />
             <span>@GetEngineStatusBannerText()</span>
             @if (Orchestrator.EngineConnectionState == EngineConnectionState.LiveUpdatesDisconnected)
             {
-                <AppNativeButton Type="button"
-                                 Class="layout-shell__engine-banner-retry"
-                                 AriaLabel="@L["MainLayout_RetryLiveUpdates"].Value"
-                                 OnClick="RetryLiveUpdatesAsync">
+                <AppButton ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           aria-label="@L["MainLayout_RetryLiveUpdates"].Value"
+                           OnClick="RetryLiveUpdatesAsync">
                     @L["Common_Retry"]
-                </AppNativeButton>
+                </AppButton>
             }
         </div>
     }
@@ -392,17 +398,6 @@
                 navigated = true;
             });
             return navigated;
-        };
-        BookmarkCommandOwner.ValidatePopupWindowAsync = async window =>
-        {
-            if (_disposed) return false;
-            try
-            {
-                var current = await JS.InvokeAsync<bool>("listenPlayback.isCurrentPopupWindow", window.ToString("D"));
-                return !_disposed && current;
-            }
-            catch (JSDisconnectedException) { return false; }
-            catch (InvalidOperationException) { return false; }
         };
         DeviceContext.OnChanged += OnDeviceContextChanged;
         Nav.LocationChanged += OnLocationChanged;
@@ -656,7 +651,11 @@
         });
     }
 
-    private void OpenForMe() => Nav.NavigateTo("/for-me?view=my-list");
+    // The top bar button is a bookmark, gold while My List is open; clicking it again closes the list and returns Home
+    // (Home, detail and tiles spec D6).
+    private bool IsMyListOpen => Nav.ToBaseRelativePath(Nav.Uri).StartsWith(ShellDock.MyLibraryPath.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
+
+    private void OpenMyLibrary() => Nav.NavigateTo(IsMyListOpen ? "/" : ShellDock.MyLibraryPath);
 
     private void OpenSearch() => _searchOverlay?.Open();
 
@@ -707,7 +706,7 @@
         }
     }
 
-    private async Task RetryLiveUpdatesAsync(MouseEventArgs _)
+    private async Task RetryLiveUpdatesAsync()
     {
         if (_disposed) return;
         await Orchestrator.RetryLiveUpdatesNowAsync();
@@ -924,7 +923,6 @@
     public async ValueTask DisposeAsync()
     {
         BookmarkCommandOwner.NavigateIdentityAsync = null;
-        BookmarkCommandOwner.ValidatePopupWindowAsync = null;
         _disposed = true;
         Playback.Changed -= OnPlaybackChanged;
         ContextSidebar.Changed -= OnContextSidebarChanged;
@@ -1115,7 +1113,7 @@
         border-radius: 6px;
         background: var(--tl-accent-primary);
         color: #080B14;
-        font-weight: 700;
+        font-weight: 600;
         transform: translateY(-160%);
         transition: transform 0.12s ease;
     }
@@ -1139,6 +1137,6 @@
         border-bottom: 1px solid rgba(255, 190, 92, 0.24);
         background: rgba(60, 42, 14, 0.92);
         color: var(--tl-text-primary);
-        font-size: 0.82rem;
+        font-size: var(--tl-font-size-secondary);
     }
 </style>

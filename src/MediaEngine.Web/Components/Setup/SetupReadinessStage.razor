@@ -35,7 +35,7 @@
                         <strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>
                         @if (capability.Status is not "passed")
                         {
-                            <a href="@(string.IsNullOrWhiteSpace(capability.RepairTarget) ? "/settings" : capability.RepairTarget)">@(capability.Status == "deferred" ? "Set up in Settings" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a>
+                            <a href="@(string.IsNullOrWhiteSpace(capability.RepairTarget) ? "/settings" : capability.RepairTarget)">@(capability.Status == "deferred" ? "Set up in Settings" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppIconSize.Control20" /></a>
                         }
                     </div>
                     <AppStatusBadge Text="@StatusLabel(capability.Status)" Tone="@StatusTone(capability.Status)" Icon="@(capability.Status == "passed" ? AppMaterialIcons.Filled.CheckCircle : null)" />
@@ -45,6 +45,12 @@
         @if (DownloadRunning)
         {
             <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">@L["SetupReadinessStage_ADownloadIsStillRunning"]</AppAlert>
+        }
+        @if (HeldKinds.Count > 0)
+        {
+            @* Shown here and only here (first-run setup rework D1): libraries said Pending all through setup, so this is the one place that says some of them
+               will wait for a source that can identify them. *@
+            <AppAlert Tone="AppUiTone.Warning" data-testid="setup-no-source-warning">@L["SetupReadinessStage_NoSourceWarning", string.Join(", ", HeldKinds)]</AppAlert>
         }
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             <AppButton Label="@L["SetupReadinessStage_OpenMyLibrary"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
@@ -57,6 +63,8 @@
     /// <summary>Only used to say that a download is still running; the tools themselves are listed on the Tools step.</summary>
     [Parameter] public ToolRequirementsDto? Tools { get; set; }
     [Parameter] public bool Busy { get; set; }
+    /// <summary>The names of added kinds (films, TV shows, comics) that nothing can identify yet because no metadata source was connected; empty hides the warning.</summary>
+    [Parameter] public IReadOnlyList<string> HeldKinds { get; set; } = [];
     [Parameter] public bool Failed { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
     [Parameter] public EventCallback Complete { get; set; }

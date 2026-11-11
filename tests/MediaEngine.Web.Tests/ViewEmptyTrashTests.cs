@@ -268,7 +268,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         Assert.DoesNotContain("preview", _calls);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
-        Assert.Equal("Empty Trash on a computer.", Assert.Single(Services.GetRequiredService<AppToastService>().Toasts).Message);
+        Assert.Equal("Empty Trash on a computer.", Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
         Assert.Empty(host.FindAll(".empty-trash"));
     }
 
@@ -303,8 +303,8 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         await host.InvokeAsync(() => FooterButton(host, "Delete 128 items from disk").Click());
 
         cut.WaitForAssertion(() => Assert.Equal(1, changed));
-        var toast = Assert.Single(Services.GetRequiredService<AppToastService>().Toasts);
-        Assert.Equal(("126 deleted, 1 couldn't be deleted and is still in Trash.", AppSeverity.Warning), (toast.Message, toast.Severity));
+        var ribbon = Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>();
+        Assert.Equal("126 deleted, 1 couldn't be deleted and is still in Trash.", ribbon.Message);
         Assert.Equal("Couldn't delete: the file is in use.", Services.GetRequiredService<ViewWorkspaceService>().TrashFailureReason(stuck));
         cut.WaitForAssertion(() => Assert.Contains("2 items", Text(cut), StringComparison.Ordinal));
     }
@@ -732,13 +732,17 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
             await SelectAsync(cut, index);
         }
 
+        var host = Render<AppDialogHost>();
         await ClickToolbarAsync(cut, "Trash");
+        // Spec view-section WP1: Trash asks once first; only the 2 trashable photos are counted.
+        host.WaitForAssertion(() => Assert.Contains("Move 2 items to Trash?", host.Markup, StringComparison.Ordinal));
+        await host.InvokeAsync(() => FooterButton(host, "Move to Trash").Click());
 
         cut.WaitForAssertion(() => Assert.Equal(2, handler.Trashed.Count));
         Assert.Equal(photos.Where(photo => photo.CanTrash).Select(photo => photo.Id).Order(), handler.Trashed.Order());
-        var messages = Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message).ToList();
-        Assert.Contains("Moved selected items to Trash.", messages);
-        Assert.Contains("2 items are in a read-only folder and weren't moved to Trash.", messages);
+        // The result is said in the slim ribbon (spec photos-documents-editor D6), never as a toast.
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+        Assert.Contains("read-only folder", Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message, StringComparison.Ordinal);
     }
 
     [Fact]

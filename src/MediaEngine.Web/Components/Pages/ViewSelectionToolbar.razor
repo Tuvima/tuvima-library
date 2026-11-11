@@ -1,14 +1,19 @@
 @using MediaEngine.Contracts.LocalAssets
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
 
-<section class="view-selection-toolbar@(Phone ? " view-selection-toolbar--phone" : string.Empty)" role="toolbar" aria-label="@AriaLabel">
+<section class="view-selection-toolbar@(Phone ? " view-selection-toolbar--phone" : string.Empty)" role="toolbar" aria-label="@AriaLabel" @ref="_toolbar" @onkeydown="OnKeyDownAsync">
     <div class="view-selection-toolbar__count">
-        <strong>@Count selected</strong>
+        <strong role="status" aria-live="polite">@Count selected</strong>
     </div>
     <span class="view-selection-toolbar__divider" aria-hidden="true"></span>
     <div class="view-selection-toolbar__actions">
         @ChildContent
+        @if (!Phone)
+        {
+            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L[FavoriteRemoves ? "ViewActions_RemoveFromFavorites" : "Glossary_Favorite"]</AppNativeButton> }
+        }
         @if ((OnAddToGallery.HasDelegate && ManualGalleries.Count > 0) || OnCreateGallery.HasDelegate)
         {
         <AppOverflowMenu Label="@L["ViewSelectionToolbar_AddToGallery"].Value"
@@ -32,13 +37,13 @@
             }
         </AppOverflowMenu>
         }
-        @if (ShowSharedLibrary)
-        {
-            <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="@L["Common_SubmitToSharedLibrary"].Value" OnClick="@(_ => OnSharedLibrary.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GroupWork" />@(Phone ? "Share" : "Submit to Shared Library")</AppNativeButton>
-        }
         @if (OnDownload.HasDelegate)
         {
             <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="@L["ViewSelectionToolbar_DownloadSelectedItems"].Value" OnClick="@(_ => OnDownload.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />@L["Models_Download"]</AppNativeButton>
+        }
+        @if (ShowSharedLibrary)
+        {
+            <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="@L["Common_SubmitToSharedLibrary"].Value" OnClick="@(_ => OnSharedLibrary.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GroupWork" />@(Phone ? "Share" : "Submit to Shared Library")</AppNativeButton>
         }
         @if (Phone)
         {
@@ -50,7 +55,6 @@
         }
         else
         {
-            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["Glossary_Favorite"]</AppNativeButton> }
             @if (ShowRestore)
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRestore.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Restore" />@L["Common_Restore"]</AppNativeButton>
@@ -59,6 +63,8 @@
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnArchive.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />@L["ViewSelectionToolbar_Archive"]</AppNativeButton>
             }
+            @if (OnHide.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnHide.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VisibilityOff" />@L["ViewActions_Hide"]</AppNativeButton> }
+            @if (OnEdit.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnEdit.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" />@L["ViewEdit_Edit"]</AppNativeButton> }
             @if (ShowTrash && OnTrash.HasDelegate)
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnTrash.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" />@L["Common_Trash"]</AppNativeButton>
@@ -78,6 +84,23 @@
 </section>
 
 @code {
+    private ElementReference _toolbar;
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key is not ("ArrowLeft" or "ArrowRight" or "Home" or "End"))
+            return;
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-toolbar.js");
+            await module.InvokeVoidAsync("moveFocus", _toolbar, args.Key);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            // Without script the buttons stay reachable with Tab, so there is nothing to recover.
+        }
+    }
+
     [Parameter] public int Count { get; set; }
 
     /// <summary>What a screen reader calls the bar; the Documents page says "documents" instead of "photo".</summary>
@@ -88,12 +111,20 @@
     [Parameter] public IReadOnlyList<ViewGalleryDto> ManualGalleries { get; set; } = [];
     [Parameter] public EventCallback OnClear { get; set; }
     [Parameter] public EventCallback OnFavorite { get; set; }
+    /// <summary>True when every selected item is already a favorite, so the action takes them out of Favorites.</summary>
+    [Parameter] public bool FavoriteRemoves { get; set; }
+
+    /// <summary>Opens the editor window on the selection (spec photos-documents-editor D2). Editing is desktop-only, so the phone bar never offers it.</summary>
+    [Parameter] public EventCallback OnEdit { get; set; }
     [Parameter] public EventCallback OnSharedLibrary { get; set; }
     [Parameter] public bool ShowSharedLibrary { get; set; }
     [Parameter] public bool ShowRestore { get; set; }
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public bool ShowTrash { get; set; } = true;
     [Parameter] public EventCallback OnArchive { get; set; }
+
+    /// <summary>Hides the selection from Photos (it stays under More filters, Hidden). Left unset, Hide does not render.</summary>
+    [Parameter] public EventCallback OnHide { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
     [Parameter] public EventCallback OnCreateGallery { get; set; }
@@ -110,9 +141,10 @@
         get
         {
             var items = new List<AppRowMenuItem>();
-            if (OnFavorite.HasDelegate) { items.Add(new() { Label = L["Glossary_Favorite"].Value, Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
+            if (OnFavorite.HasDelegate) { items.Add(new() { Label = L[FavoriteRemoves ? "ViewActions_RemoveFromFavorites" : "Glossary_Favorite"].Value, Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
             if (ShowRestore) { items.Add(new() { Label = L["Common_Restore"].Value, Icon = AppMaterialIcons.Outlined.Restore, OnClick = OnRestore }); }
             else if (OnArchive.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_Archive"].Value, Icon = AppMaterialIcons.Outlined.Inventory2, OnClick = OnArchive }); }
+            if (OnHide.HasDelegate) { items.Add(new() { Label = L["ViewActions_Hide"].Value, Icon = AppMaterialIcons.Outlined.VisibilityOff, OnClick = OnHide }); }
             if (ShowTrash && OnTrash.HasDelegate) { items.Add(new() { Label = L["Common_Trash"].Value, Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = OnTrash }); }
             if (OnRemoveFromGallery.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_RemoveFromGallery"].Value, Icon = AppMaterialIcons.Outlined.RemoveCircleOutline, OnClick = OnRemoveFromGallery }); }
             return items;

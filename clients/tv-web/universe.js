@@ -121,7 +121,16 @@
     };
   }
 
+  // The "Universe" button on a title's page (Universe entry points spec): the QID to open and the name to show, or null when the
+  // Engine sent no Universe link (a title without one draws no button, never a dead one).
+  function linkFor(detailPage) {
+    var link = detailPage && detailPage.universeLink;
+    var qid = text(link && link.qid).trim();
+    return qid ? { qid: qid, title: text(link.name) } : null;
+  }
+
   TV.universe = {
+    linkFor: linkFor,
     totalsLine: totalsLine,
     castLine: castLine,
     adaptationLine: adaptationLine,

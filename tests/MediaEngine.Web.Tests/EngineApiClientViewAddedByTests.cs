@@ -44,6 +44,39 @@ public sealed class EngineApiClientViewAddedByTests
     }
 
     [Fact]
+    public async Task AssetAndTimelineIndexQueriesSendEveryFolderAsASourceAndOmitItWhenThereIsNone()
+    {
+        var seen = new List<string>();
+        using var http = CreateHttpClient(request =>
+        {
+            seen.Add(request.RequestUri!.PathAndQuery);
+            var body = request.RequestUri.AbsolutePath.EndsWith("timeline-index", StringComparison.Ordinal)
+                ? """{"buckets":[]}"""
+                : """{"items":[],"next_cursor":null,"has_more":false}""";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            });
+        });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+        var options = new ViewAssetQueryOptions(ViewScopeKind.Shared, AddedBy: [Alice], Sources: [Alice, Bob]);
+
+        await client.GetViewAssetsAsync(options);
+        await client.GetViewTimelineIndexAsync(options);
+        await client.GetViewAssetsAsync(new ViewAssetQueryOptions(ViewScopeKind.Shared));
+
+        Assert.Equal(3, seen.Count);
+        foreach (var path in seen.Take(2))
+        {
+            Assert.Contains($"source={Alice:D}", path, StringComparison.Ordinal);
+            Assert.Contains($"source={Bob:D}", path, StringComparison.Ordinal);
+            Assert.Contains($"added_by={Alice:D}", path, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("source=", seen[2], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheTimelineIndexSendsTheTagFiltersAlongsideAddedBy()
     {
         string? path = null;

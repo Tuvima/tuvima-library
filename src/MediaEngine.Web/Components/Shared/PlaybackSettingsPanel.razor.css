@@ -1,0 +1,142 @@
+/* Mockup screen 5, Playback settings: .pr rows are 44 px with 4 / 10 padding, a 24 px glyph, the label at 16 / 500 and the value at the right in 14 / 400
+   secondary text, 12 px apart. A row with a helper line (Playback information) puts it under the label, in line with it (36 px in), at 13 px. The footer
+   is a 14 px secondary-text action with a 20 px glyph. */
+.psp {
+    display: flex;
+    flex-direction: column;
+}
+
+.psp ::deep .psp__row {
+    --playback-glyph-size: var(--playback-control-glyph);
+    --playback-glyph-stroke: 1.8;
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    font: 500 16px/1.45 var(--font-ui);
+    gap: 2px 12px;
+    min-height: var(--playback-panel-row-height);
+    padding: 4px 10px;
+    position: relative;
+    text-align: left;
+    width: 100%;
+}
+
+.psp ::deep .psp__row:hover {
+    background: var(--playback-state-hover);
+}
+
+.psp ::deep .psp__row:active {
+    background: var(--playback-state-pressed);
+}
+
+.psp ::deep .psp__row:focus-visible,
+.psp__row--select:has(.psp__select:focus-visible) {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+/* Play on another device... when it cannot be used: the glyph and label dim, the reason under them (.psp__sub) does not. */
+.psp ::deep .psp__row:disabled {
+    cursor: default;
+}
+
+.psp ::deep .psp__row:disabled:hover {
+    background: transparent;
+}
+
+.psp ::deep .psp__row:disabled .playback-utility-glyph,
+.psp ::deep .psp__row:disabled .psp__label {
+    opacity: var(--playback-state-disabled-opacity);
+}
+
+.psp__label {
+    min-width: 0;
+}
+
+.psp__value {
+    align-items: center;
+    color: var(--playback-text-secondary);
+    display: inline-flex;
+    font: 400 14px/1.45 var(--font-ui);
+    gap: 2px;
+    margin-left: auto;
+}
+
+.psp__chevron {
+    --playback-glyph-size: 20px;
+    display: inline-flex;
+}
+
+.psp__sub {
+    color: var(--playback-text-secondary);
+    flex-basis: 100%;
+    font: 400 13px/1.45 var(--font-ui);
+    margin-left: 36px;
+    order: 10;
+}
+
+/* The native list covers the row, invisible, so the whole row is the control. */
+.psp__row--select {
+    cursor: pointer;
+}
+
+.psp ::deep .psp__row .psp__select {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    height: 100%;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    padding: 0;
+    position: absolute;
+    width: 100%;
+}
+
+.psp__footer {
+    display: contents;
+}
+
+.psp__footer ::deep .psp__reset {
+    --playback-glyph-size: 20px;
+    --playback-glyph-stroke: 1.8;
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    font: 400 14px/1.45 var(--font-ui);
+    gap: 10px;
+    margin-left: -8px;
+    min-height: 36px;
+    padding: 4px 8px;
+}
+
+.psp__footer ::deep .psp__reset:hover {
+    background: var(--playback-state-hover);
+    color: var(--playback-text);
+}
+
+.psp__footer ::deep .psp__reset:active {
+    background: var(--playback-state-pressed);
+}
+
+.psp__footer ::deep .psp__reset:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+    .psp__footer ::deep .psp__reset {
+        min-height: var(--playback-control-target);
+    }
+}

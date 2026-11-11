@@ -43,7 +43,14 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<AiUnavailableQuarantineRecoveryHostedService>();
         services.AddHostedService<ScheduledTaskRunRecoveryHostedService>();
 
-        services.AddHostedService<EncodeQueueService>();
+        services.AddSingleton<EncodeQueueService>();
+        services.AddHostedService(sp => sp.GetRequiredService<EncodeQueueService>());
+        // Scrub previews: the lowest-priority job, one file at a time, plus the gradual pass that queues them.
+        services.AddHostedService<ScrubPreviewOperationWorker>();
+        services.AddHostedService<ScrubPreviewBackfillService>();
+        // Bookmark frames: the quick worker that takes each still, and the housekeeping pass behind it.
+        services.AddHostedService<BookmarkFrameOperationWorker>();
+        services.AddHostedService<BookmarkFrameMaintenanceService>();
         services.AddHostedService(provider => provider.GetRequiredService<AdaptiveHlsCleanupService>());
         services.AddHostedService<FolderHealthService>();
         services.AddHostedService(sp => sp.GetRequiredService<MetadataHarvestingService>());
@@ -125,6 +132,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<WikidataBridgeHostedService>();
         services.AddHostedService<QuickHydrationHostedService>();
         services.AddSingleton<IIdentityBypassLibraries, ConfiguredIdentityBypassLibraries>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IActivityRunRecorder, ActivityRunRecorder>();
+        services.AddHostedService<ActivityRunSweeper>();
         services.AddHostedService<WorkReadinessService>();
         services.AddHostedService<MusicBrainzEnrichmentHostedService>();
         services.AddHostedService<MusicAlbumManifestHostedService>();

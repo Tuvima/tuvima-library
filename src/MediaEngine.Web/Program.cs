@@ -268,6 +268,8 @@ builder.Services.AddSingleton<DashboardServiceCredentialProvider>();
 builder.Services.AddScoped<DashboardSessionAccessor>();
 builder.Services.AddTransient<DashboardServiceCredentialHandler>();
 builder.Services.AddTransient<DashboardEngineAuthenticationHandler>();
+builder.Services.AddSingleton<EngineBusyState>();
+builder.Services.AddTransient<EngineBusyBackoffHandler>();
 // One shared sign-in check per burst of requests (a page load fetches dozens of assets). Anything sent through the
 // identity client that can change a sign-in empties it first.
 builder.Services.AddSingleton(new SessionValidationCache());
@@ -303,6 +305,7 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
+    .AddHttpMessageHandler<EngineBusyBackoffHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 builder.Services.AddScoped<ViewMediaEngineClient>(services => new ViewMediaEngineClient(
@@ -320,6 +323,7 @@ builder.Services.AddScoped<ICollectionPersonalMediaClient>(services => services.
 // Used by ad-hoc pages (e.g. the Enrichment Tester) that need direct HttpClient access
 // without routing through IEngineApiClient.
 builder.Services.AddHttpClient("EngineApi", ConfigureEngineClient)
+    .AddHttpMessageHandler<EngineBusyBackoffHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 // Resumable uploads into the Import folder (Library setup D44): the same sign-in handlers, but each piece has its own five-minute limit
@@ -337,6 +341,7 @@ builder.Services.AddHttpClient(ImportUploadRelayEndpoint.EngineClientName, clien
 builder.Services.AddHttpClient("EngineArtwork", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
+    .AddHttpMessageHandler<EngineBusyBackoffHandler>()
     .AddHttpMessageHandler<SessionValidationInvalidationHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 // The app door never carries the Dashboard's service credential. No cookies are stored or replayed
@@ -370,6 +375,13 @@ builder.Services.AddScoped<ViewAssetDragService>();
 builder.Services.AddScoped<UIOrchestratorService>();
 builder.Services.AddScoped<IngestionLiveDashboardState>();
 builder.Services.AddScoped<CollectionEditorLauncherService>();
+builder.Services.AddScoped<EditorHost>();
+builder.Services.AddScoped<ViewEditorHost>();
+builder.Services.AddScoped<ViewRibbonState>();
+builder.Services.AddScoped<ViewRibbonVoice>();
+builder.Services.AddScoped<ViewDropUploader>();
+builder.Services.AddScoped<ViewFolderGate>();
+builder.Services.AddScoped<ListEditLauncher>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();
 builder.Services.AddScoped<RecentViewAssetAdapter>();
@@ -407,6 +419,8 @@ builder.Services.AddScoped<PlaybackLyricsSelectionOwner>();
 builder.Services.AddScoped<PlaybackIdentityNavigationOwner>();
 builder.Services.AddScoped<PlaybackLyricsPresenter>();
 builder.Services.AddScoped<PlaybackTransientToolCoordinator>();
+builder.Services.AddScoped<PlaybackCastLinkService>();
+builder.Services.AddScoped<PlaybackRemoteController>();
 builder.Services.AddScoped<VideoPresentationResolver>();
 builder.Services.AddScoped<IListenPlaybackCommandChannel, BroadcastListenPlaybackCommandChannel>();
 builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
@@ -421,9 +435,13 @@ builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
+builder.Services.AddScoped<PlayerPreferenceService>();
+builder.Services.AddScoped<PlaybackSettingsActions>();
+builder.Services.AddScoped<PlaybackTimelineScope>();
 builder.Services.AddScoped<ContextSidebarPreferences>();
 builder.Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
 builder.Services.AddScoped<ListenContextSidebarState>();
+builder.Services.AddScoped<NowPlayingLauncher>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
 builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
 builder.Services.AddScoped<DetailsOverlayState>();
@@ -544,6 +562,32 @@ app.MapGet("/engine-subtitles/{assetId:guid}", async (Guid assetId, string? lang
     CopyResponseHeaders(response, ctx.Response);
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
 }).RequireAuthorization();
+
+// Scrub previews (Unified player v2 D9a): the index and sprite sheets of a video, through the Dashboard origin. The Engine applies the
+// same access checks as streaming the file and answers 404 when the profile may not play it.
+app.MapGet("/engine-scrub/{assetId:guid}/{file:regex(^(index\\.json|sheet-\\d{{3}}\\.jpg)$)}", async (Guid assetId, string file, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/scrub/{Uri.EscapeDataString(file)}");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).WithName("ProxyEngineScrubPreview")
+  .WithSummary("Proxies one scrub-preview index or sprite sheet through the Dashboard origin.")
+  .RequireAuthorization();
+
+// Video bookmark frames (Unified player v2 D21a): the still taken at a bookmark's time, through the Dashboard origin. The Engine shows it
+// only to a profile that may see the bookmark and answers 404 otherwise. The bookmark id is the only thing the route accepts.
+app.MapGet("/engine-bookmark-frame/{bookmarkId:guid}", async (Guid bookmarkId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/player/bookmarks/{bookmarkId:D}/frame");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).WithName("ProxyEngineBookmarkFrame")
+  .WithSummary("Proxies one video bookmark frame through the Dashboard origin.")
+  .RequireAuthorization();
 
 app.MapGet("/engine-text-track/{assetId:guid}/{trackId:guid}", async (Guid assetId, Guid trackId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
 {

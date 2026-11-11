@@ -4,6 +4,7 @@ using System.Text.Json;
 using MediaEngine.Api.Services.Backups;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Contracts.System;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Backup;
 
@@ -21,13 +22,16 @@ public sealed class DatabaseBackupService
     private readonly PersonalStateBackupRepository _export;
     private readonly string _configDirectory;
     private readonly string _backupDirectory;
+    private readonly IConfigSecretsStore? _secrets;
 
     public DatabaseBackupService(
         PersonalStateBackupRepository export,
         string configDirectory,
-        string? backupDirectory = null)
+        string? backupDirectory = null,
+        IConfigSecretsStore? secrets = null)
     {
         _export = export;
+        _secrets = secrets;
         _configDirectory = Path.GetFullPath(configDirectory);
         _backupDirectory = ResolveBackupDirectory(_configDirectory, backupDirectory);
     }
@@ -48,12 +52,39 @@ public sealed class DatabaseBackupService
             .Select(info => new BackupArchiveDto(
                 info.Name,
                 new DateTimeOffset(info.CreationTimeUtc, TimeSpan.Zero),
-                info.Length))
+                info.Length,
+                IncludesSecrets: false,
+                IncludesKeys: HoldsSealedKeys(info.FullName)))
             .ToList();
     }
 
-    public async Task<string> CreateAsync(CancellationToken ct)
+    /// <param name="keysPin">When set (exactly four digits), the provider and plugin keys are sealed under it inside the backup. Null leaves keys out.</param>
+    private static bool HoldsSealedKeys(string archivePath)
     {
+        try
+        {
+            using var archive = ZipFile.OpenRead(archivePath);
+            return SealedKeysBundle.Exists(archive);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            // An archive that cannot be opened here is shown without the keys note; restoring it reports the real problem.
+            return false;
+        }
+    }
+
+    public async Task<string> CreateAsync(CancellationToken ct, string? keysPin = null)
+    {
+        if (keysPin is not null && !SealedKeysBundle.IsValidPin(keysPin))
+        {
+            throw new ArgumentException("The PIN for keys must be four digits.", nameof(keysPin));
+        }
+
+        if (keysPin is not null && _secrets is null)
+        {
+            throw new InvalidOperationException("Keys cannot be included here.");
+        }
+
         Directory.CreateDirectory(_backupDirectory);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
         var archivePath = UniquePath(Path.Combine(_backupDirectory, $"tuvima-backup-{stamp}.zip"));
@@ -72,8 +103,17 @@ public sealed class DatabaseBackupService
                 archive.CreateEntryFromFile(path, $"config/{relative}", CompressionLevel.SmallestSize);
             }
 
+            if (keysPin is not null)
+            {
+                var sealedKeys = archive.CreateEntry(SealedKeysBundle.EntryName, CompressionLevel.NoCompression);
+                using (var writer = new StreamWriter(sealedKeys.Open(), new System.Text.UTF8Encoding(false)))
+                {
+                    writer.Write(SealedKeysBundle.Seal(_secrets!, keysPin));
+                }
+            }
+
             var manifest = archive.CreateEntry("manifest.json", CompressionLevel.SmallestSize);
-            BackupManifestWriter.Write(manifest, export.Contents);
+            BackupManifestWriter.Write(manifest, export.Contents, includesKeys: keysPin is not null);
             return archivePath;
         }
         catch
@@ -87,14 +127,14 @@ public sealed class DatabaseBackupService
         }
     }
 
-    public ScheduleRestoreResultDto ScheduleRestore(string fileName)
+    public ScheduleRestoreResultDto ScheduleRestore(string fileName, string? keysPin = null)
     {
         var archivePath = ResolveArchive(fileName);
         var stagingDirectory = Path.Combine(_backupDirectory, $"pending-{Guid.NewGuid():N}");
         Directory.CreateDirectory(stagingDirectory);
         try
         {
-            ValidateAndStageArchive(archivePath, stagingDirectory);
+            var info = ValidateAndStageArchive(archivePath, stagingDirectory);
 
             var markerPath = Path.Combine(_configDirectory, RestoreMarkers.PendingFileName);
             if (File.Exists(markerPath) || File.Exists(Path.Combine(_configDirectory, RestoreMarkers.ImportFileName)))
@@ -107,10 +147,13 @@ public sealed class DatabaseBackupService
                 Path.GetFileName(archivePath),
                 DateTimeOffset.UtcNow,
                 Guid.NewGuid())));
+            var keys = RestoreKeys(archivePath, info, keysPin);
             return new ScheduleRestoreResultDto(
                 true,
                 true,
-                "Restore checked and scheduled. Restart the Engine to apply it. Your current Library is kept as a pre-restore copy.");
+                "Restore checked and scheduled. Restart the Engine to apply it. Your current Library is kept as a pre-restore copy." + keys.Sentence,
+                keys.Status,
+                keys.Restored);
         }
         catch
         {
@@ -121,6 +164,33 @@ public sealed class DatabaseBackupService
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// Puts the backup's sealed keys back when the PIN opens them, locked again under this computer's root key. A missing or wrong PIN
+    /// skips only the keys; everything else still restores.
+    /// </summary>
+    private (string Status, List<string> Restored, string Sentence) RestoreKeys(string archivePath, RestoreArchiveInfo info, string? keysPin)
+    {
+        if (!info.IncludesKeys)
+        {
+            return (KeysRestoreOutcome.NoneInBackup, [], string.Empty);
+        }
+
+        if (_secrets is null)
+        {
+            return (KeysRestoreOutcome.PinMissing, [], " The keys in this backup were not restored; enter them again when you're ready.");
+        }
+
+        using var archive = ZipFile.OpenRead(archivePath);
+        var outcome = SealedKeysBundle.Restore(archive, keysPin, _secrets);
+        var sentence = outcome.Status switch
+        {
+            KeysRestoreOutcome.Restored => $" {outcome.RestoredKeys.Count} saved {(outcome.RestoredKeys.Count == 1 ? "key was" : "keys were")} put back.",
+            KeysRestoreOutcome.PinWrong => " That PIN didn't open the keys. Everything else will be restored; re-enter keys when you're ready.",
+            _ => " This backup holds keys, but no PIN was given, so they were not restored; re-enter keys when you're ready.",
+        };
+        return (outcome.Status, [.. outcome.RestoredKeys], sentence);
     }
 
     public async Task<SetupBackupInspectionDto> UploadAndInspectAsync(
@@ -208,7 +278,7 @@ public sealed class DatabaseBackupService
         }
     }
 
-    public ScheduleRestoreResultDto ConfirmUploadedRestore(Guid operationId, OnboardingRepository onboarding)
+    public ScheduleRestoreResultDto ConfirmUploadedRestore(Guid operationId, OnboardingRepository onboarding, string? keysPin = null)
     {
         var operation = onboarding.GetRestoreOperation(operationId)
             ?? throw new FileNotFoundException("The inspected backup operation was not found.");
@@ -218,7 +288,7 @@ public sealed class DatabaseBackupService
         }
 
         var fileName = Path.GetFileName(operation.ArchivePath);
-        var result = ScheduleRestore(fileName);
+        var result = ScheduleRestore(fileName, keysPin);
         onboarding.MarkRestoreScheduled(operationId);
         return result;
     }
@@ -236,7 +306,7 @@ public sealed class DatabaseBackupService
 
     /// <summary>The manifest's counts for the first look at a backup. Totals only: it names no title, no profile and no kind of title.</summary>
     internal static BackupContentsDto ContentsOf(RestoreArchiveInfo info) =>
-        new(info.Profiles, info.ConfigurationRows, info.ItemsOfPersonalState, info.Titles, info.FileOnlyTitles);
+        new(info.Profiles, info.ConfigurationRows, info.ItemsOfPersonalState, info.Titles, info.FileOnlyTitles, info.IncludesKeys);
 
     /// <summary>A plain sentence about what the backup holds, from the manifest's counts. It names no title and no profile.</summary>
     internal static string Summarise(RestoreArchiveInfo info)

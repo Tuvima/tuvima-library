@@ -95,7 +95,15 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var cut = RenderFor(OwnId, "preferences");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section#playback")));
-        Assert.Equal(["Watching", "Listening", "Reading", "Home"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
+        Assert.Equal(["Watching", "Listening", "Reading", "Home"], cut.FindAll(".profile-detail__section-switch .app-segmented-control__item").Select(item => item.TextContent.Trim()));
+        // One section at a time: Watching first, then each switch shows only its own section.
+        Assert.Equal(["Watching"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
+        cut.FindAll(".profile-detail__section-switch .app-segmented-control__item").Single(item => item.TextContent.Trim() == "Listening").Click();
+        Assert.Equal(["Listening"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
+        Assert.Empty(cut.FindAll("section#playback"));
+        cut.FindAll(".profile-detail__section-switch .app-segmented-control__item").Single(item => item.TextContent.Trim() == "Home").Click();
+        Assert.Equal(["Home"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
+        Assert.NotEmpty(cut.FindAll("section#home"));
         Assert.Equal("preferences", cut.Find("[data-profile-section='detail']").GetAttribute("data-profile-tab"));
         // Preferences are the only content of this tab: no sign-in, roles or access rows.
         Assert.Empty(cut.FindAll("[data-nav-row]"));
@@ -110,7 +118,8 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var cut = RenderFor(SamId, "preferences");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section#playback")));
-        Assert.Equal(["Watching", "Listening", "Reading"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
+        Assert.Equal(["Watching", "Listening", "Reading"], cut.FindAll(".profile-detail__section-switch .app-segmented-control__item").Select(item => item.TextContent.Trim()));
+        Assert.Equal(["Watching"], cut.FindAll(".profile-detail__section-heading").Select(heading => heading.TextContent));
     }
 
     [Fact]
@@ -273,7 +282,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -294,7 +303,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -730,7 +739,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/profiles/{SamId:D}" && request.Query == "?photos=move"));
     }
@@ -746,7 +755,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
         cut.FindAll(".profile-editor__confirm input[type='radio']")[1].Change(true);
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Query == "?photos=delete"));
     }

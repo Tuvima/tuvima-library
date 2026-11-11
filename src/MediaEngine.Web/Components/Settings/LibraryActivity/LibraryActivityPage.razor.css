@@ -1,0 +1,9 @@
+.lact-page { display: flex; flex-direction: column; gap: var(--tl-space-4); min-width: 0; }
+/* The title is large and bold; the Live tag beside it is small and green while the page is connected. */
+.lact-header { display: flex; align-items: baseline; gap: var(--tl-space-4); }
+.lact-title-main { margin: 0; font-size: var(--tl-font-size-hero); font-weight: var(--tl-font-weight-bold); line-height: 1.2; }
+.lact-live { display: inline-flex; align-items: center; gap: var(--tl-space-1); color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lact-live__dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.lact-live.is-live { color: var(--tl-status-success); }
+.lact-chips { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); }
+@media (max-width: 640px) { .lact-title-main { font-size: var(--tl-font-size-xl); } }

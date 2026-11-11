@@ -42,7 +42,7 @@ body {
   flex-direction: column;
   background: radial-gradient(120% 90% at 20% 0%, #151a33 0%, var(--bg) 60%);
   color: var(--text);
-  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   font-size: 1rem;
   line-height: 1.35;
 }

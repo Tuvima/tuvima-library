@@ -26,13 +26,13 @@
         {
             @if (entry.Tile is not null)
             {
-                <MediaTile Item="@entry.Tile" HoverMode="@MediaTileHoverPolicy.ForShelf(entry.Tile)" ShowCompactCaption="true" @key="entry.Key" />
+                <MediaTile Item="@entry.Tile" @key="entry.Key" />
             }
             else if (entry.Missing is not null)
             {
                 <div class="@_placeholderClass" role="group" aria-label="@MissingAriaLabel(entry.Missing)" @key="entry.Key">
                     <div class="universe-missing__art" aria-hidden="true">
-                        <AppMaterialIcon Icon="@_missingIcon" Size="AppSize.Large" />
+                        <AppMaterialIcon Icon="@_missingIcon" Size="AppIconSize.Tile32" />
                         <span>@L["Common_NotInLibrary"]</span>
                     </div>
                     <div class="universe-missing__caption">
@@ -49,7 +49,7 @@
 
     @if (_alsoShelf is not null)
     {
-        <MediaTileShelf Shelf="@_alsoShelf" ShowCompactCaptions="true" KeepCurrentTileSize="true" />
+        <MediaTileShelf Shelf="@_alsoShelf" />
     }
 </section>
 

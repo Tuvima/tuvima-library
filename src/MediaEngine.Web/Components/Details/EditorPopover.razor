@@ -1,0 +1,460 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject EditorHost Editor
+@inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
+@inject DeviceContextService Device
+@inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
+   dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
+   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save.
+   Its frame is the v4 one (D2, D3, D16): the item's header (with the item's family, as a tile and dropdowns, inside it), the tab bar and a fixed footer. *@
+<EditSavedRibbon Flow="Editor.Flow" />
+@if (Editor.IsOpen)
+{
+    var flow = Editor.Flow;
+    var mode = Editor.Mode;
+    var binding = Editor.Binding;
+    @* Reload and tab close ask the browser's own question; in-app navigation is asked here only for a page outside the details overlay
+       (inside it the overlay's leave guard asks, so nothing asks twice). *@
+    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+    <AppDialogFrame Open="true"
+                    Title="@DialogLabel"
+                    DialogOptions="_options"
+                    OnCancel="@(() => Editor.RequestCloseAsync())"
+                    Class="tl-editor-dialog">
+        <EditorPanelHost Mode="mode"
+                         Flow="flow"
+                         Picker="Editor.Picker"
+                         TitleOverride="@(BulkPanelTitle ?? FilesBatchTitle)"
+                         FilesBatch="@Editor.FileBatch.IsOpen"
+                         ChangeSuffix="@(Editor.FileBatch.IsOpen ? string.Format(L["EditorFilesBatch_FilesCount"].Value, Editor.FileBatch.Rows.Count) : null)"
+                         ShowHistory="@(binding?.ShowHistory == true)"
+                         ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
+                         FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
+            <HeaderContent>
+                @if (Editor.FileBatch.IsOpen)
+                {
+                    @* The framed header carries Back to the list. *@
+                }
+                else if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
+                {
+                    <span class="tl-editor-popover__editing" data-overflow-tooltip="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
+                }
+            </HeaderContent>
+            <ChildContent Context="tool">
+                @if (Editor.FileBatch.IsOpen)
+                {
+                    @* Several supporting files edited together: Details, or History with one collapsed section per file (read when opened). *@
+                    @if (tool == EditTool.History)
+                    {
+                        <EditorFilesBatchHistory Rows="Editor.FileBatch.Rows" TitleId="Editor.FileBatch.TitleId" />
+                    }
+                    else
+                    {
+                        <EditorFilesBatchPanel State="Editor.FileBrowser" CanEdit="@mode.CanEdit" />
+                    }
+                }
+                else if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
+                {
+                    @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
+                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
+                }
+                else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
+                {
+                    <div class="tl-editor-details">
+                        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorPopover_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => Editor.RetryLoadAsync())">@L["Common_TryAgain"]</AppButton>
+                    </div>
+                }
+                else if (tool == EditTool.Details && mode.Fields.SupportingFile is not null)
+                {
+                    <EditorSupportingFilePanel Mode="mode" Flow="flow" />
+                }
+                else if (tool == EditTool.Preview && mode.Fields.SupportingFile is not null)
+                {
+                    <EditorPreviewTab Fields="mode.Fields" />
+                }
+                else if (tool == EditTool.History && mode.Fields.SupportingFile is not null)
+                {
+                    <div data-supporting-file-history="true">
+                        <EditorHistoryTool EntityId="@(Guid.TryParse(mode.Fields.SupportingFile.File.Id, out var fileId) ? fileId : Guid.Empty)"
+                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" />
+                    </div>
+                }
+                else if (tool == EditTool.Details)
+                {
+                    <EditorDetailsPanel Mode="mode" Session="flow.Session" Flow="flow">@binding?.DetailsExtra</EditorDetailsPanel>
+                }
+                else if (tool == EditTool.Match && EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind))
+                {
+                    <EditorUniverseMatchPanel Fields="mode.Fields" UniverseQid="@binding?.UniverseQid" />
+                }
+                else if (tool == EditTool.Match)
+                {
+                    @if (mode.Fields.Loading)
+                    {
+                        <EditorPanelBusy Label="@L["DetailPage_LoadingThisItemSMatch"].Value" />
+                    }
+
+                    <EditorMatchPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                      Session="flow.Session"
+                                      CanEdit="@mode.CanEdit"
+                                      IsUnmatched="@IsActiveUnmatched"
+                                      Universe="@binding?.UniverseLink?.Invoke()"
+                                      OnOpenUniverse="OpenUniverseAsync" />
+                }
+                else if (tool == EditTool.Bookmarks)
+                {
+                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" />
+                }
+                else if (tool == EditTool.History)
+                {
+                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" />
+                }
+            </ChildContent>
+        </EditorPanelHost>
+    </AppDialogFrame>
+}
+
+@code {
+    private RenderFragment ItemHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        @* The way around the family (home, Season or Section, item) sits in the header's nav row and is read from the Engine's header (v5 D1). A
+           Universe keeps its own tile and kind dropdowns. *@
+        <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
+                          UniverseName="@Editor.Universe.UniverseName"
+                          HasFamily="@Editor.Universe.Visible"
+                          Hooks="Editor.HeaderHooks">
+            <Tile>
+                @if (Editor.Universe.Visible)
+                {
+                    <EditorUniverseRail State="Editor.Universe" Flow="flow" Part="EditorFamilyRailPart.Tile" />
+                }
+            </Tile>
+            <Selects>
+                @if (Editor.Universe.Visible)
+                {
+                    <EditorUniverseRail State="Editor.Universe" Flow="flow" Part="EditorFamilyRailPart.Selects" />
+                }
+            </Selects>
+        </EditorItemHeader>
+    };
+
+    // "Editing N files": the framed header in group mode (WP8, screen F), with the home button and "Back to the list".
+    private RenderFragment FilesBatchHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family"
+                          GroupRows="Editor.FileBatch.Rows"
+                          GroupLabel="@Editor.FileBatch.TitleName"
+                          GroupTitle="@EditorFileBrowserRules.EditingTitle(L, Editor.FileBatch.Rows.Count)"
+                          OnGroupBack="BackToTheListAsync"
+                          OnGroupHome="HomeFromFilesAsync" />
+    };
+
+    // Delete in "Editing N files": asks once naming the count, then runs the browser's bulk delete (D29); the group then shrinks or closes.
+    private RenderFragment FilesBatchDeleteFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
+                   StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching || !mode.CanEdit)" data-files-batch-delete="true"
+                   OnClick="DeleteFilesAsync">
+            @L["EditorFilesBatch_Delete"]
+        </AppButton>
+    };
+
+    private async Task DeleteFilesAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            var rows = Editor.FileBatch.Rows.ToList();
+            await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, Toasts, L);
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    // The home button: the group form closes and the editor goes to the title itself.
+    private async Task HomeFromFilesAsync()
+    {
+        var root = Editor.Mode.Fields.Header?.Root.Id ?? Editor.FileBatch.TitleId;
+        Editor.FileBatch.Close();
+        await Editor.Flow.SwitchToAsync(root);
+    }
+
+    // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). It asks once, naming the item and what goes with
+    // it, and then happens at once; it does not wait for Save.
+    private RenderFragment DeleteButtonFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
+                   StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching)"
+                   OnClick="@(CanDeleteFile ? DeleteFileAsync : CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)">
+            @EditorDeleteRules.FooterLabel
+        </AppButton>
+    };
+
+    private bool _deleting;
+
+    private bool CanDeleteFile => EditorSupportingFileFlow.CanDelete(Editor, Device, Services.GetService<DashboardSessionAccessor>());
+
+    // Delete from a supporting file's footer: asks once, naming the file and what happens to it on disk, then happens at once.
+    private async Task DeleteFileAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private bool CanDeleteThing => EditorDeleteFlow.CanDeleteThing(Editor, Device, Services.GetService<DashboardSessionAccessor>());
+
+    // Delete from the "..." of a character, place or faction someone added by hand (WP11): asks once, then happens at once.
+    private async Task DeleteThingAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    // Delete from the header's "..." (v4 D13): the item being edited, including a whole show, season, album or Series. It asks once and happens
+    // at once, without waiting for Save; the pop-over then moves to the item's parent, or closes when there is none.
+    private bool CanDeleteActive => EditorDeleteFlow.CanDeleteActive(Editor, Device, Services.GetService<DashboardSessionAccessor>());
+
+    private async Task DeleteActiveAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private static readonly AppDialogOptions _options = new()
+    {
+        NoHeader = true,
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+    };
+
+    // Match is where a failed item is fixed: the tree's own mark wins for an item it lists, else the page's answer for the item it was opened on.
+    private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
+        && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
+
+    private string? FilesBatchTitle => Editor.FileBatch.IsOpen ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count) : null;
+
+    private string DialogLabel => Editor.FileBatch.IsOpen
+        ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count)
+        : Editor.Batch.Panel == BulkPanelKind.None
+        ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"
+        : BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType);
+
+    // The Details tool is called "Edit 4 songs", "Move to album", "Match" while the bulk panel is in it.
+    private string? BulkPanelTitle => Editor.Batch.Panel switch
+    {
+        BulkPanelKind.Edit => BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Move => BulkEditRules.MoveLabel(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Series => BulkEditRules.PutInSeriesLabel,
+        BulkPanelKind.Match => $"Match {Editor.Batch.Count} {BulkEditRules.Noun(Editor.Batch.Rows, Editor.Batch.MediaType)}",
+        _ => null,
+    };
+
+    protected override void OnInitialized()
+    {
+        Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
+        Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
+        Editor.HeaderHooks.OpenSupportingFiles = request => OpenBrowserAsync(EditorBrowserView.Files);
+        Editor.HeaderHooks.OpenFolders = _ => OpenBrowserAsync(EditorBrowserView.Folders);
+        Editor.Changed += OnChanged;
+    }
+
+    // The supporting-files browser (v5 WP8): "All supporting files" and the folder button open it over the editor. It always shows the whole
+    // title (the header's root), so the files of one level and of the whole show are one list with a Where filter.
+    private async Task OpenBrowserAsync(EditorBrowserView view)
+    {
+        if (_browsing || Editor.Mode.Fields.Header is not { } header)
+        {
+            return;
+        }
+
+        _browsing = true;
+        try
+        {
+            // The dialog opens first and shows its loading state while the list is read; the folder button opens the Folders view at its own level.
+            var reading = Editor.FileBrowser.OpenAsync(
+                header.Root.Id, header.Root.Title, view, folder: header.FolderButton?.RelativeFolder, mediaType: Editor.Mode.Fields.MediaType);
+            var dialog = await Dialogs.ShowAsync<EditorFileBrowserDialog>(
+                string.Empty,
+                new AppDialogParameters<EditorFileBrowserDialog>
+                {
+                    { component => component.State, Editor.FileBrowser },
+                    { component => component.Session, Editor.Flow.Session },
+                    { component => component.IsVideoSeries, EditorNavText.CanReorder(header) },
+                    { component => component.Subject, Editor.Mode.Fields.Loading ? null : Editor.Mode.Fields.MatchSubject() },
+                    { component => component.Family, Editor.Family },
+                    { component => component.CanEdit, Editor.Mode.CanEdit },
+                },
+                new AppDialogOptions { NoHeader = true, FullWidth = true, Size = AppWindowSize.ExtraLarge, BackdropClick = false, CloseOnEscapeKey = true });
+            await reading;
+            if (await dialog.Result is { Canceled: false, Data: EditorFileBrowserOutcome outcome })
+            {
+                await HandleBrowserOutcomeAsync(outcome);
+            }
+        }
+        finally
+        {
+            _browsing = false;
+        }
+    }
+
+    private bool _browsing;
+
+    private async Task HandleBrowserOutcomeAsync(EditorFileBrowserOutcome outcome)
+    {
+        switch (outcome.Action)
+        {
+            case EditorFileBrowserAction.EditSelected:
+                var ticked = Editor.FileBrowser.Ticked;
+                if (ticked.Count >= 2)
+                {
+                    Editor.FileBatch.Open(Editor.FileBrowser.TitleId, Editor.FileBrowser.TitleName, ticked);
+                }
+                else if (ticked.Count == 1 && Guid.TryParse(ticked[0].Id, out var only))
+                {
+                    await Editor.HeaderHooks.OpenSupportingFile!(only);
+                }
+
+                break;
+            case EditorFileBrowserAction.OpenFile:
+                await Editor.HeaderHooks.OpenSupportingFile!(outcome.Id);
+                if (outcome.Preview)
+                {
+                    await Editor.Flow.SelectToolAsync(EditTool.Preview);
+                }
+
+                break;
+            case EditorFileBrowserAction.OpenItem:
+                await Editor.Flow.SwitchToAsync(outcome.Id);
+                break;
+        }
+    }
+
+    // "Back to the list": the several-files form closes and the browser opens again with the same ticks and filters.
+    private async Task BackToTheListAsync()
+    {
+        Editor.FileBatch.Close();
+        await OpenBrowserAsync(EditorBrowserView.Files);
+    }
+
+    public void Dispose()
+    {
+        Editor.Changed -= OnChanged;
+        Editor.AskSaveOrDiscard = null;
+        Editor.ConfirmDiscard = null;
+        Editor.HeaderHooks.OpenSupportingFiles = null;
+        Editor.HeaderHooks.OpenFolders = null;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Open Universe (v4 D17): closes the editor, asking "Unsaved changes" first, then opens the Universe page. Staying leaves everything as it was.
+    private async Task OpenUniverseAsync(EditorUniverseLink universe)
+    {
+        if (!await Editor.Flow.LeaveAsync())
+        {
+            return;
+        }
+
+        Nav.NavigateTo($"/universe/{Uri.EscapeDataString(universe.Qid)}");
+    }
+
+    private int _focusTries;
+    private IJSObjectReference? _focusModule;
+
+    // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the
+    // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Editor.FocusField is not { } key || !Editor.IsOpen)
+        {
+            _focusTries = 0;
+            return;
+        }
+
+        var found = false;
+        try
+        {
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            found = await _focusModule.InvokeAsync<bool>("focusField", key);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support here (a test host, a closing circuit): the pop-over is still fully usable without the cursor placed.
+        }
+
+        if (found || ++_focusTries >= 4)
+        {
+            _focusTries = 0;
+            Editor.ClearFocusRequest();
+        }
+    }
+
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasPendingChanges: true } flow)
+        {
+            return;
+        }
+
+        if (!await flow.LeaveAsync())
+        {
+            context.PreventNavigation();
+        }
+    }
+}

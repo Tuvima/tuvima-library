@@ -20,7 +20,6 @@ public sealed partial class SuccessResponseGuardrailTests
         "DeleteAudiobookBookmark",
         "DeleteAudiobookChapterTitleOverride",
         "DeleteBookmark",
-        "DeleteBookmarkPack",
         "DeleteCollection",
         "DeleteCollectionArtwork",
         "DeleteHighlight",
@@ -43,6 +42,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetAssetSubtitles",
         "GetAssetTextTrack",
         "GetBookFile",
+        "GetComicPage",
         "GetCollectionArtwork",
         "GetEntityCover",
         "GetProfileAvatar",
@@ -57,6 +57,10 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetViewItemThumbnail",
         // An Extras card picture is an image, not JSON.
         "GetExtraThumbnail",
+        // A scrub-preview sprite sheet is a JPEG image, not JSON.
+        "GetScrubPreviewSheet",
+        // A video bookmark's frame is a JPEG image, not JSON.
+        "GetBookmarkFrame",
         // The paired-app Photos routes that return JPEG or the original photo or video file, not JSON.
         "GetViewClientItemThumbnail",
         "GetViewClientItemPreview",
@@ -70,7 +74,6 @@ public sealed partial class SuccessResponseGuardrailTests
         "RetryMediaOperation",
         "StartAiModelDownload",
         "StreamAsset",
-        "SetBookmarkPackEnabled",
         "SetDetailDefaultSequence",
         "SetProfilePin",
         "DecideDevicePairing",

@@ -9,7 +9,7 @@ public static class ImportKindGuidance
     {
         ImportKinds.CollectionList => "Make a collection from it: Collections, New collection, From a list.",
         ImportKinds.PackFile => "Add it from Collections, New collection, Start from a pack.",
-        ImportKinds.BookmarkPack => "Add it from the title's player: open it, choose More in the bookmarks panel, then Import.",
+        ImportKinds.BookmarkPack => "Add it from the title's player: open it, open the bookmarks pane, then choose Find bookmarks.",
         ImportKinds.PluginSettings => "Add it in Settings, Profile, Import.",
         _ => "Library cannot use this file here.",
     };
@@ -18,7 +18,7 @@ public static class ImportKindGuidance
     {
         ImportKinds.CollectionList => "a list",
         ImportKinds.PackFile => "a collection pack",
-        ImportKinds.BookmarkPack => "a bookmark pack",
+        ImportKinds.BookmarkPack => "a bookmark file",
         ImportKinds.PluginSettings => "a plugin settings file",
         _ => "a file",
     };

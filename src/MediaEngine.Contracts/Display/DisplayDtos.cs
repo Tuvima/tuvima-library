@@ -64,6 +64,9 @@ public sealed record DisplayHeroDto(
     public IReadOnlyList<DisplayCardPreviewItemDto> PreviewItems { get; init; } = [];
     public int? PreviewTotalCount { get; init; }
 
+    /// <summary>Cover addresses for the "Recently added music" hero slide's collage (up to eight); empty for every other slide.</summary>
+    public IReadOnlyList<string> CollageUrls { get; init; } = [];
+
     /// <summary>True when the person is in the middle of this item (Home hero "started"); false for newly added ("new").</summary>
     public bool IsContinued { get; init; }
 
@@ -129,6 +132,18 @@ public sealed record DisplayCardDto(
     /// Tiles use it for the quiet "Still being matched" marker; false once the item settles.
     /// </summary>
     public bool IsSettling { get; init; }
+
+    /// <summary>
+    /// The Engine's answer to the New tag (Library activity D14): true for 14 days after a later import added the item, false otherwise.
+    /// Null only when a card was built without the rule; tiles then fall back to a short added-recently check.
+    /// </summary>
+    public bool? IsNew { get; init; }
+
+    /// <summary>
+    /// The Wikidata ID of the Universe this title's Series belongs to, set only when that Universe page can open
+    /// (the same rule as the detail page's Universe icon). Tiles use it for "Open Universe" in the "..." menu; null draws no row.
+    /// </summary>
+    public string? UniverseQid { get; init; }
 }
 
 public sealed record DisplayCardListMetadataDto(

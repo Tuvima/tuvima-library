@@ -19,7 +19,7 @@
             {
                 <label class="devices-tab__filter">
                     <span class="devices-tab__filter-label">@L["Common_Household"]</span>
-                    <AppNativeSelect Value="@(_filter.HouseholdId?.ToString() ?? string.Empty)"
+                    <AppSelect Native="true" Value="@(_filter.HouseholdId?.ToString() ?? string.Empty)"
                                      ValueChanged="@OnHouseholdChanged"
                                      data-devices-filter="household"
                                      aria-label="@L["Common_Household"].Value">
@@ -28,14 +28,14 @@
                         {
                             <option value="@household.Id">@household.Name</option>
                         }
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
             }
             @if (_people.Count > 0)
             {
                 <label class="devices-tab__filter">
                     <span class="devices-tab__filter-label">@L["Common_Profile"]</span>
-                    <AppNativeSelect Value="@(_filter.ProfileId?.ToString() ?? string.Empty)"
+                    <AppSelect Native="true" Value="@(_filter.ProfileId?.ToString() ?? string.Empty)"
                                      ValueChanged="@OnProfileChanged"
                                      data-devices-filter="profile"
                                      aria-label="@L["Common_Profile"].Value">
@@ -44,7 +44,7 @@
                         {
                             <option value="@person.Id">@person.DisplayName</option>
                         }
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
             }
         </div>

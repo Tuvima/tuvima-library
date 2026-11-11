@@ -451,33 +451,32 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
-    public void Validator_AcceptsThreeOtherVideosLibrariesWithDifferentFolders()
+    public void Validator_RefusesASecondVideosLibrary_BecauseEveryKindHoldsOneLibrary()
     {
+        // Libraries v3 D17: library names are fixed, so a kind is one library; a second place for it is a second folder.
         var config = CreateValidCataloguedLibrary();
         config.Libraries.Add(OtherVideosLibrary(1, "Home Videos", P(Drive, "media/home-videos")));
         config.Libraries.Add(OtherVideosLibrary(2, "TikTok Edits", P(Drive, "media/tiktok")));
-        config.Libraries.Add(OtherVideosLibrary(3, "Other Videos", P(Drive, "media/other-videos")));
 
         var errors = JsonConfigValidator.Validate(config, "libraries.json");
 
-        Assert.Empty(errors);
+        Assert.Contains(errors, error => error.Contains("holds one library", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void SaveLibraries_AcceptsThreeOtherVideosLibrariesAndKeepsAllThree()
+    public void SaveLibraries_KeepsAVideosLibraryWithSeveralFoldersAsOneLibrary()
     {
         using var temp = TempConfig.Create();
         var loader = new ConfigurationDirectoryLoader(temp.Path);
         var config = CreateValidCataloguedLibrary();
-        config.Libraries.Add(OtherVideosLibrary(1, "Home Videos", P(Drive, "media/home-videos")));
-        config.Libraries.Add(OtherVideosLibrary(2, "TikTok Edits", P(Drive, "media/tiktok")));
-        config.Libraries.Add(OtherVideosLibrary(3, "Other Videos", P(Drive, "media/other-videos")));
+        var videos = OtherVideosLibrary(1, "Videos", P(Drive, "media/home-videos"));
+        videos.Sources.Add(new LibrarySourceConfig { Id = "cccccccc-eeee-4ccc-8ccc-000000000002", Path = P(Drive, "media/tiktok") });
+        config.Libraries.Add(videos);
 
         loader.SaveLibraries(config);
 
-        Assert.Equal(
-            ["Movies", "Home Videos", "TikTok Edits", "Other Videos"],
-            loader.LoadLibraries().Libraries.Select(library => library.Name).ToArray());
+        var saved = loader.LoadLibraries().Libraries.Single(library => library.KindKey == "other_videos");
+        Assert.Equal(2, saved.Sources.Count);
     }
 
     [Fact]
@@ -794,7 +793,15 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
             Assert.Equal("10.0", parsed.SchemaVersion);
             Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
-            Assert.NotEmpty(parsed.Libraries);
+            // A true first run starts with no libraries (Settings and setup simplified D3); the Docker image keeps its starter folders.
+            if (path.EndsWith(System.IO.Path.Combine("docker", "config", "libraries.json"), StringComparison.Ordinal))
+            {
+                Assert.NotEmpty(parsed.Libraries);
+            }
+            else
+            {
+                Assert.Empty(parsed.Libraries);
+            }
             Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));
         }
     }

@@ -2,20 +2,26 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Services.Editing
+@inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
+@inject ViewDropUploader DropUploader
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
 @inject NavigationManager Nav
 @inject GalleryEditorLauncherService GalleryEditorLauncher
+@inject ViewEditorHost EditorHost
 @inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <PageTitle>@L["Common_Library", _gallery is null ? L["ViewGalleryDetailPage_GalleryTitle"].Value : _gallery.Name]</PageTitle>
 
 <ViewSectionShell>
+    @if (IsOwner && _gallery?.Kind == ViewGalleryKind.Manual && !DeviceContext.IsPhone) { <ViewDropTarget OnFiles="DropFilesAsync" /> }
     <div class="view-feature-page">
         @if (_loading)
         {
@@ -41,7 +47,7 @@
                     {
                         <details>
                             <summary>@L["ViewGalleryDetailPage_SmartRuleSummary"]</summary>
-                            <code>@_gallery.SmartRuleJson</code>
+                            <p>@ViewSmartRuleSummary.Describe(_gallery.SmartRuleJson)</p>
                         </details>
                     }
                 </div>
@@ -76,10 +82,13 @@
                                    OnOpen="Open"
                                    OnToggleSelection="Toggle"
                                    OnSelectDateGroup="SelectGroup" />
-                @if (_page.HasMore) { <AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
-                @if (IsOwner && _gallery.Kind == ViewGalleryKind.Manual && _selected.Count > 0)
+                @if (_page.HasMore) { <div @ref="_sentinel" aria-hidden="true"></div><AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
+                @if (_selected.Count > 0)
                 {
-                    <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnRemoveFromGallery="RemoveAsync" />
+                    @* Smart Galleries fill from rules, so their selection only copies (Favorite); removing and editing belong to a manual Gallery you own. *@
+                    var canManage = IsOwner && _gallery.Kind == ViewGalleryKind.Manual;
+                    <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnFavorite="FavoriteSelectionAsync" FavoriteRemoves="@AllSelectedFavorite"
+                                          OnRemoveFromGallery="@(canManage ? EventCallback.Factory.Create(this, RemoveAsync) : default)" OnEdit="@(canManage ? EditCallback : default)" />
                 }
             }
         }
@@ -96,6 +105,7 @@
                          MotionUrl="@MotionUrl(_active)"
                          PositionLabel="@($"{ActiveIndex + 1} of {_page?.Items.Count ?? 0}")"
                          ThumbnailUrl="@Thumbnail(_active)"
+                         EditRail="@(_gallery is not null && _page is not null ? new ViewEditGalleryRail(_gallery.Id, _gallery.Name, _page.Items, _gallery.ItemCount, _page.HasMore) : null)"
                          OnClose="@(() => _active = null)"
                          OnPrevious="Previous"
                          OnNext="Next"
@@ -136,13 +146,13 @@
                         <AppCheckbox Value="@IsShareSelected(target.ProfileId)"
                                      ValueChanged="@(value => SetShareSelected(target.ProfileId, value))"
                                      Label="@target.DisplayName" />
-                        <AppNativeSelect Value="@PermissionValue(target.ProfileId)"
-                                         OnChange="@(args => SharePermissionChanged(target.ProfileId, args))"
+                        <AppSelect Native="true" Value="@PermissionValue(target.ProfileId)"
+                                         ValueChanged="@(selected => SharePermissionChanged(target.ProfileId, selected))"
                                          Disabled="@(!IsShareSelected(target.ProfileId))"
                                          aria-label="@($"Permission for {target.DisplayName}")">
                             <option value="view">@L["ViewGalleryDetailPage_CanView"]</option>
                             <option value="contribute">@L["ViewGalleryDetailPage_CanContribute"]</option>
-                        </AppNativeSelect>
+                        </AppSelect>
                     </div>
                 }
             </div>
@@ -174,6 +184,94 @@
     private Guid? _profileId;
     private bool _loading = true;
     private bool _loadingMore;
+    private ElementReference _sentinel;
+    private IJSObjectReference? _observerModule;
+    private DotNetObjectReference<ViewGalleryDetailPage>? _self;
+    private bool _observing;
+
+    // The next page loads as the end of the list nears the screen; Load more stays under the list as the fallback.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var wantObserver = _page?.HasMore == true && !_loading;
+        if (!wantObserver && !_observing) return;
+        try
+        {
+            if (wantObserver)
+            {
+                _observerModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/load-more-observer.js");
+                _self ??= DotNetObjectReference.Create(this);
+                await _observerModule.InvokeVoidAsync("observe", _sentinel, _self, new { rootMargin = "800px 0px" });
+                _observing = true;
+            }
+            else if (_observerModule is not null)
+            {
+                await _observerModule.InvokeVoidAsync("disconnect", _sentinel);
+                _observing = false;
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; nothing is left to observe.
+        }
+        catch (JSException)
+        {
+            // Load more stays under the list, so the page still works without the scroll trigger.
+        }
+    }
+
+    [JSInvokable]
+    public Task LoadMoreFromObserverAsync() => InvokeAsync(LoadMoreAsync);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_observerModule is not null)
+        {
+            try
+            {
+                await _observerModule.InvokeVoidAsync("disconnect", _sentinel);
+                await _observerModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit closed first; the browser has already released the observer.
+            }
+        }
+
+        _self?.Dispose();
+    }
+    private bool _dropping;
+    // Photos and videos dropped anywhere on the page are added to the Library and to this Gallery.
+    private async Task DropFilesAsync(IReadOnlyList<IBrowserFile> files)
+    {
+        if (_dropping || _gallery is null || !IsOwner || _gallery.Kind != ViewGalleryKind.Manual) return;
+        _dropping = true;
+        try
+        {
+            var result = await DropUploader.UploadAsync(files);
+            if (result.ItemIds.Count > 0 && await ApiClient.AddViewGalleryItemsAsync(_gallery.Id, result.ItemIds) is not null)
+            {
+                DropUploader.Report(result, _gallery.Name);
+                await Workspace.LoadGalleriesAsync(force: true);
+                await OnParametersSetAsync();
+            }
+            else DropUploader.Report(result);
+        }
+        finally { _dropping = false; }
+    }
+    private IEnumerable<LocalAssetDto> SelectedItems => _page?.Items.Where(item => _selected.Contains(item.Id)) ?? [];
+    private bool AllSelectedFavorite => SelectedItems.Any() && SelectedItems.All(item => item.Favorite);
+    private async Task FavoriteSelectionAsync()
+    {
+        var value = !AllSelectedFavorite;
+        foreach (var item in SelectedItems.ToArray())
+        {
+            if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value))
+            {
+                _selected.Remove(item.Id);
+                if (_page is not null) _page = _page with { Items = _page.Items.Select(entry => entry.Id == item.Id ? entry with { Favorite = value } : entry).ToList() };
+            }
+        }
+    }
     private async Task LoadMoreAsync()
     {
         if (_loadingMore || _page?.NextCursor is null) return;
@@ -256,7 +354,7 @@
 
     private async Task ArchiveAsync()
     {
-        if (_active is not null && await ApiClient.ArchiveViewItemAsync(_active.Id))
+        if (_active is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_active.Id))
         {
             _active = null;
             await OnParametersSetAsync();
@@ -265,7 +363,7 @@
 
     private async Task TrashAsync()
     {
-        if (_active is not null && await ApiClient.TrashViewItemAsync(_active.Id))
+        if (_active is not null && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_active.Id))
         {
             _active = null;
             await OnParametersSetAsync();
@@ -275,6 +373,15 @@
     private async Task AddToGalleryAsync(Guid galleryId)
     {
         if (_active is not null) await ApiClient.AddViewGalleryItemsAsync(galleryId, [_active.Id]);
+    }
+
+    private EventCallback EditCallback => EditorHost.CanEdit ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
+
+    private async Task EditSelectionAsync()
+    {
+        var items = _page?.Items.Where(item => _selected.Contains(item.Id)).ToList() ?? [];
+        if (items.Count == 0 || !await EditorHost.OpenItemsAsync(items)) return;
+        if ((await EditorHost.WhenClosedAsync()).Changed) { _selected.Clear(); await OnParametersSetAsync(); }
     }
 
     private async Task OpenEdit()
@@ -326,10 +433,10 @@
             _shareDraft.Remove(profileId);
     }
 
-    private void SharePermissionChanged(Guid profileId, ChangeEventArgs args)
+    private void SharePermissionChanged(Guid profileId, string? selected)
     {
         if (!_shareDraft.ContainsKey(profileId)) return;
-        _shareDraft[profileId] = string.Equals(args.Value?.ToString(), "contribute", StringComparison.Ordinal)
+        _shareDraft[profileId] = string.Equals(selected, "contribute", StringComparison.Ordinal)
             ? ViewGallerySharePermission.Contribute
             : ViewGallerySharePermission.View;
     }

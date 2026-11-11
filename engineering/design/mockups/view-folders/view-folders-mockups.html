@@ -1,0 +1,164 @@
+<title>View Folders Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one long page of numbered screens, drawn in the Dashboard's own greys (Look v3). Dark only, like the app. */
+:root{color-scheme:dark;--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--raised:#2F3039;--text:#F5F7FB;--text2:#B6C2D6;--muted:#94A3B8;--accent:#8852FC;--accent-text:#A46FFF;--accent-soft:rgba(136,82,252,.16);--bs:rgba(148,163,184,.10);--b:rgba(148,163,184,.16);--bst:rgba(182,194,214,.46);--amber:#F59E0B;--red:#FF8A8A;--green:#22C55E;--view:#D98BC5;--view-soft:rgba(217,139,197,.14);--watch:#6EA8FE;--watch-soft:rgba(110,168,254,.14);--ui:"Inter",system-ui,sans-serif}
+body{margin:0;background:var(--page);color:var(--text);font:14px/1.5 var(--ui);padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1{font-size:24px;font-weight:600;margin:0 0 4px}h2{font-size:20px;font-weight:600;margin:0}p{margin:0;color:var(--text2);max-width:72ch}
+section{display:flex;flex-direction:column;gap:12px}.sub{color:var(--muted)}
+.stage{position:relative;border:1px solid var(--b);border-radius:10px;background:var(--page);padding:18px;overflow-x:auto}
+.inner{position:relative;min-width:900px}
+.m{position:absolute;width:20px;height:20px;border-radius:50%;background:#F5B942;color:#111;font:700 12px/20px var(--ui);text-align:center;z-index:5;box-shadow:0 0 0 2px var(--page)}
+.notes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;color:var(--text2)}
+.notes li{display:flex;gap:10px}.notes b.n{flex:none;width:20px;height:20px;border-radius:50%;background:#F5B942;color:#111;font-size:12px;text-align:center;line-height:20px}
+.pair{display:grid;grid-template-columns:1fr;gap:16px}
+.lab{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 6px}.lab b{color:var(--text)}
+/* page parts */
+.pt{font-size:24px;font-weight:600;margin:0}.ps{color:var(--muted);font-size:13px;margin:2px 0 12px}
+.chips{display:flex;gap:8px;margin-bottom:12px}.chip{border:1px solid var(--b);border-radius:999px;padding:5px 14px;font-size:13px;font-weight:500;color:var(--text2)}.chip.on{background:var(--accent-soft);color:var(--text);border-color:rgba(136,82,252,.5)}
+.bar{display:flex;justify-content:flex-end;margin-bottom:10px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:44px;box-sizing:border-box;padding:0 16px;border-radius:8px;border:1px solid var(--bst);font-weight:500;font-size:14px;color:var(--text);white-space:nowrap}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}.btn.c{height:36px;padding:0 12px;font-size:13px}.btn.t{border-color:transparent}
+.ib{width:36px;height:36px;box-sizing:border-box;border:1px solid var(--bst);border-radius:8px;display:inline-grid;place-items:center;color:var(--text2);font-size:15px}
+table{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--card);border:1px solid var(--b);border-radius:8px;overflow:hidden}
+th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--bs)}
+td{height:56px;padding:0 14px;border-bottom:1px solid var(--bs);font-size:14px;overflow:hidden}tr:last-child td{border-bottom:0}
+.nm{display:flex;align-items:center;gap:12px;min-width:0}.tile{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:15px}
+.tile.v{background:var(--view-soft);color:var(--view)}.tile.w{background:var(--watch-soft);color:var(--watch)}
+.cut{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--text2)}
+.area{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:500;border-radius:4px;padding:2px 8px}.area.v{background:var(--view-soft);color:var(--view)}.area.w{background:var(--watch-soft);color:var(--watch)}
+.pend{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--b);border-radius:4px;padding:2px 8px;font-size:12px;color:var(--text2)}
+.fb{display:inline-flex;align-items:center;gap:4px;color:var(--text);font-weight:500;font-size:13px;padding:6px 8px;border-radius:8px}
+.pop{position:absolute;width:420px;background:var(--raised);border:1px solid var(--b);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.45);padding:10px;z-index:4}
+.pop .it{display:flex;gap:10px;align-items:center;min-height:44px;padding:0 8px;border-radius:6px}.pop .it:hover{background:rgba(255,255,255,.06)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}.dot.off{background:var(--amber)}
+.cp{margin-left:auto;color:var(--muted)}
+/* windows */
+.dim{background:rgba(0,0,0,.55);border-radius:8px;padding:28px 0;display:flex;justify-content:center}
+.win{background:var(--card);border:1px solid var(--b);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);display:flex;flex-direction:column;position:relative}
+.win.m6{width:640px}.win.l9{width:900px}
+.wh{display:flex;gap:12px;padding:18px 20px 12px;align-items:flex-start}.wh h3{margin:0;font-size:20px;font-weight:600}.wh small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.wh .x{margin-left:auto;width:44px;height:44px;display:grid;place-items:center;color:var(--text2);margin-top:-8px;margin-right:-10px}
+.wb{padding:6px 20px 16px;display:flex;flex-direction:column;gap:12px}
+.wf{border-top:1px solid var(--bs);padding:14px 20px;display:flex;gap:10px;align-items:center}.wf .sp{flex:1;color:var(--muted);font-size:13px}
+.fld label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}.fld .in{height:44px;box-sizing:border-box;border:1px solid var(--bst);border-radius:8px;padding:0 12px;display:flex;align-items:center;color:var(--text)}.fld small{display:block;color:var(--muted);font-size:13px;margin-top:6px}
+.fr{border:1px solid var(--b);border-radius:8px;background:var(--page);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.fr .top{display:flex;gap:10px;align-items:center;min-width:0}.fr .top .cut{flex:1;min-width:0}
+.tag{border-radius:4px;border:1px solid var(--b);padding:2px 8px;font-size:12px;color:var(--text2)}
+.ok{display:flex;gap:10px;align-items:center;border:1px solid rgba(34,197,94,.35);background:rgba(34,197,94,.08);border-radius:8px;padding:10px 14px}
+.pk{display:grid;grid-template-columns:200px 1fr;border:1px solid var(--b);border-radius:8px;min-height:190px;background:var(--page)}
+.pk .sd{border-right:1px solid var(--bs);padding:10px;display:flex;flex-direction:column;gap:2px;font-size:13px}.pk .sd .r{padding:10px;border-radius:6px;color:var(--text2)}.pk .sd .r.on{background:var(--accent-soft);color:var(--text)}.pk .sd h5{margin:6px 8px 2px;font-size:12px;color:var(--muted);font-weight:600}
+.pk .ls{padding:10px 14px;display:flex;flex-direction:column;gap:2px;font-size:13px}.pk .ls .l{height:40px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bs)}
+.phone{width:360px;border:1px solid var(--b);border-radius:20px;background:var(--page);padding:14px;display:flex;flex-direction:column;gap:10px;position:relative}
+.card{border:1px solid var(--b);border-radius:8px;background:var(--card);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.bad{outline:1px dashed rgba(255,138,138,.6);outline-offset:2px}
+</style>
+<div class="wrap">
+<div><h1>View folders in the Libraries table</h1><p class="sub">Draft mockups for the View folders plan. Drawn in Look v3's greys on the shared picker frame (Editor v5 D32). Yellow numbers match the notes under each screen. Names, paths and counts are examples.</p></div>
+
+<section id="a"><h2>A. Today: a View folder row in setup</h2>
+<p class="sub">Setup's Libraries step. The Photos folder is a row of its own that behaves unlike Movies.</p>
+<div class="stage"><div class="inner">
+<div class="pt">Your libraries</div><div class="ps">Nothing is scanned during setup.</div>
+<div class="chips"><span class="chip on">All 2</span><span class="chip">Watch 1</span><span class="chip">Listen 0</span><span class="chip">Read 0</span><span class="chip">View 1</span></div>
+<div class="bar"><span class="btn p">＋ Add library</span></div>
+<table><colgroup><col style="width:21%"><col style="width:10%"><col style="width:36%"><col style="width:13%"><col style="width:20%"></colgroup>
+<tr><th>Library</th><th>Area</th><th>Folders</th><th>Status</th><th></th></tr>
+<tr><td><div class="nm"><span class="tile w">▶</span><b>Movies</b></div></td><td><span class="area w">Watch</span></td><td><span class="fb">1 folder ▾</span></td><td><span class="pend">◷ Pending</span></td><td style="text-align:right"><span class="btn c">✎ Edit</span></td></tr>
+<tr><td><div class="nm"><span class="tile v">▣</span><b>Family photos</b></div></td><td><span class="area v">View</span></td><td class="bad"><span style="white-space:nowrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--text2)">\\nas-livingroom\shared\family\photos\2019-2024\phone-backups\camera-roll-originals</span></td><td><span class="pend">◷ Pending</span></td><td style="text-align:right"><span class="ib">✎</span> <span class="ib">▭</span> <span class="ib">🗑</span></td></tr></table>
+<span class="m" style="left:22px;top:204px">1</span><span class="m" style="left:300px;top:204px">2</span><span class="m" style="left:640px;top:204px">3</span><span class="m" style="left:860px;top:204px">4</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>The row is named after the folder the person typed a name for. Movies is named by its kind.</span></li><li><b class="n">2</b><span>The Folders cell prints the whole path. Movies shows "1 folder" with a list.</span></li><li><b class="n">3</b><span>The long path runs past its cell and pushes the table wider (here the Status and action columns slide off to the right).</span></li><li><b class="n">4</b><span>Three small icon buttons (rename, change folder, remove) instead of the one Edit button.</span></li></ul></section>
+
+<section id="b"><h2>B. After: the same step, View rows like every other row</h2>
+<p class="sub">One row per View kind that has folders (Photos here). The same folder-count button, the same Edit button, the path clipped inside its own list.</p>
+<div class="stage"><div class="inner" style="min-height:330px">
+<div class="pt">Your libraries</div><div class="ps">Nothing is scanned during setup.</div>
+<div class="chips"><span class="chip on">All 2</span><span class="chip">Watch 1</span><span class="chip">Listen 0</span><span class="chip">Read 0</span><span class="chip">View 1</span></div>
+<div class="bar"><span class="btn p">＋ Add library</span></div>
+<table><colgroup><col style="width:21%"><col style="width:10%"><col style="width:36%"><col style="width:13%"><col style="width:20%"></colgroup>
+<tr><th>Library</th><th>Area</th><th>Folders</th><th>Status</th><th></th></tr>
+<tr><td><div class="nm"><span class="tile w">▶</span><b>Movies</b></div></td><td><span class="area w">Watch</span></td><td><span class="fb">1 folder ▾</span></td><td><span class="pend">◷ Pending</span></td><td style="text-align:right"><span class="btn c">✎ Edit</span></td></tr>
+<tr><td><div class="nm"><span class="tile v">▣</span><b>Photos</b></div></td><td><span class="area v">View</span></td><td><span class="fb" style="background:var(--hover)">2 folders ▾</span></td><td><span class="pend">◷ Pending</span></td><td style="text-align:right"><span class="btn c">✎ Edit</span></td></tr></table>
+<div class="pop" style="left:200px;top:236px"><div class="it"><span class="dot"></span><span class="cut" style="flex:1;min-width:0">\\nas-livingroom\shared\family\photos\2019-2024\phone-backups\camera-roll-originals</span><span class="cp">⧉</span></div><div class="it"><span class="dot"></span><span class="cut" style="flex:1;min-width:0">D:\Pictures\Holidays</span><span class="cp">⧉</span></div></div>
+<span class="m" style="left:22px;top:232px">1</span><span class="m" style="left:300px;top:228px">2</span><span class="m" style="left:620px;top:260px">3</span><span class="m" style="left:858px;top:232px">4</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>The row is named by the kind (Photos, Personal videos, Documents), with the View tile and colour. Folder names no longer name rows.</span></li><li><b class="n">2</b><span>The Folders cell is "N folders" and opens the same list Movies uses. It never prints a path.</span></li><li><b class="n">3</b><span>Each path in the list is clipped to the list width, with a copy button, a green or amber dot for reachable or not, and the full path in a tooltip when it is cut off (Look v3 D8c).</span></li><li><b class="n">4</b><span>One outlined Edit button, the same as Movies. Rename, change folder and remove move into the Edit window (screen D).</span></li></ul></section>
+
+<section id="c"><h2>C. Add a View folder (second screen of Add library)</h2>
+<p class="sub">The shared folder picker on the Editor v5 frame (D32), Window size L. The same fields as Movies and TV: an optional friendly name and the Read-only or Managed choice.</p>
+<div class="stage"><div class="inner"><div class="dim"><div class="win l9">
+<div class="wh"><div><h3>Add a folder</h3><small>Choose the folder that holds your photos and videos</small></div><span class="x">✕</span></div>
+<div class="wb">
+<div class="fld" style="max-width:360px"><label>Friendly name <span style="color:var(--muted);font-weight:400">optional</span></label><div class="in">Pictures</div><small>Names this folder, not the library.</small></div>
+<div class="pk"><div class="sd"><h5>This server</h5><div class="r">▣ Root</div><div class="r on">▭ Pictures</div><div class="r">▭ Home</div><div class="r" style="color:var(--accent-text)">⌨ Type a path…</div></div>
+<div class="ls"><div style="color:var(--muted)">‹ ↑ ↻ &nbsp; ⌕ Search folders here</div><div style="margin:6px 0"><b>D:\Pictures</b> · 3 folders inside</div><div class="l">▰ Holidays<span style="margin-left:auto;color:var(--muted)">3 Nov 2026</span></div><div class="l">▰ Phone backups<span style="margin-left:auto;color:var(--muted)">6 Nov 2026</span></div><div class="l">▰ Scans<span style="margin-left:auto;color:var(--muted)">12 Sep 2026</span></div></div></div>
+<div class="ok"><span style="color:var(--green);font-size:18px">✓</span><div><b>Looks right</b><br><span style="color:var(--text2)">D:\Pictures holds 9,412 pictures and videos. Nothing here is in another library.</span></div></div>
+<div class="note" style="border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.08);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text2)">ⓘ You can't upload photos until you add a Managed folder.</div>
+<div style="display:flex;gap:12px"><div class="card" style="flex:1;border-color:var(--accent);background:var(--accent-soft)"><b>◉ Read-only</b><span style="color:var(--text2);font-size:13px">Library reads this folder and never changes a file in it.</span></div><div class="card" style="flex:1"><b>⚙ Managed</b><span style="color:var(--text2);font-size:13px">Library may add, move and rename files here, for example when photos are uploaded or backed up.</span></div></div>
+</div>
+<div class="wf"><span class="sp">Your files are never deleted or changed in a read-only folder.</span><span class="btn t">Cancel</span><span class="btn p">Add folder</span></div>
+</div></div>
+<span class="m" style="left:40px;top:120px">1</span><span class="m" style="left:82px;top:260px">2</span><span class="m" style="left:240px;top:380px">3</span><span class="m" style="left:70px;top:480px">4</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>Friendly name is optional and filled from the folder you pick (Pictures). It never blocks Add folder. The same field as every other library.</span></li><li><b class="n">2</b><span>Locations, search and the folder list are the shared frame, folders only. The folder you are inside is the selection.</span></li><li><b class="n">3</b><span>The same one check as today: Looks right, Heads up or Already used. Already used blocks Add folder.</span></li><li><b class="n">5</b><span>While Photos has no Managed folder, a plain line says uploads are off. It disappears once one exists.</span></li><li><b class="n">4</b><span>Read-only or Managed, chosen when the folder is added, in setup and in Settings alike. Read-only is the default; Managed is the recommended choice for a new photo folder because uploads and phone backups are filed into it.</span></li></ul></section>
+
+<section id="d"><h2>D. Edit Photos (opened from the Edit button)</h2>
+<p class="sub">A Window M. Two folders, one Read-only and one Managed, so the friendly name shows. With one folder the name line is not shown.</p>
+<div class="stage"><div class="inner"><div class="dim"><div class="win m6">
+<div class="wh"><div><h3>Edit Photos</h3><small>The folders View reads for your photos and videos.</small></div><span class="x">✕</span></div>
+<div class="wb">
+<div class="fr"><div class="top"><span class="dot"></span><span class="cut">\\nas-livingroom\shared\family\photos\2019-2024\phone-backups\camera-roll-originals</span><span class="tag">Read-only</span><span class="ib" style="border-color:rgba(255,138,138,.5);color:var(--red)">🗑</span></div>
+<div class="fld"><label>Friendly name</label><div class="in">Camera roll originals</div><small>Names this folder, not the library. Shown only because Photos has two folders.</small></div><div style="color:var(--muted);font-size:13px">12 files skipped (not pictures or videos)</div></div>
+<div class="fr"><div class="top"><span class="dot"></span><span class="cut">D:\Pictures\Holidays</span><span class="tag">Managed</span><span class="ib" style="border-color:rgba(255,138,138,.5);color:var(--red)">🗑</span></div>
+<div class="fld"><label>Friendly name</label><div class="in">Holidays</div></div></div>
+<span class="btn" style="align-self:flex-start">＋ Add folder</span>
+</div>
+<div class="wf"><span class="sp">Removing a folder never deletes files.</span><span class="btn t">Discard</span><span class="btn p">Save changes</span></div>
+</div></div>
+<span class="m" style="left:150px;top:132px">1</span><span class="m" style="left:586px;top:132px">2</span><span class="m" style="left:150px;top:200px">3</span><span class="m" style="left:150px;top:246px">4</span><span class="m" style="left:150px;top:410px">5</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>One block per folder. The path is clipped inside the row, with the full path in a tooltip. A dot shows online or offline.</span></li><li><b class="n">2</b><span>Remove is an icon-only red-outlined button with a tooltip ("Remove folder"). It marks the folder for removal; nothing happens until Save changes shows Review.</span></li><li><b class="n">3</b><span>Friendly name is optional, filled from the folder's own name, and shown only when the kind has two or more folders (Libraries v3 D18).</span></li><li><b class="n">4</b><span>The count of skipped files stays visible, as on the View page today.</span></li><li><b class="n">5</b><span>Add folder opens screen C. The footer follows Look v3: Discard on the left of the primary, Save changes last.</span></li></ul></section>
+
+<section id="e"><h2>E. Settings › Libraries: View rows get the Edit button</h2>
+<p class="sub">Today these rows show a chevron and open the View page. Opening the row still does; Edit is new.</p>
+<div class="stage"><div class="inner">
+<table><colgroup><col style="width:20%"><col style="width:10%"><col style="width:12%"><col style="width:18%"><col style="width:20%"><col style="width:20%"></colgroup>
+<tr><th>Library</th><th>Area</th><th>Titles</th><th>Folders</th><th>Status</th><th></th></tr>
+<tr><td><div class="nm"><span class="tile w">▶</span><b>Movies</b></div></td><td><span class="area w">Watch</span></td><td>1,204</td><td><span class="fb">1 folder ▾</span></td><td><span style="color:var(--green)">● Up to date</span></td><td style="text-align:right"><span class="btn c">✎ Edit</span></td></tr>
+<tr><td><div class="nm"><span class="tile v">▣</span><b>Photos</b></div></td><td><span class="area v">View</span></td><td>9,412</td><td><span class="fb">2 folders ▾</span></td><td><span style="color:var(--green)">● Up to date</span></td><td style="text-align:right"><span class="btn c">✎ Edit</span></td></tr>
+<tr><td><div class="nm"><span class="tile v">▤</span><b>Documents</b></div></td><td><span class="area v">View</span></td><td>318</td><td><span class="fb">1 folder ▾</span></td><td><span style="color:var(--amber)">● Folder offline</span></td><td style="text-align:right"><span class="btn c">✎ Edit</span></td></tr></table>
+<span class="m" style="left:30px;top:100px">1</span><span class="m" style="left:640px;top:100px">2</span><span class="m" style="left:860px;top:100px">3</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>View kinds already appear here by kind, with a count. Nothing about how they are named changes.</span></li><li><b class="n">2</b><span>The folder list is the same part as setup uses.</span></li><li><b class="n">3</b><span>The same Edit button and the same window as setup (screen D). The View page keeps what is only for View (timeline switch, tidy, who sees what).</span></li></ul></section>
+
+<section id="f"><h2>F. Phone</h2>
+<p class="sub">Setup is read-only on phones (the page already says so). The table becomes cards.</p>
+<div class="stage"><div class="inner" style="min-width:0"><div class="phone">
+<div class="card"><div class="nm"><span class="tile v">▣</span><b>Photos</b><span class="area v" style="margin-left:auto">View</span></div><div style="display:flex;justify-content:space-between;color:var(--text2)"><span>2 folders ▾</span><span class="pend">◷ Pending</span></div></div>
+<div class="m" style="left:-8px;top:34px;position:absolute">1</div>
+</div></div></div>
+<ul class="notes"><li><b class="n">1</b><span>A View card reads like a Movies card: the kind, the area, the folder count and the status. No path is printed. In Settings the Edit button appears on the card and the window becomes a Sheet.</span></li></ul></section>
+<section id="g"><h2>G. Folders filter on the Photos page</h2>
+<p class="sub">Appears once Photos has two or more folders (Libraries v3 D18). Same on Personal videos and Documents.</p>
+<div class="stage"><div class="inner">
+<div class="pt">Photos</div><div class="ps">9,412 pictures and videos</div>
+<div class="chips" style="align-items:center"><span class="chip on">All</span><span class="chip">Recently added</span><span class="chip">On this day</span><span style="margin-left:auto" class="btn c">▭ Folders: Holidays ▾</span></div>
+<div class="pop" style="right:0;top:110px;width:300px"><div class="it">All folders</div><div class="it" style="background:var(--accent-soft)">✓ Holidays <span class="tag" style="margin-left:auto">Managed</span></div><div class="it">Camera roll originals <span class="tag" style="margin-left:auto">Read-only</span></div></div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:60px"><div class="card" style="height:90px"></div><div class="card" style="height:90px"></div><div class="card" style="height:90px"></div><div class="card" style="height:90px"></div><div class="card" style="height:90px"></div><div class="card" style="height:90px"></div></div>
+<span class="m" style="left:690px;top:84px">1</span><span class="m" style="left:690px;top:170px">2</span><span class="m" style="left:20px;top:240px">3</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>A Folders filter in the filter row. It is not shown when the kind has one folder.</span></li><li><b class="n">2</b><span>All folders, or one folder by its friendly name, with its Read-only or Managed tag so you can tell them apart.</span></li><li><b class="n">3</b><span>Picking one folder narrows the pictures to that folder. The choice is remembered per profile in the browser.</span></li></ul></section>
+<section id="h"><h2>H. Photos with only a Read-only folder</h2>
+<p class="sub">Upload is off until a Managed folder exists. The page says why and offers the fix. Personal videos and Documents behave the same, with their own noun ("documents").</p>
+<div class="stage"><div class="inner">
+<div style="display:flex;align-items:center;gap:12px"><div><div class="pt">Photos</div><div class="ps" style="margin:2px 0 0">9,412 pictures and videos</div></div><span class="btn" style="margin-left:auto;opacity:.45">⤒ Add files</span></div>
+<div style="margin:12px 0;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.08);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:center"><span style="flex:1;color:var(--text2)">ⓘ Uploads and phone backups need a Managed folder. Your Read-only folders are never changed.</span><span class="btn c">＋ Add a Managed folder</span></div>
+<div style="border:1px dashed var(--b);border-radius:8px;height:70px;display:grid;place-items:center;color:var(--muted);opacity:.6">Drop pictures here (off)</div>
+<div class="pop" style="right:20px;top:46px;width:240px;padding:8px 12px;font-size:13px">Uploads need a Managed folder</div>
+<span class="m" style="left:690px;top:6px">1</span><span class="m" style="left:6px;top:78px">2</span><span class="m" style="left:690px;top:84px">3</span><span class="m" style="left:6px;top:150px">4</span>
+</div></div>
+<ul class="notes"><li><b class="n">1</b><span>Add files is disabled; its tooltip says why (Look v3 D8b).</span></li><li><b class="n">2</b><span>One line on the page names the reason in plain words.</span></li><li><b class="n">3</b><span>The button next to it opens Add folder with Managed already chosen.</span></li><li><b class="n">4</b><span>The drop zone is off for the same reason. Once a Managed folder exists, the line and the tooltip go away.</span></li></ul></section>
+</div>

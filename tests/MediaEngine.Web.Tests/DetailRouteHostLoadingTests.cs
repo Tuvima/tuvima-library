@@ -195,7 +195,11 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
         await device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         Services.AddSingleton(device);
+        // The layout draws the pop-over; the pages only open it.
+        _editor = Render<EditorPopover>();
     }
+
+    private IRenderedComponent<EditorPopover> _editor = default!;
 
     private static DetailPageViewModel EditableModel(Guid id, string title, bool allowEdit = true) => new()
     {
@@ -243,7 +247,7 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EditingModeEndsWhenTheNextItemOpens()
+    public async Task ThePopOverCloses_WhenTheNextItemOpens()
     {
         await UseDesktopWithAMouseAsync();
         var first = Guid.NewGuid();
@@ -254,20 +258,19 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
 
         await ChooseEditEntryAsync(cut);
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool"));
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
+        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']"));
 
         cut.Render(p => p.Add(c => c.Request, Request(second)));
         cut.WaitForState(() => _pending.ContainsKey(second));
         _pending[second].SetResult(EditableModel(second, "Second album"));
 
         cut.WaitForAssertion(() => Assert.Contains("Second album", cut.Markup));
-        Assert.Empty(cut.FindAll(".tl-editing-bar__save"));
-        Assert.Empty(cut.FindAll(".tl-editing-bar__tool"));
+        _editor.WaitForAssertion(() => Assert.Empty(_editor.FindAll(".tl-editor-window")));
     }
 
     [Fact]
-    public async Task TheMoreEntryThatOpenedTheModalNowTurnsEditingModeOn()
+    public async Task TheMoreEntry_OpensThePopOverAtOnce_WithThePageBehindUnchanged()
     {
         await UseDesktopWithAMouseAsync();
         var id = Guid.NewGuid();
@@ -278,13 +281,16 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
 
         await ChooseEditEntryAsync(cut);
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool"));
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
+        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']"));
         Assert.Empty(cut.FindAll(".sme-dialog"));
+        // The page behind never changes: no bar, no pencils, no editing state.
+        Assert.Empty(cut.FindAll(".tl-editing-bar"));
+        Assert.Empty(cut.FindAll(".tl-editing-pencil"));
     }
 
     [Fact]
-    public async Task ChoosingTheEditEntryWhileAlreadyEditingKeepsEditingModeOn()
+    public async Task ChoosingTheEditEntryWhileTheEditorIsOpen_KeepsTheOneWindow()
     {
         await UseDesktopWithAMouseAsync();
         var id = Guid.NewGuid();
@@ -293,12 +299,12 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
         await ChooseEditEntryAsync(cut);
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
 
         await ChooseEditEntryAsync(cut);
 
-        Assert.Single(cut.FindAll(".tl-editing-bar"));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool"));
+        Assert.Single(_editor.FindAll(".tl-editor-window"));
+        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']"));
     }
 
     private static async Task ChooseEditEntryAsync(IRenderedComponent<DetailRouteHost> cut)

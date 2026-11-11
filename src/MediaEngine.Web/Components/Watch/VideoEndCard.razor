@@ -1,0 +1,102 @@
+@namespace MediaEngine.Web.Components.Watch
+@using System.Globalization
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The end card (unified player v2 D25a): "Up next" as an episode or lesson ends, on the shared panel surface. Rows, top to bottom: the next item's
+   still and title, "Next episode" or "Next lesson", then the countdown and Play now / Cancel. It sits above the bar (never over it) and the host
+   removes it as soon as the next item starts. On a course it gains one block, "Homework for this lesson" (universal editor v5 D31, screen M): the
+   supporting files shown alongside the lesson that just ended, each with its type badge, title, role and size, and Open, which stops the countdown
+   and opens the file over the course page. The block shows on the last lesson too, where there is no Up next, and stays when Up next is dismissed. A
+   show's end card never has it. *@
+<aside class="video-end-card" aria-label="@(ShowUpNext ? L["VideoPlaybackHost_UpNext"].Value : L["VideoEndCard_HomeworkHeading"].Value)" data-end-card data-playback-chrome data-chrome-hold>
+    @if (ShowUpNext)
+    {
+        <div class="video-end-card__head">
+            <h3 class="video-end-card__title">@L["VideoPlaybackHost_UpNext"]</h3>
+            @if (AutoAdvance) { <span class="video-end-card__countdown" role="timer">@L["VideoPlaybackHost_StartsInSeconds", (int)Math.Ceiling(RemainingSeconds)]</span> }
+        </div>
+        <div class="video-end-card__item">
+            @if (Next!.StillUrl is { } still && MediaTileArtworkUrl.SupportsRenditions(still))
+            {
+                <img class="video-end-card__still" src="@MediaTileArtworkUrl.ForDrawnSize(still, 112)" srcset="@(EpisodesPanel.EpisodeArtworkSrcSet(Next) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(still, 112))"
+                     width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" />
+            }
+            else
+            {
+                <span class="video-end-card__still video-end-card__still--empty" aria-hidden="true"></span>
+            }
+            <span class="video-end-card__words">
+                <strong class="video-end-card__name" data-end-card-title>@Next.Title</strong>
+                <span class="video-end-card__kind" data-end-card-kind>@KindLabel</span>
+            </span>
+        </div>
+        <div class="video-end-card__actions">
+            <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" data-end-card-cancel OnClick="Cancel">@L["VideoEndCard_Cancel"]</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Size="AppControlSize.Compact" data-end-card-play OnClick="PlayNow">@L["VideoEndCard_PlayNow"]</AppButton>
+        </div>
+    }
+    @if (HomeworkFiles.Count > 0)
+    {
+        <div class="video-end-card__homework" data-end-card-homework>
+            @if (ShowUpNext)
+            {
+                <hr class="video-end-card__rule" />
+            }
+            <h3 class="video-end-card__title">@L["VideoEndCard_HomeworkHeading"]</h3>
+            @foreach (var file in HomeworkFiles)
+            {
+                <div class="video-end-card__file" data-end-card-homework-file="@file.Id">
+                    <span class="video-end-card__file-type" aria-hidden="true">@file.FileBadge</span>
+                    <span class="video-end-card__words">
+                        <strong class="video-end-card__name video-end-card__name--file">@file.Title</strong>
+                        <span class="video-end-card__kind">@FileLine(file)</span>
+                    </span>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" data-end-card-homework-open="@file.Id"
+                               OnClick="@(() => OpenHomework.InvokeAsync(file))">@L["VideoEndCard_Open"]</AppButton>
+                </div>
+            }
+        </div>
+    }
+</aside>
+
+@code {
+    /// <summary>The episode or lesson that plays next; null on the last lesson, where only the homework shows.</summary>
+    [Parameter] public VideoOwnedEpisode? Next { get; set; }
+
+    /// <summary>True for a course or a folder of videos ("Next lesson"); false for a TV show ("Next episode").</summary>
+    [Parameter] public bool Lesson { get; set; }
+
+    /// <summary>False when the viewer turned autoplay off: the card stays with no countdown.</summary>
+    [Parameter] public bool AutoAdvance { get; set; } = true;
+    [Parameter] public double RemainingSeconds { get; set; }
+
+    /// <summary>True after Dismiss: Up next is gone and only the homework stays.</summary>
+    [Parameter] public bool UpNextDismissed { get; set; }
+
+    /// <summary>
+    /// The course's supporting files shown alongside the lesson that ended (universal editor v5 D31). Empty for a TV episode and for a lesson with
+    /// none; the block is drawn only when there is a file.
+    /// </summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel> HomeworkFiles { get; set; } = [];
+
+    [Parameter] public EventCallback PlayNow { get; set; }
+    [Parameter] public EventCallback Cancel { get; set; }
+
+    /// <summary>Open on a homework file: the host stops the countdown and opens the file over the course page.</summary>
+    [Parameter] public EventCallback<DetailExtraCardViewModel> OpenHomework { get; set; }
+
+    private bool ShowUpNext => Next is not null && !UpNextDismissed;
+
+    private string KindLabel => Lesson ? L["VideoEndCard_NextLesson"].Value : L["VideoPlaybackHost_NextEpisode"].Value;
+
+    // "Worksheet · 12 pages": the role, then the pages of a document or the size of any other file.
+    private string FileLine(DetailExtraCardViewModel file) => string.Join(" · ", new[]
+    {
+        file.RoleLabel,
+        file.PageCount is > 0 ? string.Format(CultureInfo.CurrentCulture, L[file.PageCount == 1 ? "VideoEndCard_OnePage" : "VideoEndCard_Pages"].Value, file.PageCount) : DisplayFormat.FormatFileSize(file.SizeBytes),
+    }.Where(part => !string.IsNullOrWhiteSpace(part)));
+}

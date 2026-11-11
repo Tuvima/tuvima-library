@@ -92,7 +92,7 @@
     min-width: 1.45rem;
     height: 1.45rem;
     padding: 0 .38rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -125,7 +125,7 @@
 }
 
 .artwork-stack__placeholder ::deep .tl-icon-root {
-    font-size: clamp(2.2rem, 7vw, 4.2rem);
+    font-size: var(--tl-icon-size-2xl);
 }
 
 .artwork-stack--compact .artwork-stack__item {

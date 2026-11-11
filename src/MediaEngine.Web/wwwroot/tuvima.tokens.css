@@ -2,7 +2,7 @@
    Tuvima Library design tokens
    Canonical source for app colors, spacing, radius, shadows, surfaces, and
    semantic status colors. Component styles should consume these variables
-   directly, or via the legacy --app-* aliases in app.css.
+   directly, or through the --app-* aliases in app.css where one still exists.
    -------------------------------------------------------------------------- */
 
 :root {
@@ -34,6 +34,15 @@
     --tl-bottom-dock-height: 0px;
     --tl-audio-dock-height: 0px;
 
+    /* Subtitle colours (unified player D12): the eight swatches for subtitle text and the background behind it. */
+    --tl-subtitle-swatch-white: #fff;
+    --tl-subtitle-swatch-black: #000;
+    --tl-subtitle-swatch-blue: #4f8bff;
+    --tl-subtitle-swatch-teal: #2dd4bf;
+    --tl-subtitle-swatch-green: #4ade80;
+    --tl-subtitle-swatch-yellow: #ffe066;
+    --tl-subtitle-swatch-red: #ff5c5c;
+    --tl-subtitle-swatch-magenta: #e879f9;
     --tl-accent-primary: #8852FC;
     --tl-accent-primary-rgb: 136, 82, 252;
     --tl-accent-primary-hover: #A46FFF;
@@ -50,30 +59,26 @@
     --tl-accent-collection-border: rgba(214, 168, 79, 0.46);
     --tl-text-on-collection: #17120A;
 
-    --tl-bg-root: #070A12;
-    --tl-bg-shell: #0B1020;
-    --tl-bg-surface: #111827;
-    --tl-bg-surface-raised: #151E2F;
-    --tl-bg-surface-hover: #1A2438;
-    --tl-bg-surface-elevated: #1D2940;
+    --tl-bg-root: #101115;
+    --tl-bg-shell: #14151A;
+    --tl-bg-surface: #1A1B21;
+    --tl-bg-surface-raised: #1F2027;
+    --tl-bg-surface-hover: #272830;
+    --tl-bg-surface-elevated: #2F3039;
     --tl-bg-overlay: rgba(0, 0, 0, 0.72);
     --tl-bg-app-gradient:
-        radial-gradient(circle at 18% 0%, rgba(136, 82, 252, 0.18), transparent 30%),
-        radial-gradient(circle at 82% 8%, rgba(56, 189, 248, 0.12), transparent 28%),
-        linear-gradient(180deg, #070A12 0%, #0B1020 46%, #070A12 100%);
+        linear-gradient(180deg, #101115 0%, #14151A 46%, #101115 100%);
     --tl-bg-shell-gradient:
-        linear-gradient(180deg, rgba(11, 16, 32, 0.98) 0%, rgba(7, 10, 18, 0.98) 100%);
+        linear-gradient(180deg, rgba(20, 21, 26, 0.98) 0%, rgba(16, 17, 21, 0.98) 100%);
 
     --tl-text-primary: #F5F7FB;
     --tl-text-secondary: #B6C2D6;
     --tl-text-muted: #94A3B8;
-    --tl-text-faint: rgba(148, 163, 184, 0.34);
     --tl-text-disabled: rgba(148, 163, 184, 0.58);
     --tl-text-on-accent: #FFFFFF;
     --tl-text-on-warning: #1F1303;
-    --font-ui: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
-        BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-    --font-brand: "Tuvima Sans", "Montserrat", sans-serif;
+    --font-ui: "Inter", system-ui, -apple-system, sans-serif;
+    --font-brand: "Tuvima Sans", sans-serif;
     --font-reader: "Merriweather", Georgia, serif;
     --font-reader-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
     --tl-reader-light-bg: #FAF8F2;
@@ -83,13 +88,28 @@
     --tl-reader-dark-bg: #101319;
     --tl-reader-dark-fg: #E8E2D9;
     --tl-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-    --tl-font-size-xs: 0.75rem;
-    --tl-font-size-sm: 0.875rem;
-    --tl-font-size-md: 1rem;
-    --tl-font-size-lg: 1.125rem;
-    --tl-font-size-xl: 1.5rem;
+    --tl-font-size-xs: 12px;
+    --tl-font-size-sm: 14px;
+    --tl-font-size-md: 16px;
+    --tl-font-size-lg: var(--tl-font-size-dialog-title);
+    --tl-font-size-xl: 24px;
+    --tl-font-size-dialog-title: 20px;
+    --tl-font-size-hero: 32px;
+    --tl-icon-size-xs: 16px;
+    --tl-icon-size-sm: 20px;
+    --tl-icon-size-md: 24px;
+    --tl-icon-size-lg: 32px;
+    --tl-icon-size-xl: 48px;
+    --tl-icon-size-2xl: 64px;
+    --tl-chip-height: 36px;
+    --tl-chip-height-touch: 44px;
+    --tl-touch-min: 44px;
+    --tl-font-size-title: 24px;
+    --tl-font-size-shelf-title: 20px;
+    --tl-line-height-title: 1.25;
+    --tl-line-height-heading: 1.3;
     --tl-font-size-caption: var(--tl-font-size-xs);
-    --tl-font-size-secondary: 0.8125rem;
+    --tl-font-size-secondary: 13px;
     --tl-font-size-body: var(--tl-font-size-sm);
     --tl-font-weight-regular: 400;
     --tl-font-weight-medium: 500;
@@ -99,10 +119,9 @@
     --tl-line-height-body: 1.5;
     --tl-line-height-relaxed: 1.625;
     --tl-letter-spacing-label: 0.08em;
-    --tl-control-font-size-sm: 0.8125rem;
-    --tl-control-font-size-md: 0.875rem;
-    --tl-control-font-size-lg: 0.9375rem;
-    --tl-control-font-weight: var(--tl-font-weight-semibold);
+    --tl-control-font-size-sm: 13px;
+    --tl-control-font-size-md: 14px;
+    --tl-control-font-weight: var(--tl-font-weight-medium);
     --tl-control-line-height: 1.25;
     --tl-control-letter-spacing: 0;
     --media-identity-font-family: var(--font-ui);
@@ -113,23 +132,32 @@
 
     --tl-border-subtle: rgba(148, 163, 184, 0.10);
     --tl-border-default: rgba(148, 163, 184, 0.16);
-    --tl-border-strong: rgba(182, 194, 214, 0.24);
+    --tl-border-strong: rgba(182, 194, 214, 0.46);
     --tl-divider: rgba(148, 163, 184, 0.10);
 
     /* Shared dropdown and secondary-action chrome. */
-    --tl-menu-surface: rgba(10, 14, 23, 0.97);
-    --tl-menu-border: rgba(136, 82, 252, 0.65);
-    --tl-menu-divider: rgba(196, 181, 253, 0.14);
-    --tl-menu-item-hover: rgba(136, 82, 252, 0.14);
-    --tl-menu-item-selected: rgba(136, 82, 252, 0.2);
-    --tl-menu-icon: #c4b5fd;
+    --tl-menu-surface: var(--tl-bg-surface-elevated);
+    --tl-menu-border: var(--tl-border-default);
+    --tl-menu-divider: var(--tl-border-subtle);
+    --tl-menu-item-hover: rgba(255, 255, 255, 0.06);
+    --tl-menu-item-selected: var(--tl-accent-primary-soft);
+    --tl-menu-icon: var(--tl-text-secondary);
     --tl-menu-min-width: 10.75rem;
-    --tl-menu-item-height: var(--tl-touch-target-min);
-    --tl-secondary-action-bg: rgba(76, 29, 149, 0.12);
-    --tl-secondary-action-bg-hover: rgba(109, 40, 217, 0.2);
-    --tl-secondary-action-bg-selected: rgba(136, 82, 252, 0.3);
-    --tl-secondary-action-border: rgba(167, 139, 250, 0.58);
-    --tl-secondary-action-border-hover: rgba(196, 181, 253, 0.82);
+    --tl-menu-width: 272px;
+    --tl-menu-row-height: 44px;
+    /* The page root is 14px, so menu type is in px: rem would resolve to 14px here (issue 702). */
+    --tl-menu-row-font-size: 16px;
+    --tl-menu-row-font-weight: 500;
+    --tl-menu-row-padding-y: 8px;
+    --tl-menu-sheet-row-height: 52px;
+    --tl-menu-helper-font-size: 13px;
+    --tl-menu-icon-size: 24px;
+    --tl-menu-item-height: var(--tl-menu-row-height);
+    --tl-secondary-action-bg: transparent;
+    --tl-secondary-action-bg-hover: var(--tl-menu-item-hover);
+    --tl-secondary-action-bg-selected: var(--tl-accent-primary-soft);
+    --tl-secondary-action-border: var(--tl-border-default);
+    --tl-secondary-action-border-hover: var(--tl-border-strong);
 
     --tl-status-success: #22C55E;
     --tl-status-success-soft: rgba(34, 197, 94, 0.14);
@@ -141,6 +169,13 @@
     --tl-status-warning-soft: rgba(245, 158, 11, 0.14);
     --tl-status-warning-border: rgba(245, 158, 11, 0.38);
     --tl-status-danger: #EF4444;
+    --tl-text-danger: #FF8A8A;
+    --tl-tooltip-surface: var(--tl-bg-surface-elevated);
+    --tl-tooltip-border: var(--tl-border-default);
+    --tl-tooltip-text: var(--tl-text-primary);
+    --tl-tooltip-radius: 6px;
+    --tl-tooltip-font-size: 13px;
+    --tl-tooltip-max-width: 280px;
     --tl-status-danger-soft: rgba(239, 68, 68, 0.14);
     --tl-status-danger-border: rgba(239, 68, 68, 0.34);
     --tl-status-unmatched: #FB7185;
@@ -148,15 +183,40 @@
     --tl-status-idle: #7F8DA5;
     --tl-status-idle-soft: rgba(127, 141, 165, 0.12);
 
-    /* Player surfaces share the approved navy, blue and purple visual recipe. */
-    --player-bg: #0F131E;
-    --player-surface: #121623;
+    /* Player surfaces alias the shared neutral surface tokens. */
+    --player-bg: var(--tl-bg-root);
+    --player-surface: var(--tl-bg-surface);
     --player-accent: var(--tl-accent-primary);
     --player-accent-hover: #A46FFF;
     --player-accent-soft: rgba(136, 82, 252, 0.16);
-    --player-track: #30364A;
+    --player-track: var(--tl-bg-surface-hover);
     --player-text: #F7F7FA;
-    --player-text-secondary: #9EA4BC;
+    --player-text-secondary: var(--tl-text-secondary);
+    /* One size and state set for every playback button (unified player v2 D6): 24 px glyph in a 44 px target, Play 32 px in a 48 px target,
+       bar title 16 px. Hover is a translucent white (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
+    --playback-control-target: 44px;
+    --playback-control-glyph: 24px;
+    --playback-play-target: 48px;
+    --playback-play-glyph: 32px;
+    --playback-title-size: 16px;
+    --playback-badge-size: 9px;
+    --playback-state-hover: rgba(255, 255, 255, 0.08);
+    --playback-state-hover-video: rgba(255, 255, 255, 0.12);
+    --playback-state-pressed: rgba(255, 255, 255, 0.16);
+    --playback-state-disabled-opacity: 0.38;
+    --playback-state-selected: rgba(136, 82, 252, 0.22);
+    --playback-hairline: rgba(255, 255, 255, 0.10);
+    /* The one slider style for the timeline, volume, speed and subtitle opacity (unified player v2 D9): a 4 px neutral rail, a 12 px white handle, no glow. */
+    --playback-rail: rgba(255, 255, 255, 0.22);
+    --playback-handle: #FFFFFF;
+    --playback-slider-rail-height: 4px;
+    --playback-slider-handle: 12px;
+    --playback-slider-hit: 24px;
+    --playback-volume-slider-width: 96px;
+    --playback-marker: var(--tl-accent-primary-hover);
+    --playback-marker-shared: #FFFFFF;
+    --playback-focus-ring-width: 2px;
+    --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);
     --playback-surface: var(--player-surface);
     --playback-surface-elevated: var(--player-surface);
@@ -179,7 +239,30 @@
     --playback-danger: var(--tl-status-danger);
     --playback-tool-width: 400px;
     --playback-tool-radius: 12px;
-    --playback-popover-surface: rgba(18, 22, 35, .96);
+    --playback-popover-surface: var(--tl-bg-surface-elevated);
+    /* The small activity badge on a context row's artwork (queue and history rows). */
+    --playback-activity-badge-surface: rgba(11, 23, 40, 0.84);
+    /* Unified player v2 D7, D11: one panel system. Menu 272 wide, Panel 360 to 420 wide, Wide (Audio & subtitles) 560; over video the same surface at 96% opacity. */
+    --playback-panel-menu-width: 272px;
+    --playback-panel-width: 400px;
+    --playback-panel-wide-width: 560px;
+    --playback-panel-speed-width: 420px;
+    --playback-panel-lyrics-width: 460px;
+    --playback-panel-lyrics-height: calc(100dvh - 140px);
+    --playback-panel-queue-width: 440px;
+    --playback-panel-queue-height: 440px;
+    --playback-panel-episodes-width: 520px;
+    --playback-panel-episodes-height: 534px;
+    --playback-panel-chapters-width: 600px;
+    --playback-panel-chapters-height: 470px;
+    --playback-panel-bookmarks-width: 460px;
+    --playback-panel-bookmarks-height: calc(100dvh - 120px);
+    --playback-panel-radius: 8px;
+    --playback-panel-row-height: 44px;
+    --playback-panel-edge: 12px;
+    --playback-panel-surface-video: color-mix(in srgb, var(--tl-bg-surface-elevated) 96%, transparent);
+    --playback-panel-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    --playback-panel-title-size: 17px;
     --playback-popover-gap: 8px;
     --playback-popover-margin: 8px;
     --playback-tool-max-height: min(70dvh, 640px);
@@ -188,6 +271,42 @@
     --playback-row-height: 64px;
     --playback-tool-icon-size: 22px;
     --playback-utility-icon-size: 22px;
+
+
+    /* One color per area (Look pass D3). Used for the area's icon tile, label and filter chip everywhere. */
+    --tl-area-watch: #FB7185;
+    --tl-area-listen: #FBBF24;
+    --tl-area-read: #60A5FA;
+    --tl-area-view: #2DD4BF;
+    --tl-area-vault: #D6A84F;
+
+    /* Icon tones (Look pass 4.7): a page asks for a tone, never a color. */
+    --tl-tone-neutral: var(--tl-text-secondary);
+    --tl-tone-accent: var(--tl-accent-primary-hover);
+    --tl-tone-info: var(--tl-status-info);
+    --tl-tone-success: var(--tl-status-success);
+    --tl-tone-warning: var(--tl-status-warning);
+    --tl-tone-danger: var(--tl-status-danger);
+    --tl-tone-wash: 14%;
+
+    /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
+    --tl-dialog-title-size: var(--tl-font-size-dialog-title);
+    /* Hero height on desktop (Look pass 4.5): one token; confirm the value on the real app. */
+    --tl-hero-height: 70svh;
+    /* One tile size everywhere (One tile design D1, D2): posters 214 x 321, squares the same height as posters in mixed rows (321 x 321)
+       and the poster width on pages that hold only squares (Listen: 214 x 214), landscape 320 x 180. A wider window shows more columns,
+       never bigger tiles. Phones use 112 x 168. Text inside a tile is never smaller than the floor. */
+    --tl-tile-poster-w: 214px;
+    --tl-tile-square-w: 321px;
+    --tl-tile-square-solo-w: 214px;
+    --tl-tile-landscape-w: 320px;
+    --tl-tile-text-floor: 13px;
+    --tl-tile-menu-button: 44px;
+    --tl-layer-menu: var(--tl-z-dropdown);
+    --tl-layer-dialog: var(--tl-z-modal);
+    --tl-layer-toast: var(--tl-z-toast);
+    --tl-layer-popover: var(--tl-z-popover);
+    --tl-layer-player: 1700;
 
     --tl-status-registered: var(--tl-status-success);
     --tl-status-healthy: var(--tl-status-success);
@@ -215,13 +334,40 @@
     --tl-media-game: #22C55E;
     --tl-media-document: #B6C2D6;
     --tl-media-unknown: #7F8DA5;
+    /* "What it provides" accents (Plugins and Integrations screens v5 D53): one fixed colour per kind of thing a plugin provides. */
+    --tl-provides-identification: var(--tl-accent-primary);
+    --tl-provides-details: var(--tl-status-info);
+    --tl-provides-artwork: var(--tl-media-movies);
+    --tl-provides-people: var(--tl-media-audiobooks);
+    --tl-provides-series-order: var(--tl-accent-collection);
+    --tl-provides-lyrics: #F472B6;
+    --tl-provides-subtitles: var(--tl-media-comics);
+    --tl-provides-skip-markers: var(--tl-status-warning);
+    --tl-provides-insights: #A3E635;
+    --tl-provides-lists-and-ratings: var(--tl-media-books);
+    --tl-provides-account-sync: #2DD4BF;
 
     --tl-radius-xs: 4px;
     --tl-radius-sm: 6px;
     --tl-radius-md: 8px;
     --tl-radius-lg: 8px;
     --tl-radius-xl: 12px;
-    --tl-radius-pill: 999px;
+    --tl-radius-pill: 3px;
+    --tl-radius-round: 999px;
+
+    /* Four window kinds, one ladder (Look v3 D14): Window S/M/L, Sheet under 600 px, Pop-out Menu/Panel, Viewer. */
+    --tl-window-s: 480px;
+    --tl-window-m: 640px;
+    --tl-window-l: 900px;
+    --tl-window-xl: 1200px;
+    --tl-window-radius: 12px;
+    --tl-sheet-radius: 16px;
+    --tl-popout-menu: 272px;
+    --tl-popout-panel: 400px;
+    --tl-popout-radius: 8px;
+    --tl-popout-row: 44px;
+    --tl-viewer-close: 44px;
+    --tl-viewer-black: #000000;
 
     --tl-space-1: 4px;
     --tl-space-2: 8px;
@@ -238,11 +384,30 @@
     --tl-list-row-height-compact: 2.7rem;
 
     --tl-control-height-sm: 36px;
-    --tl-control-height-md: 42px;
+    --tl-control-height-md: 44px;
     --tl-control-height-lg: 48px;
     --tl-control-height-compact: var(--tl-control-height-sm);
     --tl-control-height-normal: var(--tl-control-height-md);
     --tl-control-height-large: var(--tl-control-height-lg);
+    /* Alignment (Look v3 D15): the row-height ladder, the left label column of a settings or list row, and the gap between a form field's label and its field. */
+    --tl-row-h-compact: 44px;
+    --tl-row-h-default: 56px;
+    --tl-row-h-media: 64px;
+    --tl-row-label-column: 200px;
+    --tl-field-label-gap: 6px;
+    /* One icon button (Look v3 D9): icons 20 in the 36 px size, 24 in 44 and 48. */
+    --tl-icon-button-icon-sm: 20px;
+    --tl-icon-button-icon-lg: 24px;
+    --tl-scrim-soft: rgba(16, 17, 21, 0.55);
+    --tl-scrim-soft-strong: rgba(16, 17, 21, 0.72);
+    --tl-on-scrim: #FFFFFF;
+    /* The hero's one main button (Look v3 D12): light on any artwork, 56 px tall. */
+    --tl-hero-action-bg: #F5F7FB;
+    --tl-hero-action-bg-hover: #E3E6EC;
+    --tl-hero-action-text: #101115;
+    --tl-hero-action-height: 56px;
+    --tl-hero-action-label-size: 20px;
+    --tl-hero-action-icon-size: 24px;
     --tl-control-radius: 10px;
     --tl-control-padding-x: 12px;
     --tl-control-gap: 12px;
@@ -261,10 +426,10 @@
     --tl-motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --tl-hover-quiet-y: -2px;
     --tl-hover-standard-y: -5px;
-    --tl-hover-media-y: -8px;
-    --tl-hover-media-scale: 1.025;
-    --tl-hover-artwork-scale: 1.075;
-    --tl-hover-artwork-pan-y: -2%;
+    --tl-hover-media-y: 0;
+    --tl-hover-media-scale: 1;
+    --tl-hover-artwork-scale: 1;
+    --tl-hover-artwork-pan-y: 0%;
     --tl-hover-overlay-opacity: 1;
     --tl-hover-overlay-bg: linear-gradient(180deg, transparent 34%, rgba(7, 10, 18, 0.76) 100%);
     --tl-hover-border-color: rgba(182, 194, 214, 0.32);
@@ -285,7 +450,7 @@
     --tl-shadow-raised: 0 18px 44px rgba(0, 0, 0, 0.28);
     --tl-shadow-hover-quiet: 0 10px 24px rgba(0, 0, 0, 0.24);
     --tl-shadow-hover-standard: 0 18px 42px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--tl-hover-glow-color);
-    --tl-shadow-hover-media: 0 26px 70px rgba(0, 0, 0, 0.46), 0 0 0 1px var(--tl-hover-glow-color), 0 0 34px rgba(136, 82, 252, 0.18);
+    --tl-shadow-hover-media: 0 0 0 3px #fff, 0 0 0 6px rgba(136, 82, 252, 0.9);
 
     --tl-gradient-primary: linear-gradient(135deg, var(--tl-accent-primary) 0%, var(--tl-accent-primary-active) 100%);
     --tl-gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
@@ -310,6 +475,14 @@ html[data-form-factor="phone"] {
     --tl-phone-dock-height: 56px;
     --tl-phone-dock-gap: 8px;
     --tl-bottom-dock-height: calc(var(--tl-phone-dock-height) + var(--tl-phone-dock-gap) + max(var(--tl-phone-dock-gap), var(--tl-safe-area-bottom)));
+}
+
+/* Phones: three posters across at 112 x 168; squares follow the same rule (168 in mixed rows, 112 on a squares-only page). */
+html[data-form-factor="phone"] {
+    --tl-tile-poster-w: 112px;
+    --tl-tile-square-w: 168px;
+    --tl-tile-square-solo-w: 112px;
+    --tl-tile-landscape-w: min(72vw, 320px);
 }
 
 /* A phone held sideways has no room for the chips row; the menu still lists every section. */

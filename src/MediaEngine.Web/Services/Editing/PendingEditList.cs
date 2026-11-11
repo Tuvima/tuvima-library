@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Playback;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -12,6 +13,9 @@ public sealed class PendingEditList
 {
     private readonly List<EditSessionChange> _changes = [];
     private readonly Dictionary<string, string> _labels = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _notes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _before = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SupportingFileStage> _supportingFiles = new(StringComparer.Ordinal);
 
     public event Action? Changed;
 
@@ -22,22 +26,30 @@ public sealed class PendingEditList
     public bool IsEmpty => _changes.Count == 0;
 
     /// <summary>How many things Save would do: one per staged field, and one per artwork, identity, relationship or file-move entry.</summary>
-    public int ChangeCount => _changes.Sum(change => change.Kind == EditSessionChangeKinds.Details ? Math.Max(1, change.Fields.Count) : 1);
+    public int ChangeCount => _changes.Sum(change => change.Kind switch
+    {
+        EditSessionChangeKinds.Details => Math.Max(1, change.Fields.Count),
+        EditSessionChangeKinds.SupportingFiles => _supportingFiles.TryGetValue(change.Id, out var stage) ? Math.Max(1, stage.ChangeCount) : 1,
+        EditSessionChangeKinds.Bookmarks => Math.Max(1, change.Bookmarks?.Ops.Count ?? 0),
+        _ => 1,
+    });
 
     /// <summary>Stages one details field for an item, replacing an earlier value staged for the same field.</summary>
-    public void SetField(Guid entityId, string key, string? value)
+    public void SetField(Guid entityId, string key, string? value, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         var change = Find(EditSessionChangeKinds.Details, entityId);
         var fields = change?.Fields.Where(f => !SameKey(f.Key, key)).ToList() ?? [];
         fields.Add(new EditSessionFieldChange { Key = key.Trim(), Value = value });
-        Replace(change, new EditSessionChange
+        var next = new EditSessionChange
         {
             Id = change?.Id ?? NewId(),
             Kind = EditSessionChangeKinds.Details,
             EntityId = entityId,
             Fields = fields,
-        });
+        };
+        Replace(change, next);
+        RememberBefore(RowKey(next.Id, key.Trim()), before);
     }
 
     /// <summary>Takes one staged details field back out. The item's entry goes when its last field does.</summary>
@@ -57,6 +69,7 @@ public sealed class PendingEditList
         }
 
         Replace(change, new EditSessionChange { Id = change.Id, Kind = change.Kind, EntityId = entityId, Fields = fields });
+        _before.Remove(RowKey(change.Id, key.Trim()));
         return true;
     }
 
@@ -72,7 +85,7 @@ public sealed class PendingEditList
     /// Stages an artwork choice for one slot of an item (target is the picked picture), replacing an earlier choice for it.
     /// <paramref name="label"/> is an optional name for the picture, shown in Review changes; it is never sent to the Engine.
     /// </summary>
-    public void SetArtwork(Guid entityId, string slot, string targetId, string? label = null)
+    public void SetArtwork(Guid entityId, string slot, string targetId, string? label = null, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slot);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetId);
@@ -85,18 +98,19 @@ public sealed class PendingEditList
             EntityId = entityId,
             Slot = slot,
             TargetId = targetId,
-        }, label);
+        }, label, before: before);
     }
 
     /// <summary>
     /// Stages an identity, relationship or file-move change; one per item and kind, a later one replacing the earlier.
     /// <paramref name="label"/> is an optional name for the chosen record or destination, shown in Review changes; it is never sent to the Engine.
+    /// <paramref name="note"/> is an optional plain warning Review shows on the row (for example "Not on this album"); also never sent.
     /// </summary>
-    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null)
+    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null, string? note = null, string? before = null)
     {
-        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove || !EditSessionChangeKinds.IsKnown(kind))
+        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove or EditSessionChangeKinds.VideoOrder or EditSessionChangeKinds.ThingAdd or EditSessionChangeKinds.SupportingFiles || !EditSessionChangeKinds.IsKnown(kind))
         {
-            throw new ArgumentException("Use SetField, SetArtwork or SetExtraMove for details, artwork and Extras changes.", nameof(kind));
+            throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove, SetVideoOrder, AddThing or SetSupportingFile for details, artwork, Extras, video-order, added-thing and supporting-file changes.", nameof(kind));
         }
 
         var existing = Find(kind, entityId);
@@ -107,7 +121,7 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = targetId,
             Token = token,
-        }, label);
+        }, label, note, before);
     }
 
     /// <summary>
@@ -115,7 +129,7 @@ public sealed class PendingEditList
     /// episode to Extras (<paramref name="extraId"/> null, token <see cref="EditSessionExtraMove.ToExtrasToken"/>). Unlike the other
     /// kinds there can be several per item, one for each Extra, so they are told apart by <see cref="EditSessionChange.TargetId"/>.
     /// </summary>
-    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null)
+    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         var existing = FindExtraMove(entityId, extraId);
@@ -126,8 +140,233 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = extraId,
             Token = token,
-        }, label);
+        }, label, before: before);
     }
+
+    /// <summary>
+    /// Stages what a person chose for one file in "What is this file?" (universal editor v4 D20): an Extra of its own title, an Extra of
+    /// another title, or ignore. One per item: choosing again replaces the earlier choice. <paramref name="label"/> says what it becomes
+    /// ("Trailer · Season 1") and <paramref name="before"/> names the file, both for Review changes only.
+    /// </summary>
+    public void SetFileChoice(Guid entityId, ExtraFileChoice choice, string label, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        SetExtraMove(entityId, null, EditSessionExtraMove.ToFileToken(choice), label, before);
+    }
+
+    /// <summary>The staged "What is this file?" choice of one item, or null.</summary>
+    public EditSessionChange? FindFileChoice(Guid entityId) =>
+        FindExtraMove(entityId, null) is { } change && EditSessionExtraMove.IsFileChoice(change.Token) ? change : null;
+
+    /// <summary>
+    /// Stages the order of the videos of one series or section (universal editor v3.1), replacing an earlier order staged for it.
+    /// <paramref name="label"/> names the series for Review; <paramref name="before"/> says how it read before. Neither is sent to the Engine.
+    /// </summary>
+    public void SetVideoOrder(Guid parentId, IEnumerable<Guid> orderedIds, string? label = null, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(orderedIds);
+        var existing = Find(EditSessionChangeKinds.VideoOrder, parentId);
+        Replace(existing, new EditSessionChange
+        {
+            Id = existing?.Id ?? NewId(),
+            Kind = EditSessionChangeKinds.VideoOrder,
+            EntityId = parentId,
+            OrderedIds = [.. orderedIds],
+        }, label, before: before);
+    }
+
+    /// <summary>
+    /// Stages adding a character, place, faction or other thing by hand to a Universe (universal editor v4, WP11). Unlike the other kinds
+    /// there can be several for one Universe, told apart by an id made up here. <paramref name="label"/> names the kind ("Faction") for Review
+    /// and is never sent to the Engine.
+    /// </summary>
+    public EditSessionChange AddThing(Guid universeId, string name, string kindKey, string? description, string? label = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(kindKey);
+        var fields = new List<EditSessionFieldChange>
+        {
+            new() { Key = EditSessionThingAdd.NameKey, Value = name.Trim() },
+            new() { Key = EditSessionThingAdd.KindKey, Value = kindKey.Trim() },
+        };
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            fields.Add(new EditSessionFieldChange { Key = EditSessionThingAdd.DescriptionKey, Value = description.Trim() });
+        }
+
+        var change = new EditSessionChange
+        {
+            Id = NewId(),
+            Kind = EditSessionChangeKinds.ThingAdd,
+            EntityId = universeId,
+            TargetId = Guid.NewGuid().ToString("N"),
+            Fields = fields,
+        };
+        Replace(null, change, label);
+        return change;
+    }
+
+    /// <summary>The things staged to be added to a Universe, in the order they were staged.</summary>
+    public IReadOnlyList<EditSessionChange> ThingAdds(Guid universeId) =>
+        [.. _changes.Where(change => change.Kind == EditSessionChangeKinds.ThingAdd && change.EntityId == universeId)];
+
+    /// <summary>
+    /// Stages what the editor changed on one supporting file, replacing whatever was staged for it; a stage with nothing in it takes the file's
+    /// entry out. The saved change is one <see cref="EditSessionChangeKinds.SupportingFiles"/> change per file, on the file's title.
+    /// </summary>
+    public void SetSupportingFile(SupportingFileStage stage)
+    {
+        ArgumentNullException.ThrowIfNull(stage);
+        var existing = FindSupportingFileChange(stage.FileId);
+        if (stage.IsEmpty)
+        {
+            if (existing is not null)
+            {
+                Remove(existing.Id);
+            }
+
+            return;
+        }
+
+        var next = new EditSessionChange
+        {
+            Id = existing?.Id ?? NewId(),
+            Kind = EditSessionChangeKinds.SupportingFiles,
+            EntityId = stage.TitleId,
+            TargetId = stage.FileId.ToString("D"),
+            SupportingFiles = stage.ToRequest(),
+        };
+        _supportingFiles[next.Id] = stage;
+        Replace(existing, next);
+    }
+
+    /// <summary>What is staged for one supporting file, or null.</summary>
+    public SupportingFileStage? FindSupportingFile(Guid fileId) =>
+        FindSupportingFileChange(fileId) is { } change && _supportingFiles.TryGetValue(change.Id, out var stage) ? stage : null;
+
+    /// <summary>Every supporting file with something staged, in the order they were staged.</summary>
+    public IReadOnlyList<SupportingFileStage> SupportingFileStages =>
+        [.. _changes.Where(change => change.Kind == EditSessionChangeKinds.SupportingFiles).Select(change => _supportingFiles.GetValueOrDefault(change.Id)).OfType<SupportingFileStage>()];
+
+    /// <summary>The staged change of one supporting file (the Review row's change id), or null.</summary>
+    public EditSessionChange? FindSupportingFileChange(Guid fileId) =>
+        _changes.FirstOrDefault(c => c.Kind == EditSessionChangeKinds.SupportingFiles
+            && string.Equals(c.TargetId, fileId.ToString("D"), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Takes one field of a supporting file's staged change back out (Review's remove on its row). The file's entry goes when its last field does.</summary>
+    public bool ClearSupportingFileField(Guid fileId, string rowKey)
+    {
+        var stage = FindSupportingFile(fileId);
+        var field = SupportingFileFields.FieldOf(rowKey);
+        if (stage is null || stage.Row(field) is null)
+        {
+            return false;
+        }
+
+        SetSupportingFile(stage.Without(field));
+        return true;
+    }
+
+    /// <summary>Drops what is staged for supporting files that were deleted.</summary>
+    public int RemoveForSupportingFiles(IReadOnlyCollection<Guid> fileIds)
+    {
+        ArgumentNullException.ThrowIfNull(fileIds);
+        var removed = 0;
+        foreach (var id in fileIds)
+        {
+            if (FindSupportingFileChange(id) is { } change && Remove(change.Id))
+            {
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Stages one bookmark operation on a title's Everyone's bookmarks (universal editor v5 D37). A title has one bookmarks change holding its
+    /// operations in the order they were made; a later operation can cancel or replace an earlier one (see <see cref="EditorBookmarkStaging"/>).
+    /// <paramref name="label"/> is the line Review changes shows for the operation ("Added to Everyone's: 12:04 Opening"); it is never sent to the Engine.
+    /// </summary>
+    public void StageBookmarkOp(Guid workId, EditorBookmarkOp op, string label, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(op);
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        var staged = op with { Id = string.IsNullOrWhiteSpace(op.Id) ? NewId() : op.Id };
+        var existing = Find(EditSessionChangeKinds.Bookmarks, workId);
+        var changeId = existing?.Id ?? NewId();
+        var ops = EditorBookmarkStaging.Stage(existing?.Bookmarks?.Ops ?? [], staged);
+        _labels[changeId + ":" + staged.Id] = label.Trim();
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            _before[changeId + ":" + staged.Id] = before.Trim();
+        }
+
+        ReplaceBookmarks(existing, changeId, workId, ops);
+    }
+
+    /// <summary>Takes one staged bookmark operation back out (Review's "take this change back out"). The title's change goes when its last operation does.</summary>
+    public bool ClearBookmarkOp(Guid workId, string opId)
+    {
+        var existing = Find(EditSessionChangeKinds.Bookmarks, workId);
+        if (existing?.Bookmarks is not { } staged || !staged.Ops.Any(op => string.Equals(op.Id, opId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        ReplaceBookmarks(existing, existing.Id, workId, EditorBookmarkStaging.Without(staged.Ops, opId));
+        return true;
+    }
+
+    /// <summary>The bookmark operations staged for one title, in the order they were made.</summary>
+    public IReadOnlyList<EditorBookmarkOp> BookmarkOps(Guid workId) =>
+        Find(EditSessionChangeKinds.Bookmarks, workId)?.Bookmarks?.Ops ?? [];
+
+    /// <summary>The Review line staged for one bookmark operation, or null.</summary>
+    public string? BookmarkLabel(string changeId, string opId) => _labels.GetValueOrDefault(changeId + ":" + opId);
+
+    private void ReplaceBookmarks(EditSessionChange? existing, string changeId, Guid workId, IReadOnlyList<EditorBookmarkOp> ops)
+    {
+        // Labels of operations that no longer exist (cancelled by a later one) go with them.
+        var kept = ops.Select(op => changeId + ":" + op.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in _labels.Keys.Where(key => key.StartsWith(changeId + ":", StringComparison.Ordinal) && !kept.Contains(key)).ToList())
+        {
+            _labels.Remove(key);
+        }
+
+        foreach (var key in _before.Keys.Where(key => key.StartsWith(changeId + ":", StringComparison.Ordinal) && !kept.Contains(key)).ToList())
+        {
+            _before.Remove(key);
+        }
+
+        if (ops.Count == 0)
+        {
+            if (existing is not null)
+            {
+                _changes.Remove(existing);
+                Changed?.Invoke();
+            }
+
+            return;
+        }
+
+        Replace(existing, new EditSessionChange
+        {
+            Id = changeId,
+            Kind = EditSessionChangeKinds.Bookmarks,
+            EntityId = workId,
+            Bookmarks = new EditorBookmarkChangeDto { Ops = ops },
+        });
+    }
+
+    /// <summary>The staged order of one series or section, or null.</summary>
+    public EditSessionChange? FindVideoOrder(Guid parentId) => Find(EditSessionChangeKinds.VideoOrder, parentId);
+
+    /// <summary>The staged series change of one video (join, new series or stand alone), or null.</summary>
+    public EditSessionChange? FindVideoSeries(Guid videoId) => Find(EditSessionChangeKinds.VideoSeries, videoId);
+
+    /// <summary>The staged "rename the files to match this order" of one series or section, or null.</summary>
+    public EditSessionChange? FindVideoRename(Guid parentId) => Find(EditSessionChangeKinds.VideoRename, parentId);
 
     /// <summary>The staged move of one Extra (or of the episode itself when <paramref name="extraId"/> is null), or null.</summary>
     public EditSessionChange? FindExtraMove(Guid entityId, string? extraId) =>
@@ -138,13 +377,22 @@ public sealed class PendingEditList
     /// <summary>The name given for a staged identity, relationship or artwork choice, or null when none was given.</summary>
     public string? Label(string changeId) => _labels.GetValueOrDefault(changeId);
 
+    /// <summary>The warning given for a staged change, or null when none was given.</summary>
+    public string? Note(string changeId) => _notes.GetValueOrDefault(changeId);
+
+    /// <summary>What the item had before the change, as the staging screen recorded it (a Review row id: the change id, or the change id and field key for a details field); null when it was not recorded.</summary>
+    public string? Before(string rowId) => _before.GetValueOrDefault(rowId);
+
     /// <summary>Removes one staged change by its id (the row's menu in Review changes).</summary>
     public bool Remove(string changeId)
     {
         var removed = _changes.RemoveAll(c => c.Id == changeId) > 0;
         if (removed)
         {
-            _labels.Remove(changeId);
+            _supportingFiles.Remove(changeId);
+            ForgetLabels(changeId);
+            _notes.Remove(changeId);
+            ForgetBefore(changeId);
             Changed?.Invoke();
         }
 
@@ -158,7 +406,13 @@ public sealed class PendingEditList
         var removed = _changes.RemoveAll(c => c.EntityId == entityId);
         if (removed > 0)
         {
-            gone.ForEach(id => _labels.Remove(id));
+            gone.ForEach(id =>
+            {
+                _supportingFiles.Remove(id);
+                ForgetLabels(id);
+                _notes.Remove(id);
+                ForgetBefore(id);
+            });
             Changed?.Invoke();
         }
 
@@ -174,7 +428,10 @@ public sealed class PendingEditList
         }
 
         _changes.Clear();
+        _supportingFiles.Clear();
         _labels.Clear();
+        _notes.Clear();
+        _before.Clear();
         Changed?.Invoke();
     }
 
@@ -188,8 +445,13 @@ public sealed class PendingEditList
     private EditSessionChange? Find(string kind, Guid entityId) =>
         _changes.FirstOrDefault(c => c.Kind == kind && c.EntityId == entityId);
 
-    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null)
+    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null, string? note = null, string? before = null)
     {
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            _before[next.Id] = before.Trim();
+        }
+
         if (string.IsNullOrWhiteSpace(label))
         {
             _labels.Remove(next.Id);
@@ -197,6 +459,15 @@ public sealed class PendingEditList
         else
         {
             _labels[next.Id] = label.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            _notes.Remove(next.Id);
+        }
+        else
+        {
+            _notes[next.Id] = note.Trim();
         }
 
         if (existing is null)
@@ -209,6 +480,32 @@ public sealed class PendingEditList
         }
 
         Changed?.Invoke();
+    }
+
+    private static string RowKey(string changeId, string fieldKey) => changeId + ":" + fieldKey;
+
+    private void RememberBefore(string rowId, string? before)
+    {
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            _before[rowId] = before.Trim();
+        }
+    }
+
+    private void ForgetLabels(string changeId)
+    {
+        foreach (var key in _labels.Keys.Where(key => key == changeId || key.StartsWith(changeId + ":", StringComparison.Ordinal)).ToList())
+        {
+            _labels.Remove(key);
+        }
+    }
+
+    private void ForgetBefore(string changeId)
+    {
+        foreach (var key in _before.Keys.Where(key => key == changeId || key.StartsWith(changeId + ":", StringComparison.Ordinal)).ToList())
+        {
+            _before.Remove(key);
+        }
     }
 
     private static bool SameKey(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);

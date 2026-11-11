@@ -18,7 +18,7 @@
     }
     else
     {
-        <AppCard Title="@L["NotificationsPanel_Inbox"].Value" Description="@L["NotificationsPanel_WhatTheLibraryHasTold"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["NotificationsPanel_Inbox"].Value" Helper="@L["NotificationsPanel_WhatTheLibraryHasTold"].Value">
             <div class="notifications-page__toolbar">
                 <span class="notifications-page__count" data-testid="notifications-unread">@UnreadLine</span>
                 <AppButton Label="@L["NotificationsPanel_MarkAllRead"].Value" Size="AppControlSize.Compact" Disabled="@(_unread == 0)" OnClick="MarkAllReadAsync" />
@@ -46,9 +46,9 @@
                     }
                 </ul>
             }
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["NotificationsPanel_Channels"].Value" Description="@L["NotificationsPanel_WaysAMessageCanReach"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["NotificationsPanel_Channels"].Value" Helper="@L["NotificationsPanel_WaysAMessageCanReach"].Value">
             <div class="notifications-page__channels" data-testid="notifications-channels">
                 @foreach (var channel in _settings.Channels)
                 {
@@ -67,9 +67,9 @@
                     </div>
                 }
             </div>
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["NotificationsPanel_WhatGoesWhere"].Value" Description="@L["NotificationsPanel_ChooseWhichChannelsHearAbout"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["NotificationsPanel_WhatGoesWhere"].Value" Helper="@L["NotificationsPanel_ChooseWhichChannelsHearAbout"].Value">
             <div class="notifications-page__matrix" role="table" aria-label="@L["NotificationsPanel_WhereEachKindOfEvent"].Value" data-testid="notifications-matrix">
                 <div class="notifications-page__matrix-head" role="row">
                     <span role="columnheader">@L["NotificationsPanel_Event"]</span>
@@ -97,9 +97,9 @@
                     </div>
                 }
             </div>
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["NotificationsPanel_QuietHours"].Value" Description="@L["NotificationsPanel_EmailsAndOtherOutsideMessages"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["NotificationsPanel_QuietHours"].Value" Helper="@L["NotificationsPanel_EmailsAndOtherOutsideMessages"].Value">
             <AppSwitchRow Label="@L["NotificationsPanel_UseQuietHours"].Value" Value="_settings.QuietHours.Enabled" Disabled="@_busy" ValueChanged="SetQuietEnabledAsync" />
             @if (_settings.QuietHours.Enabled)
             {
@@ -108,13 +108,13 @@
                     <AppTextField Label="@L["NotificationsPanel_Until"].Value" InputType="AppInputType.Time" Value="@_settings.QuietHours.End" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(null, value))" />
                 </div>
             }
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["NotificationsPanel_Privacy"].Value" Description="@L["NotificationsPanel_ByDefaultOnlyAShort"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["NotificationsPanel_Privacy"].Value" Helper="@L["NotificationsPanel_ByDefaultOnlyAShort"].Value">
             <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetailsInMessagesThat"].Value"
                           Description="@L["NotificationsPanel_AddsWhatHappenedSuchAs"].Value"
                           Value="_settings.IncludeDetails" Disabled="@_busy" ValueChanged="SetIncludeDetailsAsync" />
-        </AppCard>
+        </AppSettingsGroup>
     }
 </div>
 

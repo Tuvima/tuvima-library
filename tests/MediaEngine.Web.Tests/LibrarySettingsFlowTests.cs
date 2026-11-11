@@ -26,8 +26,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private int _saves;
     private LibraryFolderDto? _lastLibrary;
     private LibraryMutationRequest? _lastRequest;
-    // Holds the Retry now answer open, to press the button again while the first request is still running.
-    private TaskCompletionSource? _retryGate;
     private UpdateLibrariesRequest? _lastUpdate;
     private MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse? _waiting;
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
@@ -78,8 +76,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private readonly List<ExcludedFileDto> _excluded = [];
     private IRenderedComponent<AppPopoverHost> _popovers = null!;
     // The Engine refusing a library change (a duplicate name, say) with its own sentence; null means it saves.
-    private string? _refuseSave;
-    private string? _lastError;
     // What the library actions for Unmatched files were asked, and how many files the Engine says they changed.
     private readonly List<(string Action, string LibraryId)> _unmatchedActions = [];
     private int _unmatchedAffected = 3;
@@ -136,7 +132,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 _configuration = new LibrariesConfigurationDto { StorageLocations = _lastUpdate.StorageLocations, Libraries = _lastUpdate.Libraries, FileHandling = _lastUpdate.FileHandling };
                 return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
             });
-            stub.SetHandler("get_LastError", _ => _lastError);
+            stub.SetHandler("get_LastError", _ => null);
             stub.SetHandler(nameof(IEngineApiClient.RetryUnmatchedLibraryAsync), args => RetryAnswerAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.KeepAllUnmatchedLibraryAsync), args =>
             {
@@ -155,12 +151,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
-                if (_refuseSave is not null)
-                {
-                    _lastError = _refuseSave;
-                    return Task.FromResult<LibrariesConfigurationDto?>(null);
-                }
-
                 _saves++;
                 _lastRequest = (LibraryMutationRequest)args![0]!;
                 _lastLibrary = _lastRequest.Library;
@@ -272,26 +262,24 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private async Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryAnswerAsync(string libraryId)
     {
         _unmatchedActions.Add(("retry", libraryId));
-        if (_retryGate is not null)
-        {
-            await _retryGate.Task;
-        }
+        await Task.CompletedTask;
 
         return new MediaEngine.Contracts.Library.UnmatchedActionResultDto { Affected = _unmatchedAffected };
     }
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    // The overview groups every area in one list; each library shows its folder count, and the Import folder is one line under them.
+    // The overview is one table under the area chips; each library shows its folder count, and the Import folder is the pinned first row.
     [Fact]
-    public void OverviewGroupsTheAreasAndListsEveryLibraryWithItsFolderCount()
+    public void OverviewListsEveryLibraryInOneTableWithItsFolderCountAndAChipPerArea()
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".libs__row");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Equal(["All", "Watch", "Listen", "Read", "View"], cut.FindAll(".lib-chip").Select(chip => chip.GetAttribute("data-area")!).Select(area => char.ToUpperInvariant(area[0]) + area[1..]).ToArray());
+        Assert.Equal("import", cut.FindAll(".libs__row").First().GetAttribute("data-library"));
         Assert.Contains("3 folders", Text(cut.Find($".libs__row[data-library='{MoviesId}']")));
-        Assert.Contains("1 folder", Text(cut.Find($".libs__group[data-area=listen] .libs__row[data-library='{AudiobooksId}']")));
-        Assert.Contains("Import folder", Text(cut.Find(".libs__note")));
+        Assert.Contains("1 folder", Text(cut.Find($".libs__row[data-library='{AudiobooksId}'] [data-folder-count]")));
+        Assert.Equal("listen", cut.Find($".libs__row[data-library='{AudiobooksId}']").GetAttribute("data-area"));
     }
 
     private static ImportFolderStatusDto ConfiguredImport() => new()
@@ -306,44 +294,20 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         ],
     };
 
-    // I1 to I3: the front door has one Import folder row that reads Not set; its page shows only the Set button with no type lines.
+    // The Import folder is the pinned first row: not set reads "Not set", once set it reads Up to date with its one folder.
     [Fact]
-    public void ImportFolderIsOneRowOnTheFrontDoorAndShowsOnlySetWhenNotSet()
+    public void ImportFolderIsThePinnedFirstRowAndReadsNotSetUntilAFolderIsChosen()
     {
         var front = Render<LibrariesTab>();
-        front.WaitForElement(".libs__note a");
-        Assert.Equal("Import folder", Text(front.Find(".libs__note a")));
-        Assert.Contains("not set", Text(front.Find(".libs__note")));
-        Assert.Equal("/settings/libraries/import", front.Find(".libs__note a").GetAttribute("href"));
-        var cut = OpenImport();
-        cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
-        Assert.Empty(cut.FindAll(".library-folders__destination"));
-        Assert.DoesNotContain("Where imported files go", cut.Markup);
-        foreach (var banned in new[] { "drop-off", "Ready", "Waiting for destinations", "Needs destination" })
-        {
-            Assert.False(Regex.IsMatch(cut.Markup, $@"\b{Regex.Escape(banned)}\b", RegexOptions.IgnoreCase), banned);
-        }
-    }
+        front.WaitForElement(".libs__row--import");
+        Assert.Contains("Not set", Text(front.Find(".libs__row--import [data-import-status]")));
+        Assert.Equal("not-set", front.Find("[data-import-status]").GetAttribute("data-import-status"));
 
-    // I2: once set, the folder row and one line per type appear; a type without a managed folder gets a Choose action.
-    [Fact]
-    public void ImportPanelShowsTheFolderRowAndOneLinePerType()
-    {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var front = Render<LibrariesTab>();
-        front.WaitForElement(".libs__note a");
-        Assert.Contains("set", Text(front.Find(".libs__note")));
-        Assert.DoesNotContain("not set", Text(front.Find(".libs__note")));
-        var cut = OpenImport();
-        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
-        Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
-        Assert.Contains("Where imported files go", cut.Markup);
-        var lines = cut.FindAll(".library-folders__destination").Select(Text).ToList();
-        Assert.Contains(lines, line => line.StartsWith("Movies") && line.Contains("Library Movies") && line.Contains("E:\\Library\\Movies"));
-        Assert.Contains(lines, line => line.StartsWith("Audiobooks") && line.Contains("Add a managed folder to import Audiobooks") && line.Contains("Choose"));
-        // Merge into now exists, so the panel says when to use it instead of the Import folder.
-        Assert.True(LibraryFolderTable.HasMergeAction);
-        Assert.Contains("To bring in a whole existing folder once, use Merge into on a managed folder.", cut.Markup);
+        var set = Render<LibrariesTab>();
+        set.WaitForElement(".libs__row--import");
+        Assert.Equal("ready", set.Find("[data-import-status]").GetAttribute("data-import-status"));
+        Assert.Contains("1 folder", Text(set.Find(".libs__row--import")));
     }
 
     // On the Import folder's own address there is no type list, so Choose opens that type's page instead.
@@ -885,15 +849,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll(".library-folders__detail .folder-table"));
     }
 
-    // The Recycle bin switch is the last thing in the pane (the stylesheet pins that block to the pane's bottom) and carries a bin icon.
+    // The Recycle bin on/off switch lives in each library's File handling tab (one switch, not two), so the folders pane has none.
     [Fact]
-    public void TheRecycleBinSwitchSitsInAPinnedFooterWithABinIcon()
+    public void TheFoldersPaneHasNoRecycleBinSwitch()
     {
         var cut = Open("Movies");
-        var footer = cut.Find(".library-folders__recycle");
-        Assert.Contains("Recycle bin", Text(footer));
-        Assert.NotNull(footer.QuerySelector(".app-switch-row__icon"));
-        Assert.Equal(footer.OuterHtml, cut.Find(".library-folders__detail .app-card__body").LastElementChild!.OuterHtml);
+
+        Assert.Empty(cut.FindAll(".library-folders__detail .app-switch-row"));
+        Assert.DoesNotContain(cut.FindAll(".library-folders__detail label, .library-folders__detail strong"), element => Text(element) == "Recycle bin");
     }
 
     // Library access D4: what Kid's profiles see is one household setting, so no folder row of any type carries a "Suitable for limited profiles" switch.
@@ -921,13 +884,15 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Open("Movies");
         var rows = cut.FindAll(".folder-table__row");
-        Assert.Empty(cut.FindAll(".folder-table__chip, .folder-table__tag, .folder-table__handling"));
+        Assert.Empty(cut.FindAll(".folder-table__chip, .folder-table__handling"));
+        // The handling is also written as a plain tag beside the path (Libraries v3 D19), never colour alone.
+        Assert.All(rows, row => Assert.Contains(Text(row.QuerySelector(".folder-table__tag")!), new[] { "Managed", "Read-only" }));
         Assert.All(rows, row =>
         {
             var icon = row.QuerySelector(".folder-table__icon")!;
             Assert.Equal("img", icon.GetAttribute("role"));
             Assert.False(string.IsNullOrWhiteSpace(icon.GetAttribute("aria-label")));
-            Assert.Equal(icon.GetAttribute("aria-label"), icon.GetAttribute("title"));
+            Assert.Equal(icon.GetAttribute("aria-label"), icon.ParentElement!.GetAttribute("data-playback-tooltip"));
         });
 
         Assert.Contains("is-managed", rows[0].QuerySelector(".folder-table__icon")!.ClassList);
@@ -1004,7 +969,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         dialogs.WaitForElement("input");
         dialogs.Find("input").Input("Main films");
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Apply").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Main films", _lastLibrary?.Sources.Single(x => x.Id == "movies-main").Notes));
+        cut.WaitForAssertion(() => Assert.Equal("Main films", _lastLibrary?.Sources.Single(x => x.Id == "movies-main").Label));
     }
 
     [Fact]
@@ -1103,108 +1068,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         });
     }
 
+    // Unmatched files are worked on from the library's own Unmatched tab and the Needs Review tab; the folders pane carries no bar for them.
     [Fact]
-    public void TheKindPageListsEachNamedLibraryAsItsOwnSectionWithItsFolders()
-    {
-        AddNamedVideoLibraries();
-
-        var cut = Open("Videos");
-
-        var sections = cut.FindAll(".library-folders__library");
-        Assert.Equal(["Lectures", "Family recordings"], sections.Select(section => Text(section.QuerySelector("h3")!)).ToArray());
-        Assert.Equal([1, 2], sections.Select(section => section.QuerySelectorAll(".folder-table__row").Length).ToArray());
-        Assert.Equal(2, cut.FindAll("button[aria-label^='Rename ']").Count);
-    }
-
-    [Fact]
-    public void RenamingANamedLibrarySavesItThroughTheLibraryChange()
-    {
-        AddNamedVideoLibraries();
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Videos");
-
-        cut.Find("button[aria-label='Rename Lectures']").Click();
-        dialogs.WaitForAssertion(() => Assert.NotEmpty(dialogs.FindAll("input")));
-        dialogs.Find("input").Input("Open lectures");
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Apply").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("Open lectures", _lastLibrary?.Name));
-        Assert.Equal("55555555-5555-4555-8555-555555555555", _lastLibrary!.Id);
-        // The rename keeps the library's folders and is guarded by the copy that was read.
-        Assert.Equal(["lec-1"], _lastLibrary.Sources.Select(source => source.Id).ToArray());
-        Assert.NotNull(_lastRequest!.ExpectedLibrary);
-        Assert.Equal("Lectures", _lastRequest.ExpectedLibrary!.Name);
-        Assert.Equal(["lec-1"], _lastRequest.ExpectedLibrary.Sources.Select(source => source.Id).ToArray());
-        cut.WaitForAssertion(() => Assert.Contains("Open lectures", cut.FindAll(".library-folders__library h3").Select(Text)));
-    }
-
-    [Fact]
-    public void TheEnginesRefusalOfADuplicateNameIsShownAsItComesAndTheNameStays()
-    {
-        AddNamedVideoLibraries();
-        _refuseSave = "libraries[2].name \"Lectures\" is already used by another library in watch. Give each library its own name.";
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Videos");
-
-        cut.Find("button[aria-label='Rename Family recordings']").Click();
-        dialogs.WaitForAssertion(() => Assert.NotEmpty(dialogs.FindAll("input")));
-        dialogs.Find("input").Input("Lectures");
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Apply").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("is already used by another library in watch", cut.Markup));
-        Assert.Equal(["Lectures", "Family recordings"], cut.FindAll(".library-folders__library h3").Select(Text).ToArray());
-    }
-
-    // Unmatched on a library (D34, D40b): the amber count with Retry now and Keep all as they are.
-    [Fact]
-    public void ALibraryWithUnmatchedFilesOffersRetryNowAndKeepAllAndOneWithNoneOffersNeither()
+    public void TheFoldersPaneHasNoUnmatchedBarEvenWhenALibraryHasUnmatchedFiles()
     {
         _configuration.Libraries[0].UnmatchedCount = 3;
 
         var cut = Open("Movies");
 
-        Assert.Equal("3", Text(cut.Find(".lib-unmatched")));
-        Assert.Contains(cut.FindAll("button"), button => Text(button) == "Retry now");
-        Assert.Contains(cut.FindAll("button"), button => Text(button) == "Keep all as they are");
-
-        var quiet = Open("TV Shows");
-        Assert.Empty(quiet.FindAll(".lib-unmatched"));
-        Assert.DoesNotContain(quiet.FindAll("button"), button => Text(button) == "Retry now");
-    }
-
-    [Fact]
-    public void RetryNowCallsTheEnginesLibraryActionAndSaysHowManyFilesItChanged()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-        var toasts = Render<AppToastHost>();
-        var cut = Open("Movies");
-
-        cut.FindAll("button").Single(button => Text(button) == "Retry now").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal([("retry", MoviesId)], _unmatchedActions));
-        toasts.WaitForAssertion(() => Assert.Contains("3 files", toasts.Markup));
-    }
-
-    [Fact]
-    public void KeepAllAsksFirstThenCallsTheEngineAndCancellingSendsNothing()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-        var dialogs = Render<AppDialogHost>();
-        var toasts = Render<AppToastHost>();
-        var cut = Open("Movies");
-
-        cut.FindAll("button").Single(button => Text(button) == "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Stop trying to match 3 files in Movies?", dialogs.Markup));
-        Assert.Contains("You can look them up again later.", dialogs.Markup);
-        dialogs.FindAll("button").Single(button => Text(button) == "Cancel").Click();
-        Assert.Empty(_unmatchedActions);
-
-        cut.FindAll("button").Single(button => Text(button) == "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Stop trying to match 3 files in Movies?", dialogs.Markup));
-        dialogs.FindAll("button").Single(button => Text(button) == "Keep all as they are").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal([("keep", MoviesId)], _unmatchedActions));
-        toasts.WaitForAssertion(() => Assert.Contains("3 files", toasts.Markup));
+        Assert.Empty(cut.FindAll(".lib-unmatched"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Retry now" or "Keep all as they are");
     }
 
     // The first check of a newly added folder (Library setup D35): checking is a quiet line; a paused folder says why and offers Keep going, Remove or Change what this folder is.
@@ -1221,7 +1094,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var line = Assert.Single(cut.FindAll("[data-first-check=paused]"));
         Assert.Contains("Most files in this folder aren't matching: 30 of 50. This is often the wrong kind or the wrong folder.", Text(line));
         Assert.Contains("folder-table__status--warning", line.ClassList);
-        Assert.Equal(["Keep going", "Remove the folder", "Change what this folder is"], line.QuerySelectorAll("button").Select(Text).ToArray());
+        Assert.Equal(["Keep going", "Remove the folder"], line.QuerySelectorAll("button").Select(Text).ToArray());
         Assert.Equal("D:\\Plex\\Movies", line.ParentElement!.QuerySelector(".folder-table__path")!.TextContent);
         // Only that folder's row has it; the status is also in the live region for screen readers.
         Assert.Single(cut.FindAll("[data-first-check]"));
@@ -1287,21 +1160,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Keep going" or "Remove the folder");
     }
 
-    [Fact]
-    public void ADoubleClickOnRetryNowSendsOneRequest()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-        _retryGate = new TaskCompletionSource();
-        var cut = Open("Movies");
-
-        cut.FindAll("button").Single(button => Text(button) == "Retry now").Click();
-        cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Single(button => Text(button) == "Retry now").HasAttribute("disabled")));
-        _retryGate.SetResult();
-
-        cut.WaitForAssertion(() => Assert.Equal([("retry", MoviesId)], _unmatchedActions));
-        Assert.Single(_unmatchedActions);
-    }
-
     // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only. With no browser to measure, the stylesheets are read: every control that adds, converts or merges is hidden
     // (display:none) and the note is shown. The gate follows the viewport, not the device class.
     [Fact]
@@ -1334,16 +1192,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EditingThePathBarImmediatelyInvalidatesAnEarlierSelection()
+    public async Task TypingAPathOutsideEveryLocationAndPressingGoTurnsAddOff()
     {
         var cut = Render<AppDialogHost>();
         await cut.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(""));
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
-        cut.Find(".server-folder-picker__address-end").Click();
-        var input = cut.Find(".server-folder-picker__address-input");
-        input.Input("C:\\media\\changed");
-        Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled"));
-        input.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
-        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
+        cut.Find("[data-picker-type-path]").Click();
+        cut.Find("input[aria-label='Folder path']").Input("Z:\\not-a-listed-location");
+        cut.Find("[data-picker-go]").Click();
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
     }
 }

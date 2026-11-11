@@ -74,7 +74,7 @@ public sealed class TimelineResultsRenderTests : AsyncBunitContext
     {
         var css = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css");
         Assert.Contains(".browse-shell__timeline-grouping {\n    grid-column: 3;\n    grid-row: 1 / 3;", css.Replace("\r", ""));
-        Assert.Contains(".browse-shell__timeline-grouping {\n        grid-column: 1;\n        grid-row: 5 / 7;", css.Replace("\r", ""));
+        Assert.Contains(".browse-shell__timeline-grouping {\n        grid-column: 1;\n        grid-row: 2 / 4;", css.Replace("\r", ""));
         var source = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
         Assert.Contains("SupportsLayoutToggle && !IsTimelineGrouping", source);
         var grouping = ReadSource("src/MediaEngine.Web/Components/Shared/AppTimelineGroupingControl.razor.css");

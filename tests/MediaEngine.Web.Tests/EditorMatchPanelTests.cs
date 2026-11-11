@@ -12,43 +12,44 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The Match tool (universal editor spec D5, D6, D11, WP7): step 1 finds a record, step 2 reviews it beside the item with four switches
-/// (parent and files off by default, files greyed with the reason when the folder cannot be touched), and "Use this match" only stages.
+/// The Match tab's Media providers side (universal editor v5, 3c, mockups G1 and G2): a matched item opens on what it is matched to and
+/// searches nothing; Change match opens the compact search; Apply match is always available and only stages (with the move the match
+/// brings, in a Managed folder only); Remove match stages a removal; an unmatched item opens on the pre-filled search; after Save the panel
+/// reads the Engine again; there is no Change placement and no line-up table.
 /// </summary>
 public sealed class EditorMatchPanelTests : AsyncBunitContext
 {
-    private static readonly Guid SongId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid AlbumId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid MovieId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
     private readonly EditSessionState _session = new(new PendingEditList());
-    private readonly List<ItemCanonicalSearchRequestDto> _searches = [];
+    private readonly List<EditorMatchSearchRequestDto> _searches = [];
     private readonly List<string> _writes = [];
-    private TaskCompletionSource<ItemCanonicalSearchResponseDto?>? _gate;
-    private Func<ItemCanonicalSearchResponseDto?> _answer;
-    private LibraryMoveDestinationsResponse _places;
-    private LibraryMovePreviewRow _fileRow = new() { ItemId = SongId, FileChange = new LibraryMoveFileChange { From = "a", To = "b" } };
+    private EditorMatchSearchResultDto? _answer;
+    private EditorMatchPlacementDto? _placement;
+    private int _currentReads;
 
     public EditorMatchPanelTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
-        _session.Begin([new EditTrailItem(SongId, "Karma Police", "Item")]);
-        _answer = () => Response(Candidate("Karma Police", "OK Computer", "Radiohead", "musicbrainz"), Candidate("Karma Police (Live)", "Live", "Radiohead", "apple_api"));
-        _places = new LibraryMoveDestinationsResponse
-        {
-            Destinations = [new LibraryMoveDestination { Id = AlbumId, Kind = LibraryMoveDestinationKinds.Album, Label = "OK Computer", ParentLabel = "Radiohead", HasList = true }],
-        };
+        _session.Begin([new EditTrailItem(MovieId, "Heat", "Item")]);
+        _answer = Found(Result("Heat", "1995", EditorMatchVerdicts.Strong), Result("Heat (1986)", "1986", EditorMatchVerdicts.Check));
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.SearchItemCanonicalAsync), args =>
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorCurrentMatchAsync), _ =>
             {
-                _searches.Add((ItemCanonicalSearchRequestDto)args![1]!);
-                return _gate is null ? Task.FromResult(_answer()) : _gate.Task;
+                _currentReads++;
+                return Task.FromResult<EditorCurrentMatchDto?>(_matched ? _current ?? Matched() : new EditorCurrentMatchDto { EntityId = MovieId });
             });
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryMoveDestinationsAsync), _ =>
-                Task.FromResult(LibraryMoveOutcome<LibraryMoveDestinationsResponse>.Ok(_places)));
-            stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryMoveAsync), _ =>
-                Task.FromResult(LibraryMoveOutcome<LibraryMovePreview>.Ok(new LibraryMovePreview { Rows = [_fileRow] })));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorMatchSetupAsync), args =>
+                Task.FromResult<EditorMatchSetupDto?>(_setup(args!)));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorMatchPlacementAsync), _ =>
+                Task.FromResult(_placement));
+            stub.SetHandler(nameof(IEngineApiClient.SearchEditorMatchAsync), args =>
+            {
+                _searches.Add((EditorMatchSearchRequestDto)args![1]!);
+                return Task.FromResult(_answer);
+            });
             stub.SetHandler(nameof(IEngineApiClient.ReplaceRetailMatchAsync), _ =>
             {
                 _writes.Add("retail");
@@ -63,283 +64,429 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Render<AppPopoverHost>();
     }
 
-    private static EditorMatchSubject Song(bool overridden = false) => new(
-        SongId, "Music", "track", "track", "Karma Police", "Radiohead", "Greatest Hits", "1997",
-        new Dictionary<string, string> { ["title"] = "Karma Police", ["artist"] = "Radiohead" },
-        overridden ? ["title"] : []);
+    private bool _matched = true;
+    private EditorCurrentMatchDto? _current;
+    private Func<object?[], EditorMatchSetupDto> _setup = _ => Setup("movie", noProvider: false);
 
-    private static ItemCanonicalRetailCandidateDto Candidate(string title, string album, string artist, string provider) => new()
-    {
-        CandidateId = $"{provider}:{title}",
-        ProviderId = provider,
-        ProviderName = provider,
-        ProviderItemId = $"{provider}-{title}",
-        Title = title,
-        Year = "1997",
-        CoverUrl = "https://example.test/cover.jpg",
-        CompositeScore = title.Contains("Live", StringComparison.Ordinal) ? 0.4 : 0.9,
-        RequiredFields = new Dictionary<string, string> { ["album"] = album, ["artist"] = artist },
-    };
+    private static EditorMatchSubject Movie() => new(
+        MovieId, "Movies", "movie", "movie", "Heat", "Michael Mann", null, "1995",
+        new Dictionary<string, string> { ["title"] = "Heat" }, []);
 
-    private static ItemCanonicalSearchResponseDto Response(params ItemCanonicalRetailCandidateDto[] candidates) => new()
+    private static EditorMatchSetupDto Setup(string kind, bool noProvider) => new()
     {
-        RetailCandidates = [.. candidates],
-        Providers =
+        EntityId = MovieId,
+        Kind = kind,
+        FileName = "Heat (1995) 1080p.mkv",
+        NoProvider = noProvider,
+        NoProviderMessage = noProvider ? "No provider matches this kind of item." : null,
+        Providers = noProvider ? [] :
         [
-            new ItemCanonicalSearchProviderDto { Name = "musicbrainz", DisplayName = "MusicBrainz" },
-            new ItemCanonicalSearchProviderDto { Name = "apple_api", DisplayName = "Apple Music" },
+            new EditorMatchProviderDto { Name = "tmdb", DisplayName = "TMDB", State = EditorMatchProviderStates.Ready, IsDefault = true },
+            new EditorMatchProviderDto { Name = "apple_api", DisplayName = "Apple", State = EditorMatchProviderStates.NeedsKey },
+        ],
+        Fields = noProvider ? [] :
+        [
+            new EditorMatchFieldDto { Key = "title", Label = "Title", Value = "Heat", From = "file_name" },
+            new EditorMatchFieldDto { Key = "year", Label = "Year", Value = "1995", From = "file_name" },
         ],
     };
 
-    private IRenderedComponent<EditorMatchPanel> RenderPanel(EditorMatchSubject? subject = null, bool canEdit = true) =>
-        Render<EditorMatchPanel>(parameters => parameters
-            .Add(panel => panel.Subject, subject ?? Song())
+    private static EditorCurrentMatchDto Matched(string title = "Heat", string itemId = "949", IReadOnlyList<EditorMatchEvidenceRowDto>? why = null) => new()
+    {
+        EntityId = MovieId,
+        State = EditorCurrentMatchStates.Matched,
+        Verdict = EditorMatchVerdicts.Strong,
+        Record = new EditorMatchedRecordDto { ProviderId = "tmdb", ProviderName = "TMDB", ProviderItemId = itemId, Kind = "Film", Title = title, Year = "1995", Creator = "Michael Mann" },
+        Why = why ??
+        [
+            new EditorMatchEvidenceRowDto { Field = "title", YourFile = "Heat", MatchedRecord = "Heat", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
+            new EditorMatchEvidenceRowDto { Field = "year", YourFile = "1995", MatchedRecord = "1995", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
+        ],
+    };
+
+    private static EditorMatchResultDto Result(string title, string year, string verdict) => new()
+    {
+        Candidate = new ItemCanonicalRetailCandidateDto
+        {
+            CandidateId = $"tmdb:{title}",
+            ProviderId = "tmdb",
+            ProviderName = "TMDB",
+            ProviderItemId = $"id-{year}",
+            Title = title,
+            Year = year,
+            RequiredFields = new Dictionary<string, string> { ["title"] = title },
+        },
+        ProviderName = "TMDB",
+        Title = title,
+        Year = year,
+        Creator = "Michael Mann",
+        LengthText = "170 min",
+        Verdict = verdict,
+        Reasons = [new EditorMatchReasonDto { Fact = "title", State = EditorMatchEvidenceStates.Agrees, Text = "Title matches" }],
+    };
+
+    private static EditorMatchSearchResultDto Found(params EditorMatchResultDto[] results) => new()
+    {
+        EntityId = MovieId,
+        Provider = "tmdb",
+        Query = "Heat",
+        Results = results,
+    };
+
+    private IRenderedComponent<EditorMatchPanel> RenderPanel(bool unmatched = false)
+    {
+        _matched = !unmatched;
+        return Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Movie())
             .Add(panel => panel.Session, _session)
-            .Add(panel => panel.CanEdit, canEdit));
-
-    private static void Select(IRenderedComponent<EditorMatchPanel> cut, int index) =>
-        cut.FindAll("button").Where(button => button.TextContent.Trim() == "Select").ElementAt(index).Click();
-
-    private static bool SwitchOn(IRenderedComponent<EditorMatchPanel> cut, string label) =>
-        cut.Find($"input[role=switch][aria-label='{label}']").HasAttribute("checked");
-
-    [Fact]
-    public void ChoosingAResult_MovesFocusToTheReview_AndChooseAnother_PutsItOnThatResultsSelectButton()
-    {
-        var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".tl-match__row").Count));
-        Assert.Equal("tl-match-select-1", cut.FindAll("button").Where(button => button.TextContent.Trim() == "Select").ElementAt(1).Id);
-
-        Select(cut, 1);
-        cut.WaitForAssertion(() => Assert.Equal("tl-match-review", LastFocusedId()));
-        Assert.Equal("group", cut.Find("#tl-match-review").GetAttribute("role"));
-        Assert.Equal("Review selected match", cut.Find("#tl-match-review").GetAttribute("aria-label"));
-
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Choose another").Click();
-        cut.WaitForAssertion(() => Assert.Equal("tl-match-select-1", LastFocusedId()));
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, unmatched));
     }
 
-    private string? LastFocusedId() => JSInterop.Invocations
-        .Where(call => call.Identifier == "tuvimaFocusById")
-        .Select(call => call.Arguments[0] as string)
-        .LastOrDefault();
+    private static void ClickButton(IRenderedComponent<EditorMatchPanel> cut, string text) =>
+        cut.FindAll("button").First(button => button.TextContent.Trim() == text).Click();
 
     [Fact]
-    public void StepOne_SearchesFromTheItem_AndTagsOnlyTheTopResultAsABestGuess()
+    public void AMatchedItem_OpensOnItsMatchAndWhy_AndSearchesNothing()
     {
         var cut = RenderPanel();
 
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".tl-match__row").Count));
-        Assert.Equal("Karma Police", cut.Find("input[aria-label='Search for a match']").GetAttribute("value"));
-        Assert.Equal("track", Assert.Single(_searches).TargetFieldGroup);
-        Assert.Null(_searches[0].QueryOverride);
-        Assert.Single(cut.FindAll(".tl-match__best"));
-        Assert.Contains("Best guess", cut.FindAll(".tl-match__row")[0].TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("%", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("OK Computer", cut.FindAll(".tl-match__row")[0].TextContent, StringComparison.Ordinal);
-        Assert.Contains("Radiohead", cut.FindAll(".tl-match__row")[0].TextContent, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        Assert.Contains("Heat", cut.Find("[data-testid=match-current]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Fields you changed stay yours; the rest update.", cut.Find("[data-testid=match-why]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Strong match", cut.Find("[data-testid=match-why]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(_searches);
+        Assert.Empty(cut.FindAll("[data-testid=match-search]"));
     }
 
     [Fact]
-    public void ASong_OffersTracksAndAlbums_AndAlbumsSearchesForAlbums()
+    public void TheFirstRowOfAMatchedItem_HoldsTheLabelledProviderAndTheSourceSwitch_ButNoSearch()
     {
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
 
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Albums").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
-        Assert.Equal("album", _searches[1].TargetFieldGroup);
-        Assert.Equal("container", _searches[1].TargetKind);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
+        var row = cut.Find("[data-testid=match-row]");
+        Assert.Contains("Provider", row.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Media providers", row.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", row.TextContent, StringComparison.Ordinal);
+        Assert.Empty(row.QuerySelectorAll("[data-testid=match-search-button]"));
     }
 
     [Fact]
-    public void ASearchInOneProvider_AsksOnlyThatProvider()
+    public void TheCurrentMatch_ShowsTheProviderIdTheCreatorLine_AndBothActions()
     {
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
 
-        var picker = cut.FindComponent<AppSelect>();
-        cut.InvokeAsync(() => picker.Instance.ValueChanged.InvokeAsync("musicbrainz"));
-
-        cut.WaitForAssertion(() => Assert.Equal("musicbrainz", _searches[^1].ProviderName));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        Assert.Equal("TMDB · 949", cut.Find("[data-testid=match-current-id]").TextContent.Trim());
+        Assert.Equal("Directed by Michael Mann", cut.Find("[data-testid=match-current-creator]").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll("[data-testid=match-remove]"));
+        Assert.Contains("Change match", cut.Find("[data-testid=match-change]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void StepTwo_ShowsTheItemBesideTheMatch_WithTheParentAndFileSwitchesOff()
+    public void TheWhyTable_PutsFactsTheFileCannotSpeakToInAFootnote_AndLabelsTheRuntimeValues()
     {
+        _current = Matched(why:
+        [
+            new EditorMatchEvidenceRowDto { Field = "title", YourFile = "Heat", MatchedRecord = "Heat", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
+            new EditorMatchEvidenceRowDto { Field = "runtime", YourFile = "2:50:00", MatchedRecord = "170 min", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
+            new EditorMatchEvidenceRowDto { Field = "year", State = EditorMatchEvidenceStates.NotChecked },
+        ]);
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
 
-        Select(cut, 0);
-
-        cut.WaitForAssertion(() => Assert.Contains("Review selected match", cut.Find(".tl-match").InnerHtml, StringComparison.Ordinal));
-        Assert.Contains("Greatest Hits", cut.Find("[aria-label='Your item']").TextContent, StringComparison.Ordinal);
-        Assert.Contains("OK Computer", cut.Find("[aria-label='Proposed match']").TextContent, StringComparison.Ordinal);
-        Assert.Equal(4, cut.FindAll("input[role=switch]").Count);
-        cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
-        Assert.True(SwitchOn(cut, "Keep my library details"));
-        Assert.True(SwitchOn(cut, "Use as the retail match"));
-        Assert.False(SwitchOn(cut, "Move to OK Computer"));
-        Assert.False(SwitchOn(cut, "Rename and move the files"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-why]")));
+        var rows = cut.FindAll("[data-testid=match-why] tbody tr");
+        Assert.Equal(2, rows.Count);
+        Assert.Contains("2:50:00 measured", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("170 min (rounded)", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Year: not in your file, so it was not checked.", cut.Find("[data-testid=match-why-footnote]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheFileSwitch_IsGreyedWithTheReason_WhenTheFolderIsProtected()
+    public void ChangeMatch_OpensTheSearchInPlace_AndAFieldChangeRunsTheSearch()
     {
-        _fileRow = new LibraryMovePreviewRow { ItemId = SongId, FileNote = "Read-only folder: the file stays where it is." };
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
 
-        Select(cut, 0);
+        ClickButton(cut, "Change match");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        Assert.Empty(_searches);
+        Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
 
-        cut.WaitForAssertion(() => Assert.True(cut.Find("input[role=switch][aria-label='Rename and move the files']").HasAttribute("disabled")));
-        Assert.Contains("Read-only folder: the file stays where it is.", cut.Markup, StringComparison.Ordinal);
+        cut.Find("input[aria-label='Title']").Change("Heat 1995");
+
+        cut.WaitForAssertion(() => Assert.Single(_searches));
+        Assert.Equal("tmdb", _searches[0].Provider);
+        Assert.Equal("Heat 1995", _searches[0].Fields["title"]);
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
     }
 
     [Fact]
-    public void TheParentSwitch_IsGreyedWithAReason_WhenTheLibraryHasNoSuchAlbum()
+    public void ApplyMatch_IsAvailableForACheckResult_AndOnlyStages()
     {
-        _places = new LibraryMoveDestinationsResponse();
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        ClickButton(cut, "Change match");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        cut.Find("input[aria-label='Title']").Change("Heat");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
 
-        Select(cut, 0);
+        // The second result is a Check match; choosing it still leaves Apply match enabled (the verdict is advice).
+        cut.FindAll("[data-testid=match-result]").Last().Click();
+        cut.WaitForAssertion(() => Assert.Contains("Check match", cut.Find("[data-testid=match-verdict]").TextContent, StringComparison.Ordinal));
+        var apply = cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match");
+        Assert.False(apply.HasAttribute("disabled"));
+        apply.Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("nowhere to move it", cut.Markup, StringComparison.Ordinal));
-        Assert.True(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled"));
+        var change = Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+        Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
+        Assert.Equal("id-1986", match!.ProviderItemId);
+        Assert.Equal("Heat · TMDB", _session.Pending.Before(change.Id));
+        Assert.Empty(_writes);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-staged]")));
+
+        var row = Assert.Single(EditReviewRows.Build(_session.Pending, _ => "Heat", null));
+        Assert.Equal("Match changed", row.What);
+        Assert.Contains("Heat (1986)", row.After, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void UseThisMatch_StagesTheMatchOnly_AndWritesNothing()
+    public void ApplyMatch_ThatNamesAnotherPlace_StagesTheMoveAndTheFileMoveWithPaths_InAManagedFolder()
+    {
+        var destination = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        _placement = new EditorMatchPlacementDto
+        {
+            DestinationId = destination,
+            ParentLabel = "Heat Collection",
+            CurrentParentLabel = "Old Collection",
+            Managed = true,
+            FromPath = "Movies/Heat (1986)/Heat.mkv",
+            ToPath = "Movies/Heat (1995)/Heat (1995).mkv",
+        };
+        var cut = StageSecondResult();
+
+        var relationship = Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Relationship);
+        Assert.Equal(destination.ToString("D"), relationship.TargetId);
+        Assert.Equal("Heat Collection", _session.Pending.Label(relationship.Id));
+        Assert.Equal("Old Collection", _session.Pending.Before(relationship.Id));
+        var move = Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.FileMove);
+        Assert.Equal("Movies/Heat (1986)/Heat.mkv", _session.Pending.Before(move.Id));
+        Assert.Equal("Movies/Heat (1995)/Heat (1995).mkv", _session.Pending.Label(move.Id));
+        var footer = EditorFooterRules.For(new FileWriteSetting(FileWriteState.Off), _session.Pending);
+        Assert.Equal(EditorFooterStatus.WillMove, footer.Status);
+        Assert.Equal("Movies/Heat (1986)/Heat.mkv", footer.MoveFrom);
+        Assert.Equal("Movies/Heat (1995)/Heat (1995).mkv", footer.MoveTo);
+        var rows = EditReviewRows.Build(_session.Pending, _ => "Heat", null);
+        Assert.Contains(rows, row => row.What == "Match changed");
+        Assert.Contains(rows, row => row.What == "Moves to" && row.After == "Heat Collection");
+        Assert.Contains("Heat Collection", cut.Find("[data-testid=match-staged-move]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyMatch_InAReadOnlyFolder_StagesTheMatchAndTheMove_ButNeverAFileMove()
+    {
+        _placement = new EditorMatchPlacementDto
+        {
+            DestinationId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            ParentLabel = "Heat Collection",
+            Managed = false,
+            FromPath = "Movies/Heat (1986)/Heat.mkv",
+            ToPath = "Movies/Heat (1995)/Heat (1995).mkv",
+        };
+        var cut = StageSecondResult();
+
+        Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+        Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Relationship);
+        Assert.DoesNotContain(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.FileMove);
+        Assert.Equal(EditorFooterStatus.WriteBackOff, EditorFooterRules.For(new FileWriteSetting(FileWriteState.Off), _session.Pending).Status);
+        Assert.Contains("only reads", cut.Find("[data-testid=match-staged-move]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyMatch_WithNoPlaceToGo_StagesOnlyTheIdentity()
+    {
+        _placement = new EditorMatchPlacementDto { Managed = true };
+        StageSecondResult();
+
+        Assert.Single(_session.Pending.Changes);
+        Assert.Equal(EditSessionChangeKinds.Identity, _session.Pending.Changes[0].Kind);
+    }
+
+    private IRenderedComponent<EditorMatchPanel> StageSecondResult()
     {
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
-        Select(cut, 0);
-        cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        ClickButton(cut, "Change match");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        cut.Find("input[aria-label='Title']").Change("Heat");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
+        cut.FindAll("[data-testid=match-result]").Last().Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-staged]")));
+        return cut;
+    }
 
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+    [Fact]
+    public void RemoveMatch_StagesOneRemoval_ShowsNotMatchedYet_AndWritesNothing()
+    {
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+
+        cut.Find("[data-testid=match-remove]").Click();
 
         var change = Assert.Single(_session.Pending.Changes);
-        Assert.Equal(EditSessionChangeKinds.Identity, change.Kind);
-        Assert.Equal(SongId, change.EntityId);
-        Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
-        Assert.Equal("musicbrainz", match!.ProviderName);
+        Assert.Equal(EditSessionChangeKinds.MatchRemoval, change.Kind);
+        Assert.Equal("Heat · TMDB", _session.Pending.Before(change.Id));
+        cut.WaitForAssertion(() => Assert.Contains("Not matched yet", cut.Find("[data-testid=match-search]").TextContent, StringComparison.Ordinal));
+        Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
         Assert.Empty(_writes);
-        Assert.Contains("Nothing is saved until you press Save changes", cut.Markup, StringComparison.Ordinal);
+        var row = Assert.Single(EditReviewRows.Build(_session.Pending, _ => "Heat", null));
+        Assert.Equal("Match removed", row.What);
+        Assert.Equal("No match", row.After);
     }
 
     [Fact]
-    public void UseThisMatch_StagesTheAlbumMoveAndTheFilesOnlyWhenTheirSwitchesAreOn()
+    public void RemoveMatch_ThenApplyingAnother_ReplacesTheRemoval()
     {
         var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
-        Select(cut, 0);
-        cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        cut.Find("[data-testid=match-remove]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        cut.Find("input[aria-label='Title']").Change("Heat");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
 
-        cut.Find("input[role=switch][aria-label='Move to OK Computer']").Change(true);
-        cut.Find("input[role=switch][aria-label='Rename and move the files']").Change(true);
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
 
-        Assert.Equal(
-            [EditSessionChangeKinds.Identity, EditSessionChangeKinds.Relationship, EditSessionChangeKinds.FileMove],
-            _session.Pending.Changes.Select(change => change.Kind).ToArray());
-        Assert.Equal(AlbumId.ToString("D"), _session.Pending.Changes.Single(change => change.Kind == EditSessionChangeKinds.Relationship).TargetId);
+        cut.WaitForAssertion(() => Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity));
+        Assert.DoesNotContain(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.MatchRemoval);
     }
 
     [Fact]
-    public void TurningTheRetailSwitchOff_TakesTheStagedMatchBackOut()
+    public void AfterSave_TheStagedNoteClears_AndThePanelReadsTheMatchAgain()
     {
-        var cut = RenderPanel();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
-        Select(cut, 0);
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
-        Assert.Single(_session.Pending.Changes);
+        var cut = StageSecondResult();
+        var readsBefore = _currentReads;
+        Assert.NotEmpty(cut.FindAll("[data-testid=match-staged]"));
 
-        cut.Find("input[role=switch][aria-label='Use as the retail match']").Change(false);
-        cut.Find("input[role=switch][aria-label='Keep my library details']");
-        Assert.True(cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").HasAttribute("disabled"));
+        // Save writes the change and takes it out of the pending list; the panel then reads what the Engine has now.
+        _current = Matched("Heat (1986)", "id-1986");
+        _session.Pending.Discard();
+
+        cut.WaitForAssertion(() => Assert.True(_currentReads > readsBefore));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid=match-staged]")));
+        cut.WaitForAssertion(() => Assert.Contains("id-1986", cut.Find("[data-testid=match-current-id]").TextContent, StringComparison.Ordinal));
     }
 
     [Fact]
-    public void WhenDetailsAreNotKept_TheOverriddenDetailsGoBackToTheProvidersValue()
+    public void AVideoWithNoYouTubeId_SaysSoAndStillOffersThePasteBox()
     {
-        var cut = RenderPanel(Song(overridden: true));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
-        Select(cut, 0);
-
-        cut.Find("input[role=switch][aria-label='Keep my library details']").Change(false);
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
-
-        Assert.True(_session.Pending.TryGetField(SongId, "title", out var value));
-        Assert.True(string.IsNullOrEmpty(value));
-    }
-
-    [Fact]
-    public void WhenAProviderDoesNotAnswer_ThePanelSaysSo_AndOffersAnotherProvider()
-    {
-        _answer = () => null;
-        var cut = RenderPanel();
-
-        cut.WaitForAssertion(() => Assert.Contains("did not get an answer", cut.Find(".tl-match__problem").TextContent, StringComparison.Ordinal));
-        Assert.Empty(cut.FindAll(".tl-match__row"));
-    }
-
-    [Fact]
-    public void WhenNothingMatches_ThePanelSaysSo_AndOffersAnotherProvider()
-    {
-        _answer = () => Response();
-        var cut = RenderPanel();
-
-        cut.WaitForAssertion(() => Assert.Contains("Nothing matched", cut.Find(".tl-match__problem").TextContent, StringComparison.Ordinal));
-        var again = cut.FindAll("button").First(button => button.TextContent.Trim() == "Try another provider");
-        again.Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("musicbrainz", _searches[^1].ProviderName));
-    }
-
-    [Fact]
-    public void WhileSearching_ThePanelShowsPlaceholderRows()
-    {
-        var gate = _gate = new TaskCompletionSource<ItemCanonicalSearchResponseDto?>();
-        var cut = RenderPanel();
-
-        Assert.Equal(4, cut.FindAll(".tl-match__row--skeleton").Count);
-        Assert.Equal("true", cut.Find(".tl-match__results").GetAttribute("aria-busy"));
-        gate.SetResult(Response(Candidate("Karma Police", "OK Computer", "Radiohead", "musicbrainz")));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-match__row--skeleton")));
-    }
-
-    [Fact]
-    public void WithoutPermissionToEdit_UseThisMatchStaysOff()
-    {
-        var cut = RenderPanel(canEdit: false);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
-        Select(cut, 0);
-
-        Assert.True(cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").HasAttribute("disabled"));
-    }
-
-    [Fact]
-    public void TheRules_GiveASongTracksAndAlbums_AndEverythingElseOneKind()
-    {
-        Assert.Equal(["track", "album"], EditorMatchRules.TabsFor("Music", "track").Select(tab => tab.Group).ToArray());
-        Assert.Single(EditorMatchRules.TabsFor("TV", "episode"));
-        Assert.Single(EditorMatchRules.TabsFor("Music", "album"));
-    }
-
-    [Fact]
-    public void TheRules_NameTheSeasonAnEpisodeWouldMoveInto()
-    {
-        var candidate = new ItemCanonicalRetailCandidateDto
+        _setup = _ => new EditorMatchSetupDto
         {
-            RequiredFields = new Dictionary<string, string> { ["show_name"] = "Le Continental", ["season_number"] = "1" },
+            EntityId = MovieId,
+            Kind = "video",
+            NoProvider = true,
+            NoProviderMessage = "No provider matches this video yet. Paste a YouTube link or ID to match it.",
+            Providers = [new EditorMatchProviderDto { Name = "youtube", DisplayName = "YouTube", State = EditorMatchProviderStates.Ready, IsDefault = true }],
+            Fields = [new EditorMatchFieldDto { Key = "provider_id", Label = "YouTube link or ID", Value = string.Empty }],
         };
+        var cut = RenderPanel(unmatched: true);
 
-        var proposed = EditorMatchRules.ProposedParentOf(candidate, "TV");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-no-provider]")));
+        Assert.NotEmpty(cut.FindAll("input[aria-label='YouTube link or ID']"));
+        Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]"));
+    }
 
-        Assert.Equal(new ProposedParent("Season 1", "Le Continental"), proposed);
-        Assert.True(EditorMatchRules.IsSamePlace(proposed!, "Season 1", "Le Continental"));
-        Assert.False(EditorMatchRules.IsSamePlace(proposed!, "Season 1", "Another Show"));
+    [Fact]
+    public void AMatchedVideo_StagesTheYouTubeMatch_WithoutAskingWhereItGoes()
+    {
+        _placement = new EditorMatchPlacementDto { DestinationId = Guid.NewGuid(), ParentLabel = "Should not be asked", Managed = true };
+        _setup = _ => Setup("video", noProvider: false);
+        _answer = new EditorMatchSearchResultDto
+        {
+            EntityId = MovieId,
+            Provider = "youtube",
+            Query = "dQw4w9WgXcQ",
+            Results =
+            [
+                new EditorMatchResultDto
+                {
+                    Candidate = new ItemCanonicalRetailCandidateDto { CandidateId = "youtube:dQw4w9WgXcQ", ProviderId = "youtube", ProviderName = "youtube", ProviderItemId = "dQw4w9WgXcQ", Title = "Never Gonna Give You Up" },
+                    ProviderName = "youtube",
+                    Title = "Never Gonna Give You Up",
+                    Verdict = EditorMatchVerdicts.Strong,
+                },
+            ],
+        };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        cut.Find("[data-testid=match-search-button]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-result]")));
+
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_session.Pending.Changes));
+        var change = _session.Pending.Changes[0];
+        Assert.Equal(EditSessionChangeKinds.Identity, change.Kind);
+        Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
+        Assert.Equal("youtube", match!.ProviderName);
+        Assert.Equal("dQw4w9WgXcQ", match.ProviderItemId);
+    }
+
+    [Fact]
+    public void ThereIsNoChangePlacementButton_AndNoLineUpTable()
+    {
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Change placement", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("Change placement", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll("[data-testid=line-up]"));
+        Assert.Empty(cut.FindAll("[aria-label='Line-up']"));
+    }
+
+    [Fact]
+    public void AnUnmatchedItem_OpensOnThePrefilledSearch_WithNotMatchedYet_AndSearchesNothing()
+    {
+        var cut = RenderPanel(unmatched: true);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        Assert.Contains("Not matched yet", cut.Find("[data-testid=match-search]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
+        Assert.Equal("1995", cut.Find("input[aria-label='Year']").GetAttribute("value"));
+        Assert.Empty(_searches);
+        Assert.Empty(cut.FindAll("[data-testid=match-current]"));
+    }
+
+    [Fact]
+    public void AProviderThatDidNotAnswer_IsNamed()
+    {
+        _answer = new EditorMatchSearchResultDto
+        {
+            EntityId = MovieId,
+            Provider = "tmdb",
+            Query = "Heat",
+            FailedProviders = [new EditorMatchFailedProviderDto { Name = "tmdb", DisplayName = "TMDB" }],
+            Message = "TMDB did not answer. Try again, or search in another provider.",
+        };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("TMDB did not answer", cut.Find("[data-testid=match-message]").TextContent, StringComparison.Ordinal));
+        Assert.Single(_searches);
+    }
+
+    [Fact]
+    public void AKindWithNoProvider_SaysSo_AndOffersNoSearch()
+    {
+        _setup = _ => Setup("course", noProvider: true);
+        var cut = RenderPanel(unmatched: true);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-no-provider]")));
+        Assert.Empty(cut.FindAll("[data-testid=match-search-button]"));
+        Assert.Empty(_searches);
     }
 }

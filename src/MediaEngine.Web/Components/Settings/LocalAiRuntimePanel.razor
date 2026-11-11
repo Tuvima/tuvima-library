@@ -2,12 +2,11 @@
 @inject UIOrchestratorService Orchestrator
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Local AI runtime (resource profile, benchmark, runtime limits and diagnostics): the Runtime page of Local AI.
-   Model files and downloads are the "Local AI models" card on Tools and requirements. The page title and its
-   one-line description come from the Settings frame. *@
+@* The Local AI Advanced tab's runtime cards: runtime settings, invalidate benchmark and runtime diagnostics. The resource
+   profile, Whisper pack, benchmark and model files are on the Models tab (ModelsTab). The shared warning line and the
+   page title come from the Settings frame. *@
 <div class="local-ai-runtime" data-testid="local-ai-runtime">
-    <ModelsTab />
-    <AppCard Title="@L["LocalAiRuntimePanel_RuntimeSettings"].Value" Density="AppSurfaceDensity.Compact">
+    <AppSettingsGroup Heading="@L["LocalAiRuntimePanel_RuntimeSettings"].Value">
         @if (_config is null)
         {
             <AppEmptyState Title="@L["Common_AIConfigurationUnavailable"].Value" Message="@L["LocalAiRuntimePanel_RuntimeControlsAreHiddenUntil"].Value" />
@@ -24,10 +23,18 @@
             <AppButton Label="@L["LocalAiRuntimePanel_SaveRuntimeSettings"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Class="tl-sp-mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
         }
-    </AppCard>
+    </AppSettingsGroup>
+    <AppSettingsGroup Heading="@L["ModelsTab_InvalidateBenchmark"].Value" Helper="@L["LocalAiRuntimePanel_InvalidateBenchmarkHelp"].Value">
+        @if (!string.IsNullOrWhiteSpace(_benchmarkMessage))
+        {
+            <AppAlert Tone="@_benchmarkTone" Class="tl-sp-mb-2">@_benchmarkMessage</AppAlert>
+        }
+        <AppButton Label="@L["ModelsTab_InvalidateBenchmark"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning"
+                   Disabled="@_invalidating" OnClick="@InvalidateBenchmarkAsync" />
+    </AppSettingsGroup>
     @if (_profile is not null || _resources is not null)
     {
-        <AppCard Title="@L["LocalAiRuntimePanel_RuntimeDiagnostics"].Value" Density="AppSurfaceDensity.Compact">
+        <AppSettingsGroup Heading="@L["LocalAiRuntimePanel_RuntimeDiagnostics"].Value">
             <div class="local-ai-runtime__diagnostics">
                 @if (_profile is not null)
                 {
@@ -40,7 +47,7 @@
                     <span><strong>@L["LocalAiRuntimePanel_CPUPressure"]</strong>@CpuPressureLabel(_resources.CpuPressure)</span>
                 }
             </div>
-        </AppCard>
+        </AppSettingsGroup>
     }
 </div>
 
@@ -49,6 +56,9 @@
     private ResourceSnapshotDto? _resources;
     private AiConfigDto? _config;
     private bool _savingConfig;
+    private bool _invalidating;
+    private string? _benchmarkMessage;
+    private AppUiTone _benchmarkTone = AppUiTone.Info;
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,6 +75,16 @@
         _savingConfig = true;
         await Orchestrator.SaveAiConfigAsync(_config);
         _savingConfig = false;
+    }
+
+    private async Task InvalidateBenchmarkAsync()
+    {
+        _invalidating = true;
+        var result = await Orchestrator.InvalidateBenchmarkAsync();
+        _invalidating = false;
+        _benchmarkTone = result.Succeeded ? AppUiTone.Success : AppUiTone.Error;
+        _benchmarkMessage = result.Succeeded ? "The saved benchmark was invalidated." : result.Problem?.ToUserMessage() ?? "Benchmark invalidation failed.";
+        _profile = await Orchestrator.GetAiProfileAsync();
     }
 
     private bool ValidateRuntime() => _config is

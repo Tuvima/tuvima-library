@@ -1,0 +1,71 @@
+@namespace MediaEngine.Web.Components.Settings
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+
+@* What will change in a plugin's file, line by line (Plugins and Integrations screens v5 D55): the body of Review changes. Removed lines
+   are marked with a minus and added lines with a plus, each with its line number; long unchanged stretches are folded into one row. *@
+<div class="plugin-file-diff" data-testid="plugin-file-diff">
+    <p class="plugin-file-diff__summary" data-testid="plugin-file-diff-summary">@Summary</p>
+    <div class="plugin-file-diff__lines" role="region" aria-label="@L["PluginFileDiff_Region"].Value">
+        @foreach (var line in _lines)
+        {
+            @if (line.Kind == PluginFileDiffKind.Skipped)
+            {
+                <div class="plugin-file-diff__row plugin-file-diff__row--skipped" data-kind="skipped"><span></span><span></span><span></span><em>@line.Text</em></div>
+            }
+            else
+            {
+                <div class="@("plugin-file-diff__row plugin-file-diff__row--" + Kind(line))" data-kind="@Kind(line)">
+                    <span class="plugin-file-diff__number" aria-hidden="true">@line.OldNumber</span>
+                    <span class="plugin-file-diff__number" aria-hidden="true">@line.NewNumber</span>
+                    <span class="plugin-file-diff__mark" aria-label="@MarkWords(line)">@Mark(line)</span>
+                    <code class="plugin-file-diff__code">@line.Text</code>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<PluginFileDiffLine> _lines = [];
+
+    [Parameter, EditorRequired] public string Before { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public string After { get; set; } = string.Empty;
+
+    private string Summary
+    {
+        get
+        {
+            var added = _lines.Count(line => line.Kind == PluginFileDiffKind.Added);
+            var removed = _lines.Count(line => line.Kind == PluginFileDiffKind.Removed);
+            return $"{Count(added, "line")} added, {Count(removed, "line")} removed.";
+        }
+    }
+
+    protected override void OnParametersSet() =>
+        _lines = PluginFileDiff.WithContext(PluginFileDiff.Compare(Before, After));
+
+    private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+
+    private static string Kind(PluginFileDiffLine line) => line.Kind switch
+    {
+        PluginFileDiffKind.Added => "added",
+        PluginFileDiffKind.Removed => "removed",
+        _ => "same",
+    };
+
+    private static string Mark(PluginFileDiffLine line) => line.Kind switch
+    {
+        PluginFileDiffKind.Added => "+",
+        PluginFileDiffKind.Removed => "-",
+        _ => string.Empty,
+    };
+
+    private static string MarkWords(PluginFileDiffLine line) => line.Kind switch
+    {
+        PluginFileDiffKind.Added => "Added",
+        PluginFileDiffKind.Removed => "Removed",
+        _ => "Unchanged",
+    };
+}

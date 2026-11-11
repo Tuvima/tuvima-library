@@ -1,4 +1,0 @@
-.listen-popup { width:100%; height:100dvh; min-height:0; overflow:hidden; background:var(--playback-surface); color:var(--playback-text); }
-.listen-popup__empty,.listen-popup__video-return { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; height:100%; padding:24px; text-align:center; }
-.listen-popup__status { position:fixed; bottom:12px; left:12px; right:12px; z-index:1600; padding:12px; background:var(--playback-surface-elevated); border:1px solid var(--playback-border); font-size:13px; }
-.listen-popup__status ::deep button,.listen-popup__video-return ::deep button { min-height:44px; padding:8px 12px; }

@@ -53,6 +53,56 @@ public sealed class EngineApiClientUniversePageTests
     }
 
     [Fact]
+    public async Task GetUniversePageAsync_KeepsTheContents_AndMakesTheirPicturesAbsolute()
+    {
+        const string json = """
+            {
+              "detail": { "qid": "Q4242", "name": "Dune", "group_type": "universe", "item_count": 1, "series_count": 1, "media_types": [], "shelves": [] },
+              "connections": { "characters": [], "character_count": 0, "cast": [], "adaptations": [] },
+              "missing": [],
+              "enrichment": { "state": "ready", "enriched_work_count": 1, "work_count": 1 },
+              "contents": {
+                "sections": [ { "key": "factions", "label": "Factions", "count": 1, "tiles": [ { "id": "11111111-1111-1111-1111-111111111111", "label": "House Test", "picture_url": "/stream/artwork/a?size=m", "logo_url": "/stream/artwork/b?size=m" } ] } ],
+                "timeline": { "default_order": "release", "stops": [ { "id": "22222222-2222-2222-2222-222222222222", "label": "The Battle", "kind": "events", "picture_url": "/stream/artwork/c?size=m" } ] },
+                "hidden_count": 2
+              }
+            }
+            """;
+        var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+
+        var contents = (await client.GetUniversePageAsync("Q4242")).Page!.Contents!;
+
+        var tile = contents.Sections.Single().Tiles.Single();
+        Assert.Equal("http://localhost:61495/stream/artwork/a?size=m", tile.PictureUrl);
+        Assert.Equal("http://localhost:61495/stream/artwork/b?size=m", tile.LogoUrl);
+        Assert.Equal("http://localhost:61495/stream/artwork/c?size=m", contents.Timeline!.Stops.Single().PictureUrl);
+        Assert.Equal(2, contents.HiddenCount);
+    }
+
+    [Fact]
+    public async Task GetUniverseThingAsync_ReadsOneThing_ReportsNotFound_AndAnythingElseAsUnavailable()
+    {
+        const string json = """
+            { "id": "11111111-1111-1111-1111-111111111111", "universe_qid": "Q4242", "label": "House Test", "kind_key": "factions", "kind_label": "Faction",
+              "picture_url": "/stream/artwork/a?size=m", "appears_in": [], "related": [] }
+            """;
+        var found = ClientReplying(request =>
+        {
+            Assert.Equal("/universe/Q4242/things/11111111-1111-1111-1111-111111111111", request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+        });
+
+        var result = await found.GetUniverseThingAsync("Q4242", Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
+        Assert.Equal(UniverseThingLoadStatus.Loaded, result.Status);
+        Assert.Equal("http://localhost:61495/stream/artwork/a?size=m", result.Thing!.PictureUrl);
+        var missing = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+        Assert.Equal(UniverseThingLoadStatus.NotFound, (await missing.GetUniverseThingAsync("Q4242", Guid.NewGuid())).Status);
+        var broken = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        Assert.Equal(UniverseThingLoadStatus.Unavailable, (await broken.GetUniverseThingAsync("Q4242", Guid.NewGuid())).Status);
+    }
+
+    [Fact]
     public async Task GetUniversePageAsync_ReportsNotFoundWhenTheEngineHasNoSuchUniverseForThisProfile()
     {
         var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.NotFound));

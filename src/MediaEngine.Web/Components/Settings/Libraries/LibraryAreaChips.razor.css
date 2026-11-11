@@ -1,0 +1,3 @@
+.lib-chips { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+/* Phones: the chips scroll sideways in one row instead of wrapping (D13). */
+@media (max-width: 600px) { .lib-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }  }

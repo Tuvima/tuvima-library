@@ -1,5 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Components.Shared.Shell
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one frame every Settings page sits in: administrator notices, breadcrumb, title and one-line description,
    an optional permanent page notice, optional in-page tabs, then the page content. Everything shares one left
@@ -25,12 +27,12 @@
                 }
                 else
                 {
-                    <span aria-current="page" title="@breadcrumb.Label">@breadcrumb.Label</span>
+                    <span aria-current="page">@breadcrumb.Label</span>
                 }
             }
         </AppBreadcrumbs>
 
-        <SidebarPageHeader Eyebrow="@Eyebrow" Title="@Title" Subtitle="@Description" />
+        <SidebarPageHeader Title="@Title" Subtitle="@Description" Actions="@_headerActions.Content" />
     </div>
 
     @if (PageNotice is not null)
@@ -43,16 +45,34 @@
         <div class="settings-frame__tabs" data-settings-frame-slot="tabs">@Tabs</div>
     }
 
-    <div class="settings-frame__content" data-settings-frame-slot="content">@ChildContent</div>
+    <div class="settings-frame__content" data-settings-frame-slot="content">
+        @if (AdvancedWarning)
+        {
+            @* The one warning every Advanced tab opens with (settings-and-setup-simplified D1). *@
+            <AppAlert Severity="AppSeverity.Warning"
+                      Variant="AppVariant.Outlined"
+                      Dense="true"
+                      Class="tl-sp-mb-4"
+                      data-testid="settings-advanced-warning">@L["SettingsPageFrame_AdvancedWarning"]</AppAlert>
+        }
+        <CascadingValue Value="_headerActions" IsFixed="true">@ChildContent</CascadingValue>
+    </div>
 </div>
 
 @code {
+    // A page inside the frame may put one action at the top right of the header (Libraries' Add library).
+    private readonly SettingsHeaderActions _headerActions = new();
+
+    protected override void OnInitialized() => _headerActions.Changed += OnHeaderActionsChanged;
+
+    private void OnHeaderActionsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => _headerActions.Changed -= OnHeaderActionsChanged;
+
     /// <summary>Administrator attention lines drawn above the breadcrumb. Nothing is drawn when null.</summary>
     [Parameter] public RenderFragment? Notices { get; set; }
 
     [Parameter] public IReadOnlyList<SettingsBreadcrumb> Breadcrumbs { get; set; } = [];
-
-    [Parameter] public string? Eyebrow { get; set; }
 
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
 
@@ -64,6 +84,9 @@
 
     /// <summary>Tabs for sections inside this one page. Nothing is drawn when null.</summary>
     [Parameter] public RenderFragment? Tabs { get; set; }
+
+    /// <summary>Draws the Advanced warning line first in the content: set while a page's Advanced tab is open.</summary>
+    [Parameter] public bool AdvancedWarning { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

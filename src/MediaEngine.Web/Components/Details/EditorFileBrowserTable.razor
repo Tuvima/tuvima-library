@@ -1,0 +1,103 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The rows of the supporting-files list (universal editor v5 screen E, notes 3, 5 and 7): a tick, the name with its type badge and a second line,
+   where the file belongs, its type, group and role, and a row menu. They fill the shared browser frame's list (D32) as its item rows. A picture
+   folder is one row. Ticks stay while the person pages or filters. The rows only report what the person chose; the dialog decides what opens. *@
+@for (var index = 0; index < State.Rows.Count; index++)
+{
+    var row = State.Rows[index];
+    var position = index;
+    var ticked = State.IsTicked(row.Id);
+    <AppBrowserItemRow @key="row.Id"
+                       Id="@($"{IdPrefix}-{position}")"
+                       Highlighted="@(position == Highlight)"
+                       Ticked="ticked"
+                       Tickable="@(!ReadOnly)"
+                       TickChanged="@(_ => State.Toggle(row))"
+                       TickLabel="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)"
+                       BadgeType="@row.Type"
+                       Title="@row.Title"
+                       SubLine="@EditorFileBrowserRules.RowLine(L, row)"
+                       SubLineQuiet="@(!row.HasOwnTitle)"
+                       Cells="@CellsOf(row)"
+                       data-file-id="@row.Id">
+        <Badge>
+            @if (row.Type == SupportingFileListDefaults.TypeClip)
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" Size="AppIconSize.Control20" />
+            }
+            else
+            {
+                @row.Badge
+            }
+        </Badge>
+        <After>
+            @if (row.IsMissing)
+            {
+                <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorNav_FileMissing"].Value" />
+            }
+        </After>
+        <Menu>
+            @if (ReadOnly)
+            {
+                @* Reading only: one Open button, no menu of edits. *@
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-open-file="@row.Id"
+                           OnClick="@(() => Choose(row, preview: true))">@L["EditorBrowser_Open"]</AppButton>
+            }
+            else
+            {
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)">
+                    <AppMenuItem Label="@L["EditorBrowser_Open"].Value" Icon="@AppMaterialIcons.Outlined.Visibility" OnClick="@(() => Choose(row, preview: true))" />
+                    <AppMenuItem Label="@L["EditorBrowser_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Disabled="@(!CanEdit)" OnClick="@(() => Choose(row, preview: false))" />
+                    <AppMenuItem Label="@L["EditorBrowser_Delete"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true"
+                                 Disabled="@(!CanEdit)" OnClick="@(() => OnDeleteRow.InvokeAsync(row))" />
+                </AppOverflowMenu>
+            }
+        </Menu>
+    </AppBrowserItemRow>
+}
+
+@code {
+    [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>The person chose Open or Edit on a row.</summary>
+    [Parameter] public EventCallback<EditorFileBrowserOutcome> OnChoose { get; set; }
+
+    /// <summary>The person chose Delete on one row; the dialog asks once and deletes.</summary>
+    [Parameter] public EventCallback<SupportingFileRowDto> OnDeleteRow { get; set; }
+
+    /// <summary>False outside a desktop editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>Reading only (the page's Extras "See all"): no tick, and an Open button instead of the row menu.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>The row the arrow keys are on, and the prefix of the row ids the frame names it by.</summary>
+    [Parameter] public int Highlight { get; set; }
+
+    [Parameter] public string IdPrefix { get; set; } = "browser-row";
+
+    private IReadOnlyList<AppBrowserCell> CellsOf(SupportingFileRowDto row) =>
+    [
+        new(row.WhereLabel),
+        new(row.TypeLabel),
+        string.IsNullOrEmpty(row.Group) ? new(L["EditorBrowser_Ungrouped"].Value, Quiet: true) : new(row.Group),
+        new(row.RoleLabel),
+    ];
+
+    private Task Choose(SupportingFileRowDto row, bool preview) =>
+        Guid.TryParse(row.Id, out var id)
+            ? OnChoose.InvokeAsync(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenFile, id, preview))
+            : Task.CompletedTask;
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

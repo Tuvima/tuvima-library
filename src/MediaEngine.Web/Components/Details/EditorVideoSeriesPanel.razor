@@ -1,0 +1,241 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject ILogger<EditorVideoSeriesPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tool's video series and order (universal editor v3.1, WP2 and WP3). A video chooses its series (or starts a new one, or stands
+   alone); the videos of a series are put in the order the person wants, by drag and drop or the arrows, and a series with sections lets a
+   video be dragged from one section to another. Everything here only stages a change: Save changes shows it in Review first, and none of it
+   moves a file. The one exception is the "Rename the files to match this order" switch, off by default and offered only when every video is
+   in a Managed folder. *@
+@if (Subject is not null && IsVideo)
+{
+    @if (ShowSeriesChooser && _series is { Supported: true })
+    {
+        <section class="tl-vseries" data-testid="video-series">
+            <h3 class="tl-vseries__heading">
+                @L["EditorVideoSeries_Series"]
+                @if (_series is { InSeries: false } && ChoiceValue == None)
+                {
+                    @* The same amber "not matched" mark the tree gives a video that is in no series (universal editor v3.1, D8). *@
+                    <span class="tl-vseries__tag" data-testid="video-not-matched">@L["EditorVideoSeries_NotMatched"]</span>
+                }
+            </h3>
+            <AppSelect T="string"
+                       Label="@L["EditorVideoSeries_ChooseSeries"].Value"
+                       Value="@ChoiceValue"
+                       ValueChanged="OnChoiceChanged"
+                       Options="@ChoiceOptions"
+                       Disabled="@(!CanChange)"
+                       AriaLabel="@L["EditorVideoSeries_ChooseSeries"].Value" />
+            @if (_naming)
+            {
+                <div class="tl-vseries__new">
+                    <AppTextField Label="@L["EditorVideoSeries_NewSeriesName"].Value" Value="@_newName" ValueChanged="@(value => _newName = value ?? string.Empty)"
+                                  Immediate="true" MaxLength="@EditSessionVideo.MaxSeriesNameLength" />
+                    <AppButton Label="@L["EditorVideoSeries_Add"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                               Disabled="@string.IsNullOrWhiteSpace(_newName)" OnClick="StageNewSeries" />
+                </div>
+            }
+
+            @if (SeriesSentence is { } sentence)
+            {
+                <p class="tl-vseries__happen" data-testid="video-series-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @sentence</p>
+            }
+        </section>
+    }
+
+    @if (ShowOrder)
+    {
+        <EditorVideoOrderList EntityId="Subject.EntityId" SeriesTitle="@_series?.SeriesTitle" Session="Session" Family="Family" CanEdit="CanEdit" />
+    }
+}
+
+@code {
+    private VideoSeriesStateResponse? _series;
+    private Guid _loadedFor;
+    private bool _naming;
+    private string _newName = string.Empty;
+
+    /// <summary>The item being edited; null until its fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    [Parameter] public EditSessionState? Session { get; set; }
+
+    /// <summary>The editor's family tree, so it can show the order as it is being arranged.</summary>
+    [Parameter] public EditorFamilyState? Family { get; set; }
+
+    [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Shows the series chooser (Match). The browser's order view turns it off and shows only the order.</summary>
+    [Parameter] public bool ShowSeriesChooser { get; set; } = true;
+
+    /// <summary>Shows the order list (the browser). Match keeps it until its own packet narrows the panel to the series chooser.</summary>
+    [Parameter] public bool ShowOrder { get; set; } = true;
+
+    private PendingEditList? Pending => Session?.Pending;
+
+    private bool CanChange => CanEdit && Session is { IsActive: true };
+
+    private bool IsVideo => Subject is not null && string.Equals(Subject.MediaType, "Videos", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsVideo || Subject is null)
+        {
+            _series = null;
+            _loadedFor = Guid.Empty;
+            return;
+        }
+
+        if (_loadedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        var id = Subject.EntityId;
+        _loadedFor = id;
+        _naming = false;
+        _newName = string.Empty;
+        try
+        {
+            var series = await Api.GetVideoSeriesAsync(id);
+            if (_loadedFor != id)
+            {
+                return;
+            }
+
+            _series = series;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "The series of video {EntityId} could not be read for the editor", id);
+            _series = null;
+            // Forget that this item was loaded, so the next time the panel is shown it reads again instead of staying blank.
+            _loadedFor = Guid.Empty;
+        }
+    }
+
+    // ----- Series chooser -----
+
+    private const string Current = "current";
+    private const string None = "none";
+    private const string Start = "new";
+
+    private string ChoiceValue
+    {
+        get
+        {
+            var staged = Subject is null ? null : Pending?.FindVideoSeries(Subject.EntityId);
+            if (staged is null)
+            {
+                return _series is { InSeries: true } ? Current : None;
+            }
+
+            if (EditSessionVideo.IsNoSeries(staged.Token))
+            {
+                return None;
+            }
+
+            return EditSessionVideo.TryParseNewSeries(staged.Token, out _) ? Start : staged.TargetId ?? None;
+        }
+    }
+
+    private IReadOnlyList<AppSelectOption> ChoiceOptions
+    {
+        get
+        {
+            var options = new List<AppSelectOption>();
+            if (_series is { InSeries: true })
+            {
+                options.Add(new AppSelectOption(Current, _series.SeriesTitle ?? L["EditorVideoSeries_Series"].Value));
+                options.Add(new AppSelectOption(None, L["EditorVideoSeries_NotInASeries"].Value));
+                return options;
+            }
+
+            options.Add(new AppSelectOption(None, $"{L["EditorVideoSeries_NotInASeries"].Value} · {L["EditorVideoSeries_StandsOnItsOwn"].Value}"));
+            foreach (var target in _series?.Targets ?? [])
+            {
+                options.Add(new AppSelectOption(target.Id.ToString(), $"{target.Title} · {CountText(target.VideoCount)}"));
+            }
+
+            options.Add(new AppSelectOption(Start, L["EditorVideoSeries_StartANewSeries"].Value));
+            return options;
+        }
+    }
+
+    private string CountText(int count) => count == 1 ? L["EditorVideoSeries_VideoOne"].Value : L["EditorVideoSeries_VideoMany", count].Value;
+
+    private void OnChoiceChanged(string? value)
+    {
+        if (!CanChange || Subject is null || Pending is not { } pending)
+        {
+            return;
+        }
+
+        if (pending.FindVideoSeries(Subject.EntityId) is { } staged)
+        {
+            pending.Remove(staged.Id);
+        }
+
+        _naming = false;
+        switch (value)
+        {
+            case Start:
+                _naming = true;
+                break;
+            case None when _series is { InSeries: true }:
+                pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, null, EditSessionVideo.NoSeriesToken, null, null, _series.SeriesTitle);
+                break;
+            case Current or None or null:
+                break;
+            default:
+                if (Guid.TryParse(value, out var target))
+                {
+                    var place = _series?.Targets.FirstOrDefault(candidate => candidate.Id == target);
+                    pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, target.ToString(), null, place?.Title, null, EditReviewRows.NotInASeries);
+                }
+
+                break;
+        }
+    }
+
+    private void StageNewSeries()
+    {
+        if (!CanChange || Subject is null || Pending is not { } pending || string.IsNullOrWhiteSpace(_newName))
+        {
+            return;
+        }
+
+        pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, null, EditSessionVideo.NewSeriesToken(_newName), _newName.Trim(), null, EditReviewRows.NotInASeries);
+        _naming = false;
+    }
+
+    private string? SeriesSentence
+    {
+        get
+        {
+            if (Subject is null || Pending?.FindVideoSeries(Subject.EntityId) is not { } staged)
+            {
+                return null;
+            }
+
+            var title = Subject.Title;
+            if (EditSessionVideo.IsNoSeries(staged.Token))
+            {
+                return $"\"{title}\" leaves its series and stands on its own. Your file is not moved or renamed.";
+            }
+
+            var name = EditSessionVideo.TryParseNewSeries(staged.Token, out var started)
+                ? started
+                : _series?.Targets.FirstOrDefault(candidate => candidate.Id.ToString() == staged.TargetId)?.Title ?? "the chosen series";
+            return EditSessionVideo.TryParseNewSeries(staged.Token, out _)
+                ? $"A new series, {name}, is started and \"{title}\" is its first video. Your file is not moved or renamed."
+                : $"\"{title}\" joins {name}, at the end of the list. Your file is not moved or renamed.";
+        }
+    }
+}

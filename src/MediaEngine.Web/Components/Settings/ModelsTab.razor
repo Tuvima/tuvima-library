@@ -12,13 +12,10 @@
         <AppAlert Tone="@MessageTone" Class="tl-sp-mb-3">@_message</AppAlert>
     }
 
-    <LocalAiModelFilesPanel />
-
     @if (_config is not null)
     {
-        <AppCard Title="@L["ModelsTab_ResourceProfile"].Value"
-                 Description="@L["ModelsTab_LibraryDownloadsAndRunsOne"].Value"
-                 Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["ModelsTab_ResourceProfile"].Value"
+                 Helper="@L["ModelsTab_LibraryDownloadsAndRunsOne"].Value">
             <div class="model-card__header">
                 <AppChip Text="@L["ModelsTab_EssentialQwen306BQ8"].Value" Tone="@ProfileTone("essential")" />
                 <AppChip Text="@L["ModelsTab_StandardQwen317BQ5"].Value" Tone="@ProfileTone("standard")" />
@@ -38,9 +35,9 @@
                               Label="@L["ModelsTab_OptionalWhisperFeaturePack"].Value"
                               Description="@L["ModelsTab_WhisperIsNotDownloadedDuring"].Value" />
             </div>
-        </AppCard>
+        </AppSettingsGroup>
 
-        <AppCard Title="@L["ModelsTab_CurrentMachineBenchmark"].Value" Class="tl-sp-mb-3">
+        <AppSettingsGroup Heading="@L["ModelsTab_CurrentMachineBenchmark"].Value">
             <span class="model-card__meta">@BenchmarkSummary(_profile)</span>
             @if (!string.IsNullOrWhiteSpace(_profile?.FailureMessage))
             {
@@ -48,10 +45,11 @@
             }
             <AppActionBar Align="AppHorizontalAlignment.Start" Class="tl-sp-mt-3">
                 <AppButton Label="@L["ModelsTab_RunBenchmarkAgain"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="_benchmarking" OnClick="RunHardwareBenchmarkAsync" />
-                <AppButton Label="@L["ModelsTab_InvalidateBenchmark"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="_benchmarking" OnClick="InvalidateBenchmarkAsync" />
             </AppActionBar>
-        </AppCard>
+        </AppSettingsGroup>
     }
+
+    <LocalAiModelFilesPanel />
 
     @if (_loading)
     {
@@ -123,16 +121,6 @@
         _benchmarking = false;
         _messageSeverity = result.Succeeded && result.Value?.Outcome == "succeeded" ? AppSeverity.Success : AppSeverity.Warning;
         _message = result.Succeeded ? BenchmarkSummary(result.Value) : result.Problem?.ToUserMessage() ?? "Benchmark failed.";
-        await RefreshAsync();
-    }
-
-    private async Task InvalidateBenchmarkAsync()
-    {
-        _benchmarking = true;
-        var result = await Orchestrator.InvalidateBenchmarkAsync();
-        _benchmarking = false;
-        _messageSeverity = result.Succeeded ? AppSeverity.Success : AppSeverity.Error;
-        _message = result.Succeeded ? "The saved benchmark was invalidated." : result.Problem?.ToUserMessage() ?? "Benchmark invalidation failed.";
         await RefreshAsync();
     }
 

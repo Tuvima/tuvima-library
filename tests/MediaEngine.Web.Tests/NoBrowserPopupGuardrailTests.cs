@@ -15,12 +15,15 @@ public sealed partial class NoBrowserPopupGuardrailTests
     private static readonly string[] SkippedFolders = ["bin", "obj", "node_modules", "lib", "vendor"];
 
     /// <summary>
-    /// The only browser call that looks like a dialog and is not one: the PWA install flow shows the browser's own install sheet
-    /// through the <c>beforeinstallprompt</c> event's <c>prompt()</c> method. It is not a pop-up dialog the page can style.
+    /// The only browser calls that look like a dialog and are not one: the PWA install flow shows the browser's own install sheet
+    /// through the <c>beforeinstallprompt</c> event's <c>prompt()</c> method, and Play on another device (unified player v2 D28) opens the
+    /// browser's own AirPlay or Google Cast device picker through the Remote Playback API's <c>remote.prompt()</c> method. Neither is a
+    /// pop-up dialog the page can style or replace.
     /// </summary>
     private static readonly (string RelativePath, string Text)[] Allowed =
     [
         ("wwwroot/app.js", "deferredPrompt.prompt("),
+        ("wwwroot/js/playback-remote.js", "remote.prompt("),
     ];
 
     [Fact]

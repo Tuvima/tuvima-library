@@ -4,7 +4,7 @@ using MediaEngine.Contracts.WriteBack;
 namespace MediaEngine.Web.Services.Formatting;
 
 /// <summary>
-/// The plain words for the batched file write-back: the Settings panel and the Editing Mode File notes share one way of showing a time.
+/// The plain words for the batched file write-back: the Settings panel and the editor share one way of showing a time.
 /// </summary>
 public static class FileWriteStatusText
 {

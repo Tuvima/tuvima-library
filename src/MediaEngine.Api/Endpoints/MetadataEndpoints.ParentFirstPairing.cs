@@ -609,7 +609,7 @@ public static partial class MetadataEndpoints
                 localTargets.TryGetValue(candidate.Child.ChildId, out var localTarget)
                     ? localTarget.SeasonWorkId : null),
             candidate.Band.ToString(), candidate.Reasons, candidate.Conflicts,
-            limitation is null, limitation);
+            limitation is null, limitation, candidate.ReasonText);
     }
 
     private static MediaEditorPairingChildDto ToChildContract(PairingCatalogueChild child,

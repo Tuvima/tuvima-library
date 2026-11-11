@@ -5,7 +5,7 @@
    optional action and, for banner lines only, an X. The banner above the breadcrumb and the permanent page notice under
    the title both draw their lines with this, so they always look alike. *@
 <div class="@RootClass" role="status" data-settings-notice="@NoticeKey">
-    <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" Class="settings-notice__icon" aria-hidden="true" />
+    <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Control20" Class="settings-notice__icon" aria-hidden="true" />
     <div class="settings-notice__body">
         <span class="settings-notice__text">@Message</span>
         @if (!string.IsNullOrWhiteSpace(Detail))
@@ -19,9 +19,7 @@
     }
     @if (OnDismiss.HasDelegate)
     {
-        <AppNativeButton Type="button" Class="settings-notice__dismiss" AriaLabel="@L["Common_Dismiss"].Value" OnClick="@(() => OnDismiss.InvokeAsync())">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" aria-hidden="true" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" AriaLabel="@L["Common_Dismiss"].Value" Tooltip="@L["Common_Dismiss"].Value" OnClick="@(() => OnDismiss.InvokeAsync())" />
     }
 </div>
 

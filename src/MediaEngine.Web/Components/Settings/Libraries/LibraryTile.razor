@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* One tile of Add library (Libraries v3 D23, Look v3 D13): the area's or kind's icon above its name, drawn by the shared choice tile. Its hover card (D24) says what
+   belongs in it. A chosen tile is marked; a tile that cannot be used is greyed and its card says why. *@
+<div class="lib-tile-host">
+<LibraryPeek Title="@Title" About="@About" Examples="@Examples" LibraryDoes="@LibraryDoes" Note="@Note">
+    <AppChoiceTile Icon="@Icon"
+                   Label="@Title"
+                   Area="@AreaKey"
+                   Class="lib-tile"
+                   LabelClass="lib-tile__name"
+                   Selected="@Selected"
+                   Disabled="@Disabled"
+                   OnClick="@OnClick">
+        @if (!string.IsNullOrWhiteSpace(Badge))
+        {
+            <small class="lib-tile__badge" data-added><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Inline16" Class="lib-tile__check" aria-hidden="true" />@Badge</small>
+        }
+    </AppChoiceTile>
+</LibraryPeek>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    /// <summary>A small line under the name, for example "Added".</summary>
+    [Parameter] public string? Badge { get; set; }
+    [Parameter] public string? About { get; set; }
+    [Parameter] public IReadOnlyList<string>? Examples { get; set; }
+    [Parameter] public string? LibraryDoes { get; set; }
+    [Parameter] public string? Note { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    /// <summary>The area key that colours the icon square ("watch", "listen", ...); null is neutral (a kind that files as it is).</summary>
+    [Parameter] public string? AreaKey { get; set; }
+}

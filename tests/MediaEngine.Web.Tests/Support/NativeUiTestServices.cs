@@ -11,6 +11,23 @@ internal static class NativeUiTestServices
     public static IServiceCollection AddNativeUiServices(this IServiceCollection services)
     {
         services.TryAddScoped<AppPopoverService>();
+        // The universal editor is one service per circuit; pages bind to it and the layout draws it (render EditorPopover to see it).
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.EditorHost>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ListEditLauncher>();
+        // The photos, videos, documents and galleries editor: one window per circuit, and the ribbon the quick actions speak through.
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonState>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonVoice>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewDropUploader>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewFolderGate>();
+        services.TryAddScoped(provider =>
+        {
+            var api = provider.GetService<MediaEngine.Web.Services.Integration.IEngineApiClient>() ?? EngineApiClientStub.CreateDefault();
+            return new MediaEngine.Web.Services.Editing.ViewEditorHost(
+                api,
+                provider.GetRequiredService<DeviceContextService>(),
+                provider.GetService<MediaEngine.Web.Services.Integration.ViewWorkspaceService>() ?? new MediaEngine.Web.Services.Integration.ViewWorkspaceService(api),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Web.Services.Editing.ViewEditorHost>>());
+        });
         services.TryAddScoped<AppDialogService>();
         services.TryAddScoped<IAppDialogService>(provider => provider.GetRequiredService<AppDialogService>());
         services.TryAddScoped<AppToastService>();
@@ -34,6 +51,11 @@ internal static class NativeUiTestServices
         services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultFolderAttachment, MediaEngine.Web.Services.Vault.EngineVaultFolderAttachment>();
         services.TryAddScoped<MediaEngine.Web.Services.Integration.IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         services.TryAddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
+        // The Libraries page's status line and Activity list follow the Engine's live ingestion state.
+        services.TryAddScoped(provider => new MediaEngine.Web.Services.Integration.IngestionLiveDashboardState(
+            provider.GetRequiredService<MediaEngine.Web.Services.Integration.IEngineApiClient>(),
+            provider.GetRequiredService<MediaEngine.Web.Services.Integration.UIOrchestratorService>(),
+            provider.GetRequiredService<MediaEngine.Web.Services.Integration.UniverseStateContainer>()));
         return services;
     }
 }

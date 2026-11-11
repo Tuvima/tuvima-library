@@ -2,29 +2,35 @@
 
 <span class="@RootClass"
       style="@TileStyle"
-      title="@Title"
       role="@(Decorative ? null : "img")"
       aria-label="@(Decorative ? null : AccessibleLabel)"
       aria-hidden="@(Decorative ? "true" : null)">
-    <AppIcon Name="@Name" Size="@IconSize" Decorative="true" />
+    @if (!string.IsNullOrEmpty(MaterialIcon))
+    {
+        <AppMaterialIcon Icon="@MaterialIcon" Size="@Size" />
+    }
+    else
+    {
+        <AppIcon Name="@Name" Size="@Size" Decorative="true" />
+    }
 </span>
 
 @code {
-    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter] public string Name { get; set; } = string.Empty;
+
+    /// <summary>A Material icon name; when set it is drawn instead of <see cref="Name"/>.</summary>
+    [Parameter] public string? MaterialIcon { get; set; }
+
+    /// <summary>The icon tone by meaning (Look pass 4.7). Overrides <see cref="AccentColor"/>.</summary>
+    [Parameter] public AppIconTone? Tone { get; set; }
     [Parameter] public string AccentColor { get; set; } = "var(--tl-accent-primary)";
-    [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
+    /// <summary>The icon's step on the ladder; the tile around it grows with it (a 32 px icon sits on a 48 px tile).</summary>
+    [Parameter] public AppIconSize Size { get; set; } = AppIconSize.Tile32;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Title { get; set; }
     [Parameter] public bool Decorative { get; set; } = true;
 
     private string AccessibleLabel => string.IsNullOrWhiteSpace(Title) ? Name : Title;
-
-    private string IconSize => Size switch
-    {
-        AppControlSize.Compact => "1rem",
-        AppControlSize.Large => "1.75rem",
-        _ => "1.4375rem",
-    };
 
     private string RootClass => string.Join(" ", new[]
     {
@@ -33,5 +39,5 @@
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string TileStyle => $"--app-icon-tile-accent:{AccentColor};";
+    private string TileStyle => $"--app-icon-tile-accent:{(Tone is { } tone ? AppIconToneMap.Color(tone) : AccentColor)};";
 }

@@ -445,13 +445,18 @@ public sealed class VideoSubtitleDefaultsHostTests : AsyncBunitContext
         var scoped = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
         var script = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
 
-        Assert.Contains(".video-playback-host__media::cue { color: white; background: var(--tl-subtitle-bg); font-size: var(--tl-subtitle-size);", css, StringComparison.Ordinal);
+        Assert.Contains(".video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size);", css, StringComparison.Ordinal);
         Assert.DoesNotContain("::cue", scoped, StringComparison.Ordinal);
         Assert.Contains(".video-playback-host[data-subtitle-size=\"Small\"] { --tl-subtitle-size: max(14px, 2.2vh); }", css, StringComparison.Ordinal);
         Assert.Contains("--tl-subtitle-size: max(14px, 2.8vh)", css, StringComparison.Ordinal);
         Assert.Contains(".video-playback-host[data-subtitle-size=\"Large\"] { --tl-subtitle-size: max(14px, 3.6vh); }", css, StringComparison.Ordinal);
         Assert.Contains(".video-playback-host[data-subtitle-background=\"false\"] { --tl-subtitle-bg: transparent;", css, StringComparison.Ordinal);
-        Assert.Contains("--tl-subtitle-bg: rgb(0 0 0 / 60%)", css, StringComparison.Ordinal);
+        // Unified player D12: the default look is still white text on a 60 percent black backing, now built from colour and opacity variables.
+        Assert.Contains("--tl-sub-bg-o: 60%", css, StringComparison.Ordinal);
+        Assert.Contains("--tl-subtitle-bg: color-mix(in srgb, var(--tl-sub-bg) var(--tl-sub-bg-o), transparent)", css, StringComparison.Ordinal);
+        Assert.Contains("--tl-subtitle-color: color-mix(in srgb, var(--tl-sub-text) var(--tl-sub-text-o), transparent)", css, StringComparison.Ordinal);
+        Assert.Contains(".video-playback-host[data-subtitle-color=\"Magenta\"]", css, StringComparison.Ordinal);
+        Assert.Contains(".video-playback-host[data-subtitle-bg-opacity=\"100\"]", css, StringComparison.Ordinal);
         // The profile default sits behind the title's own preferred subtitle and ahead of the browser's default track.
         Assert.Contains("element.dataset.playbackCaptionDefault", script, StringComparison.Ordinal);
         Assert.Contains("'data-playback-caption-default'", script, StringComparison.Ordinal);

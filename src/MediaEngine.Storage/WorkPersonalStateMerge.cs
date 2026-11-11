@@ -22,7 +22,7 @@ internal static class WorkPersonalStateMerge
         "audiobook_chapter_title_overrides",
         "audiobook_listen_active_segments",
         "audiobook_listen_history",
-        "bookmark_packs",
+        "bookmark_definitive_sets",
         "collection_items",
         "collection_list_entries",
         "companion_sessions",
@@ -104,7 +104,6 @@ internal static class WorkPersonalStateMerge
             """
             UPDATE audiobook_listen_history SET work_id = @target WHERE work_id = @source;
             UPDATE audiobook_bookmarks SET work_id = @target WHERE work_id = @source;
-            UPDATE OR IGNORE bookmark_packs SET work_id = @target WHERE work_id = @source;
             UPDATE audiobook_chapter_title_overrides SET work_id = @target WHERE work_id = @source;
             UPDATE OR IGNORE audiobook_listen_active_segments SET work_id = @target WHERE work_id = @source;
             """,
@@ -115,6 +114,15 @@ internal static class WorkPersonalStateMerge
             """
             UPDATE player_queue_items SET work_id = @target WHERE work_id = @source;
             UPDATE player_device_states SET work_id = @target WHERE work_id = @source;
+            """,
+            args, transaction);
+
+        // An administrator's definitive set of Everyone's bookmarks: the bookmarks flagged for Everyone just moved with the title, so the
+        // mark that says "these are exactly Everyone's" moves with them, unless the surviving title already has its own (which then wins).
+        connection.Execute(
+            """
+            UPDATE OR IGNORE bookmark_definitive_sets SET work_id = @target WHERE work_id = @source;
+            DELETE FROM bookmark_definitive_sets WHERE work_id = @source;
             """,
             args, transaction);
 

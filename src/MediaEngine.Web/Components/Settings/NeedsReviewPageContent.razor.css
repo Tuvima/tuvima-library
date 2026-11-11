@@ -1,18 +1,56 @@
 .needs-review-page { display: grid; gap: 1rem; }
-.needs-review-page__scope { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-.needs-review-page__filters { display: grid; grid-template-columns: minmax(0, 28rem); }
-.review-pinned-empty { display: flex; align-items: center; gap: .65rem; min-height: 3.2rem; padding: .7rem 1rem; color: var(--tl-palette-success); border: 1px solid var(--app-border); border-radius: .65rem; background: var(--app-surface); }
-.review-pinned { overflow: hidden; border: 1px solid color-mix(in srgb, var(--tl-palette-warning) 42%, var(--app-border)); border-radius: .65rem; background: var(--app-surface); }
-.review-row { display: grid; grid-template-columns: minmax(16rem, 1.2fr) minmax(18rem, 1.5fr) auto; align-items: center; gap: 1rem; min-height: 4.25rem; padding: .55rem .85rem; border-bottom: 1px solid var(--app-border); }
-.review-row:last-child { border-bottom: 0; }
-.review-row__identity, .review-row__actions { display: flex; align-items: center; gap: .7rem; min-width: 0; }
-.review-row__identity > span:last-child, .review-row__issue { display: grid; min-width: 0; }
-.review-row small { overflow: hidden; color: var(--tl-palette-text-secondary); font-size: .77rem; white-space: nowrap; text-overflow: ellipsis; }
-.review-row__unknown { display: grid; place-items: center; width: 3rem; height: 3rem; flex: 0 0 3rem; color: var(--tl-palette-text-secondary); background: var(--app-glass-inner-bg); border: 1px dashed var(--app-border); border-radius: .35rem; }
-.review-row__issue strong { color: var(--tl-palette-warning); font-size: .84rem; }
-.review-row__actions { justify-content: flex-end; }
-.review-row__suggestion { grid-column: 1 / -1; }
-.review-row__badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; }
+.needs-review-page__search { flex: 1 1 12rem; max-width: 20rem; }
+/* Try again for all / Keep all as they are: two plain text links at the right end of the filter row (the approved mock). */
+.needs-review-page__bulk { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-1); margin-inline-start: auto; color: var(--tl-text-secondary); }
+.review-pinned-empty { display: flex; align-items: center; gap: .65rem; min-height: 3.2rem; padding: .7rem 1rem; color: var(--tl-status-success); border: 1px solid var(--tl-border-default); border-radius: .65rem; background: var(--tl-bg-surface); }
+.review-pinned { overflow-x: auto; border: 1px solid color-mix(in srgb, var(--tl-status-warning) 42%, var(--tl-border-default)); border-radius: .65rem; background: var(--tl-bg-surface); }
 .review-load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
-@media (max-width: 840px) { .needs-review-page__filters { grid-template-columns: 1fr; } .review-row { grid-template-columns: 1fr auto; } .review-row__identity, .review-row__issue { grid-column: 1 / -1; } }
-@media (max-width: 600px) { .review-row { padding-inline: .65rem; } .review-row__actions { width: 100%; grid-column: 1 / -1; justify-content: flex-end; } }
+.review-row__badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; }
+/* The grid: ONE padding rule for header and body cells, so a header's text starts exactly where its column's text starts. The table is
+   fixed-layout (set globally in app.css): Picture, Last tried and Actions have set widths; Item, Why and Best guess share what is left. */
+.needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding: var(--tl-space-2) var(--tl-space-4); text-align: start; vertical-align: middle; }
+.needs-review-page .needs-review-table th:nth-child(1) { width: 4.25rem; }
+.needs-review-page .needs-review-table th:nth-child(5) { width: 7rem; }
+.needs-review-page .needs-review-table th:nth-child(6) { width: 9.5rem; }
+/* The picture: 44 px square, a dark placeholder when the item has none. Its image is a component root, styled from app.css. */
+.needs-review-page .needs-review-table .needs-review-table__thumb-cell { padding-inline-end: 0; }
+.needs-review-page .needs-review-table__thumb { display: block; inline-size: 44px; block-size: 44px; overflow: hidden; border-radius: var(--tl-radius-sm); background: var(--tl-bg-surface-raised); }
+/* Words wrap at spaces; a word breaks only when it is longer than its whole column (never mid-word otherwise). */
+.needs-review-page .needs-review-table td { overflow-wrap: break-word; }
+.needs-review-page .needs-review-table__item, .needs-review-page .needs-review-table__why, .needs-review-page .needs-review-table__guess { min-width: 0; }
+.needs-review-page .needs-review-table__item strong, .needs-review-page .needs-review-table__why strong { display: block; }
+.needs-review-page .needs-review-table__guess-name { margin-inline-end: var(--tl-space-2); }
+.needs-review-page .needs-review-table__none { color: var(--tl-text-secondary); }
+.needs-review-page .needs-review-table small { display: block; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
+.needs-review-page .needs-review-table__why strong { color: var(--tl-status-warning); font-size: var(--tl-font-size-secondary); }
+/* Item: title, the kind, then ONE line for the folder (the last two folder names; the full path is in the shared tooltip). */
+.needs-review-page .needs-review-table .needs-review-table__path { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needs-review-page .needs-review-table__tried { color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
+.needs-review-page .needs-review-table__tried { white-space: nowrap; }
+.needs-review-page .needs-review-table__actions-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--tl-space-2); }
+.needs-review-page .needs-review-table__suggestion td { padding-top: 0; }
+/* Rows hold a 44 px picture, so they sit on the media step of the row-height ladder (D15.1); every cell shares the row's centre line. */
+html:not([data-form-factor="phone"]) .needs-review-page .needs-review-table tr.needs-review-table__row { height: var(--tl-row-h-media); }
+@media (max-width: 1180px) {
+    .needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding-inline: var(--tl-space-3); }
+    .needs-review-page .needs-review-table th:nth-child(1) { width: 4rem; }
+    .needs-review-page .needs-review-table th:nth-child(5) { width: 6.5rem; }
+    .needs-review-page .needs-review-table th:nth-child(6) { width: 8rem; }
+}
+@media (max-width: 840px) { .needs-review-page__search { max-width: none; } }
+/* Phone: AppTable's cards mode stacks each row as a card (no horizontal scroll): picture, item and actions across the top; why, best guess and last tried beneath. */
+html[data-form-factor="phone"] .needs-review-page .needs-review-table tr.needs-review-table__row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-areas: "thumb item actions" ". why why" ". guess guess" ". tried tried";
+    align-items: start;
+    row-gap: var(--tl-space-2);
+    column-gap: var(--tl-space-3);
+}
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td { padding: 0; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__thumb-cell { grid-area: thumb; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__item { grid-area: item; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__actions { grid-area: actions; justify-self: end; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__why { grid-area: why; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__guess { grid-area: guess; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tried { grid-area: tried; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tried::before { content: attr(data-label) ": "; }

@@ -5,12 +5,20 @@
 <span class="@RootClass">
     <AppTooltip Text="@ResolvedAriaLabel">
     <AppNativeButton Type="button"
-                     Class="playback-primary-button"
+                     Class="@ButtonClass"
                      Css="@Css"
+                     Disabled="@Disabled"
                      OnClick="@HandleClickAsync"
                      AriaLabel="@ResolvedAriaLabel"
                      @attributes="AdditionalAttributes">
-        <AppMaterialIcon Icon="@Icon" Class="playback-primary-button__icon" />
+        @if (IsBar || IsPhone)
+        {
+            <PlaybackUtilityGlyph Glyph="@(ShowsPause ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play)" />
+        }
+        else
+        {
+            <span class="playback-primary-button__icon" aria-hidden="true"><PlaybackUtilityGlyph Glyph="@(ShowsPause ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play)" /></span>
+        }
     </AppNativeButton>
     </AppTooltip>
 </span>
@@ -32,6 +40,9 @@
     public string? Class { get; set; }
 
     [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
     public string? Css { get; set; }
 
     [Parameter]
@@ -47,14 +58,20 @@
     {
         "compact" => "compact",
         "large" => "large",
+        "bar" => "bar",
+        "phone" => "phone",
         _ => "standard"
     };
 
-    private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
+    /// <summary>The persistent bar's Play button (unified player v2 D6): a 32 px stroke glyph in a 48 px target, no ring, the shared state set.</summary>
+    private bool IsBar => NormalizedSize == "bar";
+    /// <summary>The phone's expanded player (unified player v2 D26, mockup screen 15): a 64 px white disc with a black glyph.</summary>
+    private bool IsPhone => NormalizedSize == "phone";
+    private bool ShowsPause => IsPlaying && !NeedsUserGestureToStart;
+    // The bar does not wear the ring button's class, so none of the ring button's state rules can reach it.
+    private string ButtonClass => IsPhone ? "playback-phone-play" : IsBar ? "playback-bar-play" : "playback-primary-button";
 
-    private string Icon => IsPlaying && !NeedsUserGestureToStart
-        ? AppMaterialIcons.Filled.Pause
-        : AppMaterialIcons.Filled.PlayArrow;
+    private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
 
     private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) || AriaLabel == "Play or pause"
         ? IsPlaying && !NeedsUserGestureToStart ? "Pause" : "Play"
@@ -67,7 +84,8 @@
             "playback-primary-button-shell",
             $"playback-primary-button-shell--{NormalizedSize}",
             $"playback-primary-button-shell--appearance-{NormalizedAppearance}",
-            IsPlaying && !NeedsUserGestureToStart ? "is-playing" : null,
+            ShowsPause ? "is-playing" : null,
+            Disabled ? "is-disabled" : null,
             Class
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
 

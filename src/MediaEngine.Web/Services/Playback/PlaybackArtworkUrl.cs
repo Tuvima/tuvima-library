@@ -22,6 +22,49 @@ public static class PlaybackArtworkUrl
             : string.Join(", ", urls.Select((url, index) => $"{url} {index + 1}x"));
     }
 
+    /// <summary>
+    /// The picture for the bar's fixed artwork slot (unified player v2 D5). Music and audiobooks fill a square slot with the cover. TV and movies
+    /// fill a 100 x 56 landscape slot: the episode's still when there is one, otherwise the poster, which the slot draws whole on a blurred fill
+    /// (<see cref="PlaybackSlotArtwork.IsPoster"/>) and never stretches. Nothing found means the slot draws its placeholder.
+    /// </summary>
+    /// <param name="media">Which slot shape applies.</param>
+    /// <param name="item">The playing item.</param>
+    /// <param name="stillUrl">The episode still from the presentation context, if it is known yet.</param>
+    public static PlaybackSlotArtwork ForBarSlot(PlaybackBarMedia media, ListenQueueItem? item, string? stillUrl = null)
+    {
+        if (item is null)
+        {
+            return PlaybackSlotArtwork.None;
+        }
+
+        if (media is PlaybackBarMedia.Music or PlaybackBarMedia.Audiobook)
+        {
+            return new(ForDrawnSize(item, SlotHeightPx), SrcSetForDrawnSize(item, SlotHeightPx), false);
+        }
+
+        if (!string.IsNullOrWhiteSpace(stillUrl) && MediaTileArtworkUrl.SupportsRenditions(stillUrl))
+        {
+            return new(MediaTileArtworkUrl.ForDrawnSize(stillUrl, LandscapeSlotWidthPx),
+                MediaTileArtworkUrl.SrcSetForDrawnSize(stillUrl, LandscapeSlotWidthPx), false);
+        }
+
+        var poster = ForDrawnSize(item, SlotHeightPx);
+        return string.IsNullOrWhiteSpace(poster) ? PlaybackSlotArtwork.None : new(poster, SrcSetForDrawnSize(item, SlotHeightPx), true);
+    }
+
+    /// <summary>The height of the bar's artwork slot in CSS pixels at desktop widths.</summary>
+    public const int SlotHeightPx = 56;
+
+    /// <summary>The width of the landscape slot video uses.</summary>
+    public const int LandscapeSlotWidthPx = 100;
+
+    /// <summary>The medium cover again for a retry after a failed load; attempt 0 is the plain address. The extra value only avoids a cached failure.</summary>
+    public static string? ForItemRetry(ListenQueueItem? item, int attempt)
+    {
+        var url = ForItem(item);
+        return url is null || attempt <= 0 ? url : url + (url.Contains('?') ? "&" : "?") + "retry=" + attempt;
+    }
+
     public static string? ForItem(ListenQueueItem? item, string size = "m") => item is null ? null
         : item.PlaybackExperience == PlaybackExperience.Audiobook
             ? AudiobookCover(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size)
@@ -95,4 +138,10 @@ public static class PlaybackArtworkUrl
     }
 
     private static bool IsRendition(string size) => ArtworkSize.IsKnown(size.ToLowerInvariant());
+}
+
+/// <summary>What the bar's artwork slot draws. <paramref name="IsPoster"/> means a portrait poster in a landscape slot: contained on a blurred fill.</summary>
+public sealed record PlaybackSlotArtwork(string? Src, string? SrcSet, bool IsPoster)
+{
+    public static PlaybackSlotArtwork None { get; } = new(null, null, false);
 }

@@ -16,6 +16,15 @@ function position(state) {
     if (!surface.matches(':popover-open')) surface.showPopover();
     // Playback owns positioning in its explicit parent panel and fullscreen controls.
     if (surface.hasAttribute('data-playback-owned-menu')) return;
+    // A sized Pop-out (Menu or Panel) is a Sheet on phones: the stylesheet pins it to the bottom, so no anchoring.
+    if (surface.dataset?.popoutSize) {
+        const sheet = typeof matchMedia === 'function' && matchMedia('(max-width: 600px)').matches;
+        surface.classList.toggle('app-popout--sheet', sheet);
+        if (sheet) {
+            for (const name of ['position', 'left', 'top', 'width', 'max-width', 'max-height', 'transform']) surface.style.removeProperty(name);
+            return;
+        }
+    }
     const box = state.anchor.getBoundingClientRect();
     surface.style.maxWidth = `${Math.max(0, state.matchWidth ? Math.min(box.width, innerWidth - edge * 2) : innerWidth - edge * 2)}px`;
     if (state.matchWidth) surface.style.width = `${Math.min(box.width, innerWidth - edge * 2)}px`;

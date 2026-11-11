@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The universal editor on a person, a Series, a curated collection and a Universe (spec D17, D17a): which tools the bar offers for each
+/// The universal editor on a person, a Series, a curated collection and a Universe (spec D17, D17a): which tools the window offers for each
 /// (Artwork only where there are pictures; never Match here), the Details fields and read-only facts, staging instead of saving, the
 /// wording of the way back to the canonical value, and the rows Review changes shows for each. The Engine is a hand-written stub.
 /// </summary>
@@ -22,7 +22,6 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<EditSessionRequest> _requests = [];
-    private readonly IRenderedComponent<AppDialogHost> _dialogs;
     private EditorSubjectDto _subject = Person();
 
     public SubjectEditorTests()
@@ -54,7 +53,6 @@ public sealed class SubjectEditorTests : AsyncBunitContext
             });
         }));
         Render<AppPopoverHost>();
-        _dialogs = Render<AppDialogHost>();
     }
 
     private sealed record Editor(EditingModeContext Mode, EditSessionState Session, EditSessionFlow Flow);
@@ -64,7 +62,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         _subject = subject;
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadSubjectAsync(SubjectId);
         var session = new EditSessionState(new PendingEditList());
@@ -78,10 +76,12 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         return new Editor(mode, session, flow);
     }
 
-    private IRenderedComponent<EditingBar> RenderBar(Editor editor) =>
-        Render<EditingBar>(parameters => parameters
-            .Add(bar => bar.Mode, editor.Mode)
-            .Add(bar => bar.Flow, editor.Flow));
+    // The window as the pop-over draws it: the Details tool open.
+    private IRenderedComponent<CascadingValue<EditingModeContext>> RenderBar(Editor editor)
+    {
+        editor.Flow.SelectToolAsync(EditTool.Details).GetAwaiter().GetResult();
+        return RenderPanel(editor);
+    }
 
     private IRenderedComponent<CascadingValue<EditingModeContext>> RenderPanel(Editor editor) =>
         Render<CascadingValue<EditingModeContext>>(parameters => parameters
@@ -113,24 +113,32 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
         Assert.False(editor.Mode.Fields.ProvidersAvailable);
         Assert.Equal(EditorSubjectKinds.Person, editor.Mode.Fields.SubjectKind);
 
     }
 
-    [Theory]
-    [InlineData(EditorSubjectKinds.Series)]
-    [InlineData(EditorSubjectKinds.Collection)]
-    [InlineData(EditorSubjectKinds.Universe)]
-    public async Task ASeriesCollectionOrUniverse_OffersDetailsAndArtwork_ButNoMatch(string kind)
+    [Fact]
+    public async Task ACuratedCollection_OffersDetailsAndArtwork_ButNoMatch()
     {
-        var editor = await StartAsync(Grouping(kind));
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Collection));
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
+        Assert.False(editor.Mode.Fields.CanMatch);
+    }
+
+    [Fact]
+    public async Task AUniverse_OffersDetailsPicturesAndAReadOnlyMatch()
+    {
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Universe));
+
+        var bar = RenderBar(editor);
+
+        Assert.Equal(["Details", "Pictures", "Match"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
     }
 
@@ -148,7 +156,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details"], bar.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
     }
 
     [Theory]
@@ -166,7 +174,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     // -- Details --------------------------------------------------------------------------------
 
     [Fact]
-    public async Task APersonsDetails_ListTheEditableFields_AndTheProviderFactsReadOnly()
+    public async Task APersonsDetails_ListOnlyTheEditableFields()
     {
         var editor = await StartAsync(Person());
         var cut = RenderPanel(editor);
@@ -176,9 +184,8 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         Assert.Single(cut.FindAll(".tl-editor-field[data-field-key='name'] input"));
         Assert.Single(cut.FindAll(".tl-editor-field[data-field-key='biography'] textarea"));
-        var fact = cut.Find(".tl-editor-field--locked[data-field-key='occupation']");
-        Assert.Contains("Actor", fact.TextContent);
-        Assert.Empty(fact.QuerySelectorAll("input, textarea"));
+        // Provider facts are not repeated here: the header and Quick Facts carry them (editor v4.1 D1).
+        Assert.Empty(cut.FindAll(".tl-editor-field--locked[data-field-key='occupation']"));
     }
 
     [Fact]
@@ -188,7 +195,8 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
 
-        cut.WaitForElement(".tl-editor-field[data-field-key='name'] input").Input("Timothy Chalamet");
+        cut.UnlockField("name");
+        cut.Find(".tl-editor-field[data-field-key='name'] input").Input("Timothy Chalamet");
 
         cut.WaitForAssertion(() =>
         {
@@ -199,22 +207,86 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ASeriesOverride_OffersTheProvidersValueBack()
+    public async Task APersonsProviderFields_OpenLocked_ButTheirSortNameAndTagsDoNot()
     {
-        var editor = await StartAsync(Grouping(EditorSubjectKinds.Series, overridden: true));
+        var subject = Person();
+        subject.Fields.Add(new EditorSubjectFieldDto { Key = "sort_name", Label = "Sort name", Value = "Chalamet, Timothee" });
+        subject.Fields.Add(new EditorSubjectFieldDto { Key = "custom_tags", Label = "Library tags", InputKind = EditorSubjectInputKinds.Chips, Value = "actor" });
+        var editor = await StartAsync(subject);
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+        cut.WaitForElement(".tl-editor-details");
 
-        Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
-        title.QuerySelectorAll("button").Single(button => button.TextContent.Contains("Reset to provider value")).Click();
-
-        cut.WaitForAssertion(() =>
+        Assert.Equal("locked", cut.LockStateOf("name"));
+        Assert.Equal("locked", cut.LockStateOf("biography"));
+        foreach (var own in new[] { "sort_name", "custom_tags" })
         {
-            Assert.True(editor.Session.Pending.TryGetField(SubjectId, "title", out var staged));
-            Assert.True(string.IsNullOrEmpty(staged));
-            Assert.Contains("provider's value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent);
+            var field = cut.Find($".tl-editor-field[data-field-key='{own}']");
+            Assert.Equal("false", field.GetAttribute("data-locked"));
+            Assert.Empty(field.QuerySelectorAll("[data-lock-state]"));
+        }
+    }
+
+    [Fact]
+    public async Task ACuratedCollectionsFields_AreItsOwn_AndNeverLocked()
+    {
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Collection));
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+
+        Assert.Empty(cut.FindAll("[data-lock-state]"));
+        Assert.Empty(cut.FindAll(".tl-editor-field[data-locked='true']"));
+        Assert.False(cut.Find(".tl-editor-field[data-field-key='title'] input").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AUniverseThingsNameDescriptionAndAliases_OpenLocked_ButWhereItBelongsAndVisibilityDoNot()
+    {
+        var editor = await StartAsync(new EditorSubjectDto
+        {
+            Id = SubjectId,
+            Kind = EditorSubjectKinds.FictionalEntity,
+            Title = "Paul Atreides",
+            ArtworkSlots = [],
+            Fields =
+            [
+                new EditorSubjectFieldDto { Key = "name", Label = "Name", Value = "Paul Atreides", CanonicalValue = "Paul Atreides" },
+                new EditorSubjectFieldDto { Key = "description", Label = "Description", InputKind = EditorSubjectInputKinds.TextArea, Value = "A duke's son." },
+                new EditorSubjectFieldDto { Key = "aliases", Label = "Also known as (one per line)", InputKind = EditorSubjectInputKinds.TextArea, Value = "Muad'Dib" },
+                new EditorSubjectFieldDto
+                {
+                    Key = "belongs_to",
+                    Label = "Belongs to",
+                    InputKind = EditorSubjectInputKinds.Choice,
+                    Value = "none",
+                    Options = [new EditorSubjectOptionDto { Value = "none", Label = "Nothing" }, new EditorSubjectOptionDto { Value = "house", Label = "House Atreides" }],
+                },
+                new EditorSubjectFieldDto
+                {
+                    Key = "visibility",
+                    Label = "Visibility",
+                    InputKind = EditorSubjectInputKinds.Choice,
+                    Value = "shown",
+                    Options = [new EditorSubjectOptionDto { Value = "shown", Label = "Shown" }, new EditorSubjectOptionDto { Value = "hidden", Label = "Hidden" }],
+                },
+            ],
         });
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+
+        foreach (var provider in new[] { "name", "description", "aliases" })
+        {
+            Assert.Equal("locked", cut.LockStateOf(provider));
+        }
+
+        foreach (var own in new[] { "belongs_to", "visibility" })
+        {
+            var field = cut.Find($".tl-editor-field[data-field-key='{own}']");
+            Assert.Equal("false", field.GetAttribute("data-locked"));
+            Assert.Empty(field.QuerySelectorAll("[data-lock-state]"));
+        }
     }
 
     [Fact]
@@ -225,7 +297,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        title.QuerySelectorAll("button").Single(button => button.TextContent.Contains("Reset to canonical value")).Click();
+        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent));
     }
@@ -234,7 +306,6 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
     [Theory]
     [InlineData(EditorSubjectKinds.Person, "name", "Name", "Timothée Chalamet", "Timothy Chalamet")]
-    [InlineData(EditorSubjectKinds.Series, "title", "Name", "Dune Novels", "Dune books")]
     [InlineData(EditorSubjectKinds.Collection, "title", "Name", "Road trip", "Road trip 2")]
     [InlineData(EditorSubjectKinds.Universe, "title", "Name", "Dune", "Arrakis")]
     public async Task ReviewChanges_ShowsOneRowForTheStagedField_AndSaveSendsItForTheSubject(
@@ -244,18 +315,18 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         editor.Session.Pending.SetField(SubjectId, key, after);
         var bar = RenderBar(editor);
 
-        bar.Find("button.tl-editing-bar__save").Click();
+        bar.Find("button.tl-editor-window__save").Click();
 
-        _dialogs.WaitForElement(".review-changes");
-        _dialogs.WaitForAssertion(() =>
+        bar.WaitForElement(".review-changes");
+        bar.WaitForAssertion(() =>
         {
-            var row = Assert.Single(_dialogs.FindAll(".review-changes__row"));
+            var row = Assert.Single(bar.FindAll(".review-changes__row"));
             Assert.Contains(label, row.TextContent);
             Assert.Contains(before, row.TextContent);
             Assert.Contains(after, row.TextContent);
         });
-        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled")));
-        _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
+        bar.WaitForAssertion(() => Assert.False(bar.Find(".review-changes__footer button:last-child").HasAttribute("disabled")));
+        bar.Find(".review-changes__footer button:last-child").Click();
 
         bar.WaitForAssertion(() => Assert.Contains(_requests, request => !request.PreviewOnly));
         var saved = _requests.Last(request => !request.PreviewOnly).Changes.Single();

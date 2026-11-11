@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using Microsoft.Extensions.Logging;
@@ -8,17 +9,13 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// Per-field editing for Editing Mode on a detail page. It loads the same editor field snapshot the Details
-/// section uses, turns it into the same field presentations (so "editable", "locked provider fact" and "inherited"
-/// mean exactly what they mean in the editor), and saves one field at a time. A save goes through
-/// <c>PUT /library/items/{id}/display-overrides</c> (or the profile preference layer when the value is already a
-/// profile override), exactly as the editor's inline field save does. Nothing is staged and nothing is undone:
-/// a saved field can simply be edited again.
+/// What the pop-over editor knows about the item it is on: it loads the editor field snapshot the Details tool uses and turns it into the
+/// field presentations (so "editable", "locked provider fact" and "inherited" mean the same everywhere). It never saves: every change is
+/// staged in the pending list and written only by Save changes after Review changes.
 /// </summary>
 public sealed class ItemFieldEditSession
 {
     private readonly IEngineApiClient _api;
-    private readonly DeviceContextService? _device;
     private readonly ILogger? _logger;
     private MediaEditorContextDto? _context;
     private MediaEditorScopeDto? _scope;
@@ -30,18 +27,14 @@ public sealed class ItemFieldEditSession
     private MediaEditorDetailsPresentation _presentation = new();
     private bool _suggestionsLoaded;
 
-    public ItemFieldEditSession(IEngineApiClient api, DeviceContextService? device, ILogger? logger = null)
+    public ItemFieldEditSession(IEngineApiClient api, ILogger? logger = null)
     {
         _api = api;
-        _device = device;
         _logger = logger;
     }
 
-    /// <summary>Raised whenever anything a pencil shows changes (load, open, typing, save).</summary>
+    /// <summary>Raised whenever what the editor shows changes (a load finished or failed).</summary>
     public event Action? Changed;
-
-    /// <summary>Raised after a field was saved so the page can refresh what it shows.</summary>
-    public event Func<string, Task>? Saved;
 
     public bool Loading { get; private set; }
 
@@ -52,7 +45,16 @@ public sealed class ItemFieldEditSession
     /// <summary>The asset types the active scope can hold artwork for, such as CoverArt, Background and Logo.</summary>
     public IReadOnlyList<string> ArtworkSlots => _scope?.ArtworkSlots ?? [];
 
-    public bool CanEditArtwork => _scope?.CanEditArtwork == true;
+    public bool CanEditArtwork => _scope?.CanEditArtwork == true && !IsReadOnlySeries;
+
+    /// <summary>
+    /// True while the editor is on a Series (a show's grouping of books, films or comics, or a Series of the Library): read-only everywhere
+    /// (universal editor v5 D7, D24). Its fields are shown locked with no way to unlock them, it has no Artwork, and the window offers
+    /// Close instead of Save. A member of the Series is reached from the header's dropdown and is edited as any item is.
+    /// </summary>
+    public IReadOnlyList<EditorSubjectMemberDto> SubjectMembers => _subject?.Members ?? [];
+
+    public bool IsReadOnlySeries => EditorSeriesRules.IsSeries(SubjectKind, Header?.Kind ?? KindConfig?.Kind);
 
     /// <summary>The item that owns the artwork of the active scope (a season's own poster belongs to the season, not the show).</summary>
     public Guid ArtworkEntityId => _scope?.ArtworkOwnerEntityId ?? _scope?.FieldEntityId ?? Guid.Empty;
@@ -68,13 +70,14 @@ public sealed class ItemFieldEditSession
     {
         get
         {
-            if (_context is null || _subject is not null)
+            if (_context is null || _subject is not null || SupportingFile is not null)
             {
                 return [];
             }
 
             var tv = string.Equals(_context.MediaType, "TV", StringComparison.OrdinalIgnoreCase);
             var music = string.Equals(_context.MediaType, "Music", StringComparison.OrdinalIgnoreCase);
+            var videos = VideoFolderWording.IsVideoFolderMediaType(_context.MediaType);
             return _context.Scopes
                 .OrderBy(scope => scope.Order)
                 .Select(scope => (Scope: scope, Kind: scope.ScopeId.ToLowerInvariant() switch
@@ -82,6 +85,10 @@ public sealed class ItemFieldEditSession
                     "series" when tv => EditTrailKinds.Show,
                     "season" when tv => EditTrailKinds.Season,
                     "episode" when tv => EditTrailKinds.Episode,
+                    // A folder of videos sits in the same trail as a show: Series, Section and Video take the places of Show, Season and Episode.
+                    "series" when videos => EditTrailKinds.Show,
+                    "section" when videos => EditTrailKinds.Season,
+                    "video" when videos => EditTrailKinds.Episode,
                     "album" when music => EditTrailKinds.Album,
                     "track" when music => EditTrailKinds.Track,
                     _ => null,
@@ -95,6 +102,31 @@ public sealed class ItemFieldEditSession
         }
     }
 
+    /// <summary>
+    /// What the editor's header shows for a library title (universal editor v5): the way around the family, the cover's colours, the file
+    /// facts and the rules of the item's kind. Null for a person, Series, collection or Universe (they have no family to walk) and when the
+    /// Engine could not build it; the header then draws the plain title and the tabs fall back to the kind's rules below.
+    /// </summary>
+    public EditorHeaderDto? Header => SupportingFile is { } file ? file.Header : _subject is null ? _context?.Header : null;
+
+    /// <summary>
+    /// The supporting file the editor is open on (universal editor v5 WP7), or null while it is on a title, person, Series or Universe. Its
+    /// <see cref="Header"/> is the owner's header with the file marked current; its values and the lists the form chooses from come with it.
+    /// </summary>
+    public EditorSupportingFileDto? SupportingFile { get; private set; }
+
+    /// <summary>The rules of a person, Series or Universe (tabs, facts) read from <c>config/editor.json</c>; null for a library title or when the read failed.</summary>
+    public EditorHeaderConfigDto? KindConfig { get; private set; }
+
+    /// <summary>The rules of the item being edited, from its header or, for a person, Series or Universe, from the kind's own read.</summary>
+    public EditorHeaderConfigDto? Config => SupportingFile?.Config ?? Header?.Config ?? KindConfig;
+
+    /// <summary>What the Engine reports about the active item's match (provider, provider id, Wikidata id); null when it reports nothing.</summary>
+    public MediaEditorIdentitySummaryDto? Identity => _subject is null ? _scope?.IdentitySummary ?? _context?.IdentitySummary : null;
+
+    /// <summary>The scope's own name for the item ("Season 2"), used when nothing better names its kind.</summary>
+    public string ScopeLabel => _scope?.Label ?? string.Empty;
+
     /// <summary>The id of the active scope (movie, series, season, episode, album...), which names the kind of item being edited.</summary>
     public string ScopeId => _scope?.ScopeId ?? string.Empty;
 
@@ -105,7 +137,7 @@ public sealed class ItemFieldEditSession
     public string MediaType => _context?.MediaType ?? _mediaType ?? string.Empty;
 
     /// <summary>Whether Match and Identity applies to the active scope (the editor's own rule), so the banner only offers it where it works.</summary>
-    public bool CanMatch => _subject is null && MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
+    public bool CanMatch => _subject is null && SupportingFile is null && MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
 
     /// <summary>
     /// The kind of thing being edited when it is a person, Series, curated collection or Universe rather than a library title (the
@@ -118,8 +150,39 @@ public sealed class ItemFieldEditSession
 
     public Guid EntityId => _scope?.FieldEntityId ?? Guid.Empty;
 
+    /// <summary>
+    /// The Explicit mark of a video or a series of videos, as saved now (null for every other kind of item). Staged like any other
+    /// field under <see cref="ExplicitFieldKey"/> and written by Save changes, never straight away.
+    /// </summary>
+    public ItemExplicitResponse? ExplicitMark { get; private set; }
+
+    /// <summary>
+    /// The Engine's totals for the Quick Facts panel (children owned of total, files, size, runtime, quality, read-only folder), or null when
+    /// the read has not finished or failed; the panel then shows only what the fields say. Read-only: it is never staged or saved.
+    /// </summary>
+    public ItemQuickFactsDto? QuickFacts { get; private set; }
+
+    /// <summary>The key the Explicit mark is staged under in the pending list.</summary>
+    public const string ExplicitFieldKey = "explicit";
+
     /// <summary>Whether the active scope lets this person change its fields at all (a read-only library or file says no).</summary>
-    public bool CanEditFields => _scope?.CanEditFields == true;
+    public bool CanEditFields => _scope?.CanEditFields == true && !IsReadOnlySeries;
+
+    // The form lock (EditorFieldLocks): which provider fields the person has unlocked to type in, per item. This is only what the form
+    // shows. It is never sent to the Engine and unlocking or locking a field stages nothing; a field becomes the person's own only when
+    // they change it and save.
+    private readonly HashSet<string> _unlocked = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>True when the person unlocked this provider field of the active item to edit it.</summary>
+    public bool IsUnlocked(string fieldKey) => _unlocked.Contains(UnlockKey(fieldKey));
+
+    /// <summary>Unlocks one provider field of the active item so it can be typed in. Stages nothing.</summary>
+    public void Unlock(string fieldKey) => _unlocked.Add(UnlockKey(fieldKey));
+
+    /// <summary>Locks the field again (a field nobody changed). Stages nothing.</summary>
+    public void Relock(string fieldKey) => _unlocked.Remove(UnlockKey(fieldKey));
+
+    private string UnlockKey(string fieldKey) => EntityId.ToString("N") + "|" + fieldKey.Trim();
 
     public MediaEditorDetailsPresentation Presentation => _presentation;
 
@@ -129,28 +192,29 @@ public sealed class ItemFieldEditSession
     /// <summary>Existing library tags, offered while typing a tag.</summary>
     public IReadOnlyList<string> TagSuggestions { get; private set; } = [];
 
-    /// <summary>The key of the field being edited, or null when no field is open.</summary>
-    public string? ActiveKey { get; private set; }
-
-    /// <summary>Which pencil opened the editor ("hero", "overview"), so the same field shown twice opens one editor.</summary>
-    public string? ActiveOwner { get; private set; }
-
-    public string Draft { get; private set; } = string.Empty;
-
-    public string Baseline { get; private set; } = string.Empty;
-
-    public bool Saving { get; private set; }
-
-    /// <summary>The last failed save for the open field; the typed value is kept.</summary>
-    public string? Error { get; private set; }
-
-    /// <summary>The field that was saved last, shown as an inline "Saved" until the next interaction.</summary>
-    public string? LastSavedKey { get; private set; }
-
-    public bool HasOpenDraft => ActiveKey is not null;
-
-    /// <summary>True only when the typed value differs from what was loaded: that is unsaved input worth guarding.</summary>
-    public bool IsDirty => ActiveKey is not null && !string.Equals(Draft, Baseline, StringComparison.Ordinal);
+    /// <summary>
+    /// Forgets whatever item was loaded. The editor calls this each time it opens, so a second Edit on another title never shows the
+    /// first title's fields while (or instead of) loading its own.
+    /// </summary>
+    public void Reset()
+    {
+        _context = null;
+        _scope = null;
+        _subject = null;
+        SupportingFile = null;
+        _preferences = null;
+        _profileOverrides = null;
+        _presentation = new MediaEditorDetailsPresentation();
+        _unlocked.Clear();
+        ExplicitMark = null;
+        QuickFacts = null;
+        KindConfig = null;
+        EditorEntityId = Guid.Empty;
+        LoadError = null;
+        Loading = false;
+        Loaded = false;
+        Changed?.Invoke();
+    }
 
     /// <summary>Loads (or reloads) the editor field snapshot for the item shown on the page.</summary>
     public async Task LoadAsync(
@@ -163,6 +227,9 @@ public sealed class ItemFieldEditSession
         Loading = true;
         LoadError = null;
         _subject = null;
+        SupportingFile = null;
+        QuickFacts = null;
+        KindConfig = null;
         Changed?.Invoke();
         try
         {
@@ -179,7 +246,12 @@ public sealed class ItemFieldEditSession
 
             var scopeId = !string.IsNullOrWhiteSpace(initialScope) ? initialScope : _context.InitialScope;
             var scopes = _context.Scopes.OrderBy(scope => scope.Order).ToList();
+            // The scope asked for may not exist for this kind of item (a folder of videos has Series, Section and Video where a show has
+            // Show, Season and Episode). The item asked for is then the scope whose fields are staged under that very id, and only after
+            // that the Engine's own choice: the editor never silently opens a parent instead of the item.
             _scope = scopes.FirstOrDefault(scope => string.Equals(scope.ScopeId, scopeId, StringComparison.OrdinalIgnoreCase))
+                     ?? scopes.FirstOrDefault(scope => scope.FieldEntityId == editorEntityId)
+                     ?? scopes.FirstOrDefault(scope => string.Equals(scope.ScopeId, _context.InitialScope, StringComparison.OrdinalIgnoreCase))
                      ?? scopes.FirstOrDefault();
 
             _preferences = null;
@@ -190,6 +262,13 @@ public sealed class ItemFieldEditSession
                 _profileOverrides = ProfileOverridesFrom(_preferences);
             }
 
+            ExplicitMark = null;
+            if (_scope is not null && string.Equals(_context.MediaType, "Videos", StringComparison.OrdinalIgnoreCase))
+            {
+                var mark = await _api.GetItemExplicitAsync(_scope.FieldEntityId, ct);
+                ExplicitMark = mark is { Supported: true } ? mark : null;
+            }
+
             Loaded = _scope is not null;
             if (!Loaded)
             {
@@ -197,6 +276,11 @@ public sealed class ItemFieldEditSession
             }
 
             Rebuild();
+            if (_scope is not null)
+            {
+                await LoadQuickFactsAsync(_scope.FieldEntityId, ct);
+            }
+
             // The library's genres and tags do not depend on the item: switching items (spec D7) reuses the lists, so it stays quick.
             if (!_suggestionsLoaded)
             {
@@ -209,7 +293,7 @@ public sealed class ItemFieldEditSession
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Editing Mode could not load the editor fields for {EntityId}", editorEntityId);
+            _logger?.LogWarning(ex, "The editor could not load the fields for {EntityId}", editorEntityId);
             LoadError = "This item's editable fields could not be loaded.";
             Loaded = false;
         }
@@ -232,6 +316,7 @@ public sealed class ItemFieldEditSession
     {
         Loading = true;
         LoadError = null;
+        SupportingFile = null;
         Changed?.Invoke();
         try
         {
@@ -245,6 +330,8 @@ public sealed class ItemFieldEditSession
             }
 
             ApplySubject(subject);
+            await LoadKindConfigAsync(subject.Kind, ct);
+            await LoadQuickFactsAsync(subject.Id, ct);
             if (subject.Fields.Any(field => field.InputKind == EditorSubjectInputKinds.Chips))
             {
                 await LoadSuggestionsAsync(ct);
@@ -268,11 +355,100 @@ public sealed class ItemFieldEditSession
         }
     }
 
+    /// <summary>
+    /// Loads a supporting file of a title (universal editor v5 WP7) in place of the title: the Engine's one read gives its values, the
+    /// roles, groups and places the form offers and the owner's header with this file marked current. Switching to the file keeps everything
+    /// staged. On failure the file is not loaded and <see cref="LoadError"/> says so.
+    /// </summary>
+    public async Task LoadSupportingFileAsync(Guid titleId, Guid fileId, CancellationToken ct = default)
+    {
+        Loading = true;
+        LoadError = null;
+        Changed?.Invoke();
+        try
+        {
+            var read = await _api.GetSupportingFileEditorAsync(titleId, fileId, ct);
+            if (read is null)
+            {
+                SupportingFile = null;
+                Loaded = false;
+                LoadError = "This file cannot be opened for editing right now.";
+                return;
+            }
+
+            ApplySupportingFile(read, fileId);
+            if (!_suggestionsLoaded)
+            {
+                await LoadSuggestionsAsync(ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The person moved on while the file was loading; there is nothing to show or report.
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The editor could not load the supporting file {FileId}", fileId);
+            SupportingFile = null;
+            Loaded = false;
+            LoadError = "This file cannot be opened for editing right now.";
+        }
+        finally
+        {
+            Loading = false;
+            Changed?.Invoke();
+        }
+    }
+
+    // A supporting file has no editor scopes of its own either: a synthetic one carries what the staged editor reads from a scope (the id
+    // its changes are staged under, the media type that says which library's write-back setting applies, whether it can be changed).
+    private void ApplySupportingFile(EditorSupportingFileDto read, Guid fileId)
+    {
+        SupportingFile = read;
+        _subject = null;
+        QuickFacts = null;
+        ExplicitMark = null;
+        KindConfig = null;
+        _preferences = null;
+        _profileOverrides = null;
+        var mediaType = read.Header?.Root.MediaType ?? string.Empty;
+        _mediaType = mediaType;
+        EditorEntityId = fileId;
+        _context = new MediaEditorContextDto
+        {
+            LaunchEntityId = fileId,
+            LaunchEntityKind = "SupportingFile",
+            MediaType = mediaType,
+            InitialScope = SupportingFileScopeId,
+        };
+        _scope = new MediaEditorScopeDto
+        {
+            ScopeId = SupportingFileScopeId,
+            Label = "Supporting file",
+            FieldEntityId = fileId,
+            FieldEntityKind = "SupportingFile",
+            ArtworkOwnerEntityId = fileId,
+            ArtworkOwnerEntityKind = "SupportingFile",
+            DisplayTitle = read.File.Title,
+            CanEditFields = true,
+            CanEditArtwork = false,
+            ArtworkSlots = [],
+        };
+        _presentation = new MediaEditorDetailsPresentation();
+        Loaded = true;
+        LoadError = null;
+    }
+
+    /// <summary>The scope id a supporting file's synthetic scope carries.</summary>
+    public const string SupportingFileScopeId = "supporting_file";
+
     // A subject has no editor scopes of its own: a synthetic one carries what the staged editor reads from a scope (the id, the
     // picture owner and slots, whether fields and pictures can be changed), and the Engine's field list becomes the presentation.
     private void ApplySubject(EditorSubjectDto subject)
     {
         _subject = subject;
+        QuickFacts = null;
+        ExplicitMark = null;
         _mediaType = subject.Kind;
         _preferences = null;
         _profileOverrides = null;
@@ -299,7 +475,7 @@ public sealed class ItemFieldEditSession
         };
 
         var canonicalName = subject.Kind == EditorSubjectKinds.Universe ? "canonical" : null;
-        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName)).ToList();
+        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName, EditorFieldLocks.IsOwnSubjectField(subject.Kind, field.Key))).ToList();
         var facts = subject.Facts.Select(fact => new MediaEditorDetailsFieldPresentation(
             fact.Label.ToLowerInvariant().Replace(' ', '_'), string.Empty, fact.Label, fact.Value, string.Empty, "text", "Provider",
             fact.SourceLabel, null, false, false, false, 3, fact.Value, fact.Value, false)).ToList();
@@ -316,13 +492,18 @@ public sealed class ItemFieldEditSession
         LoadError = null;
     }
 
-    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName) => new(
+    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName, bool isOwnField) => new(
         field.Key,
         field.Key,
         field.Label,
         field.Value,
         string.Empty,
-        field.InputKind == EditorSubjectInputKinds.TextArea ? "textarea" : "text",
+        field.InputKind switch
+        {
+            EditorSubjectInputKinds.TextArea => "textarea",
+            EditorSubjectInputKinds.Choice => "choice",
+            _ => "text",
+        },
         field.IsOverridden ? "Override" : "Canonical",
         field.SourceLabel,
         null,
@@ -333,7 +514,47 @@ public sealed class ItemFieldEditSession
         field.Value,
         field.Value,
         false,
-        CanonicalName: canonicalName);
+        CanonicalName: canonicalName,
+        Options: field.InputKind == EditorSubjectInputKinds.Choice
+            ? field.Options.Select(option => new MediaEditorChoiceOption(option.Value, option.Label)).ToList()
+            : null,
+        IsOwnField: isOwnField,
+        ProviderValue: field.IsOverridden && !string.IsNullOrWhiteSpace(field.CanonicalValue) ? field.CanonicalValue : null);
+
+    // A person, Series or Universe has no header of its own, so its tabs and facts come from the kind's rules in config/editor.json. A kind the
+    // file does not know (a curated collection) or a failed read leaves the editor on its standard tabs.
+    private async Task LoadKindConfigAsync(string kind, CancellationToken ct)
+    {
+        KindConfig = null;
+        if (!EditorKindNames.All.Contains(kind, StringComparer.Ordinal))
+        {
+            return;
+        }
+
+        try
+        {
+            KindConfig = await _api.GetEditorKindConfigAsync(kind, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogDebug(ex, "The editor's rules for {Kind} were unavailable", kind);
+            KindConfig = null;
+        }
+    }
+
+    // The totals only add to the panel: a failed or missing read leaves the facts the fields give, and never blocks the editor.
+    private async Task LoadQuickFactsAsync(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            QuickFacts = id == Guid.Empty ? null : await _api.GetEditorQuickFactsAsync(id, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogDebug(ex, "The editor's Quick Facts totals were unavailable for {EntityId}", id);
+            QuickFacts = null;
+        }
+    }
 
     private async Task LoadSuggestionsAsync(CancellationToken ct)
     {
@@ -349,7 +570,7 @@ public sealed class ItemFieldEditSession
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Suggestions only help typing; the fields work without them.
-            _logger?.LogDebug(ex, "Editing Mode suggestions were unavailable");
+            _logger?.LogDebug(ex, "Editor suggestions were unavailable");
             GenreSuggestions = [];
             TagSuggestions = [];
         }
@@ -429,241 +650,8 @@ public sealed class ItemFieldEditSession
     public MediaEditorDetailsFieldPresentation? EmptyTagsField => _presentation.CanAddTags
         ? new MediaEditorDetailsFieldPresentation(
             "custom_tags", "custom_tags", "Tags", string.Empty, "Label", "text", "Override", "Library override", null,
-            true, false, true, 2, string.Empty, string.Empty, false)
+            true, false, true, 2, string.Empty, string.Empty, false, IsOwnField: true)
         : null;
-
-    public bool IsEditing(string key, string owner) =>
-        ActiveKey is not null
-        && string.Equals(ActiveKey, key, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(ActiveOwner, owner, StringComparison.Ordinal);
-
-    /// <summary>Opens one field. Only one field is open at a time; a second request is refused until the first closes.</summary>
-    public bool Begin(MediaEditorDetailsFieldPresentation field, string owner)
-    {
-        if (!EditorDeviceRule.CanEdit(_device))
-        {
-            Error = EditorDeviceRule.Message;
-            Changed?.Invoke();
-            return false;
-        }
-
-        if (Saving || ActiveKey is not null || !CanEditField(field))
-        {
-            return false;
-        }
-
-        ActiveKey = field.Key;
-        ActiveOwner = owner;
-        Baseline = field.RawValue ?? field.Value ?? string.Empty;
-        Draft = Baseline;
-        Error = null;
-        LastSavedKey = null;
-        Changed?.Invoke();
-        return true;
-    }
-
-    public void UpdateDraft(string? value)
-    {
-        if (ActiveKey is null)
-        {
-            return;
-        }
-
-        Draft = value ?? string.Empty;
-        Error = null;
-        Changed?.Invoke();
-    }
-
-    /// <summary>Closes the open field and drops what was typed.</summary>
-    public void Cancel()
-    {
-        if (Saving)
-        {
-            return;
-        }
-
-        Clear();
-        Changed?.Invoke();
-    }
-
-    /// <summary>Drops any open field without a save (leaving Editing Mode after the user chose to discard).</summary>
-    public void Discard()
-    {
-        Clear();
-        LastSavedKey = null;
-        Changed?.Invoke();
-    }
-
-    /// <summary>Saves the open field. On failure the field stays open with the typed value and an inline error.</summary>
-    public async Task<bool> SaveAsync()
-    {
-        if (ActiveKey is null || Saving)
-        {
-            return false;
-        }
-
-        if (!EditorDeviceRule.CanEdit(_device))
-        {
-            Error = EditorDeviceRule.Message;
-            Changed?.Invoke();
-            return false;
-        }
-
-        var field = AllFields().FirstOrDefault(candidate => string.Equals(candidate.Key, ActiveKey, StringComparison.OrdinalIgnoreCase))
-                    ?? (string.Equals(ActiveKey, "custom_tags", StringComparison.OrdinalIgnoreCase) ? EmptyTagsField : null);
-        var scope = _scope;
-        if (field is null || scope is null || !CanEditField(field))
-        {
-            Error = "This field cannot be changed for this item.";
-            Changed?.Invoke();
-            return false;
-        }
-
-        var overrideKey = string.IsNullOrWhiteSpace(field.OverrideKey) ? field.Key : field.OverrideKey;
-        if (!scope.FieldSnapshot.AllowedOverrideKeys.Contains(overrideKey, StringComparer.OrdinalIgnoreCase))
-        {
-            Error = $"{field.Label} cannot be overridden for this item.";
-            Changed?.Invoke();
-            return false;
-        }
-
-        var isTags = MediaEditorTagRules.IsLibraryTagsKey(overrideKey);
-        var profileLayer = !isTags && string.Equals(field.SourceLabel, "This profile", StringComparison.OrdinalIgnoreCase);
-        var value = Draft.Trim();
-        if (isTags)
-        {
-            value = MediaEditorTagRules.NormalizeLibraryTags(Draft, out var tagError);
-            if (tagError is not null)
-            {
-                Error = tagError;
-                Changed?.Invoke();
-                return false;
-            }
-        }
-
-        Saving = true;
-        Error = null;
-        Changed?.Invoke();
-        var savedKey = field.Key;
-        try
-        {
-            var saved = profileLayer
-                ? await SaveProfileLayerAsync(scope.FieldEntityId, overrideKey, value)
-                : await SaveLibraryLayerAsync(scope, overrideKey, value, isTags);
-            if (!saved)
-            {
-                Error ??= _api.LastError ?? "This field could not be saved.";
-                return false;
-            }
-
-            Clear();
-            LastSavedKey = savedKey;
-            Rebuild();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Editing Mode could not save {Field} for {EntityId}", savedKey, scope.FieldEntityId);
-            Error = "This field could not be saved.";
-            return false;
-        }
-        finally
-        {
-            Saving = false;
-            Changed?.Invoke();
-        }
-
-        if (Saved is { } handlers)
-        {
-            foreach (var handler in handlers.GetInvocationList().Cast<Func<string, Task>>())
-            {
-                await handler(savedKey);
-            }
-        }
-
-        return true;
-    }
-
-    private async Task<bool> SaveLibraryLayerAsync(MediaEditorScopeDto scope, string overrideKey, string value, bool isTags)
-    {
-        var saved = await _api.SaveItemDisplayOverridesAsync(
-            scope.FieldEntityId,
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [overrideKey] = value });
-        if (!saved)
-        {
-            return false;
-        }
-
-        var snapshot = scope.FieldSnapshot;
-        if (string.IsNullOrWhiteSpace(value) && !isTags)
-        {
-            snapshot.DisplayOverrides.Remove(overrideKey);
-            _context?.DisplayOverrides.Remove(overrideKey);
-        }
-        else
-        {
-            snapshot.DisplayOverrides[overrideKey] = value;
-            if (_context is not null)
-            {
-                _context.DisplayOverrides[overrideKey] = value;
-            }
-        }
-
-        return true;
-    }
-
-    private async Task<bool> SaveProfileLayerAsync(Guid entityId, string overrideKey, string value)
-    {
-        if (_profileId is not { } profileId)
-        {
-            Error = "Choose a profile before saving this local override.";
-            return false;
-        }
-
-        var baseline = _preferences ?? await _api.GetItemEditorPreferencesAsync(entityId, profileId);
-        if (baseline is null)
-        {
-            Error = _api.LastError ?? "Profile preferences could not be loaded.";
-            return false;
-        }
-
-        var overrides = baseline.DisplayOverrides
-            .Where(pair => !MediaEditorTagRules.IsLibraryTagsKey(pair.Key))
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            overrides.Remove(overrideKey);
-        }
-        else
-        {
-            overrides[overrideKey] = value;
-        }
-
-        var result = await _api.SaveItemEditorPreferencesAsync(
-            entityId,
-            profileId,
-            new ItemEditorPreferencesRequest
-            {
-                ExpectedRevision = baseline.Revision,
-                DisplayOverrides = overrides,
-                LocalTags = baseline.LocalTags.ToList(),
-            });
-        if (!result.Saved)
-        {
-            Error = result.Conflict
-                ? "New library changes are available. Close this field and try again."
-                : result.Error ?? "This field could not be saved.";
-            return false;
-        }
-
-        _preferences = result.Preferences ?? baseline;
-        _profileOverrides = ProfileOverridesFrom(_preferences);
-        return true;
-    }
-
-    private bool CanEditField(MediaEditorDetailsFieldPresentation field) =>
-        field.CanOverride
-        && !string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase)
-        && _scope?.CanEditFields == true;
 
     private IEnumerable<MediaEditorDetailsFieldPresentation> EnumerateFields()
     {
@@ -683,6 +671,12 @@ public sealed class ItemFieldEditSession
 
     private void Rebuild()
     {
+        if (SupportingFile is not null)
+        {
+            // A supporting file has its own form; there are no provider fields to present.
+            return;
+        }
+
         if (_subject is not null)
         {
             // A subject's presentation comes whole from the Engine's answer; there is no scope snapshot to rebuild it from.
@@ -698,15 +692,6 @@ public sealed class ItemFieldEditSession
         var scopes = _context.Scopes.ToDictionary(scope => scope.ScopeId, StringComparer.OrdinalIgnoreCase);
         var mediaType = !string.IsNullOrWhiteSpace(_context.MediaType) ? _context.MediaType : _mediaType;
         _presentation = MediaEditorDetailsPresenter.Build(_scope, scopes, mediaType, draft: null, _profileOverrides);
-    }
-
-    private void Clear()
-    {
-        ActiveKey = null;
-        ActiveOwner = null;
-        Draft = string.Empty;
-        Baseline = string.Empty;
-        Error = null;
     }
 
     private static IReadOnlyDictionary<string, string>? ProfileOverridesFrom(ItemEditorPreferencesResponse? preferences) =>

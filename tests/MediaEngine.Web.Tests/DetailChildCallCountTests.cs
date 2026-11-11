@@ -13,7 +13,7 @@ namespace MediaEngine.Web.Tests;
 /// <summary>Counts Engine calls made by details-page children so parallel/cached reads stay that way.</summary>
 public sealed class DetailChildCallCountTests : AsyncBunitContext
 {
-    private int _reactionReads;
+    private int _savedReads;
 
     public DetailChildCallCountTests()
     {
@@ -21,11 +21,11 @@ public sealed class DetailChildCallCountTests : AsyncBunitContext
         Services.AddLogging();
         Services.AddNativeUiServices();
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(
-            nameof(IEngineApiClient.GetProfileReactionsAsync),
+            nameof(IEngineApiClient.GetSavedItemsAsync),
             _ =>
             {
-                Interlocked.Increment(ref _reactionReads);
-                return Task.FromResult<IReadOnlyList<ProfileReactionDto>>([]);
+                Interlocked.Increment(ref _savedReads);
+                return Task.FromResult<IReadOnlyList<ProfileSavedItemDto>>([]);
             }));
         Services.AddSingleton<IEngineApiClient>(api);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
@@ -33,6 +33,7 @@ public sealed class DetailChildCallCountTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
     }
@@ -43,13 +44,13 @@ public sealed class DetailChildCallCountTests : AsyncBunitContext
         var cut = Render<AudioItemTable>(p => p
             .Add(x => x.Groups, [new MediaGroupingViewModel { Key = "tracks" }])
             .Add(x => x.SourceTitle, "Album"));
-        var afterFirst = _reactionReads;
+        var afterFirst = _savedReads;
 
         cut.Render(p => p
             .Add(x => x.Groups, [new MediaGroupingViewModel { Key = "tracks" }])
             .Add(x => x.SourceTitle, "Album (updated)"));
 
         Assert.True(afterFirst <= 1);
-        Assert.Equal(afterFirst, _reactionReads);
+        Assert.Equal(afterFirst, _savedReads);
     }
 }

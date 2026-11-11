@@ -43,13 +43,15 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
         var groups = new List<VideoOrderGroup>();
         foreach (var parent in parents)
         {
-            var entries = conn.Query<(Guid WorkId, Guid AssetId, string? Title)>(
+            var entries = conn.Query<(Guid WorkId, Guid AssetId, string? Title, string? Path, string? AddedAt)>(
                 """
                 SELECT w.id AS WorkId,
                        ma.id AS AssetId,
                        COALESCE(
                            (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'title' LIMIT 1),
-                           (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'title' LIMIT 1)) AS Title
+                           (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'title' LIMIT 1)) AS Title,
+                       ma.file_path_root AS Path,
+                       ma.presented_at AS AddedAt
                 FROM works w
                 JOIN editions e ON e.work_id = w.id
                 JOIN media_assets ma ON ma.edition_id = e.id
@@ -58,7 +60,12 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
                 ORDER BY COALESCE(w.ordinal_sort, w.ordinal, 1e9), w.id;
                 """,
                 new { parent })
-                .Select(row => new VideoOrderEntry(row.WorkId, row.AssetId, string.IsNullOrWhiteSpace(row.Title) ? "Untitled" : row.Title))
+                .Select(row => new VideoOrderEntry(
+                    row.WorkId,
+                    row.AssetId,
+                    string.IsNullOrWhiteSpace(row.Title) ? "Untitled" : row.Title,
+                    string.IsNullOrWhiteSpace(row.Path) ? string.Empty : System.IO.Path.GetFileName(row.Path.Replace('\\', '/')),
+                    row.AddedAt))
                 .ToList();
             if (entries.Count == 0)
             {
@@ -80,6 +87,61 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
         ct.ThrowIfCancellationRequested();
         return _db.ExecuteWriteAsync<IReadOnlyList<VideoOrderPlacement>?>(
             (conn, tx, _) => Reorder(conn, tx, parentWorkId, orderedWorkIds), ct);
+    }
+
+    public Task<IReadOnlyList<VideoSectionPlacement>?> ReorderSectionsAsync(
+        Guid seriesWorkId, IReadOnlyList<Guid> orderedSectionIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync<IReadOnlyList<VideoSectionPlacement>?>(
+            (conn, tx, _) => ReorderSections(conn, tx, seriesWorkId, orderedSectionIds), ct);
+    }
+
+    private static IReadOnlyList<VideoSectionPlacement>? ReorderSections(
+        SqliteConnection conn, SqliteTransaction tx, Guid seriesWorkId, IReadOnlyList<Guid> orderedSectionIds)
+    {
+        var sections = conn.Query<(Guid Id, int Videos)>(
+            """
+            SELECT s.id AS Id,
+                   (SELECT COUNT(DISTINCT w.id)
+                    FROM works w
+                    JOIN editions e ON e.work_id = w.id
+                    JOIN media_assets ma ON ma.edition_id = e.id
+                    WHERE w.parent_work_id = s.id AND w.work_kind = 'child' AND ma.status = 'Normal' AND ma.is_orphaned = 0) AS Videos
+            FROM works s
+            WHERE s.parent_work_id = @seriesWorkId AND s.work_kind = 'parent' AND s.media_type = 'Videos'
+            ORDER BY COALESCE(s.ordinal, 2147483647), s.id;
+            """,
+            new { seriesWorkId }, tx).ToList();
+        var withVideos = sections.Where(section => section.Videos > 0).Select(section => section.Id).ToHashSet();
+        if (withVideos.Count == 0
+            || orderedSectionIds.Count != withVideos.Count
+            || orderedSectionIds.Distinct().Count() != orderedSectionIds.Count
+            || orderedSectionIds.Any(id => !withVideos.Contains(id)))
+        {
+            return null;
+        }
+
+        // A section with no video yet keeps its relative place after the ordered ones.
+        var all = orderedSectionIds.Concat(sections.Where(section => section.Videos == 0).Select(section => section.Id)).ToList();
+        // Positions are unique inside a series, so park every section on a free negative number first.
+        for (var i = 0; i < all.Count; i++)
+        {
+            conn.Execute("UPDATE works SET ordinal = @park WHERE id = @id;", new { park = -(i + 1), id = all[i] }, tx);
+        }
+
+        var placements = new List<VideoSectionPlacement>(orderedSectionIds.Count);
+        for (var i = 0; i < all.Count; i++)
+        {
+            var position = i + 1;
+            conn.Execute("UPDATE works SET ordinal = @position WHERE id = @id;", new { position, id = all[i] }, tx);
+            if (i < orderedSectionIds.Count)
+            {
+                placements.Add(new VideoSectionPlacement(all[i], position));
+            }
+        }
+
+        return placements;
     }
 
     private static IReadOnlyList<VideoOrderPlacement>? Reorder(

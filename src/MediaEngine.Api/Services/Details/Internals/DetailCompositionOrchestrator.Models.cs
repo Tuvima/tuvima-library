@@ -167,6 +167,8 @@ internal sealed partial class DetailCompositionOrchestrator
         public string? EpisodeStillUrl { get; init; }
         public int? EpisodeStillWidthPx { get; init; }
         public int? EpisodeStillHeightPx { get; init; }
+        /// <summary>Date Library checks TheTVDB again for this episode's missing picture; null when it has none missing.</summary>
+        public string? StandInRetryAfter { get; init; }
         public double? DurationSeconds { get; init; }
         public string? LastAccessed { get; init; }
         public double? SequenceSort { get; init; }

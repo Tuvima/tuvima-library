@@ -1,0 +1,36 @@
+.tl-fbfolders__heading {
+    margin: 0 0 var(--tl-space-2);
+    font-size: var(--tl-font-size-md);
+}
+
+.tl-fbfolders__path {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-fbfolders__busy {
+    display: grid;
+    gap: var(--tl-space-2);
+}
+
+.tl-fbfolders__empty {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}
+
+.tl-fbfolders__size,
+.tl-fbfolders__hidden {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-fbfolders__more {
+    display: flex;
+    justify-content: center;
+}

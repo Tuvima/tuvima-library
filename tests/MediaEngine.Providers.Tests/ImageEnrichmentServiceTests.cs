@@ -322,7 +322,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
                 "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"},{"id":7,"name":"Season Poster"},{"id":23,"name":"Clear Logo"}]}"""),
                 "/v4/series/55/extended" => JsonResponse("""{"data":{"id":55,"defaultSeasonType":1,"seasons":[{"id":66,"number":1,"type":{"id":1}}],"artworks":[{"type":7,"language":"eng","score":99999,"image":"https://artworks.thetvdb.com/season-poster.png"},{"type":2,"language":"eng","score":10,"image":"https://artworks.thetvdb.com/show-poster.png"},{"type":23,"language":"fra","score":99999,"image":"https://artworks.thetvdb.com/logo-fr.png"},{"type":23,"language":"eng","score":5,"image":"https://artworks.thetvdb.com/logo-en.png"}]}}"""),
                 "/v4/seasons/66/extended" => JsonResponse("""{"data":{"id":66,"artworks":[{"type":7,"image":"https://artworks.thetvdb.com/season-one.png"}]}}"""),
-                var episodes when episodes.StartsWith("/v4/series/55/episodes/") => JsonResponse("""{"data":{"episodes":[{"id":9001,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/ep1.png"},{"id":9002,"seasonNumber":1,"number":2,"image":"https://artworks.thetvdb.com/ep2.png"}]},"links":{"next":null}}"""),
+                var episodes when episodes.StartsWith("/v4/series/55/episodes/") => JsonResponse("""{"data":{"episodes":[{"id":9001,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/ep1.png"},{"id":9002,"seasonNumber":1,"number":2,"image":"/banners/episodes/55/ep2.png"}]},"links":{"next":null}}"""),
                 _ => ImageResponse(image),
             };
         });
@@ -339,12 +339,128 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         var firstStill = Assert.Single(await _entityAssets.GetByEntityAsync(first.ToString(), "EpisodeStill"));
         Assert.Equal("https://artworks.thetvdb.com/ep1.png", firstStill.ImageUrl);
         var secondStill = Assert.Single(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
-        Assert.Equal("https://artworks.thetvdb.com/ep2.png", secondStill.ImageUrl);
+        // TheTVDB's episode list gives a picture as a path, not a full address.
+        Assert.Equal("https://artworks.thetvdb.com/banners/episodes/55/ep2.png", secondStill.ImageUrl);
         Assert.Equal("9002", await GetCanonicalAsync(second, BridgeIdKeys.TvdbEpisodeId));
         var showPoster = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
         Assert.Equal("https://artworks.thetvdb.com/show-poster.png", showPoster.ImageUrl);
         var logo = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "Logo"));
         Assert.Equal("https://artworks.thetvdb.com/logo-en.png", logo.ImageUrl);
+    }
+
+    [Fact]
+    public async Task TvdbImagesPass_MarksAnEpisodeWithoutAStillAsAStandIn_AndAnImageLaterClearsIt()
+    {
+        // TheTVDB is the only TV source: an episode it has no picture for is recorded as data (never a file)
+        // with the date to check again, and a real picture arriving on a later pass clears the mark.
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:standin-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var first = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var second = await _works.InsertChildAsync(MediaType.TV, season, 2);
+        var asset = await SeedAssetForExistingWorkAsync(first, Path.Combine("TV", "StandIn", "Season 01", "StandIn - s01e01.mkv"));
+        await SeedCanonicalsAsync(show, ("media_type", "TV"), (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbId, "56"));
+        await SeedCanonicalsAsync(season, (MetadataFieldConstants.SeasonNumber, "1"));
+        await SeedCanonicalsAsync(first, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9101"));
+        await SeedCanonicalsAsync(second, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9102"));
+        var secondHasImage = false;
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+                "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"}]}"""),
+                "/v4/series/56/extended" => JsonResponse("""{"data":{"id":56,"defaultSeasonType":1,"seasons":[{"id":67,"number":1,"type":{"id":1}}],"artworks":[]}}"""),
+                "/v4/seasons/67/extended" => JsonResponse("""{"data":{"id":67,"artworks":[]}}"""),
+                var episodes when episodes.StartsWith("/v4/series/56/episodes/") => JsonResponse(secondHasImage
+                    ? """{"data":{"episodes":[{"id":9101,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/a.png"},{"id":9102,"seasonNumber":1,"number":2,"image":"https://artworks.thetvdb.com/b.png"}]},"links":{"next":null}}"""
+                    : """{"data":{"episodes":[{"id":9101,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/a.png"},{"id":9102,"seasonNumber":1,"number":2,"image":null}]},"links":{"next":null}}"""),
+                _ => ImageResponse(image),
+            };
+        });
+        ImageEnrichmentService NewService() => new(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance,
+            tvdb: new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator()));
+
+        await NewService().EnrichWorkImagesAsync(asset.AssetId, null);
+
+        var expectedDate = DateTimeOffset.UtcNow.AddDays(90).UtcDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(expectedDate, await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
+        Assert.Null(await GetCanonicalAsync(first, MetadataFieldConstants.EpisodeStillStandIn));
+        Assert.Empty(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
+
+        secondHasImage = true;
+        await NewService().EnrichWorkImagesAsync(asset.AssetId, null);
+
+        Assert.Null(await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
+        Assert.Single(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
+    }
+
+    [Fact]
+    public async Task TvdbImagesPass_GivesAnEpisodeWithoutAStillAFrameFromItsVideo_AndTheProviderStillTakesOverLater()
+    {
+        // TheTVDB is the only TV source: an episode it has no picture for is recorded as data (never a file)
+        // with the date to check again, and a real picture arriving on a later pass clears the mark.
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:frame-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var first = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var second = await _works.InsertChildAsync(MediaType.TV, season, 2);
+        var asset = await SeedAssetForExistingWorkAsync(first, Path.Combine("TV", "Frame", "Season 01", "Frame - s01e01.mkv"));
+        await SeedCanonicalsAsync(show, ("media_type", "TV"), (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbId, "56"));
+        await SeedCanonicalsAsync(season, (MetadataFieldConstants.SeasonNumber, "1"));
+        await SeedCanonicalsAsync(first, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9101"));
+        await SeedCanonicalsAsync(second, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9102"));
+        var secondHasImage = false;
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+                "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"}]}"""),
+                "/v4/series/56/extended" => JsonResponse("""{"data":{"id":56,"defaultSeasonType":1,"seasons":[{"id":67,"number":1,"type":{"id":1}}],"artworks":[]}}"""),
+                "/v4/seasons/67/extended" => JsonResponse("""{"data":{"id":67,"artworks":[]}}"""),
+                var episodes when episodes.StartsWith("/v4/series/56/episodes/") => JsonResponse(secondHasImage
+                    ? """{"data":{"episodes":[{"id":9101,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/a.png"},{"id":9102,"seasonNumber":1,"number":2,"image":"https://artworks.thetvdb.com/b.png"}]},"links":{"next":null}}"""
+                    : """{"data":{"episodes":[{"id":9101,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/a.png"},{"id":9102,"seasonNumber":1,"number":2,"image":null}]},"links":{"next":null}}"""),
+                _ => ImageResponse(image),
+            };
+        });
+        ImageEnrichmentService NewService() => new(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance,
+            tvdb: new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator()),
+            episodeFrames: new FixedFrameSource(image));
+
+        await NewService().EnrichWorkImagesAsync(asset.AssetId, null);
+
+        var generated = Assert.Single(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
+        Assert.Equal("generated", generated.SourceProvider);
+        Assert.True(generated.IsPreferred);
+        Assert.NotNull(await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
+
+        secondHasImage = true;
+        await NewService().EnrichWorkImagesAsync(asset.AssetId, null);
+
+        Assert.Null(await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
+        var stills = await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill");
+        Assert.Contains(stills, still => still.IsPreferred && still.SourceProvider != "generated");
+    }
+
+    private sealed class FixedFrameSource(byte[] bytes) : MediaEngine.Domain.Contracts.IEpisodeFrameSource
+    {
+        public Task<byte[]?> GetFrameAsync(Guid episodeWorkId, CancellationToken ct = default) => Task.FromResult<byte[]?>(bytes);
     }
 
     [Theory]
@@ -780,7 +896,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task TvdbImagesPass_AfterShowReidentification_UsesTheNewShowsSeasonAndDropsTheEarlierShowsArtwork()
+    public async Task TvdbImagesPass_AfterShowReidentification_UsesTheNewShowsSeasonIdAndDropsTheEarlierShowsArtwork()
     {
         // The season kept the season id found under the show's earlier identity; that id is not one of the
         // current show's seasons, so the pass looks the season up again and records the new id. The earlier
@@ -842,9 +958,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
 
         Assert.DoesNotContain("/v4/seasons/500/extended", paths);
         Assert.Equal("77", await GetCanonicalAsync(season, BridgeIdKeys.TvdbSeasonId));
-        var seasonPoster = Assert.Single(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
-        Assert.Equal("https://artworks.thetvdb.com/new-season.png", seasonPoster.ImageUrl);
-        Assert.True(seasonPoster.IsPreferred);
+        // The earlier show's season picture is dropped and no new season picture is downloaded: a season shows its show's poster.
+        Assert.Empty(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
         var showPoster = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
         Assert.Equal("https://artworks.thetvdb.com/current-show.png", showPoster.ImageUrl);
     }
@@ -1676,6 +1791,11 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         public Task<int> CountAsync(CancellationToken ct = default) => Task.FromResult(0);
         public Task UpdateRevisionAsync(Guid entityId, long revisionId, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<FictionalEntity>> GetStaleEntitiesAsync(int staleAfterDays, int limit, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<FictionalEntity>>([]);
+        public Task<FictionalEntity> CreateUserEntityAsync(string label, string entitySubType, string universeQid, string? universeLabel, string? description, CancellationToken ct = default) => Task.FromResult(new FictionalEntity { Label = label, EntitySubType = entitySubType });
+        public Task<bool> DeleteUserEntityAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult(false);
+        public Task UpdateUserLinksAsync(Guid entityId, FictionalEntityUserLinks links, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<FictionalEntityUserLinks?> GetUserLinksAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult<FictionalEntityUserLinks?>(null);
+        public Task<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>> GetUserLinksAsync(IEnumerable<Guid> entityIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>>(new Dictionary<Guid, FictionalEntityUserLinks>());
     }
 
     private sealed class StubPersonRepository : IPersonRepository

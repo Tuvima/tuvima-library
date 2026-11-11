@@ -1,0 +1,4 @@
+.lact-tile__face { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-raised); }
+.lact-tile__label { position: absolute; left: 0; max-width: 100%; box-sizing: border-box; padding: var(--tl-space-1) var(--tl-space-3); font-size: var(--tl-font-size-xs); font-weight: var(--tl-font-weight-semibold); color: #fff; background: rgba(10, 12, 24, .85); }
+.lact-tile__label--top { top: 0; border-radius: var(--tl-radius-md) 0 var(--tl-radius-sm) 0; }
+.lact-tile__label--bottom { bottom: 0; border-radius: 0 var(--tl-radius-sm) 0 var(--tl-radius-md); }

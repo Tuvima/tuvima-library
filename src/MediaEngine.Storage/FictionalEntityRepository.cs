@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Dapper;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
@@ -43,7 +44,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path      AS LocalImagePath,
                    fe.created_at            AS CreatedAt,
                    fe.enriched_at           AS EnrichedAt,
-                   fe.wikidata_revision_id  AS WikidataRevisionId
+                   fe.wikidata_revision_id  AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM   fictional_entities fe
             LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
             WHERE  fe.wikidata_qid = @qid COLLATE NOCASE
@@ -86,7 +88,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                        fe.local_image_path      AS LocalImagePath,
                        fe.created_at            AS CreatedAt,
                        fe.enriched_at           AS EnrichedAt,
-                       fe.wikidata_revision_id  AS WikidataRevisionId
+                       fe.wikidata_revision_id  AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
                 FROM fictional_entities fe
                 LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
                 WHERE fe.wikidata_qid COLLATE NOCASE IN @qids;
@@ -114,7 +117,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path      AS LocalImagePath,
                    fe.created_at            AS CreatedAt,
                    fe.enriched_at           AS EnrichedAt,
-                   fe.wikidata_revision_id  AS WikidataRevisionId
+                   fe.wikidata_revision_id  AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM   fictional_entities fe
             LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
             WHERE  fe.id = @id
@@ -143,7 +147,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path      AS LocalImagePath,
                    fe.created_at            AS CreatedAt,
                    fe.enriched_at           AS EnrichedAt,
-                   fe.wikidata_revision_id  AS WikidataRevisionId
+                   fe.wikidata_revision_id  AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM fictional_entities fe
             LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
             WHERE fe.fictional_universe_qid = @universeQid
@@ -172,7 +177,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path      AS LocalImagePath,
                    fe.created_at            AS CreatedAt,
                    fe.enriched_at           AS EnrichedAt,
-                   fe.wikidata_revision_id  AS WikidataRevisionId
+                   fe.wikidata_revision_id  AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM fictional_entities fe
             LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
             WHERE fe.fictional_universe_qid = @universeQid
@@ -239,7 +245,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path AS LocalImagePath,
                    fe.created_at AS CreatedAt,
                    fe.enriched_at AS EnrichedAt,
-                   fe.wikidata_revision_id AS WikidataRevisionId
+                   fe.wikidata_revision_id AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM fictional_entities fe
             LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
             WHERE {visibleWhere}
@@ -303,7 +310,8 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path        AS LocalImagePath,
                    fe.created_at              AS CreatedAt,
                    fe.enriched_at             AS EnrichedAt,
-                   fe.wikidata_revision_id    AS WikidataRevisionId
+                   fe.wikidata_revision_id    AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM   fictional_entities fe
             INNER JOIN fictional_entity_work_links fewl
                 ON fe.id = fewl.entity_id
@@ -325,11 +333,11 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
             INSERT INTO fictional_entities
                 (id, wikidata_qid, label, description, entity_sub_type,
                  fictional_universe_qid, fictional_universe_label,
-                 image_url, local_image_path, created_at, enriched_at)
+                 image_url, local_image_path, created_at, enriched_at, added_by_user)
             VALUES
                 (@Id, @WikidataQid, @Label, @Description, @EntitySubType,
                  @FictionalUniverseQid, @FictionalUniverseLabel,
-                 @ImageUrl, @LocalImagePath, @CreatedAt, @EnrichedAt);
+                 @ImageUrl, @LocalImagePath, @CreatedAt, @EnrichedAt, @AddedByUser);
             """,
             new
             {
@@ -344,6 +352,7 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                 entity.LocalImagePath,
                 CreatedAt = entity.CreatedAt,
                 EnrichedAt = entity.EnrichedAt,
+                AddedByUser = entity.AddedByUser ? 1 : 0,
             });
         return Task.CompletedTask;
     }
@@ -366,7 +375,7 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    description = COALESCE(NULLIF(TRIM(@description), ''), description),
                    image_url   = COALESCE(NULLIF(TRIM(@imageUrl), ''), image_url),
                    enriched_at = @enrichedAt
-            WHERE  id = @entityId;
+            WHERE  id = @entityId AND added_by_user = 0;
             """,
             new
             {
@@ -394,7 +403,7 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
             UPDATE fictional_entities
             SET fictional_universe_qid = @universeQid,
                 fictional_universe_label = COALESCE(NULLIF(TRIM(@universeLabel), ''), fictional_universe_label)
-            WHERE id = @entityId;
+            WHERE id = @entityId AND added_by_user = 0;
             """, new { entityId, universeQid, universeLabel });
         return Task.CompletedTask;
     }
@@ -658,10 +667,12 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                    fe.local_image_path      AS LocalImagePath,
                    fe.created_at            AS CreatedAt,
                    fe.enriched_at           AS EnrichedAt,
-                   fe.wikidata_revision_id  AS WikidataRevisionId
+                   fe.wikidata_revision_id  AS WikidataRevisionId,
+                   fe.added_by_user AS AddedByUser
             FROM fictional_entities fe
             LEFT JOIN fictional_entity_user_overrides overrides ON overrides.entity_id = fe.id
             WHERE fe.enriched_at IS NOT NULL
+              AND fe.added_by_user = 0
               AND fe.enriched_at < @cutoff
             ORDER BY fe.enriched_at ASC
             LIMIT  @limit;
@@ -669,6 +680,127 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
             new { cutoff, limit }).AsList();
 
         return Task.FromResult<IReadOnlyList<FictionalEntity>>(results);
+    }
+
+    /// <inheritdoc/>
+    public async Task<FictionalEntity> CreateUserEntityAsync(
+        string label,
+        string entitySubType,
+        string universeQid,
+        string? universeLabel,
+        string? description,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        ArgumentException.ThrowIfNullOrWhiteSpace(universeQid);
+        if (!FictionalEntityType.All.Contains(entitySubType))
+        {
+            throw new ArgumentException($"'{entitySubType}' is not a kind of Universe thing.", nameof(entitySubType));
+        }
+
+        var entity = new FictionalEntity
+        {
+            Id = Guid.NewGuid(),
+            WikidataQid = FictionalEntity.NewLocalId(),
+            Label = label.Trim(),
+            Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
+            EntitySubType = entitySubType,
+            FictionalUniverseQid = universeQid,
+            FictionalUniverseLabel = universeLabel,
+            CreatedAt = DateTimeOffset.UtcNow,
+            AddedByUser = true,
+        };
+        await CreateAsync(entity, ct).ConfigureAwait(false);
+        return entity;
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> DeleteUserEntityAsync(Guid entityId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var removed = conn.Execute(
+            "DELETE FROM fictional_entities WHERE id = @entityId AND added_by_user = 1;",
+            new { entityId });
+        return Task.FromResult(removed > 0);
+    }
+
+    /// <inheritdoc/>
+    public Task UpdateUserLinksAsync(Guid entityId, FictionalEntityUserLinks links, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(links);
+        var aliases = links.Aliases
+            .Select(a => a?.Trim() ?? string.Empty)
+            .Where(a => a.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var aliasesJson = aliases.Length == 0 ? null : System.Text.Json.JsonSerializer.Serialize(aliases);
+
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            conn.Execute("""
+                INSERT INTO fictional_entity_user_overrides (entity_id, aliases_json, belongs_to_entity_id, is_hidden, updated_at)
+                VALUES (@entityId, @aliasesJson, @belongsTo, @hidden, datetime('now'))
+                ON CONFLICT(entity_id) DO UPDATE SET
+                    aliases_json = excluded.aliases_json,
+                    belongs_to_entity_id = excluded.belongs_to_entity_id,
+                    is_hidden = excluded.is_hidden,
+                    updated_at = datetime('now');
+                """,
+                new { entityId, aliasesJson, belongsTo = links.BelongsToEntityId, hidden = links.IsHidden ? 1 : 0 }, tx);
+        }, ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<FictionalEntityUserLinks?> GetUserLinksAsync(Guid entityId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var row = conn.QueryFirstOrDefault<(string? AliasesJson, Guid? BelongsTo, long Hidden)?>(
+            "SELECT aliases_json, belongs_to_entity_id, is_hidden FROM fictional_entity_user_overrides WHERE entity_id = @entityId LIMIT 1;",
+            new { entityId });
+        if (row is null)
+        {
+            return Task.FromResult<FictionalEntityUserLinks?>(null);
+        }
+
+        IReadOnlyList<string> aliases = string.IsNullOrWhiteSpace(row.Value.AliasesJson)
+            ? []
+            : System.Text.Json.JsonSerializer.Deserialize<string[]>(row.Value.AliasesJson) ?? [];
+        return Task.FromResult<FictionalEntityUserLinks?>(new FictionalEntityUserLinks(aliases, row.Value.BelongsTo, row.Value.Hidden != 0));
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>> GetUserLinksAsync(IEnumerable<Guid> entityIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(entityIds);
+        var ids = entityIds.Distinct().Select(GuidSql.ToBlob).ToArray();
+        var result = new Dictionary<Guid, FictionalEntityUserLinks>();
+        if (ids.Length == 0)
+        {
+            return Task.FromResult<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>>(result);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var batch in ids.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            var rows = conn.Query<(Guid EntityId, string? AliasesJson, Guid? BelongsTo, long Hidden)>(
+                "SELECT entity_id AS EntityId, aliases_json AS AliasesJson, belongs_to_entity_id AS BelongsTo, is_hidden AS Hidden FROM fictional_entity_user_overrides WHERE entity_id IN @ids;",
+                new { ids = batch });
+            foreach (var row in rows)
+            {
+                IReadOnlyList<string> aliases = string.IsNullOrWhiteSpace(row.AliasesJson)
+                    ? []
+                    : System.Text.Json.JsonSerializer.Deserialize<string[]>(row.AliasesJson) ?? [];
+                result[row.EntityId] = new FictionalEntityUserLinks(aliases, row.BelongsTo, row.Hidden != 0);
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>>(result);
     }
 
     // ── Private row types ────────────────────────────────────────────────────

@@ -203,9 +203,6 @@
     <value>Descargar de memoria</value>
   </data>
   <!-- AI Features Tab -->
-  <data name="AiFeatures_Enrichment" xml:space="preserve">
-    <value>Enriquecimiento</value>
-  </data>
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Programado</value>
   </data>
@@ -339,9 +336,6 @@
   <data name="TopBar_ServiceDegradedBanner" xml:space="preserve">
     <value>Algunos servicios de Library no están disponibles temporalmente.</value>
   </data>
-  <data name="Listen_MiniPlayerTitle" xml:space="preserve">
-    <value>Mini Player</value>
-  </data>
   <data name="Listen_NothingPlaying" xml:space="preserve">
     <value>Nothing is playing right now.</value>
   </data>
@@ -360,9 +354,6 @@
   </data>
   <data name="Ingestion_StatusPending" xml:space="preserve">
     <value>Pending</value>
-  </data>
-  <data name="Ingestion_ActivityReview" xml:space="preserve">
-    <value>Needs review</value>
   </data>
   <data name="PluginPage_NotFoundTitle" xml:space="preserve">
     <value>Esta página no está disponible</value>
@@ -435,9 +426,6 @@
   </data>
   <data name="Common_Display" xml:space="preserve">
     <value>Visualización</value>
-  </data>
-  <data name="Common_TileSize" xml:space="preserve">
-    <value>Tamaño de las miniaturas</value>
   </data>
   <data name="Common_Cards" xml:space="preserve">
     <value>Tarjetas</value>
@@ -864,9 +852,6 @@
   </data>
   <data name="Common_Subtitles" xml:space="preserve">
     <value>Subtítulos</value>
-  </data>
-  <data name="Common_UpNext" xml:space="preserve">
-    <value>A continuación</value>
   </data>
   <data name="Common_PlayNext" xml:space="preserve">
     <value>Reproducir a continuación</value>

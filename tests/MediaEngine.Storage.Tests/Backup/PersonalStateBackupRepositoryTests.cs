@@ -49,9 +49,6 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
                 "INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@p, @a, 42.5, @now)",
                 new { p = GuidSql.ToBlob(profile), a = movie.Asset, now = Now });
             connection.Execute(
-                "INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index, label) VALUES (@id, @u, @a, 3, 'Spice')",
-                new { id = GuidSql.ToBlob(Guid.NewGuid()), u = profile.ToString("D"), a = movie.Asset });
-            connection.Execute(
                 """
                 INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, position_seconds, created_at)
                 VALUES (@id, @p, @w, @a, 120.0, @now)
@@ -64,14 +61,10 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         var userStates = Assert.Single(export.Tables, table => table.Table == "user_states");
         var row = Assert.Single(userStates.Rows);
         var assetRef = Assert.IsType<BackupValue.TitleRef>(row[userStates.Columns.ToList().IndexOf("asset_id")]);
-        var bookmarks = Assert.Single(export.Tables, table => table.Table == "reader_bookmarks");
-        var bookmark = Assert.Single(bookmarks.Rows);
-        Assert.Equal(assetRef, bookmark[bookmarks.Columns.ToList().IndexOf("asset_id")]);
-        Assert.Equal(
-            BackupValue.FromText(profile.ToString("D")),
-            bookmark[bookmarks.Columns.ToList().IndexOf("user_id")]);
         var audiobook = Assert.Single(export.Tables, table => table.Table == "audiobook_bookmarks");
-        Assert.IsType<BackupValue.TitleRef>(Assert.Single(audiobook.Rows)[audiobook.Columns.ToList().IndexOf("work_id")]);
+        var bookmark = Assert.Single(audiobook.Rows);
+        Assert.Equal(assetRef, bookmark[audiobook.Columns.ToList().IndexOf("asset_id")]);
+        Assert.IsType<BackupValue.TitleRef>(bookmark[audiobook.Columns.ToList().IndexOf("work_id")]);
 
         var fileTitle = Assert.Single(export.Titles, title => title.Key == assetRef.Key);
         Assert.Equal("MediaAsset", fileTitle.Target);
@@ -212,8 +205,8 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
                     "INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@p, @a, @pct, @now)",
                     new { p = GuidSql.ToBlob(profile), a = movie.Asset, pct = progress, now = Now });
                 connection.Execute(
-                    "INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index, label) VALUES (@id, @u, @a, 1, @label)",
-                    new { id = GuidSql.ToBlob(Guid.NewGuid()), u = profile.ToString("D"), a = movie.Asset, label = profile == maya ? "mine" : "theirs" });
+                    "INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, label, created_at) VALUES (@id, @p, @w, @a, @label, @now)",
+                    new { id = GuidSql.ToBlob(Guid.NewGuid()), p = GuidSql.ToBlob(profile), w = movie.Work, a = movie.Asset, label = profile == maya ? "mine" : "theirs", now = Now });
             }
         }
 
@@ -223,7 +216,7 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         Assert.All(export.Tables, table => Assert.Equal(BackupDataKind.PersonalState, table.Kind));
         var states = Assert.Single(export.Tables, table => table.Table == "user_states");
         Assert.Equal(BackupValue.FromReal(11.0), Assert.Single(states.Rows)[states.Columns.ToList().IndexOf("progress_pct")]);
-        var bookmarks = Assert.Single(export.Tables, table => table.Table == "reader_bookmarks");
+        var bookmarks = Assert.Single(export.Tables, table => table.Table == "audiobook_bookmarks");
         Assert.Equal(BackupValue.FromText("mine"), Assert.Single(bookmarks.Rows)[bookmarks.Columns.ToList().IndexOf("label")]);
         Assert.Equal(1, export.Contents.Profiles);
 

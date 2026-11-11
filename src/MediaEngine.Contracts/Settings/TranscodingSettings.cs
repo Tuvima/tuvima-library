@@ -48,6 +48,33 @@ public sealed class TranscodingSettings
 
     [JsonPropertyName("adaptive_hls")]
     public AdaptiveHlsSettings AdaptiveHls { get; set; } = new();
+
+    [JsonPropertyName("scrub_previews")]
+    public ScrubPreviewSettings ScrubPreviews { get; set; } = new();
+}
+
+public sealed class ScrubPreviewSettings
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("interval_seconds")]
+    public int IntervalSeconds { get; set; } = 10;
+
+    [JsonPropertyName("tile_width")]
+    public int TileWidth { get; set; } = 320;
+
+    [JsonPropertyName("columns")]
+    public int Columns { get; set; } = 10;
+
+    [JsonPropertyName("rows")]
+    public int Rows { get; set; } = 10;
+
+    [JsonPropertyName("backfill_per_pass")]
+    public int BackfillPerPass { get; set; } = 5;
+
+    [JsonPropertyName("backfill_interval_minutes")]
+    public int BackfillIntervalMinutes { get; set; } = 2;
 }
 
 public sealed class AdaptiveHlsSettings

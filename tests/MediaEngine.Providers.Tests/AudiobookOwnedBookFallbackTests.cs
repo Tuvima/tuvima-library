@@ -112,6 +112,34 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task Audiobook_WithAHalfRetailMatch_TakesQidOfOwnedConfirmedBook_AndRaisesNoNeedsReviewItem()
+    {
+        await SeedBookAsync("Dune", "Frank Herbert", BookQid);
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+
+        await RunRetailAsync(new HalfMatchRetailProvider());
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(nameof(IdentityJobState.RetailMatched), job!.State);
+        Assert.Null(job.SelectedCandidateId);
+        Assert.Equal(BookQid, job.ResolvedQid);
+        Assert.Empty(await _reviews.GetPendingByEntityAsync(audiobook.AssetId));
+    }
+
+    [Fact]
+    public async Task Audiobook_WithAHalfRetailMatch_WhenNoBookIsOwned_StillGoesToNeedsReview()
+    {
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+
+        await RunRetailAsync(new HalfMatchRetailProvider());
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(nameof(IdentityJobState.RetailMatchedNeedsReview), job!.State);
+        var review = Assert.Single(await _reviews.GetPendingByEntityAsync(audiobook.AssetId));
+        Assert.Equal(ReviewTrigger.RetailMatchAmbiguous, review.Trigger);
+    }
+
+    [Fact]
     public async Task Audiobook_WithNoRetailMatch_WhenBookHasSameTitleButDifferentAuthor_StillGoesToNeedsReview()
     {
         await SeedBookAsync("Dune", "Brian Herbert", BookQid);
@@ -325,6 +353,85 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         Assert.DoesNotContain(candidates, c => c.MatchedBy == QidResolutionMethods.OwnedBookNoRetail);
     }
 
+    // A Wikidata link a person set in the editor (Match tab, Wikidata side) is theirs: the automatic alignment that follows keeps it,
+    // looks nothing up for the item, and never replaces it with a search result.
+    [Fact]
+    public async Task Audiobook_WhoseWikidataLinkAPersonSet_KeepsItInAutomaticAlignment_WithoutSearchingForAnother()
+    {
+        const string PersonQid = "Q4242";
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert", queued: false);
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                "UPDATE works SET wikidata_qid = @qid, wikidata_status = @status, wikidata_match_source = @source, wikidata_match_locked = 1 WHERE id = @workId",
+                new { qid = PersonQid, status = WorkWikidataStatus.UserConfirmed, source = WorkWikidataMatchSource.User, workId = audiobook.WorkId });
+        }
+
+        await _bridgeIds.UpsertBatchAsync(
+        [
+            new BridgeIdEntry { EntityId = audiobook.AssetId, IdType = BridgeIdKeys.Isbn13, IdValue = "9780441172719" },
+        ]);
+
+        await RunBridgeAsync();
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(PersonQid, job!.ResolvedQid);
+        var candidate = Assert.Single(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId));
+        Assert.Equal(PersonQid, candidate.Qid);
+        Assert.Equal(QidResolutionMethods.PersonLinked, candidate.MatchedBy);
+        Assert.NotEmpty(_http.Urls);
+        Assert.All(_http.Urls, url =>
+        {
+            Assert.Contains("action=wbgetentities", url, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains($"ids={PersonQid}", url, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    // A link a person removed is not brought back by the automatic alignment: a rescan looks nothing up for the item. A later provider
+    // rematch clears that state (the retail-match write) and may align again, but never to an item the person turned down.
+    [Fact]
+    public async Task Audiobook_WhoseWikidataLinkAPersonRemoved_IsNotAlignedAgainByARescan()
+    {
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert", queued: false);
+        await SetWorkWikidataStateAsync(audiobook.WorkId, qid: null, WorkWikidataStatus.UserRejected, WorkWikidataMatchSource.User, locked: false, rejectedJson: $"[\"{BookQid}\"]");
+        await _bridgeIds.UpsertBatchAsync(
+        [
+            new BridgeIdEntry { EntityId = audiobook.AssetId, IdType = BridgeIdKeys.Isbn13, IdValue = "9780441172719" },
+        ]);
+
+        await RunBridgeAsync();
+
+        Assert.Empty(_http.Urls);
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Null(job!.ResolvedQid);
+        Assert.Empty(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId));
+        Assert.DoesNotContain(await _claims.GetByEntityAsync(audiobook.AssetId), claim => claim.ClaimKey == BridgeIdKeys.WikidataQid);
+    }
+
+    [Fact]
+    public async Task Audiobook_NeverAlignsToAnItemThePersonTurnedDown_EvenWhenAnOwnedBookNamesIt()
+    {
+        await SeedBookAsync("Dune", "Frank Herbert", BookQid);
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+        await RunRetailAsync();
+        await SetWorkWikidataStateAsync(audiobook.WorkId, qid: null, WorkWikidataStatus.ProviderOnly, WorkWikidataMatchSource.Retail, locked: false, rejectedJson: $"[\"{BookQid}\"]");
+
+        await RunBridgeAsync();
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.NotEqual(nameof(IdentityJobState.QidResolved), job!.State);
+        Assert.DoesNotContain(await _claims.GetByEntityAsync(audiobook.AssetId), claim => claim.ClaimKey == BridgeIdKeys.WikidataQid && claim.ClaimValue == BookQid);
+        Assert.DoesNotContain(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId), candidate => candidate.Qid == BookQid);
+    }
+
+    private async Task SetWorkWikidataStateAsync(Guid workId, string? qid, string status, string source, bool locked, string? rejectedJson)
+    {
+        using var conn = _db.CreateConnection();
+        await conn.ExecuteAsync(
+            "UPDATE works SET wikidata_qid = @qid, wikidata_status = @status, wikidata_match_source = @source, wikidata_match_locked = @locked, wikidata_rejected_qids_json = @rejectedJson WHERE id = @workId",
+            new { qid, status, source, locked = locked ? 1 : 0, rejectedJson, workId });
+    }
+
     private async Task SeedIsbnAndRetailCandidateAsync(SeededAudiobook audiobook)
     {
         await _bridgeIds.UpsertBatchAsync(
@@ -366,14 +473,14 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         Assert.DoesNotContain(timeline, e => e.EventType == "owned_book_matched");
     }
 
-    private async Task RunRetailAsync()
+    private async Task RunRetailAsync(IExternalMetadataProvider? provider = null)
     {
         var worker = new RetailMatchWorker(
             _jobs,
             new RetailCandidateRepository(_db),
             _outcomes,
             _timeline,
-            [new NoMatchRetailProvider()],
+            [provider ?? new NoMatchRetailProvider()],
             new RetailMatchScoringService(new FuzzyMatchingService(), _config),
             _claims,
             _canonicals,
@@ -440,7 +547,8 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
             postPipeline,
             CoverArtWorkerTestFactory.Create(_canonicals, _works),
             NullLogger<WikidataBridgeWorker>.Instance,
-            arrayRepo: _arrays);
+            arrayRepo: _arrays,
+            itemCanonical: new ItemCanonicalRepository(_db, NullLogger<ItemCanonicalRepository>.Instance));
     }
 
     private sealed record SeededBook(Guid WorkId, Guid AssetId, Guid? JobId);
@@ -563,6 +671,24 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
 
         public Task<IReadOnlyList<ProviderClaim>> FetchAsync(ProviderLookupRequest request, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ProviderClaim>>([]);
+    }
+
+    /// <summary>A retail answer that is the right title by the wrong author: scored "Ambiguous", needs confirmation.</summary>
+    private sealed class HalfMatchRetailProvider : IExternalMetadataProvider
+    {
+        public string Name => "apple_api";
+        public ProviderDomain Domain => ProviderDomain.Universal;
+        public IReadOnlyList<string> CapabilityTags => [];
+        public Guid ProviderId => WellKnownProviders.AppleApi;
+        public bool CanHandle(MediaType mediaType) => true;
+        public bool CanHandle(EntityType entityType) => true;
+
+        public Task<IReadOnlyList<ProviderClaim>> FetchAsync(ProviderLookupRequest request, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ProviderClaim>>(
+            [
+                new ProviderClaim(MetadataFieldConstants.Title, "Dune", 0.95),
+                new ProviderClaim(MetadataFieldConstants.Author, "Wrong Author", 0.95),
+            ]);
     }
 
     private sealed class RecordingHandler : HttpMessageHandler

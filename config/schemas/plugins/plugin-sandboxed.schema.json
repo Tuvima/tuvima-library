@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-sandboxed.schema.json",
+  "title": "Tuvima sandboxed (WebAssembly) plugin manifest",
+  "allOf": [ { "$ref": "plugin-manifest-common.schema.json" } ],
+  "required": ["kind", "sandbox"],
+  "properties": {
+    "kind": { "const": "sandboxed" },
+    "sandbox": {
+      "type": "object",
+      "description": "module, jobs, max_memory_mb, max_seconds, max_steps."
+    }
+  }
+}

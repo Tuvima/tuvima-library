@@ -533,6 +533,10 @@ public sealed partial class WikidataBridgeWorker
         public IReadOnlyDictionary<string, string>? CollectedBridgeIds { get; set; }
         public MediaOperation? Operation { get; set; }
 
+        // What a person decided about this item's Wikidata link (universal editor v5): items never to align to, and no lookup at all after a removal.
+        public IReadOnlySet<string> RejectedQids { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public bool LookupSkipped { get; set; }
+
         // Populated during Phase 6 QID dedup (E1). When set, FinaliseJobAsync uses
         // these claims instead of calling FetchAsync again for this job.
         public IReadOnlyList<ProviderClaim>? PreFetchedClaims { get; set; }

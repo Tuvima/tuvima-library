@@ -184,6 +184,10 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("search_strategies")]
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
+    /// <summary>Where the editor's Match tab offers this source, and for which kinds it is the default. Absent means it is never the default.</summary>
+    [JsonPropertyName("editor_match")]
+    public ProviderEditorMatchConfiguration? EditorMatch { get; set; }
+
     /// <summary>How the provider signs in. See <see cref="ProviderAuthConfiguration"/>.</summary>
     [JsonPropertyName("auth")]
     public ProviderAuthConfiguration? Auth { get; set; }
@@ -312,6 +316,14 @@ public sealed class ProviderConfiguration
     /// </summary>
     [JsonPropertyName("onboarding")]
     public ProviderOnboardingConfiguration? Onboarding { get; set; }
+
+    /// <summary>
+    /// The source's own settings in the same words a plugin manifest uses for <c>settings_schema</c> (Plugins and Integrations screens
+    /// v5 D47, D51): toggles, choices, numbers, repeating groups and the tests it supports. The tunables every source has (weight,
+    /// timeout, rate limit, cache time) are added to the page as Advanced settings without being written here.
+    /// </summary>
+    [JsonPropertyName("settings_schema")]
+    public System.Text.Json.JsonElement? SettingsSchema { get; set; }
 
     /// <summary>
     /// The shared declaration block (Plugin architecture spec PA1), the same one a plugin manifest carries: who may use the
@@ -565,6 +577,21 @@ public sealed class ProviderUiMetadata
     /// <summary>Provider category: <c>"Retail"</c>, <c>"Open"</c>, <c>"Image"</c>, or <c>"Local"</c>.</summary>
     [JsonPropertyName("category")]
     public string Category { get; set; } = "Open";
+
+    /// <summary>
+    /// The Plugins page tab the source is listed under: <c>intake</c> (used while identifying files), <c>enrichment</c> (adds to items
+    /// already imported) or <c>accounts</c>. Absent means <c>intake</c>.
+    /// </summary>
+    [JsonPropertyName("plugin_category")]
+    public string? PluginCategory { get; set; }
+
+    /// <summary>What the source provides, from the fixed list in <c>PluginProvides</c>.</summary>
+    [JsonPropertyName("provides")]
+    public List<string> Provides { get; set; } = [];
+
+    /// <summary>One sentence of at most 90 characters for the tile and the row.</summary>
+    [JsonPropertyName("short_description")]
+    public string? ShortDescription { get; set; }
 
     /// <summary>When <c>true</c>, the provider requires a user-supplied API key.</summary>
     [JsonPropertyName("requires_key")]

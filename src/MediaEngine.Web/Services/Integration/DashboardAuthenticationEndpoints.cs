@@ -27,7 +27,9 @@ public static class DashboardAuthenticationEndpoints
             var bootstrap = await identity.GetBootstrapStatusAsync(context.RequestAborted).ConfigureAwait(false);
             if (bootstrap is null)
             {
-                return EngineUnavailableResult(SafeReturnUrl(returnUrl));
+                return context.RequestServices.GetService<EngineBusyState>() is { WasBusyRecently: true }
+                    ? EngineBusyResult(SafeReturnUrl(returnUrl))
+                    : EngineUnavailableResult(SafeReturnUrl(returnUrl));
             }
 
             if (!bootstrap.AdministratorConfigured)
@@ -227,7 +229,7 @@ public static class DashboardAuthenticationEndpoints
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
-                return Results.Redirect("/account/security");
+                return Results.Redirect("/settings/security");
             }
 
             var token = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
@@ -477,7 +479,7 @@ public static class DashboardAuthenticationEndpoints
                 return Results.NotFound();
             }
 
-            var properties = new AuthenticationProperties { RedirectUri = "/settings/account" };
+            var properties = new AuthenticationProperties { RedirectUri = "/settings/security" };
             properties.Items["tuvima:external-purpose"] = ExternalIdentityTransactionPurposes.Link;
             return Results.Challenge(properties, [provider.AuthenticationScheme]);
         });
@@ -495,11 +497,6 @@ public static class DashboardAuthenticationEndpoints
             return Results.Redirect(SignedOutRedirect);
         });
 
-
-        app.MapGet("/account/security", (string? emailTest) => Results.Redirect(
-            string.IsNullOrWhiteSpace(emailTest)
-                ? "/settings/account"
-                : $"/settings/account?emailTest={Uri.EscapeDataString(emailTest)}"));
 
         // "Secure your account": the this-computer-only owner adds a password. The Engine ends the old no-password
         // session and starts a normal one, so the sign-in cookie is replaced here (a circuit cannot set a cookie).
@@ -547,7 +544,7 @@ public static class DashboardAuthenticationEndpoints
                 }).ConfigureAwait(false);
 
             return Results.Content(
-                RecoveryCodesPage(issued.RecoveryCodes, "/settings/account", "Continue to Library",
+                RecoveryCodesPage(issued.RecoveryCodes, "/settings/security", "Continue to Library",
                     "Your account is secure. You can now sign in from other devices at home."),
                 "text/html", Encoding.UTF8);
         });
@@ -561,18 +558,18 @@ public static class DashboardAuthenticationEndpoints
             {
                 var sent = await SendCurrentAccountTestEmailAsync(
                     identity, emailSender, context.RequestAborted).ConfigureAwait(false);
-                return Results.Redirect($"/settings/account?emailTest={(sent ? "sent" : "failed")}");
+                return Results.Redirect($"/settings/security?emailTest={(sent ? "sent" : "failed")}");
             }
             if (action == "recovery-codes")
             {
                 var codes = await identity.RegenerateRecoveryCodesAsync(context.RequestAborted).ConfigureAwait(false);
                 return codes is null
                     ? Results.Content(LoginFailurePage("Recovery codes could not be created. Confirm it's you on the account page and try again."), "text/html", Encoding.UTF8, StatusCodes.Status403Forbidden)
-                    : Results.Content(RecoveryCodesPage(codes, "/settings/account", "Return to Account Security"), "text/html", Encoding.UTF8);
+                    : Results.Content(RecoveryCodesPage(codes, "/settings/security", "Return to Account Security"), "text/html", Encoding.UTF8);
             }
             // Password, passkey, provider and session changes live on the Account page, which can ask the person
             // to confirm it's them and shows any failure; this form only handles the two actions above.
-            return Results.Redirect("/settings/account");
+            return Results.Redirect("/settings/security");
         });
 
         return app;
@@ -833,7 +830,7 @@ public static class DashboardAuthenticationEndpoints
         Shell($"<h1>Account recovery failed</h1><p class=\"error\">{H(message)}</p><p><a href=\"/auth/recover\">Try again</a></p><p><a href=\"/auth/login\">Return to sign in</a></p>");
 
     private static string SecureAccountFailurePage(string message) =>
-        Shell($"<h1>Your account is not secured yet</h1><p class=\"error\">{H(message)}</p><p><a href=\"/settings/account\">Go back</a></p>");
+        Shell($"<h1>Your account is not secured yet</h1><p class=\"error\">{H(message)}</p><p><a href=\"/settings/security\">Go back</a></p>");
 
     private static string RecoveryCodesPage(
         IReadOnlyList<string> codes,
@@ -921,6 +918,12 @@ public static class DashboardAuthenticationEndpoints
         "text/html",
         Encoding.UTF8,
         StatusCodes.Status503ServiceUnavailable);
+    /// <summary>The Engine is up but busy: say so and try again by itself, instead of "Engine unavailable".</summary>
+    private static IResult EngineBusyResult(string returnUrl) => Results.Content(
+        Shell($"<meta http-equiv=\"refresh\" content=\"3\"><p class=\"eyebrow\">Library</p><h1>Library is busy</h1><p class=\"supporting\">The Engine is catching up. Trying again in a moment.</p><p><a class=\"button\" href=\"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}\">Try now</a></p>"),
+        "text/html",
+        Encoding.UTF8,
+        StatusCodes.Status503ServiceUnavailable);
     private static string EngineUnavailablePage(string returnUrl) => Shell($"<p class=\"eyebrow\">Library</p><h1>Engine unavailable</h1><p class=\"supporting\">Library cannot reach the library Engine yet. Start or restart the Engine, then try again.</p><p><a class=\"button\" href=\"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}\">Try again</a></p>");
     private static string Shell(string body) => $$"""
         <!doctype html>
@@ -938,7 +941,7 @@ public static class DashboardAuthenticationEndpoints
           <link rel="apple-touch-icon" sizes="192x192" href="/icons/tuvima-192.png">
           <title>Library</title>
           <style>
-            :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+            :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
             * { box-sizing: border-box; }
             body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: max(1.25rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(1.25rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left)); background: radial-gradient(circle at 15% 5%, #281849 0, #100b1c 38%, #08060d 75%); color: #f8f6ff; }
             main { width: min(34rem, 100%); padding: clamp(1.5rem, 5vw, 2.5rem); background: rgba(22, 16, 33, .96); border: 1px solid #58427d; border-radius: 1.25rem; box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, .55); }

@@ -132,7 +132,8 @@ public static partial class ViewEndpoints
                 // Only a server administrator signed in as a person sees "Other people" in the scope picker.
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
                 CanViewDocuments = canViewDocuments,
-                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && canViewDocuments,
+                CanEditSharedDocuments = authority.ActiveProfileId is { } editorId
+                    && ViewSharedDocumentAccess.CanEdit(await preferences.GetPolicyAsync(editorId, ct)),
                 CanViewPhotos = !blocked.Contains(ViewContentKinds.Photos),
                 CanViewPersonalVideos = !blocked.Contains(ViewContentKinds.PersonalVideos),
             });
@@ -206,11 +207,12 @@ public static partial class ViewEndpoints
             bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
             bool? withoutLocation, string? personKey, DateTimeOffset? from, DateTimeOffset? to,
             Guid[]? tag, Guid? correspondent, Guid? docType, DateOnly? docFrom, DateOnly? docTo,
-            string? filing, string[]? field, string? docSort,
+            string? filing, string[]? field, string? docSort, string? sort,
             [FromQuery(Name = "added_by")] Guid[]? addedBy, bool? missing,
+            [FromQuery(Name = "source")] Guid[]? source,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
-            IViewQueryOrchestrator queries, CancellationToken ct) =>
+            IViewQueryOrchestrator queries, IEditorConfigurationSource editorConfig, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (!authority.IsAuthenticated)
@@ -237,26 +239,94 @@ public static partial class ViewEndpoints
                 }
 
                 var documentFilter = BuildDocumentFilter(tag, correspondent, docType, docFrom, docTo, filing, field, docSort);
+                // "Recently added" orders by when the item was added, newest first. Its page boundary is the added time plus the item key.
+                var byAdded = string.Equals(sort, "added", StringComparison.OrdinalIgnoreCase);
+                DateTimeOffset? addedBefore = null;
+                string? addedKey = null;
+                if (byAdded && !ViewAddedCursor.TryDecode(cursor, out addedBefore, out addedKey))
+                {
+                    return ApiErrors.BadRequest("The page position is not valid.");
+                }
+
                 var result = await queries.QueryAsync(new ViewAssetQueryRequest(
-                    requested, PagedRequest.From(0, limit, 120, 500).Limit, cursor, q, allowedKinds,
+                    requested, PagedRequest.From(0, limit, 120, 500).Limit, byAdded ? null : cursor, q, allowedKinds,
                     favorite == true, hidden == true, hidden == true, galleryId,
                     ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     AnchorBefore: anchorBefore, WithoutLocation: withoutLocation == true,
                     PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter,
                     AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null,
-                    IncludeMissing: missing == true), ct);
+                    IncludeMissing: missing == true,
+                    SourceIds: source is { Length: > 0 } ? source : null,
+                    SortByAddedAt: byAdded, AddedBefore: byAdded ? addedBefore : null, AddedAfterKey: byAdded ? addedKey : null), ct);
                 return Access(result.Outcome, result.Page is { } timelinePage
-                    ? timelinePage with { Items = ViewItemCapabilities.ForViewer(timelinePage.Items, authority.ActiveProfileId) }
+                    ? timelinePage with
+                    {
+                        Items = ViewItemCapabilities.ForViewer(timelinePage.Items, authority.ActiveProfileId),
+                        NextCursor = byAdded && timelinePage.HasMore && timelinePage.Items.Count > 0
+                            ? ViewAddedCursor.Encode(timelinePage.Items[^1])
+                            : timelinePage.NextCursor,
+                        // The View editor's photo list reads a gallery's items; the numbers it follows (config/editor.json) ride on that read.
+                        EditorLimits = galleryId is null
+                            ? null
+                            : new ViewEditorLimitsDto(editorConfig.Current.InlineSupportingFiles, editorConfig.Current.ItemListPageSize),
+                    }
                     : null);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
             catch (InvalidOperationException exception) { return ApiErrors.Unprocessable(exception.Message); }
         }).WithName("GetViewAssets").Produces<ViewAssetTimelinePageDto>();
 
+        // On this day: photos and videos taken on this month and day in earlier years. The scopes are fixed here, never taken
+        // from the request: only the caller's own space and the Shared Library are read, so no look at another person is logged.
+        group.MapGet("/assets/on-this-day", async (int month, int day, int year,
+            IViewRequestProfileContext identity, IViewQueryOrchestrator queries, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (!authority.IsAuthenticated)
+            {
+                return Unauthenticated();
+            }
+
+            if (month is < 1 or > 12 || day is < 1 or > 31 || year is < 1900 or > 9999)
+            {
+                return ApiErrors.BadRequest("The date is not valid.");
+            }
+
+            try
+            {
+                var found = new Dictionary<Guid, LocalAssetDto>();
+                foreach (var kind in new[] { ViewScopeKind.Mine, ViewScopeKind.Shared })
+                {
+                    var result = await queries.QueryAsync(new ViewAssetQueryRequest(
+                        new ViewScopeRequest(kind), 200, MediaKinds: [LocalAssetMediaKinds.Image, LocalAssetMediaKinds.Video],
+                        OnThisDay: new LocalAssetOnThisDay(month, day, year)), ct);
+                    if (result.Page is { } page)
+                    {
+                        foreach (var item in ViewItemCapabilities.ForViewer(page.Items, authority.ActiveProfileId))
+                        {
+                            found.TryAdd(item.Id, item);
+                        }
+                    }
+                }
+
+                var years = found.Values
+                    .GroupBy(item => (item.CapturedAt ?? item.CreatedAt).Year)
+                    .OrderByDescending(group => group.Key)
+                    .Take(12)
+                    .Select(group => new ViewOnThisDayYearDto(group.Key, group.Count(),
+                        group.OrderBy(item => item.CapturedAt ?? item.CreatedAt).ThenBy(item => item.Id).First()))
+                    .ToList();
+                return Results.Ok(new ViewOnThisDayDto(years));
+            }
+            catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
+            catch (InvalidOperationException exception) { return ApiErrors.Unprocessable(exception.Message); }
+        }).WithName("GetViewOnThisDay").Produces<ViewOnThisDayDto>();
+
         group.MapGet("/assets/timeline-index", async (string? scope, Guid? scopeProfileId,
             string? q, string[]? kind, bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
             [FromQuery(Name = "added_by")] Guid[]? addedBy, Guid[]? tag,
+            [FromQuery(Name = "source")] Guid[]? source,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -296,7 +366,8 @@ public static partial class ViewEndpoints
                     Lifecycle: ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     DocumentFilter: BuildDocumentFilter(tag, null, null, null, null, null, null),
-                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null), ct);
+                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null,
+                    SourceIds: source is { Length: > 0 } ? source : null), ct);
                 return Access(result.Outcome, result.Index);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
@@ -666,6 +737,7 @@ public static partial class ViewEndpoints
         MapDocumentOrganisation(group);
         MapDocumentFiling(group);
         MapDocumentBulk(group);
+        MapItemsEdit(group);
         MapTrash(group);
         MapIntake(group);
 
@@ -1783,6 +1855,39 @@ public static partial class ViewEndpoints
         IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
         await authorization.AuthorizeAsync(await identity.ResolveAuthorityAsync(ct),
             new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Gallery, id, action), ct);
+
+    /// <summary>
+    /// A person's own item, or (for a document only) a Shared Library document in their household that they may edit
+    /// because they may use Documents and open Shared. Anything else answers as before: not theirs, so not found.
+    /// </summary>
+    private static async Task<ViewAccessDecision> AuthorizeDocumentEditAsync(Guid id,
+        IViewRequestProfileContext identity, IViewProfileRepository preferences,
+        IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct)
+    {
+        var owned = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
+        if (owned.IsAllowed || owned.Outcome == ViewAccessOutcome.Unauthenticated)
+        {
+            return owned;
+        }
+
+        var authority = await identity.ResolveAuthorityAsync(ct);
+        if (authority.ActiveProfileId is not { } profileId
+            || assets.Find(id, ct) is not { MediaKind: LocalAssetMediaKinds.Document })
+        {
+            return owned;
+        }
+
+        var shared = await authorization.AuthorizeAsync(authority,
+            new ViewResourceRequest(ViewScopeRequest.Shared, ViewResourceKind.Asset, id), ct);
+        if (!shared.IsAllowed || shared.Scope is not { Kind: ViewScopeKind.Shared })
+        {
+            return owned;
+        }
+
+        return ViewSharedDocumentAccess.CanEdit(await preferences.GetPolicyAsync(profileId, ct))
+            ? shared
+            : ViewAccessDecision.Forbidden();
+    }
 
     private static async Task<ViewAccessDecision> AuthorizeOwnedItemAsync(Guid id,
         IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization, CancellationToken ct) =>

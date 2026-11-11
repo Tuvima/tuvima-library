@@ -23,12 +23,18 @@ namespace MediaEngine.Api.Services.EditSession;
 public sealed class RelationshipEditSessionChangeHandler(
     ILibraryMoveService moves,
     ILibraryMoveRepository moveItems,
-    EditSessionCallerAccessor callers) : IEditSessionChangeHandler
+    EditSessionCallerAccessor callers,
+    EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     public string Kind => EditSessionChangeKinds.Relationship;
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            return EditSessionReasons.SeriesIsReadOnly;
+        }
+
         if (callers.Current is not { } caller)
         {
             return EditSessionReasons.SessionUnavailable;
@@ -44,6 +50,11 @@ public sealed class RelationshipEditSessionChangeHandler(
             return await CheckPositionAsync(change.EntityId, destination, number, caller, ct).ConfigureAwait(false);
         }
 
+        if (EditSessionPosition.IsPlace(change.Token, out var placeNumber) && placeNumber == 0)
+        {
+            return EditSessionReasons.BadPosition;
+        }
+
         var preview = await moves.PreviewAsync(PreviewRequest(change.EntityId, destination), caller.Actor, caller.CanEdit, ct).ConfigureAwait(false);
         if (!preview.IsSuccess)
         {
@@ -56,6 +67,11 @@ public sealed class RelationshipEditSessionChangeHandler(
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
+        }
+
         var caller = callers.Current ?? throw new InvalidOperationException(EditSessionReasons.SessionUnavailable);
         if (!TryDestination(change, out var destination))
         {
@@ -73,9 +89,41 @@ public sealed class RelationshipEditSessionChangeHandler(
 
         await MoveAsync(change.EntityId, destination, caller, ct).ConfigureAwait(false);
 
-        return previousPlace is { } back && back != Guid.Empty && back != destination
-            ? undoCt => MoveAsync(change.EntityId, back, caller, undoCt)
-            : null;
+        // A match to a track of another album moves the song and gives it that track's number there.
+        Func<CancellationToken, Task>? undoNumber = null;
+        if (EditSessionPosition.IsPlace(change.Token, out var placeNumber))
+        {
+            if (placeNumber == 0)
+            {
+                throw new InvalidOperationException(EditSessionReasons.BadPosition);
+            }
+
+            var outcome = await moveItems.SetPositionAsync(change.EntityId, destination, placeNumber, ct).ConfigureAwait(false);
+            if (outcome.Refusal is { } refusal)
+            {
+                throw new InvalidOperationException(refusal);
+            }
+
+            if (outcome.Before.Count > 0)
+            {
+                undoNumber = undoCt => moveItems.RestorePlacementsAsync(outcome.Before, undoCt);
+            }
+        }
+
+        if (previousPlace is not { } back || back == Guid.Empty || back == destination)
+        {
+            return undoNumber;
+        }
+
+        return async undoCt =>
+        {
+            if (undoNumber is not null)
+            {
+                await undoNumber(undoCt).ConfigureAwait(false);
+            }
+
+            await MoveAsync(change.EntityId, back, caller, undoCt).ConfigureAwait(false);
+        };
     }
 
     // The check is read-only: the song is a music title directly under the album, the number is valid, and the caller may edit. A

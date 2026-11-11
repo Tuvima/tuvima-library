@@ -326,4 +326,27 @@ public sealed class UniverseIdentityRuleTests
             return Task.FromResult(Records.GetValueOrDefault(qid));
         }
     }
+
+    [Fact]
+    public void CanOpenUniversePage_OpensForASingleSeriesOfABroaderUniverse()
+    {
+        Assert.True(UniverseIdentityRule.CanOpenUniversePage("Q1", [new UniverseSeriesShelf("Q2", "Movies")]));
+        Assert.True(UniverseIdentityRule.CanOpenUniversePage("Q1", [new UniverseSeriesShelf(null, "Books")]));
+    }
+
+    [Fact]
+    public void CanOpenUniversePage_ASeriesThatIsItsOwnUniverseGetsNoPage()
+    {
+        Assert.False(UniverseIdentityRule.CanOpenUniversePage("Q1", []));
+        Assert.False(UniverseIdentityRule.CanOpenUniversePage("Q1", [new UniverseSeriesShelf("Q1", "Movies")]));
+        Assert.False(UniverseIdentityRule.CanOpenUniversePage(
+            "Q1", [new UniverseSeriesShelf("Q1", "Books"), new UniverseSeriesShelf("Q1", "Audiobooks")]));
+    }
+
+    [Fact]
+    public void CanOpenUniversePage_TwoSeriesStillFollowTheShelfRule()
+    {
+        Assert.True(UniverseIdentityRule.CanOpenUniversePage(
+            "Q1", [new UniverseSeriesShelf("Q2", "Movies"), new UniverseSeriesShelf("Q3", "Movies")]));
+    }
 }

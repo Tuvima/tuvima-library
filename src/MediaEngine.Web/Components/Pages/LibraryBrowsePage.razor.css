@@ -7,7 +7,7 @@
 
 .home-discovery-loading {
     margin-top: var(--app-topbar-height, 65px);
-    border-radius: var(--app-radius-md);
+    border-radius: var(--tl-radius-md);
 }
 
 .home-discovery-page {
@@ -18,7 +18,7 @@
     gap: 0;
     padding: 0 0 calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1rem);
     min-width:0;
-    background: #05070c;
+    background: var(--tl-bg-root);
 }
 
 .home-discovery-page--with-hero {
@@ -45,9 +45,9 @@
     background:
         linear-gradient(
             to bottom,
-            rgba(5, 7, 12, 0) 0,
-            rgba(5, 7, 12, 0.88) clamp(5rem, 9svh, 7.5rem),
-            #05070c clamp(11rem, 17svh, 14rem));
+            color-mix(in srgb, var(--tl-bg-root) 0%, transparent) 0,
+            color-mix(in srgb, var(--tl-bg-root) 88%, transparent) clamp(5rem, 9svh, 7.5rem),
+            var(--tl-bg-root) clamp(11rem, 17svh, 14rem));
     overflow: visible;
 }
 
@@ -85,8 +85,8 @@
 .home-discovery-empty-title {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: 1.7rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-xl);
+    font-weight: 600;
     color: rgba(248, 248, 248, 0.88);
 }
 
@@ -94,7 +94,7 @@
     margin: 0;
     max-width: 460px;
     font-family: var(--font-ui);
-    font-size: 0.96rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.6;
     color: rgba(248, 248, 248, 0.56);
 }
@@ -122,7 +122,7 @@
     font-family: var(--font-ui);
     font-weight: 600;
     text-transform: none;
-    border-radius: var(--app-radius-md);
+    border-radius: var(--tl-radius-md);
 }
 
 @media (min-width: 841px) {
@@ -140,10 +140,8 @@
 
 /* On a desktop-sized window Home shelves keep the shared shelf tile sizes, so a tile is the same size here as on the Read, Watch and Listen pages.
    Only narrow windows use one shared height. */
-@media(max-width:720px) {
-    .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; }
-    .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-portrait, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
-}
+@media(max-width:640px) {
+    .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; }}
 
 /* Phones: every Home shelf shares one artwork height (about 2.6 portrait cards across) and a 16 px gutter. */
 :root[data-form-factor="phone"] .home-discovery-shelves {

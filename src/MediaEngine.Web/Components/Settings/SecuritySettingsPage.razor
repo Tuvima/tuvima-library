@@ -69,12 +69,7 @@
                         <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="@L["SecuritySettingsPage_SignOutEverywhereElse"].Value" Status="@OtherSessionsStatus"
                                         Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
                     </li>
-                </ul>
-            </SettingsSectionPanel>
-
-            @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
-            <SettingsSectionPanel Title="@L["SecuritySettingsPage_YourPhotos"].Value">
-                <ul class="security-settings__list" role="list">
+                    @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
                     <li class="security-settings__item">
                         <SettingsNavRow Key="photo-views" Icon="@AppMaterialIcons.Outlined.Visibility" Title="@L["SecuritySettingsPage_WhoViewedYourPhotos"].Value" Status="Server administrators who opened them, newest first" OnClick="@(() => OpenSheet(SecuritySheet.PhotoViews))" />
                     </li>
@@ -84,15 +79,8 @@
 
         @if (_sheet != SecuritySheet.None)
         {
-            <div class="settings-sheet-backdrop" @onclick="DismissSheet">
-                <div @ref="_sheetRoot"
-                     class="settings-sheet settings-sheet--card"
-                     role="dialog"
-                     aria-modal="true"
-                     aria-label="@SheetTitle"
-                     tabindex="-1"
-                     @onclick:stopPropagation="true"
-                     @onkeydown="OnSheetKeyDown">
+            @* The shared Window (a Sheet on phones); Escape and a press outside ask DismissSheet, which never throws away recovery codes. *@
+            <AppDialogFrame Open="true" Title="@SheetTitle" DialogOptions="SheetFrameOptions" OnCancel="DismissSheetAsync">
                     <AppDialogShell Modal="false" Title="@SheetTitle" Size="Medium" OnClose="@(_busy ? default : EventCallback.Factory.Create(this, CloseSheet))">
                         <ChildContent>
                     <div class="app-dialog-shell__pad app-dialog-shell__pad--stretch">
@@ -117,8 +105,7 @@
                             <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
                         </FooterContent>
                     </AppDialogShell>
-                </div>
-            </div>
+            </AppDialogFrame>
         }
     }
 </div>
@@ -298,7 +285,7 @@
         @if (ShowLinkedAccounts)
         {
             <section class="security-sheet__section">
-                <h3 class="security-sheet__section-title">Linked sign-ins</h3>
+                <h3 class="security-sheet__section-title">Sign in with another account</h3>
                 <p class="security-sheet__hint">Use another account to sign in to Library.</p>
                 @if (_loginsLoading)
                 {
@@ -388,8 +375,7 @@
     private string? _passkeysError;
 
     private SecuritySheet _sheet;
-    private ElementReference _sheetRoot;
-    private bool _focusSheet;
+    private static readonly AppDialogOptions SheetFrameOptions = new() { Size = AppWindowSize.Medium, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
@@ -425,7 +411,6 @@
     private void OpenSheet(SecuritySheet sheet)
     {
         _sheet = sheet;
-        _focusSheet = true;
     }
 
     // A click on the backdrop or Escape never throws away recovery codes that were just shown; the Done button does.
@@ -451,18 +436,10 @@
         _recoveryCodes = [];
     }
 
-    private void OnSheetKeyDown(KeyboardEventArgs args)
+    private Task DismissSheetAsync()
     {
-        if (args.Key == "Escape") DismissSheet();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_focusSheet || _sheet == SecuritySheet.None) return;
-        _focusSheet = false;
-        try { await _sheetRoot.FocusAsync(); }
-        catch (InvalidOperationException) { } // The sheet closed again before the browser could focus it.
-        catch (JSDisconnectedException) { } // The circuit ended while focusing; nothing left to focus.
+        DismissSheet();
+        return Task.CompletedTask;
     }
 
     private bool NewPasswordValid => _newPassword.Length is >= 12 and <= 128;
@@ -589,7 +566,7 @@
 
     private async Task RemovePasskeyAsync(PasskeyCredentialResponse passkey)
     {
-        if (!await ConfirmAsync("Remove passkey?", $"Remove {passkey.Name} from your sign-in methods?", "Remove passkey")) return;
+        if (!await ConfirmAsync("Remove passkey?", $"Remove {passkey.Name} from your sign-in methods?", "Remove passkey", destructive: true)) return;
         _busy = true;
         try
         {
@@ -608,7 +585,7 @@
 
     private async Task UnlinkExternalLoginAsync(AccountExternalLoginDto login)
     {
-        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Library.", "Disconnect")) return;
+        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Library.", "Disconnect", destructive: true)) return;
         _busy = true;
         try
         {
@@ -680,8 +657,8 @@
     private static string NotChangedMessage<T>(DashboardAccessMutationResult<T> result, string fallback) =>
         result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was changed. Confirm it's you to continue." : fallback;
 
-    private async Task<bool> ConfirmAsync(string title, string message, string confirmLabel) =>
-        await DialogService.ShowMessageBoxAsync(title, message, yesText: confirmLabel, cancelText: "Cancel") == true;
+    private async Task<bool> ConfirmAsync(string title, string message, string confirmLabel, bool destructive = false) =>
+        await DialogService.ShowMessageBoxAsync(title, message, yesText: confirmLabel, cancelText: "Cancel", options: destructive ? AppDialogOptions.DestructiveConfirm : null) == true;
     private bool IsCurrent(DeviceSessionResponse session) => Session.SessionId == session.Id;
     private AccountExternalLoginDto? FindLogin(string providerId) => _externalLogins.FirstOrDefault(login =>
         login.Provider.Equals(providerId, StringComparison.OrdinalIgnoreCase));

@@ -1,0 +1,105 @@
+/* The View editor's header: the library editor's v5 header (EditorItemHeader) for a photo, video, document, group or gallery. The picture is landscape
+   (12.5 by 7.06 rem); a group shows a small stack of its first pictures. With no cover colours it is the plain window surface. */
+.tl-editor-header {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    gap: 1.375rem;
+    padding: var(--tl-space-5) var(--tl-space-6) 1.125rem;
+    border-bottom: 1px solid var(--tl-divider);
+    background: var(--tl-bg-surface);
+}
+
+.tl-editor-header__cover {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 12.5rem;
+    height: 7.0625rem;
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-muted);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tl-editor-header__cover--stack {
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tl-editor-header__layer {
+    position: absolute;
+    overflow: hidden;
+    width: 10.5rem;
+    height: 7rem;
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-bg-surface-hover);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tl-editor-header__layer--0 { left: 0; top: 0; }
+.tl-editor-header__layer--1 { left: 0.875rem; top: 0.5625rem; }
+.tl-editor-header__layer--2 { left: 1.625rem; top: 1.125rem; }
+
+.tl-editor-header ::deep .tl-editor-header__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-editor-header__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-editor-header__label {
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: 0.8125rem;
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-editor-header__title {
+    margin: 2px 0 var(--tl-space-1);
+    overflow: hidden;
+    font-size: var(--tl-font-size-xl);
+    font-weight: var(--tl-font-weight-semibold);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-editor-header__title:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.tl-editor-header__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-1) 0.625rem;
+}
+
+.tl-editor-header__facts {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+@media (max-width: 1180px) {
+    .tl-editor-header__title {
+        display: -webkit-box;
+        white-space: normal;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+}

@@ -23,7 +23,7 @@ public enum LibraryStatusKind
 /// <param name="Access"><c>standard</c>, <c>selected</c> or <c>vault</c>; null for a View kind, which keeps its own per-profile rules.</param>
 /// <param name="Folders">Folder count; null only for a View kind while its folders are not known yet.</param>
 /// <param name="Titles">Titles the Engine counts for the kind; null when not known or when several libraries share the kind (the Engine counts per media type).</param>
-/// <param name="Unidentified">Files in the library the Engine could not identify (its unmatched-files list; opens the Unidentified tab).</param>
+/// <param name="Unidentified">Files in the library the Engine could not identify (its unmatched-files list; opens Needs Review filtered to this library's unmatched files).</param>
 /// <param name="NeedsReview">Identified items waiting in Needs Review (a different list from <paramref name="Unidentified"/>).</param>
 /// <param name="StatusDetail">The words of the folder problem, for the tooltip of a Folder offline status.</param>
 public sealed record LibraryListRow(
@@ -231,8 +231,9 @@ public static class LibraryListing
     public static string FilterValue(LibraryStatusKind status) => status.ToString();
 
     /// <summary>Needs Review, with the library as the filter (Library pages D17).</summary>
-    /// <summary>The library's Unidentified files tab.</summary>
-    public static string UnidentifiedAddress(string libraryId) => $"{AddressOf(libraryId)}?tab=unidentified";
+    /// <summary>Needs Review narrowed to this library's files that could not be matched (universal editor v3 D9); it lists exactly as many rows as the count says.</summary>
+    public static string NotIdentifiedAddress(string libraryId) =>
+        $"{SettingsNav.RouteFor(SettingsSection.Review)}?library={Uri.EscapeDataString(libraryId)}&show=not-matched";
 
     /// <summary>"12 files not identified" / "1 file not identified".</summary>
     public static string UnidentifiedText(int count) => count == 1 ? "1 file not identified" : $"{count:N0} files not identified";

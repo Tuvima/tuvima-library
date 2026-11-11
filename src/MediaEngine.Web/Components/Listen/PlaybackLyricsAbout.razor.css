@@ -1,0 +1,9 @@
+.playback-lyrics-about {
+    color: var(--playback-text-secondary);
+    font: 400 15px/1.5 var(--font-ui);
+    padding: 8px 8px 0;
+}
+
+.playback-lyrics-about p {
+    margin: 0 0 12px;
+}

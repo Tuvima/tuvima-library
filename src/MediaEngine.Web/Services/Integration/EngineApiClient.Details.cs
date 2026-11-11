@@ -432,11 +432,11 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<MediaEditorNavigatorDto?> GetMediaEditorNavigatorAsync(Guid entityId, CancellationToken ct = default)
+    public async Task<MediaEditorNavigatorDto?> GetMediaEditorNavigatorAsync(Guid entityId, bool structureOnly = false, CancellationToken ct = default)
     {
         try
         {
-            return await _http.GetFromJsonAsync<MediaEditorNavigatorDto>($"/metadata/{entityId}/navigator", ct);
+            return await _http.GetFromJsonAsync<MediaEditorNavigatorDto>($"/metadata/{entityId}/navigator{(structureOnly ? "?structureOnly=true" : string.Empty)}", ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
@@ -468,11 +468,15 @@ public sealed partial class EngineApiClient
     public async Task<MediaEditorOwnedChildSearchDto?> GetMediaEditorOwnedChildrenAsync(
         Guid entityId, string? query = null, int page = 1, int pageSize = 50,
         int? season = null, int? disc = null, int? volume = null,
-        string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default)
+        string? matchStatus = null, string? fileStatus = null, bool directOnly = false, CancellationToken ct = default)
     {
         try
         {
             var parts = new List<string> { $"page={Math.Max(1, page)}", $"pageSize={Math.Clamp(pageSize, 1, 100)}" };
+            if (directOnly)
+            {
+                parts.Add("directOnly=true");
+            }
             if (!string.IsNullOrWhiteSpace(query))
             {
                 parts.Add($"q={Uri.EscapeDataString(query.Trim())}");

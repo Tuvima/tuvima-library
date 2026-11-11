@@ -23,7 +23,7 @@ public sealed class LibraryKindLookupValidationTests
 
     private static LibrariesConfiguration ShippedWith(LibraryFolderConfig extra)
     {
-        var config = Load("config", "libraries.json");
+        var config = Load("tests", "fixtures", "libraries.seven-defaults.json");
         config.Libraries.Add(extra);
         return config;
     }
@@ -108,7 +108,7 @@ public sealed class LibraryKindLookupValidationTests
     [Fact]
     public void AnOtherVideosLibraryWhoseYoutubeLookupIsTrueLoadsFromAFile_AndIsDescribedInPlainWords()
     {
-        var config = Load("config", "libraries.json");
+        var config = Load("tests", "fixtures", "libraries.seven-defaults.json");
         var index = config.Libraries.FindIndex(library => library.KindKey == "other_videos");
         config.Libraries[index].YoutubeLookup = true;
 
@@ -132,7 +132,7 @@ public sealed class LibraryKindLookupValidationTests
     [Fact]
     public void ALookupKindStillNeedsEnrichedMetadata()
     {
-        var config = Load("config", "libraries.json");
+        var config = Load("tests", "fixtures", "libraries.seven-defaults.json");
         config.Libraries.Single(library => library.KindKey == "music").MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
 
         Assert.Contains(Errors(config), error => error.Contains("must use enriched metadata", StringComparison.Ordinal));
@@ -141,7 +141,7 @@ public sealed class LibraryKindLookupValidationTests
     [Fact]
     public void AVideosLibraryStillHasToBeALibraryOfItsOwn()
     {
-        var config = Load("config", "libraries.json");
+        var config = Load("tests", "fixtures", "libraries.seven-defaults.json");
         config.Libraries.Single(library => library.KindKey == "other_videos").MediaTypes = ["Videos", "Movies"];
 
         Assert.Contains(Errors(config), error => error.Contains("Videos must be a library of its own", StringComparison.Ordinal));

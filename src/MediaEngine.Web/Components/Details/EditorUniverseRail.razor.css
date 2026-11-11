@@ -1,0 +1,203 @@
+/* The Universe in the editor's header (universal editor v4 D10, WP11; header revision v4.1 D1): the Universe is a fixed tile at the left, then one
+   dropdown per kind of thing it holds under the title. It looks like the family of other items, with its own class names so the two never share
+   a rule. */
+.tl-urail {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-urail__level {
+    position: relative;
+    flex: 1 1 10rem;
+    max-width: 13rem;
+    min-width: 0;
+}
+
+.tl-urail-tile {
+    flex: 0 0 auto;
+}
+
+.tl-urail__level--tile {
+    flex: 0 0 13.5rem;
+    max-width: none;
+}
+
+.tl-urail__crumb {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 2.75rem;
+    padding: 0 var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tl-urail__crumb:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-urail__crumb:focus-visible,
+.tl-urail__option:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+/* The fixed tile for the Universe: its kind in small type above its name. */
+.tl-urail__crumb--tile {
+    align-items: flex-start;
+    height: 6.75rem;
+    padding: var(--tl-space-3);
+}
+
+.tl-urail__crumb--tile .tl-urail__text {
+    gap: var(--tl-space-1);
+}
+
+.tl-urail__crumb--tile .tl-urail__text > span {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+}
+
+.tl-urail__crumb.is-current {
+    border-color: var(--tl-accent-primary, #8852FC);
+    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 14%, var(--tl-bg-surface));
+}
+
+.tl-urail__thumb {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-urail__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-urail__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.tl-urail__text > small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.tl-urail__text > span {
+    overflow: hidden;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-urail__dot {
+    flex: 0 0 auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary, #8852FC);
+}
+
+/* The list itself (position, width, border, background) is drawn by AppPopover in the top layer; its surface styles are global in app.css. */
+.tl-urail__panel {
+    box-sizing: border-box;
+    padding: var(--tl-space-2);
+}
+
+.tl-urail__add {
+    margin-bottom: var(--tl-space-2);
+}
+
+.tl-urail__search {
+    margin-bottom: var(--tl-space-2);
+}
+
+.tl-urail__options {
+    max-height: min(22rem, 45vh);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+}
+
+.tl-urail__option {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border: 0;
+    border-radius: var(--tl-radius-sm);
+    background: transparent;
+    color: var(--tl-text-secondary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tl-urail__option:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-urail__option.is-selected {
+    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 16%, transparent);
+    color: var(--tl-text-primary);
+}
+
+.tl-urail__option.is-staged {
+    cursor: default;
+    color: var(--tl-text-muted);
+}
+
+.tl-urail__option .tl-urail__text > span {
+    font-weight: normal;
+}
+
+.tl-urail__option.is-selected .tl-urail__text > span {
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-urail__waiting {
+    flex: 0 0 auto;
+    color: var(--tl-accent-primary, #8852FC);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.tl-urail__note,
+.tl-urail__more {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}

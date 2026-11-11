@@ -37,7 +37,7 @@ public sealed class CollectionListImportKindHandler : IImportKindHandler
         {
             parsed = _reader is null
                 ? ListFileParser.Parse(source.FileName, source.Bytes)
-                : await _reader.ReadAsync(source.FileName, source.Bytes, ct).ConfigureAwait(false);
+                : await _reader.ReadAsync(source.FileName, source.Bytes, context.ActiveProfile?.Id, ct).ConfigureAwait(false);
         }
         catch (WebListRefusedException ex)
         {

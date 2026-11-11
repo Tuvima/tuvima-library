@@ -3,7 +3,7 @@
    Native switch tracks are owned by native-fields.css. */
 :where(.app-switch-row__description) {
     color: var(--tl-text-muted);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     line-height: 1.4;
 }
 
@@ -30,7 +30,27 @@
 
 :where(.app-switch-row__label) {
     color: var(--tl-text-primary);
-    font-size: 0.88rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     line-height: 1.3;
+}
+
+/* Inside a settings group a labelled switch row matches AppSettingRow: 56px high, 16px / 500 label, 13px muted helper, hairline between rows. */
+:where(.app-settings-group__rows) :where(.app-switch-row:not(.app-switch-row--control-only)) {
+    box-sizing: border-box;
+    min-height: 56px;
+    padding: 12px 0;
+}
+
+:where(.app-settings-group__rows) :where(.app-switch-row + .app-switch-row) {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+:where(.app-settings-group__rows) :where(.app-switch-row__label) {
+    font-size: var(--tl-font-size-md);
+    font-weight: 500;
+}
+
+:where(.app-settings-group__rows) :where(.app-switch-row__description) {
+    font-size: var(--tl-font-size-secondary);
 }

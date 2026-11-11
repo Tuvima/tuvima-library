@@ -962,7 +962,7 @@ await check('settings are remembered per device, other stored keys survive, and 
     await page.evaluate(() => window.br.goTo(2));
     const frame = await frameWith(page, '#start');
     const family = await frame.evaluate(() => getComputedStyle(document.querySelector('#start ~ p')).fontFamily);
-    assert(/system-ui|Segoe|Roboto|sans-serif/.test(family), `font was ${family}`);
+    assert(/system-ui|sans-serif/.test(family), `font was ${family}`);
     await page.evaluate(() => window.br.setAppearance({ theme: 'light', fontSize: 20, lineHeight: 1.6, font: 'book', pageWidth: 'standard', flow: 'paginated' }));
     const back = await page.evaluate(() => document.querySelector('foliate-view').renderer.getAttribute('flow'));
     assert(back === 'paginated', 'flow did not return to pages');

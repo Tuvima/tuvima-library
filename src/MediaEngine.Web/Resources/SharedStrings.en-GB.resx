@@ -95,9 +95,6 @@
   <data name="ViewGalleriesPage_OrganizePersonalPhotosAndVideos" xml:space="preserve">
     <value>Organise personal photos and videos without changing their source files.</value>
   </data>
-  <data name="ViewPage_AuthorizedPhotoScope" xml:space="preserve">
-    <value>Authorised photo scope</value>
-  </data>
   <data name="ViewPage_TheDashboardCouldNotResolve" xml:space="preserve">
     <value>The Dashboard could not resolve an authorised View scope.</value>
   </data>
@@ -109,9 +106,6 @@
   </data>
   <data name="ViewPlacesPage_WorldMapOfAuthorizedPhoto" xml:space="preserve">
     <value>World map of authorised photo and video locations</value>
-  </data>
-  <data name="ViewPlacesPage_AuthorizedPlacesScope" xml:space="preserve">
-    <value>Authorised Places scope</value>
   </data>
   <data name="ViewPlacesPage_FavoritesOnly" xml:space="preserve">
     <value>Favourites only</value>
@@ -143,9 +137,6 @@
   <data name="EncodeSettingsTab_RemoveLeastUsedOptimizedCopies" xml:space="preserve">
     <value>Remove least-used optimised copies first</value>
   </data>
-  <data name="IngestionNowPanel_RecognizableAlbumsShowsBooksAnd" xml:space="preserve">
-    <value>Recognisable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</value>
-  </data>
   <data name="Common_Organization" xml:space="preserve">
     <value>Organisation</value>
   </data>
@@ -170,10 +161,43 @@
   <data name="Common_FavoritesRequireAnActiveProfile" xml:space="preserve">
     <value>Favourites require an active profile.</value>
   </data>
-  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
-    <value>Favourites could not be updated. Try again when the Engine reconnects.</value>
-  </data>
   <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
     <value>Optimised copy settings could not be saved.</value>
+  </data>
+  <data name="EncodeSettingsTab_MaintenanceWindowHelp" xml:space="preserve">
+    <value>Optimised copies are prepared between these two times, on a 24-hour clock.</value>
+  </data>
+  <data name="SetupIntro_FindText" xml:space="preserve">
+    <value>Point Library at your folders and it recognises books, shows, films, music and more.</value>
+  </data>
+  <data name="ViewEdit_HistoryFavorite" xml:space="preserve">
+    <value>Marked as a favourite</value>
+  </data>
+  <data name="ViewActions_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
+  <data name="ViewPage_FavoriteAdded" xml:space="preserve">
+    <value>Added to Favourites.</value>
+  </data>
+  <data name="ViewPage_FavoriteRemoved" xml:space="preserve">
+    <value>Removed from Favourites.</value>
+  </data>
+  <data name="PlayerSettings_Colour" xml:space="preserve">
+    <value>Text colour</value>
+  </data>
+  <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
+    <value>Background colour</value>
+  </data>
+  <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
+    <value>Font, colours and opacity</value>
+  </data>
+  <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
+    <value>Add song to Favourites</value>
+  </data>
+  <data name="PlaybackIdentity_RemoveSongFromFavorites" xml:space="preserve">
+    <value>Remove song from Favourites</value>
+  </data>
+  <data name="PlaybackIdentity_FavoritesNeedProfile" xml:space="preserve">
+    <value>Favourites need an active profile.</value>
   </data>
 </root>

@@ -1,0 +1,323 @@
+{
+  "reason": "Older rules written before this guardrail existed: each class below is only passed to a child component (Class=...), so the rule can never match. Fix them when the file is next edited and delete the entry; nothing new may be added.",
+  "files": {
+    "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor": [
+      "app-timeline__groups"
+    ],
+    "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor": [
+      "compact-continue__resume",
+      "compact-continue__view-all"
+    ],
+    "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor": [
+      "browse-shell__grid",
+      "browse-shell__load-more-button",
+      "browse-shell__multi-select",
+      "browse-shell__multi-select--creator",
+      "browse-shell__multi-select--genres",
+      "browse-shell__multi-select--year",
+      "browse-shell__search",
+      "browse-shell__sort"
+    ],
+    "src/MediaEngine.Web/Components/Cinematic/PhoneHeroCard.razor": [
+      "is-active",
+      "phone-hero__dot",
+      "phone-hero__placeholder-icon"
+    ],
+    "src/MediaEngine.Web/Components/Collections/CollectionPersonalMediaSection.razor": [
+      "collection-personal-media__gallery",
+      "is-selected"
+    ],
+    "src/MediaEngine.Web/Components/Companion/CompanionDeviceList.razor": [
+      "companion-devices__device"
+    ],
+    "src/MediaEngine.Web/Components/Companion/CompanionPositionPicker.razor": [
+      "companion-picker__choice",
+      "companion-picker__choice--current"
+    ],
+    "src/MediaEngine.Web/Components/Companion/CompanionScreen.razor": [
+      "companion__row",
+      "companion__spoiler-control"
+    ],
+    "src/MediaEngine.Web/Components/Details/AudioItemTable.razor": [
+      "tl-detail-track-row__play"
+    ],
+    "src/MediaEngine.Web/Components/Details/BulkEditPanel.razor": [
+      "tl-bulk__cover",
+      "tl-bulk__face"
+    ],
+    "src/MediaEngine.Web/Components/Details/DetailHeroSkeleton.razor": [
+      "tl-detail-skeleton__artwork",
+      "tl-detail-skeleton__button",
+      "tl-detail-skeleton__button--secondary",
+      "tl-detail-skeleton__eyebrow",
+      "tl-detail-skeleton__line",
+      "tl-detail-skeleton__line--short",
+      "tl-detail-skeleton__meta",
+      "tl-detail-skeleton__tab",
+      "tl-detail-skeleton__title"
+    ],
+    "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor": [
+      "tl-detail-primary-module__find",
+      "tl-detail-primary-module__sort"
+    ],
+    "src/MediaEngine.Web/Components/Details/EditorArtworkTool.razor": [
+      "is-on",
+      "tl-art-picker__action",
+      "tl-art-picker__prefer"
+    ],
+    "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
+      "is-current",
+      "is-selected",
+      "tl-urail__add",
+      "tl-urail__crumb",
+      "tl-urail__crumb--tile",
+      "tl-urail__img",
+      "tl-urail__option"
+    ],
+    "src/MediaEngine.Web/Components/Details/OverviewTab.razor": [
+      "tl-overview-section__more"
+    ],
+    "src/MediaEngine.Web/Components/Import/ImportPreviewFrame.razor": [
+      "import-frame__facts"
+    ],
+    "src/MediaEngine.Web/Components/Layout/ReconnectModal.razor": [
+      "components-pause-visible",
+      "components-reconnect-failed-visible",
+      "components-resume-failed-visible"
+    ],
+    "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor": [
+      "media-type-badge",
+      "vmt-artist-photo",
+      "vmt-creator-link",
+      "vmt-group-toggle",
+      "vmt-hover-overlay",
+      "vmt-manage-btn",
+      "vmt-manage-btn--delete",
+      "vmt-status-dot",
+      "vmt-table",
+      "vmt-thumb",
+      "vmt-type-badge"
+    ],
+    "src/MediaEngine.Web/Components/Library/StageGate.razor": [
+      "stage-line"
+    ],
+    "src/MediaEngine.Web/Components/Library/StatusPill.razor": [
+      "media-status-badge--muted"
+    ],
+    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor": [
+      "listen-song-table__art-play",
+      "listen-song-table__head",
+      "listen-song-table__play-only"
+    ],
+    "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor": [
+      "library-section-header__navigation"
+    ],
+    "src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor": [
+      "media-section-shell__flow-add",
+      "media-section-shell__rail-chevron"
+    ],
+    "src/MediaEngine.Web/Components/Navigation/PwaInstallPrompt.razor": [
+      "pwa-install-prompt__dismiss",
+      "pwa-install-prompt__install"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor": [
+      "chronicle-explorer-controls",
+      "chronicle-explorer-empty",
+      "chronicle-explorer-full-panel",
+      "chronicle-explorer-layout",
+      "chronicle-explorer-panel",
+      "chronicle-explorer-qid",
+      "chronicle-explorer-title",
+      "chronicle-source-table"
+    ],
+    "src/MediaEngine.Web/Components/Pages/DesignSystemPreview.razor": [
+      "design-system-preview__rowbar",
+      "design-system-preview__space",
+      "design-system-preview__swatch"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ForMe.razor": [
+      "for-me-page__navigation"
+    ],
+    "src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor": [
+      "home-discovery-loading",
+      "home-discovery-seed-button"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ListenPage.razor": [
+      "listen-detail__more-menu",
+      "listen-filter-input",
+      "listen-filter-select",
+      "listen-playlist-track-list__head",
+      "listen-rail__add",
+      "listen-rail__drag",
+      "listen-rail__more",
+      "listen-rail__section-toggle"
+    ],
+    "src/MediaEngine.Web/Components/Pages/MyLibrary.razor": [
+      "my-library-header__action-skeleton",
+      "my-library-header__avatar",
+      "my-library-header__name-skeleton",
+      "my-library-skeleton__tile",
+      "my-library-skeleton__title"
+    ],
+    "src/MediaEngine.Web/Components/Pages/PluginPage.razor": [
+      "plugin-page__guide-slot",
+      "plugin-page__guide-tick"
+    ],
+    "src/MediaEngine.Web/Components/Pages/SearchPage.razor": [
+      "search-page__input",
+      "search-page__media-filter",
+      "search-page__select"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ShelfGridPage.razor": [
+      "shelf-grid-page__grid",
+      "shelf-grid-page__skeleton-art",
+      "shelf-grid-page__skeleton-caption",
+      "shelf-grid-page__title-skeleton"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor": [
+      "view-contribution-card",
+      "view-contributions-breadcrumbs"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ViewGalleryDetailPage.razor": [
+      "view-gallery-share-avatar"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ViewOnThisDayStrip.razor": [
+      "view-on-this-day__card"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ViewPeoplePage.razor": [
+      "view-discovery-card"
+    ],
+    "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor": [
+      "view-atlas__map"
+    ],
+    "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor": [
+      "watch-player-state"
+    ],
+    "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor": [
+      "collection-rule-builder__add-condition",
+      "collection-rule-builder__add-secondary",
+      "collection-rule-builder__condition-drag",
+      "collection-rule-builder__picker-search"
+    ],
+    "src/MediaEngine.Web/Components/Settings/ActivityLogPanel.razor": [
+      "activity-log__toolbar"
+    ],
+    "src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor": [
+      "backup-action-card",
+      "backup-validation-result"
+    ],
+    "src/MediaEngine.Web/Components/Settings/Frame/SettingsNoticeBubble.razor": [
+      "settings-notice__icon"
+    ],
+    "src/MediaEngine.Web/Components/Settings/HouseholdsTab.razor": [
+      "households-tab__notice"
+    ],
+    "src/MediaEngine.Web/Components/Settings/Libraries/AddFilesDialog.razor": [
+      "add-files__folder"
+    ],
+    "src/MediaEngine.Web/Components/Settings/Libraries/LibrariesOverview.razor": [
+      "libs__link",
+      "libs__link--button",
+      "libs__lock"
+    ],
+    "src/MediaEngine.Web/Components/Settings/LibraryActivity/LibraryActivityHistory.razor": [
+      "lact-group__toggle"
+    ],
+    "src/MediaEngine.Web/Components/Settings/LibraryFolderGrid.razor": [
+      "folder-grid__radio"
+    ],
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor": [
+      "access-notice",
+      "access-rows"
+    ],
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor": [
+      "access-drawer",
+      "access-notice",
+      "access-users"
+    ],
+    "src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor": [
+      "application-webhook-secret"
+    ],
+    "src/MediaEngine.Web/Components/Settings/MergeFolderDialog.razor": [
+      "merge-folder__option"
+    ],
+    "src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor": [
+      "needs-review-page__search",
+      "needs-review-table"
+    ],
+    "src/MediaEngine.Web/Components/Settings/NewIntegrationWizard.razor": [
+      "integration-wizard__secret"
+    ],
+    "src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor": [
+      "offline-downloads-table"
+    ],
+    "src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor": [
+      "settings-plugin-card-focus",
+      "settings-plugin-rows"
+    ],
+    "src/MediaEngine.Web/Components/Settings/ProfilesTab.razor": [
+      "profiles-tab__drag",
+      "profiles-tab__row--add"
+    ],
+    "src/MediaEngine.Web/Components/Settings/SecurityTab.razor": [
+      "security-settings__skeleton"
+    ],
+    "src/MediaEngine.Web/Components/Settings/TechnicalLogPanel.razor": [
+      "technical-log__filters"
+    ],
+    "src/MediaEngine.Web/Components/Shared/AppChoiceTile.razor": [
+      "app-choice-tile__icon"
+    ],
+    "src/MediaEngine.Web/Components/Shared/AppDialogFrame.razor": [
+      "app-native-dialog__close"
+    ],
+    "src/MediaEngine.Web/Components/Shared/AppDialogShell.razor": [
+      "app-dialog-shell__back",
+      "app-dialog-shell__close"
+    ],
+    "src/MediaEngine.Web/Components/Shared/AppSearchFilterRow.razor": [
+      "app-search-filter-row__search"
+    ],
+    "src/MediaEngine.Web/Components/Shared/AppToastHost.razor": [
+      "app-toast__icon"
+    ],
+    "src/MediaEngine.Web/Components/Shared/DeleteFromLibraryDialog.razor": [
+      "delete-library__more"
+    ],
+    "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor": [
+      "media-viewer",
+      "media-viewer--video"
+    ],
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor": [
+      "provider-onboarding__failure"
+    ],
+    "src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor": [
+      "app-page-header__title"
+    ],
+    "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor": [
+      "sidebar-page-header"
+    ],
+    "src/MediaEngine.Web/Components/Universe/AdaptationTreeNode.razor": [
+      "adaptation-node"
+    ],
+    "src/MediaEngine.Web/Components/Universe/FamilyTreeView.razor": [
+      "gen-label"
+    ],
+    "src/MediaEngine.Web/Components/Universe/GlobalBackground.razor": [
+      "global-bg-gradient"
+    ],
+    "src/MediaEngine.Web/Components/Universe/UniverseCastList.razor": [
+      "universe-cast__row"
+    ],
+    "src/MediaEngine.Web/Components/Vault/VaultImageViewer.razor": [
+      "vault-viewer"
+    ],
+    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor": [
+      "video-playback-restore__button"
+    ],
+    "src/MediaEngine.Web/Shared/MainLayout.razor": [
+      "layout-shell__actions",
+      "layout-shell__left-rail"
+    ]
+  }
+}

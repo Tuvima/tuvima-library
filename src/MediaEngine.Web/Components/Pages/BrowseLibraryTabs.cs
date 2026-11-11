@@ -87,6 +87,7 @@ public static class BrowseLibraryTabs
                 Id = isLookupKind ? library.KindKey.ToLowerInvariant() : $"lib-{library.Id:N}",
                 Label = isLookupKind ? kindLabel! : library.Name,
                 LibraryId = library.Id,
+                Folders = library.Folders ?? [],
                 BehaviourId = template.EffectiveBehaviourId,
             };
             if (tabs.All(existing => !string.Equals(existing.Id, tab.Id, StringComparison.OrdinalIgnoreCase)))
@@ -112,7 +113,7 @@ public static class BrowseLibraryTabs
             Id = GatheredTabId,
             Label = "Videos",
             LibraryId = many ? null : libraries[0].Id,
-            LibraryChips = many ? [.. libraries.Select(library => new BrowseLibraryChip(library.Id, library.Name))] : [],
+            LibraryChips = many ? [.. libraries.Select(library => new BrowseLibraryChip(library.Id, library.Name, library.Folders))] : [],
             AlsoKnownAs = ["youtube", .. libraries.Select(library => $"lib-{library.Id:N}")],
             BehaviourId = template.EffectiveBehaviourId,
         };

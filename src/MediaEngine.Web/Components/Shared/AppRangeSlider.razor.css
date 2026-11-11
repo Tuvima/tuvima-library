@@ -26,7 +26,7 @@
 
 .playback-range-slider__track {
     background: var(--playback-track, #30364A);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     height: var(--playback-range-track-height);
     left: 0;
     overflow: hidden;
@@ -119,7 +119,7 @@
 .playback-range-slider__thumb {
     background: var(--playback-surface);
     border: 4px solid var(--playback-range-accent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     box-shadow: 0 0 0 4px var(--playback-accent-soft), 0 0 18px var(--playback-accent-glow);
     height: var(--playback-range-thumb-size);
     position: absolute;
@@ -131,8 +131,8 @@
 
 .playback-range-slider__labels {
     color: var(--playback-text-secondary);
-    font-size: 0.92rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     height: 44px;
     line-height: 1.2;
     margin: 0 var(--playback-range-track-inset);
@@ -178,6 +178,51 @@
 .playback-range-slider ::deep .playback-range-slider__label:focus-visible {
     outline: 2px solid var(--playback-focus-ring);
     outline-offset: 2px;
+}
+
+/* Surface "player" (unified player v2 D9): the one slider style of the timeline, volume, speed and subtitle opacity. A 4 px neutral rail, the accent
+   for the played part, a 12 px white handle with no glow, and a 24 px invisible hit area. The slider is 12 px wider than its box and pulled back by 6 px
+   each side, so the visible rail runs exactly edge to edge while the handle can sit on either end. */
+.playback-range-slider--player {
+    --playback-range-thumb-size: var(--playback-slider-handle);
+    --playback-range-track-height: var(--playback-slider-rail-height);
+    --playback-range-track-y: calc((var(--playback-slider-hit) - var(--playback-slider-rail-height)) / 2);
+    margin: 0 calc(var(--playback-slider-handle) / -2);
+    width: calc(100% + var(--playback-slider-handle));
+}
+
+.playback-range-slider--player .playback-range-slider__rail,
+.playback-range-slider--player .playback-range-slider__input,
+.playback-range-slider--player .playback-range-slider__input::-webkit-slider-runnable-track,
+.playback-range-slider--player .playback-range-slider__input::-webkit-slider-thumb,
+.playback-range-slider--player .playback-range-slider__input::-moz-range-track,
+.playback-range-slider--player .playback-range-slider__input::-moz-range-thumb {
+    height: var(--playback-slider-hit);
+}
+
+.playback-range-slider--player .playback-range-slider__track {
+    background: var(--playback-rail);
+    border-radius: 2px;
+}
+
+.playback-range-slider--player .playback-range-slider__thumb {
+    background: var(--playback-handle);
+    border: 0;
+    box-shadow: none;
+}
+
+.playback-range-slider--player .playback-range-slider__input:focus-visible {
+    border-radius: calc(var(--playback-slider-hit) / 2);
+    outline-offset: 0;
+}
+
+.playback-range-slider--player .playback-range-slider__ticks {
+    height: 8px;
+    top: calc(var(--playback-range-track-y) - 2px);
+}
+
+.playback-range-slider--player .playback-range-slider__tick {
+    height: 8px;
 }
 
 .playback-range-slider--vertical { width:44px; height:120px; }

@@ -11,6 +11,7 @@ public sealed class EncodeQueueService : BackgroundService
     private readonly IFFmpegService _ffmpeg;
     private readonly IConfigurationLoader _config;
     private readonly ILogger<EncodeQueueService> _logger;
+    private int _encoding;
 
     public EncodeQueueService(
         PlaybackStateRepository state,
@@ -46,6 +47,9 @@ public sealed class EncodeQueueService : BackgroundService
         }
     }
 
+    /// <summary>True while an offline encode job is running. A read-only signal for low-priority background work.</summary>
+    public bool IsEncoding => Volatile.Read(ref _encoding) != 0;
+
     internal async Task ProcessNextJobAsync(CancellationToken ct)
     {
         var job = await _state.LeaseNextEncodeJobAsync(ct);
@@ -73,6 +77,7 @@ public sealed class EncodeQueueService : BackgroundService
         var args = BuildArguments(asset.FilePathRoot, outputPath, job.ProfileKey);
         _logger.LogInformation("Starting encode job {JobId} for asset {AssetId} with profile {ProfileKey}", job.Id, job.AssetId, job.ProfileKey);
 
+        Interlocked.Exchange(ref _encoding, 1);
         try
         {
             var result = await _ffmpeg.RunAsync(args, ct);
@@ -103,6 +108,10 @@ public sealed class EncodeQueueService : BackgroundService
             // Interrupted or crashed mid-encode: nothing owns the half-written folder, so remove it before the error moves on.
             DeleteJobFolder(job, outputPath);
             throw;
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _encoding, 0);
         }
 
         _logger.LogInformation("Completed encode job {JobId} at {OutputPath}", job.Id, outputPath);

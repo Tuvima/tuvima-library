@@ -60,23 +60,6 @@ public sealed class NativeEditorCloseProtectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task NativeGalleryCloseWaitsForPendingSave()
-    {
-        var host = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<AppDialogService>();
-        var reference = await host.InvokeAsync(() => service.ShowAsync<GalleryEditorShell>("Gallery"));
-        host.WaitForAssertion(() => Assert.NotNull(host.FindComponent<GalleryEditorShell>()));
-        var editor = host.FindComponent<GalleryEditorShell>();
-        SetField(editor.Instance, "_saving", true);
-        var frame = host.FindComponent<AppDialogFrame>();
-        await frame.InvokeAsync(frame.Instance.RequestCancel);
-        Assert.False(reference.Result.IsCompleted);
-        SetField(editor.Instance, "_saving", false);
-        await frame.InvokeAsync(frame.Instance.RequestCancel);
-        Assert.True((await reference.Result)!.Canceled);
-    }
-
-    [Fact]
     public async Task ToastHostShowsFiveOldestMessagesAndPromotesQueuedMessageWhenDismissed()
     {
         var host = Render<AppToastHost>();

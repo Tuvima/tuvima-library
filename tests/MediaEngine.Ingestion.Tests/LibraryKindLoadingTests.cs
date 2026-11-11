@@ -20,7 +20,7 @@ public sealed class LibraryKindLoadingTests
             dir = Path.GetDirectoryName(dir);
         }
 
-        var config = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(dir!, "config", "libraries.json")))!;
+        var config = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(dir!, "tests", "fixtures", "libraries.seven-defaults.json")))!;
         var videos = config.Libraries.Single(library => library.KindKey == "other_videos");
         videos.Id = Guid.NewGuid().ToString("D");
         videos.MetadataPolicy = metadataPolicy;

@@ -5,12 +5,13 @@
    browser Dashboard ships with ShellDock.DownloadsMode = ExplainNativeApp, so there it renders nothing. *@
 @if (ShellDock.ShowsDownloadsInTopBar(Mode))
 {
-    <a class="phone-downloads-action"
-       href="@ShellDock.DownloadsPath"
-       aria-label="@L["Nav_Downloads"]"
-       title="@L["Nav_Downloads"]">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />
-    </a>
+    <AppTooltip Text="@L["Nav_Downloads"]">
+        <a class="phone-downloads-action"
+           href="@ShellDock.DownloadsPath"
+           aria-label="@L["Nav_Downloads"]">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />
+        </a>
+    </AppTooltip>
 }
 
 @code {

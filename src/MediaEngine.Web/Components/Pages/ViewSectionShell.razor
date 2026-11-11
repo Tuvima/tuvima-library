@@ -7,7 +7,7 @@
 @inject ActiveProfileSessionService ActiveProfileSession
 @using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Nav
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject DeviceContextService DeviceContext
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
@@ -15,6 +15,7 @@
 <MediaSectionShell @ref="_shell"
                    Title="@L["Nav_View"].Value"
                    NavigationGroups="@NavigationGroups"
+                   NavigationHeader="@ScopeSwitch"
                    OnNavigationItemDrop="HandleNavigationDropAsync"
                    OnNavigationCreateDrop="HandleCreateDropAsync"
                    OnNavigationCreateCanceled="CancelCreateAsync"
@@ -34,6 +35,8 @@
     [Parameter] public EventCallback<MediaSectionNavigationDropEvent> OnNavigationItemDrop { get; set; }
 
     private MediaSectionShell? _shell;
+
+    private RenderFragment? ScopeSwitch => Workspace.Scopes is { AvailableScopes.Count: > 1 } ? @<ViewScopeSwitch /> : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,7 +125,7 @@
 
     private IReadOnlyList<MediaSectionNavigationGroup> NavigationGroups =>
     [
-        new("Personal", PersonalItems),
+        new("Browse", PersonalItems),
         new("Library",
         [
             new("Artwork Library", "/view/artwork", AppMaterialIcons.Outlined.PhotoLibrary, Exact: false),

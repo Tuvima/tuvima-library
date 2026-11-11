@@ -128,9 +128,9 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetAssetFileWriteStatus", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "GetTvMatchBrowserShows", "GetTvMatchBrowserSeasons", "GetTvMatchBrowserEpisodes", "PreviewTvdbShowOrder"],
+            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetAssetFileWriteStatus", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "GetTvMatchBrowserShows", "GetTvMatchBrowserSeasons", "GetTvMatchBrowserEpisodes", "GetTvMatchBrowserAbsoluteEpisode", "GetEditorMatchContext", "GetEditorFileSorting", "PreviewEpisodeSiblingMatch", "PreviewShowChildRematch", "GetEditorFollowUp", "PreviewTvdbShowOrder", "GetEditorNavLevel", "GetEditorCurrentMatch", "GetSupportingFileEditor", "GetSupportingFileSuggestDetails", "GetSupportingFileHistory", "GetEditorFolderTree", "GetEditorKindConfig", "GetEditorMatchSetup", "GetEditorCurrentWikidata"],
             [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "SetSeriesPlacement", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "SaveMediaEditorFileCoverage", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork"],
-            [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest", "SaveReviewedParentFirstTvPairing"],
+            [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchEditorMatch", "GetEditorMatchPlacement", "GetEditorMatchVerdict", "GetEditorMusicReleases", "GetEditorMusicReleaseTracks", "LineUpEditorGroupMatch", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest", "SaveReviewedParentFirstTvPairing", "SearchEditorWikidata", "CompareEditorWikidataWithProviderMatch"],
             [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetPass2Status"],
             [ApplicationPermissionIds.ReviewRead] = ["GetMediaEditorSelectionHistory"],
@@ -159,6 +159,10 @@ public sealed class MappedEndpointInventoryTests
     {
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
+
+        // The Library's name and network name (Settings > General) are for server administrators only; no paired app or member reads or renames the Library.
+        inventory.Require("/settings/server-identity", HttpMethods.Get).RequiresNamedPolicy(AuthPolicies.Administrator);
+        inventory.Require("/settings/server-identity", HttpMethods.Put).RequiresNamedPolicy(AuthPolicies.Administrator);
 
         inventory.Require("/access/users", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead);

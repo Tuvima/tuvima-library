@@ -1,11 +1,14 @@
 using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Extras;
 using MediaEngine.Application.Services;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Backup;
@@ -21,7 +24,8 @@ public sealed class UniversalSearchReadService(
     CharacterSpoilerService spoilers,
     IProfileRepository profiles,
     WaitingPersonalStateRepository waiting,
-    IUnmatchedAssetRepository? unmatched = null) : IUniversalSearchReadService
+    IUnmatchedAssetRepository? unmatched = null,
+    SupportingFileSearchService? supportingFiles = null) : IUniversalSearchReadService
 {
     public async Task<UniversalSearchResponseDto> SearchAsync(string? query, int limit, CancellationToken ct)
     {
@@ -81,6 +85,15 @@ public sealed class UniversalSearchReadService(
             sections.Add(new UniversalSearchSectionDto(UnmatchedKey, "Unmatched", unmatchedMatches, unmatchedMatches.Count, null));
         }
 
+        // Supporting files (documents, pictures, clips and audio kept with a title) are found by title, description and file name, and
+        // follow the visibility of the title they belong to. Only a person in the Dashboard sees them: a paired app has nothing to open
+        // them with. They sit after the identified results and are not counted in the response total.
+        var files = await SearchSupportingFilesAsync(trimmed, authority, visibleWorks, Math.Min(10, take), ct).ConfigureAwait(false);
+        if (files.Count > 0)
+        {
+            sections.Add(new UniversalSearchSectionDto(SupportingFilesKey, "Supporting files", files, files.Count, null));
+        }
+
         // The profile's own items still waiting for their file after a restore: a section of its own, always last, never the top
         // result and not counted in the response total (that total is the titles the person can open).
         var fileMissing = SearchFileMissing(trimmed, authority, profileId, ct);
@@ -129,6 +142,73 @@ public sealed class UniversalSearchReadService(
             .ThenBy(row => row.Title, StringComparer.OrdinalIgnoreCase)
             .Take(limit)
             .Select(row => FromWork(row, query))
+            .ToList();
+    }
+
+    /// <summary>The section key of supporting files found by title, description and file name.</summary>
+    public const string SupportingFilesKey = "supporting-files";
+
+    private async Task<IReadOnlyList<UniversalSearchResultDto>> SearchSupportingFilesAsync(
+        string query,
+        RequestAuthority authority,
+        IReadOnlyList<DisplayWorkRow> visibleWorks,
+        int limit,
+        CancellationToken ct)
+    {
+        if (supportingFiles is null || authority.PrincipalKind != PrincipalKind.Human)
+        {
+            return [];
+        }
+
+        var config = supportingFiles.Configuration;
+        var matches = await supportingFiles.SearchAsync(query, visibleWorks, limit, ct).ConfigureAwait(false);
+        return matches
+            .Select(match =>
+            {
+                var extra = match.Extra;
+                var owner = match.Owner;
+                var mediaType = NormalizeMediaType(owner.MediaType);
+                var ownerId = mediaType == "TV" && owner.RootWorkId != Guid.Empty ? owner.RootWorkId : owner.WorkId;
+                var ownerName = mediaType == "TV" ? StringHelpers.FirstNonBlank(owner.ShowName, owner.Title) : owner.Title;
+                var route = mediaType == "TV" && owner.RootWorkId != Guid.Empty
+                    ? $"/details/tvshow/{owner.RootWorkId:D}?context=watch"
+                    : WorkRoute(owner, mediaType);
+                var scopeLabel = extra.EffectiveScope.Level == ExtraScopeLevel.Root ? string.Empty : extra.EffectiveScope.Label();
+                var role = extra.EffectiveRole;
+                var roleLabel = config.LabelFor(extra.Kind, role);
+                var (_, typeLabel) = SupportingFileListService.TypeWords(extra, isFolder: false, config);
+                var fileName = Path.GetFileName(extra.FilePath);
+                var title = extra.DisplayTitle;
+                var field = Contains(title, query) ? "title" : Contains(extra.Description, query) ? "description" : "file name";
+                return new UniversalSearchResultDto(
+                    extra.Id,
+                    SupportingFilesKey,
+                    null,
+                    title,
+                    string.Join(" · ", new[] { roleLabel, scopeLabel, ownerName }.Where(part => !string.IsNullOrWhiteSpace(part))),
+                    null,
+                    null,
+                    null,
+                    extra.Description,
+                    route,
+                    "Open",
+                    MatchReason(field == "title" ? title : field == "file name" ? fileName : extra.Description, query, field),
+                    Score(field == "title" ? title : field == "file name" ? fileName : extra.Description, query, field == "title" ? 0.80 : 0.66))
+                {
+                    Facts = [typeLabel],
+                    SupportingFile = new SupportingFileSearchHitDto
+                    {
+                        OwnerId = ownerId,
+                        OwnerName = ownerName ?? string.Empty,
+                        ScopeLabel = scopeLabel,
+                        Type = SupportingFileListService.TypeOf(extra, config),
+                        TypeLabel = typeLabel,
+                        Role = role,
+                        RoleLabel = roleLabel,
+                        FileName = fileName,
+                    },
+                };
+            })
             .ToList();
     }
 

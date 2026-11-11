@@ -49,8 +49,8 @@
 .universal-search-overlay__title-row h1 {
     margin: 0;
     color: var(--tl-text-primary);
-    font-family: var(--font-display, var(--font-ui));
-    font-size: 1.8rem;
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-hero);
     font-weight: 500;
 }
 
@@ -59,30 +59,7 @@
     align-items: center;
     gap: 5px;
     color: #c4b5fd;
-    font-size: 0.75rem;
-}
-
-.universal-search-overlay ::deep .universal-search-overlay__close,
-.universal-search-overlay ::deep .universal-search-overlay__clear {
-    display: grid;
-    place-items: center;
-    border: 0;
-    background: transparent;
-    color: var(--tl-text-secondary);
-    cursor: pointer;
-}
-
-.universal-search-overlay ::deep .universal-search-overlay__close {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-}
-
-.universal-search-overlay ::deep .universal-search-overlay__close:hover,
-.universal-search-overlay ::deep .universal-search-overlay__close:focus-visible {
-    background: rgba(255, 255, 255, 0.07);
-    color: #fff;
-    outline: none;
+    font-size: var(--tl-font-size-xs);
 }
 
 .universal-search-overlay__input-shell {
@@ -109,7 +86,7 @@
     background: transparent;
     color: #fff;
     font: inherit;
-    font-size: 1.12rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .universal-search-overlay__input-shell ::deep input::placeholder {
@@ -131,14 +108,14 @@
 }
 
 .universal-search-overlay__empty > .tl-icon-root {
-    font-size: 3.5rem;
+    font-size: var(--tl-icon-size-2xl);
     color: rgba(167, 139, 250, 0.42);
 }
 
 .universal-search-overlay__empty h2 {
     margin: 0;
     color: var(--tl-text-primary);
-    font-family: var(--font-display, var(--font-ui));
+    font-family: var(--font-ui);
 }
 
 .universal-search-overlay__empty p {
@@ -157,7 +134,6 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .universal-search-overlay__empty section > div {
@@ -170,7 +146,7 @@
 .universal-search-overlay__empty section ::deep button {
     padding: 8px 12px;
     border: 1px solid rgba(128, 146, 180, 0.24);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(17, 25, 43, 0.64);
     color: var(--tl-text-secondary);
     cursor: pointer;
@@ -181,7 +157,7 @@
     gap: 18px;
     margin-top: 30px;
     color: var(--tl-text-muted);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .universal-search-overlay__shortcuts kbd {

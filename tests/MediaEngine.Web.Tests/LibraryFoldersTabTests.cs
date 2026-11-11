@@ -145,17 +145,10 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     private static IReadOnlyList<AngleSharp.Dom.IElement> Rows<T>(IRenderedComponent<T> cut) where T : Microsoft.AspNetCore.Components.IComponent => cut.FindAll("tbody tr");
 
     [Fact]
-    public void TheLibraryHeaderHasARenamePencilForALibraryButNotOnAPhone()
+    public void TheLibraryHeaderHasNoRenamePencilBecauseLibrariesKeepTheirFixedNames()
     {
         var cut = OpenPage();
-        Assert.NotEmpty(cut.FindAll(".libpage__facts button[aria-label='Rename Movies']"));
-
-        var phone = Render<LibraryShell>(parameters => parameters
-            .Add(x => x.Library, _configuration.Libraries.Single(item => item.Id == MoviesId))
-            .Add(x => x.Configuration, _configuration)
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.ReadOnly, true));
-        Assert.Empty(phone.FindAll(".libpage__facts button[aria-label='Rename Movies']"));
+        Assert.Empty(cut.FindAll(".libpage__facts button[aria-label^='Rename ']"));
     }
 
     [Fact]
@@ -240,7 +233,7 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheRowMenuOffersOverrideFileHandlingPauseScanningChangeWhatTheFolderIsAndRemove()
+    public async Task TheRowMenuOffersOverrideFileHandlingPauseScanningAndRemove()
     {
         var cut = OpenTable();
 
@@ -250,7 +243,7 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
         var items = cut.FindAll("[role=menuitem]").Select(Text).ToArray();
         Assert.Contains("Override file handling for this folder…", items);
         Assert.Contains("Pause scanning", items);
-        Assert.Contains("Change what this folder is…", items);
+        Assert.DoesNotContain("Change what this folder is…", items);
         Assert.Contains("Remove folder", items);
         Assert.Equal("Remove folder", items[^1]);
     }

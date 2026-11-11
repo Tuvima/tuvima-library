@@ -13,4 +13,6 @@ public interface IViewSharedLibraryRepository
     Task<IReadOnlyList<ViewSharedSource>> GetSourcesAsync(CancellationToken ct = default);
     Task<ViewSharedSource> UpsertSourceAsync(ViewSharedSource source, CancellationToken ct = default);
     Task<bool> DeleteSourceAsync(Guid sourceId, CancellationToken ct = default);
+    /// <summary>Records how many files a full scan left out of a Shared folder because they do not fit its kind.</summary>
+    Task SetSourceSkippedFileCountAsync(Guid sourceId, int skippedFileCount, CancellationToken ct = default);
 }

@@ -1,0 +1,51 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* Quick Facts of the View editor: read-only facts about the file (type, size, pages or dimensions), plus the notes that explain what editing does.
+   It reuses the library editor's Quick Facts look. *@
+@if (_facts.Count > 0 || Notes.Count > 0)
+{
+    <aside class="tl-quick-facts" aria-label="@L["EditorQuickFacts_Title"].Value">
+        <h3 class="tl-quick-facts__title">@L["EditorQuickFacts_Title"]</h3>
+        @foreach (var fact in _facts)
+        {
+            <div class="tl-quick-facts__row" data-fact="@fact.Key">
+                <span class="tl-quick-facts__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(fact.Icon)" Size="AppIconSize.Control20" /></span>
+                <div class="tl-quick-facts__text">
+                    <strong class="tl-quick-facts__value">@fact.Value</strong>
+                    <small class="tl-quick-facts__label">@L[fact.LabelKey]</small>
+                </div>
+            </div>
+        }
+        @foreach (var note in Notes)
+        {
+            <div class="tl-quick-facts__note" data-note="@note" role="note">@L[note]</div>
+        }
+    </aside>
+}
+
+@code {
+    private IReadOnlyList<ViewQuickFact> _facts = [];
+
+    [Parameter, EditorRequired] public IReadOnlyList<LocalAssetDto> Items { get; set; } = [];
+
+    /// <summary>Also drawn read-only in the viewer's side panel (spec D6), where the notes are left out.</summary>
+    [Parameter] public bool ShowNotes { get; set; } = true;
+
+    private IReadOnlyList<string> Notes => ShowNotes ? ViewEditFacts.NotesFor(Items) : [];
+
+    protected override void OnParametersSet() => _facts = Items.Count == 1 ? ViewEditFacts.ForItem(Items[0]) : [];
+
+    internal static string IconFor(string name) => name switch
+    {
+        "Description" => AppMaterialIcons.Outlined.Description,
+        "Storage" => AppMaterialIcons.Outlined.Storage,
+        "PhotoCamera" => AppMaterialIcons.Outlined.PhotoCamera,
+        "Schedule" => AppMaterialIcons.Outlined.Schedule,
+        "Article" => AppMaterialIcons.Outlined.Article,
+        "AspectRatio" => AppMaterialIcons.Outlined.Image,
+        _ => AppMaterialIcons.Outlined.Folder,
+    };
+}

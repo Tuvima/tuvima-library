@@ -1,0 +1,126 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Progress
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@inject IEngineApiClient ApiClient
+@inject ILogger<ContinueLandscapeTile> Logger
+@inject IStringLocalizer<SharedStrings> L
+@* One landscape Continue tile (One tile design D8): the picture with a play mark bottom-left and a progress bar along its bottom edge, and under
+   it the title (or "S3 E8 · Episode title") and then the rating and year. This is the one tile that keeps text underneath. Tapping it plays;
+   its "..." menu starts with "Go to ..." (the title's own page), then Add to My List, Restart, Remove from Continue, Open Universe, Edit and
+   Delete. Removing hides it until it is played again. *@
+@if (!_hidden)
+{
+    <article class="@TileClass" aria-label="@Item.Title">
+        <div class="continue-tile__frame">
+            <a class="continue-tile__link" href="@ResumeUrl" aria-label="@($"Resume {Title}")"></a>
+            <div class="continue-tile__picture">
+                @if (ShowsCollage)
+                {
+                    <div class="continue-tile__collage" aria-hidden="true">
+                        @foreach (var cover in Item.PreviewImages.Take(8))
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 120)" alt="" loading="lazy" decoding="async" />
+                        }
+                    </div>
+                }
+                else if (UsesCoverLayout)
+                {
+                    @if (!string.IsNullOrWhiteSpace(CoverUrl))
+                    {
+                        <img class="continue-tile__soft" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 320)" alt="" loading="lazy" decoding="async" aria-hidden="true" />
+                        <img class="continue-tile__cover is-centred" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 200)" alt="" loading="lazy" decoding="async" />
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(BackdropUrl))
+                {
+                    <img class="continue-tile__backdrop" src="@MediaTileArtworkUrl.ForDrawnSize(BackdropUrl, 640)" alt="" loading="lazy" decoding="async" />
+                }
+                else if (!string.IsNullOrWhiteSpace(CoverUrl))
+                {
+                    <img class="continue-tile__soft" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 320)" alt="" loading="lazy" decoding="async" aria-hidden="true" />
+                    <img class="continue-tile__cover is-centred" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 200)" alt="" loading="lazy" decoding="async" />
+                }
+            </div>
+            <span class="continue-tile__play" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></span>
+            @if (PhoneContinueLogic.ShowsProgressBar(Item))
+            {
+                <div class="continue-tile__progress"><AppProgressBar Value="@Item.ProgressPct" Title="@($"Progress for {Title}")" /></div>
+            }
+            <MediaTileActions Item="@Item" IsContinue="true" OnRemoveFromContinue="HideAsync" />
+        </div>
+        <div class="continue-tile__text">
+            <span class="continue-tile__title" data-overflow-tooltip="@HeadingText">@HeadingText</span>
+            @if (!string.IsNullOrWhiteSpace(Line))
+            {
+                <span class="continue-tile__line">@Line</span>
+            }
+        </div>
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
+
+    private bool _hidden;
+
+    private string Title => Item.EpisodeContext?.ShowTitle ?? Item.Title;
+    private string ResumeUrl => Item.PrimaryNavigationUrl ?? Item.NavigationUrl;
+    private string? CoverUrl => Item.CoverUrl ?? Item.TileImageUrl ?? Item.PreviewImageUrl;
+    private string? BackdropUrl => Item.BackgroundUrl ?? Item.HoverImageUrl ?? Item.HeroBackgroundImageUrl ?? Item.BannerUrl;
+    private bool IsWatch => Item.MediaKind is "Movie" or "TV";
+    private bool UsesCoverLayout => !IsWatch;
+    private bool ShowsCollage => Item.MediaKind == "Music" && string.IsNullOrWhiteSpace(CoverUrl) && Item.PreviewImages.Count >= 4;
+    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}";
+
+    // The title, or "S3 E8 · Episode title" for an episode.
+    private string HeadingText => Item.EpisodeContext is { } episode
+        ? MediaTileLabels.EpisodeHeading(Item, episode)
+        : Title;
+
+    // Then the rating and year (D8); a title with neither (a book, an audiobook) shows its author or artist instead of an empty line.
+    private string? Line
+    {
+        get
+        {
+            var parts = new[] { MediaTileLabels.RatingText(Item), MediaTileLabels.YearText(Item) }.Where(part => !string.IsNullOrWhiteSpace(part)).ToList();
+            if (parts.Count > 0)
+            {
+                return string.Join(" · ", parts);
+            }
+
+            return Item.EpisodeContext is { } episode ? episode.ShowTitle : Item.Creator ?? Item.Subtitle;
+        }
+    }
+
+    private DetailEntityType EntityType => Item.MediaKind switch
+    {
+        "Movie" => DetailEntityType.Movie,
+        "TV" => DetailEntityType.TvShow,
+        "Music" => DetailEntityType.MusicAlbum,
+        "Audiobook" => DetailEntityType.Audiobook,
+        "Comic" => DetailEntityType.ComicIssue,
+        _ => DetailEntityType.Book,
+    };
+
+    private async Task HideAsync()
+    {
+        // The tile disappears at once; the Engine remembers it per profile, and playing it again brings it back.
+        _hidden = true;
+        try
+        {
+            var target = Item.EpisodeContext?.ShowWorkId ?? Item.WorkId ?? Item.Id;
+            var status = await ApiClient.GetPersonalStatusAsync(EntityType, target);
+            if (status is not null)
+            {
+                await ApiClient.ChangePersonalStatusAsync(new PersonalStatusRequest(Guid.NewGuid(), EntityType, target, PersonalStatusAction.HideContinue, status.Revision));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not hide {Title} from Continue.", Item.Title);
+        }
+    }
+}

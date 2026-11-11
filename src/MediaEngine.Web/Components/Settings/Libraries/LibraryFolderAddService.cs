@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Ingestion;
+using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -33,7 +34,8 @@ public sealed record AddFolderPlan(
     string? NewLibraryName = null,
     bool CreateNewLibrary = false,
     string? Access = null,
-    string? SuccessMessage = null);
+    string? SuccessMessage = null,
+    string? Label = null);
 
 /// <summary>Which Engine calls to use: the signed-in Settings ones, or the first-run setup ones (which carry the setup session).</summary>
 public sealed record FolderAddScope(bool Embedded, string? SetupSession)
@@ -131,20 +133,8 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
         ApplyKindLookup(library, type);
         // The Engine makes the first managed folder the library's destination when it saves.
-        var source = new LibrarySourceDto
-        {
-            Id = Guid.NewGuid().ToString("D"),
-            Path = selected.Path,
-            Notes = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-            ManagementMode = managed ? "managed_by_tuvima" : "existing_library",
-            SourceType = "local_folder",
-            IncludeSubdirectories = true,
-            AccessMode = managed ? "writable" : "read_only",
-        };
-        if (string.IsNullOrWhiteSpace(source.Notes))
-        {
-            source.Notes = selected.Path;
-        }
+        var source = NewSource(selected, managed);
+        source.Label = string.IsNullOrWhiteSpace(plan.Label) ? null : plan.Label.Trim();
 
         library.Sources.Add(source);
 
@@ -160,6 +150,8 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             toasts.Add(message, AppSeverity.Success);
         }
 
+        // The folder is only checked against the library's kind now that it is added; browsing for it read nothing inside it.
+        notice = await MatchNoticeAsync(scope, type.Key, source, notice);
         var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
 
         // "Should new media go here?" answered Yes: when another folder of the type already holds the marker, move it.
@@ -182,26 +174,108 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         return result;
     }
 
+    // After the add: does what is in the folder look like this library's kind? A warning is shown, never a block (the folder is already added).
+    private async Task<string?> MatchNoticeAsync(FolderAddScope scope, string kindKey, LibrarySourceDto source, string? notice)
+    {
+        var request = new ValidateServerFolderRequest { ManualPath = source.Path, SelectionMode = ServerFolderSelectionModes.ExistingLibrary, CurrentSourceId = source.Id, KindKey = kindKey };
+        var checkedFolder = scope.Embedded ? await apiClient.ValidateSetupServerFolderAsync(request, scope.SetupSession) : await apiClient.ValidateServerFolderAsync(request);
+        var warning = checkedFolder?.Issues.FirstOrDefault(issue => issue.Code is "looks_like_other_kind" or "no_matching_files")?.Message;
+        return warning is null ? notice : string.IsNullOrWhiteSpace(notice) ? warning : $"{notice} {warning}";
+    }
+
     /// <summary>Saves one library (setup: the whole list with this library replaced; Settings: one library change guarded by the copy the caller read). Null when the Engine refused it.</summary>
     public async Task<LibrariesConfigurationDto?> SaveLibraryAsync(FolderAddScope scope, LibrariesConfigurationDto baseline, LibraryFolderDto library)
     {
         if (scope.Embedded)
         {
-            var libraries = baseline.Libraries.Where(item => item.Id != library.Id && !item.IsVault).ToList(); // setup never sends a Vault library; the Engine refuses one
+            var libraries = baseline.Libraries.Where(item => item.Id != library.Id).ToList();
             libraries.Add(library);
-            return await apiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
-            {
-                SchemaVersion = baseline.SchemaVersion,
-                StorageLocations = baseline.StorageLocations,
-                ViewStorage = baseline.ViewStorage,
-                Libraries = libraries,
-                PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
-                FileHandling = baseline.FileHandling,
-            }, scope.SetupSession);
+            return await SaveSetupLibrariesAsync(scope, baseline, libraries);
         }
 
         var existing = baseline.Libraries.FirstOrDefault(item => item.Id == library.Id);
         return await apiClient.MutateLibraryAsync(new LibraryMutationRequest { Library = library, ExpectedLibrary = existing });
+    }
+
+    /// <summary>Setup saves replace the whole list; a Vault library is never part of it (setup never sends one, and the Engine refuses one).</summary>
+    private async Task<LibrariesConfigurationDto?> SaveSetupLibrariesAsync(FolderAddScope scope, LibrariesConfigurationDto baseline, IEnumerable<LibraryFolderDto> libraries) =>
+        await apiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
+        {
+            SchemaVersion = baseline.SchemaVersion,
+            StorageLocations = baseline.StorageLocations,
+            ViewStorage = baseline.ViewStorage,
+            Libraries = [.. libraries.Where(item => !item.IsVault)],
+            PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+            FileHandling = baseline.FileHandling,
+        }, scope.SetupSession);
+
+    /// <summary>What a setup row change did: <see cref="Changed"/> when the host should read the list again, <see cref="Error"/> when it was refused.</summary>
+    public sealed record SetupRowOutcome(bool Changed, string? Error = null)
+    {
+        public static SetupRowOutcome Unchanged { get; } = new(false);
+    }
+
+    private SetupRowOutcome Refused(string fallback) => new(false, apiClient.LastError ?? fallback);
+
+    private async Task<string?> AskNameAsync(string label, string current)
+    {
+        var dialog = await dialogs.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
+        {
+            { component => component.Label, label },
+            { component => component.Value, current },
+        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        return await dialog.Result is { Canceled: false, Data: string name } && !string.Equals(name, current, StringComparison.Ordinal) ? name : null;
+    }
+
+    private async Task<ServerFolderValidationResultDto?> PickSetupFolderAsync(FolderAddScope scope, string title, string help, string mode, string? start, string? kindKey, string? mediaType)
+    {
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { component => component.Title, title },
+            { component => component.HelpText, help },
+            { component => component.ConfirmLabel, "Choose folder" },
+            { component => component.SelectionMode, mode },
+            { component => component.MediaType, mediaType },
+            { component => component.SetupSession, scope.SetupSession },
+            { component => component.InitialPath, start },
+        };
+        var dialog = await dialogs.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
+        return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected } ? selected : null;
+    }
+
+    private async Task<bool> AskToRemoveAsync(string name, string folder) =>
+        await AppConfirmDialog.ShowAsync(dialogs, $"Remove {name}?", $"Library stops using {folder}. Your files are not touched.", "Remove", "Keep", primaryDestructive: true) == AppConfirmResult.Primary;
+
+    /// <summary>Setup row, Remove: asked once, then the library leaves the setup session's list. Nothing on disk is touched.</summary>
+    public async Task<SetupRowOutcome> RemoveSetupLibraryAsync(FolderAddScope scope, LibrariesConfigurationDto current, LibraryFolderDto library)
+    {
+        if (!await AskToRemoveAsync(library.Name, library.Sources.FirstOrDefault()?.Path ?? "its folder"))
+        {
+            return SetupRowOutcome.Unchanged;
+        }
+
+        var saved = await SaveSetupLibrariesAsync(scope, current, current.Libraries.Where(item => item.Id != library.Id));
+        return saved is null ? Refused("The library could not be removed. Try again.") : new(true);
+    }
+
+    private static LibrarySourceDto NewSource(ServerFolderValidationResultDto selected, bool managed)
+    {
+        var source = new LibrarySourceDto
+        {
+            Id = Guid.NewGuid().ToString("D"),
+            Path = selected.Path,
+            Notes = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+            ManagementMode = managed ? "managed_by_tuvima" : "existing_library",
+            SourceType = "local_folder",
+            IncludeSubdirectories = true,
+            AccessMode = managed ? "writable" : "read_only",
+        };
+        if (string.IsNullOrWhiteSpace(source.Notes))
+        {
+            source.Notes = selected.Path;
+        }
+
+        return source;
     }
 
     /// <summary>A copy of the library whose "New media goes here" marker sits on <paramref name="sourceId"/>. The marker moves only here, on the person's say.</summary>
@@ -251,6 +325,36 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var dialog = await dialogs.ShowAsync<ConvertFolderDialog>(string.Empty, parameters, SheetOptions());
         return await dialog.Result is { Canceled: false, Data: ConvertFolderDialog.Convert };
     }
+
+    /// <summary>
+    /// Switch to Managed (Libraries v3 D27): checks the folder can be written, counts what is there, shows the Preview and the plain-words Review, then queues the
+    /// Engine's organising job, which renames and reorganizes the files inside the same folder. Nothing happens unless the person confirms.
+    /// </summary>
+    public async Task<SwitchToManagedOutcome> SwitchToManagedAsync(LibrarySourceDto source)
+    {
+        var writable = await ValidateAsync(FolderAddScope.Settings, source.Path, ServerFolderSelectionModes.ManagedLibrary, source.Id);
+        if (writable is null || !writable.CanSelect)
+        {
+            return new SwitchToManagedOutcome(false, writable?.Issues.FirstOrDefault()?.Message ?? apiClient.LastError ?? "Library can't write to this folder, so it stays Read-only.");
+        }
+
+        var quick = await apiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
+        if (quick is null)
+        {
+            return new SwitchToManagedOutcome(false, apiClient.LastError ?? "Library could not count the files in this folder, so it was not changed.");
+        }
+
+        if (!await AskToConvertAsync(source, quick, alreadyManaged: false))
+        {
+            return new SwitchToManagedOutcome(false, null);
+        }
+
+        var followUp = await StartConversionAsync(source);
+        return new SwitchToManagedOutcome(followUp.Started, followUp.Started ? null : followUp.Notice);
+    }
+
+    /// <summary>What Switch to Managed did: <see cref="Started"/> when the job was queued, <see cref="Error"/> when it could not be.</summary>
+    public sealed record SwitchToManagedOutcome(bool Started, string? Error);
 
     // Queues the organising job for a folder, makes it Managed in the same step, and says so.
     public async Task<FolderFollowUp> StartConversionAsync(LibrarySourceDto source)
@@ -322,38 +426,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var saved = await SaveLibraryAsync(scope, baseline, library);
         var held = saved?.Libraries.FirstOrDefault(item => item.Id == library.Id);
         return saved is null || held is null ? null : new CreatedLibrary(saved, held);
-    }
-
-    // "Change what this folder is": choose the new kind and library, read the impact, then queue the change. The dialog does the Engine calls so
-    // a refusal or a failure stays on screen; the follow-up says whether the host should read the folders again (a job was queued, or a library was made).
-    public async Task<FolderFollowUp> ChangeKindAsync(FolderAddScope scope, LibraryKindCatalog kinds, LibrariesConfigurationDto configuration, LibraryFolderDto library, LibrarySourceDto source)
-    {
-        if (scope.Embedded)
-        {
-            return new FolderFollowUp(false, null);
-        }
-
-        var parameters = new AppDialogParameters<ChangeFolderKindDialog>
-        {
-            { component => component.Source, source },
-            { component => component.Library, library },
-            { component => component.Kinds, kinds },
-            { component => component.Configuration, configuration },
-        };
-        var dialog = await dialogs.ShowAsync<ChangeFolderKindDialog>(string.Empty, parameters, SheetOptions());
-        if (await dialog.Result is not { Canceled: false, Data: ChangeFolderKindDialog.Outcome outcome })
-        {
-            return new FolderFollowUp(false, null);
-        }
-
-        if (outcome.StartedKindLabel is null)
-        {
-            // A library was made and left unused; the dialog already said so, so the host only reads the libraries again.
-            return new FolderFollowUp(true, null);
-        }
-
-        toasts.Add($"Library is changing {source.DisplayName()} to {outcome.StartedKindLabel}. You can keep using Library meanwhile.", AppSeverity.Success);
-        return new FolderFollowUp(true, null);
     }
 
     private static AppDialogOptions SheetOptions() => new()

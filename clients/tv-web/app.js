@@ -1083,6 +1083,10 @@
     } else {
       info.appendChild(el('p', 'note', 'This is a book or comic. Open it in the Library apps for phones, tablets and the web to read it.'));
     }
+    var universeLink = TV.universe.linkFor(vm);
+    if (universeLink) {
+      actions.appendChild(button('Universe', 'universe', function () { go('universe', universeLink); }));
+    }
     actions.appendChild(button('Back', 'back', function () { goBack(); }));
 
     ctx.root.textContent = '';

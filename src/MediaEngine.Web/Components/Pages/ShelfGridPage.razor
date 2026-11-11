@@ -58,6 +58,7 @@
                         <div class="shelf-grid-page__controls @(inSheet ? "is-sheet" : "")">
                             <div class="shelf-grid-page__control">
                                 <AppSelect Label="@L["Common_SortBy"].Value"
+                                           HideLabel="@(!inSheet)"
                                            Size="AppControlSize.Large"
                                            Value="@CurrentSort"
                                            ValueChanged="OnSortChangedAsync"
@@ -68,6 +69,7 @@
                                 var filterKey = group.Key;
                                 <div class="shelf-grid-page__control" @key="filterKey">
                                     <AppSelect Label="@group.Label"
+                                               HideLabel="@(!inSheet)"
                                                Size="AppControlSize.Large"
                                                Value="@SelectedValue(group)"
                                                ValueChanged="@(value => OnFilterChangedAsync(filterKey, value))"
@@ -118,12 +120,7 @@
         else
         {
             <MediaTileGrid Items="@_tiles"
-                           HoverMode="MediaTileHoverMode.GlowOnly"
-                           HideMediaKindBadges="true"
-                           HideSourceBadges="true"
-                           HideGroupKind="true"
-                           ShowCompactCaptions="true"
-                           TileSizePx="@TileSizePx"
+                           SquaresOnly="@SquaresOnly"
                            Class="shelf-grid-page__grid" />
 
             @if (_hasMore)

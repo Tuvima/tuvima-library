@@ -17,6 +17,7 @@ public static class ApiReadServiceCollectionExtensions
     {
         services.AddSingleton<IActivityLogReadService, ActivityLogReadService>();
         services.AddSingleton<LibraryActivityReadService>();
+        services.AddSingleton<ActivityRunReadService>();
         services.AddSingleton<IVisibilityAfterMoveReadService, VisibilityAfterMoveReadService>();
         services.AddSingleton<IIngestionPresentationReadService, IngestionPresentationReadService>();
         services.AddSingleton<JourneyReadService>();
@@ -41,12 +42,27 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IEditSubject, CuratedCollectionEditSubject>();
         services.AddSingleton<IEditSubject, FictionalEntityEditSubject>();
         services.AddSingleton<EditSubjectDirectory>();
+        services.AddSingleton<EditorSeriesGuard>();
         services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, ThingAddEditSessionChangeHandler>();
+        services.AddScoped<EditorUniverseThingsService>();
         services.AddScoped<RetailMatchWriter>();
         services.AddScoped<IRetailMatchWriter>(sp => sp.GetRequiredService<RetailMatchWriter>());
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, MatchRemovalEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, WikidataLinkEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, WikidataRemovalEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, SupportingFilesEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, BookmarksEditSessionChangeHandler>();
+        services.AddSingleton<VideoOrderWriter>();
+        services.AddSingleton<IEditSessionChangeHandler, VideoSeriesEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, VideoOrderEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, VideoRenameEditSessionChangeHandler>();
+        services.AddScoped<IEpisodeSiblingMatcher, EpisodeSiblingMatcher>();
+        services.AddScoped<IShowChildRematcher, ShowChildRematcher>();
+        services.AddSingleton<IEditSessionChangeHandler, SiblingMatchEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionFileWrites, EditSessionFileWrites>();
         services.AddSingleton<IEditSessionService, EditSessionService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();
@@ -61,6 +77,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<CharacterCreditSpoilerFilter>();
         services.AddScoped<UniverseConnectionsReadService>();
         services.AddScoped<UniverseClientReadService>();
+        services.AddScoped<UniverseContentsReadService>();
         services.AddScoped<UniversePageReadService>();
         services.AddSingleton<UniverseLinkCache>();
         services.AddScoped<EntityAppearanceReadService>();
@@ -71,6 +88,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<CollectionPackService>();
         services.AddScoped<IPackFileImporter>(sp => sp.GetRequiredService<CollectionPackService>());
         services.AddSingleton<IReviewQueueReadService, ReviewQueueReadService>();
+        services.AddSingleton<INeedsReviewListReadService, NeedsReviewListReadService>();
         services.AddSingleton<EditorSuggestionReadService>();
         services.AddSingleton<PersonEditorReadService>();
         services.AddSingleton<ArtworkLibraryReadService>();
@@ -83,6 +101,32 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IMediaEditorMembershipReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
         services.AddSingleton<MediaEditorWorkVersionReadRepository>();
+        services.AddSingleton<ItemQuickFactsRepository>();
+        services.AddSingleton<ItemQuickFactsService>();
+        // The universal editor's v5 header, current match, document details and folder tree, and the numbers they read (config/editor.json).
+        services.AddSingleton<EditorConfigurationProvider>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(sp => sp.GetRequiredService<EditorConfigurationProvider>());
+        services.AddScoped<EditorHeaderReadService>();
+        services.AddScoped<IEditorFamilySource>(sp => sp.GetRequiredService<EditorHeaderReadService>());
+        services.AddScoped<EditorCurrentMatchService>();
+        // The Match tab's search: the providers and boxes for an item, and results judged against the file (config/scoring.json match_verdict).
+        services.AddScoped(sp => new MediaEngine.Api.Services.Matching.EditorMatchVerdictCalculator(
+            sp.GetRequiredService<MediaEngine.Domain.Contracts.IConfigurationLoader>().LoadScoring().MatchVerdict));
+        services.AddScoped(sp => sp.GetRequiredService<MediaEngine.Domain.Contracts.IConfigurationLoader>().LoadScoring().MusicMatch);
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchLocalEvidenceReader>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IVideoIdentifyWriter, MediaEngine.Api.Services.Matching.VideoIdentifyWriter>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchKindResolver, MediaEngine.Api.Services.Matching.HeaderEditorMatchKindResolver>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchProviderCatalog, MediaEngine.Api.Services.Matching.RetailEditorMatchProviderCatalog>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchCandidateSearch, MediaEngine.Api.Services.Matching.CanonicalEditorMatchCandidateSearch>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchSearchService>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMusicMatchService>();
+        // The Match tab's Wikidata side: search, pasted link, evidence and conflict (config/wikidata_match.json), and the link's own write.
+        services.AddSingleton<MediaEngine.Api.Services.Matching.WikidataMatchConfigurationProvider>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorWikidataMatchService>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IWikidataIdentityWriter, MediaEngine.Api.Services.Matching.WikidataIdentityWriter>();
+        services.AddScoped<EditorSuggestDetailsService>();
+        services.AddScoped<MediaEngine.Api.Services.Extras.SupportingFileEditorReadService>();
+        services.AddScoped<EditorFolderTreeService>();
         services.AddSingleton<MediaEditorFileCoverageRepository>();
         services.AddSingleton<MediaEditorSelectionHistoryReadService>();
         services.AddSingleton<PairingAssetReadService>();

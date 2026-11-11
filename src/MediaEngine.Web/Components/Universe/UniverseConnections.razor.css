@@ -17,7 +17,7 @@
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: clamp(1.25rem, 1.8vw, 1.7rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.15;
 }
 
@@ -32,10 +32,9 @@
 }
 
 .universe-connections__explorer {
-    font-size: 0.76rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
     letter-spacing: 0.14em;
-    text-transform: uppercase;
 }
 
 .universe-connections__explorer:hover,
@@ -68,7 +67,7 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.95rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
 }
 
@@ -88,7 +87,7 @@
     margin: 0;
     color: var(--tl-text-muted);
     font-family: var(--font-ui);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .universe-connections__fandom {

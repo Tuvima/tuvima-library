@@ -26,7 +26,7 @@ else if (Session.Authority.AdministratorSurfaceUnlocked)
 }
 else
 {
-    <SettingsSectionPanel Title="@L["AdministratorSurfaceGate_AdministratorSettingsAreLocked"].Value" Description="@L["AdministratorSurfaceGate_EnterThePINForThis"].Value" Icon="@AppMaterialIcons.Outlined.Lock">
+    <SettingsSectionPanel Title="@L["AdministratorSurfaceGate_AdministratorSettingsAreLocked"].Value" Description="@L["AdministratorSurfaceGate_EnterThePINForThis"].Value">
         @if (!string.IsNullOrWhiteSpace(_error))
         {
             <AppAlert Severity="AppSeverity.Error">@_error</AppAlert>

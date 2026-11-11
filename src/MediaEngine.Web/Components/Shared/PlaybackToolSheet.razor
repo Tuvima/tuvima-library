@@ -4,32 +4,45 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 
-<section id="@(Modal ? _sheetId : null)" @ref="_root" class="@RootClass" role="@(Modal ? "dialog" : "region")" aria-label="@Title" aria-modal="@(Modal ? "true" : null)" tabindex="@(Modal ? "-1" : null)" @attributes="AdditionalAttributes">
+<AppPopout @ref="_surface" Id="@(Modal ? _sheetId : null)" Class="@RootClass" Role="@(Modal ? "dialog" : "region")" AriaLabel="@Title" Modal="Modal" AdditionalAttributes="AdditionalAttributes">
     <PlaybackSheetHandleButton Class="playback-tool-sheet__handle" Label="@CloseLabel" OnClick="@CloseAsync" />
     <div class="playback-tool-sheet__header">
-        @if (!string.IsNullOrWhiteSpace(Icon))
+        @if (OnBack.HasDelegate)
         {
-            <AppMaterialIcon Icon="@Icon" Class="playback-tool-sheet__header-icon" />
+            @HeaderButton(PlaybackUtilityGlyphKind.Back, L["Common_Back"].Value, OnBack)
+        }
+        else if (Glyph is { } glyph)
+        {
+            <span class="playback-tool-sheet__header-icon" aria-hidden="true"><PlaybackUtilityGlyph Glyph="glyph" /></span>
         }
         <div class="playback-tool-sheet__heading">
-            <h2>@Title</h2>
+            @if (TitleAdornment is not null)
+            {
+                <div class="playback-tool-sheet__title-line">
+                    <h2>@Title</h2>
+                    @TitleAdornment
+                </div>
+            }
+            else
+            {
+                <h2>@Title</h2>
+            }
             @if (!string.IsNullOrWhiteSpace(Subtitle))
             {
                 <p>@Subtitle</p>
             }
         </div>
-        <AppNativeButton Type="button"
-                         Class="playback-tool-sheet__close"
-                         OnClick="@CloseAsync"
-                         AriaLabel="@CloseAriaLabel"
-                         title="@CloseAriaLabel">
-            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
-        </AppNativeButton>
+        @HeaderActions
+        @HeaderButton(PlaybackUtilityGlyphKind.Close, CloseAriaLabel, EventCallback.Factory.Create(this, CloseAsync))
     </div>
     <div class="playback-tool-sheet__content">
         <CascadingValue Name="PlaybackPopoverOwner" Value="@(Modal ? _sheetId : PlaybackPopoverOwner)">@ChildContent</CascadingValue>
     </div>
-</section>
+    @if (Footer is not null)
+    {
+        <div class="playback-tool-sheet__footer">@Footer</div>
+    }
+</AppPopout>
 
 @code {
     [Parameter]
@@ -38,8 +51,9 @@
     [Parameter]
     public string? Subtitle { get; set; }
 
+    /// <summary>A stroke glyph drawn before the title when there is no Back button.</summary>
     [Parameter]
-    public string? Icon { get; set; }
+    public PlaybackUtilityGlyphKind? Glyph { get; set; }
 
     [Parameter]
     public string Surface { get; set; } = "panel";
@@ -56,6 +70,22 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Shows a back arrow in place of the icon and runs this when it is used (a nested view of a panel).</summary>
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    /// <summary>Small content right after the title (the Lyrics sheet's Synced chip).</summary>
+    [Parameter]
+    public RenderFragment? TitleAdornment { get; set; }
+
+    /// <summary>Icon buttons drawn before Close in the header (the Lyrics sheet's Open Now playing).</summary>
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    /// <summary>Fixed actions under the scrolling content.</summary>
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
+
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
@@ -63,9 +93,11 @@
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IStringLocalizer<SharedStrings> L { get; set; } = default!;
     [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? PlaybackPopoverOwner { get; set; }
     private readonly string _sheetId = $"playback-sheet-{Guid.NewGuid():N}";
-    private ElementReference _root;
+    private AppPopout? _surface;
+    private ElementReference _root => _surface?.Root ?? default;
     private IJSObjectReference? _module;
     private bool _focusAttached;
 
@@ -113,6 +145,13 @@
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }
     }
+
+    private RenderFragment HeaderButton(PlaybackUtilityGlyphKind glyph, string label, EventCallback onClick) =>
+        @<AppTooltip Text="@label">
+            <AppNativeButton Type="button" Class="playback-tool-sheet__close" OnClick="onClick" AriaLabel="@label">
+                <PlaybackUtilityGlyph Glyph="glyph" />
+            </AppNativeButton>
+        </AppTooltip>;
 
     private async Task CloseAsync()
     {

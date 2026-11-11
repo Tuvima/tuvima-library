@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Matching;
 using MediaEngine.Domain.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,18 +18,31 @@ namespace MediaEngine.Api.Services.EditSession;
 /// are undone rather than the other way round.
 /// </para>
 /// </summary>
-public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes) : IEditSessionChangeHandler
+public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes, EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     public string Kind => EditSessionChangeKinds.Identity;
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            return EditSessionReasons.SeriesIsReadOnly;
+        }
+
         if (!EditSessionIdentityTarget.TryParse(change.TargetId, out var match) || match is null)
         {
             return EditSessionReasons.MatchUnreadable;
         }
 
         using var scope = scopes.CreateScope();
+        if (IsVideo(match))
+        {
+            // A video is matched by its YouTube ID; the same lookup the Match tab ran is repeated, writing nothing.
+            var video = await scope.ServiceProvider.GetRequiredService<IVideoIdentifyWriter>()
+                .LookupAsync(change.EntityId, match.ProviderItemId, ct).ConfigureAwait(false);
+            return video.IsOk ? null : video.Message ?? EditSessionReasons.SaveFailed;
+        }
+
         var writer = scope.ServiceProvider.GetRequiredService<IRetailMatchWriter>();
         var outcome = ReadOutcome(await writer.CheckAsync(change.EntityId, match, ct).ConfigureAwait(false));
         return outcome.Ok ? null : outcome.Reason;
@@ -36,12 +50,30 @@ public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
+        }
+
         if (!EditSessionIdentityTarget.TryParse(change.TargetId, out var match) || match is null)
         {
             throw new InvalidOperationException(EditSessionReasons.MatchUnreadable);
         }
 
         using var scope = scopes.CreateScope();
+        if (IsVideo(match))
+        {
+            var video = await scope.ServiceProvider.GetRequiredService<IVideoIdentifyWriter>()
+                .ApplyAsync(change.EntityId, match.ProviderItemId, ct).ConfigureAwait(false);
+            if (!video.IsOk)
+            {
+                throw new InvalidOperationException(video.Message ?? EditSessionReasons.SaveFailed);
+            }
+
+            await ResolveReviewItemsAsync(scope.ServiceProvider, change.EntityId, ct).ConfigureAwait(false);
+            return null;
+        }
+
         var writer = scope.ServiceProvider.GetRequiredService<IRetailMatchWriter>();
         var outcome = ReadOutcome(await writer.ReplaceWithoutMovingAsync(change.EntityId, match, ct).ConfigureAwait(false));
         if (!outcome.Ok)
@@ -73,6 +105,10 @@ public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes
             logger?.LogWarning(ex, "The review items of item {EntityId} could not be closed after its match was saved.", entityId);
         }
     }
+
+    // A YouTube match is not a retail match: it has no bridge ids or hierarchy, only the video's own locked claims.
+    private static bool IsVideo(ReplaceRetailMatchRequestDto match) =>
+        string.Equals(match.ProviderName, "youtube", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Who the review items are closed by: the person who chose the match.</summary>
     internal const string ResolvedBy = "user";

@@ -1,0 +1,197 @@
+.universe-thing {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-6, 1.5rem);
+    min-width: 0;
+}
+
+.universe-thing__back {
+    align-self: flex-start;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-sm);
+    text-decoration: none;
+}
+
+.universe-thing__back:hover,
+.universe-thing__back:focus-visible {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+}
+
+.universe-thing__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--tl-space-6, 1.5rem);
+}
+
+.universe-thing__picture {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: clamp(8rem, 22vw, 12rem);
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
+}
+
+.universe-thing__picture img,
+.universe-thing__work-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* A logo keeps the whole logo in view on a quiet surface instead of being cropped to a square. */
+.universe-thing__picture--logo img,
+.universe-thing__tile--logo .universe-thing__work-cover img {
+    padding: 0.75rem;
+    object-fit: contain;
+}
+
+.universe-thing__copy {
+    display: flex;
+    flex: 1 1 18rem;
+    flex-direction: column;
+    gap: var(--tl-space-2, 0.5rem);
+    min-width: 0;
+}
+
+.universe-thing__kind {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2, 0.5rem);
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.universe-thing__chip {
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--tl-radius-sm, 0.25rem);
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
+    font-size: var(--tl-font-size-xs);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.universe-thing__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-family: var(--font-ui);
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 600;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.universe-thing__description {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--tl-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-md);
+    line-height: 1.5;
+}
+
+.universe-thing__source,
+.universe-thing__aliases,
+.universe-thing__hidden,
+.universe-thing__note,
+.universe-thing__count {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-sm);
+}
+
+.universe-thing__actions {
+    margin-top: var(--tl-space-2, 0.5rem);
+}
+
+.universe-thing__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3, 0.75rem);
+    min-width: 0;
+}
+
+.universe-thing__group-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--tl-space-3, 0.75rem);
+}
+
+.universe-thing__heading {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-family: var(--font-ui);
+    font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+    font-weight: 600;
+    line-height: 1.15;
+}
+
+.universe-thing__rail {
+    display: flex;
+    gap: var(--tl-space-4, 1rem);
+    margin: 0;
+    padding: 0 0 var(--tl-space-2, 0.5rem);
+    list-style: none;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+}
+
+.universe-thing__tile {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 8.5rem;
+    scroll-snap-align: start;
+}
+
+.universe-thing__link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.universe-thing__link:focus-visible {
+    outline: 2px solid var(--tl-focus-ring, currentColor);
+    outline-offset: 2px;
+}
+
+.universe-thing__work-cover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
+}
+
+.universe-thing__initial {
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-hero);
+    font-weight: 600;
+}
+
+.universe-thing__name {
+    color: var(--tl-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}

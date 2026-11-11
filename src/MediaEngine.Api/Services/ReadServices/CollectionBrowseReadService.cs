@@ -993,12 +993,11 @@ public sealed class CollectionBrowseReadService(
                    g.RootWorkId,
                    (SELECT json_extract(w.display_overrides_json, '$.title') FROM works w WHERE w.id = g.RootWorkId) AS DisplayTitleOverride,
                    (SELECT json_extract(w.display_overrides_json, '$.description') FROM works w WHERE w.id = g.RootWorkId) AS DescriptionOverride,
-                   CASE WHEN @IsTvShowGroup = 1 OR @GroupField = 'series' THEN (SELECT ea.id
+                   CASE WHEN @IsTvShowGroup = 1 THEN (SELECT ea.id
                      FROM entity_assets ea
                      WHERE ea.entity_id = g.RootWorkId
                        AND ea.entity_type = 'Work'
                        AND ea.asset_type = 'CoverArt'
-                       AND (@IsTvShowGroup = 1 OR ea.is_user_override = 1)
                        AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
                      ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC
                      LIMIT 1) ELSE NULL END AS RootCoverAssetId,
@@ -1237,10 +1236,9 @@ public sealed class CollectionBrowseReadService(
                 PrimaryMediaType = primaryMediaType,
                 WorkCount = row.WorkCount,
                 DistinctTitleCount = row.DistinctTitleCount,
-                PreviewItems = !usesRootTvArtwork && groupByField == "series" && row.RootCoverAssetId is Guid customCoverId && row.RootWorkId is Guid ownerId
-                    ? [new ContentGroupPreviewItemDto(ownerId, row.DisplayTitleOverride ?? row.GroupName, $"/stream/artwork/{customCoverId:D}", "portrait", null)]
-                    : previews.GetValueOrDefault(SystemViewPreviewKey(row.GroupName, row.AlbumArtistKey)) ?? [],
-                CoverUrl = usesRootTvArtwork || (groupByField == "series" && row.RootCoverAssetId.HasValue)
+                // A Series takes no cover of its own (universal editor v5 D24): its tile is the automatic stack of its members' covers.
+                PreviewItems = previews.GetValueOrDefault(SystemViewPreviewKey(row.GroupName, row.AlbumArtistKey)) ?? [],
+                CoverUrl = usesRootTvArtwork
                     ? row.RootCoverAssetId is { } rootCoverId ? $"/stream/artwork/{rootCoverId:D}" : null
                     : assetRoute is null ? null : $"/stream/{assetRoute}/cover",
                 BackgroundUrl = usesRootTvArtwork

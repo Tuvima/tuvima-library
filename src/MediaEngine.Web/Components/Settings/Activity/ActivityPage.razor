@@ -21,19 +21,6 @@
 <div class="@RootClass" data-activity-page data-activity-standalone="@(Standalone ? "true" : null)">
     <div class="activity-page__main">
         <div class="activity-toolbar" data-activity-toolbar>
-            @if (CanChooseScope)
-            {
-                <label class="activity-toolbar__scope">
-                    <span class="activity-field__label">@L["Common_Scope"]</span>
-                    <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
-                        @foreach (var option in _scopeOptions)
-                        {
-                            <option value="@option.Value">@option.Label</option>
-                        }
-                    </AppNativeSelect>
-                </label>
-            }
-
             <div class="activity-toolbar__search">
                 <AppTextField Value="@_search"
                               ValueChanged="OnSearchChanged"
@@ -43,6 +30,13 @@
                               Adornment="AppAdornment.Start"
                               AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                               data-activity-search="true" />
+            </div>
+
+            <div class="activity-toolbar__dates" role="group" aria-label="@L["Common_Dates"].Value">
+                <span class="activity-toolbar__date-word" aria-hidden="true">@L["Common_From"]</span>
+                <AppTextField Label="@L["Common_From"].Value" HideLabel="true" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
+                <span class="activity-toolbar__date-word" aria-hidden="true">@L["Common_To"]</span>
+                <AppTextField Label="@L["Common_To"].Value" HideLabel="true" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
             </div>
 
             <BrowseFilterSheet ActiveCount="@FilterCount" OnClear="ClearFiltersAsync">
@@ -95,28 +89,7 @@
                 </ChildContent>
             </BrowseFilterSheet>
 
-            <AppTimelineGroupingControl Inline="true"
-                                        Options="GroupingOptions"
-                                        SelectedKey="@GroupingKey"
-                                        SelectedKeyChanged="OnGroupingChanged"
-                                        AriaLabel="@L["ActivityPage_GroupTheList"].Value" />
-
-            <div class="activity-toolbar__switch">
-                <AppSwitchRow Label="@L["ActivityPage_ShowEverySession"].Value"
-                              Value="@_showEverySession"
-                              ValueChanged="OnShowEverySessionChanged"
-                              Disabled="@(_grouping != ActivityGrouping.Title)" />
-            </div>
-
             <div class="activity-toolbar__actions">
-                @if (CanExport)
-                {
-                    <AppButton Label="@L["Common_Export"].Value"
-                               StartIcon="@AppMaterialIcons.Outlined.Download"
-                               Href="@ExportHref"
-                               UserAttributes="@ExportAttributes"
-                               data-activity-export="true" />
-                }
                 <AppOverflowMenu AriaLabel="@L["ActivityPage_ActivityActions"].Value" Class="activity-toolbar__more">
                     <AppMenuItem Label="@L["Ingestion_Refresh"].Value"
                                  Icon="@AppMaterialIcons.Outlined.Refresh"
@@ -315,12 +288,12 @@
             <div class="activity-delete" data-activity-delete-dialog>
                 <label class="activity-field">
                     <span class="activity-field__label">@L["ActivityPage_WhoseHistory"]</span>
-                    <AppNativeSelect Value="@_deleteScope" OnChange="OnDeleteScopeChanged" aria-label="@L["ActivityPage_WhoseHistoryToDelete"].Value" data-activity-delete-scope="true">
+                    <AppSelect Native="true" Value="@_deleteScope" ValueChanged="OnDeleteScopeChanged" aria-label="@L["ActivityPage_WhoseHistoryToDelete"].Value" data-activity-delete-scope="true">
                         @foreach (var option in _scopeOptions)
                         {
                             <option value="@option.Value">@option.Label</option>
                         }
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
                 <AppTextField Label="@L["ActivityPage_DeleteEverythingBefore"].Value"
                               InputType="AppInputType.Date"
@@ -478,7 +451,7 @@
     private Dictionary<string, object> ExportAttributes { get; } = new() { ["download"] = "tuvima-activity.csv" };
 
     // The Filters button counts what the popover (or phone sheet) holds; the search box and a date-rail jump are not in it.
-    private int FilterCount => Chips.Count(chip => chip.Key is not ("q" or "jump"));
+    private int FilterCount => Chips.Count(chip => chip.Key is not ("q" or "jump" or "from" or "to"));
 
     private readonly string FiltersPopoverId = $"activity-filters-{Guid.NewGuid():N}";
     private ElementReference _filtersAnchor;
@@ -507,6 +480,19 @@
 
     /// <summary>The filter controls: a popover on desktop, the same controls in the phone sheet.</summary>
     private RenderFragment FilterFields(bool inSheet) => @<div class="@("activity-filters" + (inSheet ? " activity-filters--sheet" : string.Empty))" data-activity-filters>
+        @if (CanChooseScope)
+        {
+            <label class="activity-field">
+                <span class="activity-field__label">@L["Common_Scope"]</span>
+                <AppSelect Native="true" Value="@_scope" ValueChanged="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
+                    @foreach (var option in _scopeOptions)
+                    {
+                        <option value="@option.Value">@option.Label</option>
+                    }
+                </AppSelect>
+            </label>
+        }
+
         <fieldset class="activity-filters__types">
             <legend class="activity-field__label">Type</legend>
             @foreach (var (key, label) in ActivityListPresentation.KindOptions)
@@ -516,21 +502,36 @@
             }
         </fieldset>
 
-        <div class="activity-filters__dates">
-            <AppTextField Label="From" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
-            <AppTextField Label="To" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
-        </div>
-
         <label class="activity-field">
             <span class="activity-field__label">Outcome</span>
-            <AppNativeSelect Value="@_outcome" OnChange="OnOutcomeChanged" aria-label="Outcome" data-activity-outcome-filter="true">
+            <AppSelect Native="true" Value="@_outcome" ValueChanged="OnOutcomeChanged" aria-label="Outcome" data-activity-outcome-filter="true">
                 <option value="">Any</option>
                 <option value="finished">Finished</option>
                 <option value="not_finished">Not finished</option>
-            </AppNativeSelect>
+            </AppSelect>
         </label>
 
         <AppTextField Label="Device" Value="@_device" ValueChanged="OnDeviceChanged" DebounceInterval="350" Placeholder="Any device" data-activity-device-filter="true" />
+
+        <AppTimelineGroupingControl Inline="true"
+                                    Options="GroupingOptions"
+                                    SelectedKey="@GroupingKey"
+                                    SelectedKeyChanged="OnGroupingChanged"
+                                    AriaLabel="@L["ActivityPage_GroupTheList"].Value" />
+
+        <AppSwitchRow Label="@L["ActivityPage_ShowEverySession"].Value"
+                      Value="@_showEverySession"
+                      ValueChanged="OnShowEverySessionChanged"
+                      Disabled="@(_grouping != ActivityGrouping.Title)" />
+
+        @if (CanExport)
+        {
+            <AppButton Label="@L["Common_Export"].Value"
+                       StartIcon="@AppMaterialIcons.Outlined.Download"
+                       Href="@ExportHref"
+                       UserAttributes="@ExportAttributes"
+                       data-activity-export="true" />
+        }
     </div>;
 
     private string ExportHref => FilterRequest.ExportHref();
@@ -751,9 +752,9 @@
             && Guid.TryParse(value[(separator + 1)..], out _);
     }
 
-    private async Task OnScopeChanged(ChangeEventArgs args)
+    private async Task OnScopeChanged(string? selected)
     {
-        var value = args.Value?.ToString();
+        var value = selected;
         if (string.IsNullOrEmpty(value) || value == _scope || _scopeOptions.All(option => option.Value != value))
         {
             return;
@@ -825,9 +826,9 @@
         return ReloadAsync();
     }
 
-    private Task OnOutcomeChanged(ChangeEventArgs args)
+    private Task OnOutcomeChanged(string? selected)
     {
-        _outcome = args.Value?.ToString() ?? string.Empty;
+        _outcome = selected ?? string.Empty;
         ResetPaging();
         return ReloadAsync();
     }
@@ -1180,9 +1181,9 @@
         return Task.CompletedTask;
     }
 
-    private Task OnDeleteScopeChanged(ChangeEventArgs args)
+    private Task OnDeleteScopeChanged(string? selected)
     {
-        _deleteScope = args.Value?.ToString() ?? PersonalActivityRequest.MeScope;
+        _deleteScope = selected ?? PersonalActivityRequest.MeScope;
         return RefreshPreviewAsync();
     }
 

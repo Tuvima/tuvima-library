@@ -98,6 +98,16 @@ public static partial class PhoneHeroPresentation
                 line.Add(parts.Runtime);
                 break;
             default:
+                if (IsVideoKind(kind))
+                {
+                    // A video or a folder of videos: year, length, then "14 sections" and "88 videos"; never seasons or episodes (item 17).
+                    line.Add(parts.Year);
+                    line.Add(parts.Runtime);
+                    line.Add(parts.Sections);
+                    line.Add(parts.Videos);
+                    break;
+                }
+
                 line.Add(subtitle);
                 line.Add(parts.Year);
                 line.Add(parts.Pages);
@@ -108,7 +118,7 @@ public static partial class PhoneHeroPresentation
     }
 
     /// <summary>
-    /// The picture ladder: a landscape backdrop (with the title logo over it when there is one), else the cover at its
+    /// The picture ladder: a landscape backdrop (with the title logo over it when there is one; a video's extracted frame counts as one), else the cover at its
     /// natural shape, else a placeholder. The Engine's stand-in cover is a 100 x 150 picture and carries no flag of its own,
     /// so the measured cover width is the signal: a cover of unknown or tiny width is not real artwork and gets the tile.
     /// Phones ask for the "m" rendition, which stays under about 210 KB.
@@ -128,6 +138,12 @@ public static partial class PhoneHeroPresentation
         var coverUsable = !string.IsNullOrWhiteSpace(hero.PreviewImageUrl)
             && hero.CoverWidthPx is { } coverWidth
             && coverWidth >= MinUsableCoverWidthPx;
+        if (coverUsable && IsVideoKind(hero.MediaKind))
+        {
+            // An Other video has no portrait cover: its picture is a frame taken from the video, so it fills the card like a film's backdrop.
+            return new PhoneHeroArtwork(PhoneHeroArt.Backdrop, MediaTileArtworkUrl.Sized(hero.PreviewImageUrl, "m") ?? hero.PreviewImageUrl, null);
+        }
+
         if (coverUsable)
         {
             return new PhoneHeroArtwork(PhoneHeroArt.Cover, MediaTileArtworkUrl.Sized(hero.PreviewImageUrl, "m") ?? hero.PreviewImageUrl, null);
@@ -168,9 +184,84 @@ public static partial class PhoneHeroPresentation
                 return new("Play album", null);
             case "audiobook":
                 return started ? new("Continue Listening", left ?? percent) : new("Listen", null);
-            default:
+            case "book":
+            case "books":
+            case "ebook":
+            case "comic":
+            case "comics":
                 return started ? new("Continue Reading", percent is null ? null : $"{percent} read") : new("Start Reading", null);
+            default:
+                // Videos, Other videos and YouTube play like a movie; anything else keeps the Engine's wording and is
+                // never presented as something to read.
+                return IsVideoKind(kind)
+                    ? new(VideoFolderWording.PlayButton(started), started ? left ?? percent : null)
+                    : new(engineLabel, null);
         }
+    }
+
+    /// <summary>
+    /// The small label over the title of a video hero: "Continue Watching" once something has been started, otherwise "Video folder"
+    /// for a folder of videos and "Video" for a single one. Null for every other kind, which keeps its own label.
+    /// </summary>
+    public static string? VideoLabel(DiscoveryHeroViewModel hero)
+    {
+        if (!IsVideoKind(hero.MediaKind))
+        {
+            return null;
+        }
+
+        return IsStarted(hero)
+            ? VideoFolderWording.ContinueLabel
+            : VideoFolderWording.IsVideoFolderMediaType(hero.MediaKind) ? VideoFolderWording.KindLabel : VideoFolderWording.ItemLabel;
+    }
+
+    /// <summary>
+    /// The one muted line under the title of a video hero. A folder says "N videos · M sections" and, when a video in it has been
+    /// started, "Next up: ..." with the time left (the Engine composes it); a single video says "N minutes left" once started,
+    /// otherwise its length. Null for every other kind.
+    /// </summary>
+    public static string? VideoLine(DiscoveryHeroViewModel hero)
+    {
+        if (!IsVideoKind(hero.MediaKind))
+        {
+            return null;
+        }
+
+        var parts = Parse(hero.MetaPills);
+        if (VideoFolderWording.IsVideoFolderMediaType(hero.MediaKind))
+        {
+            if (!string.IsNullOrWhiteSpace(hero.Subtitle))
+            {
+                return hero.Subtitle.Trim();
+            }
+
+            var counts = string.Join(" · ", new[] { parts.Videos, parts.Sections }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            return counts.Length == 0 ? null : counts;
+        }
+
+        if (IsStarted(hero) && VideoFolderWording.MinutesLeft(RemainingSeconds(hero)) is { } left)
+        {
+            return left;
+        }
+
+        return parts.RuntimeMinutes is { } minutes ? VideoLength(minutes) : parts.Runtime ?? parts.Year;
+    }
+
+    /// <summary>The line to draw under the title on the phone: a video hero's own line, otherwise the usual meta line.</summary>
+    public static string HeroLine(DiscoveryHeroViewModel hero) => VideoLine(hero) ?? MetaLine(hero);
+
+    // "21 min", "1h 41m".
+    private static string VideoLength(double minutes)
+    {
+        var total = (int)Math.Round(minutes, MidpointRounding.AwayFromZero);
+        return total is > 0 and < 60 ? $"{total} min" : FormatRuntime(minutes) ?? string.Empty;
+    }
+
+    /// <summary>True for the video kinds that are neither a movie nor a TV show: Videos, Other videos and YouTube.</summary>
+    public static bool IsVideoKind(string? mediaKind)
+    {
+        var kind = (mediaKind ?? string.Empty).Trim().ToLowerInvariant();
+        return kind.Contains("video", StringComparison.Ordinal) || kind.Contains("youtube", StringComparison.Ordinal);
     }
 
     private static bool IsStarted(DiscoveryHeroViewModel hero)
@@ -181,7 +272,7 @@ public static partial class PhoneHeroPresentation
     private static string? ProgressPct(DiscoveryHeroViewModel hero)
         => hero.ProgressPct is > 0 and < 99.5 ? $"{Math.Max(1, (int)Math.Round(hero.ProgressPct.Value))}%" : null;
 
-    private static string? TimeLeft(DiscoveryHeroViewModel hero)
+    private static double? RemainingSeconds(DiscoveryHeroViewModel hero)
     {
         double? seconds = hero.RemainingSeconds;
         if (seconds is not > 0 && hero.EpisodeContext is { PositionSeconds: { } position, DurationSeconds: { } duration })
@@ -189,6 +280,12 @@ public static partial class PhoneHeroPresentation
             seconds = duration - position;
         }
 
+        return seconds;
+    }
+
+    private static string? TimeLeft(DiscoveryHeroViewModel hero)
+    {
+        var seconds = RemainingSeconds(hero);
         if (seconds is not > 0 || !double.IsFinite(seconds.Value))
         {
             return null;
@@ -212,14 +309,17 @@ public static partial class PhoneHeroPresentation
         "music" => "Album",
         "audiobook" => "Audiobook",
         "comic" => "Comic",
-        _ => "Book",
+        "book" or "books" or "ebook" => "Book",
+        var other when IsVideoKind(other) => "Video",
+        _ => "Item",
     };
 
-    private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages);
+    private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages, string? Sections, string? Videos, double? RuntimeMinutes);
 
     private static Parts Parse(IReadOnlyList<string> pills)
     {
-        string? year = null, runtime = null, rating = null, contentRating = null, seasons = null, tracks = null, pages = null;
+        string? year = null, runtime = null, rating = null, contentRating = null, seasons = null, tracks = null, pages = null, sections = null, videos = null;
+        double? runtimeMinutes = null;
         foreach (var raw in pills.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()))
         {
             if (raw.StartsWith('★'))
@@ -249,11 +349,20 @@ public static partial class PhoneHeroPresentation
                 {
                     pages ??= Count(n, "page");
                 }
+                else if (noun.StartsWith("section"))
+                {
+                    sections ??= VideoFolderWording.SectionCount(n);
+                }
+                else if (noun.StartsWith("video"))
+                {
+                    videos ??= VideoFolderWording.VideoCount(n);
+                }
             }
             else if (MinutesRegex().Match(raw) is { Success: true } minutes
                 && double.TryParse(minutes.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var m))
             {
                 runtime ??= FormatRuntime(m);
+                runtimeMinutes ??= m;
             }
             else if (HoursRegex().IsMatch(raw))
             {
@@ -265,13 +374,13 @@ public static partial class PhoneHeroPresentation
             }
         }
 
-        return new Parts(year, runtime, rating, contentRating, seasons, tracks, pages);
+        return new Parts(year, runtime, rating, contentRating, seasons, tracks, pages, sections, videos, runtimeMinutes);
     }
 
     [GeneratedRegex(@"\bS(\d+)\s*E(\d+)\b", RegexOptions.IgnoreCase)]
     private static partial Regex PositionRegex();
 
-    [GeneratedRegex(@"^(\d+)\s+(seasons?|tracks?|pages?)$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^(\d+)\s+(seasons?|tracks?|pages?|sections?|videos?)$", RegexOptions.IgnoreCase)]
     private static partial Regex CountRegex();
 
     [GeneratedRegex(@"^(\d+(?:\.\d+)?)\s*min(?:ute)?s?$", RegexOptions.IgnoreCase)]

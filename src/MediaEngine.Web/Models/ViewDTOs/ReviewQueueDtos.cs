@@ -134,6 +134,12 @@ public sealed record ReviewMoveToTvAttempt(MediaEngine.Contracts.Review.ReviewMo
 /// </summary>
 public sealed record ReviewListAttempt(List<ReviewItemViewModel>? Items, string? Error);
 
+/// <summary>
+/// Outcome of loading the Needs Review list (review items and unmatched files together): the page, or the reason the Engine could not
+/// supply it, so a failed load is never mistaken for an empty list. Dashboard-only.
+/// </summary>
+public sealed record NeedsReviewListAttempt(MediaEngine.Contracts.Review.NeedsReviewListDto? List, string? Error);
+
 /// <summary>Pending review count returned by <c>GET /review/count</c>.</summary>
 public sealed record ReviewCountDto(
     [property: JsonPropertyName("pending_count")] int PendingCount);

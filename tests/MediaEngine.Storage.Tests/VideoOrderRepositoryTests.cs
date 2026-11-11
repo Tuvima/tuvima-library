@@ -100,6 +100,26 @@ public sealed class VideoOrderRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ReorderSections_SavesTheNewOrder_AndRefusesAListThatDropsOrInventsASection()
+    {
+        var one = await AddVideoAsync("Welcome", 1, "Getting started", 1);
+        var two = await AddVideoAsync("Loops", 1, "Core ideas", 2);
+        Guid series;
+        using (var conn = _db.CreateConnection())
+        {
+            series = conn.QuerySingle<Guid>("SELECT parent_work_id FROM works WHERE id = @id;", new { id = one.Parent });
+        }
+
+        Assert.Null(await _order.ReorderSectionsAsync(series, [one.Parent]));
+        Assert.Null(await _order.ReorderSectionsAsync(series, [one.Parent, Guid.NewGuid()]));
+
+        var placements = await _order.ReorderSectionsAsync(series, [two.Parent, one.Parent]);
+
+        Assert.Equal([1, 2], placements!.Select(p => p.Position));
+        Assert.Equal([two.Parent, one.Parent], (await _order.LoadAsync(series)).Select(g => g.ParentWorkId));
+    }
+
+    [Fact]
     public async Task Load_OfSomethingThatIsNotAVideoSeries_IsEmpty()
     {
         Assert.Empty(await _order.LoadAsync(Guid.NewGuid()));

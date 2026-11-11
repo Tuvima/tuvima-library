@@ -1,6 +1,8 @@
 # Spec: Libraries redesign (two-pane Libraries, honest status, one folder pop-up)
 
 > **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-10-30 · **Related docs:** [Product overview](../product/overview.md) · [Library pages](library-pages.md) (v15, Built, awaiting Local checks) · [Library setup and add-folder flow](library-setup-add-folder.md) (v2, In progress) · [Simpler library access](library-access.md) (v3, Locked) · [One shared look](one-shared-look.md) · [Universal editor](universal-editor.md) (Match panel) · [Vault sections and Move to Vault](vault-sections-and-move.md) · Mockups: [`engineering/design/mockups/libraries-redesign.html`](../design/mockups/libraries-redesign.html)
+> **Version 2 note (2026-11-05):** [libraries-and-folder-picker](libraries-and-folder-picker.md) changes D2 (area chips instead of area groups), D8 (the name moves to the top of the picker) and D10 (the folder is checked once, when Add is pressed, not while browsing). This version stays as history.
+
 
 > Written 2026-10-30 after Shy's review of the built Libraries pages: "the UI has gotten better, but the UX is still very bad." It was checked against the code on main (commit 90283826) and replaces piecemeal fixes with one redesign of the Libraries area in Settings, the library page, Add library, Add folder and the setup step. Locked by Shy on 2026-10-30 ("Agree lock it"), accepting every recommendation (Q1 to Q6: A). It supersedes parts of Library pages v15, Library setup and add-folder v2 and Library access v3 (section 9).
 
@@ -209,3 +211,9 @@ On SHY-DESKTOP at 1440 px wide and at about 1280 px, with the small test library
 ## Plain English summary
 
 Libraries becomes one screen you can always read: a list of every library on the left, grouped under Watch, Listen, Read, View and the Vault, with a coloured dot that says how each one is doing, and the chosen library on the right. The numbers finally mean something: "12 files not identified" opens a list of those twelve files that says why each one failed and lets you fix, keep or remove it, and "3 need review" opens the review list for that library. The confusing Advanced section is removed because every setting in it already had a proper home. Adding a library is two windows, "What is it?" and "Where is it?", and the second one is the folder browser itself, so there is no third window and no Browse button; adding a folder is that same browser. Folder names show up first and the check runs underneath, so the window never freezes while it counts. First-run setup uses the very same table and dialog. Shy agreed to every recommendation and locked the spec on 2026-10-30; it is ready to build.
+
+> Superseded in part (2026-11-03, Universal editor v3 WP7): the Unidentified tab and its "N files not identified" target are replaced by the merged Needs Review list (`/settings/review?library=<id>&show=not-matched`).
+
+## Gaps and drift (audit 2026-11-03)
+
+- Folder count has no click-through to paths and Edit cannot add or remove folders (in no spec); area filter chips contradict D2; the folder picker still validates while browsing, has no Go button, is capped at 760 px and puts the name in the footer; WP3 is superseded by Needs Review and WP7 by a separate setup table. Suggested status: In progress. Decision needed from Shy: keep D2, or change it to allow chips. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

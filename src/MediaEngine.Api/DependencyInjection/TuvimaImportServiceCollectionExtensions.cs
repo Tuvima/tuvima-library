@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services.Collections.ListImport;
 using MediaEngine.Api.Services.Collections.ListImport.Sources;
 using MediaEngine.Api.Services.Import;
+using MediaEngine.Api.Services.Plugins.Trakt;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MediaEngine.Api.DependencyInjection;
@@ -35,7 +36,10 @@ public static class TuvimaImportServiceCollectionExtensions
         AddWebListSource<MdbListSource>(services, "mdblist");
         AddWebListSource<OpenLibraryListSource>(services, "openlibrary");
         AddWebListSource<MusicBrainzCollectionSource>(services, "musicbrainz");
-        services.TryAddSingleton<ITraktAccessTokens, UnlinkedTraktAccessTokens>();
+        // Trakt is a plugin: its switch and client ID come from the plugin, and a private or own list is read with the token of the
+        // profile that signed in to Trakt (Plugin architecture spec C13).
+        services.AddSingleton<ITraktSettings, PluginTraktSettings>();
+        services.AddSingleton<ITraktAccessTokens, PluginTraktAccessTokens>();
         AddWebListSource<TraktListSource>(services, "trakt");
         services.AddSingleton<WebListResolver>();
         services.AddSingleton<ListInputReader>();

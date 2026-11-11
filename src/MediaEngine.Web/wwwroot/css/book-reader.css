@@ -500,7 +500,7 @@
     transform: translateX(-50%);
     max-inline-size: calc(100% - 2rem);
     padding: 0.625rem 1rem;
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-pill);
     background: rgba(20, 22, 30, 0.94);
     color: #fff;
     font-size: var(--tl-font-size-sm, 0.875rem);
@@ -536,11 +536,11 @@
 
     .br-panel {
         inline-size: min(34rem, 100%);
-        font-size: 1.25rem;
+        font-size: var(--tl-font-size-dialog-title);
     }
 
-    .br-title-book { font-size: 1.375rem; }
-    .br-bar--bottom { font-size: 1.125rem; }
+    .br-title-book { font-size: var(--tl-font-size-dialog-title); }
+    .br-bar--bottom { font-size: var(--tl-font-size-lg); }
 }
 
 .br-icon-btn:focus-visible {

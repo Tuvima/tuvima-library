@@ -135,6 +135,8 @@ private data class TvDetail(
     val subtitle: String?,
     val description: String?,
     val facts: String,
+    /** The Universe the title belongs to when the Engine says its page can open; null draws no Universe button. */
+    val universeQid: String? = null,
 )
 
 private val FocusBorderColor = Color(0xFFFFFFFF)
@@ -286,7 +288,12 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
             is TvState.Search -> SearchScreen(current, ::search) { result ->
                 openDetail(result.entityType, result.id, null)
             }
-            is TvState.Detail -> DetailScreen(current, play) { back() }
+            is TvState.Detail -> DetailScreen(
+                current,
+                play,
+                openUniverse = { qid -> navigate("Loading Universe…") { TvState.Universe(activeClient!!.universe(qid)) } },
+                back = { back() },
+            )
             is TvState.CollectionItems -> CollectionItemsScreen(
                 activeClient!!,
                 current,
@@ -759,7 +766,7 @@ private fun SearchScreen(state: TvState.Search, search: (String) -> Unit, open: 
 }
 
 @Composable
-private fun DetailScreen(state: TvState.Detail, play: (String) -> Unit, back: () -> Unit) {
+private fun DetailScreen(state: TvState.Detail, play: (String) -> Unit, openUniverse: (String) -> Unit, back: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(72.dp), verticalArrangement = Arrangement.Center) {
         Text(state.detail.title, style = MaterialTheme.typography.displayMedium)
         state.detail.subtitle?.let { Text(it, style = MaterialTheme.typography.headlineSmall) }
@@ -767,6 +774,7 @@ private fun DetailScreen(state: TvState.Detail, play: (String) -> Unit, back: ()
         state.detail.description?.let { Text(it, modifier = Modifier.fillMaxWidth(0.7f).padding(top = 20.dp)) }
         Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             state.playableAssetId?.let { asset -> Button(onClick = { play(asset) }) { Text("PLAY") } }
+            state.detail.universeQid?.let { qid -> Button(onClick = { openUniverse(qid) }) { Text("UNIVERSE") } }
             Button(onClick = back) { Text("BACK") }
         }
     }
@@ -799,6 +807,7 @@ private fun parseDetail(json: JSONObject): TvDetail {
         subtitle = json.optString("subtitle").takeIf(String::isNotBlank),
         description = json.optString("description").takeIf(String::isNotBlank),
         facts = factText,
+        universeQid = json.optJSONObject("universeLink")?.optString("qid")?.trim()?.takeIf(String::isNotEmpty),
     )
 }
 

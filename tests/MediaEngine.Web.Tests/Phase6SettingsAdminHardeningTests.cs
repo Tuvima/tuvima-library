@@ -4,23 +4,6 @@ namespace MediaEngine.Web.Tests;
 public sealed class Phase6SettingsAdminHardeningTests
 {
     [Fact]
-    public void LibrarySummary_RemainsConciseAndRoutesReviewAndLibrariesOnward()
-    {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
-
-        Assert.Contains("Library summary", source, StringComparison.Ordinal);
-        Assert.Contains("CompositionAccessibleLabel", source, StringComparison.Ordinal);
-        Assert.Contains("item.Percent.ToString", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Math.Max(item.Percent", source, StringComparison.Ordinal);
-        Assert.Contains("<AppIconTile", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("<BackupRecoveryPanel", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/review", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/libraries", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Local AI", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("optional setup", source, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void SharedPresentation_DefinesReusableMediaAndActivityColors()
     {
         var media = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppMediaPresentation.cs");
@@ -35,27 +18,6 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("--tl-media-comics", media, StringComparison.Ordinal);
         Assert.Contains("public static AppActivityDescriptor For", activity, StringComparison.Ordinal);
         Assert.Contains("AccentColor", iconTile, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void LibrarySummary_UsesTheCompactReferenceSizingRhythm()
-    {
-        var summary = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
-        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css");
-        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
-        var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
-
-        Assert.Contains("library-summary__attention", summary, StringComparison.Ordinal);
-        Assert.Contains("height: 6px", styles, StringComparison.Ordinal);
-        Assert.Contains("min-height: 46px", styles, StringComparison.Ordinal);
-        Assert.Contains(".library-summary__breakdown ::deep .library-summary__media", styles, StringComparison.Ordinal);
-        Assert.Contains(".library-summary__media::after", styles, StringComparison.Ordinal);
-        Assert.Contains(".library-summary__composition ::deep .library-summary__segment", styles, StringComparison.Ordinal);
-        Assert.DoesNotContain("legend", summary, StringComparison.Ordinal);
-        Assert.Contains("var(--tl-font-size-secondary)", styles, StringComparison.Ordinal);
-        Assert.Contains("font-size: clamp(2rem, 2.4vw, 2.25rem)", settingsStyles, StringComparison.Ordinal);
-        Assert.Contains("font-weight: 600", settingsStyles, StringComparison.Ordinal);
-        Assert.Contains("AppControlSize.Large => \"1.75rem\"", iconTile, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -79,7 +41,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("SettingsStatusKind.Partial", source, StringComparison.Ordinal);
         Assert.Contains("public static SettingsStatusKind GetStatus", source, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.LocalAi", source, StringComparison.Ordinal);
-        Assert.Contains("SettingsSection.Delivery", source, StringComparison.Ordinal);
+        Assert.Contains("SettingsSection.Playback", source, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.Plugins", source, StringComparison.Ordinal);
     }
 
@@ -92,7 +54,7 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         Assert.DoesNotContain("aria-label=\"Media Management sections\"", source, StringComparison.Ordinal);
         Assert.Contains("new(SettingsSection.Libraries", nav, StringComparison.Ordinal);
-        Assert.Contains("new(SettingsSection.Ingestion", nav, StringComparison.Ordinal);
+        Assert.Contains("new(SettingsSection.RecentlyAdded", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
 
         Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
@@ -136,10 +98,10 @@ public sealed class Phase6SettingsAdminHardeningTests
     public void MetadataSettings_DoesNotUseHardcodedFallbackAsLiveConfig()
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor")
-                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor")
+                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSetupPage.razor")
+                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSettingsCard.razor")
                      + ReadRepoFile(@"src/MediaEngine.Web/Services/Integration/MetadataSettingsStateService.cs");
 
-        Assert.Contains("No sample provider state is being shown", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Load sample chain", source, StringComparison.Ordinal);
         Assert.Contains("GetProviderStatusAsync", source, StringComparison.Ordinal);
         Assert.Contains("TestProviderAsync", source, StringComparison.Ordinal);
@@ -223,9 +185,9 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.False(File.Exists(metadataTabPath));
         Assert.DoesNotContain("MetadataMatchingTab", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("Metadata & Matching", nav, StringComparison.Ordinal);
-        Assert.Contains("\"metadata\"", nav, StringComparison.Ordinal);
+        Assert.Contains("\"matching\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("new(SettingsSection.Providers, \"library\", \"matching\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
     }
@@ -265,14 +227,11 @@ public sealed class Phase6SettingsAdminHardeningTests
         // The user-facing name is "optimized copies" (the code still calls them variants).
         Assert.Contains("Optimized copy storage", encode, StringComparison.Ordinal);
         Assert.DoesNotContain("Variant storage", encode, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);
+        Assert.Contains("Section=\"diagnostics\"", delivery, StringComparison.Ordinal);
         // No "planned" note: Available plugins draws an Install button only when the Engine says installing is supported.
         Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
-        // The directory panel is kept but not drawn on the Plugins page (Plugins and Integrations screens v3).
         Assert.DoesNotContain("<AvailablePluginsPanel", plugins, StringComparison.Ordinal);
-        var available = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AvailablePluginsPanel.razor");
-        Assert.Contains("InstallSupported: true", available, StringComparison.Ordinal);
-        Assert.Contains("Advanced settings", plugins, StringComparison.Ordinal);
+        Assert.Contains("Advanced settings", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSettingsCard.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"JSON\"", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"Manifest\"", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Settings JSON", plugins, StringComparison.Ordinal);

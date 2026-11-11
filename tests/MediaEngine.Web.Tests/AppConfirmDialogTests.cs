@@ -196,4 +196,22 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         host.Find("button[aria-label='Close dialog']").Click();
         await Task.Yield();
     }
+
+    [Fact]
+    public async Task AMessageBoxThatRemovesSomething_PutsTheSafeButtonLastFilledAndFocused()
+    {
+        var host = Render<AppDialogHost>();
+        _ = Dialogs.ShowMessageBoxAsync("Remove Smith?", "This cannot be undone.", yesText: "Remove", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm);
+        host.WaitForElement(".app-dialog-shell");
+
+        var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();
+        Assert.Equal(["Remove", "Cancel"], buttons.Select(button => button.TextContent.Trim()));
+        Assert.Contains("app-button--outlined", buttons[0].ClassList);
+        Assert.Contains("app-tone--error", buttons[0].ClassList);
+        Assert.Contains("app-button--filled", buttons[1].ClassList);
+        Assert.True(buttons[1].HasAttribute("autofocus"));
+
+        host.Find("button[aria-label='Close dialog']").Click();
+        await Task.Yield();
+    }
 }

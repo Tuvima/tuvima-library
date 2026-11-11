@@ -77,7 +77,7 @@ public sealed class DeleteGroupDialogTests : AsyncBunitContext
         };
     }
 
-    private async Task<IRenderedComponent<AppDialogHost>> OpenAsync(string kind = "show", string title = "The Expanse")
+    private async Task<IRenderedComponent<AppDialogHost>> OpenAsync(string kind = "show", string title = "The Expanse", int supportingFiles = 0)
     {
         var host = Render<AppDialogHost>();
         await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<DeleteFromLibraryDialog>(
@@ -85,7 +85,7 @@ public sealed class DeleteGroupDialogTests : AsyncBunitContext
             new AppDialogParameters<DeleteFromLibraryDialog>
             {
                 { component => component.WorkIds, (IReadOnlyList<Guid>)[] },
-                { component => component.Group, new LibraryGroupTarget(ShowId, kind, title, []) },
+                { component => component.Group, new LibraryGroupTarget(ShowId, kind, title, [], false, supportingFiles) },
             },
             new AppDialogOptions { MaxWidth = AppMaxWidth.Medium, FullWidth = true, NoHeader = true, CloseButton = false }));
         host.WaitForElement(".delete-library__group");
@@ -107,6 +107,51 @@ public sealed class DeleteGroupDialogTests : AsyncBunitContext
         Assert.Contains("1 season · 3 episodes", Body(host));
         Assert.Contains("Season 1: 3 of 4 episodes owned", Body(host));
         Assert.Contains("Delete \"The Expanse\" from your library?", host.Find(".app-dialog-shell__title").TextContent);
+    }
+
+    [Fact]
+    public async Task WhenTheEditorKnowsTheSupportingFiles_TheDialogSaysOneSentenceWithEveryCount()
+    {
+        var host = await OpenAsync(supportingFiles: 238);
+
+        Assert.Contains("Its 1 season, 3 episodes and 238 supporting files will be removed from the Library.", Body(host));
+        Assert.DoesNotContain("1 season · 3 episodes", Body(host));
+    }
+
+    [Fact]
+    public async Task WithNoSupportingFileCount_TheDialogDoesNotInventOne()
+    {
+        var host = await OpenAsync();
+
+        Assert.DoesNotContain("supporting file", Body(host), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1 season · 3 episodes", Body(host));
+    }
+
+    [Theory]
+    [InlineData(1, 3, 238, "Its 1 season, 3 episodes and 238 supporting files will be removed from the Library.")]
+    [InlineData(2, 24, 1, "Its 2 seasons, 24 episodes and 1 supporting file will be removed from the Library.")]
+    [InlineData(2, 24, 0, "Its 2 seasons and 24 episodes will be removed from the Library.")]
+    [InlineData(0, 0, 5, "Its 5 supporting files will be removed from the Library.")]
+    public void TheRemovalSentence_OmitsEveryClauseWhoseCountIsNotKnown(int seasons, int episodes, int supporting, string expected)
+    {
+        var group = new LibraryItemDeletionGroupDto
+        {
+            Kind = "show",
+            Title = "The Last Signal",
+            TitlesOwned = episodes,
+            SubGroups = [.. Enumerable.Range(1, seasons).Select(n => new LibraryItemDeletionSubGroupDto { Title = $"Season {n}", Owned = 1, Total = 1 })],
+        };
+        var items = new List<LibraryItemDeletionItemDto> { new() { WorkId = Guid.NewGuid(), Title = "Episode", MediaType = "TV" } };
+
+        Assert.Equal(expected, LibraryGroupDeletionText.RemovalSentence(group, items, supporting));
+    }
+
+    [Fact]
+    public void TheRemovalSentence_IsNullWhenNoCountIsKnown()
+    {
+        var group = new LibraryItemDeletionGroupDto { Kind = "season", Title = "Season 1" };
+
+        Assert.Null(LibraryGroupDeletionText.RemovalSentence(group, [], 0));
     }
 
     [Fact]

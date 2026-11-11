@@ -100,7 +100,8 @@ public static partial class MetadataEndpoints
                 }
                 var name = await ReadTvdbShowNameAsync(tvdb, seriesId, show, ct);
                 return Results.Ok(new TvMatchBrowserSeasonsDto(seriesId, name,
-                    TvMatchBrowserMapper.MapSeasons(show, seriesId, context.CurrentSeasonId)));
+                    TvMatchBrowserMapper.MapSeasons(show, seriesId, context.CurrentSeasonId),
+                    TvMatchBrowserMapper.GenreText(show), TvdbText(show, "overview"), TvdbText(show, "year"), TvdbText(show, "image")));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -157,6 +158,47 @@ public static partial class MetadataEndpoints
             }
         }).WithName("GetTvMatchBrowserEpisodes")
           .Produces<TvMatchBrowserEpisodesDto>(StatusCodes.Status200OK)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+    }
+
+    /// <summary>
+    /// The one episode of a show that carries an absolute number (universal editor v5, 3c "TV, step by step"): a file named for the
+    /// show's 125th episode is shown as the provider's season and episode. A read; nothing is written.
+    /// </summary>
+    private static void MapTvAbsoluteEpisodeEndpoint(RouteGroupBuilder group)
+    {
+        group.MapGet("/{entityId:guid}/tv-match-browser/shows/{seriesId}/absolute/{absoluteNumber:int}", async (
+            Guid entityId, string seriesId, int absoluteNumber, HttpContext http, ICanonicalValueRepository canonicals,
+            ILibraryItemRepository library, IMetadataEditorRepository editor,
+            CatalogueResourceAuthorizationService resources, ProviderApiClient tvdb, CancellationToken ct) =>
+        {
+            var context = await ResolveTvMatchBrowserContextAsync(entityId, seriesId, http, canonicals, library, editor,
+                resources, tvdb, ct);
+            if (context.Error is not null)
+            {
+                return context.Error;
+            }
+            try
+            {
+                var show = await tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", seriesId)), ct);
+                if (show is null)
+                {
+                    return ApiErrors.NotFound("That show is no longer on TheTVDB.");
+                }
+                var name = await ReadTvdbShowNameAsync(tvdb, seriesId, show, ct);
+                var ordered = await tvdb.GetAllPagesAsync("tvdb", "series_episodes",
+                    ProviderApiClient.Args(("id", seriesId), ("season_type", "default"), ("lang", "eng")), ct);
+                var found = TvMatchBrowserMapper.FindByAbsoluteNumber(
+                    ordered, seriesId, name, TvMatchBrowserMapper.MapSeasons(show, seriesId, context.CurrentSeasonId), absoluteNumber);
+                return found is null ? ApiErrors.NotFound($"This show has no episode numbered {absoluteNumber} straight through.") : Results.Ok(found);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Results.Problem($"TheTVDB did not answer: {ex.Message}", statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).WithName("GetTvMatchBrowserAbsoluteEpisode")
+          .Produces<TvMatchBrowserEpisodeDto>(StatusCodes.Status200OK)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
     }

@@ -8,7 +8,7 @@
     <div class="taste-shifts__chart" aria-hidden="true">
         @foreach (var bar in Bars)
         {
-            <div class="taste-shifts__column" data-taste-shift-month="@bar.Month" title="@Title(bar)">
+            <div class="taste-shifts__column" data-taste-shift-month="@bar.Month">
                 <svg class="taste-shifts__stack" height="@Height(bar)" viewBox="0 0 1 100" preserveAspectRatio="none">
                     @foreach (var segment in Rects(bar))
                     {
@@ -21,11 +21,11 @@
     </div>
     <table class="taste-shifts__table sr-only">
         <caption>@L["TasteShifts_TitlesFinishedEachMonth"]</caption>
-        <thead><tr><th scope="col">@L["TasteShifts_Month"]</th><th scope="col">@L["Common_Finished"]</th><th scope="col">@L["Common_Genres"]</th></tr></thead>
+        <thead><tr><th scope="col">@L["TasteShifts_Month"]</th><th scope="col" class="app-table__num">@L["Common_Finished"]</th><th scope="col">@L["Common_Genres"]</th></tr></thead>
         <tbody>
             @foreach (var bar in Bars)
             {
-                <tr><th scope="row">@bar.Label</th><td>@bar.Finished</td><td>@string.Join(", ", bar.Segments.Select(segment => $"{segment.Genre} {segment.Count}"))</td></tr>
+                <tr><th scope="row">@bar.Label</th><td class="app-table__num">@bar.Finished</td><td>@string.Join(", ", bar.Segments.Select(segment => $"{segment.Genre} {segment.Count}"))</td></tr>
             }
         </tbody>
     </table>

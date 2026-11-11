@@ -13,13 +13,11 @@
                      aria-expanded="@AriaExpanded"
                      @attributes="AdditionalAttributes">
         <span class="playback-icon-button__visual" aria-hidden="true">
-            @if (PlaybackUtilityGlyphMap.TryFromControlKey(Control.Key, out var glyph))
+            @* The speaker shows its loud form until the sound is muted (unified player v2 D10); the crossed form means muted. *@
+            <PlaybackUtilityGlyph Glyph="@(GlyphOverride ?? (Control.Key == PlaybackControlKey.Mute && !Control.IsActive ? PlaybackUtilityGlyphKind.Volume : Control.Glyph))" />
+            @if (!string.IsNullOrWhiteSpace(Control.BadgeText) && Control.Key == PlaybackControlKey.Repeat)
             {
-                <PlaybackUtilityGlyph Glyph="@glyph" />
-            }
-            else
-            {
-                <AppMaterialIcon Icon="@Control.Icon" Class="playback-icon-button__icon" />
+                <span class="playback-icon-button__badge">@Control.BadgeText</span>
             }
         </span>
     </AppNativeButton>
@@ -41,6 +39,10 @@
 
     [Parameter]
     public string? Class { get; set; }
+
+    /// <summary>Draws this glyph instead of the one the control's key maps to (the speaker's quiet form, unified player v2 D10).</summary>
+    [Parameter]
+    public PlaybackUtilityGlyphKind? GlyphOverride { get; set; }
 
     [Parameter]
     public EventCallback OnClick { get; set; }
@@ -82,9 +84,11 @@
         Control.IsSelected ? "is-selected" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string? AriaPressed => Control.Key is PlaybackControlKey.Mute or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Favorite
-        ? Control.IsActive ? "true" : "false" : null;
-    private string? AriaExpanded => Control.Sheet is not null || Control.Key == PlaybackControlKey.More
+    private string? AriaPressed => Control.Key is PlaybackControlKey.Mute or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Favorite or PlaybackControlKey.Like or PlaybackControlKey.Dislike
+        ? Control.IsActive ? "true" : "false"
+        // Now playing is a page, not a panel that opens: it is pressed while the page is open (unified player v2 D24).
+        : Control.Key == PlaybackControlKey.NowPlaying ? Control.IsSelected ? "true" : "false" : null;
+    private string? AriaExpanded => (Control.Sheet is not null || Control.Key == PlaybackControlKey.More) && Control.Key != PlaybackControlKey.NowPlaying
         ? Control.IsSelected ? "true" : "false" : null;
     private AppNativeButton? _button;
 

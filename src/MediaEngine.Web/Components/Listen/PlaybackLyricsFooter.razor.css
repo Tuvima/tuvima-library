@@ -1,0 +1,54 @@
+/* Mockup screen 7: the source at the left in the quiet color (14 px), the "..." at the right. The button is a 36 px target like the header's, and its
+   negative margin keeps the footer as tall as the mockup's one-line footer. */
+.playback-lyrics-footer {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    min-width: 0;
+}
+
+.playback-lyrics-footer__source {
+    color: var(--playback-text-secondary);
+    flex: 1;
+    font: 400 14px/1.45 var(--font-ui);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more {
+    --playback-glyph-size: 20px;
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: grid;
+    flex: none;
+    height: 36px;
+    margin-block: -8px;
+    padding: 0;
+    place-items: center;
+    width: 36px;
+}
+
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more:hover {
+    background: var(--playback-state-hover);
+}
+
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more:active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more[aria-expanded="true"] {
+    background: var(--playback-state-selected);
+    color: var(--tl-accent-primary-hover);
+}
+
+.playback-lyrics-footer ::deep .playback-lyrics-footer__more:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: var(--playback-focus-ring-offset);
+}

@@ -28,6 +28,8 @@ public static class CollectionListEndpoints
             [FromServices] ListImportService service,
             [FromServices] ListInputReader reader,
             IDisplayProjectionReadService display,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
             CancellationToken ct) =>
         {
             if (!ListUpload.TryDecode(body.FileName, body.ContentBase64, body.Text, out var bytes, out var error))
@@ -37,7 +39,9 @@ public static class CollectionListEndpoints
 
             try
             {
-                var parsed = await reader.ReadAsync(body.FileName, bytes!, ct);
+                // A private or own list from a site the person signed in to is read as that person.
+                var authority = await authorityResolver.ResolveAsync(http, ct);
+                var parsed = await reader.ReadAsync(body.FileName, bytes!, authority.ActiveProfileId, ct);
                 var allowed = await display.LoadVisibleWorkIdsAsync(ct);
                 return Results.Ok(await service.PreviewAsync(body.FileName, parsed, body.Shelf, body.Overrides, allowed, ct));
             }
@@ -83,7 +87,7 @@ public static class CollectionListEndpoints
 
             try
             {
-                var parsed = await reader.ReadAsync(body.FileName, bytes!, ct);
+                var parsed = await reader.ReadAsync(body.FileName, bytes!, profile?.Id, ct);
                 var allowed = await display.LoadVisibleWorkIdsAsync(ct);
                 var result = await service.ImportAsync(
                     id, body.FileName, parsed, body.Shelf, body.Order, body.Refresh, body.SyncMode, body.Overrides, allowed, ct);
@@ -210,7 +214,7 @@ public static class CollectionListEndpoints
 
                 try
                 {
-                    fresh = await reader.ReadAsync(body.FileName ?? string.Empty, bytes!, ct);
+                    fresh = await reader.ReadAsync(body.FileName ?? string.Empty, bytes!, profile?.Id, ct);
                 }
                 catch (ListFileNotUnderstoodException ex)
                 {

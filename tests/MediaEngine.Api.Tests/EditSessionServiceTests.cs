@@ -74,6 +74,48 @@ public sealed class EditSessionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_RunsTheSiblingMatchAfterTheIdentityChange_WhateverOrderTheyWereStagedIn()
+    {
+        var work = SeedWork();
+        var order = new List<string>();
+        var service = CreateService(
+            new RecordingHandler(EditSessionChangeKinds.SiblingMatch, order),
+            new RecordingHandler(EditSessionChangeKinds.Identity, order));
+
+        var result = await service.RunAsync(
+            Request(
+                previewOnly: false,
+                new EditSessionChange { Id = "siblings", Kind = EditSessionChangeKinds.SiblingMatch, EntityId = work, TargetId = "{}" },
+                new EditSessionChange { Id = "identity", Kind = EditSessionChangeKinds.Identity, EntityId = work, TargetId = "{}" },
+                DetailsChange("c1", work, ("title", "Orbital"))),
+            NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(["apply:identity", "apply:siblings"], order);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Apply_RunsTheWikidataLinkBeforeTheProviderMatch_WhateverOrderTheyWereStagedIn(bool linkStagedFirst)
+    {
+        var work = SeedWork();
+        var order = new List<string>();
+        var service = CreateService(
+            new RecordingHandler(EditSessionChangeKinds.WikidataLink, order),
+            new RecordingHandler(EditSessionChangeKinds.WikidataRemoval, order),
+            new RecordingHandler(EditSessionChangeKinds.Identity, order));
+        var link = new EditSessionChange { Id = "link", Kind = EditSessionChangeKinds.WikidataLink, EntityId = work, TargetId = "Q1" };
+        var identity = new EditSessionChange { Id = "identity", Kind = EditSessionChangeKinds.Identity, EntityId = work, TargetId = "{}" };
+
+        var result = await service.RunAsync(
+            Request(false, linkStagedFirst ? new[] { link, identity } : new[] { identity, link }), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(["apply:link", "apply:identity"], order);
+    }
+
+    [Fact]
     public async Task Apply_WhenOneCheckFails_SavesNothingAndSaysWhichChangeFailed()
     {
         var work = SeedWork();

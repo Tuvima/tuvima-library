@@ -11,14 +11,15 @@ public sealed class SettingsServerAdministrationTests
         Assert.Contains("data-delivery-section", source, StringComparison.Ordinal);
         Assert.Contains("Streaming limits and quality", source, StringComparison.Ordinal);
         Assert.DoesNotContain("private RenderFragment LandingPage", source, StringComparison.Ordinal);
-        // Streaming opens on Limits and Quality; hardware acceleration, optimized copies and diagnostics are its sub-pages.
+        // Playback opens on Quality; hardware acceleration, optimized copies and diagnostics sit under its Advanced tab.
         Assert.Contains("<StreamingLimitsSettingsTab />", source, StringComparison.Ordinal);
-        Assert.Contains("case \"hardware\"", source, StringComparison.Ordinal);
-        Assert.Contains("case \"optimized-copies\"", source, StringComparison.Ordinal);
+        Assert.Contains("case \"advanced\"", source, StringComparison.Ordinal);
+        Assert.Contains("Section=\"hardware\"", source, StringComparison.Ordinal);
+        Assert.Contains("Section=\"optimized-copies\"", source, StringComparison.Ordinal);
         Assert.Contains("Section=\"diagnostics\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"scheduling\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"active-jobs\"", source, StringComparison.Ordinal);
-        // Hardware Acceleration, Optimized Copies and Diagnostics are rows of the Settings menu tree, not link cards.
+        // Advanced is a tab of the Settings page, not a link card.
         Assert.DoesNotContain("/settings/delivery/", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Active streams", source, StringComparison.Ordinal);
@@ -55,7 +56,7 @@ public sealed class SettingsServerAdministrationTests
 
         var security = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/SecurityTab.razor");
         Assert.DoesNotContain("Who can connect", security, StringComparison.Ordinal);
-        Assert.Contains(">Sessions</h3>", security, StringComparison.Ordinal);
+        Assert.Contains(">Sessions and invitations</h3>", security, StringComparison.Ordinal);
         Assert.Contains("Trusted local networks", security, StringComparison.Ordinal);
         Assert.Contains("UpdateExternalAuthProviderAsync", security, StringComparison.Ordinal);
         Assert.Contains("Disabled=\"@(!ExternalCapableMode)\"", security, StringComparison.Ordinal);
@@ -73,7 +74,9 @@ public sealed class SettingsServerAdministrationTests
         Assert.DoesNotContain("Profile access", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Manage profiles", users, StringComparison.Ordinal);
         Assert.DoesNotContain("pending invite", users, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Copy this credential now", applications, StringComparison.Ordinal);
+        // A new key is shown once, in its own window, with the warning that it cannot be shown again.
+        var keyWindow = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/IntegrationKeyDialogs.razor");
+        Assert.Contains("It will not be shown again", keyWindow, StringComparison.Ordinal);
         Assert.DoesNotContain("ToggleReveal", applications, StringComparison.Ordinal);
     }
 

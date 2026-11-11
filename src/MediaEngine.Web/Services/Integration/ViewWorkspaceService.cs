@@ -48,6 +48,9 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
     /// <summary>Raised when <see cref="DocumentInboxCount"/> changes so the View shell can redraw its badge.</summary>
     public event Action? DocumentInboxChanged;
 
+    /// <summary>Raised after the Viewing switch changes whose library View shows, so every View page reloads together.</summary>
+    public event Func<Task>? ScopeChanged;
+
     /// <summary>
     /// Loads the person's own Inbox count (never another scope's). Nothing is asked when the profile may not see
     /// Documents. When the Engine cannot answer, the client has already logged it and the last count stays.
@@ -170,7 +173,33 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
 
         Preferences = saved;
         Scopes = await api.GetViewScopesAsync(kind, profileId, ct);
-        return Scopes is not null;
+        if (Scopes is null)
+        {
+            return false;
+        }
+
+        if (ScopeChanged is { } handlers)
+        {
+            foreach (var handler in handlers.GetInvocationList().Cast<Func<Task>>())
+            {
+                await handler();
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Selects a scope from its "Kind:profileId" switch value.</summary>
+    public Task<bool> SelectScopeValueAsync(string? value, CancellationToken ct = default)
+    {
+        var parts = value?.Split(':', 2) ?? [];
+        if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind))
+        {
+            return Task.FromResult(false);
+        }
+
+        Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
+        return SelectScopeAsync(kind, profile, ct);
     }
 
     public async Task<bool> SetDensityAsync(ViewTimelineDensity density, CancellationToken ct = default)

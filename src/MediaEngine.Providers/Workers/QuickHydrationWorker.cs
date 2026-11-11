@@ -31,6 +31,7 @@ public sealed class QuickHydrationWorker
     private readonly IUniverseEnrichmentScheduler _universeEnrichment;
     private readonly IConfigurationLoader _configLoader;
     private readonly IPipelineExecutionSnapshotProvider? _configurationSnapshots;
+    private readonly IMediaOperationRepository? _operations;
 
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(10);
 
@@ -51,8 +52,10 @@ public sealed class QuickHydrationWorker
         IConfigurationLoader configLoader,
         ILogger<QuickHydrationWorker> logger,
         IPipelineExecutionSnapshotProvider? configurationSnapshots = null,
-        IExternalLookupGuard? lookupGuard = null)
+        IExternalLookupGuard? lookupGuard = null,
+        IMediaOperationRepository? operations = null)
     {
+        _operations = operations;
         _lookupGuard = lookupGuard;
         _jobRepo = jobRepo;
         _enrichment = enrichment;
@@ -163,6 +166,41 @@ public sealed class QuickHydrationWorker
     private static int GetBatchSize(PipelineExecutionSnapshot executionSnapshot) =>
         Math.Max(1, executionSnapshot.Core.Pipeline.LeaseSizes.Hydration);
 
+    /// <summary>
+    /// Once a song is identified, asks for its lyrics in the background: one durable request per song, picked up by the
+    /// text-track worker within the source's rate limit and cached. The request is the Library's own (no person asked),
+    /// the lookup reads the lyrics that come with the file first, and a song with no lyrics simply ends as "no result".
+    /// A failure here never fails hydration.
+    /// </summary>
+    private async Task QueueLyricsAsync(IdentityJob job, CancellationToken ct)
+    {
+        if (_operations is null || !string.Equals(job.MediaType, nameof(MediaType.Music), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            await _operations.EnsureAsync(new MediaOperation
+            {
+                OperationType = MediaOperationType.TextTrackLyrics,
+                OperationKind = MediaOperationKind.TextTrack,
+                EntityId = job.EntityId,
+                EntityKind = EntityType.MediaAsset.ToString(),
+                Status = MediaOperationStatus.Queued,
+                Stage = MediaOperationStage.Queued,
+                QueueName = "text_track",
+                CapabilityId = CapabilityId.TextTrackLyrics,
+                CapabilityVersion = "1",
+                IdempotencyKey = $"auto-text-track:{job.EntityId:D}:Lyrics",
+            }, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Could not queue lyrics for {EntityId}; they can still be found from the player", job.EntityId);
+        }
+    }
+
     internal async Task ProcessJobAsync(IdentityJob job, CancellationToken ct)
     {
         await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.Hydrating, ct: ct);
@@ -204,6 +242,8 @@ public sealed class QuickHydrationWorker
 
         await _postPipeline.EvaluateAndOrganizeAsync(
             job.EntityId, job.Id, job.ResolvedQid, ct);
+
+        await QueueLyricsAsync(job, ct).ConfigureAwait(false);
 
         var refreshedCanonicals = await _canonicalRepo.GetByEntityAsync(job.EntityId, ct).ConfigureAwait(false);
         var batchKey = await BuildUniverseBatchKeyAsync(job.EntityId, job.ResolvedQid, job.MediaType, refreshedCanonicals, ct)

@@ -14,12 +14,12 @@
         <AppInfoTip Label="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
                     Text="@L["HouseholdLibraryCeiling_UntickALibraryToHide"].Value" />
     </span>
+    <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
-        <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" Color="AppColor.Success" />@_confirmation
-        </span>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
     }
+    </span>
     @if (_open)
     {
         <div id="@_bodyId" class="household-ceiling__body">
@@ -40,7 +40,7 @@
                 {
                     <div class="household-ceiling__area household-ceiling__area--@group.Key" role="group" aria-label="@($"{group.Label} libraries")" data-ceiling-area="@group.Key">
                         <h4 class="household-ceiling__area-title">
-                            <AppMaterialIcon Icon="@group.Icon" Size="AppSize.Small" Color="@group.Color" />@group.Label
+                            <AppMaterialIcon Icon="@group.Icon" Size="AppIconSize.Control20" Color="@group.Color" />@group.Label
                         </h4>
                         @foreach (var library in group.Libraries)
                         {

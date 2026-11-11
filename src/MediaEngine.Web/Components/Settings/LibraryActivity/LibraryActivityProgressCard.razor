@@ -1,0 +1,93 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Contracts.Ingestion
+@using MediaEngine.Web.Components.Navigation
+@using MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one progress card (spec library-activity D5): everything Library is doing in one ring with its percent, the counts found by kind
+   and Review N items (Shy 10 Nov: very simple, no bar, no started line). Nothing per library. Its counts line uses the same words as a finished batch. When nothing runs it is replaced by the
+   up-to-date line, which has no icon and no bar. *@
+@if (Working)
+{
+    <section class="lact-summary" data-testid="activity-progress-card" aria-live="polite">
+        <div class="lact-summary__head">
+            @* The same ring as the top bar's spinner: it fills as the percent grows and the Sync glyph sits inside it. *@
+            <span class="lact-summary__ring" aria-hidden="true">
+                @if (Percent is { } ringValue)
+                {
+                    <AppSpinner Indeterminate="false" Value="@ringValue" Size="AppSize.Small" StrokeWidth="2" />
+                }
+                else
+                {
+                    <AppSpinner Indeterminate="true" Size="AppSize.Small" StrokeWidth="2" />
+                }
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" Size="AppIconSize.Control20" />
+            </span>
+            <strong class="lact-summary__title">@L["LibraryActivity_Updating"]</strong>
+            @if (Percent is { } percent)
+            {
+                <strong data-testid="activity-progress-percent">@L["LibraryActivity_PercentProcessed", percent]</strong>
+            }
+        </div>
+        <div class="lact-summary__foot">
+            <span class="lact-summary__counts" data-testid="activity-progress-counts">@CountsLine</span>
+            @if (ReviewCount > 0)
+            {
+                <AppLink Href="/settings/review" Class="lact-summary__review">@(ReviewCount == 1 ? L["LibraryActivity_ReviewOneItem"] : L["LibraryActivity_ReviewItems", ReviewCount.ToString("N0")])</AppLink>
+            }
+        </div>
+    </section>
+}
+else
+{
+    <section class="lact-summary lact-summary--idle" data-testid="activity-up-to-date">
+        <strong>@L["LibraryActivity_UpToDate"]</strong>
+        @if (LastCompleted is { } last)
+        {
+            <span> · @L["LibraryActivity_LastCompletedScan", LibraryActivityText.Ago(last, DateTimeOffset.UtcNow)]</span>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public IngestionQueueProgressDto? Queue { get; set; }
+    [Parameter] public IngestionPresentationSnapshotDto? Presentation { get; set; }
+
+    /// <summary>The media types the library chips allow; empty means every type.</summary>
+    [Parameter] public IReadOnlySet<string>? MediaTypes { get; set; }
+
+    [Parameter] public DateTimeOffset? LastCompleted { get; set; }
+
+    private bool Working => Queue is { State: "working" } || Presentation is { IsRunning: true };
+
+    private IEnumerable<IngestionQueueTypeTallyDto> Tally => (Queue?.Tally ?? [])
+        .Where(entry => MediaTypes is null || MediaTypes.Count == 0 || MediaTypes.Contains(entry.MediaType));
+
+    private int Found => MediaTypes is { Count: > 0 } ? Tally.Sum(entry => entry.Files) : Queue?.FilesFound ?? Presentation?.FilesDiscovered ?? 0;
+
+    // Shared with the top bar's ring so both always say the same number (rounded down, never 100 while still working).
+    private int? Percent => Queue is { FilesFound: > 0 } queue ? IngestionQueueProgressText.Percent(queue) : null;
+
+    private int ReviewCount => Presentation?.ReviewGroups ?? 0;
+
+    private string CountsLine
+    {
+        get
+        {
+            var parts = new List<string>();
+            var found = LibraryActivityText.Counts(Tally.Select(entry => (entry.MediaType, entry.Files)));
+            parts.Add(string.IsNullOrEmpty(found)
+                ? L["LibraryActivity_FilesFound", Found.ToString("N0")].Value
+                : L["LibraryActivity_CountsFound", found].Value);
+            if (Presentation is { } presentation)
+            {
+                if (presentation.ReadyGroups > 0) parts.Add(L["LibraryActivity_Ready", presentation.ReadyGroups.ToString("N0")].Value);
+                if (presentation.ReviewGroups > 0) parts.Add(L["LibraryActivity_NeedReview", presentation.ReviewGroups.ToString("N0")].Value);
+                if (presentation.ActiveOperations > 0) parts.Add(L["LibraryActivity_Processing", presentation.ActiveOperations.ToString("N0")].Value);
+                if (presentation.QueuedOperations > 0) parts.Add(L["LibraryActivity_Queued", presentation.QueuedOperations.ToString("N0")].Value);
+            }
+
+            return string.Join(" · ", parts);
+        }
+    }
+}

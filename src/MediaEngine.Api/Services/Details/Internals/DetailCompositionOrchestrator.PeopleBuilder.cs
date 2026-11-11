@@ -145,6 +145,12 @@ internal sealed partial class DetailCompositionOrchestrator
             return OwnedCollectionCountLabel(entityType, works);
         }
 
+        // A folder of Other videos is a plain list of videos: never "TV Show" or "TV Episode" (item 17).
+        if (entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType))
+        {
+            return $"{VideoFolderWording.KindLabel} • {VideoFolderWording.VideoCount(works.Count(work => work.IsOwned))}";
+        }
+
         var types = works.Select(w => FormatEntityType(InferMediaItemEntityType(w))).Distinct(StringComparer.OrdinalIgnoreCase).Take(3);
         return $"{FormatEntityType(entityType)} • {OwnedCollectionCountLabel(entityType, works)} • {string.Join(", ", types)}";
     }
@@ -659,6 +665,12 @@ internal sealed partial class DetailCompositionOrchestrator
         => assets.FirstOrDefault(a => a.AssetTypeValue.Equals(assetType, StringComparison.OrdinalIgnoreCase) && a.IsPreferred)?.ImageUrl
            ?? assets.FirstOrDefault(a => a.AssetTypeValue.Equals(assetType, StringComparison.OrdinalIgnoreCase))?.ImageUrl;
 
+    /// <summary>A folder of Other videos (a course, a saved channel) is a plain list of videos: no Show, Season or Episode wording (details page D15).</summary>
+    private static SequenceLabels ResolveSequenceLabels(DetailEntityType type, string? mediaType) =>
+        type == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(mediaType)
+            ? new(VideoFolderWording.ContainerLabel, VideoFolderWording.ItemLabel, VideoFolderWording.UnnamedSectionTitle, VideoFolderWording.SectionLabel)
+            : ResolveSequenceLabels(type);
+
     private static SequenceLabels ResolveSequenceLabels(DetailEntityType type) => type switch
     {
         DetailEntityType.TvEpisode or DetailEntityType.TvSeason or DetailEntityType.TvShow =>
@@ -677,8 +689,15 @@ internal sealed partial class DetailCompositionOrchestrator
             ? FirstText(episodeLabel, positionLabel)
             : positionLabel;
 
-    private static (string? Key, string? Title) ResolveSequenceGroup(DetailEntityType type, string? rawGroup)
+    private static (string? Key, string? Title) ResolveSequenceGroup(DetailEntityType type, string? rawGroup, string? mediaType = null)
     {
+        // Other videos have no seasons: a named section stays a section, anything else is a plain list (details page D15).
+        if (type == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(mediaType))
+        {
+            var section = rawGroup?.Trim();
+            return string.IsNullOrEmpty(section) || section.All(char.IsDigit) ? (null, null) : ($"section-{section.ToLowerInvariant()}", section);
+        }
+
         if (type is not (DetailEntityType.TvEpisode or DetailEntityType.TvSeason or DetailEntityType.TvShow))
         {
             return (null, null);

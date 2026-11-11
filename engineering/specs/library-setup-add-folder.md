@@ -142,3 +142,7 @@ Version 2: (a) Decided by Shy: the PIN is never required, only strongly suggeste
 Adding a library becomes: pick what it is, pick the folder, done. Adding a folder uses the same folder window, so the two never look different. Nothing asks you "where to now?", and the little "i" buttons leave these dialogs because the two sentences that matter are simply written on the screen. First-run setup is held to show the very same screen as Settings, so it cannot drift again.
 
 **Version 2:** first-run setup also lets you add a View folder (asking where View should keep its files if that is not set yet) and, as an optional last step, turn on the Vault. If you skip the Vault, the app behaves as if it did not exist, and nobody but the first administrator is ever offered it.
+
+## Gaps and drift (audit 2026-11-03)
+
+- Packets 1, 2, 3 and 6 are replaced by libraries-redesign and the rework; the text still says Add folder shows a toast, which D12 of the redesign removes. Suggested status: Superseded. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

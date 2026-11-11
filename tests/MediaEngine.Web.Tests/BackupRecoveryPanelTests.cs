@@ -21,8 +21,6 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
 
     private BackupStateDto? _state = new(0, 90, 0, null);
     private RestoreValidationResultDto? _validation;
-    private int? _savedDays;
-    private bool _saveFails;
     private bool _backupExists = true;
     private BackupArchiveDto? _created;
 
@@ -36,11 +34,6 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetBackupStateAsync), _ => Task.FromResult(_state));
             stub.SetHandler(nameof(IEngineApiClient.ValidateRestoreAsync), _ => Task.FromResult(_validation));
             stub.SetHandler(nameof(IEngineApiClient.CreateBackupAsync), _ => Task.FromResult(_created));
-            stub.SetHandler(nameof(IEngineApiClient.SetBackupWaitingPeriodAsync), args =>
-            {
-                _savedDays = (int)args![0]!;
-                return Task.FromResult<BackupStateDto?>(_saveFails ? null : new BackupStateDto(0, _savedDays.Value, 0, null));
-            });
         });
         Services.AddSingleton(api);
         Services.AddSingleton(new DeviceContextService(api));
@@ -215,60 +208,7 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheWaitingPeriod_OffersTheFiveChoices_WithTheStoredOneSelected()
-    {
-        _state = new BackupStateDto(0, 90, 0, null);
-
-        var cut = Render<BackupRecoveryPanel>();
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='waiting-period']")));
-        var select = cut.Find("[data-testid='waiting-period']");
-        Assert.Equal(["30 days", "60 days", "90 days", "180 days", "365 days"], select.QuerySelectorAll("option").Select(option => option.TextContent));
-        Assert.Contains("Keep restored progress waiting for", cut.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ChoosingAWaitingPeriod_SavesItStraightAway()
-    {
-        var cut = Render<BackupRecoveryPanel>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='waiting-period']")));
-
-        cut.Find("[data-testid='waiting-period']").Change("180");
-
-        cut.WaitForAssertion(() => Assert.Equal(180, _savedDays));
-        cut.WaitForAssertion(() => Assert.Equal("180", cut.Find("[data-testid='waiting-period']").GetAttribute("value")));
-    }
-
-    [Fact]
-    public void AWaitingPeriodThatCouldNotBeSaved_LeavesTheStoredChoiceInPlace()
-    {
-        _saveFails = true;
-        var cut = Render<BackupRecoveryPanel>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='waiting-period']")));
-
-        var before = cut.FindComponent<AppSelect>().Instance;
-        cut.Find("[data-testid='waiting-period']").Change("30");
-
-        cut.WaitForAssertion(() => Assert.Equal(30, _savedDays));
-        // The field is built again, so the browser cannot keep showing the choice that was not saved.
-        cut.WaitForAssertion(() => Assert.NotSame(before, cut.FindComponent<AppSelect>().Instance));
-        Assert.Equal("90", cut.Find("[data-testid='waiting-period']").GetAttribute("value"));
-    }
-
-    [Fact]
-    public void AStoredWaitingPeriodThatIsNotOneOfTheChoices_IsShownAsOneMoreChoice()
-    {
-        _state = new BackupStateDto(0, 45, 0, null);
-
-        var cut = Render<BackupRecoveryPanel>();
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='waiting-period']")));
-        var options = cut.Find("[data-testid='waiting-period']").QuerySelectorAll("option").Select(option => option.TextContent).ToList();
-        Assert.Equal(["30 days", "45 days", "60 days", "90 days", "180 days", "365 days"], options);
-    }
-
-    [Fact]
-    public async Task TheWaitingPeriodIsNotOffered_OnAPhone()
+    public async Task TheBackupsTab_OffersNoCreateOrRestoreList_OnAPhone()
     {
         var api = EngineApiClientStub.Create(stub =>
         {
@@ -285,6 +225,7 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("Backup status", cut.Markup, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll("[data-testid='waiting-period']"));
         Assert.Empty(cut.FindAll("[data-testid='backup-note']"));
+        Assert.Empty(cut.FindAll("[data-testid='restore-list']"));
     }
 
     [Fact]

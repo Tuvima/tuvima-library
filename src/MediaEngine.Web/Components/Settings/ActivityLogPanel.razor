@@ -8,8 +8,8 @@
    review, what failed and what the system did. Server administrators only; the Engine enforces that, and the Settings shell only
    offers the page to administrators. The Engine writes every word shown here (title, detail, media type); this panel only lays
    them out. *@
-<AppCard Title="@L["Common_Events"].Value" Description="@L["ActivityLogPanel_WhatWasAddedWhatNeeds"].Value">
-    <div class="activity-log__toolbar">
+<AppSettingsGroup Heading="@L["Common_Events"].Value" Helper="@L["ActivityLogPanel_WhatWasAddedWhatNeeds"].Value">
+    <AppFilterRow Class="activity-log__toolbar" AriaLabel="@L["ActivityLogPanel_FilterTheActivityLog"].Value">
         <div class="activity-log__filters">
             <AppSegmentedControl Options="FilterOptions"
                                  Value="@_filter"
@@ -18,6 +18,7 @@
         </div>
         <div class="activity-log__sort">
             <AppSelect Label="@L["Common_MediaType"].Value"
+                       HideLabel="true"
                        Value="@_mediaType"
                        ValueChanged="OnMediaTypeChanged"
                        Options="MediaTypeOptions"
@@ -25,6 +26,7 @@
         </div>
         <div class="activity-log__sort">
             <AppSelect Label="@L["Common_SortBy"].Value"
+                       HideLabel="true"
                        Value="@_sort"
                        ValueChanged="OnSortChanged"
                        Options="SortOptions"
@@ -38,7 +40,7 @@
                             ValueChanged="OnSearchChanged"
                             DebounceInterval="300" />
         </div>
-    </div>
+    </AppFilterRow>
 
     @if (_loading)
     {
@@ -83,7 +85,7 @@
                 <li class="activity-log__row activity-log__row--added activity-log__row--group" data-testid="activity-log-group" data-group="@row.Key">
                     <time class="activity-log__time" datetime="@newest.OccurredAt.ToString("O")" title="@FullTime(newest.OccurredAt)">@ShortTime(newest.OccurredAt)</time>
                     <span class="activity-log__symbol" aria-hidden="true">
-                        <AppMaterialIcon Icon="@SymbolFor(newest.Category)" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@SymbolFor(newest.Category)" Size="AppIconSize.Control20" />
                     </span>
                     <span class="activity-log__art" aria-hidden="true">
                         <AppMediaArtwork ImageUrl="@newest.CoverUrl" AspectRatio="1 / 1" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(newest.MediaType)" />
@@ -127,7 +129,7 @@
             </div>
         </div>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     // One row of the log: a single event, or a show or album folding the episodes or songs added to it.
@@ -137,7 +139,7 @@
         <li class="activity-log__row activity-log__row--@CategoryKey(entry.Category)" data-testid="activity-log-row" data-category="@entry.Category">
             <time class="activity-log__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
             <span class="activity-log__symbol" aria-hidden="true">
-                <AppMaterialIcon Icon="@SymbolFor(entry.Category)" Size="AppSize.Small" />
+                <AppMaterialIcon Icon="@SymbolFor(entry.Category)" Size="AppIconSize.Control20" />
             </span>
             <span class="activity-log__art" aria-hidden="true">
                 @if (HasArt(entry))
@@ -160,7 +162,7 @@
                         @* The type is an icon with its name as the tooltip and accessible name, the same icon the Now panel uses. *@
                         <AppTooltip Text="@TypeLabel(entry)" Placement="AppPlacement.Top">
                             <span class="activity-log__media-type" role="img" aria-label="@TypeLabel(entry)">
-                                <AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(entry.MediaType)" Size="AppSize.Small" aria-hidden="true" />
+                                <AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(entry.MediaType)" Size="AppIconSize.Control20" aria-hidden="true" />
                             </span>
                         </AppTooltip>
                     }
@@ -176,7 +178,7 @@
             <li class="activity-log__row activity-log__row--failed" data-testid="row-error">
                 <span></span>
                 <span class="activity-log__symbol" aria-hidden="true">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" Size="AppIconSize.Control20" />
                 </span>
                 <span class="activity-log__art" aria-hidden="true"></span>
                 <div class="activity-log__body">

@@ -1,0 +1,456 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Globalization
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+
+@* Details of the photos, videos and documents editor (spec photos-documents-editor D3, D5). Everything here is staged on the session's stage and
+   written only by Save changes. One item shows all its fields; a group shows only what is shared and says "Mixed, leave unchanged" where the
+   items differ. Description, title, archive number and notes are never offered to a group. *@
+<div class="tl-editor-details view-edit-details">
+    @if (Stage.IsMedia)
+    {
+        @if (Stage.CanEditDescription)
+        {
+            <div class="tl-editor-field">
+                <AppTextarea Label="@L["ViewEdit_Description"].Value" Value="@(Stage.DescriptionStaged ? Stage.Description ?? string.Empty : Stage.Items[0].Description ?? string.Empty)"
+                             ValueChanged="@(value => Stage.SetDescription(value))" Lines="3" />
+                <ViewEditRevert Show="Stage.DescriptionStaged" Field="@L["ViewEdit_Description"].Value" OnRevert="@(() => Stage.RevertDescription())" />
+            </div>
+        }
+
+        <div class="@FieldClass(ViewEditStage.LockDate)" data-field-key="date" data-locked="@(Stage.IsLocked(ViewEditStage.LockDate) ? "true" : "false")">
+            @LabelRow(ViewEditStage.LockDate, L["ViewEdit_DateTaken"].Value, () => Stage.RevertDate())
+            @if (Stage.IsGroup)
+            {
+                <div class="view-edit-details__row">
+                    <AppButton ButtonStyle="@(_dateMode == "shift" ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => _dateMode = "shift")">@L["ViewEdit_DateShift"]</AppButton>
+                    <AppButton ButtonStyle="@(_dateMode == "set" ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => _dateMode = "set")">@L["ViewEdit_DateSet"]</AppButton>
+                </div>
+            }
+
+            @if (Stage.IsGroup && _dateMode == "shift")
+            {
+                <div class="view-edit-details__row">
+                    <AppTextField InputType="AppInputType.Number" Label="@L["ViewEdit_ShiftDays"].Value" Value="@_days" ValueChanged="@(value => { _days = value?.ToString() ?? string.Empty; ApplyShift(); })" />
+                    <AppTextField InputType="AppInputType.Number" Label="@L["ViewEdit_ShiftHours"].Value" Value="@_hours" ValueChanged="@(value => { _hours = value?.ToString() ?? string.Empty; ApplyShift(); })" />
+                </div>
+                <small class="tl-editor-field__hint">@L["ViewEdit_ShiftHint"]</small>
+            }
+            else
+            {
+                <AppTextField InputType="AppInputType.DateTimeLocal" Label="@L["ViewEdit_DateTaken"].Value" HideLabel="true"
+                              Value="@DateText()" ValueChanged="@(value => ApplyDate(value?.ToString()))" ReadOnly="@Stage.IsLocked(ViewEditStage.LockDate)" />
+                @if (Stage.IsGroup && Stage.DateMode == ViewDateMode.None)
+                {
+                    <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
+                }
+            }
+
+            @if (!Stage.IsLocked(ViewEditStage.LockDate))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalDate())">@L["ViewEdit_UseOriginal"]</AppButton>
+            }
+        </div>
+
+        <div class="@FieldClass(ViewEditStage.LockPlace)" data-field-key="place" data-locked="@(Stage.IsLocked(ViewEditStage.LockPlace) ? "true" : "false")">
+            @LabelRow(ViewEditStage.LockPlace, L["ViewEdit_Place"].Value, () => Stage.RevertPlace())
+            <AppTextField Label="@L["ViewEdit_PlaceName"].Value" HideLabel="true" Placeholder="@L["ViewEdit_PlaceName"].Value"
+                          Value="@(Stage.PlaceMode == ViewPlaceMode.Set ? Stage.PlaceName ?? string.Empty : _placeText)"
+                          ReadOnly="@Stage.IsLocked(ViewEditStage.LockPlace)"
+                          ValueChanged="@(value => _placeText = value?.ToString() ?? string.Empty)" />
+            <div class="view-edit-details__row">
+                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@L["ViewEdit_Latitude"].Value" Value="@_lat" ReadOnly="@Stage.IsLocked(ViewEditStage.LockPlace)" ValueChanged="@(value => { _lat = value?.ToString() ?? string.Empty; ApplyPlace(); })" />
+                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@L["ViewEdit_Longitude"].Value" Value="@_lon" ReadOnly="@Stage.IsLocked(ViewEditStage.LockPlace)" ValueChanged="@(value => { _lon = value?.ToString() ?? string.Empty; ApplyPlace(); })" />
+            </div>
+            @if (Stage.IsGroup && Stage.PlaceMode == ViewPlaceMode.None)
+            {
+                <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
+            }
+
+            @if (!Stage.IsLocked(ViewEditStage.LockPlace))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalPlace())">@L["ViewEdit_UseOriginal"]</AppButton>
+            }
+        </div>
+    }
+    else
+    {
+        @if (Stage.CanEditDocumentField(ViewDocumentFieldKeys.Title))
+        {
+            <div class="tl-editor-field">
+                <AppTextField Label="@L["Common_Title"].Value" MaxLength="300" Value="@Current(ViewDocumentFieldKeys.Title)" ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Title, value?.ToString()))" />
+                <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Title)" Field="@L["Common_Title"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Title))" />
+            </div>
+        }
+
+        <div class="tl-editor-field">
+            <AppAutocomplete TItem="string" Label="@L["Common_Correspondent"].Value" Value="@Current(ViewDocumentFieldKeys.Correspondent)"
+                             ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Correspondent, value))"
+                             SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" />
+            @if (Stage.IsMixed(ViewDocumentFieldKeys.Correspondent) && !Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Correspondent))
+            {
+                <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
+            }
+            <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Correspondent)" Field="@L["Common_Correspondent"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Correspondent))" />
+        </div>
+        <div class="tl-editor-field">
+            <AppAutocomplete TItem="string" Label="@L["Common_DocumentType"].Value" Value="@Current(ViewDocumentFieldKeys.Type)"
+                             ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Type, value))"
+                             SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" />
+            @if (Stage.IsMixed(ViewDocumentFieldKeys.Type) && !Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Type))
+            {
+                <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
+            }
+            <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Type)" Field="@L["Common_DocumentType"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Type))" />
+        </div>
+        <div class="tl-editor-field">
+            <AppTextField InputType="AppInputType.Date" Label="@L["Common_DocumentDate"].Value" Value="@Current(ViewDocumentFieldKeys.Date)"
+                          ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Date, value?.ToString()))" />
+            @if (Stage.IsMixed(ViewDocumentFieldKeys.Date) && !Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Date))
+            {
+                <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
+            }
+            <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Date)" Field="@L["Common_DocumentDate"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Date))" />
+        </div>
+        @if (Stage.CanEditDocumentField(ViewDocumentFieldKeys.ArchiveNumber))
+        {
+            <div class="tl-editor-field">
+                <AppTextField Label="@L["ViewDocumentDetailsDialog_ArchiveNumber"].Value" MaxLength="120" Value="@Current(ViewDocumentFieldKeys.ArchiveNumber)"
+                              ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.ArchiveNumber, value?.ToString()))" />
+                <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.ArchiveNumber)" Field="@L["ViewDocumentDetailsDialog_ArchiveNumber"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.ArchiveNumber))" />
+            </div>
+        }
+
+        @if (Stage.CanEditDocumentField(ViewDocumentFieldKeys.Notes))
+        {
+            <div class="tl-editor-field">
+                <AppTextarea Label="@L["ViewDocumentDetailsDialog_Notes"].Value" Lines="4" Value="@Current(ViewDocumentFieldKeys.Notes)"
+                             ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Notes, value))" />
+                <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Notes)" Field="@L["ViewDocumentDetailsDialog_Notes"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Notes))" />
+            </div>
+        }
+
+        @if (!Stage.IsGroup)
+        {
+            @foreach (var field in _fields)
+            {
+                var draft = DraftFor(field);
+                <div class="tl-editor-field" @key="field.Id">
+                    @switch (field.Kind)
+                    {
+                        case ViewDocumentFieldKinds.Choice:
+                            <label class="view-edit-details__custom"><span class="tl-editor-field__label">@field.Name</span>
+                                <AppSelect Native="true" aria-label="@field.Name" Value="@(draft.Text ?? string.Empty)" ValueChanged="@(selected => { draft.Text = selected; Commit(field, draft); })">
+                                    <option value="">@L["Common_NotSet"]</option>
+                                    @foreach (var choice in field.Choices)
+                                    {
+                                        <option value="@choice">@choice</option>
+                                    }
+                                </AppSelect>
+                            </label>
+                            break;
+                        case ViewDocumentFieldKinds.Bool:
+                            <label class="view-edit-details__custom"><span class="tl-editor-field__label">@field.Name</span>
+                                <AppSelect Native="true" aria-label="@field.Name" Value="@(draft.Flag is { } flag ? (flag ? "true" : "false") : string.Empty)" ValueChanged="@(selected => { draft.Flag = selected switch { "true" => true, "false" => false, _ => null }; Commit(field, draft); })">
+                                    <option value="">@L["Common_NotSet"]</option>
+                                    <option value="true">@L["Common_Yes"]</option>
+                                    <option value="false">@L["Common_No"]</option>
+                                </AppSelect>
+                            </label>
+                            break;
+                        case ViewDocumentFieldKinds.Date:
+                            <AppTextField InputType="AppInputType.Date" Label="@field.Name" Value="@draft.Date" ValueChanged="@(value => { draft.Date = value?.ToString(); Commit(field, draft); })" />
+                            break;
+                        case ViewDocumentFieldKinds.Number:
+                            <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@field.Name" Value="@draft.Number" ValueChanged="@(value => { draft.Number = value?.ToString(); Commit(field, draft); })" />
+                            break;
+                        case ViewDocumentFieldKinds.Money:
+                            <span class="tl-editor-field__label">@field.Name</span>
+                            <div class="view-edit-details__row">
+                                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@($"{field.Name} amount")" HideLabel="true" Placeholder="@L["ViewDocumentDetailsDialog_Amount"].Value" Value="@draft.Number" ValueChanged="@(value => { draft.Number = value?.ToString(); Commit(field, draft); })" />
+                                <AppTextField Label="@($"{field.Name} currency")" HideLabel="true" Placeholder="@L["ViewDocumentDetailsDialog_USD"].Value" MaxLength="3" Value="@draft.Currency" ValueChanged="@(value => { draft.Currency = value?.ToString(); Commit(field, draft); })" />
+                            </div>
+                            break;
+                        default:
+                            <AppTextField Label="@field.Name" MaxLength="1000" Value="@draft.Text" ValueChanged="@(value => { draft.Text = value?.ToString(); Commit(field, draft); })" />
+                            break;
+                    }
+
+                    <ViewEditRevert Show="Stage.IsCustomFieldStaged(field.Id)" Field="@field.Name" OnRevert="@(() => { Stage.RevertCustomField(field.Id); _drafts.Remove(field.Id); })" />
+                    @if (_problems.TryGetValue(field.Id, out var problem))
+                    {
+                        <small class="tl-editor-field__hint" role="alert">@problem</small>
+                    }
+                </div>
+            }
+        }
+    }
+
+    <div class="tl-editor-field">
+        <span class="tl-editor-field__label">@L["Common_Tags"]</span>
+        <AppTagInput Commit="CommitTagAsync" Search="SearchTagsAsync" />
+        <ViewEditRevert Show="Stage.TagsAdd.Count + Stage.TagsRemove.Count > 0" Field="@L["Common_Tags"].Value" OnRevert="@(() => Stage.RevertTags())" />
+        @if (Stage.ShownTags().Count > 0)
+        {
+            <ul class="view-edit-details__chips" aria-label="@L["ViewDocumentDetailsDialog_TagsOnThisDocument"].Value">
+                @foreach (var tag in Stage.ShownTags())
+                {
+                    <li @key="tag"><AppChip Text="@tag" OnClose="@(() => Stage.RemoveTag(tag))" /></li>
+                }
+            </ul>
+        }
+    </div>
+
+    @if (Stage.IsMedia)
+    {
+        <div class="@FieldClass(ViewEditStage.LockPeople)" data-field-key="people" data-locked="@(Stage.IsLocked(ViewEditStage.LockPeople) ? "true" : "false")">
+            @LabelRow(ViewEditStage.LockPeople, L["ViewEdit_People"].Value, () => Stage.RevertPeople())
+            @if (!Stage.IsLocked(ViewEditStage.LockPeople))
+            {
+                <AppTagInput Commit="CommitPersonAsync" Search="SearchNoneAsync" />
+            }
+
+            @if (Stage.ShownPeople().Count > 0)
+            {
+                <ul class="view-edit-details__chips">
+                    @foreach (var person in Stage.ShownPeople())
+                    {
+                        <li @key="person">
+                            @if (Stage.IsLocked(ViewEditStage.LockPeople))
+                            {
+                                <AppChip Text="@person" />
+                            }
+                            else
+                            {
+                                <AppChip Text="@person" OnClose="@(() => Stage.RemovePerson(person))" />
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
+    <div class="tl-editor-field">
+        <span class="tl-editor-field__label">@L["ViewEdit_Galleries"]</span>
+        <div class="view-edit-details__row">
+            <AppSelect Native="true" aria-label="@L["ViewEdit_AddToGallery"].Value" Value="@string.Empty" ValueChanged="@(value => AddGallery(value))">
+                <option value="">@L["ViewEdit_AddToGallery"]</option>
+                @foreach (var gallery in _galleries.Where(g => !Stage.GalleriesAdd.Contains(g.Id)))
+                {
+                    <option value="@gallery.Id">@gallery.Name</option>
+                }
+            </AppSelect>
+        </div>
+        <div class="view-edit-details__row">
+            <AppTextField Label="@L["ViewEdit_NewGalleryName"].Value" HideLabel="true" Placeholder="@L["ViewEdit_NewGalleryName"].Value" MaxLength="120"
+                          Value="@(Stage.NewGalleryName ?? string.Empty)" ValueChanged="@(value => Stage.CreateGallery(value?.ToString()))" />
+        </div>
+        <ul class="view-edit-details__chips">
+            @foreach (var id in Stage.GalleriesAdd)
+            {
+                <li @key="id"><AppChip Text="@Stage.GalleryNames.GetValueOrDefault(id, string.Empty)" OnClose="@(() => Stage.CancelGallery(id))" /></li>
+            }
+        </ul>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<ViewGalleryDto> _galleries = [];
+    private ViewDocumentCatalogueDto? _catalogue;
+    private IReadOnlyList<ViewDocumentFieldDto> _fields = [];
+    private string _dateMode = "set", _days = string.Empty, _hours = string.Empty, _placeText = string.Empty, _lat = string.Empty, _lon = string.Empty;
+
+    [Parameter, EditorRequired] public ViewEditStage Stage { get; set; } = default!;
+
+    private string FieldClass(string key) => Stage.IsLocked(key) ? "tl-editor-field tl-editor-field--form-locked" : Stage.IsChanged(key) ? "tl-editor-field tl-editor-field--changed" : "tl-editor-field";
+
+    // The label row of a field read from the file: its name, then Revert once the person has changed it, then the shared lock (Unlock, Lock, or "kept").
+    private RenderFragment LabelRow(string key, string label, Action revert) => __builder =>
+    {
+        <div class="tl-editor-field__label">
+            <span>@label</span>
+            <span class="tl-editor-field__tools">
+                @if (Stage.IsChanged(key))
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay"
+                               aria-label="@($"{L["ViewEdit_Revert"].Value}: {label}")" OnClick="@(() => revert())">@L["EditorDetailsPanel_Revert"]</AppButton>
+                }
+
+                <EditorFieldLock FieldLabel="@label" Locked="@Stage.IsLocked(key)" Changed="@Stage.IsChanged(key)" OnToggle="@(() => ToggleLock(key))" />
+            </span>
+        </div>
+    };
+
+    private void ToggleLock(string key)
+    {
+        if (Stage.IsLocked(key))
+        {
+            Stage.Unlock(key);
+        }
+        else
+        {
+            Stage.Relock(key);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dateMode = Stage.IsGroup ? "shift" : "set";
+        var galleries = await Api.GetViewGalleriesAsync();
+        _galleries = (galleries?.Owned ?? []).Where(g => g.Kind == ViewGalleryKind.Manual).ToList();
+        if (Stage.IsDocuments)
+        {
+            _catalogue = await Api.GetViewCatalogueAsync();
+            _fields = _catalogue?.Fields ?? [];
+        }
+    }
+
+    private string Current(string key) => Stage.IsDocumentFieldStaged(key) ? Stage.DocumentFieldValue(key) ?? string.Empty
+        : Stage.IsMixed(key) ? string.Empty : Stage.OriginalDocumentField(key) ?? string.Empty;
+
+    private string DateText()
+    {
+        var date = Stage.DateMode == ViewDateMode.Set ? Stage.DateValue : Stage.IsGroup ? null : Stage.Items[0].CapturedAt;
+        return date?.LocalDateTime.ToString("yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private void ApplyDate(string? text)
+    {
+        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            Stage.SetDate(new DateTimeOffset(DateTime.SpecifyKind(parsed, DateTimeKind.Local)));
+        }
+    }
+
+    private void ApplyShift()
+    {
+        _ = double.TryParse(_days, NumberStyles.Float, CultureInfo.InvariantCulture, out var days);
+        _ = double.TryParse(_hours, NumberStyles.Float, CultureInfo.InvariantCulture, out var hours);
+        Stage.ShiftDate(TimeSpan.FromDays(days) + TimeSpan.FromHours(hours));
+    }
+
+    private void ApplyPlace()
+    {
+        if (double.TryParse(_lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat) && double.TryParse(_lon, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)
+            && lat is >= -90 and <= 90 && lon is >= -180 and <= 180)
+        {
+            Stage.SetPlace(lat, lon, string.IsNullOrWhiteSpace(_placeText) ? null : _placeText.Trim());
+        }
+    }
+
+    private sealed class FieldDraft
+    {
+        public string? Text { get; set; }
+        public string? Number { get; set; }
+        public string? Date { get; set; }
+        public string? Currency { get; set; }
+        public bool? Flag { get; set; }
+    }
+
+    private readonly Dictionary<Guid, FieldDraft> _drafts = [];
+    private readonly Dictionary<Guid, string> _problems = [];
+
+    private FieldDraft DraftFor(ViewDocumentFieldDto field)
+    {
+        if (!_drafts.TryGetValue(field.Id, out var draft))
+        {
+            draft = new FieldDraft();
+            if (Stage.StagedCustomField(field.Id) is { } staged)
+            {
+                draft.Text = field.Kind == ViewDocumentFieldKinds.Money ? null : staged.TextValue;
+                draft.Currency = field.Kind == ViewDocumentFieldKinds.Money ? staged.TextValue : null;
+                draft.Number = staged.NumberValue?.ToString(CultureInfo.InvariantCulture);
+                draft.Date = staged.DateValue?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                draft.Flag = staged.BoolValue;
+            }
+
+            else if (Stage.Items[0].DocumentInfo?.FieldValues?.FirstOrDefault(value => value.FieldId == field.Id) is { } current)
+            {
+                // What the document already has is shown as the starting point; nothing is staged until the person changes it.
+                draft.Text = field.Kind == ViewDocumentFieldKinds.Money ? null : current.TextValue;
+                draft.Currency = field.Kind == ViewDocumentFieldKinds.Money ? current.TextValue : null;
+                draft.Number = current.NumberValue?.ToString(CultureInfo.InvariantCulture);
+                draft.Date = current.DateValue?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                draft.Flag = current.BoolValue;
+            }
+
+            _drafts[field.Id] = draft;
+        }
+
+        return draft;
+    }
+
+    // A typed value is turned into the Engine's shape here, before anything is sent: a number that is not a number is explained next to its field
+    // and is never staged, so Review changes and Save only ever carry values the Engine will accept (the same checks the old dialog made).
+    private void Commit(ViewDocumentFieldDto field, FieldDraft draft)
+    {
+        _problems.Remove(field.Id);
+        switch (field.Kind)
+        {
+            case ViewDocumentFieldKinds.Number or ViewDocumentFieldKinds.Money when !string.IsNullOrWhiteSpace(draft.Number):
+                if (!double.TryParse(draft.Number.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+                {
+                    _problems[field.Id] = L["ViewEdit_NumberProblem", field.Name].Value;
+                    Stage.RevertCustomField(field.Id);
+                    return;
+                }
+
+                if (field.Kind == ViewDocumentFieldKinds.Money && draft.Currency?.Trim().Length != 3)
+                {
+                    _problems[field.Id] = L["ViewEdit_CurrencyProblem", field.Name].Value;
+                    Stage.RevertCustomField(field.Id);
+                    return;
+                }
+
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, field.Kind == ViewDocumentFieldKinds.Money ? draft.Currency!.Trim().ToUpperInvariant() : null, number));
+                return;
+            case ViewDocumentFieldKinds.Date when DateOnly.TryParseExact(draft.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date):
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, DateValue: date));
+                return;
+            case ViewDocumentFieldKinds.Bool when draft.Flag.HasValue:
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, BoolValue: draft.Flag));
+                return;
+            case ViewDocumentFieldKinds.Text or ViewDocumentFieldKinds.Choice when !string.IsNullOrWhiteSpace(draft.Text):
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, TextValue: draft.Text.Trim()));
+                return;
+            default:
+                Stage.RevertCustomField(field.Id);
+                return;
+        }
+    }
+
+    private void AddGallery(string? value)
+    {
+        if (Guid.TryParse(value, out var id) && _galleries.FirstOrDefault(g => g.Id == id) is { } gallery)
+        {
+            Stage.AddToGallery(gallery.Id, gallery.Name);
+        }
+    }
+
+    private Task<bool> CommitTagAsync(string name)
+    {
+        Stage.AddTag(name);
+        return Task.FromResult(true);
+    }
+
+    private Task<bool> CommitPersonAsync(string name)
+    {
+        Stage.AddPerson(name);
+        return Task.FromResult(true);
+    }
+
+    private async Task<IEnumerable<string>> SearchTagsAsync(string? text, CancellationToken ct) => await Api.GetViewTagSuggestionsAsync(text, 20, ct);
+
+    private static Task<IEnumerable<string>> SearchNoneAsync(string? text, CancellationToken ct) => Task.FromResult<IEnumerable<string>>([]);
+
+    private Task<IEnumerable<string>> SearchCorrespondentsAsync(string? text, CancellationToken ct) =>
+        Task.FromResult<IEnumerable<string>>((_catalogue?.Correspondents ?? []).Select(c => c.Name).Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text, StringComparison.OrdinalIgnoreCase)).Take(20));
+
+    private Task<IEnumerable<string>> SearchTypesAsync(string? text, CancellationToken ct) =>
+        Task.FromResult<IEnumerable<string>>((_catalogue?.DocumentTypes ?? []).Select(c => c.Name).Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text, StringComparison.OrdinalIgnoreCase)).Take(20));
+}

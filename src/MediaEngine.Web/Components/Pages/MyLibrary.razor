@@ -113,7 +113,7 @@
         else if (_myListShelf.Items.Count > 0)
         {
             <div class="my-library-slot my-library-slot--shelf">
-                <MediaTileShelf Shelf="@_myListShelf" HoverMode="MediaTileHoverMode.GlowOnly" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" />
+                <MediaTileShelf Shelf="@_myListShelf" />
             </div>
         }
         else if (!_failed.Contains(MyLibrarySection.MyList))
@@ -146,7 +146,7 @@
         else if (_likedShelf.Items.Count > 0)
         {
             <div class="my-library-slot my-library-slot--shelf">
-                <MediaTileShelf Shelf="@_likedShelf" HoverMode="MediaTileHoverMode.GlowOnly" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" />
+                <MediaTileShelf Shelf="@_likedShelf" />
             </div>
         }
 

@@ -11,14 +11,14 @@
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Vault
 @inject PlaybackSessionController Playback
 @inject ListenContextSidebarState AudioSidebar
 @inject IAudiobookBookmarkActions BookmarkActions
-@inject AudiobookBookmarkActionService BookmarkActionOwner
 @inject IUserPlaybackPreferencesAccessor PlaybackPreferences
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject ListenAudioDragService AudioDrag
-@inject MediaReactionService Reactions
+@inject SavedItemService SavedItems
 @inject UIOrchestratorService Orchestrator
 @inject IServiceProvider Services
 @inject IJSRuntime JS
@@ -49,17 +49,6 @@
     </div>
 }
 
-@if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null && _phoneFullPlayer?.ActiveMode != "bookmarks")
-{
-    <AudiobookBookmarkDialog Context="@_bookmarkDialogContext"
-                             Actions="@BookmarkActions"
-                             AuthorizedAssetIds="@_bookmarkAuthorizedAssetIds"
-                             WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")"
-                             IsMobile="@IsPhonePresentation"
-                             Trigger="@_bookmarkTrigger"
-                             OnClose="DismissBookmarkDialogAsync" />
-}
-
 @if (Playback.HasQueue && Playback.CurrentItem is not null && !Playback.IsVideoMode)
 {
     var dockSnapshot = Playback.CreateSnapshot();
@@ -70,262 +59,154 @@
          @ondragover:preventDefault="true"
          @ondrop:preventDefault="true"
          @ondrop="QueueDraggedItemsAsync">
-        <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="@L["ListenNowPlayingBar_NowPlayingMiniPlayer"].Value">
-                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
-                                  ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
-
-            <div class="listen-player__meta">
-                <AppNativeButton Type="button" Class="listen-player__thumb" @ref="_artButton" OnClick="OpenNowPlaying" AriaLabel="@(IsDesktopNowPlaying ? "Close Now Playing" : "Open Now Playing")">
-                    @if (PlaybackArtworkUrl.ForDrawnSize(Playback.CurrentItem, 64) is not null)
-                    {
-                        <img src="@PlaybackArtworkUrl.ForDrawnSize(Playback.CurrentItem, 64)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(Playback.CurrentItem, 64)" data-image-display="audio-dock-thumbnail" alt="@Playback.CurrentItem.Title" decoding="async" />
-                    }
-                    else
-                    {
-                        <AppMaterialIcon Icon="@FallbackIconFor(Playback.CurrentItem)" Class="listen-player__thumbnail-fallback" />
-                    }
-                <span class="listen-player__art-activity" aria-hidden="true"><PlaybackActivityMark IsPlaying="@Playback.IsPlaying" Size="compact" /></span></AppNativeButton>
-
-                <div class="listen-player__copy">
-                    <div class="listen-player__title">
-                        @if (Playback.IsAudiobookMode && Playback.CurrentChapter is { } miniCurrentChapter)
-                        {
-                            @miniCurrentChapter.Title
-                        }
-                        else if (Playback.IsAudiobookMode && !string.IsNullOrWhiteSpace(Playback.CurrentItem.Subtitle) && !string.Equals(Playback.CurrentItem.Subtitle, Playback.CurrentItem.Title, StringComparison.OrdinalIgnoreCase))
-                        {
-                            @Playback.CurrentItem.Subtitle
-                        }
-                        else if (Playback.IsAudiobookMode && ListenPlaybackIdentityRoutes.Audiobook(Playback.CurrentItem) is { } miniBookFallbackRoute)
-                        {
-                            <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="audiobook" Id="@(Playback.CurrentItem.AudiobookWorkId ?? Playback.CurrentItem.WorkId)" Text="@Playback.CurrentItem.Title" />
-                        }
-                        else if (Playback.IsAudiobookMode)
-                        {
-                            @Playback.CurrentItem.Title
-                        }
-                        else { @Playback.CurrentItem.Title }
-                    </div>
-                    <div class="listen-player__subtitle">
-                        @if (Playback.IsAudiobookMode)
-                        {
-                            @if (ListenPlaybackIdentityRoutes.Audiobook(Playback.CurrentItem) is { } audiobookRoute)
-                            {
-                                <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="audiobook" Id="@(Playback.CurrentItem.AudiobookWorkId ?? Playback.CurrentItem.WorkId)" Text="@Playback.CurrentItem.Title" />
-                            }
-                            else { @Playback.CurrentItem.Title }
-                            @if (Playback.CurrentItem.Authors.Count > 0)
-                            {
-                                <span> · </span>
-                                @for (var authorIndex = 0; authorIndex < Playback.CurrentItem.Authors.Count; authorIndex++)
-                                {
-                                    var author = Playback.CurrentItem.Authors[authorIndex];
-                                    @if (authorIndex > 0) { <text>; </text> }
-                                    @if (ListenPlaybackIdentityRoutes.Contributor(author) is { } authorRoute)
-                                    {
-                                        <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="person" Id="author.PersonId" Text="@author.Name" />
-                                    }
-                                    else { @author.Name }
-                                }
-                            }
-                            else if (!string.IsNullOrWhiteSpace(Playback.CurrentItem.AuthorName))
-                            {
-                                <span> · @Playback.CurrentItem.AuthorName</span>
-                            }
-                        }
-                        else if (Playback.IsMusicMode && ListenPlaybackIdentityRoutes.Artist(Playback.CurrentItem) is { } artistRoute)
-                        {
-                            <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="artist" Id="Playback.CurrentItem.ArtistPersonId" Text="@PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel)" />
-                        }
-                        else { @PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel) }
-                    </div>
-                    @if (!Playback.IsAudiobookMode && !string.IsNullOrWhiteSpace(Playback.CurrentItem.Album))
-                    {
-                        <div class="listen-player__context">
-                            @if (Playback.IsMusicMode && ListenPlaybackIdentityRoutes.Album(Playback.CurrentItem) is { } albumRoute)
-                            {
-                                <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="album" Id="Playback.CurrentItem.AlbumWorkId" Text="@Playback.CurrentItem.Album" />
-                            }
-                            else { @Playback.CurrentItem.Album }
-                        </div>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(Playback.CurrentError))
-                    {
-                        <div class="listen-player__error">@Playback.CurrentError</div>
-                    }
-                </div>
-                @if (Playback.IsMusicMode)
-                {
-                    <span class="listen-player__song-actions"><PlaybackSongActions Item="@Playback.CurrentItem" IsFavorite="_isFavorite"
-                        FavoriteChanged="ToggleFavoriteAsync" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></span>
-                }
-                <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" title="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" />
-            </div>
-
-            <div class="listen-player__transport">
-                <div class="listen-player__transport-line">
-                    <ListenTransportControls Variant="bar" Compact="@IsPhonePresentation"
-                                             PrimaryAppearance="dock"
-                                             IsAudiobookMode="@Playback.IsAudiobookMode"
-                                             IsPlaying="@Playback.IsPlaying"
-                                             NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
-                                             IsMuted="@Playback.IsMuted"
-                                             HasChapters="@(Playback.CurrentItem?.Chapters.Count is > 0)"
-                                             CanPreviousTrack="@(Playback.CurrentIndex > 0)"
-                                             CanNextTrack="@CanPlayNext"
-                                             SkipBackSeconds="@Playback.SkipBackSeconds"
-                                             SkipForwardSeconds="@Playback.SkipForwardSeconds"
-                                             CurrentBrowserStreamUrl="@Playback.CurrentBrowserStreamUrl"
-                                             CurrentTimeSeconds="@Playback.CurrentTimeSeconds"
-                                             PlaybackRate="@Playback.PlaybackRate"
-                                             Volume="@Playback.Volume"
-                                             ShowMusicModeButtons="@Playback.IsMusicMode"
-                                             ShuffleEnabled="@Playback.ShuffleEnabled"
-                                             RepeatEnabled="@(Playback.RepeatMode != PlayerRepeatModes.Off)"
-                                             OnTogglePlay="TogglePlayPauseAsync"
-                                             OnPreviousTrack="PlayPreviousAsync"
-                                             OnNextTrack="PlayNextAsync"
-                                             OnPreviousChapter="PlayPreviousChapterAsync"
-                                             OnNextChapter="PlayNextChapterAsync"
-                                             OnSkipBack="SkipBackAsync"
-                                             OnSkipForward="SkipForwardAsync"
-                                             OnShuffle="ToggleShuffleFromDockAsync"
-                                             OnRepeat="CycleRepeatFromDockAsync" />
-                </div>
-            </div>
-
-            <div class="listen-player__actions">
-                <div class="listen-player__desktop-tools">
-                    @if (Playback.IsAudiobookMode)
-                    {
-                        <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? "Chapters and history" : "History")"
-                                        Glyph="@(HasUsableChapters ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.History)"
-                                        ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
-                            <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" ShowTabs="@HasUsableChapters" OnTabChanged="SelectDockTabAsync" />
-                        </ListenDockTool>
-                        <PlaybackControlStrip Controls="@AudiobookDockControls.Where(control => control.Sheet is not ("chapters" or "history")).OrderBy(control => control.Key == PlaybackControlKey.Speed ? 0 : control.Key == PlaybackControlKey.SleepTimer ? 1 : 2).ToList()"
-                                              Surface="dock" Appearance="bare" Size="compact" AriaLabel="@L["ListenNowPlayingBar_AudiobookPlaybackTools"].Value"
-                                              SpeedValue="@Playback.PlaybackRate" SpeedChanged="SetAudiobookSpeedAsync"
-                                              SpeedMenuOpen="@(_rateMenuOpen && _rateMenuSurface == "dock")" SpeedMenuOpenChanged="HandleRateMenuOpenChangedAsync"
-                                              SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
-                                              SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
-                                              SleepMenuOpen="@(_sleepMenuOpen && _sleepMenuSurface == "dock")" SleepMenuOpenChanged="HandleSleepMenuOpenChangedAsync"
-                                              OnControlActivation="HandleAudiobookDockActivationAsync" />
-
-                    }
-                    else
-                    {
-                        <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
-                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))">
-                            <ListenContextSidebar ActivePanelKey="lyrics" />
-                        </ListenDockTool>
-                        <ListenDockTool PanelKey="queue" Title="@L["ListenNowPlayingBar_QueueAndHistory"].Value" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
-                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
-                            <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" OnTabChanged="SelectDockTabAsync" />
-                        </ListenDockTool>
-                    }
-                    @if (!IsPhonePresentation) {
-                    <span class="listen-player__volume">
-                        <AppTooltip Text="@(Playback.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">
-                            <PlaybackUtilityGlyph Glyph="@(Playback.IsMuted || Playback.Volume <= 0 ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" />
-                        </AppNativeButton></AppTooltip>
-                        <AppRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" disabled="@(!Playback.SoftwareVolumeSupported)" title="@(Playback.SoftwareVolumeSupported ? null : "Use your device volume buttons")" Class="listen-player__volume-slider" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
-                    </span>
-                    }
-                </div>
-                <span class="listen-player__compact-context"><AppTooltip Text="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="@(() => OpenDockPanelAsync(Playback.IsAudiobookMode ? HasUsableChapters ? "chapters" : "history" : "queue", _artButton?.Element))" AriaLabel="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><PlaybackUtilityGlyph Glyph="@(Playback.IsAudiobookMode ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.Queue)" /></AppNativeButton></AppTooltip></span>
-                <span class="listen-player__utility-more">
-                    <ListenDockTool @ref="_utilityTool" PanelKey="utility-more" Title="@L["ListenNowPlayingBar_MorePlaybackControls"].Value" Glyph="PlaybackUtilityGlyphKind.More" ItemKey="@DockItemKey">
-                        <div class="listen-player__utility-menu">
-                            @if (Playback.IsMusicMode)
-                            {
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("queue"))" AriaLabel="@L["ListenNowPlayingBar_Queue"].Value">@L["ListenNowPlayingBar_PlayingNextAndHistory"]</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("lyrics"))" AriaLabel="@L["Common_Lyrics"].Value">@L["Common_Lyrics"]</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("history"))" AriaLabel="@L["Listen_History"].Value">@L["Listen_History"]</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="ToggleShuffleFromDockAsync" aria-pressed="@(Playback.ShuffleEnabled ? "true" : "false")">Shuffle · @(Playback.ShuffleEnabled ? "On" : "Off")</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="CycleRepeatFromDockAsync">@L["ListenNowPlayingBar_Repeat", Playback.RepeatMode]</AppNativeButton>
-                            }
-                            else
-                            {
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync(HasUsableChapters ? "chapters" : "history"))">@(HasUsableChapters ? "Chapters and history" : "History")</AppNativeButton>
-                                <PlaybackControlStrip Controls="@AudiobookDockControls.Where(control => control.Sheet is not ("chapters" or "history")).OrderBy(control => control.Key == PlaybackControlKey.Speed ? 0 : control.Key == PlaybackControlKey.SleepTimer ? 1 : 2).ToList()"
-                                                      Surface="panel" Appearance="bare" Size="compact" AriaLabel="@L["ListenNowPlayingBar_AudiobookPlaybackTools"].Value"
-                                                      SpeedValue="@Playback.PlaybackRate" SpeedChanged="SetAudiobookSpeedAsync"
-                                                      SpeedMenuOpen="@(_rateMenuOpen && _rateMenuSurface == "panel")" SpeedMenuOpenChanged="HandleRateMenuOpenChangedAsync"
-                                                      SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
-                                                      SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
-                                                      SleepMenuOpen="@(_sleepMenuOpen && _sleepMenuSurface == "panel")" SleepMenuOpenChanged="HandleSleepMenuOpenChangedAsync"
-                                                      OnControlActivation="HandleAudiobookDockActivationAsync" />
-                            }
-                            @if (!IsPhonePresentation) {
-                            <div class="listen-player__more-volume">
-                                <AppNativeButton Type="button" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">@(Playback.IsMuted ? "Unmute" : "Mute")</AppNativeButton>
-                                <AppRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
-                            </div>
-                            }
-                        </div>
-                    </ListenDockTool>
-                </span>
-                <AppTooltip Text="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" Class="listen-player__expand">
-                <AppNativeButton Type="button" Class="listen-player__icon listen-player__expand" OnClick="OpenNowPlaying" title="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" AriaLabel="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")">
-                    <PlaybackUtilityGlyph Glyph="@(IsDesktopNowPlaying ? PlaybackUtilityGlyphKind.Collapse : PlaybackUtilityGlyphKind.Expand)" />
-                </AppNativeButton>
-                </AppTooltip>
-                <AppTooltip Text="@L["ListenNowPlayingBar_OpenSeparatePlayerWindow"].Value">
-                <AppNativeButton Type="button" Class="listen-player__icon listen-player__popup" OnClick="OpenPopupAsync" AriaLabel="@L["ListenNowPlayingBar_OpenSeparatePlayerWindow"].Value" data-listen-popup-route="@PopupRoute">
-                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Popup" />
-                </AppNativeButton>
-                </AppTooltip>
-                <AppTooltip Text="@L["ListenNowPlayingBar_ClosePlayer"].Value">
-                <AppNativeButton Type="button" Class="listen-player__icon listen-player__close" OnClick="ClosePlayerAsync" AriaLabel="@L["ListenNowPlayingBar_ClosePlayer"].Value">
-                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
-                </AppNativeButton>
-                </AppTooltip>
-            </div>
-        </PlaybackMiniPlayer>
-        <PlaybackPopover @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
-                         Kind="@(_compactPanelKey == "lyrics" ? "lyrics" : "ordinary")" Trigger="@_compactToolTrigger" ShowHeading="false"
+        <PlaybackShell @ref="_shell" Media="@BarMedia" Surface="dock" Compact="@IsPhonePresentation"
+                       Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")"
+                       AriaLabel="@L["ListenNowPlayingBar_NowPlayingMiniPlayer"].Value"
+                       State="@BarState" Identity="@BarIdentity" ErrorText="@Playback.CurrentError"
+                       ArtworkSrc="@BarArtwork.Src" ArtworkSrcSet="@BarArtwork.SrcSet"
+                       ArtworkAlt="@Playback.CurrentItem.Title" ArtworkDisplay="audio-dock-thumbnail"
+                       ArtworkClick="OpenNowPlaying" ArtworkLabel="@(IsNowPlayingPage ? L["ListenNowPlayingBar_CloseNowPlaying"].Value : L["ListenNowPlayingBar_OpenNowPlaying"].Value)"
+                       PlayButtonAttributes="@PlayButtonAttributes"
+                       Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))"
+                       VolumeSupported="@Playback.SoftwareVolumeSupported" VolumeStep="@VolumeStep"
+                       OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync"
+                       OnTransport="HandleBarTransportAsync" OnTool="HandleBarToolAsync"
+                       HostedTools="@HostedBarTools">
+            <LinkContent Context="link">
+                <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="@link.Kind" Id="link.Id" Text="@link.Text" />
+            </LinkContent>
+            <IdentityActions>
+                @* Music: Favorite, Like, Dislike and More. Audiobooks: Favorite and More (unified player v2 D5, D23). *@
+                <PlaybackIdentityActions Media="@BarMedia" Item="@Playback.CurrentItem" Surface="dock"
+                                         IsFavorite="@BarIsFavorite" FavoriteChanged="@BarFavoriteChanged"
+                                         Snapshot="@dockSnapshot" Commands="@PanelCommands" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))">
+                    <SettingsPanel Context="anchor">
+                        @* Playback settings from the "..." menu (unified player v2 D14): speed and skip lengths for audiobooks, only Playback information for music. *@
+                        <PlaybackSettingsPanel Media="@BarMedia" Surface="dock" ShowTrigger="false" Trigger="@anchor.Trigger" Open="@anchor.Open" OpenChanged="@anchor.OpenChanged"
+                                               ItemKey="@DockItemKey" Rate="@Playback.PlaybackRate" RateChanged="SetAudiobookSpeedAsync"
+                                               SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
+                                               Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />
+                    </SettingsPanel>
+                </PlaybackIdentityActions>
+            </IdentityActions>
+            <TimelineContent>@DockTimeline</TimelineContent>
+            <ToolContent Context="tool">@DockTool(tool)</ToolContent>
+        </PlaybackShell>
+        <PlaybackPanel @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
+                         Kind="@CompactPanelKind(_compactPanelKey, Playback.IsMusicMode)" Trigger="@_compactToolTrigger" ShowHeading="@CompactIsList"
                          OpenChanged="@(open => DockToolChangedAsync(_compactPanelKey, open))">
             <ListenContextSidebar @key="_compactPanelKey" ActivePanelKey="@_compactPanelKey"
-                                 ShowTabs="@(_compactPanelKey is "queue" or "chapters" || _compactPanelKey == "history" && (Playback.IsMusicMode || HasUsableChapters))" OnTabChanged="SelectDockTabAsync" />
-        </PlaybackPopover>
+                                 ShowTabs="@(_compactPanelKey is "queue" || _compactPanelKey == "history" && Playback.IsMusicMode)" />
+        </PlaybackPanel>
 
-        @if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)
+        @* On a phone, Now playing is the expanded player over the page. On a desktop it is the Now playing page (route /listen/now-playing), which
+           the bar sits under; the bar and the page share this one audio element (unified player v2 D24). *@
+        @if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && IsPhonePresentation)
         {
-            @if (!IsPhonePresentation)
-            {
-                <PlaybackDesktopScene Snapshot="@dockSnapshot" Commands="@PanelCommands" PanelKey="@InlinePanelKey"
-                                      PanelChanged="SelectInlinePanelAsync" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
-                                      OverallProgress="@DesktopOverallProgress" OnCollapse="CloseNowPlaying">
-                    <ActionsContent>
-                        <PlaybackPopover Title="@(Playback.IsAudiobookMode ? "More audiobook actions" : "More song actions")" ToolId="now-playing-more" ItemKey="@DockItemKey">
-                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
-                            <ChildContent><PersonalStatusMenuItems WorkId="@Playback.CurrentItem.WorkId" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></ChildContent>
-                        </PlaybackPopover>
-                    </ActionsContent>
-                </PlaybackDesktopScene>
-            }
-            else
-            {
-                <PlaybackFullPlayer @ref="_phoneFullPlayer" Snapshot="@dockSnapshot" Commands="@PanelCommands"
-                                    OnCollapse="CloseNowPlaying" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
-                                    BookmarkRequested="OpenBookmarkDialogAsync" SelectedPanelKey="@InlinePanelKey"
-                                    PanelChanged="SelectDockTabAsync" ModeChanged="FullModeChangedAsync" ToolVisibilityChanged="HandleFullPlayerToolsAsync">
-                    <BookmarksContent>
-                        @if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null) {
-                            <AudiobookBookmarkDialog Context="_bookmarkDialogContext" Actions="BookmarkActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
-                                WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")" Embedded="true" Trigger="_bookmarkTrigger" OnClose="DismissEmbeddedBookmarksAsync" />
-                        } else { <p role="status">@L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"]</p> }
-                    </BookmarksContent>
-                </PlaybackFullPlayer>
-            }
+            <PlaybackFullPlayer @ref="_phoneFullPlayer" Snapshot="@dockSnapshot" Commands="@PanelCommands"
+                                State="@BarState" Identity="@BarIdentity" PlayButtonAttributes="@PlayButtonAttributes"
+                                OnCollapse="CloseNowPlaying" IsFavorite="@BarIsFavorite" FavoriteChanged="@BarFavoriteChanged"
+                                IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))"
+                                OnTransport="HandleBarTransportAsync" OnTool="HandleBarToolAsync" HostedTools="@HostedBarTools"
+                                TimelineContent="@DockTimeline" ToolContent="@DockTool">
+                <SettingsPanel Context="anchor">
+                    <PlaybackSettingsPanel Media="@BarMedia" Surface="dock" ShowTrigger="false" Trigger="@anchor.Trigger" Open="@anchor.Open" OpenChanged="@anchor.OpenChanged"
+                                           ItemKey="@DockItemKey" Rate="@Playback.PlaybackRate" RateChanged="SetAudiobookSpeedAsync"
+                                           SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
+                                           Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />
+                </SettingsPanel>
+            </PlaybackFullPlayer>
         }
     </div>
 }
 
 @code {
-    private async Task FullModeChangedAsync(string? mode) { if (mode != "bookmarks" && _bookmarkDialogContext is not null) await DismissBookmarkDialogAsync(); }
-    private async Task DismissEmbeddedBookmarksAsync() { await DismissBookmarkDialogAsync(); if (_phoneFullPlayer is not null) await _phoneFullPlayer.DismissToolsAsync(); }
+    // The timeline and the tool panels are drawn by the bar and, on a phone, by the expanded player too (unified player v2 D26), so both share these two fragments.
+    private RenderFragment DockTimeline => @<text>
+        @* The timeline above the row (unified player v2 D9): elapsed, the rail, the time left. An audiobook with chapters adds its label between the
+           elapsed time and the rail, "Chapter 8" or "Book · 32%", and the time left reads "−18:32" or "6h 12m left". *@
+        @if (ChapterScope is { } scope)
+        {
+            <PlaybackSeekRail Position="@scope.Elapsed(Playback.CurrentTimeSeconds)" Duration="@scope.Length" ValueChanged="@(seconds => SeekOnHostAsync(scope.ToAbsolute(seconds)))" Surface="dock"
+                              Label="@PlaybackTimelineLabels.ChapterLabel(L, scope.Number)" LabelClick="@(() => SetBarScopeAsync(true))" LabelActionText="@L["ListenNowPlayingBar_ShowWholeBook"].Value"
+                              Summary="@PlaybackTimelineLabels.ChapterSummary(L, scope.Number, scope.Elapsed(Playback.CurrentTimeSeconds), Math.Max(0, scope.Length - scope.Elapsed(Playback.CurrentTimeSeconds)))"
+                              Bookmarks="@BarMarkers(scope)" BookmarkJump="@(marker => SeekOnHostAsync(AudiobookBarMarkers.ToAbsolute(marker, scope)))" />
+        }
+        else if (Playback.IsAudiobookMode && AudiobookWindow is not null)
+        {
+            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                              Label="@PlaybackTimelineLabels.BookLabel(L, Playback.CurrentTimeSeconds, Playback.DurationSeconds)" LabelClick="@(() => SetBarScopeAsync(false))" LabelActionText="@L["ListenNowPlayingBar_ShowThisChapter"].Value"
+                              EndText="@PlaybackTimelineLabels.TimeLeft(L, Playback.DurationSeconds - Playback.CurrentTimeSeconds)"
+                              Summary="@PlaybackTimelineLabels.BookSummary(L, Playback.CurrentTimeSeconds, Playback.DurationSeconds)"
+                              Bookmarks="@BarMarkers(null)" BookmarkJump="@(marker => SeekOnHostAsync(marker.Seconds))" />
+        }
+        else
+        {
+            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                              Bookmarks="@BarMarkers(null)" BookmarkJump="@(marker => SeekOnHostAsync(marker.Seconds))" />
+        }
+</text>;
+
+    private RenderFragment<PlaybackControlDefinition> DockTool => tool => @<text>
+        @switch (tool.Key)
+        {
+            case PlaybackControlKey.Lyrics:
+                @if (IsDesktopNowPlaying)
+                {
+                    @* On the Now playing page the lyrics are a tab of the page, so this tool only selects it. *@
+                    <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
+                                    Inline="true" IsSelected="@(PressedInlineKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" />
+                }
+                else
+                {
+                    @* The Lyrics panel (unified player v2 D17, mockup screen 7); its Open Now playing button does what the artwork does. It stays open when the song changes: the lyrics reset by themselves. *@
+                    <PlaybackLyricsPanel OnOpenNowPlaying="@LyricsOpenNowPlaying" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))" />
+                }
+                break;
+            case PlaybackControlKey.Queue:
+                <ListenDockTool PanelKey="queue" Title="@L["Common_Queue"].Value" ListPanel="true" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
+                                Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
+                    <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" />
+                </ListenDockTool>
+                break;
+            case PlaybackControlKey.Chapters:
+            case PlaybackControlKey.History:
+                <ListenDockTool PanelKey="chapters" Title="@(HasUsableChapters ? L["Common_Chapters"].Value : "History")" ListPanel="@HasUsableChapters"
+                                Glyph="@(HasUsableChapters ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.History)"
+                                ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(PressedInlineKey is "chapters" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync(HasUsableChapters ? "chapters" : "history"))" OnOpenChanged="@(open => DockToolChangedAsync(HasUsableChapters ? "chapters" : "history", open))">
+                    <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" />
+                </ListenDockTool>
+                break;
+            case PlaybackControlKey.Bookmarks:
+                @* The Bookmarks panel (unified player v2 D21, mockup screen 11): the same panel as video, with the book's cover on each row. *@
+                <PlaybackPanel Title="@L["Glossary_Bookmarks"].Value" ToolId="audio-bookmarks" Kind="bookmarks" Surface="dock" ItemKey="@DockItemKey"
+                               OpenChanged="@(open => BookmarksPanelOpenChangedAsync(open))">
+                    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
+                    <ChildContent>
+                        <BookmarksPanel Bookmarks="@BarRailBookmarks" Position="@Playback.CurrentTimeSeconds" ScrollKey="@DockItemKey" UseFrames="false" CoverUrl="@BarArtwork.Src"
+                                        Choice="@BookmarkChoice" ChoiceChanged="ChangeBookmarkChoiceAsync"
+                                        ShowOnTimeline="@ShowBookmarksOnBar" ShowOnTimelineChanged="ChangeShowBookmarksOnBarAsync"
+                                        Add="AddAudiobookBookmarkAsync" Seek="@(bookmark => SeekOnHostAsync(bookmark.Seconds))"
+                                        Edit="EditAudiobookBookmarkAsync" Delete="DeleteAudiobookBookmarkAsync" />
+                    </ChildContent>
+                </PlaybackPanel>
+                break;
+            case PlaybackControlKey.Speed:
+                @* The speed value on the bar opens the Speed panel directly (unified player v2 D15, mockup screen 5). *@
+                <PlaybackSpeedPanel Surface="dock" Rate="@Playback.PlaybackRate" RateChanged="SetAudiobookSpeedAsync" ItemKey="@DockItemKey"
+                                    IsOn="@tool.IsActive" TriggerText="@tool.ValueText" TriggerClass="playback-shell__chip"
+                                    Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "speed")"
+                                    OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("speed", state))" />
+                break;
+            case PlaybackControlKey.SleepTimer:
+                @* The moon opens the Sleep timer panel directly (unified player v2 D16, mockup screen 6). *@
+                <SleepTimerPanel Surface="dock" ItemKey="@DockItemKey" IsOn="@tool.IsActive" State="@Playback.SleepTimerState" Availability="@Playback.SleepTimerAvailability"
+                                 Chapters="@SleepTimerChapters" OffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SelectionChanged="SetAudiobookSleepTimerSelectionAsync"
+                                 Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "sleep")" OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("sleep", state))" />
+                break;
+        }
+</text>;
+
     private IJSObjectReference? _audioCapabilitiesModule;
     private IJSObjectReference? _mediaSessionModule;
     private string? _mediaSessionSubject;
@@ -360,12 +241,25 @@
         }
         await PanelCommands.SendAsync(shown, new() { Action = command, Value = value });
     });
-    private ListenDockTool? _utilityTool;
-    private PlaybackPopover? _compactContext;
+    private PlaybackPanel? _compactContext;
     private ElementReference? _compactToolTrigger;
     private string _compactPanelKey = "queue";
     private bool _openCompactToolPending;
-    private string ContextToolTitle => _compactPanelKey switch { "lyrics" => "Lyrics", "chapters" => "Chapters and history", "history" => "History", _ => "Queue" };
+    private string ContextToolTitle => _compactPanelKey switch { "lyrics" => "Lyrics", "chapters" => L["Common_Chapters"].Value, "history" => Playback.IsMusicMode ? L["Common_Queue"].Value : "History", _ => L["Common_Queue"].Value };
+    private bool CompactIsList => _compactPanelKey is "queue" or "chapters" || _compactPanelKey == "history" && Playback.IsMusicMode;
+
+    /// <summary>
+    /// The panel kind the compact tool panel is drawn as. A music "history" request is the Queue panel opened on its History tab, so it gets the Queue's
+    /// 440 x 440 size (mockup screen 8); an audiobook's history is the ordinary listening-history list.
+    /// </summary>
+    public static string CompactPanelKind(string key, bool isMusic) => key switch
+    {
+        "lyrics" => "lyrics",
+        "queue" => "queue",
+        "chapters" => "chapters",
+        "history" when isMusic => "queue",
+        _ => "ordinary",
+    };
     private bool HasUsableChapters => CurrentChapters.Count > 1;
     private bool IsCurrentDockSnapshot(ListenPlaybackSnapshot snapshot) => !_disposed && snapshot.ProfileId == Playback.ActiveProfileId
         && snapshot.PlaybackRequestVersion == Playback.PlaybackRequestVersion && snapshot.CurrentIndex >= 0 && snapshot.CurrentIndex < snapshot.Queue.Count
@@ -373,10 +267,13 @@
     private string DockItemKey => $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}";
     private PlaybackTransientToolCoordinator? Tools => Services.GetService<PlaybackTransientToolCoordinator>();
     private IPlaybackCommandSink PanelCommands => Services.GetRequiredService<IPlaybackCommandSink>();
-    private bool IsDesktopNowPlaying => Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && !IsPhonePresentation;
+    // Now playing on a desktop is the routed page (unified player v2 D24); its tabs are chosen by the bar's Lyrics, Queue and Chapters tools too.
+    private bool IsNowPlayingPage => NowPlayingRoute.IsNowPlaying(RoutedPageAddress.AbsoluteFor(Nav, Overlay));
+    private bool IsDesktopNowPlaying => IsNowPlayingPage && !IsPhonePresentation;
+    // While the Now playing page is open the bar follows the page's tab: a tool is pressed only for the tab the page shows, and none is pressed when the
+    // page opens on its default tab or shows About (mockup screen 13 presses only Now playing).
+    private string? PressedInlineKey => IsDesktopNowPlaying ? AudioSidebar.NowPlayingTab : InlinePanelKey;
     private string InlinePanelKey => Playback.IsAudiobookMode && !HasUsableChapters ? "history" : AudioSidebar.For(Playback).ActivePanelKey ?? (Playback.IsAudiobookMode ? "chapters" : "queue");
-    private string? DesktopOverallProgress => OverallBookProgress is { } progress
-        ? $"{progress.Label} · {(progress.Total > 0 ? progress.Position / progress.Total * 100 : 0).ToString("0", CultureInfo.InvariantCulture)}% · {FormatTimestamp(progress.Position)} of {FormatTimestamp(progress.Total)}" : null;
     private void ObserveLyricsPresentation()
     {
         if (Services.GetService<PlaybackLyricsPresenter>() is { } presenter)
@@ -385,14 +282,14 @@
     private void HandleAudioPanelChanged() => _ = InvokeAsync(() => { ObserveLyricsPresentation(); StateHasChanged(); });
     private async Task SelectInlinePanelAsync(string key)
     {
-        Tools?.Close(); CloseRateMenu(); CloseSleepMenu();
+        Tools?.Close(); CloseSettingsMenu();
         await SelectDockTabAsync(key);
         await InvokeAsync(StateHasChanged);
     }
     private Task SelectDockTabAsync(string key) => AudioSidebar.OpenPanelAsync(Playback.IsAudiobookMode ? "desktop:audiobook" : "desktop:music", key);
     private async Task DockToolChangedAsync(string key, bool open)
     {
-        if (open) { CloseRateMenu(); CloseSleepMenu(); await SelectDockTabAsync(key); }
+        if (open) { CloseSettingsMenu(); await SelectDockTabAsync(key); }
         else if (Tools?.OpenToolId is null) await AudioSidebar.CloseAsync(Playback);
     }
     private async Task OpenDockPanelAsync(string key, ElementReference? trigger = null)
@@ -400,21 +297,20 @@
         if (IsDesktopNowPlaying) { await SelectInlinePanelAsync(key); return; }
         Tools?.Close();
         _compactPanelKey = key;
-        _compactToolTrigger = trigger ?? _utilityTool?.TriggerElement;
+        _compactToolTrigger = trigger ?? _shell?.ArtworkElement;
         await SelectDockTabAsync(key);
         _openCompactToolPending = _compactToolTrigger is not null;
         await InvokeAsync(StateHasChanged);
     }
-    private const string PopupRoute = "/listen/player-popup";
     private readonly JsonSerializerOptions _jsonOptions = MediaEngineJson.Web;
-    private AppNativeButton? _artButton;
+    private PlaybackShell? _shell;
     private ElementReference _audioRef;
     private ElementReference _playerShellRef;
     private DotNetObjectReference<ListenNowPlayingBar>? _selfReference;
     private PlaybackFullPlayer? _phoneFullPlayer;
     private bool _nowPlayingFocused;
-    private bool _isPhonePresentation;
-    private bool IsPhonePresentation => _isPhonePresentation;
+    private bool _lastPhonePresentation;
+    private bool IsPhonePresentation => PlaybackFormFactor.IsPhone(DeviceContext);
     private IJSObjectReference? _audioPresentationModule;
     private readonly string _audioPresentationObserverId = Guid.NewGuid().ToString("D");
     private bool _restored;
@@ -430,22 +326,15 @@
     private double? _lastAppliedVolume;
     private bool? _lastAppliedMuteState;
     private double? _lastAppliedPlaybackRate;
-    private bool _rateMenuOpen;
-    private string? _rateMenuSurface;
-    private bool _sleepMenuOpen;
-    private string? _sleepMenuSurface;
+    private bool _settingsMenuOpen;
+    private string? _settingsMenuTool;
+    private string? _settingsMenuSurface;
     private long _transientPlaybackRequestVersion = -1;
     private long _nativeSleepTimerBindVersion;
     private readonly object _nativeSleepTimerBindingGate = new();
     private PendingNativeSleepTimerBinding? _pendingNativeSleepTimerBinding;
     private NativeSleepTimerBindingRequest? _nativeSleepTimerBinding;
-    private AudiobookBookmarkActionContext? _bookmarkDialogContext;
-    private AudiobookBookmarkActionSnapshot? _bookmarkDialogSnapshot;
-    private ElementReference _bookmarkTrigger;
-    private IReadOnlySet<Guid> _bookmarkAuthorizedAssetIds = new HashSet<Guid>();
-    private string? _bookmarkWorkTitle;
     private bool _shortcutsRegistered;
-    private bool _scrollActiveChapterPending;
 
     private string PlayerShellClass
     {
@@ -455,7 +344,7 @@
                 ? "listen-player-shell listen-player-shell--listen-route"
                 : "listen-player-shell";
 
-            if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)
+            if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && IsPhonePresentation)
             {
                 classes += " listen-player-shell--expanded";
             }
@@ -481,23 +370,74 @@
         NativeSleepTimerBindingRequest Request,
         long Version,
         TaskCompletionSource<bool> Completion);
-    private AudiobookPlaybackProjection? OverallBookProgress => Playback.IsAudiobookMode
-        ? AudiobookPlaybackProjection.Create(Playback.CurrentItem?.Chapters, Playback.CurrentItem?.AssetId,
-            Playback.CurrentTimeSeconds, Playback.DurationSeconds)
-        : null;
     private Guid? _favoriteSongId, _favoriteProfileId;
     private long _favoriteLoadGeneration;
     private bool _isFavorite;
     private double VolumeStep => Playback.ClientSettings.VolumeStep;
-    private bool _showRemainingTime;
-    private string EndTimeToggleLabel => _showRemainingTime ? "Show total duration" : "Show remaining time";
-    private string EndTimeText => Playback.DurationSeconds <= 0 ? "—"
-        : _showRemainingTime ? $"-{FormatTimestamp(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))}"
-        : FormatTimestamp(Playback.DurationSeconds);
-    private string EndTimeAriaLabel => $"{(_showRemainingTime ? "Remaining time" : "Total duration")} {EndTimeText}. {EndTimeToggleLabel}";
     private string ProgressValueText => $"{FormatTimestamp(Playback.CurrentTimeSeconds)} of {FormatTimestamp(ProgressMax)}";
     private static string FormatVolumeValue(double value) => $"{Math.Clamp((int)Math.Round(value * 100d), 0, 100)}%";
     private Task ToggleShuffleFromDockAsync() => Playback.ToggleShuffleAsync();
+    // The persistent bar (unified player v2 D1 to D6). PlaybackShell draws it from PlaybackControlCatalog; these are the host's answers.
+    private PlaybackBarMedia BarMedia => Playback.IsAudiobookMode ? PlaybackBarMedia.Audiobook : PlaybackBarMedia.Music;
+    private PlaybackSlotArtwork BarArtwork => PlaybackArtworkUrl.ForBarSlot(BarMedia, Playback.CurrentItem);
+    // The music bar shares its Favorite state with Now playing; an audiobook's Favorite is read and written by the identity actions themselves.
+    private bool? BarIsFavorite => Playback.IsMusicMode ? _isFavorite : null;
+    private EventCallback BarFavoriteChanged => Playback.IsMusicMode ? EventCallback.Factory.Create(this, ToggleFavoriteAsync) : default;
+    private PlaybackBarIdentity BarIdentity => Playback.CurrentItem is { } item
+        ? PlaybackBarIdentity.Build(BarMedia, item, chapterTitle: Playback.CurrentChapter?.Title)
+        : new(string.Empty, null, null, []);
+    private PlaybackBarState BarState => new(
+        IsPlaying: Playback.IsPlaying,
+        NeedsUserGestureToStart: Playback.NeedsUserGestureToStart,
+        // Music Previous always acts (it restarts the song at the start of the queue); an audiobook's steps are its chapters.
+        CanPrevious: Playback.IsAudiobookMode ? Playback.CurrentItem?.Chapters.Count is > 0 : true,
+        CanNext: Playback.IsAudiobookMode ? Playback.CurrentItem?.Chapters.Count is > 0 : CanPlayNext,
+        SkipBackSeconds: Playback.SkipBackSeconds,
+        SkipForwardSeconds: Playback.SkipForwardSeconds,
+        ShuffleEnabled: Playback.ShuffleEnabled,
+        RepeatMode: Playback.RepeatMode,
+        PlaybackRate: Playback.PlaybackRate,
+        HasChapters: CurrentChapters.Count > 0,
+        CanBookmark: CanBookmarkCurrent,
+        IsSleepTimerActive: Playback.SleepTimerState.Mode != AudiobookSleepTimerModes.Off,
+        HasQueue: Playback.HasQueue,
+        ActiveSheet: IsNowPlayingPage ? "now-playing" : null);
+    private static readonly IReadOnlySet<PlaybackControlKey> HostedBarTools = new HashSet<PlaybackControlKey>
+    {
+        PlaybackControlKey.Lyrics, PlaybackControlKey.Queue, PlaybackControlKey.Chapters, PlaybackControlKey.History, PlaybackControlKey.Bookmarks, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer,
+    };
+
+    // Starting playback from a click needs the browser's own gesture, so the Play button carries what the page script needs to start the stream.
+    private IReadOnlyDictionary<string, object> PlayButtonAttributes => new Dictionary<string, object>
+    {
+        ["data-listen-audio-toggle"] = "true",
+        ["data-listen-start-url"] = Playback.CurrentBrowserStreamUrl ?? string.Empty,
+        ["data-listen-start-position"] = Playback.CurrentTimeSeconds.ToString("0.###", CultureInfo.InvariantCulture),
+        ["data-listen-start-rate"] = Playback.PlaybackRate.ToString("0.###", CultureInfo.InvariantCulture),
+        ["data-listen-start-volume"] = Playback.Volume.ToString("0.###", CultureInfo.InvariantCulture),
+        ["data-listen-start-muted"] = Playback.IsMuted ? "true" : "false",
+    };
+
+    private Task HandleBarTransportAsync(PlaybackControlDefinition control) => control.Command switch
+    {
+        "toggle-play" => TogglePlayPauseAsync(),
+        "skip-back" => SkipBackAsync(),
+        "skip-forward" => SkipForwardAsync(),
+        "play-previous" => PlayPreviousAsync(),
+        "play-next" => PlayNextAsync(),
+        "play-previous-chapter" => PlayPreviousChapterAsync(),
+        "play-next-chapter" => PlayNextChapterAsync(),
+        "shuffle" => ToggleShuffleFromDockAsync(),
+        "repeat" => CycleRepeatFromDockAsync(),
+        _ => Task.CompletedTask,
+    };
+
+    private Task HandleBarToolAsync(PlaybackControlActivation activation) => activation.Control.Command switch
+    {
+        "open-now-playing" => OpenNowPlaying(),
+        "close" => ClosePlayerAsync(),
+        _ => Task.CompletedTask,
+    };
     private Task CycleRepeatFromDockAsync() => Playback.CycleRepeatModeAsync();
     private void OpenCurrentDetails()
     {
@@ -522,6 +462,9 @@
         _ => "Repeat off",
     };
     private PlaybackExperience CurrentMiniPlayerExperience => Playback.IsAudiobookMode ? PlaybackExperience.Audiobook : PlaybackExperience.Music;
+    // The chapters the Sleep timer counts and stops at: every chapter the book has, as on the phone player, so a one-chapter book offers End of chapter in both.
+    private IReadOnlyList<PlaybackChapterDto> SleepTimerChapters => Playback.CurrentItem?.Chapters ?? [];
+
     private IReadOnlyList<PlaybackChapterDto> CurrentChapters =>
         Playback.CurrentItem is { Chapters.Count: > 1 } item ? item.Chapters : [];
     private IReadOnlyList<PlaybackControlDefinition> AudiobookDockControls => SelectWorkspacePanels(
@@ -565,9 +508,7 @@
         var layout = AudioSidebar.For(Playback);
         return controls.Select(control =>
         {
-            var selected = control.Sheet == "bookmark-dialog"
-                ? _bookmarkDialogContext is not null
-                : control.Sheet is { } sheet && layout.Open && layout.ActivePanelKey == sheet;
+            var selected = control.Sheet is { } sheet && layout.Open && layout.ActivePanelKey == sheet;
             return control with { IsSelected = selected };
         }).ToList();
     }
@@ -585,35 +526,127 @@
     private static string PlayerModeButtonClass(bool active) =>
         $"listen-player__mode-button {(active ? "is-active" : string.Empty)}".Trim();
 
-    private void ReactionChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
+    private void SavedItemsChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
+
+    // Unified player D5: an audiobook's bar never draws chapter ticks (ticks are for bookmarks). It shows the current chapter by default,
+    // or the whole book when the person picks "Book"; the Chapters list is the way to jump around.
+    // The choice is a profile preference shared with the Chapters panel's footer control (PlaybackTimelineScope), so a change in either place shows in both.
+    private PlaybackTimelineScope? _ownTimelineScope;
+    private PlaybackTimelineScope TimelineScope => Services.GetService<PlaybackTimelineScope>() ?? (_ownTimelineScope ??= new PlaybackTimelineScope(JS, Playback));
+    private bool _bookView => TimelineScope.WholeBook;
+    private AudiobookChapterWindow? AudiobookWindow => Playback.IsAudiobookMode
+        ? AudiobookChapterWindow.Find(CurrentChapters, Playback.CurrentTimeSeconds, Playback.DurationSeconds)
+        : null;
+    private AudiobookChapterWindow? ChapterScope => _bookView ? null : AudiobookWindow;
+
+    // Unified player D10: "Show bookmarks on the bar" in the audiobook Settings menu is the profile's own setting, the same one the video player's
+    // bookmark pane and Settings > Playback use. Off by default; while it is on the bar draws the book file's bookmarks (this chapter's, in the chapter view).
+    private UserPlaybackSettingsDto? _playerSettings;
+    private IReadOnlyList<AudiobookBookmarkDto> _barBookmarks = [];
+    private (Guid Profile, Guid Work, Guid Asset)? _barMarkersKey;
+    private int _barMarkersVersion;
+    private bool ShowBookmarksOnBar => _playerSettings?.General.ShowBookmarksOnBar == true;
+    // An audiobook with a file, or a music track with a file while a profile is active (unified player v2 D3, D21, D26): music Bookmarks are the track's
+    // own, keyed by the track's work and file.
+    private bool CanBookmarkCurrent => Playback.CurrentItem?.AssetId is { } assetId && assetId != Guid.Empty
+        && (Playback.IsAudiobookMode || (Playback.IsMusicMode && PlaybackPreferences.ActiveProfileId is { } profile && profile != Guid.Empty));
+    private string BookmarkChoice => _playerSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    private IReadOnlyList<PlaybackRailBookmark> BarRailBookmarks => PlaybackRailBookmark.From(_barBookmarks, Playback.DurationSeconds);
+
+    private IReadOnlyList<PlaybackRailBookmark> BarMarkers(AudiobookChapterWindow? scope) =>
+        CanBookmarkCurrent && _barMarkersKey is { } key && key.Asset == Playback.CurrentItem?.AssetId
+            ? AudiobookBarMarkers.ForBar(_barBookmarks, ShowBookmarksOnBar, BookmarkChoice, Playback.DurationSeconds, scope)
+            : [];
+
+    /// <summary>Loads the profile's playback settings and, while the markers are on, the book file's bookmarks, once per book file (or when forced).</summary>
+    private async Task RefreshBarMarkersAsync(bool force = false)
+    {
+        if (_disposed || !CanBookmarkCurrent || Playback.CurrentItem is not { AssetId: Guid assetId } item
+            || PlaybackPreferences.ActiveProfileId is not Guid profileId)
+        {
+            return;
+        }
+
+        var workId = item.AudiobookWorkId ?? item.WorkId;
+        var key = (profileId, workId, assetId);
+        if (!force && _barMarkersKey == key)
+        {
+            return;
+        }
+
+        _barMarkersKey = key;
+        var version = Interlocked.Increment(ref _barMarkersVersion);
+        try
+        {
+            _playerSettings ??= await PlaybackPreferences.GetAsync();
+            var saved = await AudiobookBarMarkers.LoadAsync(Services.GetService<IEngineApiClient>(), workId, profileId, assetId, CancellationToken.None);
+            if (_disposed || version != _barMarkersVersion) return;
+            _barBookmarks = saved;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
+        {
+            Logger.LogInformation(ex, "The bookmark markers for the bar could not be loaded; the bar shows none.");
+        }
+    }
+
+    /// <summary>
+    /// Switches the audiobook bar between the current chapter and the whole book and remembers the choice for this profile. The label on the timeline
+    /// and the Chapters panel's footer control (Chapter | Whole book) both call it, through the one shared preference.
+    /// </summary>
+    public Task SetBarScopeAsync(bool wholeBook) => TimelineScope.SetWholeBookAsync(wholeBook);
+
+    private void TimelineScopeChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override void OnInitialized()
     {
-        Reactions.Changed += ReactionChanged;
+        SavedItems.Changed += SavedItemsChanged;
+        TimelineScope.Changed += TimelineScopeChanged;
+        _ = TimelineScope.EnsureLoadedAsync();
+        _ = RefreshBarMarkersAsync();
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;
+        _launcher = Services.GetService<NowPlayingLauncher>();
+        if (_launcher is not null) _launcher.Requested += HandleNowPlayingRequested;
         Playback.TransportCommandRequested += HandleTransportCommandAsync;
         Playback.SleepTimerNativeArmRequested += BindNativeSleepTimerAsync;
         Playback.SleepTimerPauseRequested += PauseNativeSleepTimerAsync;
         Playback.SleepTimerNativeSourcePrepareRequested += PrepareNativeSleepTimerSourceAsync;
         Playback.SleepTimerNativePositionRequested += ReadNativeSleepTimerPositionAsync;
-        BookmarkActionOwner.Changed += OnBookmarkActionsChanged;
         Nav.LocationChanged += HandleLocationChanged;
+        _lastPhonePresentation = IsPhonePresentation;
         DeviceContext.OnChanged += HandleDeviceContextChanged;
     }
 
-    private void HandleDeviceContextChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandleDeviceContextChanged() => _ = InvokeAsync(() =>
+    {
+        if (_disposed) return;
+        SyncPhonePresentation();
+        StateHasChanged();
+    });
+
+    // The player is drawn for a phone by one rule (PlaybackFormFactor). When the device stops being a phone while the phone's expanded player is open, the
+    // expanded player closes with it, so the surface is never left at Now playing with nothing to draw it.
+    private void SyncPhonePresentation()
+    {
+        var isPhone = IsPhonePresentation;
+        if (_lastPhonePresentation == isPhone) return;
+        _lastPhonePresentation = isPhone;
+        CloseSettingsMenu(); Tools?.Close();
+        if (!isPhone && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && !IsNowPlayingPage)
+        {
+            Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        }
+    }
 
     [JSInvokable]
     public Task SetAudioPresentationViewport(double width)
     {
         if (_disposed || !double.IsFinite(width) || width <= 0) return Task.CompletedTask;
-        var isPhone = width <= 720;
-        if (_isPhonePresentation == isPhone) return Task.CompletedTask;
-        _isPhonePresentation = isPhone;
-        CloseRateMenu(); CloseSleepMenu(); Tools?.Close();
-        return InvokeAsync(StateHasChanged);
+        // The device context tells every listener (the video overlay too) once the width crosses the phone width; the sync below then runs through it.
+        DeviceContext.SetViewportWidth(width);
+        return InvokeAsync(() => { SyncPhonePresentation(); StateHasChanged(); });
     }
 
     private void HandleLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>
@@ -685,22 +718,17 @@
             await SyncAudioAsync();
         }
 
-        if (_scrollActiveChapterPending)
-        {
-            _scrollActiveChapterPending = false;
-            await JS.InvokeVoidAsync("playbackTools.scrollActiveChapter");
-        }
-
-        var mediaSubject = $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.WorkId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}:{Playback.IsDismissed}:{Playback.IsVideoMode}";
+        var vaultLocked = Services.GetService<NsfwModeState>() is not { Unlocked: true };
+        var mediaSubject = $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.WorkId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}:{Playback.IsDismissed}:{Playback.IsVideoMode}:{Playback.CurrentChapter?.Title}:{Playback.SkipBackSeconds}:{Playback.SkipForwardSeconds}:{vaultLocked}";
         if (_mediaSessionModule is not null && _mediaSessionSubject != mediaSubject)
         {
             _mediaSessionSubject = mediaSubject;
             var current = Playback.CurrentItem;
-            object? metadata = current is null || Playback.IsDismissed || Playback.IsVideoMode ? null : new
-            {
-                title = current.Title, artist = current.Subtitle, album = current.Album,
-                artwork = PlaybackArtworkUrl.ForItem(current, "s") is { } art ? new[] { new { src = new Uri(new Uri(Nav.BaseUri), art).ToString() } } : [],
-            };
+            // One builder serves the audio bar and the video player (unified player v2 D27): same lines as the bar, the actions that work, no metadata for a locked Vault item.
+            var metadata = current is null || Playback.IsDismissed || Playback.IsVideoMode
+                ? null
+                : PlaybackSessionMetadata.Create(new PlaybackSessionContext(BarMedia, current, new Uri(Nav.BaseUri),
+                    ChapterTitle: Playback.CurrentChapter?.Title, SkipBackSeconds: Playback.SkipBackSeconds, SkipForwardSeconds: Playback.SkipForwardSeconds, VaultLocked: vaultLocked));
             await _mediaSessionModule.InvokeVoidAsync("metadata", metadata);
         }
 
@@ -758,13 +786,15 @@
         _ = InvokeAsync(async () =>
         {
             ObserveLyricsPresentation();
+            await StepAsideForNewAudiobookAsync();
             var playbackRequestVersion = Playback.PlaybackRequestVersion;
-            if ((_rateMenuOpen || _sleepMenuOpen) && _transientPlaybackRequestVersion != playbackRequestVersion)
+            if (_settingsMenuOpen && _transientPlaybackRequestVersion != playbackRequestVersion)
             {
-                CloseRateMenu();
-                CloseSleepMenu();
+                CloseSettingsMenu();
             }
             StateHasChanged();
+            _ = TimelineScope.EnsureLoadedAsync(); // a different profile has its own Chapter or Book choice
+            _ = RefreshBarMarkersAsync();
 
             var snapshotJson = Playback.HasQueue
                 ? JsonSerializer.Serialize(Playback.CreateSnapshot(), _jsonOptions)
@@ -1452,6 +1482,13 @@
             return;
         }
 
+        // Music: after a few seconds of play Previous restarts the song; inside the first seconds, or on a second press, it goes back (D3).
+        if (Playback.PressMusicPrevious() == PlaybackPreviousAction.Restart)
+        {
+            await SeekOnHostAsync(0);
+            return;
+        }
+
         await Playback.SkipPreviousAsync();
     }
 
@@ -1566,7 +1603,7 @@
             return;
         }
 
-        CloseRateMenu();
+        CloseSettingsMenu();
 
         switch (control.Key)
         {
@@ -1594,12 +1631,41 @@
             && Tools?.IsPinnedFor("audio-queue") != true && Tools?.IsPinnedFor("audio-chapters") != true) Tools?.Close();
     }
 
+    private NowPlayingLauncher? _launcher;
+
+    // The navbar icon asks the bar, which alone knows whether it is drawn for a phone: a phone toggles its expanded player, a desktop opens or leaves the page.
+    private void HandleNowPlayingRequested() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || !Playback.HasQueue || Playback.IsVideoMode) return;
+        if (IsPhonePresentation && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying) await CloseNowPlaying();
+        else await OpenNowPlaying();
+    });
+
+    // The Lyrics panel's Open Now playing button is offered only where it has somewhere to go; with the phone's Now playing already open it would only close the sheet.
+    private EventCallback LyricsOpenNowPlaying =>
+        IsPhonePresentation && Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying ? default : EventCallback.Factory.Create(this, OpenNowPlaying);
+
     private async Task OpenNowPlaying()
     {
-        Tools?.Close(); CloseRateMenu(); CloseSleepMenu();
-        if (IsDesktopNowPlaying) { await CloseNowPlaying(); return; }
+        Tools?.Close(); CloseSettingsMenu();
+        if (IsNowPlayingPage) { await CloseNowPlaying(); return; }
+        if (!IsPhonePresentation)
+        {
+            // A desktop opens the Now playing page and remembers where the person was, so Back to library and Close return there.
+            OpenNowPlayingPage(returnTo: null);
+            await LoadFavoriteAsync();
+            return;
+        }
         Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
         await LoadFavoriteAsync();
+    }
+
+    private void OpenNowPlayingPage(string? returnTo)
+    {
+        // A stale phone overlay (the window was widened while it was open) must not stay behind the page.
+        if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying) Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        var from = returnTo ?? DetailsOverlayState.ToAppPath(Nav, RoutedPageAddress.AbsoluteFor(Nav, Overlay));
+        Nav.NavigateTo(NowPlayingRoute.Build(from));
     }
 
     private async Task LoadFavoriteAsync()
@@ -1617,11 +1683,11 @@
             && Playback.IsMusicMode && Playback.PlaybackRequestVersion == request
             && Playback.CurrentItem?.WorkId == workId && Playback.ActiveProfileId == profileId;
         if (!Current() || profile?.Id != profileId) return;
-        var reaction = await Reactions.GetReactionAsync(workId, profileId, ProfileEntityKind.Song);
+        var membership = await SavedItems.GetMembershipAsync(ProfileEntityKind.Song, workId);
         if (!Current()) return;
         _favoriteSongId = workId;
         _favoriteProfileId = profileId;
-        _isFavorite = reaction == MediaReaction.Love;
+        _isFavorite = membership.IsSaved;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -1641,48 +1707,50 @@
         }
         if (_favoriteSongId != workId || _favoriteProfileId != profileId) await LoadFavoriteAsync();
         if (!Current()) return;
-        await Reactions.SetReactionAsync(workId, _isFavorite ? MediaReaction.Neutral : MediaReaction.Love, profile.Id, ProfileEntityKind.Song);
+        // Favorite is membership in the profile's saved items; it never sets or clears Like or Dislike.
+        await SavedItems.ToggleAsync(ProfileEntityKind.Song, workId);
         if (Current()) await LoadFavoriteAsync();
+    }
+
+    // Unified player D6: an audiobook started from a details window must not stay under it. The window is a modal dialog, so it would hide the
+    // bar and block the player; step it aside, show Now Playing, and open the same details page again when the person closes Now Playing.
+    // Optional: a host rendered without the details overlay (some tests, the pop-out window) simply never steps one aside.
+    private DetailsOverlayState? DetailsOverlay => Services.GetService<DetailsOverlayState>();
+    private long _lastAudiobookRequestVersion = -1;
+    private string? _returnToDetailsUri;
+
+    private async Task StepAsideForNewAudiobookAsync()
+    {
+        var version = Playback.PlaybackRequestVersion;
+        if (!Playback.IsAudiobookMode || Playback.IsVideoMode || version == _lastAudiobookRequestVersion) return;
+        _lastAudiobookRequestVersion = version;
+        if (DetailsOverlay is not { IsOpen: true } overlay || overlay.Current.OverlayUri is not { } detailsUri) return;
+        if (!await overlay.DismissAsync()) return;
+        if (!IsPhonePresentation)
+        {
+            // The page remembers the details window as the place to come back to.
+            OpenNowPlayingPage(returnTo: detailsUri);
+            return;
+        }
+        _returnToDetailsUri = detailsUri;
+        Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
+    }
+
+    private void ReturnToDetailsAfterNowPlaying()
+    {
+        if (_returnToDetailsUri is not { } uri) return;
+        _returnToDetailsUri = null;
+        if (DetailsOverlay is { IsOpen: false }) Nav.NavigateTo(Nav.ToAbsoluteUri(uri).ToString());
     }
 
     private async Task CloseNowPlaying()
     {
-        Tools?.Close(); CloseRateMenu(); CloseSleepMenu();
+        Tools?.Close(); CloseSettingsMenu();
         Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
-        if (_artButton is not null) await _artButton.Element.FocusAsync();
-    }
-
-    private Task HandleFullPlayerToolsAsync(bool open)
-    {
-        if (open)
-        {
-            if (Tools?.OpenToolId is { } dockTool && dockTool.StartsWith("audio-", StringComparison.Ordinal)) Tools.Close(dockTool);
-            CloseRateMenu(); CloseSleepMenu();
-        }
-        return Task.CompletedTask;
-    }
-
-    private async Task HandleAudiobookPanelControl(PlaybackControlDefinition control)
-    {
-        if (control.IsDisabled || string.IsNullOrWhiteSpace(control.Sheet))
-        {
-            return;
-        }
-
-        if (control.Sheet == "bookmark-dialog")
-        {
-            CloseRateMenu();
-            await OpenBookmarkDialogAsync();
-            return;
-        }
-
-        if (control.Sheet is "chapters" or "history")
-        {
-            await OpenDockPanelAsync(control.Sheet);
-            return;
-        }
-
-        _scrollActiveChapterPending = string.Equals(control.Sheet, "chapters", StringComparison.Ordinal);
+        // Leaving the page is going back to where the person came from; playback keeps going.
+        if (IsNowPlayingPage) Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav, Overlay));
+        ReturnToDetailsAfterNowPlaying();
+        if (_shell?.ArtworkElement is { } artwork) await artwork.FocusAsync();
     }
 
     private async Task SetAudiobookSpeedAsync(double rate)
@@ -1690,71 +1758,68 @@
         await Playback.SetPlaybackRateAsync(rate);
     }
 
-    private async Task HandleRateMenuOpenChangedAsync(PlaybackSpeedMenuState state)
+    // Playback settings (unified player v2 D14): a new skip length is saved on the profile and the bar's skip buttons take it at once.
+    private async Task ChangeSkipLengthAsync(PlaybackSkipChange change)
+    {
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.SetSkipLengthAsync(change)) return;
+        Snackbar.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
+
+    // "Reset playback preferences": the skip lengths go back to the defaults and audiobooks play at normal speed.
+    private async Task ResetPlaybackPreferencesAsync()
+    {
+        if (Playback.IsAudiobookMode) await Playback.SetPlaybackRateAsync(PlaybackSpeedChoices.Normal);
+        if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.ResetSkipLengthsAsync()) return;
+        Snackbar.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+    }
+
+    private async Task HandleSettingsMenuOpenChangedAsync(PlaybackToolOpenState state)
     {
         if (!state.IsOpen)
         {
-            if (_rateMenuSurface == state.Surface)
-            {
-                _rateMenuOpen = false;
-                _rateMenuSurface = null;
-            }
+            if (_settingsMenuSurface == state.Surface) CloseSettingsMenu();
             return;
         }
 
-        _rateMenuOpen = true;
-        _rateMenuSurface = state.Surface;
+        _settingsMenuOpen = true;
+        _settingsMenuSurface = state.Surface;
         _transientPlaybackRequestVersion = Playback.PlaybackRequestVersion;
-        CloseSleepMenu();
-
-        if (_bookmarkDialogContext is { } context)
-        {
-            await DismissBookmarkDialogAsync();
-            await BookmarkActions.CloseAsync(context);
-        }
     }
 
-    private void CloseRateMenu()
+    private void CloseSettingsMenu()
     {
-        _rateMenuOpen = false;
-        _rateMenuSurface = null;
+        _settingsMenuOpen = false;
+        _settingsMenuSurface = null;
+        _settingsMenuTool = null;
     }
 
-    private async Task HandleSleepMenuOpenChangedAsync(PlaybackSpeedMenuState state)
+    // The bar's Speed panel and Sleep timer panel share this state, so only the pressed one is open.
+    private async Task HandleBarSettingsOpenChangedAsync(string tool, PlaybackToolOpenState state)
     {
-        if (!state.IsOpen)
-        {
-            if (_sleepMenuSurface == state.Surface) CloseSleepMenu();
-            return;
-        }
-
-        _sleepMenuOpen = true;
-        _sleepMenuSurface = state.Surface;
-        _transientPlaybackRequestVersion = Playback.PlaybackRequestVersion;
-        CloseRateMenu();
-        if (_bookmarkDialogContext is { } context)
-        {
-            await DismissBookmarkDialogAsync();
-            await BookmarkActions.CloseAsync(context);
-        }
+        if (!state.IsOpen && _settingsMenuTool != tool) return;
+        await HandleSettingsMenuOpenChangedAsync(state);
+        if (state.IsOpen) _settingsMenuTool = tool;
     }
 
-    private void CloseSleepMenu()
+    private async Task BookmarksPanelOpenChangedAsync(bool open)
     {
-        _sleepMenuOpen = false;
-        _sleepMenuSurface = null;
+        if (!open) return;
+        CloseSettingsMenu();
+        await RefreshBarMarkersAsync(force: true);
     }
 
-    private async Task OpenBookmarkDialogAsync(ElementReference trigger = default)
+    /// <summary>
+    /// Saves a bookmark at the moment the button was pressed, with an optional note (unified player v2 D21). The press asks the playback owner for the
+    /// position through a fresh lease, saves it, and releases the lease, so a stale press (the book, profile or session changed) saves nothing.
+    /// </summary>
+    private async Task<bool> AddAudiobookBookmarkAsync(double seconds, string? note)
     {
-        CloseRateMenu();
-        CloseSleepMenu();
+        if (Playback.IsMusicMode) return await AddMusicBookmarkAsync(seconds, note);
         if (!Playback.IsAudiobookMode || Playback.CurrentItem is not { AssetId: Guid assetId } item
             || assetId == Guid.Empty || PlaybackPreferences.ActiveProfileId is not Guid profileId
             || Playback.AudiobookBookSessionLeaseId is not Guid sessionLeaseId)
         {
-            Snackbar.Add(L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"].Value, AppSeverity.Info);
-            return;
+            return false;
         }
 
         var context = new AudiobookBookmarkActionContext(Guid.NewGuid(), profileId,
@@ -1766,55 +1831,100 @@
             var authorized = BookmarkActions is ListenPlaybackCommandActionsClient client
                 ? client.GetAuthorizedAssetIds(context)
                 : new HashSet<Guid>();
-            if (snapshot.Draft is null || !authorized.Contains(assetId))
+            if (snapshot.Draft is not { } draft || !authorized.Contains(assetId))
             {
-                await BookmarkActions.CloseAsync(context);
-                Snackbar.Add(snapshot.Message ?? "The current audiobook position could not be captured.", AppSeverity.Info);
-                return;
+                return false;
             }
 
-            _bookmarkDialogContext = context;
-            _bookmarkDialogSnapshot = snapshot;
-            _bookmarkTrigger = trigger;
-            _bookmarkAuthorizedAssetIds = authorized;
-            _bookmarkWorkTitle = item.Title;
-            await InvokeAsync(StateHasChanged);
+            var result = await BookmarkActions.SaveWithFieldsAsync(context, draft.Generation, authorized,
+                new AudiobookBookmarkSaveFields(note, null, seconds));
+            await RefreshBarMarkersAsync(force: true);
+            return result.Outcome == AudiobookBookmarkOperationOutcome.Success;
         }
         catch (Exception ex)
         {
-            Logger.LogInformation(ex, "The bookmark dialog could not be opened by the active playback owner.");
-            Snackbar.Add(L["ListenNowPlayingBar_TheAudiobookPositionCouldNot"].Value, AppSeverity.Info);
+            Logger.LogWarning(ex, "The audiobook position could not be bookmarked by the active playback owner.");
+            return false;
+        }
+        finally
+        {
+            try { await BookmarkActions.CloseAsync(context); }
+            catch (Exception ex)
+            {
+                Logger.LogDebug(ex, "The bookmark lease could not be released; it was probably released already.");
+            }
         }
     }
 
-    private async Task HandleAudiobookDockActivationAsync(PlaybackControlActivation activation)
+    /// <summary>
+    /// Saves a bookmark on the playing music track at the moment the button was pressed. A song has no chapters and no owner lease, so the press goes
+    /// straight to the Engine, which checks the profile and the file.
+    /// </summary>
+    private async Task<bool> AddMusicBookmarkAsync(double seconds, string? note)
     {
-        if (activation.Control.Sheet == "bookmark-dialog")
+        if (!CanBookmarkCurrent || Playback.CurrentItem is not { AssetId: Guid assetId } item
+            || PlaybackPreferences.ActiveProfileId is not Guid profileId
+            || Services.GetService<IEngineApiClient>() is not { } api
+            || !double.IsFinite(seconds) || seconds < 0)
         {
-            await OpenBookmarkDialogAsync(activation.Trigger);
-            return;
+            return false;
         }
-        await HandleAudiobookPanelControl(activation.Control);
-    }
 
-    private Task DismissBookmarkDialogAsync()
-    {
-        _bookmarkDialogContext = null;
-        _bookmarkDialogSnapshot = null;
-        _bookmarkAuthorizedAssetIds = new HashSet<Guid>();
-        _bookmarkWorkTitle = null;
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private void OnBookmarkActionsChanged(Guid dialogId)
-    {
-        if (_bookmarkDialogContext?.DialogId != dialogId) return;
-        _ = InvokeAsync(async () =>
+        var duration = Playback.DurationSeconds;
+        var request = new CreateAudiobookBookmarkRequestDto
         {
-            if (_bookmarkDialogContext is not { } context) return;
-            _bookmarkDialogSnapshot = await BookmarkActions.GetSnapshotAsync(context);
-            StateHasChanged();
-        });
+            ProfileId = profileId,
+            AssetId = assetId,
+            PositionSeconds = duration > 0 ? Math.Min(seconds, duration) : seconds,
+            DurationSeconds = duration > 0 ? duration : null,
+            Note = note,
+        };
+        var result = await api.CreateAudiobookBookmarkWithOutcomeAsync(item.WorkId, request, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
+    }
+
+    /// <summary>Renames the person's own bookmark and changes its note; the Engine refuses another profile's row.</summary>
+    private async Task<bool> EditAudiobookBookmarkAsync(PlaybackRailBookmark bookmark, string? name, string? note)
+    {
+        if (PlaybackPreferences.ActiveProfileId is not Guid profileId || Services.GetService<IEngineApiClient>() is not { } api) return false;
+        var result = await api.UpdateAudiobookBookmarkWithOutcomeAsync(bookmark.Id, new UpdateAudiobookBookmarkRequestDto { Label = name, Note = note }, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
+    }
+
+    private async Task<bool> DeleteAudiobookBookmarkAsync(PlaybackRailBookmark bookmark)
+    {
+        if (PlaybackPreferences.ActiveProfileId is not Guid profileId || Services.GetService<IEngineApiClient>() is not { } api) return false;
+        var result = await api.DeleteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
+    }
+
+    private async Task ChangeBookmarkChoiceAsync(string choice)
+    {
+        _playerSettings ??= new UserPlaybackSettingsDto();
+        _playerSettings.General.BookmarkFilter = choice;
+        await SaveBookmarkPreferenceAsync(settings => settings.General.BookmarkFilter = choice);
+    }
+
+    private async Task ChangeShowBookmarksOnBarAsync(bool show)
+    {
+        _playerSettings ??= new UserPlaybackSettingsDto();
+        _playerSettings.General.ShowBookmarksOnBar = show;
+        await SaveBookmarkPreferenceAsync(settings => settings.General.ShowBookmarksOnBar = show);
+    }
+
+    private async Task SaveBookmarkPreferenceAsync(Action<UserPlaybackSettingsDto> change)
+    {
+        await InvokeAsync(StateHasChanged);
+        if (Services.GetService<PlayerPreferenceService>() is not { } preferences) return;
+        try { await preferences.UpdateAsync(change); }
+        catch (OperationCanceledException) { Logger.LogDebug("Saving the bookmark choice was cancelled."); }
+        catch (Exception ex) { Logger.LogWarning(ex, "The bookmark choice could not be saved."); }
     }
 
     private async Task SetAudiobookSleepTimerSelectionAsync(AudiobookSleepTimerSelectionDto selection)
@@ -1838,17 +1948,6 @@
         {
             Logger.LogInformation(exception, "The audiobook sleep timer selection no longer matched the active playback session.");
             Snackbar.Add(exception.Message, AppSeverity.Info);
-        }
-    }
-
-    private async Task OpenPopupAsync()
-    {
-        var opened = await JS.InvokeAsync<bool>("listenPlayback.openPopup", PopupRoute);
-        Playback.SetPopupOpen(opened);
-        if (!opened)
-        {
-            await OpenNowPlaying();
-            Snackbar.Add(L["ListenNowPlayingBar_TheSeparatePlayerWindowWas"].Value, AppSeverity.Info);
         }
     }
 
@@ -1897,6 +1996,9 @@
         _closeInProgress = true;
         try
         {
+            // A receiver that is playing this item is let go first, so the element being released is the browser's own again (unified player v2 D28).
+            if (Services.GetService<PlaybackRemoteController>() is { } remote) await remote.EndAsync();
+            if (!Current()) return;
             // Pause only the captured native session before waiting on persistence.
             var position = await JS.InvokeAsync<AudioClosePosition?>("listenPlayback.pauseAudioForClose",
                 item.AssetId, request, source, predecessorSource, pendingSource);
@@ -1914,7 +2016,7 @@
             Tools?.Close();
             await AudioSidebar.CloseAsync(Playback);
             if (!Current()) return;
-            CloseRateMenu(); CloseSleepMenu();
+            CloseSettingsMenu();
             Playback.ClosePlayer();
         }
         finally { _closeInProgress = false; }
@@ -1997,9 +2099,6 @@
         }
     }
 
-    private static string FallbackIconFor(ListenQueueItem item)
-        => IsAudiobook(item) ? AppMaterialIcons.Outlined.Headphones : AppMaterialIcons.Outlined.Album;
-
     private static string PlayerSubtitleFor(ListenQueueItem item, string? sourceLabel)
     {
         if (IsAudiobook(item))
@@ -2043,25 +2142,18 @@
 
     public async ValueTask DisposeAsync()
     {
-        Reactions.Changed -= ReactionChanged;
+        SavedItems.Changed -= SavedItemsChanged;
+        TimelineScope.Changed -= TimelineScopeChanged;
         _disposed = true;
-        var bookmarkContext = _bookmarkDialogContext;
-        _bookmarkDialogContext = null;
-        if (bookmarkContext is not null)
-        {
-            try { await BookmarkActions.CloseAsync(bookmarkContext); }
-            catch (Exception exception) { Logger.LogDebug(exception, "The audiobook bookmark dialog lease was already released during playback bar disposal."); }
-        }
-
         Playback.SetTransportHostNotReady();
         Playback.Changed -= HandlePlaybackChanged;
         AudioSidebar.Changed -= HandleAudioPanelChanged;
+        if (_launcher is not null) _launcher.Requested -= HandleNowPlayingRequested;
         Playback.TransportCommandRequested -= HandleTransportCommandAsync;
         Playback.SleepTimerNativeArmRequested -= BindNativeSleepTimerAsync;
         Playback.SleepTimerPauseRequested -= PauseNativeSleepTimerAsync;
         Playback.SleepTimerNativeSourcePrepareRequested -= PrepareNativeSleepTimerSourceAsync;
         Playback.SleepTimerNativePositionRequested -= ReadNativeSleepTimerPositionAsync;
-        BookmarkActionOwner.Changed -= OnBookmarkActionsChanged;
         Nav.LocationChanged -= HandleLocationChanged;
         DeviceContext.OnChanged -= HandleDeviceContextChanged;
 

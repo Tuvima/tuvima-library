@@ -8,7 +8,7 @@
     border-radius: 0.75rem;
     background:
         linear-gradient(110deg, rgba(7, 13, 23, 0.88), rgba(25, 22, 50, 0.78)),
-        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 7%, transparent);
+        color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 7%, transparent);
     box-shadow: 0 1.1rem 3rem rgba(0, 0, 0, 0.22);
 }
 
@@ -44,7 +44,7 @@
     align-items: center;
     gap: 0.4rem;
     color: rgba(255, 255, 255, 0.76);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     white-space: nowrap;
 }
 
@@ -55,7 +55,7 @@
     overscroll-behavior: auto;
     /* Keep the scrollbar's space so columns don't shift when "Show missing tracks" makes the list scroll. */
     scrollbar-gutter: stable;
-    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 56%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 56%, transparent) transparent;
 }
 
 .tl-embedded-audio__table {
@@ -71,7 +71,7 @@
     padding: 0 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(245, 247, 252, 0.84);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .tl-embedded-audio--audiobook .tl-embedded-audio__table {
@@ -85,7 +85,7 @@
 .tl-embedded-audio__row.is-playing {
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 22%, transparent),
+        color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 22%, transparent),
         rgba(255, 255, 255, 0.025));
 }
 
@@ -123,14 +123,14 @@
 
 ::deep .tl-embedded-audio__row-play:hover,
 ::deep .tl-embedded-audio__row-play:focus-visible {
-    background: var(--tl-detail-primary, #8852FC);
+    background: var(--tl-detail-primary, var(--tl-accent-primary));
 }
 
 .tl-embedded-audio__playing {
     display: grid;
     width: 1.55rem;
     place-items: center;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 62%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 62%, var(--tl-text-on-accent));
 }
 
 .tl-embedded-audio__title {
@@ -155,7 +155,7 @@
     border-radius: 0.15rem;
     background: rgba(255, 255, 255, 0.18);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .tl-embedded-audio__duration {
@@ -175,7 +175,7 @@
 }
 
 .tl-embedded-audio__status .is-owned {
-    color: #54d69b;
+    color: var(--tl-status-success);
 }
 
 .tl-embedded-audio__status .is-missing {
@@ -215,7 +215,7 @@
     gap: 0.6rem;
     min-width: 0;
     color: rgba(205, 214, 238, 0.72);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-chapter-progress {
@@ -223,7 +223,7 @@
     width: min(7rem, 100%);
     height: 0.24rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(148, 163, 184, 0.22);
 }
 
@@ -232,7 +232,7 @@
     inset: 0 auto 0 0;
     width: var(--chapter-progress, 0%);
     border-radius: inherit;
-    background: linear-gradient(90deg, #7c5cff, #b25cff);
+    background: linear-gradient(90deg, var(--tl-accent-primary), var(--tl-accent-primary-hover));
 }
 
 @media (width < 840px) {
@@ -287,7 +287,7 @@
 
 :where(.tl-detail-page) .tl-detail-track-row__number ::deep .tl-icon-root {
     display: none;
-    color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 86%, var(--tl-text-on-accent));
 }
 
 :where(.tl-detail-page) .tl-detail-track-row:hover .tl-detail-track-row__ordinal,
@@ -324,9 +324,9 @@
     place-items: center;
     border-radius: 0.18rem;
     background: rgba(246, 240, 232, 0.20);
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-track-row__duration,
@@ -348,7 +348,7 @@
     height: 1.05rem;
     display: inline-block;
     background:
-        linear-gradient(90deg, transparent 0 18%, color-mix(in srgb, var(--tl-detail-primary, #c9922e) 88%, #fff) 18% 34%, transparent 34% 42%, color-mix(in srgb, var(--tl-detail-primary, #c9922e) 88%, #fff) 42% 58%, transparent 58% 66%, color-mix(in srgb, var(--tl-detail-primary, #c9922e) 88%, #fff) 66% 82%, transparent 82%);
+        linear-gradient(90deg, transparent 0 18%, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 88%, var(--tl-text-on-accent)) 18% 34%, transparent 34% 42%, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 88%, var(--tl-text-on-accent)) 42% 58%, transparent 58% 66%, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 88%, var(--tl-text-on-accent)) 66% 82%, transparent 82%);
 }
 
 :where(.tl-detail-page) .tl-detail-track-toolbar {
@@ -360,7 +360,7 @@
     padding: 0.75rem clamp(1rem, 2vw, 1.35rem);
     border-bottom: 1px solid rgba(255,255,255,0.08);
     color: rgba(246, 240, 232, 0.66);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
 }
 
@@ -374,7 +374,7 @@
 :where(.tl-detail-page) .tl-detail-track-toggle input {
     width: 1.05rem;
     height: 1.05rem;
-    accent-color: var(--tl-detail-primary, #dca53e);
+    accent-color: var(--tl-detail-primary, var(--tl-accent-collection));
 }
 
 :where(.tl-detail-page) .tl-detail-track-table-shell {
@@ -452,15 +452,14 @@
     color: rgba(246, 240, 232, 0.48);
     font: inherit;
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
-    text-transform: uppercase;
     cursor: pointer;
 }
 
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-sort:hover,
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-sort:focus-visible {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 82%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 82%, var(--tl-text-on-accent));
     outline: none;
 }
 
@@ -486,7 +485,7 @@
 :where(.tl-detail-page) .tl-detail-track-row.is-playing ::deep .tl-detail-track-row__play .tl-icon-root,
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-row__play:focus-visible .tl-icon-root {
     display: inline-flex;
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 86%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 86%, var(--tl-text-on-accent));
 }
 
 :where(.tl-detail-page) .tl-detail-track-row:hover .tl-detail-track-row__play .tl-detail-track-row__ordinal,
@@ -515,7 +514,7 @@
 }
 
 :where(.tl-detail-page) .tl-detail-track-status.is-owned {
-    color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 78%, var(--tl-text-on-accent));
 }
 
 :where(.tl-detail-page) .tl-detail-track-status.is-missing {
@@ -554,8 +553,7 @@
     background: rgba(11, 17, 28, 0.64);
     color: rgba(246, 240, 232, 0.52);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    text-transform: uppercase;
+    font-weight: 600;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.08);
 }
 
@@ -591,7 +589,7 @@
 }
 
 :where(.tl-detail-page) .tl-audio-item-table__resizer:hover::after {
-    background: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 80%, #fff);
+    background: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 80%, var(--tl-on-scrim));
 }
 
 :where(.tl-detail-page) .tl-audio-item-table__drag {
@@ -640,33 +638,6 @@
     vertical-align: middle;
 }
 
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-audio-item-table__icon-button {
-    width: 2.2rem;
-    height: 2.2rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 999px;
-    background: rgba(255,255,255,0.04);
-    color: rgba(246, 240, 232, 0.66);
-}
-
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-audio-item-table__icon-button:hover,
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-audio-item-table__icon-button:focus-visible,
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-audio-item-table__icon-button.is-active {
-    border-color: rgba(255, 216, 106, 0.58);
-    color: #ffd76a;
-    background: rgba(255, 216, 106, 0.12);
-    outline: none;
-}
-
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-audio-item-table__icon-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.36;
-}
-
 :where(.tl-detail-page) .tl-audio-item-table__table .tl-detail-chapter-row__progress {
     display: inline-flex;
     width: 100%;
@@ -677,7 +648,7 @@
 :where(.tl-detail-page) .tl-detail-track-empty {
     padding: 1rem 1.2rem 1.2rem;
     color: rgba(246, 240, 232, 0.58);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 @media (width < 840px) {
@@ -700,7 +671,7 @@
 
 :where(.tl-detail-page) .tl-detail-track-row__duration {
         text-align: right;
-        font-size: 0.86rem;
+        font-size: var(--tl-font-size-sm);
     }
 
 }
@@ -725,7 +696,7 @@
 
 :where(.tl-detail-page) .tl-detail-track-table .tl-detail-track-row__duration {
         text-align: left;
-        font-size: 0.86rem;
+        font-size: var(--tl-font-size-sm);
     }
 
 :where(.tl-detail-page) .tl-detail-track-toolbar {
@@ -745,7 +716,7 @@
     border-radius: 0.75rem;
     background:
         linear-gradient(110deg, rgba(7, 13, 23, 0.88), rgba(25, 22, 50, 0.78)),
-        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 7%, transparent);
+        color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 7%, transparent);
     box-shadow: 0 1.1rem 3rem rgba(0, 0, 0, 0.22);
 }
 
@@ -784,7 +755,7 @@
     overflow-y: auto;
     overscroll-behavior: auto;
     scrollbar-gutter: stable;
-    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 56%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 56%, transparent) transparent;
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__table {
@@ -799,11 +770,11 @@
     padding: 0 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(245, 247, 252, 0.84);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__row.is-playing {
-    background: linear-gradient(90deg, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 22%, transparent), rgba(255, 255, 255, 0.025));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 22%, transparent), rgba(255, 255, 255, 0.025));
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__row.is-missing {
@@ -831,14 +802,14 @@
 
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-stage--with-primary .tl-embedded-audio__row-play:hover,
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-stage--with-primary .tl-embedded-audio__row-play:focus-visible {
-    background: var(--tl-detail-primary, #8852FC);
+    background: var(--tl-detail-primary, var(--tl-accent-primary));
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__playing {
     display: grid;
     place-items: center;
     width: 1.55rem;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 62%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 62%, var(--tl-text-on-accent));
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__title {
@@ -863,7 +834,7 @@
     border-radius: 0.15rem;
     background: rgba(255, 255, 255, 0.18);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__duration {
@@ -883,7 +854,7 @@
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__status .is-owned {
-    color: #54d69b;
+    color: var(--tl-status-success);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__status .is-missing {
@@ -1040,11 +1011,10 @@
 .tl-audio-item-table__group-heading {
     padding: 0.55rem 0.65rem 0.3rem;
     color: var(--tl-text-secondary, rgba(245, 247, 252, 0.68));
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-align: left;
-    text-transform: uppercase;
 }
 
 .tl-audio-item-table__group-heading {
@@ -1054,6 +1024,6 @@
 /* A ticked row: tinted with a bar at its start, so it stays visible among the rows. */
 .tl-embedded-audio__row.is-selected,
 :where(.tl-detail-page) .tl-detail-track-table .tl-detail-track-row.is-selected {
-    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 18%, transparent);
-    box-shadow: inset 3px 0 0 var(--tl-accent-primary, #8852FC);
+    background: color-mix(in srgb, var(--tl-accent-primary) 18%, transparent);
+    box-shadow: inset 3px 0 0 var(--tl-accent-primary);
 }

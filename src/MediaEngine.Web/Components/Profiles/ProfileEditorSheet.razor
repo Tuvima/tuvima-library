@@ -7,22 +7,16 @@
    OnSave / OnDelete; the page that opens it talks to the Engine. *@
 @if (Open)
 {
-    <div class="profile-editor-backdrop" @onclick="CloseAsync">
-        <div @ref="_root"
-             class="profile-editor"
-             role="dialog"
-             aria-modal="true"
-             aria-labelledby="profile-editor-title"
-             tabindex="-1"
-             @onclick:stopPropagation="true"
-             @onkeydown="OnKeyDown">
+    @* The shared Window (a Sheet on phones): Escape and a press outside ask CloseAsync, which does nothing while a save is running. *@
+    <AppDialogFrame Open="true" Title="@(IsAdd ? "Add profile" : "Edit profile")" DialogOptions="FrameOptions" OnCancel="CloseAsync">
+        <div @ref="_root" class="profile-editor" tabindex="-1">
             <h2 id="profile-editor-title" class="profile-editor__title">@(IsAdd ? "Add profile" : "Edit profile")</h2>
 
             <div class="profile-editor__preview">
                 <span class="profile-editor__avatar">
                     <ProfileAvatar DisplayName="@_name" ImageUrl="@PreviewImageUrl" Color="@_color" Icon="@_icon" />
                 </span>
-                <AppNativeButton Type="button" Class="who-button profile-editor__change" Disabled="@Saving" OnClick="TogglePicker" aria-expanded="@(_pickerOpen ? "true" : "false")">@(_pickerOpen ? "Done" : "Change")</AppNativeButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profile-editor__change" Disabled="@Saving" OnClick="TogglePicker" aria-expanded="@(_pickerOpen ? "true" : "false")" Label="@(_pickerOpen ? "Done" : "Change")" />
             </div>
 
             @if (_pickerOpen)
@@ -68,15 +62,15 @@
                     <span class="profile-editor__setting-actions">
                         @if (!_changingPin)
                         {
-                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="StartPinChange">@(PinSet ? "Change" : "Set")</AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@Saving" OnClick="StartPinChange" Label="@(PinSet ? "Change" : "Set")" />
                             @if (PinSet)
                             {
-                                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="RemovePin">@L["Common_Remove"]</AppNativeButton>
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Disabled="@Saving" OnClick="RemovePin" Label="@L["Common_Remove"].Value" />
                             }
                         }
                         else
                         {
-                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelPinChange">@L["Search_Cancel"]</AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@Saving" OnClick="CancelPinChange" Label="@L["Search_Cancel"].Value" />
                         }
                     </span>
                 </div>
@@ -112,8 +106,8 @@
                         </label>
                     </fieldset>
                     <div class="profile-editor__row">
-                        <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelDelete">@L["ProfileEditorSheet_KeepProfile"]</AppNativeButton>
-                        <AppNativeButton Type="button" Class="who-button who-button--danger" Disabled="@Saving" OnClick="ConfirmDeleteAsync">@L["Common_Delete"]</AppNativeButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@Saving" OnClick="CancelDelete" Label="@L["ProfileEditorSheet_KeepProfile"].Value" />
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Class="profile-editor__confirm-delete" Disabled="@Saving" OnClick="ConfirmDeleteAsync" Label="@L["Common_Delete"].Value" />
                     </div>
                 </div>
             }
@@ -121,22 +115,21 @@
             <div class="profile-editor__actions">
                 @if (!IsAdd && CanDelete && !SelfEdit)
                 {
-                    <AppNativeButton Type="button" Class="who-button who-button--danger profile-editor__delete" Disabled="@(Saving || _confirmingDelete)" OnClick="AskDelete">@L["Users_DeleteProfileTooltip"]</AppNativeButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Class="profile-editor__delete" Disabled="@(Saving || _confirmingDelete)" OnClick="AskDelete" Label="@L["Users_DeleteProfileTooltip"].Value" />
                 }
                 <span class="profile-editor__spacer"></span>
-                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CloseAsync">@L["Search_Cancel"]</AppNativeButton>
-                <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(!CanSave)" OnClick="SaveAsync">
-                    @(Saving ? "Saving…" : IsAdd ? "Add profile" : "Save")
-                </AppNativeButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@Saving" OnClick="CloseAsync" Label="@L["Search_Cancel"].Value" />
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Class="profile-editor__save" Disabled="@(!CanSave)" OnClick="SaveAsync" Label="@(Saving ? "Saving…" : IsAdd ? "Add profile" : "Save")" />
             </div>
         </div>
-    </div>
+    </AppDialogFrame>
 }
 
 @code {
     private const string DefaultColor = "#8852FC";
     private const long MaxPhotoBytes = 5 * 1024 * 1024;
 
+    private static readonly AppDialogOptions FrameOptions = new() { Size = AppWindowSize.Medium, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
     private ElementReference _root;
     private bool _wasOpen;
     private string _name = string.Empty;
@@ -402,14 +395,6 @@
     private Task ConfirmDeleteAsync() => OnDelete.InvokeAsync(_keepPhotos);
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
-
-    private async Task OnKeyDown(KeyboardEventArgs args)
-    {
-        if (args.Key == "Escape")
-        {
-            await CloseAsync();
-        }
-    }
 
     private async Task SaveAsync()
     {

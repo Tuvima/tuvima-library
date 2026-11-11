@@ -1,0 +1,734 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+@using MediaEngine.Web.Components.Shared.Providers
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Theming
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IServiceProvider Services
+@inject IAppDialogService DialogService
+@inject IJSRuntime JS
+@inject ILogger<PluginSetupPage> Logger
+
+@* The one generator for a plugin's Set up page (Plugins and Integrations screens v5 D46, D49, D50, D52). The Engine builds the page
+   model from the plugin's own JSON, whichever file format it came from, and this draws every card from it: Access (keys, sign-in,
+   links and the declared test), What it provides, Settings, Privacy and About. A plugin supplies content, never layout, and a card
+   it has nothing for is absent. Nothing in the Dashboard names a plugin; PluginPageGeneratorGuardrailTests keeps it that way. *@
+@if (_loading)
+{
+    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["PluginPage_Loading"]" Class="tl-sp-py-8" />
+}
+else if (_page is null)
+{
+    <AppPageState Kind="AppPageStateKind.Error"
+                  Icon="@AppMaterialIcons.Outlined.CloudOff"
+                  Title="@L["PluginPage_Unavailable"]"
+                  Message="The Engine did not return the plugin's settings. Start the Engine and try again." />
+}
+else
+{
+    <div class="plugin-setup" data-testid="plugin-setup-page" data-definition="@_page.Definition">
+        @if (Section == "file")
+        {
+            @* The Plugin file is its own tab, full width (v6 D65). *@
+            var fileCard = _page.Cards.FirstOrDefault(card => card.Key == "file") ?? new PluginSetupCardDto { Key = "file", Title = "Plugin file" };
+            <div id="@CardId("file")" class="plugin-card" data-card="file">
+                <PluginFileCard PluginId="@Plugin.Id" Card="@fileCard" CanView="@CanViewFile" CanEdit="@CanViewFile" Changed="@ChangedAsync" />
+            </div>
+        }
+        else
+        {
+            <AppDetailColumns Side="@SideColumn()" SideLabel="About this plugin">
+                @foreach (var card in _page.Cards.Where(card => card.Key is not ("file" or "about") && !IsDuplicateConnection(card)))
+                {
+                    <div @key="card.Key"
+                         id="@CardId(card.Key)"
+                         class="@CardClass(card)"
+                         data-card="@card.Key"
+                         data-highlighted="@(IsHighlighted(card) ? "true" : null)">
+                        @switch (card.Key)
+                        {
+                            case "access":
+                                @ConnectionCard(card)
+                                break;
+                            case "provides":
+                                @ProvidesCard(card)
+                                break;
+                            case "settings":
+                                <PluginSettingsCard PluginId="@Plugin.Id"
+                                                    SavedSettings="@Plugin.Settings"
+                                                    Enabled="@Plugin.Enabled"
+                                                    Card="@card"
+                                                    Context="@_context"
+                                                    CanChange="@CanChange"
+                                                    Changed="@ChangedAsync" />
+                                break;
+                            case "privacy":
+                                @PrivacyCard(card)
+                                break;
+                        }
+                    </div>
+                }
+            </AppDetailColumns>
+        }
+    </div>
+}
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly HashSet<string> _glowing = new(StringComparer.Ordinal);
+    private PluginSetupPageResponse? _page;
+
+    // Reading a plugin's file follows the same device rule as editing an item: a desktop with a fine, hovering pointer. Unknown means no.
+    private bool CanViewFile => EditorDeviceRule.CanEdit(Services.GetService<DeviceContextService>());
+
+    private PluginSetupContext _context = new(false, false, false);
+    private PluginCheckNowResponse? _testResult;
+    private string? _testing;
+    private string? _problem;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _loadedFor;
+    private bool _scrolled;
+
+    [Parameter, EditorRequired] public PluginSummaryResponse Plugin { get; set; } = default!;
+
+    /// <summary>False on a phone: plugins are read there and not changed.</summary>
+    [Parameter] public bool CanChange { get; set; } = true;
+
+    /// <summary>True when the page was opened from an amber gear: the card that needs the administrator is highlighted.</summary>
+    [Parameter] public bool Attention { get; set; }
+
+    /// <summary>Whether a tool the plugin needs is missing, so a setting that needs it can be greyed with its reason.</summary>
+    [Parameter] public bool ToolMissing { get; set; }
+
+    /// <summary>Whether the plugin is waiting for Local AI.</summary>
+    [Parameter] public bool LocalAiBlocked { get; set; }
+
+    /// <summary>Which part of the plugin's page to draw: <c>setup</c> (the cards and the side column) or <c>file</c> (the Plugin file tab).</summary>
+    [Parameter] public string Section { get; set; } = "setup";
+
+    /// <summary>"Last checked ..." in plain words, shown on the Connection card; empty when never checked.</summary>
+    [Parameter] public string? LastChecked { get; set; }
+
+    /// <summary>In the side column under "Used in": where the plugin is used.</summary>
+    [Parameter] public RenderFragment? ProvidesExtra { get; set; }
+
+    /// <summary>Rows in the side column: who can use it, which libraries (term and description elements).</summary>
+    [Parameter] public RenderFragment? SettingsExtra { get; set; }
+
+    /// <summary>Inside the Privacy card: what the plugin is allowed to do and its capabilities.</summary>
+    [Parameter] public RenderFragment? PrivacyExtra { get; set; }
+
+    /// <summary>In the side column, under the facts: who turned it on, what it needs, what needs it (term and description elements) and removing it.</summary>
+    [Parameter] public RenderFragment? AboutExtra { get; set; }
+
+    /// <summary>Inside the folded "More details" under the side column: who turned it on and similar.</summary>
+    [Parameter] public RenderFragment? MoreExtra { get; set; }
+
+    /// <summary>Raised after anything that the tiles should show (a key added, a setting saved, a test run).</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.Equals(_loadedFor, Plugin.Id, StringComparison.Ordinal))
+        {
+            RefreshContext();
+            return;
+        }
+
+        _loadedFor = Plugin.Id;
+        _testResult = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _page = await ApiClient.GetPluginSetupPageAsync(Plugin.Id, _disposed.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException)
+        {
+            Logger.LogWarning(ex, "Could not read the page of plugin {PluginId}.", Plugin.Id);
+            _page = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        RefreshContext();
+    }
+
+    private void RefreshContext() =>
+        _context = new PluginSetupContext(ToolMissing, LocalAiBlocked, _page?.Cards.FirstOrDefault(card => card.Key == "access")?.NeedsAttention == true);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Attention || _scrolled || _page is null || FlaggedCard() is not { } card)
+        {
+            return;
+        }
+
+        _scrolled = true;
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#" + CardId(card.Key));
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is nothing left to scroll.
+        }
+    }
+
+    // A plugin whose keys live on its own rows (such as a list of servers) has no key of its own, so a second Connection card above the
+    // table would only repeat each row's key state (v6 D64).
+    private bool IsDuplicateConnection(PluginSetupCardDto card) =>
+        card.Key == "access" && card.Credentials.Count == 0
+        && (_page?.Cards.Any(other => other.Controls.Any(control => control.Control == PluginSetupValues.GroupListControl)) ?? false);
+
+    private PluginSetupCardDto? FlaggedCard() => _page?.Cards.FirstOrDefault(card => card.NeedsAttention);
+
+    private bool IsHighlighted(PluginSetupCardDto card) => Attention && card.NeedsAttention;
+
+    private static string CardId(string key) => "plugin-setup-card-" + key;
+
+    private string CardClass(PluginSetupCardDto card) => "plugin-card" + (IsHighlighted(card) ? " plugin-card--attention" : string.Empty);
+
+    private async Task ChangedAsync()
+    {
+        await LoadAsync();
+        await Changed.InvokeAsync();
+    }
+
+    // ------------------------------------------------------------------------------------------------ Connection (v6 D61, D62)
+
+    private bool IsSourceFile => string.Equals(_page?.Definition, "source_file", StringComparison.Ordinal);
+
+    private ProviderCatalogueDto? Catalogue => IsSourceFile ? Services.GetService<ProviderCatalogueService>()?.GetByName(Plugin.Id) : null;
+
+    private IReadOnlyList<PluginSetupActionDto> TestActions(PluginSetupCardDto card)
+    {
+        // Check now merges into Test connection (D59): a plugin that declares a connection test gets that one button.
+        var all = _page?.Cards.SelectMany(candidate => candidate.Actions).DistinctBy(action => action.Kind).ToList() ?? [];
+        return all.Any(action => action.Kind == PluginSetupValues.RowActionTest) ? [.. all.Where(action => action.Kind == PluginSetupValues.RowActionTest)] : all;
+    }
+
+    private enum ConnectionState { NotConnected, Connected, NeedsAttention }
+
+    private ConnectionState StateOf(IReadOnlyList<PluginSetupCredentialDto> household)
+    {
+        if (_testResult is { Result: "not_working" })
+        {
+            return ConnectionState.NeedsAttention;
+        }
+
+        return household.Where(credential => credential.Required).All(credential => credential.Configured == true) && household.Any(credential => credential.Configured == true)
+            ? ConnectionState.Connected
+            : ConnectionState.NotConnected;
+    }
+
+    // One card, three states: a grey "Not connected" row with Connect, a green "Connected" row with Test again and a menu, or an
+    // amber row with the reason in plain words and the one fix as the main button.
+    private RenderFragment ConnectionCard(PluginSetupCardDto card) => @<AppSettingsGroup Heading="@(card.Credentials.Count > 0 ? "Connection" : card.Title)" Class="plugin-page__card" data-testid="plugin-access-card">
+        <div class="plugin-access">
+            @{
+                var household = card.Credentials.Where(credential => credential.Scope != "profile").ToList();
+                var perProfile = card.Credentials.Where(credential => credential.Scope == "profile").ToList();
+            }
+            @if (card.Credentials.Count == 0)
+            {
+                <div class="plugin-conn plugin-conn--connected" data-testid="plugin-access-none">
+                    <AppStatusDot Tick="true" Tone="AppStatusDotTone.Working" Sentence="Nothing to set up" />
+                    <div class="plugin-conn__copy"><strong>Nothing to connect</strong><small>No key or sign-in is needed.</small></div>
+                    @TestButtons(card, "Test")
+                </div>
+            }
+
+            @if (household.Count > 0)
+            {
+                var state = StateOf(household);
+                var name = household[0].Name;
+                var label = string.Join(" and ", household.Select(credential => credential.Label));
+                <div class="@("plugin-conn plugin-conn--" + StateWord(state) + (_glowing.Contains(name) ? " plugin-conn--saved" : string.Empty))"
+                     data-credential="@name" data-testid="plugin-credential" data-state="@StateWord(state)">
+                    <AppStatusDot Tick="true" Tone="@StateTone(state)" Sentence="@StateSentence(state)" />
+                    <div class="plugin-conn__copy">
+                        <strong data-testid="plugin-connection-state">@StateSentence(state)</strong>
+                        <small data-overflow-tooltip="@ConnectionDetail(state, label, household)">@ConnectionDetail(state, label, household)</small>
+                    </div>
+                    <div class="plugin-conn__actions">
+                        @if (CanChange)
+                        {
+                            @if (state == ConnectionState.Connected)
+                            {
+                                @TestButtons(card, "Test again")
+                                <AppRowMenu AriaLabel="@($"Actions for {label}")" Items="@KeyMenu(household)" />
+                            }
+                            else
+                            {
+                                <AppButton Label="@(state == ConnectionState.NeedsAttention ? "Replace key" : "Connect")"
+                                           StartIcon="@AppMaterialIcons.Outlined.Key" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy"
+                                           OnClick="@(() => ConnectAsync(household, state == ConnectionState.NeedsAttention))" data-testid="plugin-connect" />
+                                @TestButtons(card, "Test")
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
+            @foreach (var credential in perProfile)
+            {
+                <div class="plugin-conn plugin-conn--notconnected" data-credential="@credential.Name" data-testid="plugin-credential" data-state="profile">
+                    <AppStatusDot Tick="true" Tone="AppStatusDotTone.Off" Sentence="Each person links their own" />
+                    <div class="plugin-conn__copy">
+                        <strong>@credential.Label</strong>
+                        <small>@(credential.SignInMethod == "device_code" ? "Each person signs in with a code they approve on another device, on their Profile > Accounts page." : "Each person adds it on their Profile > Accounts page.")</small>
+                    </div>
+                    <div class="plugin-conn__actions">
+                        <AppButton Label="Connect account" Href="/settings/overview/accounts" Size="AppControlSize.Compact" data-testid="plugin-connect-account" />
+                    </div>
+                </div>
+            }
+
+            @if (card.Credentials.Count > 0 && !household.Any() && TestActions(card) is { Count: > 0 })
+            {
+                <div class="plugin-conn__actions">@TestButtons(card, "Test")</div>
+            }
+
+            @if (_testResult is { } result)
+            {
+                <AppAlert Tone="@ResultTone(result.Result)" data-testid="plugin-test-result">
+                    @result.Summary
+                    @foreach (var step in result.Steps)
+                    {
+                        <div>@(step.Ok ? "✓" : "✕") @step.Label@(string.IsNullOrWhiteSpace(step.Detail) ? null : $" - {step.Detail}")</div>
+                    }
+                </AppAlert>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_problem))
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="plugin-access-problem">@_problem</AppAlert>
+            }
+        </div>
+    </AppSettingsGroup>;
+
+    private static string StateWord(ConnectionState state) => state switch
+    {
+        ConnectionState.Connected => "connected",
+        ConnectionState.NeedsAttention => "attention",
+        _ => "notconnected",
+    };
+
+    private static AppStatusDotTone StateTone(ConnectionState state) => state switch
+    {
+        ConnectionState.Connected => AppStatusDotTone.Working,
+        ConnectionState.NeedsAttention => AppStatusDotTone.Attention,
+        _ => AppStatusDotTone.Off,
+    };
+
+    private static string StateSentence(ConnectionState state) => state switch
+    {
+        ConnectionState.Connected => "Connected",
+        ConnectionState.NeedsAttention => "Needs attention",
+        _ => "Not connected",
+    };
+
+    private string ConnectionDetail(ConnectionState state, string label, IReadOnlyList<PluginSetupCredentialDto> household) => state switch
+    {
+        ConnectionState.Connected => (!string.IsNullOrWhiteSpace(LastChecked) ? LastChecked! : $"{label} is saved.") + " Keys are encrypted on this server.",
+        ConnectionState.NeedsAttention => _testResult?.Summary is { Length: > 0 } reason ? reason : "The last test did not pass.",
+        _ => household.FirstOrDefault(credential => !string.IsNullOrWhiteSpace(credential.Help))?.Help is { Length: > 0 } help ? help : $"Add {label} to switch this on.",
+    };
+
+    // The declared tests, as buttons. Only the words change (Test, Test again); the plugin's JSON decides whether there is one.
+    private RenderFragment TestButtons(PluginSetupCardDto card, string label) => @<text>
+        @if (TestActions(card) is { Count: > 0 } tests)
+        {
+            <span class="plugin-conn__tests" data-testid="plugin-tests">
+                @foreach (var test in tests)
+                {
+                    var kind = test.Kind;
+                    <AppButton Label="@(_testing == kind ? "Testing…" : tests.Count == 1 && card.Credentials.Count > 0 ? label : test.Label)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
+                               Disabled="@(_testing is not null || !CanChange)" OnClick="@(() => RunTestAsync(kind))" data-testid="@("plugin-test-" + kind)" />
+                }
+            </span>
+        }
+    </text>;
+
+    private IReadOnlyList<AppRowMenuItem> KeyMenu(IReadOnlyList<PluginSetupCredentialDto> household) =>
+    [
+        new() { Label = L["PluginConnect_ReplaceKey"].Value, Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => ConnectAsync(household, true)) },
+        new() { Label = L["PluginConnect_RemoveKey"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RemoveKeyAsync(household)) },
+    ];
+
+    private static bool LongEnough(PluginSetupCredentialDto credential, string? typed) =>
+        !string.IsNullOrWhiteSpace(typed) && typed.Trim().Length >= (credential.MinimumLength ?? 1);
+
+    private static AppUiTone ResultTone(string result) => result switch
+    {
+        "working" => AppUiTone.Success,
+        "not_working" => AppUiTone.Error,
+        _ => AppUiTone.Warning,
+    };
+
+    // The one standard test (D50): the button the plugin's JSON declares and the same result for every plugin.
+    private async Task RunTestAsync(string kind)
+    {
+        if (_testing is not null)
+        {
+            return;
+        }
+
+        _testing = kind;
+        _problem = null;
+        try
+        {
+            if (kind == PluginSetupValues.RowActionTest && IsSourceFile)
+            {
+                var tested = await ApiClient.TestProviderAsync(Plugin.Id, _disposed.Token);
+                _testResult = new PluginCheckNowResponse
+                {
+                    PluginId = Plugin.Id,
+                    Result = tested?.Success == true ? "working" : "not_working",
+                    Summary = tested?.Message is { Length: > 0 } message ? message : "No connection result was returned.",
+                };
+            }
+            else
+            {
+                _testResult = await ApiClient.CheckPluginNowAsync(Plugin.Id, _disposed.Token)
+                    ?? new PluginCheckNowResponse { PluginId = Plugin.Id, Result = "cannot_check", Summary = "The Engine could not be reached." };
+            }
+        }
+        finally
+        {
+            _testing = null;
+        }
+
+        await Changed.InvokeAsync();
+    }
+
+    // Connect, Replace key: a metadata source uses the provider's own dialog (it tests the key and saves it only when it works); any
+    // other plugin uses the one Connect dialog, where Save stays off until a test passes (v6 D62).
+    private async Task ConnectAsync(IReadOnlyList<PluginSetupCredentialDto> household, bool replacing)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        if (IsSourceFile && Catalogue is { } catalogue)
+        {
+            await OpenKeyDialogAsync(catalogue, replacing ? ProviderOnboardingOperation.Replace : ProviderOnboardingOperation.Connect);
+            return;
+        }
+
+        var fields = household.Select(credential => new PluginConnectField(
+            credential.Name, credential.Label, Secret: true, Required: credential.Required,
+            Help: string.IsNullOrWhiteSpace(credential.Help) ? null : credential.Help)).ToList();
+        var link = _page?.Cards.SelectMany(card => card.Links).FirstOrDefault()?.Url;
+        var title = replacing ? "Replace key" : "Connect " + Plugin.Name;
+        var parameters = new AppDialogParameters<PluginConnectDialog>
+        {
+            { component => component.Title, title },
+            { component => component.Summary, "Paste it here and test it. It is only kept when the test passes." },
+            { component => component.HelpUrl, link },
+            { component => component.Fields, fields },
+            { component => component.Test, (Func<IReadOnlyDictionary<string, string>, Task<PluginConnectResult>>)(values => TestAndKeepAsync(household, values)) },
+            { component => component.Discard, (Func<Task>)(() => DiscardAsync(household, replacing)) },
+        };
+        var dialog = await DialogService.ShowAsync<PluginConnectDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            _glowing.Clear();
+            _glowing.Add(household[0].Name);
+            await ChangedAsync();
+        }
+    }
+
+    // Keeps the typed values, runs the plugin's own check, and takes them back out when it does not pass (a first connect only: a
+    // replaced key cannot be put back, so a failed replacement says so plainly).
+    private async Task<PluginConnectResult> TestAndKeepAsync(IReadOnlyList<PluginSetupCredentialDto> household, IReadOnlyDictionary<string, string> values)
+    {
+        foreach (var credential in household)
+        {
+            var typed = values.GetValueOrDefault(credential.Name)?.Trim() ?? string.Empty;
+            if (typed.Length == 0 && !credential.Required)
+            {
+                continue;
+            }
+
+            if (!LongEnough(credential, typed))
+            {
+                return new PluginConnectResult(false, $"{credential.Label} is too short.");
+            }
+
+            if (!await ApiClient.SetPluginSecretAsync(Plugin.Id, credential.Name, typed, _disposed.Token))
+            {
+                return new PluginConnectResult(false, ApiClient.LastError ?? $"{credential.Label} could not be saved.");
+            }
+        }
+
+        if (TestActions(_page!.Cards.First(card => card.Key == "access")).Count == 0)
+        {
+            return new PluginConnectResult(true, "Saved. This plugin has no connection test.");
+        }
+
+        var check = await ApiClient.CheckPluginNowAsync(Plugin.Id, _disposed.Token);
+        _testResult = check;
+        if (check is { Result: "working" })
+        {
+            return new PluginConnectResult(true, "Connection verified.");
+        }
+
+        var wasConnected = household.All(credential => credential.Configured == true);
+        if (!wasConnected)
+        {
+            await DiscardAsync(household, false);
+        }
+
+        return new PluginConnectResult(false, (check?.Summary is { Length: > 0 } reason ? reason : "The test did not pass.") + (wasConnected ? " The previous key was replaced; try another." : string.Empty));
+    }
+
+    private async Task DiscardAsync(IReadOnlyList<PluginSetupCredentialDto> household, bool replacing)
+    {
+        if (replacing)
+        {
+            return;
+        }
+
+        foreach (var credential in household)
+        {
+            await ApiClient.RemovePluginSecretAsync(Plugin.Id, credential.Name, _disposed.Token);
+        }
+    }
+
+    private async Task RemoveKeyAsync(IReadOnlyList<PluginSetupCredentialDto> household)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        if (IsSourceFile && Catalogue is { } catalogue)
+        {
+            await RemoveSourceKeyAsync(catalogue);
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            $"Remove the {Plugin.Name} key?",
+            "It will stop running until it is connected again.",
+            primaryLabel: "Remove",
+            secondaryLabel: "Keep",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _busy = true;
+        _problem = null;
+        try
+        {
+            foreach (var credential in household)
+            {
+                if (!await ApiClient.RemovePluginSecretAsync(Plugin.Id, credential.Name, _disposed.Token))
+                {
+                    _problem = ApiClient.LastError ?? "The key could not be removed.";
+                    return;
+                }
+            }
+
+            _testResult = null;
+            await ChangedAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OpenKeyDialogAsync(ProviderCatalogueDto catalogue, ProviderOnboardingOperation operation)
+    {
+        var parameters = new AppDialogParameters<ProviderOnboardingDialog>
+        {
+            { component => component.Catalogue, catalogue },
+            { component => component.Operation, operation },
+        };
+        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Small, // the one Connect dialog is a short card, not a wide window (v6 D62)
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: ProviderOnboardingDialogResult })
+        {
+            return;
+        }
+
+        Services.GetService<ProviderCatalogueService>()?.Invalidate();
+        await ChangedAsync();
+    }
+
+    private async Task RemoveSourceKeyAsync(ProviderCatalogueDto catalogue)
+    {
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            $"Remove the {catalogue.DisplayName} key?",
+            "It will stop running until it is connected again.",
+            primaryLabel: "Remove",
+            secondaryLabel: "Keep",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        var result = await ApiClient.RemoveProviderCredentialsAsync(Plugin.Id, _disposed.Token);
+        if (result?.Success != true)
+        {
+            _problem = result?.Message ?? "The key could not be removed.";
+            return;
+        }
+
+        Services.GetService<ProviderCatalogueService>()?.Invalidate();
+        await ChangedAsync();
+    }
+
+    // ------------------------------------------------------------------------------------------------ What it provides
+
+    private RenderFragment ProvidesCard(PluginSetupCardDto card) => @<AppSettingsGroup Heading="@card.Title" Class="plugin-page__card" data-testid="plugin-provides-card">
+        @* Icon tiles with the name and one sentence (v6 D72); the plain lists only appear when the plugin declared no kinds. *@
+        <PluginProvidesLine Plugin="@Plugin" Mode="PluginProvidesMode.Card" />
+        @if (Plugin.Provides.Count == 0 && card.MediaTypes.Count > 0)
+        {
+            <p class="plugin-card__line" data-testid="plugin-works-on">Works on: @string.Join(", ", card.MediaTypes)</p>
+        }
+        @if (Plugin.Provides.Count == 0 && card.Supplies.Count > 0)
+        {
+            <ul class="plugin-card__list" data-testid="plugin-supplies">
+                @foreach (var supply in card.Supplies)
+                {
+                    <li>@supply</li>
+                }
+            </ul>
+        }
+        @ProvidesExtra
+    </AppSettingsGroup>;
+
+    // ------------------------------------------------------------------------------------------------ Privacy
+
+    private RenderFragment PrivacyCard(PluginSetupCardDto card) => @<AppSettingsGroup Heading="@card.Title" Class="plugin-page__card" data-testid="plugin-privacy-card">
+        <p class="plugin-card__line" data-testid="plugin-leaves">@(string.IsNullOrWhiteSpace(card.DataLeaving) ? "Nothing leaves this machine." : card.DataLeaving)</p>
+        @if (card.Destinations.Count > 0)
+        {
+            <ul class="plugin-card__list" data-testid="plugin-destinations">
+                @foreach (var destination in card.Destinations)
+                {
+                    <li><strong>@destination.Host</strong>@(string.IsNullOrWhiteSpace(destination.Sends) ? null : " - " + destination.Sends)@(destination.MaxRequestsPerMinute is { } rate ? $" (at most {rate} a minute)" : null)</li>
+                }
+            </ul>
+        }
+        @if (!string.IsNullOrWhiteSpace(card.VaultWords))
+        {
+            <p class="plugin-card__line" data-testid="plugin-vault-words">@card.VaultWords</p>
+        }
+        @PrivacyExtra
+        @if (card.Links.Count > 0)
+        {
+            <div class="plugin-access__actions" data-testid="plugin-privacy-links">
+                @foreach (var link in card.Links)
+                {
+                    <AppButton Label="@link.Label" Href="@link.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+                }
+            </div>
+        }
+    </AppSettingsGroup>;
+
+    // ------------------------------------------------------------------------------------------------ Side column (v6 D60)
+
+    // The quiet facts, kept out of the main column so it holds only things you act on: where it is used, who can use it, its version and
+    // how it runs, what it needs, and removing it. The About card is retired; its content lives here.
+    private RenderFragment SideColumn() => @<text>
+        @{
+            var about = _page?.Cards.FirstOrDefault(candidate => candidate.Key == "about");
+        }
+        @{
+            var version = about?.Facts.FirstOrDefault(fact => fact.Label == "Version")?.Value;
+            var from = about?.Facts.FirstOrDefault(fact => fact.Label == "From")?.Value;
+            var more = about?.Facts.Where(fact => fact.Label is not ("Version" or "From")).ToList() ?? [];
+            var access = _page?.Cards.FirstOrDefault(candidate => candidate.Key == "access")?.Access;
+        }
+        @* Four quiet facts (v6 D60): where it is used, who can use it, its version and origin, and removing it. The rest is one fold away. *@
+        <dl data-testid="plugin-side-facts">
+            @if (ProvidesExtra is not null)
+            {
+                <dt>Used in</dt>
+                <dd>@ProvidesExtra</dd>
+            }
+            @SettingsExtra
+            @if (!string.IsNullOrWhiteSpace(version) || !string.IsNullOrWhiteSpace(from))
+            {
+                <dt>Version</dt>
+                <dd data-testid="plugin-version">@string.Join(" · ", new[] { version, from }.Where(part => !string.IsNullOrWhiteSpace(part)))</dd>
+            }
+            @AboutExtra
+        </dl>
+        @if (more.Count > 0 || access is not null || MoreExtra is not null)
+        {
+            <details class="plugin-more" data-testid="plugin-more-details">
+                <summary>More details</summary>
+                <dl>
+                    @foreach (var fact in more)
+                    {
+                        <dt>@fact.Label</dt>
+                        <dd>@fact.Value</dd>
+                    }
+                    @if (access is not null)
+                    {
+                        <dt>Weight</dt>
+                        <dd data-testid="plugin-weight">@WeightWords(access.WeightClass)</dd>
+                    }
+                    @MoreExtra
+                </dl>
+            </details>
+        }
+        @if (about is not null && !string.IsNullOrWhiteSpace(about.Text))
+        {
+            <p class="plugin-card__line" data-testid="plugin-about-text">@about.Text</p>
+        }
+        @if (CanViewFile)
+        {
+            <AppButton Label="Plugin file" StartIcon="@AppMaterialIcons.Outlined.Description" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
+                       Href="@($"/settings/plugins/{Uri.EscapeDataString(Plugin.Id)}/file")" data-testid="plugin-file-link" />
+        }
+    </text>;
+
+    private static string WeightWords(string weight) => weight switch
+    {
+        "heavy" => "Heavy: works when the machine is idle",
+        "medium" => "Medium",
+        _ => "Light",
+    };
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

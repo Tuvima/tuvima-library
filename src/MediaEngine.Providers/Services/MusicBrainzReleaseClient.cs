@@ -18,7 +18,7 @@ public sealed record MusicBrainzAlbumRelease(
 /// Album manifests must use this release identity rather than repeat a looser
 /// title search that can drift to a compilation or expanded edition.
 /// </summary>
-public sealed class MusicBrainzReleaseClient(
+public sealed partial class MusicBrainzReleaseClient(
     IHttpClientFactory httpFactory,
     IProviderRateLimiterCoordinator rateLimiter,
     ILogger<MusicBrainzReleaseClient> logger,

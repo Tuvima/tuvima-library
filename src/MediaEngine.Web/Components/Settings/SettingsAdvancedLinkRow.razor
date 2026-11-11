@@ -1,18 +1,14 @@
 @namespace MediaEngine.Web.Components.Settings
 
-<div class="settings-advanced-link-row">
-    <div class="settings-advanced-link-row__copy">
-        <span class="settings-advanced-link-row__title">@Title</span>
-        @if (!string.IsNullOrWhiteSpace(Description))
-        {
-            <span class="settings-advanced-link-row__description">@Description</span>
-        }
-    </div>
-    <a class="settings-advanced-link-row__action" href="@Href">
-        <span>@ActionLabel</span>
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" aria-hidden="true" />
-    </a>
-</div>
+@* A settings row whose control is a link to another page: label and helper left, the link at the right end. *@
+<AppSettingRow Label="@Title" Helper="@Description">
+    <Control>
+        <a class="settings-advanced-link-row__action" href="@Href">
+            <span>@ActionLabel</span>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" aria-hidden="true" />
+        </a>
+    </Control>
+</AppSettingRow>
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;

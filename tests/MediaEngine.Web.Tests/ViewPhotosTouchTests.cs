@@ -6,6 +6,7 @@ using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Web.Components.Artwork;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -54,6 +55,32 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
             .Add(timeline => timeline.OnToggleSelection, EventCallback.Factory.Create<Guid>(this, id => toggled?.Invoke(id)))
             .Add(timeline => timeline.OnOpen, EventCallback.Factory.Create<LocalAssetDto>(this, item => opened?.Invoke(item))));
+
+    [Fact]
+    public async Task ATileMenuAppearsOnlyWhenTheSharedRuleOffersSomething()
+    {
+        await UseAsync("desktop", touch: false);
+
+        var without = RenderTimeline([Photo("one")]);
+        Assert.Empty(without.FindAll(".view-tile__menu"));
+
+        var with = Render<ViewPhotoTimeline>(parameters => parameters
+            .Add(timeline => timeline.Items, [Photo("one"), Photo("two")])
+            .Add(timeline => timeline.Selected, new HashSet<Guid>())
+            .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.ActionsFor, _ => ViewActions.Edit)
+            .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
+        Assert.Equal(2, with.FindAll(".view-tile__menu").Count);
+
+        var picking = Render<ViewPhotoTimeline>(parameters => parameters
+            .Add(timeline => timeline.Items, [Photo("one")])
+            .Add(timeline => timeline.Selected, new HashSet<Guid>())
+            .Add(timeline => timeline.SelectMode, true)
+            .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.ActionsFor, _ => ViewActions.Edit)
+            .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
+        Assert.Empty(picking.FindAll(".view-tile__menu"));
+    }
 
     [Fact]
     public async Task TouchTilesCarryNoDraggableAttribute()
@@ -150,14 +177,14 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Equal("3 selected", cut.Find(".view-selection-toolbar__count").TextContent.Trim());
         Assert.Contains("Add to Gallery", cut.Markup, StringComparison.Ordinal);
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
-        Assert.Equal(["Share", "Download"], actions);
+        Assert.Equal(["Download", "Share"], actions);
         Assert.Single(cut.FindAll(".app-row-menu__trigger"));
         Assert.Empty(cut.FindAll("[role='menuitem']"));
 
         // The Gallery menu only renders its items while open, so open it before judging what it offers.
         Assert.Equal(["Holidays"], OpenGalleryMenu(cut));
 
-        cut.FindAll(".view-selection-toolbar__action")[1].Click();
+        cut.FindAll(".view-selection-toolbar__action")[0].Click();
         cut.Find(".view-selection-toolbar__close").Click();
 
         Assert.Equal(1, downloaded);
@@ -195,7 +222,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
         Assert.DoesNotContain("view-selection-toolbar--phone", cut.Markup, StringComparison.Ordinal);
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
-        Assert.Equal(["Submit to Shared Library", "Favorite", "Trash"], actions);
+        Assert.Equal(["Favorite", "Submit to Shared Library", "Trash"], actions);
         Assert.Empty(cut.FindAll(".app-row-menu__trigger"));
         Assert.Equal("Clear photo selection", cut.Find(".view-selection-toolbar__close").GetAttribute("aria-label"));
         Assert.Equal(["New Gallery"], OpenGalleryMenu(cut));
@@ -258,7 +285,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task DesktopPhotosBarOffersNewGalleryButNoDownload()
+    public async Task DesktopPhotosBarOffersNewGalleryAndDownload()
     {
         await UseAsync("desktop", touch: false);
         RegisterPageServices(new PhotosHandler([Photo("one"), Photo("two")]));
@@ -270,7 +297,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
         var bar = cut.Find(".view-selection-toolbar");
         Assert.DoesNotContain("view-selection-toolbar--phone", bar.ClassList);
-        Assert.DoesNotContain("Download", bar.TextContent, StringComparison.Ordinal);
+        Assert.Single(bar.QuerySelectorAll("button[aria-label*='Download']"));
         Assert.Equal(["Holidays", "New Gallery"], OpenGalleryMenu(cut));
         Assert.Single(cut.FindAll("button[aria-label='Create in Galleries']"));
     }
@@ -385,7 +412,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         var pageStyles = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "ViewPage.razor.css"));
         Assert.DoesNotContain("min-width: 440px", pageStyles, StringComparison.Ordinal);
         var barStyles = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Shared", "AppDiscoveryFilterBar.razor.css"));
-        Assert.Contains("@media(max-width:1050px){.app-discovery-filter{grid-template-columns:1fr}.app-discovery-filter__controls{justify-content:flex-end}.app-discovery-filter__tabs{flex:1;min-width:0}", barStyles, StringComparison.Ordinal);
+        Assert.Contains("@media(max-width:1050px){.app-discovery-filter{grid-template-columns:minmax(0,1fr)}.app-discovery-filter__controls{justify-content:flex-end;min-width:0}.app-discovery-filter__tabs{flex:1;min-width:0}", barStyles, StringComparison.Ordinal);
     }
 
     [Fact]

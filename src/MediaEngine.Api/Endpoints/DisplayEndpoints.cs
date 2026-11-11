@@ -25,6 +25,26 @@ public static class DisplayEndpoints
         var group = app.MapGroup("/api/v1/display")
             .WithTags("Display");
 
+        // One place applies the New tag rule (Library activity D14) to every page of cards the Engine returns.
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            var result = await next(context);
+            if (result is not IValueHttpResult { Value: { } value })
+            {
+                return result;
+            }
+
+            var rule = context.HttpContext.RequestServices.GetRequiredService<NewTagRule>();
+            var ct = context.HttpContext.RequestAborted;
+            return value switch
+            {
+                DisplayPageDto page => Results.Ok(await rule.MarkAsync(page, ct)),
+                DisplayShelfPageDto shelf => Results.Ok(await rule.MarkAsync(shelf, ct)),
+                DisplayGridPageDto grid => Results.Ok(await rule.MarkAsync(grid, ct)),
+                _ => result,
+            };
+        });
+
         group.MapGet("/home", async (
             bool? includeCatalog,
             HttpContext http,
@@ -57,6 +77,7 @@ public static class DisplayEndpoints
             string? themes,
             Guid? libraryId,
             bool? unmatched,
+            string? folder,
             ClaimsPrincipal user,
             DisplayComposerService display,
             CancellationToken ct) =>
@@ -80,10 +101,11 @@ public static class DisplayEndpoints
                 vibes,
                 themes,
                 libraryId,
-                unmatched == true));
+                unmatched == true,
+                folder));
         })
             .WithName("GetDisplayBrowse")
-            .WithSummary("Returns cross-platform display cards for a media lane or browse query; libraryId narrows it to one library, unmatched=true to files the Engine could not match.")
+            .WithSummary("Returns cross-platform display cards for a media lane or browse query; libraryId narrows it to one library, folder to one folder (source id) of it, unmatched=true to files the Engine could not match.")
             .Produces<DisplayPageDto>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 

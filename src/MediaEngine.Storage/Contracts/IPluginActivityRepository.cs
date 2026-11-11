@@ -44,6 +44,9 @@ public interface IPluginActivityRepository
     /// <summary>How many failures the plugin has had since <paramref name="since"/>.</summary>
     Task<int> CountFailuresSinceAsync(string pluginId, DateTimeOffset since, CancellationToken ct = default);
 
+    /// <summary>Removes one plugin's lines older than <paramref name="olderThan"/> (the plugin's logging cap, by age). Returns how many were removed.</summary>
+    Task<int> TrimOlderThanAsync(string pluginId, DateTimeOffset olderThan, CancellationToken ct = default) => Task.FromResult(0);
+
     /// <summary>Removes every line of one plugin. Returns how many were removed.</summary>
     Task<int> DeleteForPluginAsync(string pluginId, CancellationToken ct = default);
 

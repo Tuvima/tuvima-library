@@ -730,6 +730,22 @@ public sealed class RepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task CanonicalValueArray_GenreSentFromAProviderAsOneJoinedString_IsStoredAsSeparateGenres()
+    {
+        var arrays = new CanonicalValueArrayRepository(_db);
+        var entity = Guid.NewGuid();
+
+        await arrays.SetValuesAsync(entity, MetadataFieldConstants.Genre, [
+            new CanonicalArrayEntry { Ordinal = 0, Value = "Action, Drama; Science Fiction" },
+            new CanonicalArrayEntry { Ordinal = 1, Value = "drama" },
+        ]);
+
+        var stored = await arrays.GetValuesAsync(entity, MetadataFieldConstants.Genre);
+        Assert.Equal(["Action", "Drama", "Science Fiction"], stored.Select(entry => entry.Value).ToArray());
+        Assert.Equal([0, 1, 2], stored.Select(entry => entry.Ordinal).ToArray());
+    }
+
+    [Fact]
     public async Task CanonicalValueArray_BatchLookup_PreservesEntityKeyAndOrdinalGrouping()
     {
         var arrays = new CanonicalValueArrayRepository(_db);
@@ -1258,7 +1274,7 @@ public sealed class RepositoryTests : IDisposable
             INSERT INTO canonical_values(entity_id,key,value,last_scored_at)
             VALUES(@first,'title','Title','2026-01-01'),(@second,'title','Title','2026-01-01');
             INSERT INTO profile_saved_items(profile_id,entity_kind,entity_id,saved_at) VALUES(@profile,@entityKind,@second,'2026-01-01');
-            INSERT INTO profile_reactions(profile_id,entity_kind,entity_id,reaction,updated_at) VALUES(@profile,@entityKind,@second,'Love','2026-01-01');
+            INSERT INTO profile_reactions(profile_id,entity_kind,entity_id,reaction,updated_at) VALUES(@profile,@entityKind,@second,'Like','2026-01-01');
             INSERT INTO profile_work_preferences(profile_id,work_id,local_tags_json,revision,updated_at) VALUES(@profile,@second,'["mine"]',1,'2026-01-01');
             INSERT INTO music_play_stats(profile_id,work_id,play_count,last_played_at) VALUES(@profile,@second,4,'2026-01-01');
             INSERT INTO audiobook_bookmarks(id,profile_id,work_id,asset_id,position_seconds,created_at) VALUES(@bookmark,@profile,@second,@a2,30,'2026-01-01');
@@ -1304,7 +1320,7 @@ public sealed class RepositoryTests : IDisposable
                   (@first,'title','Book','2026-01-01'),(@second,'title','Book: A Subtitle','2026-01-01');
             INSERT INTO user_states(user_id,asset_id,progress_pct) VALUES(@profile,@epub,25),(@profile,@azw,60);
             INSERT INTO profile_saved_items(profile_id,entity_kind,entity_id,saved_at) VALUES(@profile,'Book',@second,'2026-01-01');
-            INSERT INTO profile_reactions(profile_id,entity_kind,entity_id,reaction,updated_at) VALUES(@profile,'Book',@second,'Love','2026-01-01');
+            INSERT INTO profile_reactions(profile_id,entity_kind,entity_id,reaction,updated_at) VALUES(@profile,'Book',@second,'Like','2026-01-01');
             """, args);
         var service = new WorkIdentityReconciliationService(_db);
         Assert.Equal(shouldMerge ? 1 : 0, await service.MergeDuplicateReadWorksByQidAsync());

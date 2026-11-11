@@ -7,6 +7,7 @@ using MediaEngine.Processors.Contracts;
 using MediaEngine.Processors.Extractors;
 using MediaEngine.Processors.Processors;
 using MediaEngine.Storage.Playback;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace MediaEngine.Api.DependencyInjection;
 
@@ -22,9 +23,29 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AdaptiveHlsPackageRepository>();
         services.AddSingleton<PlaybackCapabilitiesService>();
         services.AddSingleton<AdaptiveHlsService>();
+        // Scrub previews (Unified player v2 D9a): frames made ahead of time, in the Library's own cache.
+        services.AddSingleton<MediaEngine.Processors.VideoFrameExtractor>();
+        services.AddSingleton<ScrubPreviewCache>();
+        services.AddSingleton<ScrubPreviewQueue>();
+        services.AddSingleton<ScrubPreviewGenerator>();
+        services.AddSingleton<ScrubPreviewSettingsService>();
+        services.AddSingleton<MediaEngine.Storage.ScrubPreviewCandidateRepository>();
+        services.AddSingleton<ITranscodeActivitySignal, TranscodeActivitySignal>();
+        // Bookmark frames (Unified player v2 D21a): one still per video bookmark, made right after the save, in the same cache family.
+        services.AddSingleton<BookmarkFrameCache>();
+        services.AddSingleton<BookmarkFrameService>();
         services.AddSingleton<HlsAccessGrantService>();
         // Casting: a separate grant kind (its own Data Protection purpose) so HLS and cast grants can never be swapped.
-        services.AddSingleton<CastAccessGrantService>();
+        // Built by hand so the identity store (which a signed-in Dashboard session's grant is checked against on every request) can
+        // never be silently left out; a missing registration fails here, at first use, rather than quietly refusing every session grant.
+        services.AddSingleton(provider => new CastAccessGrantService(
+            provider.GetRequiredService<IDataProtectionProvider>(),
+            provider.GetRequiredService<IAccountRepository>(),
+            provider.GetRequiredService<IApplicationRepository>(),
+            provider.GetRequiredService<IClientAuthorizationRepository>(),
+            provider.GetRequiredService<IPermissionRegistry>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetRequiredService<IIdentityRepository>()));
         services.AddSingleton<CastSessionService>();
         services.AddScoped<ICastAssetAuthorizer, CatalogueCastAssetAuthorizer>();
         services.AddSingleton<AdaptiveHlsCleanupService>();
@@ -34,8 +55,20 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AudiobookListenHistoryRepository>();
         services.AddSingleton<MusicPlayStatsRepository>();
         services.AddSingleton<AudiobookBookmarkRepository>();
-        services.AddSingleton<BookmarkPackRepository>();
-        services.AddSingleton<BookmarkPackService>();
+        services.AddSingleton<BookmarkRecognitionRepository>();
+        services.AddSingleton<BookmarkClosenessProvider>();
+        // Page reader (PDF and comic reader spec WP1): comic page lists and page pictures, limits from config/reader.json.
+        services.AddSingleton<MediaEngine.Api.Services.Reading.ReaderConfigurationProvider>();
+        services.AddSingleton<MediaEngine.Api.Services.Reading.IReaderTitleService, MediaEngine.Api.Services.Reading.ReaderTitleService>();
+        services.AddScoped<MediaEngine.Api.Services.Reading.IReaderNextIssueService, MediaEngine.Api.Services.Reading.ReaderNextIssueService>();
+        services.AddSingleton<MediaEngine.Api.Services.Reading.IComicPageService, MediaEngine.Api.Services.Reading.ComicPageService>();
+        services.AddSingleton<BookmarkSetService>();
+        services.AddSingleton<EditorBookmarkRepository>();
+        services.AddSingleton<PlayerBookmarkVisibility>();
+        services.AddSingleton<EditorBookmarksService>();
+        services.AddScoped<EditorBookmarkOverviewService>();
+        services.AddSingleton<ReaderBookmarkSetService>();
+        services.AddSingleton<PageBookmarkSetService>();
         services.AddSingleton<AudiobookChapterTitleOverrideRepository>();
         services.AddSingleton<AudiobookChapterNamingService>();
         services.AddSingleton<IPlaybackTelemetryRepository, PlaybackTelemetryRepository>();

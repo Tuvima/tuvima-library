@@ -26,6 +26,9 @@ public partial interface IEngineApiClient
     Task<ViewCatalogueResult<bool>> DeleteViewDocumentFieldAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Applies one bulk edit to the selected documents and returns what happened to each.</summary>
+    /// <summary>The one Save of the photos, videos and documents editor: checks everything first, then changes every item or none (spec photos-documents-editor, WP1).</summary>
+    Task<ViewCatalogueResult<ViewItemsEditResultDto>> EditViewItemsAsync(ViewItemsEditSetRequest request, CancellationToken ct = default);
+
     Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(ViewDocumentBulkRequest request, CancellationToken ct = default);
 
     /// <summary>The CSV of the list the options describe (at most 10,000 rows), or the reason it could not be made.</summary>
@@ -35,6 +38,11 @@ public partial interface IEngineApiClient
     Task<string?> GetViewDocumentsSortAsync(CancellationToken ct = default);
 
     Task<bool> SetViewDocumentsSortAsync(string? sort, CancellationToken ct = default);
+
+    /// <summary>True when this profile chose "Don't ask again" and pictures dropped on Documents go straight to Photos.</summary>
+    Task<bool> GetViewDocumentsPicturesToPhotosAsync(CancellationToken ct = default);
+
+    Task<bool> SetViewDocumentsPicturesToPhotosAsync(bool toPhotos, CancellationToken ct = default);
 }
 
 /// <summary>A finished export: the file, or the reason there is none. <see cref="Truncated"/> means the list was cut at the row cap.</summary>

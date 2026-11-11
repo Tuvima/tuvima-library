@@ -26,4 +26,12 @@ public sealed class ScoringSettings
     /// <summary>Weight multiplier applied to stale claims.</summary>
     [JsonPropertyName("stale_claim_decay_factor")]
     public double StaleClaimDecayFactor { get; set; } = 0.8;
+
+    /// <summary>The Match tab's verdict bands, length tolerances and compared facts (universal editor v5).</summary>
+    [JsonPropertyName("match_verdict")]
+    public MatchVerdictSettings MatchVerdict { get; set; } = new();
+
+    /// <summary>The Match tab's music flow: how many releases are listed and how the release and track to suggest are chosen (universal editor v5).</summary>
+    [JsonPropertyName("music_match")]
+    public MusicMatchSettings MusicMatch { get; set; } = new();
 }

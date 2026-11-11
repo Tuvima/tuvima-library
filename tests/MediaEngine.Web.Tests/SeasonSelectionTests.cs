@@ -1,6 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Configuration;
@@ -35,29 +36,20 @@ public sealed class SeasonSelectionTests : AsyncBunitContext
     {
         var cut = RenderShow("season-2");
 
-        var toggle = cut.Find("button.tl-season-toggle");
-        Assert.Equal("Season 2", cut.Find(".tl-season-toggle__label").TextContent.Trim());
-        Assert.Contains("Season 2 selected", toggle.GetAttribute("aria-label"));
+        Assert.Equal("season-2", SeasonSelect(cut).Instance.Value);
+        Assert.Empty(cut.FindAll("button.tl-season-toggle"));
     }
 
     [Fact]
-    public void OnlyTheRequestedSeasonsChipIsSelectedInTheSeasonList()
+    public void TheSeasonControlIsADropdownListingEachSeasonWithItsEpisodeCount()
     {
         var cut = RenderShow("season-2");
 
-        cut.Find("button.tl-season-toggle").Click();
-
-        var chips = cut.FindAll("button.tl-season-card");
-        Assert.Equal(["Season 1", "Season 2"], chips.Select(ChipLabel));
-        var selected = Assert.Single(chips, chip => chip.ClassList.Contains("is-selected"));
-        Assert.Equal("Season 2", ChipLabel(selected));
-        Assert.Equal("true", selected.GetAttribute("aria-selected"));
-        Assert.True(selected.HasAttribute("aria-current"));
-        Assert.All(chips.Where(chip => !ReferenceEquals(chip, selected)), chip =>
-        {
-            Assert.Equal("false", chip.GetAttribute("aria-selected"));
-            Assert.False(chip.HasAttribute("aria-current"));
-        });
+        var options = SeasonSelect(cut).Instance.Options!.ToList();
+        Assert.Equal(["Season 1 · 2 episodes", "Season 2 · 2 episodes"], options.Select(option => option.Label));
+        // Switching seasons never swaps the episode row for a row of season pictures.
+        Assert.Empty(cut.FindAll(".tl-season-card"));
+        Assert.Empty(cut.FindAll(".tl-season-browser"));
     }
 
     [Fact]
@@ -77,12 +69,13 @@ public sealed class SeasonSelectionTests : AsyncBunitContext
     {
         var cut = RenderShow("season-1");
 
-        Assert.Equal("Season 1", cut.Find(".tl-season-toggle__label").TextContent.Trim());
+        Assert.Equal("season-1", SeasonSelect(cut).Instance.Value);
         Assert.Contains("First season opener", cut.Markup);
         Assert.DoesNotContain("Second season opener", cut.Markup);
     }
 
-    private static string ChipLabel(AngleSharp.Dom.IElement chip) => chip.QuerySelector("strong")!.TextContent.Trim();
+    private static IRenderedComponent<AppSelect> SeasonSelect(IRenderedComponent<SequencePlacementPanel> panel) =>
+        panel.FindComponents<AppSelect>().Single(select => select.Instance.Options!.Any(option => option.Label.StartsWith("Season", StringComparison.Ordinal)));
 
     private IRenderedComponent<SequencePlacementPanel> RenderShow(string currentGroupKey) =>
         Render<SequencePlacementPanel>(p => p

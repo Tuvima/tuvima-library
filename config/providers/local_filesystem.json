@@ -1,5 +1,6 @@
 {
   "name": "local_filesystem",
+  "display_name": "Local files",
   "version": "1.0",
   "enabled": true,
   "weight": 1.0,
@@ -27,6 +28,9 @@
     "authentication_probe": null
   },
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Details", "Artwork"],
+    "short_description": "Reads details already inside your files, such as tags and embedded covers.",
     "accent_color": "#607D8B",
     "material_icon": "Folder",
     "category": "Local",

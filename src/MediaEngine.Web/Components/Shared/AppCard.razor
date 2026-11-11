@@ -1,6 +1,6 @@
 ﻿@namespace MediaEngine.Web.Components.Shared
 
-<section class="@RootClass">
+<section class="@RootClass" @attributes="AdditionalAttributes">
     @if (!string.IsNullOrWhiteSpace(Title) || !string.IsNullOrWhiteSpace(Description) || Actions is not null)
     {
         <header class="app-card__header">
@@ -33,6 +33,7 @@
     [Parameter] public AppSurfaceVariant Variant { get; set; }
     [Parameter] public AppSurfaceDensity Density { get; set; } = AppSurfaceDensity.Normal;
     [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string RootClass =>
         string.Join(" ", new[]

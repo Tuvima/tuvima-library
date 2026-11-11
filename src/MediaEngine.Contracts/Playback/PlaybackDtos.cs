@@ -33,6 +33,12 @@ public sealed record PlaybackManifestDto
     public string? ConversionReason { get; init; }
     public int? SourceBitrateKbps { get; init; }
     public PlaybackConnectionContextDto Connection { get; init; } = new();
+
+    /// <summary>
+    /// Where the Engine serves the scrub-preview index (<see cref="ScrubPreviewIndexDto"/>) for this file, or null when it has no
+    /// previews (audio, previews switched off, or not made yet). The sprite sheets it names are served beside it.
+    /// </summary>
+    public string? ScrubPreviewIndexUrl { get; init; }
 }
 
 public sealed record PlaybackTechnicalInfoDto
@@ -221,6 +227,18 @@ public sealed record AudiobookBookmarkDto
     /// <summary>True for a bookmark shared with everybody who can see the title; only a server administrator can make or change one.</summary>
     public bool IsGlobal { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    /// <summary>Whose bookmark it is, by display name. The player lists it on an Everyone row (and on the person's own).</summary>
+    public string? OwnerName { get; init; }
+    /// <summary>True when the profile asking made this bookmark (it belongs in Mine). Decided by the Engine; a client never compares profile ids.</summary>
+    public bool IsYours { get; init; }
+    /// <summary>True when the bookmark is part of the title's Everyone list for the profile asking: the administrator's set once there is one, otherwise every profile's bookmarks pooled.</summary>
+    public bool InEveryone { get; init; }
+    /// <summary>
+    /// Where the Engine serves the still frame taken at this bookmark's time (Unified player v2 D21a): a 320 px wide JPEG, shown only to a
+    /// profile that may see the bookmark. Null for an audiobook, music or book bookmark (the cover is used instead) and until the frame
+    /// has been made, so a row shows its placeholder first and the picture a moment later.
+    /// </summary>
+    public string? FrameUrl { get; init; }
 }
 
 /// <summary>Native owner proof returned when capturing a live audiobook position.</summary>
@@ -247,8 +265,15 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public string? Note { get; init; }
     /// <summary>The optional longer description, up to 4,000 characters.</summary>
     public string? Description { get; init; }
-    /// <summary>Share the bookmark with everybody who can see the title. Refused unless the caller is a server administrator.</summary>
+    /// <summary>Refused by the player (<c>400</c>) for everyone: a bookmark made while playing is always the person's own, and Everyone's set is made in the editor's Bookmarks tab.</summary>
     public bool IsGlobal { get; init; }
+}
+
+/// <summary>A person's change to one of their own bookmarks: its name and its note. Both are replaced; an empty value clears it.</summary>
+public sealed record UpdateAudiobookBookmarkRequestDto
+{
+    public string? Label { get; init; }
+    public string? Note { get; init; }
 }
 
 public sealed record AudiobookChapterTitleOverrideDto
@@ -562,6 +587,18 @@ public sealed class PlaybackGeneralSettingsDto
     public bool SyncProgressBetweenBookAndAudiobook { get; set; } = true;
 
     /// <summary>
+    /// "Show chapter marks on the progress bar" (player controls v3 D8). Null means the media default: off for video, on for
+    /// audiobooks. Once the profile picks a value it applies to both.
+    /// </summary>
+    public bool? ShowChapterMarks { get; set; }
+
+    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark bubbles on the video progress bar. Off by default.</summary>
+    public bool ShowBookmarksOnBar { get; set; }
+
+    /// <summary>The bookmark list filter the profile last chose in the player: <c>All</c>, <c>Mine</c>, <c>Global</c> or <c>Everyones</c> (administrators).</summary>
+    public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.All;
+
+    /// <summary>
     /// How much of a story characters may reveal for this profile: <c>up_to_progress</c> ("Up to where I am", the default) or
     /// <c>everything</c>. Read-only here: it changes only through the profile's own spoiler action, never a bulk save.
     /// </summary>
@@ -592,8 +629,8 @@ public sealed class WatchingSettingsDto
 public sealed class ListeningSettingsDto
 {
     public decimal AudiobookDefaultSpeed { get; set; } = 1.25m;
-    public int SkipBackSeconds { get; set; } = 15;
-    public int SkipForwardSeconds { get; set; } = 15;
+    public int SkipBackSeconds { get; set; } = 10;
+    public int SkipForwardSeconds { get; set; } = 30;
     public int ResumeRewindSeconds { get; set; } = 10;
     public int AudiobookListenQualificationSeconds { get; set; } = 60;
     public int AudiobookHistoryLimit { get; set; } = 25;
@@ -637,6 +674,21 @@ public sealed class ReadingSettingsDto
 
     /// <summary>Book reader page width: "narrow", "standard" or "wide".</summary>
     public string PageWidth { get; set; } = ReadingPreferenceValues.PageWidthStandard;
+
+    /// <summary>Page reader (comics and PDFs): how the page fits, "page" or "width".</summary>
+    public string PageFit { get; set; } = ReadingPreferenceValues.PageFitPage;
+
+    /// <summary>Page reader: the colour around the page, "black", "dark" or "light".</summary>
+    public string PageBackground { get; set; } = ReadingPreferenceValues.PageBackgroundBlack;
+
+    /// <summary>Page reader: show bookmarks on the page slider.</summary>
+    public bool ShowBookmarksOnBar { get; set; }
+
+    /// <summary>Page reader layout chosen per title: asset id to "auto", "one", "two" or "scroll".</summary>
+    public Dictionary<string, string> PageLayouts { get; set; } = [];
+
+    /// <summary>Page reader direction chosen per Series: the Series name, lower case, to "ltr" or "rtl".</summary>
+    public Dictionary<string, string> ComicDirections { get; set; } = [];
 }
 
 /// <summary>Values and ranges for the book reader fields of <see cref="ReadingSettingsDto"/>; the reader's own names.</summary>
@@ -652,6 +704,19 @@ public static class ReadingPreferenceValues
     public const string PageWidthNarrow = "narrow";
     public const string PageWidthStandard = "standard";
     public const string PageWidthWide = "wide";
+    public const string PageFitPage = "page";
+    public const string PageFitWidth = "width";
+    public const string PageBackgroundBlack = "black";
+    public const string PageBackgroundDark = "dark";
+    public const string PageBackgroundLight = "light";
+    public const string LayoutAuto = "auto";
+    public const string LayoutOne = "one";
+    public const string LayoutTwo = "two";
+    public const string LayoutScroll = "scroll";
+    public const string DirectionLtr = "ltr";
+    public const string DirectionRtl = "rtl";
+    /// <summary>Most per-title or per-Series page reader choices kept on a profile.</summary>
+    public const int MaxPageChoices = 300;
     public const int MinFontSizePx = 12;
     public const int MaxFontSizePx = 32;
     public const int DefaultFontSizePx = 18;
@@ -683,11 +748,66 @@ public sealed class SubtitleLanguageSettingsDto
     public bool SubtitleBackground { get; set; } = true;
     public string SubtitlePosition { get; set; } = PlaybackPreferenceValues.Bottom;
     public string SubtitleStyle { get; set; } = PlaybackPreferenceValues.Clean;
+
+    /// <summary>Subtitle typeface in the player (player controls v3 D4): <c>Default</c>, <c>Serif</c> or <c>Mono</c>.</summary>
+    public string SubtitleFont { get; set; } = PlaybackPreferenceValues.FontDefault;
+
+    /// <summary>A soft shadow behind the subtitle text. It is also drawn whenever the background is off.</summary>
+    public bool SubtitleShadow { get; set; }
+
+    /// <summary>
+    /// Subtitle text colour (unified player D12): one of <see cref="PlaybackPreferenceValues.SubtitleColors"/>
+    /// (<c>White</c>, <c>Black</c>, <c>Blue</c>, <c>Teal</c>, <c>Green</c>, <c>Yellow</c>, <c>Red</c> or <c>Magenta</c>).
+    /// </summary>
+    public string SubtitleColor { get; set; } = PlaybackPreferenceValues.ColorWhite;
+
+    /// <summary>How solid the subtitle text is, as a percent from 20 to 100. 100 is fully solid.</summary>
+    public int SubtitleTextOpacity { get; set; } = PlaybackPreferenceValues.DefaultTextOpacity;
+
+    /// <summary>The colour behind the subtitle text; one of <see cref="PlaybackPreferenceValues.SubtitleColors"/>. Black by default.</summary>
+    public string SubtitleBackgroundColor { get; set; } = PlaybackPreferenceValues.ColorBlack;
+
+    /// <summary>
+    /// How solid the colour behind the text is, as a percent from 0 to 100 (0 is none, 100 is solid). It is used while
+    /// <see cref="SubtitleBackground"/> is on; choosing 0 on the slider turns <see cref="SubtitleBackground"/> off.
+    /// </summary>
+    public int SubtitleBackgroundOpacity { get; set; } = PlaybackPreferenceValues.DefaultBackgroundOpacity;
 }
 
 public static class PlaybackPreferenceValues
 {
     public const string Auto = "Auto";
+    public const string All = "All";
+    public const string Mine = "Mine";
+    public const string Global = "Global";
+    public const string Everyones = "Everyones";
+    public const string FontDefault = "Default";
+    public const string FontSerif = "Serif";
+    public const string FontMono = "Mono";
+    public const string ColorWhite = "White";
+    public const string ColorYellow = "Yellow";
+    public const string ColorGreen = "Green";
+    public const string ColorBlack = "Black";
+    public const string ColorBlue = "Blue";
+    public const string ColorTeal = "Teal";
+    public const string ColorRed = "Red";
+    public const string ColorMagenta = "Magenta";
+
+    /// <summary>The eight subtitle colours, in the order the swatch row shows them (unified player D12).</summary>
+    public static readonly IReadOnlyList<string> SubtitleColors =
+        [ColorWhite, ColorBlack, ColorBlue, ColorTeal, ColorGreen, ColorYellow, ColorRed, ColorMagenta];
+
+    /// <summary>The stops on the subtitle text opacity slider, in percent.</summary>
+    public static readonly IReadOnlyList<int> TextOpacityStops = [20, 40, 60, 80, 100];
+
+    /// <summary>The stops on the subtitle background opacity slider, in percent. 0 means no background.</summary>
+    public static readonly IReadOnlyList<int> BackgroundOpacityStops = [0, 20, 40, 60, 80, 100];
+
+    public const int DefaultTextOpacity = 100;
+    public const int MinTextOpacity = 20;
+
+    /// <summary>The background keeps the look it had before the slider existed (a 60 percent black backing).</summary>
+    public const int DefaultBackgroundOpacity = 60;
     public const string Original = "Original";
     public const string High = "High";
     public const string Balanced = "Balanced";

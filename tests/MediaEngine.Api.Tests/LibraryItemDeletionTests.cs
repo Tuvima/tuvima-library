@@ -393,8 +393,9 @@ public sealed class LibraryItemDeletionTests : IDisposable
                     VALUES (@id, @profile, @assetId, 's', 'watch', @now, @now, 40);
                     """, new { id = Guid.NewGuid(), profile, assetId, now });
                 connection.Execute("""
-                    INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index) VALUES (@id, @userId, @assetId, 3);
-                    """, new { id = Guid.NewGuid(), userId = profile.ToString("D"), assetId });
+                    INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, chapter_index, created_at, position_kind, locator)
+                    VALUES (@id, @profile, @workId, @assetId, 3, @now, 'text', 'epubcfi(/6/4!/4/2/1:0)');
+                    """, new { id = Guid.NewGuid(), profile, workId, assetId, now });
                 connection.Execute("""
                     INSERT INTO profile_work_preferences (profile_id, work_id, updated_at) VALUES (@profile, @workId, @now);
                     """, new { profile, workId, now });
@@ -414,7 +415,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
 
         string[] tables =
         [
-            "user_states", "consumption_history", "reader_bookmarks", "profile_work_preferences",
+            "user_states", "consumption_history", "audiobook_bookmarks", "profile_work_preferences",
             "music_play_stats", "profile_saved_items", "profile_reactions",
         ];
         foreach (var table in tables)
@@ -556,6 +557,49 @@ public sealed class LibraryItemDeletionTests : IDisposable
         Assert.True(File.Exists(trackFile));
         Assert.True(Directory.Exists(tracksFolder));
         Assert.False(Directory.Exists(plainFolder), "A folder nothing else uses is removed.");
+    }
+
+    [Fact]
+    public async Task ScrubPreviews_AreRemovedWithTheirFile_AndOtherFilesKeepTheirs()
+    {
+        var media = _world.WriteFile(_world.Managed, "Dune.mkv");
+        var other = _world.WriteFile(_world.Managed, "Arrival.mkv");
+        var (duneId, duneAssets) = _world.AddWork("Dune", [media]);
+        var (_, arrivalAssets) = _world.AddWork("Arrival", [other]);
+        var store = new MediaEngine.Api.Services.Playback.ScrubPreviewCache(_world.AssetPaths);
+        foreach (var assetId in new[] { duneAssets[0], arrivalAssets[0] })
+        {
+            var staging = store.NewStagingFolder(assetId);
+            Directory.CreateDirectory(staging);
+            File.WriteAllBytes(Path.Combine(staging, "sheet-000.jpg"), new byte[100]);
+            store.Publish(assetId, staging, new MediaEngine.Contracts.Playback.ScrubPreviewIndexDto { IntervalSeconds = 10, TileWidth = 320, TileHeight = 180, Columns = 10, Rows = 10, FrameCount = 1, Sheets = ["sheet-000.jpg"] });
+        }
+
+        await DeleteAsync(duneId);
+
+        Assert.Null(store.TryReadComplete(duneAssets[0]));
+        Assert.False(Directory.Exists(store.FolderFor(duneAssets[0])));
+        Assert.NotNull(store.TryReadComplete(arrivalAssets[0]));
+    }
+
+    [Fact]
+    public async Task BookmarkFrames_AreRemovedWithTheirFile_AndOtherFilesKeepTheirs()
+    {
+        var media = _world.WriteFile(_world.Managed, "Dune.mkv");
+        var other = _world.WriteFile(_world.Managed, "Arrival.mkv");
+        var (duneId, duneAssets) = _world.AddWork("Dune", [media]);
+        var (_, arrivalAssets) = _world.AddWork("Arrival", [other]);
+        var cache = new MediaEngine.Api.Services.Playback.BookmarkFrameCache(_world.AssetPaths);
+        var duneFrame = Guid.NewGuid();
+        var arrivalFrame = Guid.NewGuid();
+        cache.Write(duneAssets[0], duneFrame, [0xFF, 0xD8, 0xFF, 0xD9]);
+        cache.Write(arrivalAssets[0], arrivalFrame, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+        await DeleteAsync(duneId);
+
+        Assert.False(cache.Exists(duneAssets[0], duneFrame));
+        Assert.False(Directory.Exists(cache.FolderFor(duneAssets[0])));
+        Assert.True(cache.Exists(arrivalAssets[0], arrivalFrame));
     }
 
     [Fact]
@@ -864,7 +908,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
             // Per-profile state.
             "INSERT INTO user_states (user_id, asset_id, progress_pct) VALUES (@profileId, @assetId, 40);",
             "INSERT INTO consumption_history (id, profile_id, asset_id, session_key, experience, started_at, updated_at, progress_pct) VALUES (randomblob(16), @profileId, @assetId, 's', 'watch', @now, @now, 40);",
-            "INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index) VALUES (randomblob(16), @userText, @assetId, 1);",
+            "INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, chapter_index, created_at, position_kind, locator) VALUES (randomblob(16), @profileId, @workId, @assetId, 1, @now, 'text', 'epubcfi(/6/4!/4/2/1:0)');",
             "INSERT INTO reader_highlights (id, user_id, asset_id, chapter_index, start_offset, end_offset, selected_text) VALUES (randomblob(16), @userText, @assetId, 1, 0, 1, 'x');",
             "INSERT INTO reader_statistics (id, user_id, asset_id) VALUES (randomblob(16), @userText, @assetId);",
             "INSERT INTO profile_work_preferences (profile_id, work_id, updated_at) VALUES (@profileId, @workId, @now);",

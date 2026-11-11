@@ -128,16 +128,48 @@ public sealed partial class DisplayComposerService
             var showCard = shows.First(card => card.Id == hero.EpisodeContext!.ShowWorkId);
             slides.Add(new(hero with { IsContinued = inTheMiddle }, inTheMiddle, inTheMiddle ? touched!.Value : showCard.SortTimestamp));
         }
+        // A folder of Other videos is one slide too: it plays the next unfinished video and says where the person is (Home hero mock).
+        var folderSlides = BuildVideoFolderSlides(works, states, candidates);
+        slides.AddRange(folderSlides.Select(folder => folder.Slide));
+        var folderIds = folderSlides.Select(folder => folder.FolderId).ToHashSet();
+        var folderVideoIds = works
+            .Where(work => folderIds.Contains(DisplayCardBuilder.TvShowGroupId(work)))
+            .Select(work => work.WorkId).ToHashSet();
+
         var continuedIds = continueCards
-            .Where(card => card.MediaType != "TV")
+            .Where(card => card.MediaType != "TV" && !folderVideoIds.Contains(card.Id))
             .Select(card => card.Id).ToHashSet();
-        foreach (var card in continueCards.Where(card => card.MediaType != "TV" && IsHeroReady(card)))
+        foreach (var card in continueCards.Where(card => card.MediaType != "TV" && !folderVideoIds.Contains(card.Id) && IsHeroReady(card)))
         {
             slides.Add(new(DisplayCardBuilder.ToHero(card, "Continue Across Media") with { IsContinued = true }, true, card.SortTimestamp));
         }
-        foreach (var card in candidates.Where(card => card.MediaType != "TV" && !continuedIds.Contains(card.Id)))
+        foreach (var card in candidates.Where(card => card.MediaType != "TV" && !folderIds.Contains(card.Id) && !folderVideoIds.Contains(card.Id) && !continuedIds.Contains(card.Id)))
         {
             slides.Add(new(DisplayCardBuilder.ToHero(card, "Featured Content") with { IsContinued = false }, false, card.SortTimestamp));
+        }
+
+        // New music is one "Recently added music" collage slide, never single albums (Home, detail and tiles spec D4).
+        var newAlbums = slides.Where(slide => !slide.Continued && slide.Hero.Subject == DisplaySubjectKind.Album)
+            .OrderByDescending(slide => slide.At).ToList();
+        if (newAlbums.Count > 0)
+        {
+            slides.RemoveAll(slide => newAlbums.Contains(slide));
+            var newest = newAlbums[0];
+            var covers = newAlbums.Select(slide => slide.Hero.Artwork.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Select(url => url!).Take(8).ToList();
+            slides.Add(newest with
+            {
+                Hero = newest.Hero with
+                {
+                    Title = "Recently added music",
+                    Subtitle = null,
+                    Description = null,
+                    Tagline = null,
+                    Facts = [],
+                    CollageUrls = covers,
+                    PreviewItems = [],
+                    Actions = [new DisplayActionDto("openRoute", "Open", null, null, null, "/listen/music/playlists/system/recently-added")],
+                },
+            });
         }
 
         // Plugin suggestions only label and lift items that are already allowed on the hero; a plugin cannot add an item that is still
@@ -170,6 +202,61 @@ public sealed partial class DisplayComposerService
     }
 
     private const int MaxHomeSpotlights = 5;
+
+    /// <summary>
+    /// One Home slide per folder of Other videos, built the way a show's slide is: the folder's ordered videos go through the same
+    /// next-to-watch rule, so the button plays (Play) or resumes (Resume) the right video and the muted line says where the person is.
+    /// A folder with nothing playable gets no slide here and keeps its plain "Open folder" slide.
+    /// </summary>
+    private IReadOnlyList<(Guid FolderId, HeroSlideCandidate Slide)> BuildVideoFolderSlides(
+        IReadOnlyList<DisplayWorkRow> works,
+        IReadOnlyDictionary<Guid, DisplayJourneyRow> states,
+        IEnumerable<DisplayCardDto> candidates)
+    {
+        var slides = new List<(Guid, HeroSlideCandidate)>();
+        foreach (var folder in candidates.Where(card => VideoFolderWording.IsVideoFolderMediaType(card.MediaType)).DistinctBy(card => card.Id))
+        {
+            var inFolder = works
+                .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Video" && DisplayCardBuilder.TvShowGroupId(work) == folder.Id)
+                .DistinctBy(work => work.WorkId).ToList();
+            var owned = inFolder.Where(work => work.AssetId != Guid.Empty).ToList();
+            var context = TvEpisodeContextResolver.Resolve(owned.Select(work => new TvEpisodePlaybackCandidate(
+                work.WorkId.ToString("D"), Number(work.SeasonNumber), Number(work.EpisodeNumber),
+                states.GetValueOrDefault(work.WorkId)?.ProgressPct ?? 0,
+                states.GetValueOrDefault(work.WorkId)?.LastAccessed.ToString("O", CultureInfo.InvariantCulture))));
+            var target = owned.FirstOrDefault(work => work.WorkId.ToString("D") == context.Target?.Id);
+            if (target is null)
+            {
+                continue;
+            }
+
+            var started = context.Reason == TvEpisodeSelectionReason.Resume;
+            var state = states.GetValueOrDefault(target.WorkId);
+            var video = state is null ? _cards.FromWork(target, "home", null) : _cards.FromJourney(state, "home");
+            var play = video.Actions[0] with { Label = VideoFolderWording.PlayButton(started) };
+            if (context.Reason == TvEpisodeSelectionReason.AllOwnedCompleted)
+            {
+                play = play with { WebUrl = $"/watch/player/{target.WorkId:D}?restart=true" };
+            }
+
+            var sections = inFolder.Select(work => work.SeasonNumber).Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            var progress = started ? video.Progress : null;
+            var hero = DisplayCardBuilder.ToHero(folder, started ? VideoFolderWording.ContinueLabel : "Featured Content") with
+            {
+                ContinuationState = started ? DisplayContinuationState.InProgress : DisplayContinuationState.Unstarted,
+                Actions = [play, folder.Actions[0]],
+                Progress = progress is null ? null : progress with { ResumeAction = play },
+                Subtitle = VideoFolderWording.HeroLine(folder.PreviewTotalCount ?? inFolder.Count, sections, started ? video.Title : null, progress?.RemainingSeconds),
+                IsContinued = started,
+            };
+            var touched = inFolder.Select(work => states.GetValueOrDefault(work.WorkId))
+                .Where(row => row is { ProgressPct: > 0 }).Select(row => (DateTimeOffset?)row!.LastAccessed).Max();
+            slides.Add((folder.Id, new HeroSlideCandidate(hero, started, started && touched.HasValue ? touched.Value : folder.SortTimestamp)));
+        }
+
+        return slides;
+    }
 
     private static bool IsItem(DisplayHeroDto hero, Guid itemId) =>
         hero.Id == itemId || hero.WorkId == itemId || hero.EpisodeContext?.ShowWorkId == itemId;

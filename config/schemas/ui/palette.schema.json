@@ -3,5 +3,16 @@
   "title": "Tuvima palette configuration",
   "type": "object",
   "required": ["theme", "status", "pipeline", "media_type", "confidence", "review_trigger"],
+  "properties": {
+    "editor_header": {
+      "type": "object",
+      "description": "How the editor header's gradient is built from the cover's two main colours: how much of each cover colour is kept when it is mixed into the window surface (0 is the plain surface, 100 the cover colour).",
+      "properties": {
+        "primary_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "secondary_percent": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    }
+  },
   "additionalProperties": true
 }

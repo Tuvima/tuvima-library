@@ -1,0 +1,27 @@
+/* Mockup screen 7: a small chip beside the title, 2 / 8 padding, 11 / 600 with a little letter spacing. Synced is the selected look (purple, with a dot);
+   Unsynced is the same chip in the quiet look. The corners are 6 px: the Look pass keeps chips square, so not the mockup's fully rounded ends. */
+.playback-lyrics-chip {
+    align-items: center;
+    background: var(--playback-state-hover);
+    border-radius: 6px;
+    color: var(--playback-text-secondary);
+    display: inline-flex;
+    flex: none;
+    font: 600 11px/1.45 var(--font-ui);
+    gap: 5px;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+}
+
+.playback-lyrics-chip--synced {
+    background: var(--playback-state-selected);
+    color: var(--tl-accent-primary-hover);
+}
+
+.playback-lyrics-chip--synced::before {
+    background: currentColor;
+    border-radius: 50%;
+    content: "";
+    height: 6px;
+    width: 6px;
+}

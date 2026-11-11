@@ -115,31 +115,6 @@ window.tuvimaEditorFocus = function (selector) {
     });
 };
 
-// Editing Mode section slot: remember the control that opened it and give focus back when it closes. When that control is gone
-// (Done closes the section and the banner button with it) focus goes to the first fallback selector that still matches.
-window.tuvimaFocusReturn = (function () {
-    var opener = null;
-    return {
-        remember: function () {
-            var active = document.activeElement;
-            opener = active && active !== document.body ? active : null;
-        },
-        restore: function (fallbackSelectors) {
-            var remembered = opener;
-            opener = null;
-            window.requestAnimationFrame(function () {
-                var target = remembered && remembered.isConnected ? remembered : null;
-                for (var index = 0; !target && fallbackSelectors && index < fallbackSelectors.length; index++) {
-                    target = document.querySelector(fallbackSelectors[index]);
-                }
-                if (target && typeof target.focus === 'function') {
-                    target.focus({ preventScroll: true });
-                }
-            });
-        }
-    };
-})();
-
 window.tuvimaEditorScrollTop = function () {
     window.requestAnimationFrame(function () {
         var pane = document.querySelector('.sme-body, .person-editor__main');
@@ -253,9 +228,13 @@ window.tuvimaScrollElementBy = function (element, amount) {
     if (element) element.scrollBy({ left: amount, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 };
 
-window.tuvimaFocusById = function (id) {
+window.tuvimaFocusById = function (id, attempts = 8) {
     const target = id && document.getElementById(id);
     if (target) target.focus({ preventScroll: true });
+    // A list drawn in the top layer is shown a moment after it renders, so keep trying for a few frames until the element takes focus.
+    if (id && attempts > 0 && (!target || document.activeElement !== target)) {
+        requestAnimationFrame(() => window.tuvimaFocusById(id, attempts - 1));
+    }
 };
 
 window.tuvimaPositionSharedEntityPopover = function (anchorId, popoverId) {
@@ -1301,580 +1280,6 @@ window.unregisterMediaTileShelfScrollGuard = function (el) {
     el.__swimlaneAllowScroll = false;
 };
 
-// -- Media tile hover positioning ------------------------------------
-
-window.getMediaTileHoverHost = function () {
-    var host = document.getElementById('media-tile-hover-host');
-    if (host) return host;
-
-    host = document.createElement('div');
-    host.id = 'media-tile-hover-host';
-    host.className = 'media-tile-hover-host';
-    document.body.appendChild(host);
-    return host;
-};
-
-window.positionMediaTileHover = function (cardEl) {
-    if (!cardEl) return;
-
-    if (cardEl.__mediaTileHoverFrame) {
-        cardEl.__mediaTileHoverNeedsReposition = true;
-        return;
-    }
-
-    cardEl.__mediaTileHoverFrame = window.requestAnimationFrame(function () {
-        cardEl.__mediaTileHoverFrame = null;
-        var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-        if (!panel) return;
-
-        var frame = cardEl.querySelector('.media-tile-frame') || cardEl;
-        var cardRect = frame.getBoundingClientRect();
-        var viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-        var viewportHeight = document.documentElement.clientHeight || window.innerHeight;
-        var gutter = 12;
-        if (panel.classList.contains('is-media-movie') || panel.classList.contains('is-media-tv')) {
-            panel.style.setProperty('--media-tile-expanded-width', Math.min(cardRect.height * 16 / 9, viewportWidth - gutter * 2) + 'px');
-        }
-        panel.style.removeProperty('--media-tile-hover-left');
-        panel.style.removeProperty('--media-tile-hover-top');
-        panel.style.removeProperty('--media-tile-hover-max-height');
-        panel.style.removeProperty('--media-tile-hover-art-max-height');
-        panel.style.setProperty('--media-tile-hover-anchor-width', Math.round(cardRect.width) + 'px');
-        panel.style.setProperty('--media-tile-hover-anchor-height', cardRect.height + 'px');
-        panel.style.setProperty('--media-tile-hover-max-height', Math.max(0, viewportHeight - gutter * 2) + 'px');
-        panel.style.left = '';
-        panel.style.top = '';
-
-        var body = panel.querySelector('.media-tile-hover-body');
-        var bodyHeight = body ? body.getBoundingClientRect().height : 0;
-        panel.style.setProperty('--media-tile-hover-art-max-height', Math.max(0, viewportHeight - gutter * 2 - bodyHeight) + 'px');
-
-        var panelRect = panel.getBoundingClientRect();
-        var panelStyle = window.getComputedStyle ? window.getComputedStyle(panel) : null;
-        var panelWidth = panelRect.width || panel.offsetWidth;
-        var panelHeight = panelRect.height || panel.offsetHeight;
-        if (!panelWidth) {
-            panelWidth = cardRect.width;
-        }
-        if (!panelHeight) {
-            panelHeight = cardRect.height;
-        }
-
-        var isWatchPreview = panel.classList.contains('is-media-movie') || panel.classList.contains('is-media-tv');
-        var estimatedPanelHeight = isWatchPreview ? cardRect.height : panelHeight;
-        if (!isWatchPreview && panelWidth > 0 && panel.classList.contains('is-banner-popover')) {
-            estimatedPanelHeight = Math.max(estimatedPanelHeight, (panelWidth * 9 / 16) + bodyHeight + 8);
-        } else if (!isWatchPreview && panelWidth > 0 && panel.classList.contains('is-art-popover')) {
-            var estimatedArtHeight = panelWidth;
-            if (panel.classList.contains('is-portrait')) {
-                estimatedArtHeight = panelWidth * 1.5;
-            }
-
-            estimatedPanelHeight = Math.max(estimatedPanelHeight, estimatedArtHeight + bodyHeight + 8);
-        }
-
-        var rawPanelMaxHeight = panelStyle ? parseFloat(panelStyle.maxHeight || '0') : 0;
-        if (Number.isFinite(rawPanelMaxHeight) && rawPanelMaxHeight > 0) {
-            estimatedPanelHeight = Math.min(estimatedPanelHeight, rawPanelMaxHeight);
-        }
-
-        panelHeight = isWatchPreview ? cardRect.height : Math.max(panelHeight, Math.min(estimatedPanelHeight, viewportHeight - (gutter * 2)));
-
-        // Expand from the resting card's centre, like a streaming-service preview,
-        // while keeping the shelf itself completely stationary.
-        var cardCenterX = cardRect.left + (cardRect.width / 2);
-        var panelLeft = cardCenterX - (panelWidth / 2);
-        var minLeft = gutter;
-        var maxLeft = viewportWidth - gutter - panelWidth;
-        if (maxLeft < minLeft) {
-            panelLeft = minLeft;
-        } else {
-            panelLeft = Math.min(Math.max(panelLeft, minLeft), maxLeft);
-        }
-
-        var panelTop = cardRect.top;
-        var maxTop = viewportHeight - gutter - panelHeight;
-        if (maxTop < gutter) {
-            panelTop = gutter;
-        } else {
-            panelTop = Math.min(Math.max(panelTop, gutter), maxTop);
-        }
-
-        panel.style.setProperty('--media-tile-hover-left', Math.round(panelLeft) + 'px');
-        panel.style.setProperty('--media-tile-hover-top', Math.round(panelTop) + 'px');
-        panel.style.setProperty('--media-tile-hover-origin-x', Math.round(cardCenterX - panelLeft) + 'px');
-        panel.classList.add('is-positioned');
-
-        if (cardEl.__mediaTileHoverNeedsReposition) {
-            cardEl.__mediaTileHoverNeedsReposition = false;
-            window.positionMediaTileHover(cardEl);
-        }
-    });
-};
-
-window.correctMediaTileHoverViewport = function (cardEl) {
-    if (!cardEl) return;
-
-    var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-    if (!panel || !panel.classList.contains('is-visible')) return;
-
-    window.positionMediaTileHover(cardEl);
-};
-
-window.scheduleMediaTileHoverViewportCorrection = function (cardEl) {
-    window.requestAnimationFrame(function () {
-        window.correctMediaTileHoverViewport(cardEl);
-        window.requestAnimationFrame(function () {
-            window.correctMediaTileHoverViewport(cardEl);
-        });
-    });
-};
-
-window.mountMediaTileHover = function (cardEl) {
-    if (!cardEl) return null;
-
-    var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-    if (!panel) return null;
-
-    if (!panel.__mediaTileHoverOriginalParent) {
-        panel.__mediaTileHoverOriginalParent = panel.parentElement;
-    }
-
-    if (!Object.prototype.hasOwnProperty.call(panel, '__mediaTileHoverOriginalNextSibling')) {
-        panel.__mediaTileHoverOriginalNextSibling = panel.nextSibling;
-    }
-
-    if (window.getComputedStyle) {
-        var cardStyle = window.getComputedStyle(cardEl);
-        [
-            '--media-tile-accent',
-            '--media-tile-secondary-accent',
-            '--media-tile-action-accent',
-            '--media-tile-progress-accent',
-            '--art-bg-base',
-            '--art-bg-base-dark',
-            '--art-bg-accent',
-            '--art-bg-accent-muted',
-            '--art-bg-glow',
-            '--art-bg-glow-secondary',
-            '--art-bg-border',
-            '--art-bg-shadow',
-            '--art-bg-overlay',
-            '--media-tile-hover-image'
-        ].forEach(function (propertyName) {
-            var propertyValue = cardStyle.getPropertyValue(propertyName);
-            if (propertyValue) {
-                panel.style.setProperty(propertyName, propertyValue.trim());
-            }
-        });
-    }
-
-    panel.classList.remove('is-visible');
-    panel.classList.remove('is-positioned');
-    panel.classList.add('is-viewport-mounted');
-    var mountParent = window.getMediaTileHoverHost();
-    if (mountParent && panel.parentElement !== mountParent) mountParent.appendChild(panel);
-    return panel;
-};
-
-window.restoreMediaTileHover = function (cardEl) {
-    if (!cardEl) return;
-
-    var panel = cardEl.querySelector('.media-tile-hover-panel') || cardEl.__mediaTileHoverPanel;
-    if (!panel || !panel.__mediaTileHoverOriginalParent) return;
-
-    var originalParent = panel.__mediaTileHoverOriginalParent;
-    var originalNextSibling = panel.__mediaTileHoverOriginalNextSibling;
-
-    if (originalNextSibling && originalNextSibling.parentNode === originalParent) {
-        originalParent.insertBefore(panel, originalNextSibling);
-    } else {
-        originalParent.appendChild(panel);
-    }
-
-    panel.classList.remove('is-viewport-mounted');
-    panel.classList.remove('is-positioned');
-};
-
-window.lockMediaTileHoverRowScroll = function (cardEl) {
-    if (!cardEl) return;
-
-    var scrollEl = cardEl.closest('.media-tile-shelf-scroll');
-    if (!scrollEl || !scrollEl.classList.contains('has-active-in-row-hover')) return;
-
-    cardEl.__mediaTileHoverScrollElement = scrollEl;
-
-    if (!scrollEl.__mediaTileHoverScrollLock) {
-        scrollEl.__mediaTileHoverScrollLock = {
-            owner: cardEl,
-            left: scrollEl.scrollLeft,
-            top: scrollEl.scrollTop || 0
-        };
-
-        var restore = function () {
-            var lock = scrollEl.__mediaTileHoverScrollLock;
-            if (!lock) return;
-            if (scrollEl.__swimlaneAllowScroll) return;
-
-            if (scrollEl.scrollLeft !== lock.left) {
-                scrollEl.scrollLeft = lock.left;
-            }
-
-
-        };
-
-        var blockWheel = function (event) {
-            var lock = scrollEl.__mediaTileHoverScrollLock;
-            if (!lock) return;
-
-            if (window.isVerticalMediaTileWheel(event)) {
-                window.requestAnimationFrame(restore);
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            window.requestAnimationFrame(restore);
-        };
-
-        scrollEl.__mediaTileHoverScrollRestore = restore;
-        scrollEl.__mediaTileHoverWheelBlock = blockWheel;
-        scrollEl.addEventListener('scroll', restore, { passive: true });
-        scrollEl.addEventListener('wheel', blockWheel, { passive: false });
-    } else {
-        scrollEl.__mediaTileHoverScrollLock.owner = cardEl;
-        scrollEl.__mediaTileHoverScrollLock.left = scrollEl.scrollLeft;
-        scrollEl.__mediaTileHoverScrollLock.top = scrollEl.scrollTop || 0;
-    }
-
-    scrollEl.classList.add('is-hover-scroll-locked');
-
-    var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-    if (panel && !panel.__mediaTileHoverWheelBlock) {
-        panel.__mediaTileHoverWheelBlock = function (event) {
-            var lock = scrollEl.__mediaTileHoverScrollLock;
-            if (lock) {
-                window.requestAnimationFrame(function () {
-                    if (scrollEl.scrollLeft !== lock.left && !scrollEl.__swimlaneAllowScroll) {
-                        scrollEl.scrollLeft = lock.left;
-                    }
-
-
-                });
-            }
-
-            if (window.isVerticalMediaTileWheel(event)) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-        };
-        panel.addEventListener('wheel', panel.__mediaTileHoverWheelBlock, { passive: false });
-    }
-};
-
-window.unlockMediaTileHoverRowScroll = function (cardEl) {
-    if (!cardEl) return;
-
-    var scrollEl = cardEl.__mediaTileHoverScrollElement;
-    if (!scrollEl || !scrollEl.__mediaTileHoverScrollLock) return;
-
-    if (scrollEl.__mediaTileHoverScrollLock.owner !== cardEl) return;
-
-    if (scrollEl.__mediaTileHoverScrollRestore) {
-        scrollEl.removeEventListener('scroll', scrollEl.__mediaTileHoverScrollRestore);
-    }
-    if (scrollEl.__mediaTileHoverWheelBlock) {
-        scrollEl.removeEventListener('wheel', scrollEl.__mediaTileHoverWheelBlock);
-    }
-
-    var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-    if (panel && panel.__mediaTileHoverWheelBlock) {
-        panel.removeEventListener('wheel', panel.__mediaTileHoverWheelBlock);
-        panel.__mediaTileHoverWheelBlock = null;
-    }
-
-    scrollEl.classList.remove('is-hover-scroll-locked');
-    scrollEl.__mediaTileHoverScrollLock = null;
-    scrollEl.__mediaTileHoverScrollRestore = null;
-    scrollEl.__mediaTileHoverWheelBlock = null;
-    cardEl.__mediaTileHoverScrollElement = null;
-};
-
-window.keepMediaTileHoverInRowViewport = function (cardEl) {
-    if (!cardEl) return;
-
-    var row = cardEl.closest('.media-tile-shelf-scroll');
-    if (!row) return;
-
-    var cardRect = cardEl.getBoundingClientRect();
-    var rowRect = row.getBoundingClientRect();
-    var gutter = 8;
-    var delta = 0;
-
-    if (cardRect.right > rowRect.right - gutter) {
-        delta = cardRect.right - rowRect.right + gutter;
-    } else if (cardRect.left < rowRect.left + gutter) {
-        delta = cardRect.left - rowRect.left - gutter;
-    }
-
-    if (Math.abs(delta) < 1) return;
-
-    row.__swimlaneAllowScroll = true;
-    row.scrollTo({ left: row.scrollLeft + delta, behavior: 'smooth' });
-
-    if (row.__mediaTileHoverEdgeTimer) {
-        window.clearTimeout(row.__mediaTileHoverEdgeTimer);
-    }
-
-    row.__mediaTileHoverEdgeTimer = window.setTimeout(function () {
-        row.__swimlaneStableScrollLeft = row.scrollLeft;
-        row.__swimlaneAllowScroll = false;
-        row.__mediaTileHoverEdgeTimer = null;
-    }, 360);
-};
-
-// One set of hover timings for every Movie and TV tile (Home and Watch). The preview fades in and out over the same
-// number of milliseconds (the .media-tile-hover-panel opacity transition); moving straight from one tile to the next
-// skips the pause.
-window.mediaTileHoverTimings = { pauseMs: 200, hideMs: 110, handoffMs: 250 };
-
-window.showMediaTileHover = function (cardEl) {
-    if (!cardEl) return;
-    var row = cardEl.closest('.media-tile-shelf-scroll');
-    if (!row) return;
-    var previous = row.querySelector('.media-tile.is-hover-active');
-    if (previous && previous !== cardEl) window.clearMediaTileHover(previous);
-    var panel = cardEl.querySelector('.media-tile-hover-panel');
-    if (!panel) return;
-    cardEl.__mediaTileHoverPanel = panel;
-    if (cardEl.__mediaTileHideTimer) {
-        window.clearTimeout(cardEl.__mediaTileHideTimer);
-        cardEl.__mediaTileHideTimer = null;
-    }
-    var frame = cardEl.querySelector('.media-tile-frame') || cardEl;
-    var rect = frame.getBoundingClientRect();
-    if (!Number.isFinite(rect.height) || rect.height <= 16 || rect.width <= 16) return;
-    var expandedWidth = Math.min(rect.height * 16 / 9, Math.max(0, window.innerWidth - 24));
-    cardEl.style.setProperty('--media-tile-hover-anchor-width', rect.width + 'px');
-    cardEl.style.setProperty('--media-tile-hover-anchor-height', rect.height + 'px');
-    cardEl.style.setProperty('--media-tile-expanded-width', Math.round(expandedWidth) + 'px');
-    row.classList.add('has-active-in-row-hover');
-    cardEl.classList.add('is-hover-active');
-    // Keep the preview inside the expanding card so its neighbours move in the row.
-    panel.classList.add('is-inline-expanded');
-    var image = panel.querySelector('.media-tile-hover-image');
-    if (image) { image.loading = 'eager'; if ('fetchPriority' in image) image.fetchPriority = 'high'; }
-    window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(function () {
-            if (!cardEl.classList.contains('is-hover-active')) return;
-            panel.classList.add('is-visible');
-        });
-    });
-};
-
-window.clearMediaTileHover = function (cardEl) {
-    if (!cardEl) return;
-
-    var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-    if (cardEl.classList.contains('is-hover-active')) window.__mediaTileHoverClosedAt = Date.now();
-    cardEl.classList.remove('is-hover-active');
-
-    if (cardEl.__mediaTileShowTimer) {
-        window.clearTimeout(cardEl.__mediaTileShowTimer);
-        cardEl.__mediaTileShowTimer = null;
-    }
-
-    if (!panel) return;
-
-    panel.classList.remove('is-visible');
-    panel.classList.remove('is-inline-expanded');
-    var wasGridOverlay = panel.classList.contains('is-grid-overlay');
-
-    window.setTimeout(function () {
-        if (cardEl.classList.contains('is-hover-active') || panel.classList.contains('is-visible')) {
-            return;
-        }
-
-        var restingFrame = cardEl.querySelector('.media-tile-frame') || cardEl;
-        var restingFrameRect = restingFrame.getBoundingClientRect();
-        if (restingFrameRect.width > 16 && restingFrameRect.height > 16) {
-            cardEl.style.setProperty('--media-tile-hover-anchor-width', Math.round(restingFrameRect.width) + 'px');
-            cardEl.style.setProperty('--media-tile-hover-anchor-height', Math.round(restingFrameRect.height) + 'px');
-        }
-        cardEl.style.removeProperty('--media-tile-expanded-width');
-        if (wasGridOverlay) {
-            panel.classList.remove('is-grid-overlay');
-            panel.style.removeProperty('--media-tile-expanded-width');
-            cardEl.classList.remove('is-grid-overlay-anchor');
-            window.restoreMediaTileHover(cardEl);
-        }
-        var row = cardEl.closest('.media-tile-shelf-scroll, .media-tile-grid');
-        if (row && !row.querySelector('.media-tile.is-hover-active')) {
-            row.classList.remove('has-active-in-row-hover');
-        }
-    }, 380);
-};
-
-window.registerMediaTileHover = function (cardEl) {
-    if (!cardEl || cardEl.__mediaTileHoverRegistered) return;
-
-    cardEl.classList.add('is-hover-js-enabled');
-    if (cardEl.closest('.media-tile-grid')) {
-        cardEl.classList.add('is-grid-hover-tile');
-    }
-
-    // Cache the resting geometry so cinematic expansion can preserve the shelf layout.
-    var restingFrame = cardEl.querySelector('.media-tile-frame') || cardEl;
-    var restingFrameRect = restingFrame.getBoundingClientRect();
-    if (restingFrameRect.width > 16 && restingFrameRect.height > 16) {
-        cardEl.style.setProperty('--media-tile-hover-anchor-width', Math.round(restingFrameRect.width) + 'px');
-        cardEl.style.setProperty('--media-tile-hover-anchor-height', Math.round(restingFrameRect.height) + 'px');
-    }
-
-    var show = function (event) {
-        if (window.matchMedia && !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-        if (event && event.type === 'focusin' && cardEl.__mediaTilePointerFocus) return;
-        if (cardEl.__mediaTileHideTimer) {
-            window.clearTimeout(cardEl.__mediaTileHideTimer);
-            cardEl.__mediaTileHideTimer = null;
-        }
-
-        if (cardEl.__mediaTileShowTimer) {
-            window.clearTimeout(cardEl.__mediaTileShowTimer);
-        }
-
-        var row = cardEl.closest('.media-tile-shelf-scroll, .media-tile-grid');
-        var activeCard = row ? row.querySelector('.media-tile.is-hover-active') : null;
-        var timings = window.mediaTileHoverTimings;
-        var handingOff = (activeCard && activeCard !== cardEl)
-            || (Date.now() - (window.__mediaTileHoverClosedAt || 0) < timings.handoffMs);
-        var showDelay = handingOff ? 0 : timings.pauseMs;
-
-        cardEl.__mediaTileShowTimer = window.setTimeout(function () {
-            cardEl.__mediaTileShowTimer = null;
-            window.showMediaTileHover(cardEl);
-        }, showDelay);
-    };
-
-    var isWithinHoverSurface = function (target) {
-        if (!target) return false;
-
-        var activePanel = cardEl.__mediaTileHoverPanel || panel;
-        return cardEl.contains(target) || (activePanel && activePanel.contains(target));
-    };
-
-    var isHoverSurfaceStillActive = function () {
-        var activePanel = cardEl.__mediaTileHoverPanel || panel;
-        var activeElement = document.activeElement;
-
-        return (cardEl.matches && cardEl.matches(':hover'))
-            || (activePanel && activePanel.matches && activePanel.matches(':hover'))
-            || isWithinHoverSurface(activeElement);
-    };
-
-    var scheduleHide = function (event) {
-        if (event && isWithinHoverSurface(event.relatedTarget)) return;
-
-        if (cardEl.__mediaTileShowTimer) {
-            window.clearTimeout(cardEl.__mediaTileShowTimer);
-            cardEl.__mediaTileShowTimer = null;
-        }
-
-        if (cardEl.__mediaTileHideTimer) {
-            window.clearTimeout(cardEl.__mediaTileHideTimer);
-        }
-
-        cardEl.__mediaTileHideTimer = window.setTimeout(function () {
-            if (isHoverSurfaceStillActive()) {
-                return;
-            }
-
-            window.clearMediaTileHover(cardEl);
-        }, window.mediaTileHoverTimings.hideMs);
-    };
-
-    var keepOpen = function () {
-        if (cardEl.__mediaTileShowTimer) {
-            window.clearTimeout(cardEl.__mediaTileShowTimer);
-            cardEl.__mediaTileShowTimer = null;
-        }
-
-        if (cardEl.__mediaTileHideTimer) {
-            window.clearTimeout(cardEl.__mediaTileHideTimer);
-            cardEl.__mediaTileHideTimer = null;
-        }
-    };
-
-    const pointerFocus = () => { cardEl.__mediaTilePointerFocus = true; };
-    const keyboardFocus = () => { cardEl.__mediaTilePointerFocus = false; };
-    cardEl.addEventListener('pointerdown', pointerFocus);
-    cardEl.addEventListener('keydown', keyboardFocus);
-    cardEl.__mediaTilePointerFocusHandler = pointerFocus;
-    cardEl.__mediaTileKeyboardFocusHandler = keyboardFocus;
-    cardEl.addEventListener('mouseenter', show);
-    cardEl.addEventListener('focusin', show);
-    cardEl.addEventListener('mouseleave', scheduleHide);
-    cardEl.addEventListener('focusout', scheduleHide);
-
-    var panel = cardEl.querySelector('.media-tile-hover-panel');
-    if (panel) {
-        panel.addEventListener('mouseenter', keepOpen);
-        panel.addEventListener('focusin', keepOpen);
-        panel.addEventListener('mouseleave', scheduleHide);
-        panel.addEventListener('focusout', scheduleHide);
-    }
-
-    cardEl.__mediaTileHoverShow = show;
-    cardEl.__mediaTileHoverHide = scheduleHide;
-    cardEl.__mediaTileHoverKeepOpen = keepOpen;
-    cardEl.__mediaTileHoverRegistered = true;
-};
-
-window.unregisterMediaTileHover = function (cardEl) {
-    if (!cardEl || !cardEl.__mediaTileHoverRegistered) return;
-    cardEl.removeEventListener('pointerdown', cardEl.__mediaTilePointerFocusHandler);
-    cardEl.removeEventListener('keydown', cardEl.__mediaTileKeyboardFocusHandler);
-
-    var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
-
-    if (cardEl.__mediaTileHoverShow) {
-        cardEl.removeEventListener('mouseenter', cardEl.__mediaTileHoverShow);
-        cardEl.removeEventListener('focusin', cardEl.__mediaTileHoverShow);
-    }
-
-    if (cardEl.__mediaTileHoverHide) {
-        cardEl.removeEventListener('mouseleave', cardEl.__mediaTileHoverHide);
-        cardEl.removeEventListener('focusout', cardEl.__mediaTileHoverHide);
-    }
-
-    if (panel && cardEl.__mediaTileHoverKeepOpen) {
-        panel.removeEventListener('mouseenter', cardEl.__mediaTileHoverKeepOpen);
-        panel.removeEventListener('focusin', cardEl.__mediaTileHoverKeepOpen);
-        panel.removeEventListener('mouseleave', cardEl.__mediaTileHoverHide);
-        panel.removeEventListener('focusout', cardEl.__mediaTileHoverHide);
-    }
-
-    if (cardEl.__mediaTileHideTimer) {
-        window.clearTimeout(cardEl.__mediaTileHideTimer);
-    }
-    if (cardEl.__mediaTileShowTimer) {
-        window.clearTimeout(cardEl.__mediaTileShowTimer);
-    }
-    cardEl.classList.remove('is-hover-js-enabled');
-    cardEl.classList.remove('is-grid-hover-tile');
-    window.clearMediaTileHover(cardEl);
-
-    delete cardEl.__mediaTileHoverPanel;
-    delete cardEl.__mediaTileHoverShow;
-    delete cardEl.__mediaTileHoverHide;
-    delete cardEl.__mediaTileHoverKeepOpen;
-    delete cardEl.__mediaTileShowTimer;
-    delete cardEl.__mediaTileHideTimer;
-    delete cardEl.__mediaTileHoverRegistered;
-};
 // -- Alphabetical Grid scroll-to-letter ---------------------------------
 
 /**
@@ -1946,8 +1351,6 @@ window.tuvimaPopupStateSync = (function () {
 
 window.listenPlayback = (function () {
     var playbackConfig = {
-        popupWidth: 420,
-        popupHeight: 780,
         immediateActionDedupMilliseconds: 900,
         immediateActionConsumeMilliseconds: 1800,
         audioObserverIntervalMilliseconds: 1200,
@@ -1958,13 +1361,9 @@ window.listenPlayback = (function () {
     };
     var stateKey = 'tuvima.playback.v2.state';
     var commandKey = 'tuvima.playback.v2.command';
-    var popupName = 'tuvima-listen-mini-player';
     var channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('tuvima-listen-playback') : null;
     var stateHandler = null;
     var commandHandler = null;
-    var popupWindow = null;
-    var popupWindowId = null;
-    var popupUnloadHandler = null;
     var audioObservers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
     var playerShortcutHandlers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
@@ -1986,8 +1385,6 @@ window.listenPlayback = (function () {
     }
 
     function configure(options) {
-        playbackConfig.popupWidth = asFiniteNumber(readConfigValue(options, 'popupWidth', 'popup_width', playbackConfig.popupWidth), playbackConfig.popupWidth, 280, 1200);
-        playbackConfig.popupHeight = asFiniteNumber(readConfigValue(options, 'popupHeight', 'popup_height', playbackConfig.popupHeight), playbackConfig.popupHeight, 360, 1400);
         playbackConfig.immediateActionDedupMilliseconds = asFiniteNumber(readConfigValue(options, 'immediateActionDedupMilliseconds', 'immediate_action_dedup_milliseconds', playbackConfig.immediateActionDedupMilliseconds), playbackConfig.immediateActionDedupMilliseconds, 100, 5000);
         playbackConfig.immediateActionConsumeMilliseconds = asFiniteNumber(readConfigValue(options, 'immediateActionConsumeMilliseconds', 'immediate_action_consume_milliseconds', playbackConfig.immediateActionConsumeMilliseconds), playbackConfig.immediateActionConsumeMilliseconds, 100, 10000);
         playbackConfig.audioObserverIntervalMilliseconds = asFiniteNumber(readConfigValue(options, 'audioObserverIntervalMilliseconds', 'audio_observer_interval_milliseconds', playbackConfig.audioObserverIntervalMilliseconds), playbackConfig.audioObserverIntervalMilliseconds, 100, 10000);
@@ -2640,57 +2037,6 @@ window.listenPlayback = (function () {
         return Math.max(0, position || 0);
     }
 
-    function openPopupWindow(url) {
-        if (!url) return false;
-        if (popupWindow && !popupWindow.closed) {
-            if (typeof popupWindow.focus === 'function') {
-                popupWindow.focus();
-            }
-            return true;
-        }
-
-        var availableWidth = Math.max(280, Number(window.screen && window.screen.availWidth) || window.innerWidth || playbackConfig.popupWidth);
-        var availableHeight = Math.max(360, Number(window.screen && window.screen.availHeight) || window.innerHeight || playbackConfig.popupHeight);
-        var width = Math.min(Math.round(playbackConfig.popupWidth), availableWidth);
-        var height = Math.min(Math.round(playbackConfig.popupHeight), availableHeight);
-        var leftBase = Number(window.screen && window.screen.availLeft) || 0;
-        var topBase = Number(window.screen && window.screen.availTop) || 0;
-        var left = Math.round(leftBase + (availableWidth - width) / 2);
-        var top = Math.round(topBase + (availableHeight - height) / 2);
-        var ownerId = window.tuvimaBookmarkCommands && window.tuvimaBookmarkCommands.getOwnerId();
-        popupWindowId = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() :
-            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
-        if (ownerId) {
-            try {
-                var popupUrl = new URL(url, window.location.href);
-                popupUrl.searchParams.set('owner', ownerId);
-                popupUrl.searchParams.set('window', popupWindowId);
-                url = popupUrl.pathname + popupUrl.search + popupUrl.hash;
-            } catch (_) { }
-        }
-
-        popupWindow = window.open(
-            url,
-            popupName,
-            'popup=yes,width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=no'
-        );
-
-        if (popupWindow && typeof popupWindow.focus === 'function') {
-            popupWindow.focus();
-        }
-
-        return !!popupWindow;
-    }
-
-    function focusPopup() {
-        window.requestAnimationFrame(function () {
-            var target = document.querySelector('.listen-popup button:not([disabled]), .listen-popup input:not([disabled]), main button:not([disabled]), main input:not([disabled])');
-            if (target && typeof target.focus === 'function') {
-                target.focus({ preventScroll: true });
-            }
-        });
-    }
-
     function captureAudiobookBookmarkPosition(expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
         var audio = document.getElementById('listen-audio-engine');
         if (!audio || !expectedAssetId || !expectedSourceUrl) return null;
@@ -2742,8 +2088,6 @@ window.listenPlayback = (function () {
 
     var lastImmediateStartAction = null;
     var lastImmediateStartAt = 0;
-    var lastImmediatePopupAction = null;
-    var lastImmediatePopupAt = 0;
 
     function startAudioFromImmediateAction(target, allowDuplicate) {
         var action = target && target.closest ? target.closest('[data-listen-immediate-start]') : null;
@@ -2848,28 +2192,10 @@ window.listenPlayback = (function () {
         }
     }
 
-    function openPopupFromImmediateAction(target, allowDuplicate) {
-        var action = target && target.closest ? target.closest('[data-listen-popup-route]') : null;
-        if (!action || action.disabled || action.getAttribute('aria-disabled') === 'true') return;
-
-        var route = action.dataset.listenPopupRoute || '';
-        if (!route) return;
-
-        var now = Date.now();
-        if (!allowDuplicate && action === lastImmediatePopupAction && now - lastImmediatePopupAt < playbackConfig.immediateActionDedupMilliseconds) {
-            return;
-        }
-
-        lastImmediatePopupAction = action;
-        lastImmediatePopupAt = now;
-        openPopupWindow(route);
-    }
-
     document.addEventListener('click', function (event) {
         startAudioFromImmediateAction(event.target, true);
         toggleAudioFromImmediateAction(event.target, false);
         seekAudioFromImmediateAction(event.target, false);
-        openPopupFromImmediateAction(event.target, false);
     }, true);
 
     if (channel) {
@@ -2951,7 +2277,6 @@ window.listenPlayback = (function () {
                 commandHandler = null;
             }
         },
-        openPopup: openPopupWindow,
         pauseAudioForClose: function (assetId, requestVersion, sourceUrl, predecessorSourceUrl, pendingSource) {
             var audio = document.getElementById('listen-audio-engine');
             if (!audio || String(audio.dataset.currentAssetId || '').toLowerCase() !== String(assetId || '').toLowerCase()
@@ -2994,54 +2319,11 @@ window.listenPlayback = (function () {
                 }
             }
             window.listenPlayback.clearState();
-            window.listenPlayback.closePopup();
             return true;
         },
         captureAudiobookBookmarkPosition: captureAudiobookBookmarkPosition,
         readCurrentAudiobookPosition: readCurrentAudiobookPosition,
-        closePopup: function () {
-            if (popupWindow && !popupWindow.closed) {
-                popupWindow.close();
-            }
-
-            popupWindow = null;
-            popupWindowId = null;
-        },
-        isCurrentPopupWindow: function (id) {
-            return !!id && !!popupWindow && !popupWindow.closed && String(id).toLowerCase() === String(popupWindowId).toLowerCase();
-        },
-        registerPopupWindow: function (ownerId, senderId, windowId) {
-            if (popupUnloadHandler) {
-                window.removeEventListener('beforeunload', popupUnloadHandler);
-            }
-
-            if (!ownerId || !senderId || !windowId || typeof BroadcastChannel === 'undefined') return;
-            var registrationGeneration = Date.now();
-            function notifyOwner(action) {
-                try {
-                    var addressed = new BroadcastChannel('tuvima-bookmark-commands:' + String(ownerId).replace(/-/g, '').toLowerCase());
-                    var id = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() :
-                        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
-                    addressed.postMessage({ type: 'command', command: { action: action, commandId: id,
-                        recipientId: ownerId, senderId: senderId, popupWindowId: windowId, ownerGeneration: registrationGeneration } });
-                    addressed.close();
-                } catch (error) {
-                    console.debug('Could not notify the current popup owner.', error);
-                }
-            }
-            notifyOwner('register-popup');
-            popupUnloadHandler = function () { notifyOwner('popup-closed'); };
-
-            window.addEventListener('beforeunload', popupUnloadHandler);
-        },
-        focusPopup: focusPopup,
-        focusMainWindow: function () { try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (_) { } },
         returnToVideo: returnToVideo,
-        unregisterPopupWindow: function () {
-            if (!popupUnloadHandler) return;
-            window.removeEventListener('beforeunload', popupUnloadHandler);
-            popupUnloadHandler = null;
-        },
         readAudioState: function (element) {
             return readAudioElementState(element);
         },
@@ -3480,22 +2762,6 @@ window.listenPlayback = (function () {
     };
 })();
 
-// Details page rows remember, per kind of row, whether the person last opened or collapsed one (AppCollapsibleRow).
-window.detailRowState = {
-    get: function (kind) {
-        try {
-            const value = localStorage.getItem('detail-row-open:' + kind);
-            return value === 'true' ? true : value === 'false' ? false : null;
-        } catch (_) {
-            return null; // Blocked storage (a private window): the row keeps its starting state.
-        }
-    },
-    set: function (kind, open) {
-        try { localStorage.setItem('detail-row-open:' + kind, open ? 'true' : 'false'); }
-        catch (_) { /* Blocked storage: the choice lasts for this visit only. */ }
-    },
-};
-
 window.listenUi = {
     getMode: function () {
         return localStorage.getItem('listen-ui-mode');
@@ -3836,10 +3102,23 @@ window.tuvimaArtwork = {
 };
 
 window.tuvimaMenu = { hasFocus: function (element) { return Promise.resolve().then(() => element.contains(document.activeElement)); }, move: function (element, key) {
-    const root = element.closest('[role="menu"],.media-rate-control,.playback-popover-content') || element;
+    const root = element.closest('[role="menu"],.media-rate-control,.playback-panel__body') || element;
     const items = Array.from(root.querySelectorAll('[role="menuitem"],[role="menuitemcheckbox"]')).filter(item => !item.disabled);
     if (!items.length) return;
     const current = items.indexOf(document.activeElement);
     const index = key === 'Home' ? 0 : key === 'End' ? items.length - 1 : (current + (key === 'ArrowUp' || key === 'ArrowLeft' ? -1 : 1) + items.length) % items.length;
     items[index].focus();
 } };
+
+// The launch splash (first-run setup rework D4): the short intro animation is drawn by the server page and removed as soon as the app has rendered.
+// A timer removes it anyway after 12 seconds, so a failed start never leaves it covering the page.
+(function () {
+    function remove() {
+        var splash = document.getElementById('tl-launch-splash');
+        if (!splash) return;
+        splash.classList.add('tl-launch-splash--done');
+        setTimeout(function () { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 250);
+    }
+    window.tuvimaDismissLaunchSplash = remove;
+    setTimeout(remove, 12000);
+})();

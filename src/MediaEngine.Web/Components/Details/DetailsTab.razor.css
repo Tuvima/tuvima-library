@@ -31,7 +31,7 @@
 
 :where(.tl-detail-page) .tl-source-link small {
     color: rgba(246, 240, 232, 0.52);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 /* File facts: a compact two-column list on every device. Long values wrap
@@ -45,7 +45,7 @@
 :where(.tl-detail-page) .tl-file-facts__note {
     margin: 0;
     color: rgba(246, 240, 232, 0.62);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     overflow-wrap: anywhere;
 }
 
@@ -60,29 +60,42 @@
 
 :where(.tl-detail-page) .tl-file-facts__title {
     margin: 0 0 0.35rem;
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     overflow-wrap: anywhere;
 }
 
 :where(.tl-detail-page) .tl-file-facts__list {
+    /* About this (details page mock, note 9): a quiet card of small label over bold value, four across on a desktop. */
     display: grid;
-    grid-template-columns: minmax(5rem, 9rem) minmax(0, 1fr);
-    gap: 0.3rem 0.9rem;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 1rem 1.25rem;
     margin: 0;
+    min-width: 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+:where(.tl-detail-page) .tl-file-facts__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
     min-width: 0;
 }
 
 :where(.tl-detail-page) .tl-file-facts__list dt {
     color: rgba(246, 240, 232, 0.55);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     overflow-wrap: anywhere;
 }
 
 :where(.tl-detail-page) .tl-file-facts__list dd {
     margin: 0;
     min-width: 0;
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -100,13 +113,13 @@
     grid-template-columns: 9.5rem minmax(0, 1fr) auto;
     gap: 0.15rem 0.9rem;
     min-width: 0;
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 :where(.tl-detail-page) .tl-item-history__when,
 :where(.tl-detail-page) .tl-item-history__who {
     color: rgba(246, 240, 232, 0.55);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 :where(.tl-detail-page) .tl-item-history__detail {
@@ -121,7 +134,7 @@
 
 @media (max-width: 600px) {
     :where(.tl-detail-page) .tl-file-facts__list {
-        grid-template-columns: minmax(4.5rem, 32%) minmax(0, 1fr);
-        gap: 0.3rem 0.7rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem 0.9rem;
     }
 }

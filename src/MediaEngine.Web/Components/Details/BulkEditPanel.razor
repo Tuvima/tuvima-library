@@ -4,6 +4,8 @@
 @using MediaEngine.Web.Components.MediaEditor.Moves
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@using Microsoft.AspNetCore.Components.Forms
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject DeviceContextService Device
@@ -30,26 +32,40 @@
                                OnPick="PickDestination"
                                OnCancel="BackToEdit" />
     }
+    else if (Selection.Panel == BulkPanelKind.Series)
+    {
+        <BulkVideoSeriesPicker Rows="Selection.Rows" Pending="Pending" CanChange="CanChange" OnDone="BackToEdit" />
+    }
     else if (Selection.Panel == BulkPanelKind.Match)
     {
-        <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
-            <p class="tl-bulk__note">
-                Match each of the @Selection.Count @Noun with the entry of its own @(IsEpisodes ? "season" : "album") that it fits best by title.
-                Nothing changes until you save, and the review lists every one.
-            </p>
-            <div class="tl-bulk__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange)" OnClick="StageMatch">@L["BulkEditPanel_StageMatching"]</AppButton>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit">@L["Search_Cancel"]</AppButton>
-            </div>
-        </section>
+        <EditorGroupMatchPanel Rows="Selection.OrderedRows().ToList()" MediaType="@Selection.MediaType" Pending="Pending" CanChange="CanChange" OnDone="BackToEdit" />
     }
     else
     {
+        <h3 class="tl-editor-details__heading" data-bulk-heading>@BulkEditRules.EditingTitle(Selection.Rows, Selection.MediaType)</h3>
+        var faces = Selection.OrderedRows().Where(row => !string.IsNullOrWhiteSpace(row.ImageUrl)).ToList();
+        @if (faces.Count > 0)
+        {
+            <div class="tl-bulk__faces" data-bulk-faces>
+                @foreach (var row in faces.Take(MaxFaces))
+                {
+                    <AppImage Src="@row.ImageUrl" Alt="" Width="28" Height="28" ObjectFit="AppObjectFit.Cover" Class="tl-bulk__face" />
+                }
+                @if (faces.Count > MaxFaces)
+                {
+                    <span class="tl-bulk__faces-more">+@(faces.Count - MaxFaces)</span>
+                }
+            </div>
+        }
         <div class="tl-bulk__items" role="list" aria-label="@L["BulkEditPanel_ItemsBeingEditedTogether"].Value">
             @foreach (var row in Selection.OrderedRows())
             {
+                var skipped = _fields.Unavailable.TryGetValue(row.Id, out var skippedReason);
                 <span role="listitem">
-                    <AppChip Text="@row.Title" OnClose="@(() => Selection.Toggle(row))" />
+                    <AppChip Text="@row.Title"
+                             Title="@(skipped ? $"Left as it is: {skippedReason?.TrimEnd('.')}" : null)"
+                             Disabled="@skipped"
+                             OnClose="@(() => Selection.Toggle(row))" />
                 </span>
             }
         </div>
@@ -83,7 +99,12 @@
                 @SongTools()
             }
 
-            var effective = _fields.Fields.Select(field => (Engine: field, Shown: field.WithStaged(Pending))).ToList();
+            @if (_artworkTarget is not null && BulkEditRules.ArtworkSentence(Kind, Selection.Count) is { } artworkSentence)
+            {
+                @ArtworkSection(artworkSentence)
+            }
+
+            var effective = BulkEditRules.OfferedFields(_fields.Fields, Kind).Select(field => (Engine: field, Shown: field.WithStaged(Pending))).ToList();
             var editable = effective.Where(pair => !pair.Engine.IsProviderFact).ToList();
             var facts = effective.Where(pair => pair.Engine.IsProviderFact).ToList();
             @if (editable.Count > 0)
@@ -111,8 +132,15 @@
 </div>
 
 @code {
+    private const int MaxFaces = 8;
+
+    private static readonly IReadOnlyList<AppSelectOption> ExplicitOptions = [new("true", "Explicit"), new("false", "Not explicit")];
+
+    private BulkArtworkPicker _artwork = default!;
+    private Guid? _artworkTarget;
     private readonly Dictionary<string, ListDraft> _drafts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, string> _movedLabels = [];
+    private readonly HashSet<string> _unlocked = new(StringComparer.OrdinalIgnoreCase);
     private BulkEditFields _fields = default!;
     private List<Guid> _loadedIds = [];
     private int _loadedVersion = -1;
@@ -148,12 +176,13 @@
     {
         BulkPanelKind.Move => "move",
         BulkPanelKind.Match => "match",
+        BulkPanelKind.Series => "series",
         _ => "edit",
     };
 
-    private string Noun => BulkEditRules.Noun(Selection.Rows, Selection.MediaType);
+    private BulkItemKind Kind => BulkEditRules.KindOf(Selection.Rows, Selection.MediaType);
 
-    private bool IsEpisodes => Selection.Rows.Count > 0 && Selection.Rows.All(row => row.Kind == DetailEntityType.TvEpisode);
+    private string Noun => BulkEditRules.Noun(Selection.Rows, Selection.MediaType);
 
     private bool ShowsSongTools => BulkEditRules.CanChangeAlbum(Selection.Rows, Selection.MediaType);
 
@@ -187,8 +216,35 @@
             Pending.Changed += OnPendingChanged;
         }
 
+        if (_artwork is null || !ReferenceEquals(_artworkPending, Pending))
+        {
+            if (_artwork is not null)
+            {
+                _artwork.Changed -= OnArtworkChanged;
+            }
+
+            _artworkPending = Pending;
+            _artwork = new BulkArtworkPicker(Api, Pending);
+            _artwork.Changed += OnArtworkChanged;
+            _artworkTarget = null;
+        }
+
         await SyncAsync();
     }
+
+    private PendingEditList? _artworkPending;
+
+    private void OnArtworkChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task UploadCoverAsync(IBrowserFile? file)
+    {
+        if (file is not null && CanChange)
+        {
+            await _artwork.UploadAsync(file);
+        }
+    }
+
+    private void UndoCover() => _artwork.Undo();
 
     // The ticked rows or the panel changed: read the fields of rows not read yet, and fetch the places when Move opens.
     private async Task SyncAsync()
@@ -208,6 +264,20 @@
             _drafts.Clear();
             _songNote = null;
             await _fields.LoadAsync(ids);
+        }
+
+        if (Selection.Panel == BulkPanelKind.Edit)
+        {
+            // One shared picture role: songs of one album set the album's cover. Anything else offers none.
+            var target = BulkEditRules.SharedArtworkTarget(Selection.Rows, Selection.MediaType);
+            if (target != _artworkTarget)
+            {
+                _artworkTarget = target;
+                if (target is { } album)
+                {
+                    await _artwork.LoadAsync(album);
+                }
+            }
         }
 
         if (Selection.Panel == BulkPanelKind.Move && _lastPanel != BulkPanelKind.Move && ids.Count > 0)
@@ -240,18 +310,69 @@
     private RenderFragment EditableRow(BulkFieldView field, BulkFieldView shown) => __builder =>
     {
         var staged = field.HasStaged(Pending);
-        <div class="tl-editor-field" data-field-key="@field.Key">
+        // The same form lock as one item (EditorFieldLocks): a provider field starts locked and is unlocked to edit the shared value. A
+        // field with a change staged is the person's own value and stays open; tags and the Explicit mark are never locked.
+        var own = EditorFieldLocks.IsOwnField(field.Key);
+        var locked = !own && !staged && !_unlocked.Contains(field.Key);
+        <div class="@(locked ? "tl-editor-field tl-editor-field--form-locked" : "tl-editor-field")" data-field-key="@field.Key" data-locked="@(locked ? "true" : "false")">
             <div class="tl-editor-field__label">
                 <span>@field.Label</span>
-                @if (staged)
+                @if (!own || staged)
                 {
-                    <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} will change")" title="Will change when you save"></span>
+                    <span class="tl-editor-field__tools">
+                        @if (staged)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       Tone="AppUiTone.Primary"
+                                       Size="AppControlSize.Compact"
+                                       StartIcon="@AppMaterialIcons.Outlined.Replay"
+                                       Class="tl-editor-field__reset"
+                                       aria-label="@($"Undo changes to {field.Label}")"
+                                       OnClick="@(() => UndoField(field))">@L["EditorDetailsPanel_Revert"]</AppButton>
+                        }
+                        @if (!own)
+                        {
+                        <span class="tl-editor-field__lockstate" data-lock-state="@(staged ? "yours" : locked ? "locked" : "unlocked")">
+                            @if (staged)
+                            {
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
+                                <span>@L["EditorDetailsPanel_YoursKept"]</span>
+                            }
+                            else
+                            {
+                                var lockText = locked ? L["EditorDetailsPanel_UnlockToEdit", field.Label].Value : L["EditorDetailsPanel_Lock", field.Label].Value;
+                                <AppIconButton Icon="@(locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
+                                               Size="AppControlSize.Compact"
+                                               Tone="AppUiTone.Primary"
+                                               ButtonStyle="AppButtonStyle.Text"
+                                               Class="tl-editor-field__lock-toggle"
+                                               Disabled="@(!CanChange)"
+                                               Tooltip="@lockText"
+                                               AriaLabel="@lockText"
+                                               OnClick="@(() => ToggleLock(field, locked))" />
+                                <span>@(locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
+                            }
+                        </span>
+                        }
+                    </span>
                 }
             </div>
             <span class="@(shown.IsMixed ? "tl-editor-field__note tl-bulk__mixed" : "tl-editor-field__note")">@CurrentText(shown)</span>
             @if (field.IsList)
             {
-                @ListControl(field)
+                @* A locked list shows only what the items hold; unlocking brings in the controls that change it. *@
+                @if (!locked)
+                {
+                    @ListControl(field)
+                }
+            }
+            else if (string.Equals(field.Key, BulkEditRules.ExplicitKey, StringComparison.OrdinalIgnoreCase))
+            {
+                <AppSegmentedControl Options="@ExplicitOptions"
+                                     Value="@(shown.IsMixed ? string.Empty : (string.Equals(shown.SharedText, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false"))"
+                                     ValueChanged="@(value => StageScalar(field, value))"
+                                     Disabled="@(!CanChange)"
+                                     AriaLabel="@field.Label" />
             }
             else
             {
@@ -260,6 +381,7 @@
                               Placeholder="@(shown.IsMixed ? BulkEditRules.MixedLeaveUnchanged : null)"
                               InputType="@InputTypeOf(field)"
                               Disabled="@(!CanChange)"
+                              ReadOnly="@locked"
                               aria-label="@field.Label" />
             }
 
@@ -268,11 +390,6 @@
                 <span class="tl-editor-field__note">@LockedText(field)</span>
             }
 
-            @if (staged)
-            {
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Class="tl-editor-field__reset" OnClick="@(() => UndoField(field))">Undo changes to @field.Label</AppButton>
-            }
         </div>
     };
 
@@ -300,6 +417,61 @@
         </div>
     };
 
+    // "Set one cover for these 12 songs. It sets the album's cover." The choice is staged once, on the album.
+    private RenderFragment ArtworkSection(string sentence) => __builder =>
+    {
+        <section class="tl-editor-details__group tl-bulk__group" aria-label="Artwork" data-bulk-artwork>
+            <h3 class="tl-editor-details__heading">Artwork</h3>
+            <p class="tl-bulk__note">@sentence</p>
+            @if (_artwork.Loading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the album's covers" />
+            }
+            else
+            {
+                <div class="tl-bulk__covers" role="group" aria-label="Covers for the album">
+                    @foreach (var picture in _artwork.Pictures)
+                    {
+                        var current = picture;
+                        var chosen = _artwork.StagedAssetId is { } staged ? staged == current.AssetId : current.IsCurrent;
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Neutral"
+                                   Class="tl-bulk__cover"
+                                   Disabled="@(!CanChange)"
+                                   aria-label="@(string.IsNullOrWhiteSpace(current.Caption) ? "Album cover" : current.Caption)"
+                                   aria-pressed="@(chosen ? "true" : "false")"
+                                   OnClick="@(() => _artwork.Pick(current))">
+                            <img class="tl-bulk__cover-face"
+                                 src="@MediaTileArtworkUrl.ForDrawnSize(current.ThumbnailUrl, 72)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(current.ThumbnailUrl, 72)"
+                                 alt=""
+                                 loading="lazy"
+                                 decoding="async" />
+                        </AppButton>
+                    }
+                </div>
+                @if (_artwork.Pictures.Count == 0)
+                {
+                    <span class="tl-editor-field__note">The album has no saved covers yet. Add one from your computer.</span>
+                }
+
+                <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadCoverAsync" Disabled="@(!CanChange || _artwork.Busy)" />
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_artwork.Message))
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true">@_artwork.Message</AppAlert>
+            }
+
+            @if (_artwork.HasStaged)
+            {
+                <span class="tl-editor-field__note tl-bulk__staged" role="status">The album's cover will change when you save.</span>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Class="tl-editor-field__reset" OnClick="UndoCover">Undo cover change</AppButton>
+            }
+        </section>
+    };
+
     private RenderFragment FactRow(BulkFieldView shown) => __builder =>
     {
         var why = shown.Items.Select(item => item.LockedReason).FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason)) ?? "Provider facts cannot be edited here.";
@@ -308,7 +480,7 @@
                 <span>@shown.Label</span>
                 <AppTooltip Text="@why">
                     <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{shown.Label} is locked. {why}")">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
                     </span>
                 </AppTooltip>
             </div>
@@ -416,7 +588,7 @@
 
     private static AppInputType InputTypeOf(BulkFieldView field) => field.Key.ToLowerInvariant() switch
     {
-        "year" or "rating" => AppInputType.Number,
+        "year" or "rating" or "disc_number" => AppInputType.Number,
         _ => AppInputType.Text,
     };
 
@@ -459,7 +631,7 @@
             return;
         }
 
-        BulkEditStager.StageScalar(Pending, field, value);
+        BulkEditStager.StageScalar(Pending, field, value, Noun);
     }
 
     private void Restage(BulkFieldView field, ListDraft draft)
@@ -495,8 +667,27 @@
         Restage(field, draft);
     }
 
+    // Unlocking only lets the shared value be typed in; locking again stages nothing.
+    private void ToggleLock(BulkFieldView field, bool locked)
+    {
+        if (!CanChange)
+        {
+            return;
+        }
+
+        if (locked)
+        {
+            _unlocked.Add(field.Key);
+        }
+        else
+        {
+            _unlocked.Remove(field.Key);
+        }
+    }
+
     private void UndoField(BulkFieldView field)
     {
+        _unlocked.Remove(field.Key);
         BulkEditStager.ClearField(Pending, field);
         if (_drafts.TryGetValue(field.Key, out var draft))
         {
@@ -541,17 +732,6 @@
         {
             Selection.ClosePanel();
         }
-    }
-
-    private void StageMatch()
-    {
-        if (!CanChange || !BulkEditRules.CanMatch(Selection.Rows, Selection.MediaType))
-        {
-            return;
-        }
-
-        BulkEditStager.MatchInPlace(Pending, Selection.Rows);
-        BackToEdit();
     }
 
     // -- Move to album or season ---------------------------------------------------------------------
@@ -627,5 +807,9 @@
         }
 
         _fields.Changed -= OnFieldsChanged;
+        if (_artwork is not null)
+        {
+            _artwork.Changed -= OnArtworkChanged;
+        }
     }
 }

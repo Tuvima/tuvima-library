@@ -1,0 +1,34 @@
+.tl-vseries {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(246, 240, 232, 0.12);
+}
+
+.tl-vseries__heading {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+}
+
+.tl-vseries__new {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.tl-vseries__happen {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-vseries__tag {
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid rgba(240, 180, 60, 0.6);
+    color: #f0b43c;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 500;
+    vertical-align: middle;
+}

@@ -114,7 +114,26 @@ public sealed record LocalAssetPageDto(
 public sealed record ViewAssetTimelinePageDto(
     [property: JsonPropertyName("items")] IReadOnlyList<LocalAssetDto> Items,
     [property: JsonPropertyName("next_cursor")] string? NextCursor,
-    [property: JsonPropertyName("has_more")] bool HasMore);
+    [property: JsonPropertyName("has_more")] bool HasMore,
+    [property: JsonPropertyName("editor_limits"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ViewEditorLimitsDto? EditorLimits = null);
+
+/// <summary>
+/// The numbers the View editor's header dropdown follows, from <c>config/editor.json</c> (universal editor v5 D34). The Engine adds them to the
+/// asset read of a gallery (the read the editor's photo list already uses), so every View profile gets them and the Dashboard holds none.
+/// </summary>
+public sealed record ViewEditorLimitsDto(
+    [property: JsonPropertyName("inline_items")] int InlineItems,
+    [property: JsonPropertyName("page_size")] int PageSize);
+
+/// <summary>One earlier year of the On this day strip: how many photos and videos were taken on this month and day that year, and one to show.</summary>
+public sealed record ViewOnThisDayYearDto(
+    [property: JsonPropertyName("year")] int Year,
+    [property: JsonPropertyName("count")] int Count,
+    [property: JsonPropertyName("cover")] LocalAssetDto Cover);
+
+/// <summary>The On this day strip, newest year first. It reads only the person's own space and the Shared Library, and is empty when nothing matches.</summary>
+public sealed record ViewOnThisDayDto(
+    [property: JsonPropertyName("years")] IReadOnlyList<ViewOnThisDayYearDto> Years);
 
 public sealed record ViewTimelineBucketDto(
     [property: JsonPropertyName("year")] int Year,
@@ -143,7 +162,7 @@ public sealed record ViewScopeResolutionDto(
     [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes,
     [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false,
     [property: JsonPropertyName("can_view_documents")] bool CanViewDocuments = true,
-    [property: JsonPropertyName("can_file_shared_inbox")] bool CanFileSharedInbox = false,
+    [property: JsonPropertyName("can_edit_shared_documents")] bool CanEditSharedDocuments = false,
     [property: JsonPropertyName("can_view_photos")] bool CanViewPhotos = true,
     [property: JsonPropertyName("can_view_personal_videos")] bool CanViewPersonalVideos = true);
 

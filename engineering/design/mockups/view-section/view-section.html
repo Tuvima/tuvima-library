@@ -1,0 +1,158 @@
+<title>Photos Review Mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{--menu:#ffffff;--bg:#f4f4f8;--panel:#fff;--fg:#1c1b2a;--mute:#6b6a80;--line:#dedde8;--accent:#5b4bd5;--accent-fg:#fff;--pill:#ebeaf4;--chip:#e3e0fb;--marker:#d9480f;--viewer:#0e0d16;--viewer-fg:#f1f0fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--menu:#2F3039;--bg:#101115;--panel:#1A1B21;--fg:#ecebf6;--mute:#9a99b0;--line:#272830;--accent:#9d90ff;--accent-fg:#14122a;--pill:#272830;--chip:#2F3039;--marker:#ff8a4c;--viewer:#08080d;--viewer-fg:#f1f0fa;color-scheme:dark}}
+:root[data-theme="dark"]{--menu:#2F3039;--bg:#101115;--panel:#1A1B21;--fg:#ecebf6;--mute:#9a99b0;--line:#272830;--accent:#9d90ff;--accent-fg:#14122a;--pill:#272830;--chip:#2F3039;--marker:#ff8a4c;--viewer:#08080d;--viewer-fg:#f1f0fa;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 8px}
+.lead{color:var(--mute);margin:4px 0 0;max-width:62ch}
+.screen{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;position:relative;overflow:hidden}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.top h3{margin:0;font-size:18px}.top small{color:var(--mute)}
+.scope{display:flex;gap:10px;align-items:center;color:var(--mute);font-size:13px}
+.scope span.sel{border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:var(--fg);background:var(--bg)}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.pill{background:var(--pill);border-radius:6px;padding:0 16px;min-height:44px;display:inline-flex;align-items:center;font-size:13px}
+.pill.on{background:var(--chip);color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}
+.pill.ghost{background:transparent;border:1px solid var(--line);color:var(--mute)}
+.memories{margin:6px 0 16px}
+.mem-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.mem-head b{font-size:15px}.mem-head span{color:var(--mute);font-size:12px}
+.mem-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}
+.mem{flex:0 0 220px;height:130px;border-radius:8px;position:relative;overflow:hidden;color:#fff}
+.mem i{position:absolute;inset:0}
+.mem div{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.65));font-size:12px}
+.mem div b{display:block;font-size:13px}
+.month{font-weight:600;margin:14px 0 2px}.day{color:var(--mute);font-size:12px;margin:8px 0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px}
+.t{aspect-ratio:1;border-radius:4px;position:relative}
+.t.w{grid-column:span 2;aspect-ratio:2/1}
+.t.badge::after{content:"0:24";position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:1px 6px;border-radius:4px}
+.dots{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff;text-align:center;line-height:20px;font-weight:700}
+.chk{position:absolute;top:6px;left:6px;width:18px;height:18px;border-radius:4px;border:2px solid #fff;background:rgba(0,0,0,.25)}
+.menu{position:absolute;top:34px;right:0;width:190px;background:var(--menu);color:var(--fg);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:6px;z-index:5;font-size:13px}
+.menu div{padding:7px 10px;border-radius:5px;display:flex;gap:8px;align-items:center}
+.menu div:first-child{background:var(--pill)}
+.menu .danger{color:#d92d20}.menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.menu em{color:var(--mute);font-style:normal;margin-left:auto}
+.mk{position:absolute;z-index:8;width:22px;height:22px;border-radius:50%;background:var(--marker);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.viewer{background:var(--viewer);color:var(--viewer-fg);border-radius:10px;display:grid;grid-template-columns:1fr 260px;min-height:340px;position:relative;overflow:hidden}
+@media(max-width:700px){.viewer{grid-template-columns:1fr}}
+.stage{position:relative;min-height:260px;display:grid;place-items:center}
+.stage .img{width:78%;height:78%;border-radius:6px}
+.vbar{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:13px}
+.vbtns{display:flex;gap:8px}.vbtns span{background:rgba(255,255,255,.14);border-radius:6px;padding:4px 10px}
+.arrow{position:absolute;top:50%;font-size:22px;background:rgba(255,255,255,.14);width:34px;height:34px;border-radius:6px;display:grid;place-items:center}
+.side{border-left:1px solid rgba(255,255,255,.12);padding:46px 16px 16px;font-size:13px;display:flex;flex-direction:column;gap:8px}
+.side h4{margin:0 0 4px;font-size:14px}.side dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px}.side dt{color:#a5a4bb}.side dd{margin:0}
+.side .edit{margin-top:8px;background:var(--accent);color:var(--accent-fg);padding:7px;border-radius:6px;text-align:center}
+.notes{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.notes ol{margin:6px 0 0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.notes li{display:flex;gap:10px}
+.notes li b.n{flex:0 0 22px;height:22px;border-radius:50%;background:var(--marker);color:#fff;display:grid;place-items:center;font-size:12px}
+.app{display:grid;grid-template-columns:190px 1fr;gap:18px;padding:0}.app>.main{padding:18px 18px 18px 0;position:relative}.rail{border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;font-size:13px;position:relative;min-height:100%}.rail .who{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);margin-bottom:10px;display:flex;justify-content:space-between}.rail .who small{display:block;color:var(--mute);font-size:11px}.rail .it{padding:7px 10px;border-radius:5px;color:var(--fg)}.rail .it.on{background:var(--chip);font-weight:600}.rail .grp{color:var(--mute);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:12px 10px 2px}.rail .swm{position:absolute;left:12px;right:12px;top:62px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:6px;z-index:5}.rail .swm div{padding:7px 10px;border-radius:5px}.rail .swm div.cur{background:var(--pill);font-weight:600}.rail .swm hr{border:0;border-top:1px solid var(--line);margin:4px 0}.rail .swm em{display:block;color:var(--mute);font-style:normal;font-size:11px;padding:2px 10px}@media(max-width:700px){.app{grid-template-columns:1fr}.rail{border-right:0;border-bottom:1px solid var(--line)}.app>.main{padding:0 14px 14px}}
+.ribbon{display:flex;align-items:center;gap:12px;background:var(--chip);border-radius:6px;padding:8px 12px;font-size:13px;margin:0 0 12px}.ribbon .bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden;min-width:60px}.ribbon .bar i{display:block;height:100%;background:var(--accent)}.ribbon .x{color:var(--mute)}.ribbon.err{background:#fde7e4;color:#8a1f12}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ribbon.err{background:#4a1f1a;color:#ffb4a8}}:root[data-theme="dark"] .ribbon.err{background:#4a1f1a;color:#ffb4a8}.dropall{position:absolute;inset:6px;border:2px dashed var(--accent);border-radius:8px;background:rgba(120,100,255,.12);display:grid;place-items:center;z-index:4;color:var(--fg);font-size:15px}.drop{border:2px dashed var(--accent);border-radius:8px;padding:26px;text-align:center;color:var(--mute);margin-bottom:12px}.dlg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(380px,90%);background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.4);padding:18px;z-index:6}.dlg h4{margin:0 0 6px;font-size:15px}.dlg p{margin:0 0 12px;color:var(--mute)}.dlg label{display:flex;gap:8px;align-items:center;margin-bottom:14px}.dlg .btns{display:flex;gap:8px;justify-content:flex-end}.dlg .btn{padding:7px 14px;border-radius:6px;background:var(--pill)}.dlg .btn.p{background:var(--accent);color:var(--accent-fg)}.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.c1{background:linear-gradient(135deg,#f6a56b,#7b4a8f)}.c2{background:linear-gradient(135deg,#6bc5f6,#2b5d8f)}.c3{background:linear-gradient(135deg,#9be37c,#2f7a58)}.c4{background:linear-gradient(135deg,#f2d36b,#c96a3a)}.c5{background:linear-gradient(135deg,#e47c9b,#5a3a7a)}.c6{background:linear-gradient(135deg,#7cc6e3,#3a4d7a)}.c7{background:linear-gradient(135deg,#c6b6f6,#4b3aa0)}.c8{background:linear-gradient(135deg,#8fd0a8,#35646a)}
+</style>
+<div class="wrap">
+<header><h1>Photos review</h1><p class="lead">Three screens: the Photos page with the new memories strip and Recently added pill, one tile's menu, and the photo viewer. Numbered markers match the notes under each screen.</p></header>
+
+<section>
+<div class="screen app">
+ <aside class="rail"><div class="who"><span><small>Viewing</small>Mine</span><span>▾</span></div><div class="it on">Photos</div><div class="it">Galleries</div><div class="it">Documents</div><div class="it">People</div><div class="it">Places</div><div class="grp">Library</div><div class="it">Artwork Library</div><div class="grp">Galleries</div><div class="it">Portugal trip</div><div class="it">Family</div></aside>
+ <div class="main"><div class="top"><div><h3>Photos</h3><small>Your private photo and video timeline.</small></div></div>
+ <div class="pills"><span class="pill on">All</span><span class="pill">Recently added</span><span class="pill">Favorites</span><span class="pill">Videos</span><span class="pill">Archive</span><span class="pill ghost">Trash</span><span class="pill ghost">More filters ▾</span></div>
+ <div class="memories"><div class="mem-head"><b>On this day</b><span>Nov 6</span></div>
+  <div class="mem-row">
+   <div class="mem"><i class="c1"></i><div><b>1 year ago</b>Nov 6, 2025 · 6 photos</div></div>
+   <div class="mem"><i class="c2"></i><div><b>3 years ago</b>Nov 6, 2023 · 12 photos</div></div>
+   <div class="mem"><i class="c3"></i><div><b>5 years ago</b>Nov 6, 2021 · 4 photos</div></div>
+   <div class="mem"><i class="c4"></i><div><b>8 years ago</b>Nov 6, 2018 · 9 photos</div></div>
+  </div></div>
+ <div class="month">November 2026</div><div class="day">Thursday, Nov 5</div>
+ <div class="grid"><div class="t c5"></div><div class="t c6 w"></div><div class="t c7"></div><div class="t c8 badge"></div></div>
+ <div class="day">Tuesday, Nov 3</div>
+ <div class="grid"><div class="t c2"></div><div class="t c4"></div><div class="t c1 w"></div><div class="t c3"></div></div>
+ </div><span class="mk" style="left:300px;top:60px">1</span><span class="mk" style="left:214px;top:120px">2</span><span class="mk" style="right:14px;top:60px">3</span><span class="mk" style="left:168px;top:12px">4</span>
+</div>
+<div class="notes"><h2>Notes: Photos page</h2><ol>
+<li><b class="n">1</b><span><b>Recently added</b> is one more pill. It sorts the whole page by the day each photo was added, newest first, so an old photo you imported today is at the top.</span></li>
+<li><b class="n">2</b><span><b>On this day</b> sits above the timeline on the All view. Each card is one past year with photos from today's date; tapping opens those photos. It draws from Mine and the Shared Library only, never from Vault or other people's private photos, so nothing is logged as a look at someone else. It shows on the All pill only and hides itself on days with nothing.</span></li>
+<li><b class="n">3</b><span>The Scope and Density selects are gone from the top. Density now lives inside More filters, so the page opens with only the title and the pills.</span></li>
+<li><b class="n">4</b><span><b>Viewing: Mine</b> is the one place you choose whose library you are in. It sits at the top of the left rail and applies to every page under it (Photos, Galleries, Documents, People, Places). The "Personal" group heading is gone because the page is not always personal now.</span></li>
+</ol></div></section>
+
+<section>
+<div class="screen app" style="min-height:360px">
+ <aside class="rail"><div class="who"><span><small>Viewing</small>Shared Library</span><span>▾</span></div><div class="swm"><div>Mine</div><div class="cur">Shared Library</div><hr><em>Household</em><div>Ana</div><div>Dev</div></div><div style="height:150px"></div><div class="it on">Photos</div><div class="it">Galleries</div><div class="it">Documents</div><div class="it">People</div><div class="it">Places</div></aside>
+ <div class="main"><div class="top"><div><h3>Photos</h3><small>Photos and videos in the Shared Library.</small></div></div>
+ <div class="pills"><span class="pill on">All</span><span class="pill">Recently added</span><span class="pill">Favorites</span><span class="pill ghost">More filters ▾</span></div>
+ <div class="grid" style="max-width:520px"><div class="t c3"></div><div class="t c8"><span class="dots">⋯</span><div class="menu"><div>♡ Favorite</div><div>＋ Add to my Gallery <em>›</em></div><div>⤓ Download</div></div></div><div class="t c2"></div></div></div>
+ <span class="mk" style="left:168px;top:60px">1</span><span class="mk" style="left:500px;top:210px">2</span>
+</div>
+<div class="notes"><h2>Notes: switching whose library, and a Shared Library photo</h2><ol>
+<li><b class="n">1</b><span>Opening the switch lists Mine, the Shared Library, then each household member you may look at. Choosing one changes every page at once. Looking at another person is read-only.</span></li>
+<li><b class="n">2</b><span>On a photo someone else added, the menu shows only what you may do to it: Favorite, Add to my own Gallery and Download. Edit, Archive and Trash appear only on photos you added. On another person's page the menu has just Download, and only if they allow it. The strip On this day is not shown here; it only appears on Mine.</span></li>
+</ol></div></section>
+
+<section>
+<div class="screen" style="min-height:300px">
+ <div class="pills"><span class="pill on">All</span></div>
+ <div class="grid" style="max-width:520px"><div class="t c5"></div>
+  <div class="t c6"><span class="chk"></span><span class="dots">⋯</span>
+   <div class="menu"><div>♡ Favorite</div><div>＋ Add to Gallery <em>›</em></div><div>⤓ Download</div><div>✎ Edit</div><hr><div>🗄 Archive</div><div class="danger">🗑 Trash</div></div></div>
+  <div class="t c7"></div><div class="t c8"></div></div>
+ <span class="mk" style="left:292px;top:86px">1</span><span class="mk" style="left:330px;top:224px">2</span>
+</div>
+<div class="notes"><h2>Notes: tile menu</h2><ol>
+<li><b class="n">1</b><span>The tile "..." menu gets the same action list as the selection bar and the viewer: Favorite, Add to Gallery, Download, Edit, Archive, Trash. Today it only has Edit and Trash, so one photo means select first, then act.</span></li>
+<li><b class="n">2</b><span>The menu opens in the top layer above the grid, so it is never clipped by the tile or the page edge. Trash asks "Are you sure?" once, then happens at once. On phones the menu opens as a bottom sheet and has no Edit and no Trash. Controls are 44 px tall and icons are Material, Filled only when selected. No browser hover text; any hint uses the app's own instant tooltip.</span></li>
+</ol></div></section>
+
+<section>
+<div class="screen" style="min-height:300px">
+ <div class="top"><div><h3>Photos</h3><small>Your private photo and video timeline.</small></div></div>
+ <div class="pills"><span class="pill on">All</span><span class="pill">Recently added</span><span class="pill">Favorites</span><span class="pill ghost">More filters ▾</span></div>
+ <div class="ribbon"><span>Uploading 3 of 5</span><span class="bar"><i style="width:62%"></i></span><span>62%</span><span class="x">✕</span></div>
+ <div class="ribbon err"><span>2 files weren't added. Contract.pdf and Notes.docx aren't valid photos or videos.</span><span class="x">✕</span></div>
+ <div class="grid"><div class="t c5"></div><div class="t c6"></div><div class="t c7"></div><div class="t c8"></div></div>
+ <div class="dropall"><b>Drop to add to Photos</b></div>
+ <span class="mk" style="left:14px;top:150px">1</span><span class="mk" style="left:14px;top:196px">2</span><span class="mk" style="left:30px;top:236px">3</span>
+</div>
+<div class="notes"><h2>Notes: dropping files onto Photos</h2><ol>
+<li><b class="n">1</b><span>While files upload, the slim ribbon under the pills shows how many are done and a progress bar. You can keep browsing; the ribbon closes itself when the upload finishes and shows "5 photos added" for a moment.</span></li>
+<li><b class="n">2</b><span>Anything that is not a photo or video is refused by name with the reason. The valid files from the same drop still upload. The message stays until you close it.</span></li>
+<li><b class="n">3</b><span>You can drop anywhere on the page, over the pills, the timeline or empty space. While you drag, a dashed outline appears around the whole page. It accepts photos and videos; a document dropped here gets the refusal above.</span></li>
+</ol></div></section>
+
+<section>
+<div class="screen" style="min-height:340px">
+ <div class="top"><div><h3>Documents</h3><small>Your documents.</small></div></div>
+ <div class="pills"><span class="pill on">All</span><span class="pill">Inbox</span><span class="pill ghost">More filters ▾</span></div>
+ <div class="grid"><div class="t c2"></div><div class="t c4"></div><div class="t c1"></div><div class="t c3"></div></div>
+ <div class="scrim"></div>
+ <div class="dlg"><h4>This is a picture</h4><p>Library can keep it in Documents, but it may fit better in Photos. Which would you like?</p><label><input type="checkbox" id="never"> Don't ask again</label><div class="btns"><span class="btn">Keep in Documents</span><span class="btn p">Move to Photos</span></div></div>
+ <span class="mk" style="left:calc(50% - 190px);top:96px">1</span>
+</div>
+<div class="notes"><h2>Notes: dropping a picture onto Documents</h2><ol>
+<li><b class="n">1</b><span>A small dialog appears over the page the first time. Move to Photos sends it to Photos; Keep in Documents files it as a document. Ticking Don't ask again saves the choice for this profile only; other profiles still get asked. Documents dropped here upload as normal.</span></li>
+</ol></div></section>
+
+<section>
+<div class="viewer">
+ <div class="stage"><div class="img c6"></div>
+  <div class="vbar"><span>3 of 48</span><div class="vbtns"><span>♡</span><span>＋ Gallery</span><span>⤓</span><span>✕</span></div></div>
+  <span class="arrow" style="left:12px">‹</span><span class="arrow" style="right:12px">›</span>
+  <span class="mk" style="left:12px;top:44px">1</span></div>
+ <aside class="side"><h4>Quick facts</h4>
+  <dl><dt>Taken</dt><dd>Nov 6, 2021</dd><dt>Added</dt><dd>Nov 5, 2026</dd><dt>Place</dt><dd>Lisbon</dd><dt>People</dt><dd>Ana, Dev</dd><dt>Gallery</dt><dd>Portugal trip</dd></dl>
+  <div class="edit">Edit</div><span class="mk" style="right:14px;top:10px">2</span></aside>
+</div>
+<div class="notes"><h2>Notes: viewer</h2><ol>
+<li><b class="n">1</b><span>Same actions as the tile menu in one place, plus previous/next and the position count. Arrow keys and swipe also move between photos.</span></li>
+<li><b class="n">2</b><span>Side panel is a read-only Quick Facts card with Edit under it (the locked photo editor spec). It now shows <b>Added</b> next to <b>Taken</b>, so the Recently added order makes sense. On phones the panel slides up from the bottom.</span></li>
+</ol></div></section>
+</div>

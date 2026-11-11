@@ -91,6 +91,17 @@ public sealed partial class EngineApiClient
         }
     }
 
+    // A refusal is an expected answer here (a Vault item, a bad session, a setting), so it is not logged as a warning; the caller logs why.
+    public async Task<CastSessionAttempt> CreateCastSessionAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var request = new CastSessionRequestDto { Receiver = CastReceivers.BrowserRemotePlayback };
+        var session = await PostAsync<CastSessionRequestDto, CastSessionDto>(
+            $"POST /playback/{assetId}/cast", $"/api/v1/playback/{assetId:D}/cast", request, logAsWarning: false, ct: ct);
+        return session is null
+            ? new CastSessionAttempt(null, LastStatusCode, LastError ?? LastFailureKind)
+            : new CastSessionAttempt(session, 200, session.Message);
+    }
+
     public Task<PlayerStateDto?> GetPlayerStateAsync(
         Guid? profileId = null,
         string? deviceId = null,
@@ -212,6 +223,31 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default)
+    {
+        var path = BuildEndpointPath($"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}",
+            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await _http.PutAsJsonAsync(path, request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<AudiobookBookmarkDto>(response.StatusCode, "save");
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<AudiobookBookmarkDto>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown("The save response was empty; the change may have been applied.")
+                : AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Changing an audiobook bookmark had no reliable response");
+            return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown("The change could not be confirmed. Reload the bookmarks to check.");
+        }
+    }
+
     public async Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(
         Guid bookmarkId, Guid profileId, CancellationToken ct = default)
     {
@@ -234,6 +270,32 @@ public sealed partial class EngineApiClient
         }
     }
 
+    /// <summary>One bookmark call that returns a typed outcome: success with the body, a clear rejection, or "could not confirm".</summary>
+    private async Task<AudiobookBookmarkOperationResult<T>> SendBookmarkAsync<T>(
+        string endpoint, Guid profileId, string operation,
+        Func<string, CancellationToken, Task<HttpResponseMessage>> send, CancellationToken ct)
+    {
+        var path = BuildEndpointPath(endpoint, new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await send(path, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<T>(response.StatusCode, operation);
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<T>.Unknown("The response was empty; the change may have been applied.")
+                : AudiobookBookmarkOperationResult<T>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "A bookmark call had no reliable response");
+            return AudiobookBookmarkOperationResult<T>.Unknown("The outcome could not be confirmed. Reload the bookmarks to check.");
+        }
+    }
+
     private static AudiobookBookmarkOperationResult<T> BookmarkFailure<T>(HttpStatusCode statusCode, string operation)
     {
         var verb = operation switch { "load" => "loaded", "save" => "saved", _ => "deleted" };
@@ -243,59 +305,6 @@ public sealed partial class EngineApiClient
                 statusCode == HttpStatusCode.NotFound ? AudiobookBookmarkFailureKind.NotFound : AudiobookBookmarkFailureKind.Rejected)
             : AudiobookBookmarkOperationResult<T>.Unknown($"The bookmark {operation} outcome could not be confirmed (HTTP {(int)statusCode}). Reload Saved to check.", statusCode);
     }
-
-    public Task<IReadOnlyList<BookmarkPackDto>> GetBookmarkPacksAsync(Guid workId, Guid profileId, CancellationToken ct = default) =>
-        GetAsync<IReadOnlyList<BookmarkPackDto>>(
-            "GET /player/audiobooks/{workId}/bookmark-packs",
-            $"/api/v1/player/audiobooks/{workId:D}/bookmark-packs",
-            () => [],
-            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") },
-            ct: ct);
-
-    public Task<BookmarkPackFileDto?> ExportBookmarkPackAsync(
-        Guid workId, Guid profileId, BookmarkPackExportRequestDto request, CancellationToken ct = default) =>
-        PostAsync<BookmarkPackExportRequestDto, BookmarkPackFileDto>(
-            "POST /player/audiobooks/{workId}/bookmark-packs/export",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/export",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
-            request,
-            logAsWarning: false,
-            ct: ct);
-
-    public Task<BookmarkPackPreviewDto?> InspectBookmarkPackAsync(
-        Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default) =>
-        PostAsync<BookmarkPackImportRequestDto, BookmarkPackPreviewDto>(
-            "POST /player/audiobooks/{workId}/bookmark-packs/inspect",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/inspect",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
-            request,
-            logAsWarning: false,
-            ct: ct);
-
-    public Task<BookmarkPackDto?> ImportBookmarkPackAsync(
-        Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default) =>
-        PostAsync<BookmarkPackImportRequestDto, BookmarkPackDto>(
-            "POST /player/audiobooks/{workId}/bookmark-packs/import",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/import",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
-            request,
-            logAsWarning: false,
-            ct: ct);
-
-    public Task<bool> SetBookmarkPackEnabledAsync(Guid packId, Guid profileId, bool isEnabled, CancellationToken ct = default) =>
-        PutAsync(
-            "PUT /player/bookmark-packs/{packId}/enabled",
-            BuildEndpointPath($"/api/v1/player/bookmark-packs/{packId:D}/enabled",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
-            new SetBookmarkPackEnabledRequestDto { ProfileId = profileId, IsEnabled = isEnabled },
-            ct: ct);
-
-    public Task<bool> DeleteBookmarkPackAsync(Guid packId, Guid profileId, CancellationToken ct = default) =>
-        DeleteAsync(
-            "DELETE /player/bookmark-packs/{packId}",
-            BuildEndpointPath($"/api/v1/player/bookmark-packs/{packId:D}",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
-            ct: ct);
 
     // Migrated to the shared GetAsync<T> fallback-overload helper (stage 5B wave 2).
     public Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default) =>
@@ -783,6 +792,39 @@ public sealed partial class EngineApiClient
             return null;
         }
     }
+
+    public async Task<ReaderFormatDto?> GetReaderFormatAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"read/{assetId}/format", ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<ReaderFormatDto>(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
+    public Task<ReaderNextIssueDto?> GetReaderNextIssueAsync(Guid assetId, CancellationToken ct = default) =>
+        // No later owned issue is a normal answer (404), so it is not logged as a warning.
+        GetAsync<ReaderNextIssueDto>($"GET /read/{assetId}/next", $"read/{assetId}/next", logAsWarning: false, ct: ct);
+
+    public async Task<List<PageBookmarkDto>> GetPageBookmarksAsync(Guid assetId, CancellationToken ct = default) =>
+        await GetAsync<List<PageBookmarkDto>>($"GET /reader/{assetId}/page-bookmarks", $"reader/{assetId}/page-bookmarks", ct: ct) ?? [];
+
+    public Task<PageBookmarkDto?> CreatePageBookmarkAsync(Guid assetId, int page, string? label, CancellationToken ct = default) =>
+        PostAsync<CreatePageBookmarkRequestDto, PageBookmarkDto>(
+            $"POST /reader/{assetId}/page-bookmarks", $"reader/{assetId}/page-bookmarks", new CreatePageBookmarkRequestDto { Page = page, Label = label }, ct: ct);
+
+    public Task<bool> DeletePageBookmarkAsync(Guid bookmarkId, CancellationToken ct = default) =>
+        DeleteAsync($"DELETE /reader/page-bookmarks/{bookmarkId}", $"reader/page-bookmarks/{bookmarkId}", ct: ct);
 
     public async Task<EpubBookMetadataDto?> GetBookMetadataAsync(Guid assetId, CancellationToken ct = default)
     {

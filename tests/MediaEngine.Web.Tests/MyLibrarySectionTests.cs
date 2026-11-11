@@ -299,7 +299,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Assert.DoesNotContain("Settings", cut.Find(".my-library-header").TextContent);
         // Same sections as everyone, and no editing controls anywhere on the page.
         Assert.Contains("My List", Headings(cut));
-        Assert.Empty(cut.FindAll("button, input, select, textarea"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden]), input, select, textarea"));
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         };
         var liked = new List<ProfileReactionDto>
         {
-            new(ProfileEntityKind.Movie, cards[299].Id, ProfileReactionKind.Love, Now),
+            new(ProfileEntityKind.Movie, cards[299].Id, ProfileReactionKind.Like, Now),
         };
 
         var cut = await RenderAsync(new Data { Library = Page(cards), Saved = saved, Reactions = liked });
@@ -537,34 +537,6 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
 
         release.SetResult();
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".my-library-header__action-skeleton")), TimeSpan.FromSeconds(10));
-    }
-
-    [Theory]
-    [InlineData("/for-me?view=my-list", "/my-library")]
-    [InlineData("/for-me?view=my-list&area=all", "/all/personal/my-list")]
-    [InlineData("/for-me?view=my-list&area=all&sort=title", "/all/personal/my-list")]
-    [InlineData("/for-me?view=liked", "/all/personal/liked")]
-    [InlineData("/for-me?view=liked&area=all", "/all/personal/liked")]
-    [InlineData("/for-me?view=my-list&area=listen", null)]
-    [InlineData("/for-me?view=my-list&area=read", null)]
-    [InlineData("/for-me?view=liked&area=watch", null)]
-    public void TheOldForMeMyListAndLikedLinksLandOnThePageOrTheGridButAreaLinksStayOnTheForMeGrid(string url, string? landsOn)
-    {
-        UseData(new Data());
-        Services.AddSupplyValueFromQueryProvider();
-        var nav = Services.GetRequiredService<NavigationManager>();
-        nav.NavigateTo(url);
-
-        Render<ForMe>();
-
-        if (landsOn is not null)
-        {
-            Assert.EndsWith(landsOn, nav.Uri);
-        }
-        else
-        {
-            Assert.EndsWith(url, nav.Uri);
-        }
     }
 
     [Fact]

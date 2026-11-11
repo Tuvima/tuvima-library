@@ -246,6 +246,85 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ThePlayerBarAndSubtitleLookChoices_AreSavedPerProfile_AndUnknownChoicesAreRejected()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        Assert.Null(settings.General.ShowChapterMarks); // The media default applies until the person chooses.
+        Assert.False(settings.General.ShowBookmarksOnBar);
+        Assert.Equal("All", settings.General.BookmarkFilter);
+        Assert.Equal("Default", settings.Subtitles.SubtitleFont);
+        Assert.Equal("White", settings.Subtitles.SubtitleColor);
+        Assert.False(settings.Subtitles.SubtitleShadow);
+
+        settings.General.ShowChapterMarks = true;
+        settings.General.ShowBookmarksOnBar = true;
+        settings.General.BookmarkFilter = "Mine";
+        settings.Subtitles.SubtitleFont = "Serif";
+        settings.Subtitles.SubtitleColor = "Yellow";
+        settings.Subtitles.SubtitleShadow = true;
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = await _service.GetAsync(_profileId);
+        Assert.True(saved.General.ShowChapterMarks);
+        Assert.True(saved.General.ShowBookmarksOnBar);
+        Assert.Equal("Mine", saved.General.BookmarkFilter);
+        Assert.Equal("Serif", saved.Subtitles.SubtitleFont);
+        Assert.Equal("Yellow", saved.Subtitles.SubtitleColor);
+        Assert.True(saved.Subtitles.SubtitleShadow);
+        var other = await _service.GetAsync(_otherProfileId);
+        Assert.False(other.General.ShowBookmarksOnBar);
+
+        saved.General.BookmarkFilter = "Strangers";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));
+        saved = await _service.GetAsync(_profileId);
+        saved.Subtitles.SubtitleColor = "Plaid";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));
+        saved = await _service.GetAsync(_profileId);
+        saved.Subtitles.SubtitleFont = "Comic";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));
+    }
+
+    [Fact]
+    public async Task TheSubtitleColoursAndOpacities_DefaultToTheOldLook_AndAreSavedPerProfile()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        Assert.Equal(100, settings.Subtitles.SubtitleTextOpacity);
+        Assert.Equal("Black", settings.Subtitles.SubtitleBackgroundColor);
+        Assert.Equal(60, settings.Subtitles.SubtitleBackgroundOpacity);
+
+        settings.Subtitles.SubtitleColor = "Magenta";
+        settings.Subtitles.SubtitleTextOpacity = 40;
+        settings.Subtitles.SubtitleBackgroundColor = "Blue";
+        settings.Subtitles.SubtitleBackgroundOpacity = 80;
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = await _service.GetAsync(_profileId);
+        Assert.Equal("Magenta", saved.Subtitles.SubtitleColor);
+        Assert.Equal(40, saved.Subtitles.SubtitleTextOpacity);
+        Assert.Equal("Blue", saved.Subtitles.SubtitleBackgroundColor);
+        Assert.Equal(80, saved.Subtitles.SubtitleBackgroundOpacity);
+        Assert.Equal(100, (await _service.GetAsync(_otherProfileId)).Subtitles.SubtitleTextOpacity);
+    }
+
+    [Fact]
+    public async Task TheSubtitleOpacities_AreKeptInRange_TheOldCyanBecomesTeal_AndAnUnknownBackgroundColourIsRejected()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Subtitles.SubtitleColor = "Cyan";
+        settings.Subtitles.SubtitleTextOpacity = 0; // Fully see-through text would hide the subtitles; the lowest is 20.
+        settings.Subtitles.SubtitleBackgroundOpacity = 500;
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = await _service.GetAsync(_profileId);
+        Assert.Equal("Teal", saved.Subtitles.SubtitleColor);
+        Assert.Equal(20, saved.Subtitles.SubtitleTextOpacity);
+        Assert.Equal(100, saved.Subtitles.SubtitleBackgroundOpacity);
+
+        saved.Subtitles.SubtitleBackgroundColor = "Plaid";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));
+    }
+
+    [Fact]
     public async Task UpdateAsync_PreservesExactValidSpeedAndRejectsInvalidThresholdAndEnumValues()
     {
         var settings = await _service.GetAsync(_profileId);
@@ -347,6 +426,41 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
         Assert.Equal(PlaybackPreferenceValues.Scroll, saved.ReadingMode);
         Assert.Equal("system", other.Theme);
         Assert.Equal(18, other.FontSizePx);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepsPageReaderChoicesPerProfile_AndDropsUnknownOnes()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.PageFit = " WIDTH ";
+        settings.Reading.PageBackground = "purple";
+        settings.Reading.ShowBookmarksOnBar = true;
+        settings.Reading.PageLayouts = new() { ["Asset-1"] = "Two", ["asset-2"] = "diagonal" };
+        settings.Reading.ComicDirections = new() { ["Saga"] = "RTL", ["Other"] = "up" };
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Reading;
+        var other = (await _service.GetAsync(_otherProfileId)).Reading;
+
+        Assert.Equal("width", saved.PageFit);
+        Assert.Equal("black", saved.PageBackground);
+        Assert.True(saved.ShowBookmarksOnBar);
+        Assert.Equal("two", Assert.Single(saved.PageLayouts).Value);
+        Assert.Equal("rtl", saved.ComicDirections["saga"]);
+        Assert.False(saved.ComicDirections.ContainsKey("other"));
+        Assert.Empty(other.ComicDirections);
+        Assert.False(other.ShowBookmarksOnBar);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CapsHowManyPageReaderChoicesAProfileKeeps()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.PageLayouts = Enumerable.Range(0, 500).ToDictionary(i => $"asset-{i}", _ => "one");
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal(ReadingPreferenceValues.MaxPageChoices, (await _service.GetAsync(_profileId)).Reading.PageLayouts.Count);
     }
 
     [Theory]

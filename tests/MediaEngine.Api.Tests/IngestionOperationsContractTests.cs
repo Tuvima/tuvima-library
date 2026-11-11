@@ -14,7 +14,9 @@ public sealed class IngestionOperationsContractTests
 
         Assert.Contains("IReviewQueueReadService reviewReadService", source, StringComparison.Ordinal);
         Assert.Contains("reviewReadService.GetPendingAsync(paged.Limit, ct)", source, StringComparison.Ordinal);
-        Assert.Contains("reviewReadService.GetPendingCountAsync(ct)", source, StringComparison.Ordinal);
+        // The count is the Needs Review list's own count (review items plus unmatched files), so the notifier and the list agree.
+        Assert.Contains("INeedsReviewListReadService list", source, StringComparison.Ordinal);
+        Assert.Contains("list.CountAsync(includeFiles, ct)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("libraryItemRepo.GetDetailAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Status: \"InReview\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetFourStateCountsAsync", source, StringComparison.Ordinal);

@@ -17,14 +17,13 @@
 .design-system-preview__eyebrow {
     margin: 0 0 var(--tl-space-1);
     color: var(--tl-accent-secondary);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
 }
 
 .design-system-preview__title {
     margin: 0;
-    font-size: 1.7rem;
+    font-size: var(--tl-font-size-xl);
     line-height: 1.15;
 }
 
@@ -69,7 +68,6 @@
     font-size: var(--tl-font-size-caption);
     font-weight: var(--tl-font-weight-bold);
     letter-spacing: var(--tl-letter-spacing-label);
-    text-transform: uppercase;
 }
 
 .design-system-preview__type-stack p {
@@ -131,7 +129,7 @@
 .design-system-preview__group-card-preview > header > p {
     max-width: 38rem;
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .design-system-preview__group-card-grid {
@@ -153,9 +151,8 @@
     width: min(100%, 680px);
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .design-system-preview__group-card-scenario.is-narrow {
@@ -178,3 +175,46 @@
         flex-direction: column;
     }
 }
+.design-system-preview__icon-step { display: inline-flex; flex-direction: column; align-items: center; gap: var(--tl-space-1); color: var(--tl-text-secondary); }
+
+.design-system-preview__popout-anchor { display: inline-flex; }
+.design-system-preview__popout-panel { padding: 16px; }
+.design-system-preview__window-body { margin: 0; padding: 16px 24px; color: var(--tl-text-secondary); }
+.design-system-preview__viewer-body { display: grid; place-items: center; height: 100%; color: var(--tl-text-secondary); }
+
+/* The Match row shape (Look v3 D15.5): provider dropdown and icon-only Search at the start, a segmented control at the end, one centre line. */
+.design-system-preview__matchrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    min-height: var(--tl-row-h-compact);
+    min-width: 0;
+}
+
+.design-system-preview__matchrow-start {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.design-system-preview__ok {
+    color: var(--tl-status-success);
+}
+
+
+/* Colour, type, row and state proof (Look v3 D11): every swatch is drawn from its token, never from a typed colour. */
+.design-system-preview__swatch-group { display: grid; gap: var(--tl-space-2); }
+.design-system-preview__group-label { color: var(--tl-text-muted); font-size: var(--tl-font-size-caption); font-weight: var(--tl-font-weight-semibold); }
+.design-system-preview__swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--tl-space-3); }
+.design-system-preview__swatch-item { display: grid; gap: var(--tl-space-1); min-width: 0; }
+.design-system-preview__swatch-item code { overflow: hidden; color: var(--tl-text-secondary); font-family: var(--tl-font-mono); font-size: var(--tl-font-size-caption); text-overflow: ellipsis; white-space: nowrap; }
+.design-system-preview__swatch { display: block; height: var(--tl-row-h-default); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-md); }
+.design-system-preview__type-step { display: grid; gap: var(--tl-space-1); }
+.design-system-preview__rowbar { display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-3); padding-inline: var(--tl-control-padding-x); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-hover); }
+.design-system-preview__rowbar code { color: var(--tl-text-secondary); font-family: var(--tl-font-mono); font-size: var(--tl-font-size-caption); }
+.design-system-preview__space { display: block; background: var(--tl-accent-primary); border-radius: var(--tl-radius-xs); }
+.design-system-preview__artwork { display: inline-flex; align-items: center; gap: var(--tl-space-2); padding: var(--tl-space-2); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-hover); }
+.design-system-preview__hero { padding: var(--tl-space-4); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-hover); }

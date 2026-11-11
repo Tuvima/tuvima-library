@@ -645,14 +645,15 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
     }
 
     /// <summary>
-    /// The items a query may see. In the Shared scope that is the shared assets, but only those inside the libraries the
-    /// resolver authorized, so one household's shared assets never show up in another household's view.
+    /// The items a query may see. In the Shared scope that is the Shared library's items (those moved or contributed in, and
+    /// those read from a Shared folder), but only those inside the libraries the resolver authorized, so one household's
+    /// shared assets never show up in another household's view.
     /// </summary>
     private static string SharedAwareLibraryPredicate(bool sharedScope, int libraryCount)
     {
         var authorized = libraryCount == 0 ? "0 = 1" : LibraryPredicate("li", libraryCount);
         return sharedScope
-            ? $"EXISTS (SELECT 1 FROM view_shared_assets vsa WHERE vsa.item_id = li.id) AND ({authorized})"
+            ? $"li.scope_kind = 'shared' AND EXISTS (SELECT 1 FROM view_shared_library vsl WHERE vsl.library_id = li.library_id) AND ({authorized})"
             : LibraryPredicate("li", libraryCount);
     }
 

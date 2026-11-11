@@ -68,7 +68,8 @@ public sealed partial class EngineApiClient
         string? vibes = null,
         string? themes = null,
         Guid? libraryId = null,
-        bool? unmatched = null)
+        bool? unmatched = null,
+        string? folder = null)
     {
         const string endpoint = "GET /api/v1/display/browse";
         try
@@ -90,6 +91,7 @@ public sealed partial class EngineApiClient
             AddQuery(query, "includeCatalog", includeCatalog?.ToString().ToLowerInvariant());
             AddQuery(query, "profileId", profileId?.ToString("D"));
             AddQuery(query, "libraryId", libraryId?.ToString("D"));
+            AddQuery(query, "folder", folder);
             AddQuery(query, "unmatched", unmatched?.ToString().ToLowerInvariant());
             var url = "/api/v1/display/browse" + (query.Count == 0 ? string.Empty : "?" + string.Join("&", query));
             var response = await _http.GetAsync(url, ct);

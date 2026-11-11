@@ -114,6 +114,9 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         other.CandidatesJson = null;
         other.EntityTitle = "Plain Film";
         RegisterReviewServices([Item(), other], moved, dismissed);
+        // Fix is a desktop action (editing is desktop-only).
+        await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
+            .InitialiseAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
 
         var cut = Render<NeedsReviewPageContent>();
 
@@ -122,13 +125,15 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
             ["Move to TV", "Search again", "Keep as unmatched film"],
             cut.FindAll(".movie-as-tv-card__actions button").Select(button => button.TextContent.Trim()).ToArray());
 
-        var rows = cut.FindAll("article.review-row");
+        var rows = cut.FindAll("tr.needs-review-table__row");
         Assert.Equal(2, rows.Count);
-        var tvRow = rows.Single(row => row.QuerySelector(".movie-as-tv-card") is not null);
-        var plainRow = rows.Single(row => row.QuerySelector(".movie-as-tv-card") is null);
-        // The card replaces the generic Review button for the TV-title trigger only.
-        Assert.DoesNotContain(tvRow.QuerySelectorAll(".review-row__actions button"), b => b.TextContent.Trim() == "Review");
-        Assert.Contains(plainRow.QuerySelectorAll(".review-row__actions button"), b => b.TextContent.Trim() == "Review");
+        // The card sits in its own row straight under the item it belongs to.
+        var cardRow = cut.Find("tr.needs-review-table__suggestion");
+        var tvRow = rows.Single(row => row.GetAttribute("data-key") == cardRow.GetAttribute("data-key"));
+        var plainRow = rows.Single(row => row != tvRow);
+        // The card replaces the generic Fix button for the TV-title trigger only.
+        Assert.DoesNotContain(tvRow.QuerySelectorAll(".needs-review-table__actions button"), b => b.TextContent.Trim() == "Fix");
+        Assert.Contains(plainRow.QuerySelectorAll(".needs-review-table__actions button"), b => b.TextContent.Trim() == "Fix");
 
         // The review list re-renders as the page finishes loading; the click is found and made in one step on the renderer thread.
         await cut.ClickAsync(".movie-as-tv-card__actions button", 0);

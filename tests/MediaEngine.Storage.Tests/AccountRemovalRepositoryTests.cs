@@ -472,7 +472,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         {
             "consumption_history.profile_id", "personal_status_commands.profile_id", "waiting_personal_state.profile_id",
             "system_activity.profile_id", "encode_jobs.owner_profile_id", "offline_variants.owner_profile_id",
-            "user_states.user_id", "user_taste_profiles.user_id", "reader_bookmarks.user_id", "reader_highlights.user_id",
+            "user_states.user_id", "user_taste_profiles.user_id", "reader_highlights.user_id",
             "reader_statistics.user_id",
         };
         // Kept on purpose: audit and approval history.
@@ -527,7 +527,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
             new { id = Guid.NewGuid(), asset, profile, now });
         Execute("INSERT INTO user_states(user_id,asset_id,progress_pct) VALUES(@profile,@asset,5)", new { profile, asset });
         Execute("INSERT INTO user_taste_profiles(user_id,profile_json) VALUES(@profile,'{}')", new { profile });
-        Execute("INSERT INTO reader_bookmarks(id,user_id,asset_id,chapter_index) VALUES(@id,@text,@asset,1)", new { id = Guid.NewGuid(), text, asset });
+        Execute("INSERT INTO audiobook_bookmarks(id,profile_id,work_id,asset_id,chapter_index,created_at,position_kind,locator) SELECT @id,@profile,e.work_id,@asset,1,@now,'text','epubcfi(/6/4!/4/2/1:0)' FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE ma.id=@asset", new { id = Guid.NewGuid(), profile, asset, now });
         Execute("INSERT INTO reader_highlights(id,user_id,asset_id,chapter_index,start_offset,end_offset,selected_text) VALUES(@id,@text,@asset,1,0,1,'x')", new { id = Guid.NewGuid(), text, asset });
         Execute("INSERT INTO reader_statistics(id,user_id,asset_id) VALUES(@id,@text,@asset)", new { id = Guid.NewGuid(), text, asset });
         return text;
@@ -545,7 +545,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
             + Scalar("SELECT COUNT(*) FROM offline_variants WHERE owner_profile_id=@profile", p)
             + Scalar("SELECT COUNT(*) FROM user_states WHERE user_id=@profile", p)
             + Scalar("SELECT COUNT(*) FROM user_taste_profiles WHERE user_id=@profile", p)
-            + Scalar("SELECT COUNT(*) FROM reader_bookmarks WHERE user_id=@text", p)
+            + Scalar("SELECT COUNT(*) FROM audiobook_bookmarks WHERE profile_id=@profile", p)
             + Scalar("SELECT COUNT(*) FROM reader_highlights WHERE user_id=@text", p)
             + Scalar("SELECT COUNT(*) FROM reader_statistics WHERE user_id=@text", p);
     }

@@ -1,0 +1,166 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Services.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
+
+@* What a Universe holds besides its Works (spec universe-contents, section 4.1): one rail of picture tiles for each kind that has
+   something the profile may see (Characters, Factions, Places, Events, Objects, Species, Concepts), then the Timeline. A section
+   that is empty is not shown, a thing the profile has not reached is left out (only the number is told), and a thing the Library
+   cannot place is shown by name only. Read-only on every device: editing a Universe's contents happens in the pop-over editor. *@
+@if (Contents is null)
+{
+    <p class="universe-contents__empty" data-contents-empty>@EmptyLine</p>
+}
+else
+{
+    var contents = Contents;
+    <div class="universe-contents">
+        @if (Gathering)
+        {
+            <p class="universe-contents__note" data-contents-gathering>@L["UniverseContents_Gathering"]</p>
+        }
+
+        @foreach (var section in contents.Sections)
+        {
+            <section class="universe-contents__section" aria-labelledby="@SectionId(section)" @key="section.Key">
+                <header class="universe-contents__header">
+                    <h2 class="universe-contents__title" id="@SectionId(section)">@section.Label</h2>
+                    <span class="universe-contents__count">@section.Count</span>
+                </header>
+                <ul class="universe-contents__rail" aria-label="@section.Label">
+                    @foreach (var tile in section.Tiles)
+                    {
+                        <li class="universe-contents__tile @TileClass(section, tile)" @key="tile.Id">
+                            <a class="universe-contents__link" href="@ThingHref(tile.Id)" data-thing-link>
+                                <span class="universe-contents__picture" aria-hidden="true">
+                                    @if (PictureFor(section, tile) is { } url)
+                                    {
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(url, 136)" alt="" loading="lazy" decoding="async" />
+                                    }
+                                    else
+                                    {
+                                        <span class="universe-contents__initial">@Initial(tile.Label)</span>
+                                    }
+                                </span>
+                                <span class="universe-contents__name">@tile.Label</span>
+                                @if (tile.NoPlotDetails)
+                                {
+                                    <span class="universe-contents__note">@L["UniverseContents_NoPlotDetails"]</span>
+                                }
+                                else if (tile.AddedByUser)
+                                {
+                                    <span class="universe-contents__note">@L["UniverseContents_AddedByYou"]</span>
+                                }
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (contents.HiddenCount > 0)
+        {
+            <p class="universe-contents__held-back" data-hidden-contents>@HeldBackLine(contents.HiddenCount)</p>
+        }
+
+        @if (contents.Timeline is { } timeline)
+        {
+            <section class="universe-contents__section" aria-labelledby="universe-timeline-title">
+                <header class="universe-contents__header">
+                    <h2 class="universe-contents__title" id="universe-timeline-title">@L["UniverseContents_Timeline"]</h2>
+                    @if (timeline.StoryOrderAvailable)
+                    {
+                        <div class="universe-contents__order" role="group" aria-label="@L["UniverseContents_TimelineOrder"]">
+                            <AppButton ButtonStyle="@OrderStyle(UniverseTimelineDto.StoryOrder)" Size="AppControlSize.Large"
+                                       OnClick="@(() => SetOrder(UniverseTimelineDto.StoryOrder))"
+                                       aria-pressed="@(IsOrder(timeline, UniverseTimelineDto.StoryOrder) ? "true" : "false")">@L["UniverseContents_StoryOrder"]</AppButton>
+                            <AppButton ButtonStyle="@OrderStyle(UniverseTimelineDto.ReleaseOrder)" Size="AppControlSize.Large"
+                                       OnClick="@(() => SetOrder(UniverseTimelineDto.ReleaseOrder))"
+                                       aria-pressed="@(IsOrder(timeline, UniverseTimelineDto.ReleaseOrder) ? "true" : "false")">@L["UniverseContents_ReleaseOrder"]</AppButton>
+                        </div>
+                    }
+                </header>
+                <ol class="universe-contents__timeline" aria-label="@L["UniverseContents_Timeline"], @(IsOrder(timeline, UniverseTimelineDto.StoryOrder) ? L["UniverseContents_StoryOrder"] : L["UniverseContents_ReleaseOrder"])">
+                    @foreach (var stop in TimelineStops(timeline))
+                    {
+                        <li class="universe-contents__stop" @key="stop.Id">
+                            <a class="universe-contents__link" href="@ThingHref(stop.Id)" data-thing-link>
+                                <span class="universe-contents__stop-when">@WhenLabel(timeline, stop)</span>
+                                <span class="universe-contents__picture universe-contents__picture--stop" aria-hidden="true">
+                                    @if (stop.PictureUrl is { Length: > 0 } stopPicture)
+                                    {
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(stopPicture, 136)" alt="" loading="lazy" decoding="async" />
+                                    }
+                                    else
+                                    {
+                                        <span class="universe-contents__initial">@Initial(stop.Label)</span>
+                                    }
+                                </span>
+                                <span class="universe-contents__name">@stop.Label</span>
+                                @if (stop.WorkLabel is { Length: > 0 } work)
+                                {
+                                    <span class="universe-contents__note">@work</span>
+                                }
+                            </a>
+                        </li>
+                    }
+                </ol>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private string? _order;
+
+    [Parameter] public UniverseContentsDto? Contents { get; set; }
+
+    /// <summary>True while enrichment is still running, so tiles may keep appearing ("Still gathering details").</summary>
+    [Parameter] public bool Gathering { get; set; }
+
+    /// <summary>Whether the person may edit this Universe; only then does the empty line suggest adding things.</summary>
+    [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>The Universe's Wikidata ID; with it every tile opens the thing's own page, without it tiles are plain.</summary>
+    [Parameter] public string? UniverseQid { get; set; }
+
+    private string EmptyLine => CanEdit
+        ? "Nothing is known about this world yet. Turn on Fandom Lore or add things yourself."
+        : "Nothing is known about this world yet.";
+
+    private string? ThingHref(Guid id) =>
+        string.IsNullOrWhiteSpace(UniverseQid) ? null : $"/universe/{Uri.EscapeDataString(UniverseQid)}/things/{id:D}";
+
+    private static string SectionId(UniverseContentsSectionDto section) => $"universe-contents-{section.Key}";
+
+    // Factions and Objects show their logo when they have one, on a plain tile so a wide logo is never cropped.
+    private static string? PictureFor(UniverseContentsSectionDto section, UniverseContentsTileDto tile) =>
+        section.Key is "factions" or "objects" ? tile.LogoUrl ?? tile.PictureUrl : tile.PictureUrl;
+
+    private static string TileClass(UniverseContentsSectionDto section, UniverseContentsTileDto tile) =>
+        section.Key is "factions" or "objects" && tile.LogoUrl is { Length: > 0 } ? "universe-contents__tile--logo" : string.Empty;
+
+    private static string Initial(string label) =>
+        label.Trim() is { Length: > 0 } text ? text[..1].ToUpperInvariant() : "?";
+
+    internal static string HeldBackLine(int count) =>
+        count == 1 ? "1 more is held back to avoid spoilers." : $"{count} more are held back to avoid spoilers.";
+
+    private bool IsOrder(UniverseTimelineDto timeline, string order) =>
+        string.Equals(_order ?? timeline.DefaultOrder, order, StringComparison.Ordinal);
+
+    private AppButtonStyle OrderStyle(string order) =>
+        Contents?.Timeline is { } timeline && IsOrder(timeline, order) ? AppButtonStyle.Filled : AppButtonStyle.Text;
+
+    private void SetOrder(string order) => _order = order;
+
+    private IEnumerable<UniverseTimelineStopDto> TimelineStops(UniverseTimelineDto timeline) =>
+        IsOrder(timeline, UniverseTimelineDto.StoryOrder)
+            ? timeline.Stops.Where(stop => stop.StoryYear is not null).OrderBy(stop => stop.StoryYear).ThenBy(stop => stop.Label, StringComparer.OrdinalIgnoreCase)
+            : timeline.Stops.OrderBy(stop => stop.ReleaseYear ?? int.MaxValue).ThenBy(stop => stop.Label, StringComparer.OrdinalIgnoreCase);
+
+    private string WhenLabel(UniverseTimelineDto timeline, UniverseTimelineStopDto stop) =>
+        IsOrder(timeline, UniverseTimelineDto.StoryOrder)
+            ? stop.StoryYear is { } year ? (year < 0 ? $"{-year:0} BCE" : $"{year:0}") : string.Empty
+            : stop.ReleaseYear?.ToString() ?? string.Empty;
+}

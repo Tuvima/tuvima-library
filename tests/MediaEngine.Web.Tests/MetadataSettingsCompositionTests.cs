@@ -14,7 +14,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.DoesNotContain("ProvidersPage()", page, StringComparison.Ordinal);
         Assert.DoesNotContain("ProviderDetailPage()", page, StringComparison.Ordinal);
         Assert.DoesNotContain("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("new(SettingsSection.Providers, \"library\", \"matching\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
     }
@@ -54,7 +54,7 @@ public sealed class MetadataSettingsCompositionTests
     [Fact]
     public void ProviderConfiguration_ProtectsSecretsAndRequiredProviders()
     {
-        var page = Read("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor");
+        var page = Read("src/MediaEngine.Web/Components/Settings/Plugins/PluginSetupPage.razor") + Read("src/MediaEngine.Web/Resources/SharedStrings.resx");
         var dialog = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor");
         var form = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor");
 
@@ -64,36 +64,12 @@ public sealed class MetadataSettingsCompositionTests
         Assert.Contains("The stored value is encrypted and is never returned", form, StringComparison.Ordinal);
         Assert.Contains("field.InputType, \"password\"", form, StringComparison.Ordinal);
         Assert.Contains("AppInputType.Password", form, StringComparison.Ordinal);
-        Assert.Contains("AppHostedDialog", dialog, StringComparison.Ordinal);
+        Assert.Contains("AppDialogShell", dialog, StringComparison.Ordinal);
         Assert.Contains("TestProviderAsync", page, StringComparison.Ordinal);
         Assert.Contains("TestProviderCredentialsAsync", dialog, StringComparison.Ordinal);
         Assert.Contains("SaveProviderCredentialsAsync", dialog, StringComparison.Ordinal);
-        Assert.Contains("SaveProviderConfigAsync", page, StringComparison.Ordinal);
+        Assert.Contains("TestProviderAsync", page, StringComparison.Ordinal);
         Assert.DoesNotContain("UpdateHydrationSettingsAsync", page, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void EnrichmentRefreshSchedule_DoesNotCompeteWithMediaFirstIngestionPage()
-    {
-        var metadata = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
-        var ingestion = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
-        var schedule = Read("src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor");
-
-        Assert.DoesNotContain("<EnrichmentRefreshSchedulePanel", metadata, StringComparison.Ordinal);
-        Assert.DoesNotContain("<EnrichmentRefreshSchedulePanel", ingestion, StringComparison.Ordinal);
-        Assert.Contains("GetEnrichmentRefreshScheduleAsync", schedule, StringComparison.Ordinal);
-        Assert.Contains("QueueEnrichmentRefreshNowAsync", schedule, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void LibraryOverview_UsesTheSameConfiguredFlowSnapshot()
-    {
-        var summary = Read("src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor");
-
-        Assert.Contains("_pipeline.Identification", summary, StringComparison.Ordinal);
-        Assert.Contains("_pipeline.Enrichment", summary, StringComparison.Ordinal);
-        Assert.Contains("/settings/metadata/ingestion-flow", summary, StringComparison.Ordinal);
-        Assert.Contains("Local metadata only", summary, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -23,8 +23,6 @@ public sealed record ListenPlaybackCommandDto
     /// <summary>Allowlisted identity kind and canonical id; never an arbitrary navigation URL.</summary>
     public string? IdentityKind { get; init; }
     public Guid? IdentityId { get; init; }
-    /// <summary>Transient native popup registration, separate from playback and bookmark leases.</summary>
-    public Guid? PopupWindowId { get; init; }
     public int? Index { get; init; }
     /// <summary>Observed transient queue revision; required for reordering upcoming occurrences.</summary>
     public long? ExpectedQueueRevision { get; init; }
@@ -132,7 +130,6 @@ public static class ListenPlaybackCommandActions
     public const string ToggleShuffle = "toggle-shuffle";
     public const string CycleRepeat = "cycle-repeat";
     public const string ClosePlayer = "close-player";
-    public const string PopupClosed = "popup-closed";
     public const string OpenBookmarkDialog = "open-bookmark-dialog";
     public const string BookmarkDialogState = "bookmark-dialog-state";
     public const string PreviewBookmarkDraft = "preview-bookmark-draft";

@@ -10,9 +10,13 @@ namespace MediaEngine.Api.Services.Collections.ListImport;
 public sealed class ListInputReader(WebListResolver web)
 {
     /// <exception cref="ListFileNotUnderstoodException">The input is not a list (or an address that cannot be used).</exception>
-    public async Task<ParsedList> ReadAsync(string fileName, byte[] bytes, CancellationToken ct)
+    public Task<ParsedList> ReadAsync(string fileName, byte[] bytes, CancellationToken ct) => ReadAsync(fileName, bytes, profileId: null, ct);
+
+    /// <summary>Reads the input as <paramref name="profileId"/>, so a private or own list from a site the profile signed in to can be read.</summary>
+    /// <exception cref="ListFileNotUnderstoodException">The input is not a list (or an address that cannot be used).</exception>
+    public async Task<ParsedList> ReadAsync(string fileName, byte[] bytes, Guid? profileId, CancellationToken ct)
     {
-        if (await web.ResolveAsync(bytes, ct).ConfigureAwait(false) is { } fromWeb)
+        if (await web.ResolveAsync(bytes, profileId, ct).ConfigureAwait(false) is { } fromWeb)
         {
             return fromWeb;
         }

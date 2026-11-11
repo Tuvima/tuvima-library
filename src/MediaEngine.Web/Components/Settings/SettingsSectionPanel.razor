@@ -1,19 +1,13 @@
 ﻿@namespace MediaEngine.Web.Components.Settings
 
-<AppCard Class="@Class">
-    <SettingsSectionHeader Title="@Title"
-                           Description="@Description"
-                           Icon="@Icon"
-                           Actions="@Actions"
-                           HeadingTag="span" />
-    @ChildContent
-</AppCard>
+@* A Settings group: a 16/600 heading, an optional helper line, optional actions at the right end of the heading row,
+   then rows. It sits on the page background with no border (Look v3 D5). *@
+<AppSettingsGroup Heading="@Title" Helper="@Description" Class="@Class" Actions="@Actions">@ChildContent</AppSettingsGroup>
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
-    [Parameter] public string Icon { get; set; } = string.Empty;
     [Parameter] public string? Description { get; set; }
-    [Parameter] public string Class { get; set; } = "tl-card settings-section-card settings-section-card--dense";
+    [Parameter] public string? Class { get; set; }
     [Parameter] public RenderFragment? Actions { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

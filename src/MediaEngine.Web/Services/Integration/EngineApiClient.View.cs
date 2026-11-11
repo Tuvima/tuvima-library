@@ -164,6 +164,7 @@ public sealed partial class EngineApiClient
         AddQuery(query, "to", options.To?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
         AddQuery(query, "q", options.Search?.Trim());
         AddQuery(query, "missing", options.IncludeMissing ? "true" : null);
+        AddQuery(query, "sort", options.Sort);
         foreach (var kind in options.Kinds ?? [])
         {
             AddQuery(query, "kind", kind);
@@ -171,6 +172,7 @@ public sealed partial class EngineApiClient
 
         AddDocumentFilterQuery(query, options.Documents);
         AddAddedByQuery(query, options.AddedBy);
+        AddSourceQuery(query, options.Sources);
 
         AddQuery(query, "favorite", options.FavoritesOnly ? "true" : null);
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
@@ -185,6 +187,14 @@ public sealed partial class EngineApiClient
         foreach (var profileId in addedBy ?? [])
         {
             AddQuery(query, "added_by", profileId.ToString("D"));
+        }
+    }
+
+    private static void AddSourceQuery(List<string> query, IReadOnlyList<Guid>? sources)
+    {
+        foreach (var sourceId in sources ?? [])
+        {
+            AddQuery(query, "source", sourceId.ToString("D"));
         }
     }
 
@@ -213,6 +223,9 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<ViewOnThisDayDto?> GetViewOnThisDayAsync(DateOnly today, CancellationToken ct = default) =>
+        GetAsync<ViewOnThisDayDto>("GET /view/assets/on-this-day", $"/view/assets/on-this-day?month={today.Month}&day={today.Day}&year={today.Year}", ct: ct);
+
     public Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default)
     {
         var query = new List<string>();
@@ -229,6 +242,7 @@ public sealed partial class EngineApiClient
         AddQuery(query, "lifecycle", options.Lifecycle);
         AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
         AddAddedByQuery(query, options.AddedBy);
+        AddSourceQuery(query, options.Sources);
         foreach (var tag in options.Documents?.TagIds ?? [])
         {
             AddQuery(query, "tag", tag.ToString("D"));
@@ -477,6 +491,14 @@ public sealed partial class EngineApiClient
         CreateViewSourceRequest request, CancellationToken ct = default) =>
         PostAsync<CreateViewSourceRequest, ViewSourceAdminDto>(
             "POST /view/admin/shared/sources", "/view/admin/shared/sources", request, ct: ct);
+
+    public Task<ViewSourceAdminDto?> UpdateViewSharedSourceAsync(
+        Guid sourceId, UpdateViewSourceRequest request, CancellationToken ct = default) =>
+        PutAsync<UpdateViewSourceRequest, ViewSourceAdminDto>(
+            "PUT /view/admin/shared/sources/{sourceId}", $"/view/admin/shared/sources/{sourceId:D}", request, ct: ct);
+
+    public Task<bool> DeleteViewSharedSourceAsync(Guid sourceId, CancellationToken ct = default) =>
+        DeleteAsync("DELETE /view/admin/shared/sources/{sourceId}", $"/view/admin/shared/sources/{sourceId:D}", ct: ct);
 
     public async Task<ViewSourceAdminDto?> UpdateViewProfileSourceAsync(
         Guid profileId, Guid sourceId, UpdateViewSourceRequest request, CancellationToken ct = default)

@@ -21,14 +21,14 @@
     align-items: center;
     gap: var(--tl-space-2, 8px) var(--tl-space-3, 12px);
     color: var(--tl-text-secondary);
-    font-size: .9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .list-step__owned-big {
     color: var(--tl-text-primary);
-    font-size: 1.65rem;
+    font-size: var(--tl-font-size-xl);
     font-variant-numeric: tabular-nums;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .list-step__covers {
@@ -44,9 +44,9 @@
     max-width: 14rem;
     padding: 3px 9px;
     border: 1px solid var(--tl-divider);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
-    font-size: .8rem;
+    font-size: var(--tl-font-size-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -55,14 +55,14 @@
 .list-step__heading {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: var(--tl-font-weight-semibold);
 }
 
 .list-step__hint {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: .85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .list-step__shelves,

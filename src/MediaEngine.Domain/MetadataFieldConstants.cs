@@ -64,6 +64,8 @@ public static class MetadataFieldConstants
     public const string SeasonNumber = "season_number";
     public const string EpisodeNumber = "episode_number";
     public const string EpisodeEnd = "episode_end";
+    /// <summary>Set on a TV episode that has no TheTVDB still; the value is the date (yyyy-MM-dd) Library checks again. Absent once a real still is held.</summary>
+    public const string EpisodeStillStandIn = "episode_still_standin";
     public const string TrackNumber = "track_number";
     public const string DiscNumber = "disc_number";
     public const string DiscCount = "disc_count";
@@ -106,8 +108,12 @@ public static class MetadataFieldConstants
     public const string VideoLookupSource = "video_lookup_source";
     /// <summary>"true" when a person marked the item (or a whole series) Explicit; a content-limited profile never sees it.</summary>
     public const string Explicit = "explicit";
+    /// <summary>"true" when a person applied this item's match from the editor; a scan or automatic identity job never re-identifies a pinned match.</summary>
+    public const string MatchPinned = "match_pinned";
     public const string EpisodeTitle = "episode_title";
     public const string EpisodeDescription = "episode_description";
+    /// <summary>The description of a TV show as a whole (not one episode), read from the show provider.</summary>
+    public const string ShowDescription = "show_description";
     public const string Network = "network";
     public const string AwardReceived = "award_received";
     public const string AwardNominated = "award_nominated";

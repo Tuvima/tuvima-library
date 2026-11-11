@@ -30,6 +30,7 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
     }
@@ -59,7 +60,7 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
         var rows = cut.FindAll("tr[data-audio-row]");
         Assert.Equal(["0000000a-0000-0000-0000-000000000002", "0000000a-0000-0000-0000-000000000003", "0000000a-0000-0000-0000-000000000001"],
             rows.Select(row => row.GetAttribute("data-work-id")));
-        Assert.Equal("Not matched", Assert.Single(cut.FindAll(".tl-not-matched-tag")).TextContent.Trim());
+        Assert.Equal("Not matched", Assert.Single(cut.FindAll(".app-chip")).TextContent.Trim());
         Assert.Contains("Not matched", rows[2].TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Not matched", rows[0].TextContent, StringComparison.Ordinal);
 
@@ -108,7 +109,7 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
             .Add(component => component.Groups, [Album(Track("0000000a-0000-0000-0000-000000000002", "Airbag", "1"))]));
 
         Assert.Empty(cut.FindAll(".tl-audio-item-table__group-row"));
-        Assert.Empty(cut.FindAll(".tl-not-matched-tag"));
+        Assert.Empty(cut.FindAll(".app-chip"));
     }
 
     [Fact]
@@ -125,7 +126,7 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
             .Add(component => component.Title, "A special")
             .Add(component => component.PositionLabel, "•"));
 
-        Assert.Equal("Not matched", cut.Find(".tl-not-matched-tag").TextContent.Trim());
+        Assert.Equal("Not matched", cut.Find(".app-chip").TextContent.Trim());
     }
 
     [Fact]
@@ -141,6 +142,6 @@ public sealed class NotMatchedTagTests : AsyncBunitContext
             .Add(component => component.Title, "Pilot")
             .Add(component => component.PositionLabel, "1"));
 
-        Assert.Empty(cut.FindAll(".tl-not-matched-tag"));
+        Assert.Empty(cut.FindAll(".app-chip"));
     }
 }

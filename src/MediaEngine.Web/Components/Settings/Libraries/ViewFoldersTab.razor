@@ -3,7 +3,7 @@
 @using MediaEngine.Domain.PersonalMedia
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Folders tab of a View kind (Library pages WP11, D24, D25, D26): the storage base, the folders of every profile's personal space and
@@ -36,7 +36,7 @@
     {
         <div class="libraries-form-grid">
             <AppSelect Label="@L["ViewFoldersTab_OwnerProfile"].Value" Value="@_owner" ValueChanged="@((string? value) => _owner = value)" Options="@OwnerOptions" Disabled="@_busy" />
-            <AppTextField Label="@L["Common_FolderName"].Value" Value="@_name" ValueChanged="@((string? value) => _name = value ?? string.Empty)" ReadOnly="@_busy" />
+            <AppTextField Label="@(_mode == LinkedMode ? L["ViewFoldersTab_FolderNameOptional"].Value : L["Common_FolderName"].Value)" Value="@_name" ValueChanged="@((string? value) => _name = value ?? string.Empty)" ReadOnly="@_busy" />
             <AppSelect Label="@L["ViewFoldersTab_FolderManagement"].Value" Value="@_mode" ValueChanged="@((string? value) => { _mode = value ?? ManagedMode; _path = null; })" Options="@ModeOptions" Disabled="@_busy" />
             @if (_mode == LinkedMode)
             {
@@ -49,7 +49,7 @@
             }
         </div>
         <p>@(_mode == LinkedMode ? "Files remain where they are and are indexed read-only. Everything inside the folder is included, subfolders too." : "Create an empty managed folder in this profile’s Personal Space. Existing files are not moved.")</p>
-        <AppActionBar><AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => AddingChanged.InvokeAsync(false))" /><AppButton Label="@L["Common_AddFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || string.IsNullOrWhiteSpace(_owner) || string.IsNullOrWhiteSpace(_name) || (_mode == LinkedMode && _path is null))" OnClick="AddAsync" /></AppActionBar>
+        <AppActionBar><AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => AddingChanged.InvokeAsync(false))" /><AppButton Label="@L["Common_AddFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || string.IsNullOrWhiteSpace(_owner) || (_mode != LinkedMode && string.IsNullOrWhiteSpace(_name)) || (_mode == LinkedMode && _path is null))" OnClick="AddAsync" /></AppActionBar>
     }
     @if (Loading) { <p role="status">@L["ViewFoldersTab_LoadingPersonalSources"]</p> }
     @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
@@ -177,7 +177,7 @@
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, new AppDialogParameters<ServerFolderPicker>
         {
             { x => x.InitialPath, path }, { x => x.SelectionMode, mode },
-        }, new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, CloseButton = false, CloseOnEscapeKey = true });
+        }, ServerFolderPicker.DialogOptions);
         return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto result } ? result : null;
     }
 
@@ -188,7 +188,7 @@
         try
         {
             // A View folder is read in full, subfolders included, so the request always asks for them.
-            var result = await ApiClient.CreateViewProfileSourceAsync(owner, new CreateViewSourceRequest(_name, _mode, _path, true, _timeline, Kind));
+            var result = await ApiClient.CreateViewProfileSourceAsync(owner, new CreateViewSourceRequest(AddName(owner), _mode, _path, true, _timeline, Kind));
             if (result is null) _error = ApiClient.LastError ?? "Folder could not be added.";
             else
             {
@@ -200,6 +200,11 @@
         }
         finally { _busy = false; }
     }
+
+    // A linked folder's name is optional: an empty box saves the folder's own name, and a name already used by this kind gets " (2)" (View folders spec D2).
+    private string AddName(Guid owner) => _mode == LinkedMode
+        ? ViewFolderRules.NameFor(_name, _path, Reviews.Values.SelectMany(review => ViewFolderRules.OfKind(review.Sources, Kind)).Select(source => source.Name))
+        : _name.Trim();
 
     private async Task SetTimelineAsync(Guid owner, ViewSourceAdminDto source, bool value)
     {
@@ -258,7 +263,7 @@
         var question = turnOn
             ? $"Tidy {source.Name} every night at {hour}? New files for this library wait while it runs."
             : $"Stop tidying {source.Name} every night?";
-        if (await DialogService.ShowMessageBoxAsync(turnOn ? "Tidy every night?" : "Stop tidying every night?", question, yesText: turnOn ? "Tidy every night" : "Stop", cancelText: "Cancel") != true) return;
+        if (await DialogService.ShowMessageBoxAsync(turnOn ? "Tidy every night?" : "Stop tidying every night?", question, yesText: turnOn ? "Tidy every night" : "Stop", cancelText: "Cancel", options: turnOn ? null : AppDialogOptions.DestructiveConfirm) != true) return;
         _busy = true;
         try
         {
@@ -270,7 +275,7 @@
 
     private async Task DetachAsync(Guid owner, ViewSourceAdminDto source)
     {
-        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Detach {source.Name}? Original files remain at {source.Location}.", yesText: "Detach folder", cancelText: "Cancel") != true) return;
+        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Detach {source.Name}? Original files remain at {source.Location}.", yesText: "Detach folder", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true) return;
         _busy = true;
         try
         {

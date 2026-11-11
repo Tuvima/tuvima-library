@@ -81,6 +81,14 @@ public static class PluginCompatibility
             }
         }
 
+        foreach (var secret in manifest.Secrets.Where(secret => secret.SignIn is not null))
+        {
+            if (PluginDeviceSignInRules.Validate(manifest, secret) is { } signInProblem)
+            {
+                return signInProblem;
+            }
+        }
+
         if (PluginNetworkRules.Validate(manifest.Permissions, manifest.Network) is { } networkProblem)
         {
             return networkProblem;

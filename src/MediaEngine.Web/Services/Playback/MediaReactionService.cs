@@ -8,15 +8,14 @@ public enum MediaReaction
     Neutral,
     Like,
     Dislike,
-    Love,
 }
 
 public sealed class MediaReactionService(IEngineApiClient apiClient)
 {
     public event Action? Changed;
+    /// <summary>Pressing the active rating clears it; Like replaces Dislike and the other way round. Favorite is not a rating (it is a saved item).</summary>
     public static MediaReaction ToggleRating(MediaReaction current, MediaReaction choice) =>
-        choice == MediaReaction.Like && current == MediaReaction.Love ? MediaReaction.Love
-        : current == choice ? MediaReaction.Neutral : choice;
+        current == choice ? MediaReaction.Neutral : choice;
 
     public async Task<MediaReaction> GetReactionAsync(
         Guid entityId,
@@ -34,25 +33,8 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         {
             ProfileReactionKind.Like => MediaReaction.Like,
             ProfileReactionKind.Dislike => MediaReaction.Dislike,
-            ProfileReactionKind.Love => MediaReaction.Love,
             _ => MediaReaction.Neutral,
         };
-    }
-
-    public async Task<IReadOnlyCollection<Guid>> GetFavoriteWorkIdsAsync(
-        Guid? profileId,
-        CancellationToken ct = default)
-    {
-        if (!profileId.HasValue)
-        {
-            return [];
-        }
-        var states = await apiClient.GetProfileReactionsAsync(ct);
-        return states
-            .Where(item => item.EntityKind == ProfileEntityKind.Song
-                           && item.Reaction == ProfileReactionKind.Love)
-            .Select(item => item.EntityId)
-            .ToHashSet();
     }
 
     public async Task<IReadOnlyCollection<Guid>> GetDislikedWorkIdsAsync(
@@ -97,7 +79,6 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
             {
                 MediaReaction.Like => ProfileReactionKind.Like,
                 MediaReaction.Dislike => ProfileReactionKind.Dislike,
-                MediaReaction.Love => ProfileReactionKind.Love,
                 _ => throw new ArgumentOutOfRangeException(nameof(reaction)),
             },
             ct);
