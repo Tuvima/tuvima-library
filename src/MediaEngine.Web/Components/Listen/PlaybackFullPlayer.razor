@@ -28,8 +28,10 @@
             </AppTooltip>
             <span class="playback-full__from" data-playback-full-from data-overflow-tooltip="@PlayingFrom">@PlayingFrom</span>
             <PlaybackItemMenu @ref="_itemMenu" Media="@Media" Item="@item" Surface="dock" Snapshot="@Snapshot" Commands="@Commands" IsCurrent="@IsCurrent"
-                              NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows" />
+                              NavigationCompleted="@NavigationCompleted" SettingsPanel="@SettingsPanel" ExtraRows="@MenuRows"
+                              OnStatusChanged="ShowStatusUndo" />
         </header>
+        <AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" />
         <div class="playback-full__art" data-playback-full-art>
             @if (!string.IsNullOrEmpty(PlaybackArtworkUrl.ForDrawnSize(item, 260)))
             {
@@ -94,6 +96,11 @@
 }
 
 @code {
+    // What the "..." menu's Mark as done or not done said, with Undo, drawn under the top line because the menu has closed.
+    private UndoOffer? _statusUndo;
+    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; return Task.CompletedTask; }
+    private Task ClearStatusUndo() { _statusUndo = null; return Task.CompletedTask; }
+
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
 

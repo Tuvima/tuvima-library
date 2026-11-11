@@ -1,6 +1,7 @@
 /* The bar itself is drawn by PlaybackShell (unified player v2 D1 to D6). This file keeps only what belongs to the host: the container the
    shell measures against, the hidden audio engine, the restore notice. The audiobook's chapter label sits on the timeline itself (PlaybackSeekRail). */
 .listen-player-shell { container-name:listen-dock; container-type:inline-size; position:relative; width:100%; padding:0; pointer-events:none; }
+.listen-player__undo { position:absolute; left:0; right:0; bottom:100%; padding:0 var(--tl-space-3); pointer-events:auto; }
 .listen-player__audio-native { display:none; }
 .listen-player__error,.listen-player__restore-status { color:var(--tl-status-danger); }
 @media(max-width:720px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }

@@ -36,7 +36,7 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
         Services.AddScoped(provider =>
         {
             var device = provider.GetRequiredService<DeviceContextService>();
-            return new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device, new AppToastService());
+            return new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device);
         });
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {

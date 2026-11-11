@@ -25,6 +25,9 @@
 
     /// <summary>Raised with the reason when a change or the history could not be done; the host shows it in place (an alert).</summary>
     [Parameter] public EventCallback<string> OnFailed { get; set; }
+
+    /// <summary>Raised after a status change worked, with the sentence and what Undo does; the host shows it in place (<c>AppUndoNote</c>) because this menu closes.</summary>
+    [Parameter] public EventCallback<UndoOffer> OnChanged { get; set; }
     private bool Current => IsCurrent?.Invoke() != false;
     private PersonalStatusInfo? _status;
     protected override async Task OnParametersSetAsync() {
@@ -40,12 +43,17 @@
         if (_status is null || !Current) return;
         var subject = (WorkId, ProfileId);
         try {
-            await Api.ChangePersonalStatusAsync(new(Guid.NewGuid(), DetailEntityType.MusicAlbum, subject.WorkId, action, _status.Revision));
+            var result = await Api.ChangePersonalStatusAsync(new(Guid.NewGuid(), DetailEntityType.MusicAlbum, subject.WorkId, action, _status.Revision));
             if (!Current || subject != (WorkId, ProfileId)) return;
             var status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId);
             if (!Current || subject != (WorkId, ProfileId)) return;
-            // The menu now offers the other choice (Mark as listened or unlistened): that is the confirmation.
+            // The menu now offers the other choice (Mark as listened or unlistened); the host also says so, with Undo.
             _status = status;
+            await OnChanged.InvokeAsync(new UndoOffer(L["PersonalStatusMenuItems_ListeningStatusUpdated"].Value, async () => {
+                await Api.UndoPersonalStatusAsync(result.CommandId);
+                // Reload so the menu offers the choice it did before the change.
+                if (subject == (WorkId, ProfileId)) { _status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId); await InvokeAsync(StateHasChanged); }
+            }));
         } catch (Exception ex) { await OnFailed.InvokeAsync(ex.Message); }
     }
     private async Task HistoryAsync() {

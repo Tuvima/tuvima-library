@@ -13394,4 +13394,16 @@
   <data name="MainLayout_AddAPasswordFirst" xml:space="preserve">
     <value>Add a password to your account first.</value>
   </data>
+  <data name="Common_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Common_StatusUpdated" xml:space="preserve">
+    <value>Status updated.</value>
+  </data>
+  <data name="DetailPage_StatusUpdatedForOwned" xml:space="preserve">
+    <value>Status updated for {0} owned item(s).</value>
+  </data>
+  <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
+    <value>Listening status updated.</value>
+  </data>
 </root>

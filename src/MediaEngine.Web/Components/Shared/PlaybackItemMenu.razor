@@ -80,6 +80,9 @@
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
 
+    /// <summary>Raised after a status change worked and the menu closed, with the sentence and what Undo does; the surface that hosts the menu shows it in place.</summary>
+    [Parameter] public EventCallback<UndoOffer> OnStatusChanged { get; set; }
+
     /// <summary>Opens the Playback settings of this player. Without a panel or a handler the row opens Settings, Playback.</summary>
     [Parameter] public EventCallback OnPlaybackSettings { get; set; }
 
@@ -236,10 +239,15 @@
         {
             var status = _status ?? await api.GetPersonalStatusAsync(subject.Type, subject.Id);
             if (status is null || !Current() || subject != StatusSubject) return;
-            await api.ChangePersonalStatusAsync(new(Guid.NewGuid(), subject.Type, subject.Id, action, status.Revision));
+            var result = await api.ChangePersonalStatusAsync(new(Guid.NewGuid(), subject.Type, subject.Id, action, status.Revision));
             _status = await api.GetPersonalStatusAsync(subject.Type, subject.Id);
-            // The menu's rows now offer the other choice (Mark as done or not done); that is the confirmation.
+            // The menu's rows now offer the other choice (Mark as done or not done); the host also says so, with Undo.
             CloseMenu();
+            await OnStatusChanged.InvokeAsync(new UndoOffer(L["Common_StatusUpdated"].Value, async () =>
+            {
+                await api.UndoPersonalStatusAsync(result.CommandId);
+                _status = null;
+            }));
         }
         catch (Exception ex)
         {
