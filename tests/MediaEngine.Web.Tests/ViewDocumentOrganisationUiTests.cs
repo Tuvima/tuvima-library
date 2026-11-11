@@ -4,6 +4,7 @@ using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;

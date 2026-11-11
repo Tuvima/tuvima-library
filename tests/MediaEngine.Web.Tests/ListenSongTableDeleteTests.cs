@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Realtime;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -413,7 +414,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(false);
-        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
         var cut = RenderTable(Songs(4));
         Checkboxes(cut)[1].Change(true);
         Checkboxes(cut)[2].Change(true);
@@ -432,7 +433,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(false);
-        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
         var cut = RenderTable(Songs(3));
         Checkboxes(cut)[0].Change(true);
         cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Edit").Click();

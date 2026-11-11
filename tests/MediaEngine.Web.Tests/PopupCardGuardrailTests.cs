@@ -24,8 +24,8 @@ public sealed class PopupCardGuardrailTests
         ["Components/Navigation/PhoneNavigationMenu.razor"] = "Phone navigation sheet.",
         ["Components/Details/OverflowActionMenu.razor"] = "Phone details actions sheet.",
         // Editors (Group C): their layout belongs to the edit panels work; they use the shared close prompt.
-        ["Components/Details/ViewEditorPopover.razor"] = "The photos, videos, documents and galleries editor pop-over (spec photos-documents-editor D1): a native modal dialog drawn once by the layout around the shared editor window (EditorWindowChrome), exactly as the library editor is; it draws no frame of its own, and Esc and Discard use the shared unsaved-changes prompt.",
-        ["Components/Details/EditorPopover.razor"] = "The universal editor pop-over (v3 spec D1, D6): a native modal dialog drawn once by the layout around the editor window, with a tool rail and a fixed Cancel and Save footer; its layout belongs to the editor, and Esc and Cancel use the shared unsaved-changes prompt.",
+        ["Components/Editor/ViewEditorPopover.razor"] = "The photos, videos, documents and galleries editor pop-over (spec photos-documents-editor D1): a native modal dialog drawn once by the layout around the shared editor window (EditorWindowChrome), exactly as the library editor is; it draws no frame of its own, and Esc and Discard use the shared unsaved-changes prompt.",
+        ["Components/Editor/EditorPopover.razor"] = "The universal editor pop-over (v3 spec D1, D6): a native modal dialog drawn once by the layout around the editor window, with a tool rail and a fixed Cancel and Save footer; its layout belongs to the editor, and Esc and Cancel use the shared unsaved-changes prompt.",
         ["Components/Settings/Libraries/LibraryFoldersPopover.razor"] = "A small anchored list under the folder-count button (Libraries and folder picker D3); a phone shows it as a bottom sheet.",
         ["Components/Profiles/ProfileEditorSheet.razor"] = "Profile editor: the shared Window frame around its own avatar, PIN and delete form.",
         // Special layouts that keep their behaviour.

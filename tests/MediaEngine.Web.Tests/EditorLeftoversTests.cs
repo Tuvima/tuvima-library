@@ -143,7 +143,7 @@ public sealed class EditorLeftoversTests
         }
 
         Assert.NotNull(root);
-        var details = Path.Combine(root!, "src", "MediaEngine.Web", "Components", "Details");
+        var details = Path.Combine(root!, "src", "MediaEngine.Web", "Components", "Editor");
         Assert.False(File.Exists(Path.Combine(details, "EditorFamilyTree.razor")));
         Assert.False(File.Exists(Path.Combine(details, "EditorFamilyTree.razor.css")));
         Assert.False(File.Exists(Path.Combine(details, "EditorFamilyRail.razor")));

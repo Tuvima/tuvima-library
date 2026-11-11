@@ -1,0 +1,597 @@
+@namespace MediaEngine.Web.Components.Editor
+@using System.Globalization
+@using System.Net.Http
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Matching
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorTvMatchFlow> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tab's TV flow (universal editor v5, 3c, mockup G3). Its Show and Year boxes and the icon-only Search sit in the Match tab's first row,
+   between the provider dropdown and the source switch (the tab hands those two in as RowStart and RowEnd). Then the chosen show as a compact card
+   with "Change show", and, for an episode, "Choose an episode" with a Season dropdown (Specials is season 0) over a plain table of Episode, Title,
+   Air date and Runtime with the episode the file name names pre-selected ("Suggested from filename: S02E03"; a file with no number falls back to
+   the nearest runtime, then air order; an anime's absolute number is shown as the provider's season and episode). A show page needs only the
+   show. A search never runs on opening for an item that is not matched yet: the boxes are filled and the person presses Search. The pick is judged
+   by the Engine (Strong, Possible or Check, with the length line) and Apply match is always available. Choosing only hands the pick up; staging,
+   the move and the show re-match belong to the Match tab. *@
+<div class="tl-tvflow" data-testid="tv-flow" data-scope="@(NeedsEpisode ? "episode" : "show")">
+    <EditorMatchRow>
+        <Start>
+            @RowStart
+            <div class="tl-tvflow__field">
+                <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_showText" ValueChanged="@(value => _showText = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnSearchKey" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="tv-flow-show" />
+            </div>
+            <div class="tl-tvflow__year">
+                <AppTextField Label="@L["EditorTvMatchFlow_Year"].Value" Value="@_yearText" ValueChanged="@(value => _yearText = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnSearchKey" Placeholder="@L["EditorMatchPanel_Optional"].Value" aria-label="@L["EditorTvMatchFlow_Year"].Value" data-testid="tv-flow-year" />
+            </div>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(_showsLoading || string.IsNullOrWhiteSpace(_showText))" OnClick="SearchAsync" data-testid="tv-flow-search" />
+        </Start>
+        <End>@RowEnd</End>
+    </EditorMatchRow>
+
+    @Lead
+
+    @if (_show is null)
+    {
+        @if (_showsLoading)
+        {
+            <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+        }
+        else if (_showsProblem is not null)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="tv-flow-problem">@_showsProblem</AppAlert>
+        }
+        else if (_searched)
+        {
+            <div class="tl-match__results" role="list" aria-label="@L["EditorTvMatchFlow_Shows"].Value" data-testid="tv-flow-shows">
+                @foreach (var show in _shows)
+                {
+                    <div role="listitem">
+                        <AppRowButton Class="tl-match__row" data-testid="tv-flow-show-row" OnClick="@(() => ChooseShowAsync(show))">
+                            @Art(show.ImageUrl, 48, 72)
+                            <span class="tl-match__text">
+                                <span class="tl-match__title"><span>@show.Name</span> @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchFlow_ThisItemsShow"].Value" Tone="AppUiTone.Neutral" /> } @if (IsBestGuess(show)) { <AppChip Text="@L["EditorTvMatchFlow_BestGuess"].Value" Tone="AppUiTone.Primary" /> }</span>
+                                <span class="tl-match__meta">@show.Year</span>
+                            </span>
+                        </AppRowButton>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <section class="tl-tvflow__card" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="tv-flow-card">
+            @Art(_seasons?.ImageUrl ?? _show.ImageUrl, 64, 96)
+            <span class="tl-match__text">
+                <span class="tl-tvflow__name">@_show.Name</span>
+                <span class="tl-match__meta">@ShowLine()</span>
+                @if (!string.IsNullOrWhiteSpace(_seasons?.Overview ?? _show.Overview))
+                {
+                    <span class="tl-tvflow__overview">@(_seasons?.Overview ?? _show.Overview)</span>
+                }
+            </span>
+            <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                       OnClick="ChangeShow" data-testid="tv-flow-change-show" />
+        </section>
+
+        @if (NeedsEpisode)
+        {
+            @EpisodePart()
+        }
+    }
+
+    <EditorMatchVerdictBar Result="_judged" Judging="_judging" ShowCancel="ShowCancel" CanApply="@(CanApply && _candidate is not null && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel" />
+</div>
+
+@code {
+    private CancellationTokenSource? _cts;
+    private Guid _startedFor;
+    private string _showText = string.Empty;
+    private string _yearText = string.Empty;
+    private bool _showsLoading;
+    private bool _searched;
+    private string? _showsProblem;
+    private IReadOnlyList<TvMatchBrowserShowDto> _shows = [];
+    private TvMatchBrowserShowDto? _show;
+    private TvMatchBrowserSeasonsDto? _seasons;
+    private int? _seasonNumber;
+    private bool _episodesLoading;
+    private string? _episodesProblem;
+    private IReadOnlyList<TvMatchBrowserEpisodeDto> _episodes = [];
+    private TvMatchBrowserEpisodeDto? _picked;
+    private EditorEpisodeSuggestion? _suggestion;
+    private ItemCanonicalRetailCandidateDto? _candidate;
+    private EditorMatchResultDto? _judged;
+    private bool _judging;
+
+    /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
+    [Parameter] public RenderFragment? RowStart { get; set; }
+
+    /// <summary>What the Match tab puts last in the row: the source switch.</summary>
+    [Parameter] public RenderFragment? RowEnd { get; set; }
+
+    /// <summary>What the Match tab shows under the row: a staged note, the "Not matched yet" tag, the file the Engine read.</summary>
+    [Parameter] public RenderFragment? Lead { get; set; }
+
+    /// <summary>The item being matched; the search starts from its show's name.</summary>
+    [Parameter, EditorRequired] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>True when the item is not matched: the boxes start from the file name and the Engine's best guess is tagged.</summary>
+    [Parameter] public bool Unmatched { get; set; }
+
+    /// <summary>What the Engine read from the item's file name, and its best guess; null when not read.</summary>
+    [Parameter] public EditorMatchContextDto? Context { get; set; }
+
+    /// <summary>The length measured from the file, for choosing an episode when the file name has no number.</summary>
+    [Parameter] public EditorMatchLocalEvidenceDto? Evidence { get; set; }
+
+    /// <summary>True when the person may stage a match (they may edit and an edit session is open).</summary>
+    [Parameter] public bool CanApply { get; set; }
+
+    /// <summary>Shown as Cancel when there is a current match to go back to.</summary>
+    [Parameter] public bool ShowCancel { get; set; }
+
+    /// <summary>Raised by Apply match with the picked record, as a search result would be.</summary>
+    [Parameter] public EventCallback<ItemCanonicalRetailCandidateDto> OnApplyMatch { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private bool NeedsEpisode => Subject is not null && EditorTvMatchCandidates.NeedsEpisode(Subject.ScopeId);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Subject is null || _startedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        _startedFor = Subject.EntityId;
+        _showText = StartingShow();
+        _yearText = Unmatched ? Context?.ParsedYear ?? string.Empty : string.Empty;
+        _show = null;
+        _seasons = null;
+        _episodes = [];
+        ClearPick();
+        _shows = [];
+        _searched = false;
+        _showsProblem = null;
+
+        // Opening only fills the boxes. An item that is not matched yet waits for Search; one the person chose to change starts from its own show.
+        if (!Unmatched)
+        {
+            await RunSearchAsync(chooseStart: true);
+        }
+    }
+
+    // A failed item starts from what its file name says; a matched item starts from its own show (an episode) or title (a show).
+    private string StartingShow()
+    {
+        if (Unmatched && !string.IsNullOrWhiteSpace(Context?.ParsedShow))
+        {
+            return Context!.ParsedShow!;
+        }
+
+        if (Unmatched && !NeedsEpisode && !string.IsNullOrWhiteSpace(Context?.ParsedTitle))
+        {
+            return Context!.ParsedTitle!;
+        }
+
+        return NeedsEpisode ? Subject!.ParentLabel ?? string.Empty : Subject!.Title;
+    }
+
+    private bool IsBestGuess(TvMatchBrowserShowDto show) =>
+        Unmatched && Context?.BestGuess is { } guess && string.Equals(guess.ProviderItemId, show.SeriesId, StringComparison.Ordinal);
+
+    private Task OnSearchKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private Task SearchAsync()
+    {
+        _show = null;
+        _seasons = null;
+        _episodes = [];
+        ClearPick();
+        return RunSearchAsync(chooseStart: false);
+    }
+
+    private void ChangeShow()
+    {
+        _show = null;
+        _seasons = null;
+        _episodes = [];
+        ClearPick();
+    }
+
+    private void ClearPick()
+    {
+        _picked = null;
+        _suggestion = null;
+        _candidate = null;
+        _judged = null;
+        _judging = false;
+    }
+
+    private CancellationToken NewToken()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        return _cts.Token;
+    }
+
+    private async Task RunSearchAsync(bool chooseStart)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        var text = _showText.Trim();
+        var ct = NewToken();
+        _showsLoading = true;
+        _showsProblem = null;
+        StateHasChanged();
+        try
+        {
+            var response = await Api.SearchTvMatchBrowserShowsAsync(Subject.EntityId, text, ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _shows = ByYear(response?.Shows ?? []);
+            _showsProblem = response is null
+                ? L["EditorTvMatchFlow_DidNotAnswer"].Value
+                : _shows.Count == 0
+                    ? text.Length == 0 ? L["EditorTvMatchFlow_TypeAShow"].Value : L["EditorTvMatchFlow_NothingCalled", text].Value
+                    : null;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The TV match flow could not search shows for {EntityId}", Subject.EntityId);
+            _shows = [];
+            _showsProblem = L["EditorTvMatchFlow_DidNotAnswer"].Value;
+        }
+
+        _showsLoading = false;
+        _searched = true;
+
+        // The show the item already has, else the Engine's best guess for a failed file, is opened for the person; an episode always opens on one.
+        var start = !chooseStart
+            ? null
+            : _shows.FirstOrDefault(show => show.IsCurrent && !Unmatched)
+              ?? (Unmatched && Context?.BestGuess is { } guess ? _shows.FirstOrDefault(show => show.SeriesId == guess.ProviderItemId) : null)
+              ?? _shows.FirstOrDefault(show => show.IsCurrent);
+        if (start is not null)
+        {
+            await ChooseShowAsync(start);
+        }
+    }
+
+    // A year typed in the box puts the shows from that year first; the order is otherwise the provider's.
+    private IReadOnlyList<TvMatchBrowserShowDto> ByYear(IReadOnlyList<TvMatchBrowserShowDto> shows) =>
+        string.IsNullOrWhiteSpace(_yearText)
+            ? shows
+            : [.. shows.OrderBy(show => string.Equals(show.Year, _yearText.Trim(), StringComparison.Ordinal) ? 0 : 1)];
+
+    private async Task ChooseShowAsync(TvMatchBrowserShowDto show)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        var ct = NewToken();
+        _show = show;
+        _seasons = null;
+        _episodes = [];
+        _episodesProblem = null;
+        ClearPick();
+        _episodesLoading = NeedsEpisode;
+        StateHasChanged();
+        try
+        {
+            _seasons = await Api.GetTvMatchBrowserSeasonsAsync(Subject.EntityId, show.SeriesId, ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The TV match flow could not list seasons for {EntityId}", Subject.EntityId);
+        }
+
+        if (!NeedsEpisode)
+        {
+            await PickShowAsync(show);
+            return;
+        }
+
+        if (_seasons is null || _seasons.Seasons.Count == 0)
+        {
+            _episodesLoading = false;
+            _episodesProblem = _seasons is null ? L["EditorTvMatchFlow_DidNotAnswer"].Value : L["EditorTvMatchFlow_NoSeasons"].Value;
+            return;
+        }
+
+        await OpenEpisodesAsync(opening: true, ct);
+    }
+
+    private async Task PickShowAsync(TvMatchBrowserShowDto show)
+    {
+        _picked = null;
+        await JudgeAsync(EditorTvMatchCandidates.ForShow(show));
+    }
+
+    private async Task OnSeasonChangedAsync(string? value)
+    {
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+        {
+            _seasonNumber = number;
+            await OpenEpisodesAsync(opening: false, NewToken());
+        }
+    }
+
+    // Loads the season's episodes. Only the first load pre-selects: browsing to another season leaves the choice to the person.
+    private async Task OpenEpisodesAsync(bool opening, CancellationToken ct)
+    {
+        if (Subject is null || _show is null)
+        {
+            return;
+        }
+
+        TvMatchBrowserEpisodeDto? absolute = null;
+        if (opening)
+        {
+            _seasonNumber = EditorTvEpisodeSuggestion.OpeningSeason(_seasons!.Seasons, Context, useFileName: true);
+            if (Context is { ParsedEpisode: null, ParsedAbsolute: { } number })
+            {
+                absolute = await ReadAbsoluteAsync(number, ct);
+                _seasonNumber = absolute?.SeasonNumber ?? _seasonNumber;
+            }
+        }
+
+        if (_seasonNumber is not { } season)
+        {
+            _episodesLoading = false;
+            return;
+        }
+
+        ClearPick();
+        _episodes = [];
+        _episodesProblem = null;
+        _episodesLoading = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Api.GetTvMatchBrowserEpisodesAsync(Subject.EntityId, _show.SeriesId, season, ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _episodes = response?.Episodes ?? [];
+            _episodesProblem = response is null
+                ? L["EditorTvMatchFlow_DidNotAnswer"].Value
+                : _episodes.Count == 0 ? L["EditorTvMatchFlow_NoEpisodes"].Value : null;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The TV match flow could not list episodes for {EntityId}", Subject.EntityId);
+            _episodesProblem = L["EditorTvMatchFlow_DidNotAnswer"].Value;
+        }
+
+        _episodesLoading = false;
+        if (!opening || _episodes.Count == 0)
+        {
+            return;
+        }
+
+        var suggestion = EditorTvEpisodeSuggestion.FromFileName(_episodes, Context)
+                         ?? EditorTvEpisodeSuggestion.FromAbsolute(absolute is null ? null : _episodes.FirstOrDefault(episode => episode.EpisodeId == absolute.EpisodeId))
+                         ?? EditorTvEpisodeSuggestion.Fallback(_episodes, Evidence?.MeasuredSeconds);
+        if (suggestion is not null)
+        {
+            _suggestion = suggestion;
+            await PickEpisodeAsync(suggestion.Episode);
+        }
+    }
+
+    private async Task<TvMatchBrowserEpisodeDto?> ReadAbsoluteAsync(int number, CancellationToken ct)
+    {
+        try
+        {
+            return await Api.GetTvMatchBrowserAbsoluteEpisodeAsync(Subject!.EntityId, _show!.SeriesId, number, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The TV match flow could not read absolute episode {Number} for {EntityId}", number, Subject!.EntityId);
+            return null;
+        }
+    }
+
+    private async Task PickEpisodeAsync(TvMatchBrowserEpisodeDto episode)
+    {
+        _picked = episode;
+        await JudgeAsync(EditorTvMatchCandidates.ForEpisode(episode));
+    }
+
+    // The Engine judges the pick against the file with the same facts and tolerances a search result is judged by.
+    private async Task JudgeAsync(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        _candidate = candidate;
+        _judged = null;
+        _judging = true;
+        StateHasChanged();
+        try
+        {
+            var judged = await Api.GetEditorMatchVerdictAsync(Subject.EntityId, candidate);
+            if (!ReferenceEquals(_candidate, candidate))
+            {
+                return;
+            }
+
+            _judged = judged ?? new EditorMatchResultDto { Candidate = candidate, ProviderName = candidate.ProviderName, Title = candidate.Title, Verdict = EditorMatchVerdicts.Possible };
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The TV match flow could not judge a pick for {EntityId}", Subject.EntityId);
+            _judged = new EditorMatchResultDto { Candidate = candidate, ProviderName = candidate.ProviderName, Title = candidate.Title, Verdict = EditorMatchVerdicts.Possible };
+        }
+        finally
+        {
+            if (ReferenceEquals(_candidate, candidate))
+            {
+                _judging = false;
+            }
+        }
+    }
+
+    private Task ApplyAsync() => _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
+
+    private string ShowLine()
+    {
+        var seasons = _seasons?.Seasons.Count(season => season.SeasonNumber > 0);
+        return string.Join(" · ", new[]
+        {
+            _seasons?.Year ?? _show?.Year,
+            _seasons?.Genre,
+            seasons is > 0 ? (seasons == 1 ? L["EditorTvMatchFlow_SeasonCountOne"].Value : L["EditorTvMatchFlow_SeasonCount", seasons.Value].Value) : null,
+        }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
+
+    private IReadOnlyList<AppSelectOption> SeasonOptions =>
+    [
+        .. (_seasons?.Seasons ?? [])
+            .OrderBy(season => season.SeasonNumber == 0 ? 1 : 0)
+            .ThenBy(season => season.SeasonNumber)
+            .Select(season => new AppSelectOption(
+                season.SeasonNumber.ToString(CultureInfo.InvariantCulture),
+                season.SeasonNumber == 0 ? L["EditorTvMatchFlow_Specials"].Value : L["EditorTvMatchFlow_Season", season.SeasonNumber].Value)),
+    ];
+
+    private string SuggestionText()
+    {
+        if (_suggestion is not { } suggestion || _picked is null || suggestion.Episode.EpisodeId != _picked.EpisodeId)
+        {
+            return string.Empty;
+        }
+
+        var slot = EditorTvMatchCandidates.SlotLabel(suggestion.Episode.SeasonNumber, suggestion.Episode.EpisodeNumber).Replace(" ", string.Empty, StringComparison.Ordinal);
+        return suggestion.Source switch
+        {
+            EditorEpisodeSuggestionSources.FileName => L["EditorTvMatchFlow_SuggestedFileName", slot].Value,
+            EditorEpisodeSuggestionSources.Absolute => L["EditorTvMatchFlow_SuggestedAbsolute", Context?.ParsedAbsolute ?? 0, slot].Value,
+            EditorEpisodeSuggestionSources.Runtime => L["EditorTvMatchFlow_SuggestedRuntime", slot].Value,
+            _ => L["EditorTvMatchFlow_SuggestedAirOrder", slot].Value,
+        };
+    }
+
+    private RenderFragment EpisodePart() => __builder =>
+    {
+        <section class="tl-tvflow__episodes" aria-label="@L["EditorTvMatchFlow_ChooseAnEpisode"].Value" data-testid="tv-flow-episodes">
+            <div class="tl-tvflow__episodes-head">
+                <h3 class="tl-match__section-heading">@L["EditorTvMatchFlow_ChooseAnEpisode"]</h3>
+                @if (_seasons is { Seasons.Count: > 0 })
+                {
+                    <div class="tl-tvflow__season">
+                        <AppSelect Value="@(_seasonNumber?.ToString(CultureInfo.InvariantCulture))" ValueChanged="OnSeasonChangedAsync" Options="@SeasonOptions"
+                                   Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" HideLabel="true" data-testid="tv-flow-season" />
+                    </div>
+                }
+                @if (SuggestionText() is { Length: > 0 } suggested)
+                {
+                    <span class="tl-tvflow__suggested" data-testid="tv-flow-suggested">@suggested</span>
+                }
+            </div>
+
+            @if (_episodesLoading)
+            {
+                <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            }
+            else if (_episodesProblem is not null)
+            {
+                <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="tv-flow-problem">@_episodesProblem</AppAlert>
+            }
+            else if (_episodes.Count > 0)
+            {
+                <table class="tl-tvflow__table" data-testid="tv-flow-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">@L["EditorTvMatchFlow_ColEpisode"]</th>
+                            <th scope="col">@L["EditorTvMatchFlow_ColTitle"]</th>
+                            <th scope="col">@L["EditorTvMatchFlow_ColAired"]</th>
+                            <th scope="col">@L["EditorTvMatchFlow_ColRuntime"]</th>
+                            <th scope="col" class="tl-tvflow__chosen"><span class="sr-only">@L["EditorTvMatchFlow_ColChosen"]</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var episode in _episodes)
+                        {
+                            var active = _picked?.EpisodeId == episode.EpisodeId;
+                            var slot = EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber).Replace(" ", string.Empty, StringComparison.Ordinal);
+                            <tr class="@(active ? "is-active" : null)" data-testid="tv-flow-episode" data-number="@episode.EpisodeNumber">
+                                <td>
+                                    <AppRowButton Class="tl-match__pick" aria-pressed="@(active ? "true" : "false")" aria-label="@L["EditorTvMatchFlow_EpisodeRow", slot, episode.Title].Value"
+                                                  data-testid="tv-flow-episode-pick" OnClick="@(() => PickEpisodeAsync(episode))">@slot</AppRowButton>
+                                </td>
+                                <td>@episode.Title</td>
+                                <td>@EditorMatchFormat.AirDate(episode.Aired)</td>
+                                <td>@(episode.RuntimeMinutes is > 0 ? L["EditorTvMatchFlow_Minutes", episode.RuntimeMinutes.Value].Value : string.Empty)</td>
+                                <td class="tl-tvflow__chosen" aria-hidden="true">@(active ? "✓" : string.Empty)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    };
+
+    private RenderFragment Art(string? url, int width, int height) => __builder =>
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            <AppImage Src="@url" Alt="" Width="@width" Height="@height" ObjectFit="AppObjectFit.Cover" Class="@(height > 80 ? "tl-match__art tl-match__art--poster" : "tl-match__art")" />
+        }
+        else
+        {
+            <span class="@(height > 80 ? "tl-match__art tl-match__art--poster tl-match__art--empty" : "tl-match__art tl-match__art--empty")" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
+        }
+    };
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

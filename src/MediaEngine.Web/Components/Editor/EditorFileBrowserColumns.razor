@@ -1,0 +1,40 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The header cells of the supporting-files list (screen E): the tick-the-page box, the three headings that sort, and Group and Role. They fill the
+   shared browser frame's header; the arrow shows the direction of the sort in use. *@
+<AppBrowserColumn Width="2.5rem">
+    @if (!ReadOnly)
+    {
+        <AppCheckbox Value="State.PageAllTicked" ValueChanged="@(_ => State.TickPage())" HideLabel="true"
+                     Label="@L["EditorBrowser_TickPage"].Value" data-tick-page="true" />
+    }
+</AppBrowserColumn>
+<AppBrowserColumn Label="@L["EditorBrowser_Name"].Value" MinWidth="12rem" OnSort="@(() => State.SortByAsync(SupportingFileListDefaults.SortTitle))"
+                  Direction="@SortState(SupportingFileListDefaults.SortTitle)" data-sort="@SupportingFileListDefaults.SortTitle" />
+<AppBrowserColumn Label="@L["EditorBrowser_WhereColumn"].Value" OnSort="@(() => State.SortByAsync(SupportingFileListDefaults.SortWhere))"
+                  Direction="@SortState(SupportingFileListDefaults.SortWhere)" data-sort="@SupportingFileListDefaults.SortWhere" />
+<AppBrowserColumn Label="@L["EditorBrowser_Type"].Value" OnSort="@(() => State.SortByAsync(SupportingFileListDefaults.SortType))"
+                  Direction="@SortState(SupportingFileListDefaults.SortType)" data-sort="@SupportingFileListDefaults.SortType" />
+<AppBrowserColumn Label="@L["EditorBrowser_Group"].Value" />
+<AppBrowserColumn Label="@L["EditorBrowser_Role"].Value" />
+<AppBrowserColumn Label="@L["EditorBrowser_RowActions"].Value" HideLabel="true" Width="2.5rem" />
+
+@code {
+    [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>The read-only browser (the page's Extras "See all") has no ticks, so no tick-the-page box.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private string? SortState(string sort) => State.Sort == sort ? (State.Descending ? "descending" : "ascending") : null;
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

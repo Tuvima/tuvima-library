@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Setup;
@@ -66,11 +67,11 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
     [Fact]
     public void TheEditorFooterWording_IsNotTypedIntoTheComponentOrTheDeleteRules()
     {
-        var chrome = Read("Components", "Details", "EditorWindowChrome.razor");
+        var chrome = Read("Components", "Editor", "EditorWindowChrome.razor");
         Assert.DoesNotContain("\"Save changes\"", chrome, StringComparison.Ordinal);
         Assert.DoesNotContain("\"Saving", chrome, StringComparison.Ordinal);
         Assert.DoesNotContain("FooterLabel", Read("Services", "Editing", "EditorDeleteRules.cs"), StringComparison.Ordinal);
-        Assert.Contains("L[\"EditorFooter_Delete\"]", Read("Components", "Details", "EditorPopover.razor"), StringComparison.Ordinal);
+        Assert.Contains("L[\"EditorFooter_Delete\"]", Read("Components", "Editor", "EditorPopover.razor"), StringComparison.Ordinal);
     }
 
     // ---- Items 1 and 2: the editor header, read from the style sheets ----
@@ -80,7 +81,7 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
     {
         foreach (var file in new[] { "EditorHeaderNav.razor.css", "ViewEditHeaderNav.razor.css" })
         {
-            var css = Read("Components", "Details", file);
+            var css = Read("Components", "Editor", file);
             var rest = Regex.Match(css, @"\.[\w-]+ ::deep \.[\w-]+__trigger \{[^}]*\}").Value;
             Assert.Contains("border: 1px solid var(--tl-border-strong)", rest, StringComparison.Ordinal);
             Assert.DoesNotContain("accent", rest, StringComparison.Ordinal);

@@ -1,0 +1,510 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorSupportingFilePanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Details tool of a supporting file (universal editor v5 WP7, screens C and D, D11 to D18): Title, Description with "Suggest details from
+   the document", Group, Role, Belongs to, Shown alongside and Tags on the left, and the file's Quick facts with the Preview button on the
+   right. Typing only stages a change in the pending list (one entry for the file, see SupportingFileStaging); nothing reaches the Engine until
+   Save changes, except the read-only check of whether a new Belongs to would move the file, which feeds the amber footer. Library never
+   writes into a supporting file: only its record, and the file's place on disk in a Managed folder. *@
+@if (Mode is { IsOn: true, Fields.Loading: true } && Flow is { Session.IsActive: true })
+{
+    <EditorPanelBusy Label="@L["EditorSupportingFile_Loading"].Value" />
+}
+else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow && mode.Fields.SupportingFile is { } file && Guid.TryParse(file.File.Id, out var fileId))
+{
+    var stage = flow.Session.Pending.FindSupportingFile(fileId);
+    var canEdit = mode.CanEdit;
+    var scope = SupportingFileStaging.ScopeOf(file, stage);
+    var setByYou = SupportingFileStaging.ScopeIsSetByYou(file, stage);
+    var alongside = SupportingFileStaging.AlongsideOf(file, stage);
+    SyncDrafts(file, stage);
+    <div class="tl-editor-details-layout" data-supporting-file="@file.File.Id">
+        <div class="tl-editor-details">
+            @if (!canEdit)
+            {
+                <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorSupportingFile_ReadOnlyDevice"]</AppAlert>
+            }
+
+            <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
+                <div class="tl-editor-field tl-editor-field--wide" data-field-key="title">
+                    <div class="tl-editor-field__label"><span>@L["Common_Title"]</span></div>
+                    <AppTextField Value="@_title" ValueChanged="@(value => TypeTitle(file, value))" MaxLength="300" ReadOnly="@(!canEdit)"
+                                  Placeholder="@SupportingFileStaging.FromFileName" aria-label="@L["Common_Title"].Value" />
+                    @if (stage?.Row(SupportingFileFields.Title) is not null)
+                    {
+                        <span class="tl-editor-field__note" data-hint="title">@(stage.ClearTitle ? L["EditorSupportingFile_TitleCleared"].Value : L["EditorSupportingFile_TitleSet"].Value)</span>
+                    }
+                </div>
+
+                <div class="tl-editor-field tl-editor-field--wide" data-field-key="description">
+                    <div class="tl-editor-field__label">
+                        <span>@L["EditorSupportingFile_Description"]</span>
+                        @if (canEdit && CanSuggest(file))
+                        {
+                            <span class="tl-editor-field__tools">
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                           StartIcon="@AppMaterialIcons.Outlined.Description" Disabled="@_suggesting" data-suggest-details="true"
+                                           OnClick="@(() => SuggestAsync(file))">@L["EditorSupportingFile_SuggestDetails"]</AppButton>
+                            </span>
+                        }
+                    </div>
+                    <AppTextarea Value="@_description" ValueChanged="@(value => TypeDescription(file, value))" Lines="3" ReadOnly="@(!canEdit)"
+                                 MaxLength="@DescriptionLimit(file)" aria-label="@L["EditorSupportingFile_Description"].Value" />
+                    @if (!string.IsNullOrWhiteSpace(_suggestNote))
+                    {
+                        <span class="tl-editor-field__note" role="status" data-hint="suggest">@_suggestNote</span>
+                    }
+                </div>
+
+                <div class="tl-editor-field" data-field-key="group">
+                    <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Group"]</span></div>
+                    <AppAutocomplete TItem="string" Value="@SupportingFileStaging.GroupOf(file, stage)" ValueChanged="@(value => PickGroupAsync(file, value))"
+                                     SearchFunc="@(async (text, ct) => await FindGroupsAsync(file, text, SupportingFileStaging.GroupOf(file, stage)))" ToStringFunc="@GroupText"
+                                     CoerceValue="true" ResetValueOnEmptyText="true" Disabled="@(!canEdit)" Placeholder="@L["EditorSupportingFile_NoGroup"].Value" aria-label="@L["EditorSupportingFile_Group"].Value">
+                        <ItemTemplate Context="item">
+                            @if (IsNoGroup(item))
+                            {
+                                <span data-group-none="true">@L["EditorSupportingFile_NoGroup"]</span>
+                            }
+                            else if (IsNewGroup(item))
+                            {
+                                <span data-group-create="true">@L["EditorSupportingFile_CreateGroup", GroupText(item)]</span>
+                            }
+                            else
+                            {
+                                <span>@item</span>
+                            }
+                        </ItemTemplate>
+                    </AppAutocomplete>
+                    @if (stage is { CreatesGroup: true })
+                    {
+                        <span class="tl-editor-field__note" data-hint="group">@L["EditorSupportingFile_NewGroupHint"]</span>
+                    }
+                    else if (file.File.GroupSource != "you" && !string.IsNullOrWhiteSpace(file.File.Group) && stage?.Row(SupportingFileFields.Group) is null)
+                    {
+                        <span class="tl-editor-field__note" data-hint="group">@L["EditorSupportingFile_GroupFromFolder"]</span>
+                    }
+                </div>
+
+                <div class="tl-editor-field" data-field-key="role">
+                    <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Role"]</span></div>
+                    <AppSelect T="string" Value="@SupportingFileStaging.RoleOf(file, stage)" ValueChanged="@(value => SetRole(file, value))"
+                               Options="@RoleOptions(file)" Disabled="@(!canEdit)" AriaLabel="@L["EditorSupportingFile_Role"].Value" />
+                </div>
+
+                <div class="tl-editor-field" data-field-key="scope">
+                    <div class="tl-editor-field__label">
+                        <span>@L["EditorSupportingFile_BelongsTo"]</span>
+                        @if (canEdit && setByYou)
+                        {
+                            <span class="tl-editor-field__tools">
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                           StartIcon="@AppMaterialIcons.Outlined.Replay" data-use-folder-location="true"
+                                           OnClick="@(() => UseFolderLocationAsync(file))">@L["EditorSupportingFile_UseFolderLocation"]</AppButton>
+                            </span>
+                        }
+                    </div>
+                    <AppSelect T="string" Value="@scope" ValueChanged="@(value => SetScopeAsync(file, value))" Options="@PlaceOptions(file, scope)"
+                               Disabled="@(!canEdit)" AriaLabel="@L["EditorSupportingFile_BelongsTo"].Value" />
+                    <span class="tl-editor-field__note" data-hint="scope">@ScopeHint(file, setByYou)</span>
+                    @if (!string.IsNullOrWhiteSpace(_moveNote))
+                    {
+                        <span class="tl-editor-field__note" role="status" data-hint="move">@_moveNote</span>
+                    }
+                </div>
+
+                @if (SupportingFileStaging.ShowsAlongside(scope))
+                {
+                    <div class="tl-editor-field" data-field-key="alongside">
+                        <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_ShownAlongside"]</span></div>
+                        <AppSelect T="string" Value="@(alongside.Length == 0 ? null : alongside)" ValueChanged="@(value => SetAlongside(file, value))" Options="@AlongsideOptions(file, scope, alongside)"
+                                   Placeholder="@AlongsidePlaceholder(file)" Disabled="@(!canEdit)" AriaLabel="@L["EditorSupportingFile_ShownAlongside"].Value" />
+                        <span class="tl-editor-field__note" data-hint="alongside">@AlongsideHint(file, stage, alongside)</span>
+                    </div>
+                }
+
+                <div class="tl-editor-field tl-editor-field--wide" data-field-key="tags">
+                    <div class="tl-editor-field__label"><span>@L["Common_Tags"]</span></div>
+                    @if (canEdit)
+                    {
+                        <MediaEditorTagEditor Label="@L["Common_Tags"].Value" HideLabel="true" AddLabel="@L["Common_AddTag"].Value"
+                                              HelpText="@L["EditorSupportingFile_TagsHelp"].Value"
+                                              Value="@string.Join("; ", SupportingFileStaging.TagsOf(file, stage))"
+                                              ValueChanged="@(value => SetTags(file, value))" />
+                    }
+                    else
+                    {
+                        <div class="tl-editor-field__chips" role="group" aria-label="@L["Common_Tags"].Value">
+                            @foreach (var tag in SupportingFileStaging.TagsOf(file, stage))
+                            {
+                                <AppChip Text="@tag" />
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+        <EditorQuickFacts Fields="mode.Fields" OnPreview="@(() => flow.SelectToolAsync(EditTool.Preview))" />
+    </div>
+}
+
+@code {
+    private const string NewGroupPrefix = "\u0001new:";
+    private const string NoGroupItem = "\u0001none";
+    private const string NoAlongsideItem = "\u0001none";
+
+    private Guid _draftFileId;
+    private string _title = string.Empty;
+    private string _description = string.Empty;
+    private bool _suggesting;
+    private string? _suggestNote;
+    private string? _moveNote;
+    private EditSessionState? _subscribed;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_subscribed, Flow?.Session))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnChanged;
+            }
+
+            _subscribed = Flow?.Session;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnChanged;
+            }
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+        }
+    }
+
+    // -- What the text boxes hold -------------------------------------------------------------------------------------------------
+
+    // The boxes keep what was typed, trailing space and all, while only the trimmed text is staged; when the staged value changes for another
+    // reason (the file switched, Suggest details, a row taken out in Review) the box takes the staged value.
+    private void SyncDrafts(EditorSupportingFileDto file, SupportingFileStage? stage)
+    {
+        var id = Guid.TryParse(file.File.Id, out var parsed) ? parsed : Guid.Empty;
+        var title = SupportingFileStaging.TitleOf(file, stage);
+        var description = SupportingFileStaging.DescriptionOf(file, stage);
+        if (id != _draftFileId)
+        {
+            _draftFileId = id;
+            _title = title;
+            _description = description;
+            _suggestNote = null;
+            _moveNote = null;
+            return;
+        }
+
+        if (!string.Equals(_title.Trim(), title.Trim(), StringComparison.Ordinal))
+        {
+            _title = title;
+        }
+
+        if (!string.Equals(_description.Trim(), description.Trim(), StringComparison.Ordinal))
+        {
+            _description = description;
+        }
+    }
+
+    private bool CanStage => Mode is { CanEdit: true } && Flow is { Session.IsActive: true };
+
+    private SupportingFileStage Current(EditorSupportingFileDto file) =>
+        SupportingFileStaging.From(file, Flow!.Session.Pending.FindSupportingFile(Guid.Parse(file.File.Id)));
+
+    private void TypeTitle(EditorSupportingFileDto file, string? value)
+    {
+        _title = value ?? string.Empty;
+        if (CanStage)
+        {
+            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetTitle(file, Current(file), value));
+        }
+    }
+
+    private void TypeDescription(EditorSupportingFileDto file, string? value)
+    {
+        _description = value ?? string.Empty;
+        if (CanStage)
+        {
+            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetDescription(file, Current(file), value));
+        }
+    }
+
+    // -- Suggest details from the document ----------------------------------------------------------------------------------------
+
+    private static bool CanSuggest(EditorSupportingFileDto file) =>
+        file.Type == SupportingFileListDefaults.TypeDocument && !file.File.IsMissing;
+
+    // Read on this computer with no provider and no AI. It only fills the two boxes (staged like typing); nothing is kept until Save changes.
+    private async Task SuggestAsync(EditorSupportingFileDto file)
+    {
+        if (!CanStage || _suggesting)
+        {
+            return;
+        }
+
+        _suggesting = true;
+        _suggestNote = null;
+        try
+        {
+            var read = await Api.GetSupportingFileSuggestDetailsAsync(file.TitleId, Guid.Parse(file.File.Id));
+            var title = Clean(read?.Title);
+            var description = Clean(read?.Description);
+            if (read is null)
+            {
+                _suggestNote = L["EditorSupportingFile_SuggestFailed"].Value;
+            }
+            else if (title.Length == 0 && description.Length == 0)
+            {
+                _suggestNote = L["EditorSupportingFile_SuggestEmpty"].Value;
+            }
+            else
+            {
+                var stage = Current(file);
+                if (title.Length > 0)
+                {
+                    stage = SupportingFileStaging.SetTitle(file, stage, title);
+                    _title = title;
+                }
+
+                if (description.Length > 0)
+                {
+                    stage = SupportingFileStaging.SetDescription(file, stage, description);
+                    _description = description;
+                }
+
+                Flow!.Session.Pending.SetSupportingFile(stage);
+                _suggestNote = title.Length > 0 && description.Length > 0
+                    ? L["EditorSupportingFile_SuggestFilled"].Value
+                    : title.Length > 0
+                        ? L["EditorSupportingFile_SuggestFilledTitle"].Value
+                        : L["EditorSupportingFile_SuggestFilledDescription"].Value;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Could not read details from the supporting file {FileId}", file.File.Id);
+            _suggestNote = L["EditorSupportingFile_SuggestFailed"].Value;
+        }
+        finally
+        {
+            _suggesting = false;
+        }
+    }
+
+    private static string Clean(string? text) => string.IsNullOrWhiteSpace(text) ? string.Empty : text.Trim();
+
+    // -- Group ----------------------------------------------------------------------------------------------------------------------
+
+    private static bool IsNewGroup(string item) => item.StartsWith(NewGroupPrefix, StringComparison.Ordinal);
+
+    private static bool IsNoGroup(string item) => string.Equals(item, NoGroupItem, StringComparison.Ordinal);
+
+    private static string GroupText(string? item) =>
+        item is null || IsNoGroup(item) ? string.Empty : IsNewGroup(item) ? item[NewGroupPrefix.Length..] : item;
+
+    // "No group" first when the file has a group to take off, then the groups of this title that match what is typed, then a Create row for
+    // text that is not one of them yet.
+    private static Task<IEnumerable<string>> FindGroupsAsync(EditorSupportingFileDto file, string? text, string currentGroup)
+    {
+        var typed = Clean(text);
+        var matches = new List<string>();
+        if (currentGroup.Length > 0 && (typed.Length == 0 || string.Equals(typed, currentGroup, StringComparison.OrdinalIgnoreCase)))
+        {
+            matches.Add(NoGroupItem);
+        }
+
+        matches.AddRange(file.Groups
+            .Where(name => typed.Length == 0 || name.Contains(typed, StringComparison.OrdinalIgnoreCase)));
+        if (typed.Length > 0 && !file.Groups.Any(name => string.Equals(name, typed, StringComparison.OrdinalIgnoreCase)))
+        {
+            matches.Add(NewGroupPrefix + typed);
+        }
+
+        return Task.FromResult<IEnumerable<string>>(matches);
+    }
+
+    private Task PickGroupAsync(EditorSupportingFileDto file, string? picked)
+    {
+        if (CanStage)
+        {
+            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetGroup(file, Current(file), GroupText(picked)));
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // -- Role, Belongs to, Shown alongside, Tags ----------------------------------------------------------------------------------
+
+    private static IReadOnlyList<AppSelectOption> RoleOptions(EditorSupportingFileDto file) =>
+        [.. file.Roles.Select(role => new AppSelectOption(role.Id, role.Label))];
+
+    private void SetRole(EditorSupportingFileDto file, string? value)
+    {
+        if (CanStage)
+        {
+            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetRole(file, Current(file), value));
+        }
+    }
+
+    private static IReadOnlyList<AppSelectOption> PlaceOptions(EditorSupportingFileDto file, string current)
+    {
+        var options = file.Places.Select(place => new AppSelectOption(place.Key, place.Label)).ToList();
+        if (options.All(option => option.Value != current))
+        {
+            options.Insert(0, new AppSelectOption(current, SupportingFileStaging.PlaceLabel(file, current)));
+        }
+
+        return options;
+    }
+
+    // "From its folder location (Season 02 / Documents)": the folder the file sits in, as on screens C and D.
+    private string ScopeHint(EditorSupportingFileDto file, bool setByYou) =>
+        setByYou
+            ? file.ReadOnly ? L["EditorSupportingFile_ScopeSetByYouReadOnly"].Value : L["EditorSupportingFile_ScopeSetByYou"].Value
+            : L["EditorSupportingFile_ScopeFromFolder", string.IsNullOrWhiteSpace(file.Folder) ? file.FolderScopeLabel : file.Folder].Value;
+
+    private async Task SetScopeAsync(EditorSupportingFileDto file, string? key)
+    {
+        if (CanStage)
+        {
+            await StageScopeAsync(file, SupportingFileStaging.SetScope(file, Current(file), key));
+        }
+    }
+
+    private async Task UseFolderLocationAsync(EditorSupportingFileDto file)
+    {
+        if (CanStage)
+        {
+            await StageScopeAsync(file, SupportingFileStaging.UseFolderLocation(file, Current(file)));
+        }
+    }
+
+    // Stages Belongs to at once, then asks the Engine (read-only, nothing written) whether the file moves; in a Managed folder the answer feeds
+    // the amber footer and Review. A Read-only folder never moves a file, so it is not asked.
+    private async Task StageScopeAsync(EditorSupportingFileDto file, SupportingFileStage next)
+    {
+        var pending = Flow!.Session.Pending;
+        pending.SetSupportingFile(next);
+        _moveNote = null;
+        if (file.ReadOnly || next.Row(SupportingFileFields.Scope) is null)
+        {
+            return;
+        }
+
+        var fileId = Guid.Parse(file.File.Id);
+        var outcome = await Api.PreviewSupportingFilesChangeAsync(file.TitleId, next.ToRequest());
+        var current = pending.FindSupportingFile(fileId);
+
+        // An answer is only for the Belongs to it was asked about: a slower answer for an earlier choice, or one for a choice since taken back,
+        // must not change the move or the note of the choice staged now.
+        if (current?.Row(SupportingFileFields.Scope) is null
+            || !string.Equals(current.ScopeKey, next.ScopeKey, StringComparison.Ordinal)
+            || current.UseFolderLocation != next.UseFolderLocation)
+        {
+            return;
+        }
+
+        if (!outcome.IsOk)
+        {
+            _moveNote = L["EditorSupportingFile_MoveCheckFailed"].Value;
+            return;
+        }
+
+        var move = outcome.Value!.Moves.FirstOrDefault(m => Guid.TryParse(m.Id, out var id) && id == fileId && m.Status == SupportingFileMoveStatuses.Planned);
+        pending.SetSupportingFile(SupportingFileStaging.WithMove(current, move?.From, move?.To));
+        if (move is not null)
+        {
+            _moveNote = L["EditorSupportingFile_MoveNote"].Value;
+        }
+    }
+
+    private string AlongsideHint(EditorSupportingFileDto file, SupportingFileStage? stage, string alongside)
+    {
+        if (alongside.Length == 0)
+        {
+            return L["EditorSupportingFile_AlongsideNone"].Value;
+        }
+
+        if (SupportingFileStaging.AlongsideIsGuessed(file, stage))
+        {
+            return L["EditorSupportingFile_AlongsideGuessed"].Value;
+        }
+
+        return SupportingFileStaging.AlongsideNoun(file) switch
+        {
+            "lesson" => L["EditorSupportingFile_AlongsideChosenLesson"].Value,
+            "track" => L["EditorSupportingFile_AlongsideChosenTrack"].Value,
+            _ => L["EditorSupportingFile_AlongsideChosenEpisode"].Value,
+        };
+    }
+
+    // "Choose an episode" on a show, "Choose a lesson" on a course, "Choose a track" on an album.
+    private string AlongsidePlaceholder(EditorSupportingFileDto file) => SupportingFileStaging.AlongsideNoun(file) switch
+    {
+        "lesson" => L["EditorSupportingFile_ChooseLesson"].Value,
+        "track" => L["EditorSupportingFile_ChooseTrack"].Value,
+        _ => L["EditorSupportingFile_ChooseEpisode"].Value,
+    };
+
+    // The most characters a description may hold, from config/editor.json via the Engine's read; without one the box is not limited here.
+    private static int DescriptionLimit(EditorSupportingFileDto file) => file.DescriptionMaxCharacters > 0 ? file.DescriptionMaxCharacters : int.MaxValue;
+
+    private static IReadOnlyList<AppSelectOption> AlongsideOptions(EditorSupportingFileDto file, string scope, string current)
+    {
+        // Nothing chosen shows the placeholder, so "None" is only offered to take a choice back.
+        var options = new List<AppSelectOption>();
+        if (current.Length > 0)
+        {
+            options.Add(new AppSelectOption(NoAlongsideItem, SupportingFileStaging.NoAlongside));
+        }
+
+        options.AddRange(SupportingFileStaging.AlongsideChoices(file, scope).Select(place => new AppSelectOption(place.Key, place.Label)));
+        if (current.Length > 0 && options.All(option => option.Value != current))
+        {
+            options.Add(new AppSelectOption(current, SupportingFileStaging.PlaceLabel(file, current)));
+        }
+
+        return options;
+    }
+
+    private void SetAlongside(EditorSupportingFileDto file, string? key)
+    {
+        if (CanStage)
+        {
+            Flow!.Session.Pending.SetSupportingFile(
+                SupportingFileStaging.SetAlongside(file, Current(file), string.Equals(key, NoAlongsideItem, StringComparison.Ordinal) ? null : key));
+        }
+    }
+
+    private void SetTags(EditorSupportingFileDto file, string? value)
+    {
+        if (CanStage)
+        {
+            var tags = (value ?? string.Empty).Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetTags(file, Current(file), tags));
+        }
+    }
+}

@@ -26,8 +26,8 @@ public sealed class UnifiedContainerEditorTests
     {
         var root = FindRepoRoot();
         var launcher = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "GalleryEditorLauncherService.cs"));
-        var popover = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Details", "ViewEditorPopover.razor"));
-        var panel = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Details", "ViewGalleryDetailsPanel.razor"));
+        var popover = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Editor", "ViewEditorPopover.razor"));
+        var panel = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Editor", "ViewGalleryDetailsPanel.razor"));
         var page = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "ViewGalleriesPage.razor"));
 
         Assert.False(File.Exists(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "GalleryEditorShell.razor")));

@@ -2,7 +2,6 @@ using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Web.Components.Collections;
-using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;

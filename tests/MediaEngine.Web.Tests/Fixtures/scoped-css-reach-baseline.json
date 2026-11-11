@@ -41,10 +41,6 @@
     "src/MediaEngine.Web/Components/Details/AudioItemTable.razor": [
       "tl-detail-track-row__play"
     ],
-    "src/MediaEngine.Web/Components/Details/BulkEditPanel.razor": [
-      "tl-bulk__cover",
-      "tl-bulk__face"
-    ],
     "src/MediaEngine.Web/Components/Details/DetailHeroSkeleton.razor": [
       "tl-detail-skeleton__artwork",
       "tl-detail-skeleton__button",
@@ -60,12 +56,16 @@
       "tl-detail-primary-module__find",
       "tl-detail-primary-module__sort"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorArtworkTool.razor": [
+    "src/MediaEngine.Web/Components/Editor/BulkEditPanel.razor": [
+      "tl-bulk__cover",
+      "tl-bulk__face"
+    ],
+    "src/MediaEngine.Web/Components/Editor/EditorArtworkTool.razor": [
       "is-on",
       "tl-art-picker__action",
       "tl-art-picker__prefer"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
+    "src/MediaEngine.Web/Components/Editor/EditorUniverseRail.razor": [
       "is-current",
       "is-selected",
       "tl-urail__add",

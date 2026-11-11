@@ -3,6 +3,7 @@ using Bunit.TestDoubles;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Search;
 using MediaEngine.Web.Components.Shared;

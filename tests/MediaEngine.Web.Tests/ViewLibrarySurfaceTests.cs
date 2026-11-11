@@ -128,7 +128,7 @@ public sealed class ViewLibrarySurfaceTests
     {
         var galleries = Read("src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor");
         var galleryEditor = Read("src/MediaEngine.Web/Services/Editing/ViewEdit/ViewEditSession.cs");
-        var galleryPanel = Read("src/MediaEngine.Web/Components/Details/ViewGalleryDetailsPanel.razor");
+        var galleryPanel = Read("src/MediaEngine.Web/Components/Editor/ViewGalleryDetailsPanel.razor");
         var people = Read("src/MediaEngine.Web/Components/Pages/ViewPeoplePage.razor");
         var places = Read("src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor");
         var mapComponent = Read("src/MediaEngine.Web/Components/View/ViewMap.razor");
@@ -197,7 +197,7 @@ public sealed class ViewLibrarySurfaceTests
         var timeline = Read("src/MediaEngine.Web/Components/Pages/ViewPhotoTimeline.razor");
         var galleries = Read("src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor");
         var galleryEditor = Read("src/MediaEngine.Web/Services/Editing/ViewEdit/ViewEditSession.cs");
-        var galleryPanel = Read("src/MediaEngine.Web/Components/Details/ViewGalleryDetailsPanel.razor");
+        var galleryPanel = Read("src/MediaEngine.Web/Components/Editor/ViewGalleryDetailsPanel.razor");
         var shell = Read("src/MediaEngine.Web/Components/Pages/ViewSectionShell.razor");
         var timelineStyles = Read("src/MediaEngine.Web/Components/Pages/ViewPhotoTimeline.razor.css");
         var selectionStyles = Read("src/MediaEngine.Web/Components/Pages/ViewSelectionToolbar.razor.css");
@@ -243,8 +243,8 @@ public sealed class ViewLibrarySurfaceTests
     {
         var detail = Read("src/MediaEngine.Web/Components/Pages/ViewGalleryDetailPage.razor");
         var editor = Read("src/MediaEngine.Web/Services/Editing/ViewEdit/ViewEditSession.cs");
-        var editorPanel = Read("src/MediaEngine.Web/Components/Details/ViewGalleryDetailsPanel.razor");
-        var popover = Read("src/MediaEngine.Web/Components/Details/ViewEditorPopover.razor");
+        var editorPanel = Read("src/MediaEngine.Web/Components/Editor/ViewGalleryDetailsPanel.razor");
+        var popover = Read("src/MediaEngine.Web/Components/Editor/ViewEditorPopover.razor");
 
         Assert.Contains("private bool IsOwner", detail, StringComparison.Ordinal);
         Assert.Contains("GetViewGalleryShareTargetsAsync", detail, StringComparison.Ordinal);

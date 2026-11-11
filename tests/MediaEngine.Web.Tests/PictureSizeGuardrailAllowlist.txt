@@ -25,4 +25,4 @@ Components/Details/ExtrasSection.razor|@ThumbnailSrc(previewId)|Extras card pict
 Components/Details/ExtrasSection.razor|@ThumbnailSrc(card.Id)|Extras clip frame: the Engine makes one small thumbnail per file; it has no size copies.
 Components/Details/ExtraViewerContent.razor|@ThumbnailHref(item.Id)|Extras gallery thumbnail: one small thumbnail per picture, no size copies.
 Components/Details/ExtraViewerContent.razor|@FileHref(picture.Id)|The full-size picture the person opened in the gallery; shown at its own size on purpose.
-Components/Details/EditorBookmarkTitle.razor|@frame|Bookmark picture: the Engine makes one small frame per bookmark (served through the Dashboard's frame route); it has no size copies.
+Components/Editor/EditorBookmarkTitle.razor|@frame|Bookmark picture: the Engine makes one small frame per bookmark (served through the Dashboard's frame route); it has no size copies.

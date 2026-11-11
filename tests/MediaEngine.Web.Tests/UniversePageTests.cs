@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Universe;
 using MediaEngine.Web.Services.Editing;

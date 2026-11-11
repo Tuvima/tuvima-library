@@ -1,0 +1,302 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Theming
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The header of the pop-over (universal editor v5 D1, D9, 1a items 1 to 7, screens A, B, C, D, K). A 96 by 144 cover (a picture only, never a
+   button), the plain label above the title (the show, series or album it belongs to, or the kind word for a standalone item), the title, one
+   line of facts with the match state, the provider links with their logos and, in the nav row, the way around the family: the home button, the
+   Season (or Section) dropdown and the item dropdown. What shows in that row is told by the Engine's header (EditorHeaderDto), never decided
+   here from the kind. The background is a gradient from the cover's two main colours, darkened into the window surface by the palette config.
+   A Universe keeps its own tile and kind dropdowns, and an item the Engine builds no header for (a person, a collection) shows the plain
+   header. Read-only: nothing here is edited or saved. *@
+@if (GroupRows is { Count: > 0 } groupRows)
+{
+    @* "Editing N files" (WP8, screen F, D36): the same framed header, in group mode. The label is the title's name, the title says how many
+       files, the facts are each file's type and title, and the nav row has the home button and "Back to the list". *@
+    var groupHeader = Fields.Loaded ? Fields.Header : null;
+    var groupWash = EditorHeaderGradient.Resolve(groupHeader?.Colors);
+    var groupPalette = PaletteProvider.Current.EditorHeader;
+    var shown = groupRows.Take(MaxFactChips).ToList();
+    <header class="tl-editor-header" data-kind="files" data-testid="files-batch-header"
+            data-gradient="@(groupWash is null ? "none" : "cover")">
+        @if (groupWash is not null)
+        {
+            <AppWash Class="tl-editor-header__wash" PrimaryHex="@groupWash.Primary" SecondaryHex="@groupWash.Secondary"
+                     PrimaryPercent="@groupPalette.PrimaryPercent" SecondaryPercent="@groupPalette.SecondaryPercent" />
+        }
+
+        <div class="tl-editor-header__cover" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(groupHeader?.Root.CoverUrl))
+            {
+                <AppImage Src="@groupHeader!.Root.CoverUrl" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+            }
+            else
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Tile32" />
+            }
+        </div>
+        <div class="tl-editor-header__body">
+            <div class="tl-editor-header__label">@GroupLabel</div>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" data-overflow-tooltip="@GroupTitle">@GroupTitle</h2>
+            <div class="tl-editor-header__line">
+                <div class="tl-editor-header__facts tl-editor-header__filefacts" data-testid="files-batch-facts">
+                    @foreach (var row in shown)
+                    {
+                        <span class="tl-editor-header__filefact"><AppStatusBadge Tone="AppUiTone.Neutral" Text="@row.TypeLabel" /> @row.Title</span>
+                    }
+                    @if (groupRows.Count > shown.Count)
+                    {
+                        <span class="tl-editor-header__filefact">@string.Format(L["EditorFilesBatch_MoreFiles"].Value, groupRows.Count - shown.Count)</span>
+                    }
+                </div>
+            </div>
+            <div class="tl-editor-header__groupnav" role="group" aria-label="@L["EditorNav_Label"].Value">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Home" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Normal"
+                               Tooltip="@GroupLabel" AriaLabel="@GroupLabel" data-files-batch-home="true" OnClick="OnGroupHome" />
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
+                           data-files-batch-back="true" OnClick="OnGroupBack">@L["EditorFilesBatch_Back"]</AppButton>
+            </div>
+        </div>
+    </header>
+}
+else if (Flow?.Session.ActiveItem is { } active)
+{
+    var fields = Fields;
+    var header = fields.Loaded && !EditorUniverseRules.IsUniverseSubject(fields.SubjectKind) ? fields.Header : null;
+    var subject = fields.Loaded ? fields.MatchSubject() : null;
+    var file = fields.Loaded ? fields.SupportingFile : null;
+    var fileTitle = file is null
+        ? null
+        : SupportingFileStaging.TitleOf(file, Flow.Session.Pending.FindSupportingFile(Guid.TryParse(file.File.Id, out var fileId) ? fileId : Guid.Empty));
+    var title = file is not null
+        ? string.IsNullOrWhiteSpace(fileTitle) ? file.File.Title : fileTitle
+        : string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
+    var isUniverse = EditorUniverseRules.IsUniverseSubject(fields.SubjectKind);
+    var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
+    var image = header?.Root.CoverUrl;
+    if (string.IsNullOrWhiteSpace(image))
+    {
+        image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
+    }
+
+    string label;
+    string facts;
+    if (header is not null)
+    {
+        label = header.Label;
+        facts = file is not null
+            ? string.Join(" · ", EditorHeaderFacts.Parts(fields.Config, FieldText, null, header, file))
+            : string.Join(" · ", EditorHeaderFacts.Parts(header.Config, FieldText, fields.QuickFacts, header));
+    }
+    else
+    {
+        var kind = isUniverse
+            ? EditorUniverseRules.KindLine(fields.SubjectKind, fields.Find("kind")?.DisplayValue ?? fields.Find("kind")?.Value, UniverseName)
+            : EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
+        var trail = Flow.Session.Trail;
+        var parent = subject?.ParentLabel ?? (trail.Count > 1 && trail[0].EntityId != active.EntityId ? trail[0].Title : null);
+        label = isUniverse ? kind : EditorHeaderRules.FactsLine(parent, kind);
+        facts = fields.Loaded
+            ? EditorHeaderRules.FactsLine(FieldText("air_date", "release_date", "premiere_date") ?? subject?.Year, FieldText("runtime", "duration"), subject?.Creator)
+            : string.Empty;
+    }
+
+    var wash = EditorHeaderGradient.Resolve(header?.Colors);
+    var palette = PaletteProvider.Current.EditorHeader;
+    var showState = fields.Loaded && !isUniverse && fields.CanMatch && (header is null || EditorHeaderFacts.ShowsMatchState(header.Config));
+    // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
+    var showCover = header is not null || !(HasFamily && Family.Kind == EditorFamilyKind.Show);
+    var kindKey = header?.Kind ?? string.Empty;
+    <header class="@(HasFamily && header is null ? "tl-editor-header tl-editor-header--family" : "tl-editor-header")"
+            data-kind="@kindKey"
+            data-gradient="@(wash is null ? "none" : "cover")"
+            aria-busy="@(fields.Loading ? "true" : null)">
+        @if (wash is not null)
+        {
+            <AppWash Class="tl-editor-header__wash" PrimaryHex="@wash.Primary" SecondaryHex="@wash.Secondary"
+                     PrimaryPercent="@palette.PrimaryPercent" SecondaryPercent="@palette.SecondaryPercent" />
+        }
+
+        @if (HasFamily && header is null && Tile is not null)
+        {
+            <div class="tl-editor-header__tile">@Tile</div>
+        }
+
+        @if (showCover)
+        {
+            <div class="@(header is null && IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
+                @if (!string.IsNullOrWhiteSpace(image))
+                {
+                    <AppImage Src="@image" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+                }
+                else
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Tile32" />
+                }
+            </div>
+        }
+        <div class="tl-editor-header__body">
+            <div class="tl-editor-header__label">@label</div>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" data-overflow-tooltip="@title">@title</h2>
+            <div class="tl-editor-header__line">
+                @if (fields.Loading && !fields.Loaded)
+                {
+                    <AppSkeleton Height="1rem" Width="12rem" />
+                }
+                else if (!string.IsNullOrWhiteSpace(facts))
+                {
+                    <div class="tl-editor-header__facts">@facts</div>
+                }
+
+                @if (file is not null && EditorHeaderFacts.ShowsSupportingFileChip(fields.Config))
+                {
+                    <div class="tl-editor-header__chips" data-supporting-file-chip="true">
+                        <AppStatusBadge Tone="AppUiTone.Neutral" Text="@L["EditorSupportingFile_Chip"].Value" />
+                    </div>
+                }
+                else if (showState)
+                {
+                    <div class="tl-editor-header__chips">
+                        @if (Unmatched)
+                        {
+                            <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorFamily_NotMatched"].Value" />
+                        }
+                        else
+                        {
+                            <AppStatusBadge Tone="AppUiTone.Success" Text="@L["EditorFamily_Matched"].Value" Icon="@AppMaterialIcons.Outlined.Check" />
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (header is not null)
+            {
+                <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" />
+            }
+            else if (HasFamily && Selects is not null)
+            {
+                <div class="tl-editor-header__selects">@Selects</div>
+            }
+        </div>
+        @if (links.Count > 0)
+        {
+            <div class="tl-editor-header__links">
+                @foreach (var link in links)
+                {
+                    <AppLink Href="@link.Url" Target="_blank" Underline="AppUnderline.None" Class="tl-editor-header__link"
+                             aria-label="@(string.Format(L["EditorHeader_OpenAt"].Value, link.Name))">
+                        <AppProviderLogo FallbackText="@link.Name[..1]" Size="AppControlSize.Compact" AltText="" Class="tl-editor-header__link-logo" />
+                        <span class="tl-editor-header__link-name">@link.Name</span>
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
+                    </AppLink>
+                }
+            </div>
+        }
+    </header>
+}
+
+@code {
+    private EditSessionFlow? _flow;
+    private ItemFieldEditSession? _fields;
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    [Parameter, EditorRequired] public ItemFieldEditSession Fields { get; set; } = default!;
+
+    [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
+
+    /// <summary>A Universe or an item with no header from the Engine has a family: the header draws its tile and its dropdowns.</summary>
+    [Parameter] public bool HasFamily { get; set; }
+
+    /// <summary>The fixed tile of a Universe, at the left of the header.</summary>
+    [Parameter] public RenderFragment? Tile { get; set; }
+
+    /// <summary>The dropdowns of a Universe (its kinds), under the title.</summary>
+    [Parameter] public RenderFragment? Selects { get; set; }
+
+    /// <summary>The name of the Universe being edited, for the kind line of a character, place or faction ("Faction in Dune").</summary>
+    [Parameter] public string? UniverseName { get; set; }
+
+    /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
+    [Parameter] public bool Unmatched { get; set; }
+
+    /// <summary>"Editing N files": the files being edited together. When set, the header shows the group form instead of one item.</summary>
+    [Parameter] public IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileRowDto>? GroupRows { get; set; }
+
+    /// <summary>The title's name, above "Editing N files".</summary>
+    [Parameter] public string? GroupLabel { get; set; }
+
+    /// <summary>"Editing N files".</summary>
+    [Parameter] public string? GroupTitle { get; set; }
+
+    /// <summary>"Back to the list".</summary>
+    [Parameter] public EventCallback OnGroupBack { get; set; }
+
+    /// <summary>The home button: back to the title itself.</summary>
+    [Parameter] public EventCallback OnGroupHome { get; set; }
+
+    // The facts line shows this many files by name, then "+N more": it is one line of the header, so a long list would push the nav row down.
+    private const int MaxFactChips = 3;
+
+    /// <summary>Where the supporting-file rows and the folder button of the nav row lead.</summary>
+    [Parameter] public EditorHeaderHooks? Hooks { get; set; }
+
+    // Episodes and stills are wide; everything else is a portrait cover. Only the plain header (no Engine header) still uses this.
+    private static bool IsLandscape(string scopeId) => string.Equals(scopeId, "episode", StringComparison.OrdinalIgnoreCase);
+
+    private string? FieldText(params string[] keys)
+    {
+        var field = Fields.Find(keys);
+        var text = field?.DisplayValue ?? field?.Value;
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_flow, Flow))
+        {
+            if (_flow is not null)
+            {
+                _flow.Changed -= OnChanged;
+                _flow.Session.Changed -= OnChanged;
+            }
+
+            _flow = Flow;
+            if (_flow is not null)
+            {
+                _flow.Changed += OnChanged;
+                _flow.Session.Changed += OnChanged;
+            }
+        }
+
+        if (!ReferenceEquals(_fields, Fields))
+        {
+            if (_fields is not null)
+            {
+                _fields.Changed -= OnChanged;
+            }
+
+            _fields = Fields;
+            _fields.Changed += OnChanged;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_flow is not null)
+        {
+            _flow.Changed -= OnChanged;
+            _flow.Session.Changed -= OnChanged;
+        }
+
+        if (_fields is not null)
+        {
+            _fields.Changed -= OnChanged;
+        }
+    }
+}
