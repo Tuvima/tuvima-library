@@ -23,6 +23,9 @@ window.removeEventListener = (type, handler, ...rest) => { removed.push(type); r
 globalThis.innerWidth = 800; globalThis.innerHeight = 600;
 globalThis.setTimeout = () => 0; globalThis.clearTimeout = () => {};
 const { take, sweepDisconnected } = await import('../../../src/MediaEngine.Web/wwwroot/js/app-overflow-tooltip.js');
+// Loading the module installs the one shared tooltip controller, which keeps its own resize and scroll listeners for the life of the
+// page. Only the listeners a wired element adds after that are expected to come and go.
+added.length = 0;
 
 test('window listeners are removed once a wired element leaves the page', () => {
     const cell = new Element(); cell.setAttribute('data-overflow-tooltip', 'A long folder name');

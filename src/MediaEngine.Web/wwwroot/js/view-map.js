@@ -270,7 +270,10 @@ export async function initialize(container, dotnet, options) {
   const state = { map: null, dotnet, mode, markers: [], overviewLabels: [], hotspots: (options.hotspots ?? []).map(normalizedHotspot), locationMarker: null, resizeObserver: null, detailedStyle: false, fallbackApplied: false, journeyEnabled: options.journeyEnabled === true };
   states.set(container, state);
   try {
-    const styleSelection = await preferredStyle();
+    // The MapLibre stylesheet loads only when a map mounts; wait for it so the map never draws unstyled.
+    const [styleSelection] = await Promise.all([preferredStyle(), window.tuvimaLazy.loadMapLibreStyles()]);
+    // The part can be disposed while it waited (the page changed); then nothing is created, so no map is left running.
+    if (state.disposed) return;
     state.detailedStyle = styleSelection.detailed;
     state.fallbackApplied = !styleSelection.detailed;
     const requestedZoom = Number(options.zoom ?? 11);
@@ -349,6 +352,7 @@ export async function initialize(container, dotnet, options) {
     });
   } catch (error) {
     console.error('Places map initialization failed', error);
+    if (state.disposed) return;
     state.dotnet.invokeMethodAsync('MapFailed', error?.message ?? 'The map could not be initialized.');
   }
 }
@@ -399,6 +403,7 @@ export function resize(container) {
 export async function dispose(container) {
   const state = states.get(container);
   if (!state) return;
+  state.disposed = true;
   clearMarkers(state);
   clearOverviewLabels(state);
   state.resizeObserver?.disconnect();

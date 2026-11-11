@@ -173,7 +173,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("map.once('idle', () => { renderOverviewLabels(state); renderHotspots(state); })", mapScript, StringComparison.Ordinal);
         Assert.Contains("group.representative?.thumbnailUrl", mapScript, StringComparison.Ordinal);
         Assert.Contains("new ResizeObserver", mapScript, StringComparison.Ordinal);
-        Assert.Contains("view-map.js?v=20260926.2", mapComponent, StringComparison.Ordinal);
+        Assert.Contains("view-map.js?v=20261111.1", mapComponent, StringComparison.Ordinal);
         Assert.DoesNotContain("getNorthEast().equals", mapScript, StringComparison.Ordinal);
         Assert.Contains("northEast.lng === southWest.lng && northEast.lat === southWest.lat", mapScript, StringComparison.Ordinal);
         Assert.Contains("PlacesTimeScale", timeline, StringComparison.Ordinal);

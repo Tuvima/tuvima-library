@@ -155,6 +155,19 @@ test('prompting swaps in the cast link first and keeps it when a device is chose
     assert.equal(element.dataset.playbackSource, 'https://dashboard.local/api/v1/stream/abc', 'the page keeps its own source marker');
 });
 
+test('a cast swap tells the page to cancel an hls.js attach that is still loading', async () => {
+    const element = fakeElement(fakeRemote());
+    await attach(element, fakeReceiver());
+    const invalidated = [];
+    globalThis.listenPlayback = { invalidateAudioSource: target => invalidated.push(target) };
+    try {
+        await openPicker(element, 'http://192.168.1.5:5016/cast/v1/g/media');
+    } finally {
+        delete globalThis.listenPlayback;
+    }
+    assert.deepEqual(invalidated, [element]);
+});
+
 test('a cancelled picker is handled quietly and the page source is put back', async () => {
     const remote = fakeRemote({ promptError: { name: 'NotAllowedError' } });
     const element = fakeElement(remote);
