@@ -1225,3 +1225,19 @@ Use a small test library with a few books, an audiobook Series, a TV show, a fil
 | Map styles load only on the map | Frontend fixes 3 | Open Places (the photo map): the map is fully styled on first paint, with its controls and credit line as before. Leave the page quickly after opening it: no error. | Awaiting |
 | Tooltips: one shared listener | Frontend fixes 3 | Hover and keyboard-focus icon buttons on a page with many tiles, inside a window, in the full-screen player, and on a disabled button (it should say why). Long-press on a touch screen. Tooltips appear after a short pause, never get cut off, and close on Escape. After a hard reload tooltips still appear. Failure: no tooltip, a tooltip left behind after its button disappears, or the wrong text. | Awaiting |
 | Player code in its own file | Frontend fixes 3b | A pure move, so everything should behave as before: play music and an audiobook in Listen, play a video in Watch, open the pop-out player window, and check the bottom player bar still reserves its space at the foot of the page. The browser console shows no missing-file error. | Awaiting |
+
+## Frontend review fixes, thread 2: one feedback rule, no toasts (cloud build 2026-11-11)
+
+The corner pop-up messages are gone everywhere. Feedback now shows where you acted.
+
+| Item | PR | What to check | Status |
+|---|---|---|---|
+| No corner pop-ups anywhere | Frontend fixes 2 | Walk Settings, Libraries, Vault, View, Collections, the detail page and the players, saving and failing things on purpose. Nothing ever pops up in a screen corner. Failure: any floating message. | Awaiting |
+| Saved note and row glow | Frontend fixes 2 | Save a Settings panel: a small "Saved" appears beside the button and fades. Add or change a row (a device, a plug-in, a profile): the row glows for about four seconds, then stops by itself. With "reduce motion" on in the system, it gets a soft outline that fades. | Awaiting |
+| Failures show in place | Frontend fixes 2 | Stop the Engine and try a save, a favorite on a tile, a song reorder and an artwork upload: a red line appears next to what you did, can be closed, and clears on the next try. | Awaiting |
+| Undo in place | Frontend fixes 2 | Mark something watched or read from the detail page, the song table menu, the music bar, the full player and the video bar (also the phone header menu): a line with Undo appears there for about ten seconds. Undo puts it back. Check it does not cover the player controls at 1024, 1280, 1440 and phone width. | Awaiting |
+| Activity indicator needs attention | Frontend fixes 2 | Make a background job fail (for example a folder that goes away mid-scan): the Activity indicator in the top bar turns amber with "Needs attention". It clears when Activity is opened or a later run finishes clean. People who cannot open Activity never see it. Check at all four widths. | Awaiting |
+| Delete from the editor | Frontend fixes 2 | Delete an item whose file could not be removed: the editor closes and the warning shows on the page behind it, not inside a closed window. | Awaiting |
+| Editing refused on a phone or tablet | Frontend fixes 2 | On a phone, try Edit from the detail page, the selection bar, Listen, Watch, Read, Collections, View galleries and the Vault gallery tools: a short line explains editing needs a computer, in place. | Awaiting |
+| Vault unlock problem | Frontend fixes 2 | Enter a wrong Vault PIN or switch modes while locked: the reason shows in the Vault page itself. | Awaiting |
+| Copy buttons and View ribbon | Frontend fixes 2 | Copy a key or address: the button itself shows "Copied". In View, editing a photo still reports through the ribbon at the top of the editor. | Awaiting |
