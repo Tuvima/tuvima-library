@@ -6,7 +6,7 @@ public sealed class UnifiedContainerEditorTests
     public void CollectionAndPlaylistCreation_UseOneEditorWithoutTheWizard()
     {
         var root = FindRepoRoot();
-        var editor = LocalizedSource.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var editor = LocalizedSource.ReadComponent(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
         var launcher = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "CollectionEditorLauncherService.cs"));
         var models = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "CollectionEditorModels.cs"));
 

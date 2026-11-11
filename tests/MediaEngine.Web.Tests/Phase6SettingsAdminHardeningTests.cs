@@ -81,7 +81,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     {
         var watchPage = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/WatchPage.razor");
         var lanePage = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/MediaLanePage.razor");
-        var browseShell = ReadRepoFile(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var browseShell = BrowseShellSource.ReadAll();
         var queryBuilder = ReadRepoFile(@"src/MediaEngine.Web/Components/Browse/BrowseQueryBuilder.cs");
 
         Assert.Contains("<MediaLanePage Title=\"Watch\"", watchPage, StringComparison.Ordinal);

@@ -34,7 +34,7 @@ public sealed class AppAlertRoleTests : LocalizedBunitContext
     [Theory]
     [InlineData("ListenPage_PlaylistOrderSaveFailed", "Components/Pages/ListenPage.razor.cs")]
     [InlineData("ListenPage_SongRemoveFailed", "Components/Pages/ListenPage.razor.cs")]
-    [InlineData("MediaBrowseShell_TheFavoriteCouldNotBe", "Components/Browse/MediaBrowseShell.razor")]
+    [InlineData("MediaBrowseShell_TheFavoriteCouldNotBe", "Components/Browse/MediaBrowseShell.Actions.cs")]
     public void TheWarningsThatSayAnActionFailed_AreMarkedUrgentWhereTheyAreRaised(string key, string file)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -43,7 +43,13 @@ public sealed class AppAlertRoleTests : LocalizedBunitContext
             directory = directory.Parent;
         }
 
-        var source = File.ReadAllLines(Path.Combine(directory!.FullName, "src", "MediaEngine.Web", file));
+        var path = Path.Combine(directory!.FullName, "src", "MediaEngine.Web", file);
+        // A component with partial code files (ListenPage.razor.cs plus ListenPage.*.cs) is read as the lines of all of them, raw.
+        var source = file.EndsWith(".razor.cs", StringComparison.Ordinal)
+            ? Directory.EnumerateFiles(Path.GetDirectoryName(path)!, Path.GetFileName(path)[..^".razor.cs".Length] + ".*.cs")
+                .SelectMany(File.ReadAllLines)
+                .ToArray()
+            : File.ReadAllLines(path);
 
         var raised = source.Where(line => line.Contains($"\"{key}\"", StringComparison.Ordinal) && line.Contains("ShowNotice", StringComparison.Ordinal)).ToList();
 

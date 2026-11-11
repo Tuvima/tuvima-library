@@ -40,7 +40,7 @@ public sealed class PlayerBookmarkGuardrailTests
     {
         foreach (var file in PlayerFiles)
         {
-            var source = Read(file);
+            var source = file.EndsWith(".razor", StringComparison.Ordinal) ? LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), file)) : Read(file);
             foreach (var name in RetiredNames)
             {
                 Assert.False(source.Contains(name, StringComparison.Ordinal), $"{file} still mentions {name}.");

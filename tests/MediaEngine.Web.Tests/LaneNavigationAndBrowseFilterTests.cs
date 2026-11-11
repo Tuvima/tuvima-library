@@ -54,7 +54,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
         var sectionHeader = ReadSource("src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor");
         var sectionShell = ReadSource("src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor");
         var sectionShellStyles = ReadSource("src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css");
-        var browseShell = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var browseShell = BrowseShellSource.ReadAll();
         var browseShellStyles = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css");
         var browseModeStyles = ReadSource("src/MediaEngine.Web/Components/Browse/AppBrowseModeSelector.razor.css");
         var multiSelect = ReadSource("src/MediaEngine.Web/Components/Browse/BrowseMultiSelect.razor");

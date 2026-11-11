@@ -16,11 +16,11 @@ public sealed partial class DetailsOverlayGuardrailTests
     {
         ["Services/Navigation/DetailsOverlayState.cs"] =
             "The overlay's own state: it works out the underlay and overlay for each address.",
-        ["Components/Browse/MediaBrowseShell.razor"] =
+        ["Components/Browse/MediaBrowseShell.razor.cs"] =
             "Asks RoutedPageAddress.Accept, which ignores the overlay opening, swapping and closing, so the lane neither re-reads its filters nor reloads.",
         ["Components/MediaHub/MediaSectionShell.razor"] =
             "Asks RoutedPageAddress.Accept, so the overlay does not scroll the section to the top or change its active entry.",
-        ["Components/Player/ListenNowPlayingBar.razor"] =
+        ["Components/Player/ListenNowPlayingBar.razor.cs"] =
             "Only re-renders; whether it is on a Listen page comes from RoutedPageAddress.AbsoluteFor (the page under the overlay).",
         ["Components/Settings/Frame/SettingsAttentionBanner.razor"] =
             "Only re-renders; whether it is on the Tools page comes from RoutedPageAddress.AbsoluteFor (the page under the overlay).",
@@ -63,7 +63,7 @@ public sealed partial class DetailsOverlayGuardrailTests
     [Fact]
     public void TheShellsInsideRoutedPagesFollowTheRoutedAddressNotTheAddressBar()
     {
-        var browse = File.ReadAllText(Path.Combine(WebRoot, "Components", "Browse", "MediaBrowseShell.razor"));
+        var browse = BrowseShellSource.ReadAll();
         var section = File.ReadAllText(Path.Combine(WebRoot, "Components", "MediaHub", "MediaSectionShell.razor"));
 
         Assert.Contains("_address!.Accept(e.Location)", browse, StringComparison.Ordinal);
@@ -79,7 +79,7 @@ public sealed partial class DetailsOverlayGuardrailTests
     private static readonly Dictionary<string, (int Count, string Reason)> ReplacingNavigationAllowlist = new(StringComparer.Ordinal)
     {
         ["Services/Vault/VaultExit.cs"] = (1, "Locking returns Home, and a Vault address for anyone not unlocked goes to /not-found; neither can reach a /details/ address."),
-        ["Components/Browse/MediaBrowseShell.razor"] = (1, "The lane rewriting its own filter address (a browse route)."),
+        ["Components/Browse/MediaBrowseShell.Navigation.cs"] = (1, "The lane rewriting its own filter address (a browse route)."),
         ["Components/Navigation/TopNavProfileSwitcher.razor"] = (1, "Full reload to Home after switching profile."),
         ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
         ["Components/Settings/Libraries/LibrariesOverview.razor"] = (1, "The Libraries page rewriting its own area filter address (?area=) so Back leaves the page; it is a Settings route, never a /details/ address."),

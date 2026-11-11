@@ -1265,3 +1265,15 @@ Housekeeping: the editor and the players each moved into their own folder, and o
 | Player panel body padding | Frontend fixes 6 | Open a player panel that has no heading (for example the speed or sleep timer panel): the padding around its content is as before. | Awaiting |
 | Old style leftovers removed | Frontend fixes 6 | Settings pages, provider cards and the save bar look as before (unused old styles for provider cards, chips and health marks were deleted). | Awaiting |
 | Audiobook from a restored queue | Frontend fixes 6 | Start an audiobook, reload the page so the queue is restored, and use the title link and the artwork in the player: they open the right book and show the right cover. | Awaiting |
+
+## Frontend review fixes, thread 7: structure part 2 (cloud build 2026-11-11)
+
+Housekeeping: the code of the five largest screens was split into smaller files. Nothing should look or behave differently, so this is a "does everything still work" pass.
+
+| Item | PR | What to check | Status |
+|---|---|---|---|
+| Browse lists | Frontend fixes 7 | Open Movies, TV, Books and Music lists. Search, filter, sort, switch between grid and list, open a group, tick several items and use "Edit N items", scroll to load more, and add a file while the list is open (the "new items" note appears). All as before. | Awaiting |
+| Music bar | Frontend fixes 7 | Play a song and an audiobook. Use play/pause, next/previous, seek, volume, speed, sleep timer, queue, lyrics, bookmarks and the device picker from the bar; reload the page and playback restores. All as before. | Awaiting |
+| Collections editor | Frontend fixes 7 | Create a collection and a playlist, add and remove items, add a rule, change the artwork, save, reopen, discard changes (the "unsaved changes" question appears) and delete. All as before. | Awaiting |
+| Detail page | Frontend fixes 7 | Open a film, a show, an episode, a book, an audiobook and an album. Play, resume, add to My List, favorite, like, add to a collection, open the editor from "...", and delete an item. All as before. | Awaiting |
+| Listen page and playlists | Frontend fixes 7 | Open Listen: Songs, Albums, Artists, Audiobooks and Playlists views. Sort and resize song columns, play from a row, use a row's menu, open a playlist, reorder and remove tracks, and rename it. All as before. | Awaiting |

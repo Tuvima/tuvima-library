@@ -171,10 +171,15 @@ public sealed class ArchitectureBoundaryTests
     {
         var repoRoot = FindRepoRoot();
         var componentRoot = Path.Combine(repoRoot, "src", "MediaEngine.Web", "Components");
-        var offenders = Directory.EnumerateFiles(componentRoot, "*.razor", SearchOption.AllDirectories)
+        // A component's code may sit beside it in Name.razor.cs and Name.*.cs files; the rule covers those too.
+        var razorFiles = Directory.EnumerateFiles(componentRoot, "*.razor", SearchOption.AllDirectories).ToList();
+        var codeFiles = razorFiles.SelectMany(path => Directory.EnumerateFiles(
+            Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + ".*.cs"));
+        var offenders = razorFiles.Concat(codeFiles)
+            .Distinct(StringComparer.Ordinal)
             .Select(path => new { Path = path, Text = File.ReadAllText(path) })
             .Where(file =>
-                file.Text.Contains("@using MediaEngine.Domain.Configuration", StringComparison.Ordinal)
+                file.Text.Contains("using MediaEngine.Domain.Configuration", StringComparison.Ordinal)
                 || file.Text.Contains("CreateCommand(", StringComparison.Ordinal)
                 || file.Text.Contains("CommandText", StringComparison.Ordinal))
             .Select(file => Path.GetRelativePath(repoRoot, file.Path))

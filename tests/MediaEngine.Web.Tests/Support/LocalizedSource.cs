@@ -19,6 +19,23 @@ internal static class LocalizedSource
         return path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) ? Localize(text) : text;
     }
 
+    /// <summary>
+    /// Reads a component that keeps its code in partial classes beside the markup: the <c>.razor</c> file followed by
+    /// <c>Name.razor.cs</c> and every <c>Name.*.cs</c> next to it, so a test that looks for a line of the component
+    /// finds it wherever the split put it.
+    /// </summary>
+    public static string ReadComponent(string razorPath)
+    {
+        var directory = Path.GetDirectoryName(razorPath)!;
+        var stem = Path.GetFileNameWithoutExtension(razorPath);
+        var parts = Directory.EnumerateFiles(directory, stem + ".*.cs")
+            .Concat(Directory.EnumerateFiles(directory, stem + ".razor.cs"))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .Select(path => Localize(File.ReadAllText(path)));
+        return string.Join("\n", new[] { ReadAllText(razorPath) }.Concat(parts));
+    }
+
     public static string Localize(string source) =>
         Use.Replace(source, m =>
         {
