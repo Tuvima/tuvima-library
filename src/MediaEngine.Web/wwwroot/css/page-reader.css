@@ -5,15 +5,15 @@
    ============================================================================ */
 
 .pr-shell {
-    --pr-bg: #000;
-    --pr-text: #f7f7fa;
-    --pr-sub: #9ea4bc;
-    --pr-line: #30364a;
-    --pr-hover: #272830;
-    --pr-accent: #8852fc;
-    --pr-accent-hover: #a46fff;
-    --pr-menu: #2f3039;
-    --pr-card: #1a1b21;
+    --pr-bg: var(--tl-viewer-black);
+    --pr-text: var(--player-text);
+    --pr-sub: var(--tl-text-muted);
+    --pr-line: var(--tl-bg-surface-elevated);
+    --pr-hover: var(--tl-bg-surface-hover);
+    --pr-accent: var(--tl-accent-primary);
+    --pr-accent-hover: var(--tl-accent-primary-hover);
+    --pr-menu: var(--tl-bg-surface-elevated);
+    --pr-card: var(--tl-bg-surface);
 
     position: fixed;
     inset: 0;
@@ -22,7 +22,7 @@
     color: var(--pr-text);
 }
 
-.pr-shell[data-background="dark"] { --pr-bg: #101115; }
+.pr-shell[data-background="dark"] { --pr-bg: var(--tl-bg-root); }
 .pr-shell[data-background="light"] { --pr-bg: #e9e6df; }
 
 /* ── Stage ─────────────────────────────────────────────────────────────── */
@@ -141,7 +141,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #f7f7fa;
+    color: var(--pr-text);
     transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
@@ -175,7 +175,7 @@
     border-radius: 50%;
     display: grid;
     place-items: center;
-    color: #f7f7fa;
+    color: var(--pr-text);
     background: transparent;
     border: 0;
     cursor: pointer;
@@ -212,6 +212,7 @@
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     min-width: 8.5em;
+    text-align: end;
 }
 
 .pr-slider {
@@ -264,6 +265,25 @@
     .pr-count { min-width: 6.5em; font-size: 12px; }
 }
 
+/* The reader's panels are 400 px wide (spec section 4); the book reader's own width (book-reader.css) is untouched. */
+.br-panel.pr-panel { inline-size: min(var(--tl-popout-panel), 100%); }
+
+@media (max-width: 600px) {
+    .br-panel.pr-panel { inline-size: 100%; }
+}
+
+/* Search box: the magnifier sits inside the field and Enter runs the search (mock screen 2). */
+.pr-search {
+    padding: 0 0.75rem;
+    border: 1px solid var(--pr-line);
+    border-radius: 8px;
+    background: var(--tl-bg-root);
+    color: var(--pr-sub);
+}
+
+.pr-search:focus-within { outline: 2px solid var(--pr-accent-hover); outline-offset: 2px; }
+.pr-search .br-search-input { padding: 0; border: 0; outline: 0; background: transparent; }
+
 @media (prefers-reduced-motion: reduce) {
     .pr-bar { transition: none; }
     .pr-page--loading::after,
@@ -281,7 +301,7 @@
     bottom: 40px;
     transform: translateX(-50%);
     width: 90px;
-    background: var(--pr-menu, #2F3039);
+    background: var(--pr-menu);
     border-radius: 8px;
     padding: 5px 5px 4px;
     text-align: center;
@@ -344,8 +364,8 @@
     padding: 24px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.14);
-    background: var(--pr-card, #1A1B21);
-    color: #fff;
+    background: var(--pr-card);
+    color: var(--pr-text);
 }
 
 .pr-endcard-pic { flex: none; width: 130px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, 0.06); }

@@ -12576,7 +12576,7 @@
     <value>Reader tools</value>
   </data>
   <data name="PageReader_ReadingSettings" xml:space="preserve">
-    <value>Reading settings</value>
+    <value>Settings</value>
   </data>
   <data name="PageReader_Close" xml:space="preserve">
     <value>Close</value>
@@ -12601,9 +12601,6 @@
   </data>
   <data name="PageReader_Background" xml:space="preserve">
     <value>Background</value>
-  </data>
-  <data name="PageReader_RememberedOnProfile" xml:space="preserve">
-    <value>These choices are saved to your profile.</value>
   </data>
   <data name="PageReader_Search" xml:space="preserve">
     <value>Search</value>
@@ -12701,6 +12698,9 @@
   <data name="PageReader_PageOf" xml:space="preserve">
     <value>Page {0} of {1}</value>
   </data>
+  <data name="PageReader_PageOfShort" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
   <data name="PageReader_PagesOf" xml:space="preserve">
     <value>Pages {0}–{1} of {2}</value>
   </data>
@@ -12727,9 +12727,6 @@
   </data>
   <data name="PageReader_FitWidth" xml:space="preserve">
     <value>Width</value>
-  </data>
-  <data name="PageReader_DirectionAuto" xml:space="preserve">
-    <value>Automatic</value>
   </data>
   <data name="PageReader_DirectionLtr" xml:space="preserve">
     <value>Left to right</value>
