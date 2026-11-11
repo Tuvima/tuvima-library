@@ -49,6 +49,12 @@ else
     </section>
 }
 
+@* D27: files nobody has picked up cannot hold the run "working"; they are named here, in the working and the up-to-date states alike. *@
+@if (FilesWaiting > 0)
+{
+    <p class="lact-waiting" data-testid="activity-files-waiting"><strong>@L["LibraryActivity_SomeFilesWaiting"]</strong> · @(FilesWaiting == 1 ? L["LibraryActivity_OneFileWaiting"] : L["LibraryActivity_FilesWaiting", FilesWaiting.ToString("N0")])</p>
+}
+
 @code {
     [Parameter] public IngestionQueueProgressDto? Queue { get; set; }
     [Parameter] public IngestionPresentationSnapshotDto? Presentation { get; set; }
@@ -60,15 +66,30 @@ else
 
     private bool Working => Queue is { State: "working" } || Presentation is { IsRunning: true };
 
+    // With area chips chosen every number on the card belongs to those areas (D5); the top bar's ring keeps the whole library's percent.
+    private bool Scoped => MediaTypes is { Count: > 0 };
+
     private IEnumerable<IngestionQueueTypeTallyDto> Tally => (Queue?.Tally ?? [])
-        .Where(entry => MediaTypes is null || MediaTypes.Count == 0 || MediaTypes.Contains(entry.MediaType));
+        .Where(entry => !Scoped || MediaTypes!.Contains(entry.MediaType));
 
-    private int Found => MediaTypes is { Count: > 0 } ? Tally.Sum(entry => entry.Files) : Queue?.FilesFound ?? Presentation?.FilesDiscovered ?? 0;
+    private IEnumerable<IngestionPresentationTypeDto> PresentationTypes => (Presentation?.ByType ?? [])
+        .Where(entry => MediaTypes!.Contains(entry.MediaType));
 
-    // Shared with the top bar's ring so both always say the same number (rounded down, never 100 while still working).
-    private int? Percent => Queue is { FilesFound: > 0 } queue ? IngestionQueueProgressText.Percent(queue) : null;
+    private int Found => Scoped ? Tally.Sum(entry => entry.Files) : Queue?.FilesFound ?? Presentation?.FilesDiscovered ?? 0;
 
-    private int ReviewCount => Presentation?.ReviewGroups ?? 0;
+    // The same rule as the top bar's ring (rounded down, never 100 while still working), added up from the chosen areas' own step counts.
+    private int? Percent => Queue is null ? null : IngestionQueueProgressText.Percent(Queue, MediaTypes);
+
+    private int Ready => Scoped ? PresentationTypes.Sum(entry => entry.ReadyGroups) : Presentation?.ReadyGroups ?? 0;
+    private int ReviewCount => Scoped ? PresentationTypes.Sum(entry => entry.ReviewGroups) : Presentation?.ReviewGroups ?? 0;
+    private int Processing => Scoped ? PresentationTypes.Sum(entry => entry.ActiveOperations) : Presentation?.ActiveOperations ?? 0;
+    private int Queued => Scoped ? PresentationTypes.Sum(entry => entry.QueuedOperations) : Presentation?.QueuedOperations ?? 0;
+
+    // Files held back with no tool to blame (nobody picked them up, D27) are named; files waiting for a missing tool have their own notice.
+    private int FilesWaiting => Queue is { FilesWaiting: > 0 } queue
+        && !queue.WaitingFor.Any(tool => !string.Equals(tool, IngestionQueueProgressText.UnclaimedId, StringComparison.OrdinalIgnoreCase))
+        ? queue.FilesWaiting
+        : 0;
 
     private string CountsLine
     {
@@ -79,13 +100,10 @@ else
             parts.Add(string.IsNullOrEmpty(found)
                 ? L["LibraryActivity_FilesFound", Found.ToString("N0")].Value
                 : L["LibraryActivity_CountsFound", found].Value);
-            if (Presentation is { } presentation)
-            {
-                if (presentation.ReadyGroups > 0) parts.Add(L["LibraryActivity_Ready", presentation.ReadyGroups.ToString("N0")].Value);
-                if (presentation.ReviewGroups > 0) parts.Add(L["LibraryActivity_NeedReview", presentation.ReviewGroups.ToString("N0")].Value);
-                if (presentation.ActiveOperations > 0) parts.Add(L["LibraryActivity_Processing", presentation.ActiveOperations.ToString("N0")].Value);
-                if (presentation.QueuedOperations > 0) parts.Add(L["LibraryActivity_Queued", presentation.QueuedOperations.ToString("N0")].Value);
-            }
+            if (Ready > 0) parts.Add(L["LibraryActivity_Ready", Ready.ToString("N0")].Value);
+            if (ReviewCount > 0) parts.Add(L["LibraryActivity_NeedReview", ReviewCount.ToString("N0")].Value);
+            if (Processing > 0) parts.Add(L["LibraryActivity_Processing", Processing.ToString("N0")].Value);
+            if (Queued > 0) parts.Add(L["LibraryActivity_Queued", Queued.ToString("N0")].Value);
 
             return string.Join(" · ", parts);
         }

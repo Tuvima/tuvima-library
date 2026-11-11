@@ -5,6 +5,9 @@
 .lact-heading__count { color: var(--tl-text-muted); font-weight: var(--tl-font-weight-regular); }
 .lact-controls__search { flex: 0 1 210px; width: 210px; min-width: 0; }
 .lact-controls__select { flex: 0 1 140px; min-width: 0; }
+/* The custom range's From and To (the same pair as the personal Activity page's toolbar). */
+.lact-controls__dates { display: flex; flex: 0 0 auto; align-items: center; gap: var(--tl-space-2); }
+.lact-controls__date-word { color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); white-space: nowrap; }
 .lact-controls__select--type { width: 130px; flex-basis: 130px; }
 .lact-controls__select--range { width: 150px; flex-basis: 150px; }
 .lact-controls__select--sort { width: 140px; flex-basis: 140px; }
@@ -26,8 +29,8 @@
 .lact-marker__text small { color: var(--tl-text-muted); }
 .lact-bubble { position: relative; z-index: 1; flex: none; width: 62px; box-sizing: border-box; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); border: 1px solid var(--tl-border-default); text-align: center; padding: 3px 0; font-size: var(--tl-font-size-xs); font-weight: var(--tl-font-weight-semibold); }
 .lact-more { display: flex; justify-content: center; padding: var(--tl-space-2); }
-@media (max-width: 640px) {
-    .lact-controls__search { flex: 1 1 100%; width: auto; }
+@media (max-width: 600px) {
+    .lact-controls__search, .lact-controls__dates { flex: 1 1 100%; width: auto; }
     .lact-controls__select, .lact-controls__select--type, .lact-controls__select--range, .lact-controls__select--sort { flex: 1 1 0; width: auto; }
     .lact-title { flex-direction: column; }
 }

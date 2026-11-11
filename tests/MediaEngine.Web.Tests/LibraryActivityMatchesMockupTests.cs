@@ -21,6 +21,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     private static readonly Guid Work = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     private readonly UniverseStateContainer _state = new();
     private IReadOnlyList<ActivityRunDto> _runs = [];
+    private IReadOnlyList<MediaEngine.Contracts.Settings.LibraryFolderDto> _libraries = [new() { Id = "movies", Name = "Movies" }];
 
     public LibraryActivityMatchesMockupTests()
     {
@@ -32,6 +33,8 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
             stub.SetHandler("get_LastError", _ => null);
             stub.SetHandler(nameof(IEngineApiClient.GetIngestionPresentationAsync), _ => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto()));
             stub.SetHandler(nameof(IEngineApiClient.GetIngestionQueueProgressAsync), _ => Task.FromResult<IngestionQueueProgressDto?>(new IngestionQueueProgressDto { State = "idle" }));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<MediaEngine.Contracts.Settings.LibrariesConfigurationDto?>(
+                new MediaEngine.Contracts.Settings.LibrariesConfigurationDto { Libraries = [.. _libraries] }));
             stub.SetHandler(nameof(IEngineApiClient.GetActivityRunsAsync), _ => Task.FromResult<ActivityRunsDto?>(new ActivityRunsDto(_runs, false, DateTimeOffset.UtcNow.AddMinutes(-12))));
             stub.SetHandler(nameof(IEngineApiClient.GetActivityRunGroupsAsync), _ => Task.FromResult<ActivityRunGroupsDto?>(new ActivityRunGroupsDto(
                 Guid.NewGuid(),
@@ -56,6 +59,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         Services.AddSingleton(provider => new IngestionLiveDashboardState(api, provider.GetRequiredService<UIOrchestratorService>(), _state));
         Services.AddSingleton(new PlaybackSessionController(null!, api));
         Services.AddSingleton<ShellActivityState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
     }
 
     [Fact]
@@ -77,7 +81,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheAreaChips_AreOutlinedInTheirAreaColour_AndAllLibrariesCarriesAChevron()
+    public void TheAreaChips_AreOutlinedInTheirAreaColour_AndAllLibrariesIsAPlainOnOffChipWithNoArrow()
     {
         var cut = Render<LibraryActivityPage>();
 
@@ -88,7 +92,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         Assert.Contains("lib-area--watch", chips[1].ClassName, StringComparison.Ordinal);
         Assert.Contains("lib-area--listen", chips[2].ClassName, StringComparison.Ordinal);
         Assert.Contains("lib-area--read", chips[3].ClassName, StringComparison.Ordinal);
-        Assert.Single(chips[0].QuerySelectorAll("svg"));
+        Assert.Empty(chips[0].QuerySelectorAll("svg"));
         Assert.Empty(chips[1].QuerySelectorAll("svg"));
         Assert.Equal("true", chips[0].GetAttribute("aria-pressed"));
 
@@ -97,6 +101,48 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         chips = cut.FindAll("[data-testid='lact-chips'] button");
         Assert.Equal("true", chips[1].GetAttribute("aria-pressed"));
         Assert.Equal("false", chips[0].GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public void ThePageDrawsItsOwnTitleOnlyWhenItsHostDoesNotNameIt_SoTheTitleAppearsOnceInEachPlace()
+    {
+        var standalone = Render<LibraryActivityPage>();
+        Assert.Equal("Activity", Assert.Single(standalone.FindAll("h1")).TextContent.Trim());
+
+        var hosted = Render<LibraryActivityPage>(parameters => parameters.Add(page => page.ShowTitle, false));
+        Assert.Empty(hosted.FindAll("h1"));
+        Assert.Single(hosted.FindAll("[data-testid='lact-live']"));
+    }
+
+    [Fact]
+    public void BothHosts_TheSettingsFrameAndALibrarysActivityTab_NameThePageThemselves()
+    {
+        var root = FindRepoRoot();
+        var settings = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
+        var shell = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Settings", "Libraries", "LibraryShell.razor"));
+
+        Assert.Contains("<LibraryActivityPage ShowTitle=\"false\" />", settings, StringComparison.Ordinal);
+        Assert.Contains("<LibraryActivityPage LibraryId=\"@Library.Id\" ShowTitle=\"false\" />", shell, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WithNoLibrariesAtAll_AnEmptyHistoryOffersAddLibrary()
+    {
+        _libraries = [];
+
+        var cut = Render<LibraryActivityPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing has been added yet", cut.Markup, StringComparison.Ordinal));
+        Assert.Contains("Add library", cut.Find(".lact-history .app-page-state").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WithLibraries_AnEmptyHistoryDoesNotOfferAddLibrary()
+    {
+        var cut = Render<LibraryActivityPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing has been added in this time", cut.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Add library", cut.Find(".lact-history").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -265,6 +311,17 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         Assert.Equal("2 titles", LibraryActivityText.TitlesCount(2));
         Assert.Equal("1 title", LibraryActivityText.TitlesCount(1));
         Assert.Equal("4 new episodes", LibraryActivityText.MarkerLine(new ActivityTitleMarkerDto(Guid.NewGuid(), ActivityRunKindNames.Added, DateTimeOffset.Now, 4), "TV"));
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
 
     private static ActivityRunDto Run(

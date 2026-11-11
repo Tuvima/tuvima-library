@@ -5,23 +5,30 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject IngestionLiveDashboardState Dashboard
 @inject ShellActivityState Shell
+@inject DeviceContextService DeviceContext
+@inject MediaEngine.Web.Services.Ui.IAppDialogService Dialogs
+@inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @implements IAsyncDisposable
 
 @* The Library Activity page (spec library-activity, administrators only). Working now at the top while something runs, History as a vertical
    timeline underneath. With nothing running it opens on History. The library tab of one library shows this same page filtered to it. *@
 <div class="lact-page" data-testid="library-activity-page">
     <header class="lact-header">
-        <h1 class="lact-title-main">@L["LibraryActivity_Title"]</h1>
+        @* The host already names the page (the Settings frame's title, or the library's own page and its Activity tab), so it asks for no second title. *@
+        @if (ShowTitle)
+        {
+            <h1 class="lact-title-main">@L["LibraryActivity_Title"]</h1>
+        }
         @* Live means the page updates by itself: green while connected to the Engine, quiet "Not live" otherwise (busy or idle makes no difference). *@
         <span class="lact-live @(IsLive ? "is-live" : null)" data-testid="lact-live" data-live="@(IsLive ? "true" : "false")"><span class="lact-live__dot" aria-hidden="true"></span> @(IsLive ? L["LibraryActivity_Live"] : L["LibraryActivity_NotLive"])</span>
     </header>
 
     @if (LibraryId is null)
     {
-        @* Each area chip is outlined in its own area colour (the same lib-chip look as the Libraries page); All libraries carries a small chevron. *@
+        @* Each area chip is outlined in its own area colour (the same lib-chip look as the Libraries page). All libraries is an on/off chip like the others, with no arrow. *@
         <div class="lact-chips" role="group" aria-label="@L["LibraryActivity_Areas"]" data-testid="lact-chips">
             <AppToggleChip Pressed="@(_area is null)" Class="@ChipClass(null)" OnClick="@(() => PickAreaAsync(null))">
-                @L["LibraryActivity_AllLibraries"]<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
+                @L["LibraryActivity_AllLibraries"]
             </AppToggleChip>
             @foreach (var area in Areas)
             {
@@ -39,6 +46,8 @@
 
     <LibraryActivityHistory LibraryIds="LibraryIds"
                             RefreshToken="_refresh"
+                            NoLibraries="NoLibraries"
+                            OnAddLibrary="@(CanAddLibrary ? EventCallback.Factory.Create(this, AddLibraryAsync) : default)"
                             LastCompletedChanged="OnLastCompleted" />
 </div>
 
@@ -53,6 +62,10 @@
     /// <summary>When set, the page is one library's Activity tab: filtered to that library, with no area chips.</summary>
     [Parameter] public string? LibraryId { get; set; }
 
+    /// <summary>Whether the page draws its own "Activity" title. Both hosts name the page themselves, so they turn it off.</summary>
+    [Parameter] public bool ShowTitle { get; set; } = true;
+
+    private LibrariesConfigurationDto? _configuration;
     private IReadOnlyList<LibraryFolderDto> _libraries = [];
     private string? _area;
     private int _refresh;
@@ -61,6 +74,30 @@
     private DateTimeOffset? _lastCompleted;
 
     private bool Working => Dashboard.QueueProgress is { State: "working" } || Dashboard.Presentation is { IsRunning: true };
+
+    // History's empty state offers Add library when there is nothing to show because there are no libraries at all.
+    private bool NoLibraries => LibraryId is null && _configuration is not null && _libraries.Count == 0;
+
+    // The same rule as the Libraries page's Add library button: not on a phone (the page itself is for administrators only).
+    private bool CanAddLibrary => !DeviceContext.IsMobile;
+
+    private async Task AddLibraryAsync()
+    {
+        if (_configuration is null)
+        {
+            return;
+        }
+
+        await LibraryKinds.EnsureLoadedAsync();
+        await LibraryAddFlow.OpenAsync(
+            Dialogs, _configuration, LibraryKinds.Catalog, areaKey: null, vaultVisible: false, setup: false, setupSession: null,
+            async _ =>
+            {
+                _configuration = await Api.GetLibrariesAsync() ?? _configuration;
+                _libraries = _configuration.Libraries;
+                await InvokeAsync(StateHasChanged);
+            });
+    }
 
     private bool IsLive => Dashboard.ConnectionState == EngineConnectionState.Online && !Dashboard.IsEngineUnreachable;
 
@@ -100,8 +137,8 @@
         Shell.Changed += OnShellChanged;
         await Dashboard.InitializeAsync();
         _wasRunning = Working;
-        var config = await Api.GetLibrariesAsync();
-        _libraries = config?.Libraries ?? [];
+        _configuration = await Api.GetLibrariesAsync();
+        _libraries = _configuration?.Libraries ?? [];
     }
 
     private Task PickAreaAsync(string? area)

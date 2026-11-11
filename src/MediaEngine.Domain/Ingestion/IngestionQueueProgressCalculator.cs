@@ -105,7 +105,7 @@ public static class IngestionQueueProgressCalculator
         var openActive = 0;
         int added = 0, needsReview = 0, failed = 0, skipped = 0, unmatched = 0;
         var unsorted = 0;
-        var typeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var typeCounts = new Dictionary<string, TypeCount>(StringComparer.OrdinalIgnoreCase);
         DateTimeOffset? lastActivity = null;
 
         foreach (var (row, progress) in set)
@@ -145,7 +145,11 @@ public static class IngestionQueueProgressCalculator
 
             if (IsKnownType(row.MediaType))
             {
-                typeCounts[row.MediaType!] = typeCounts.GetValueOrDefault(row.MediaType!) + 1;
+                var seenOfType = typeCounts.GetValueOrDefault(row.MediaType!);
+                typeCounts[row.MediaType!] = new TypeCount(
+                    seenOfType.Files + 1,
+                    seenOfType.Done + (progress.IsDone ? 1 : 0),
+                    seenOfType.Steps + (int)step);
             }
             else
             {
@@ -257,7 +261,9 @@ public static class IngestionQueueProgressCalculator
     private static DateTimeOffset Latest(DateTimeOffset? current, DateTimeOffset candidate) =>
         current is { } value && value >= candidate ? value : candidate;
 
-    private static IReadOnlyList<IngestionQueueTypeTally> OrderTally(Dictionary<string, int> counts) =>
+    private readonly record struct TypeCount(int Files, int Done, long Steps);
+
+    private static IReadOnlyList<IngestionQueueTypeTally> OrderTally(Dictionary<string, TypeCount> counts) =>
         counts
             .OrderBy(pair =>
             {
@@ -265,7 +271,7 @@ public static class IngestionQueueProgressCalculator
                 return index < 0 ? TypeOrder.Length : index;
             })
             .ThenBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(pair => new IngestionQueueTypeTally(pair.Key, pair.Value))
+            .Select(pair => new IngestionQueueTypeTally(pair.Key, pair.Value.Files, pair.Value.Done, (long)pair.Value.Files * StepsPerFile, pair.Value.Steps))
             .ToList();
 
     private static IReadOnlyList<IngestionQueueRateSample> TrimSamples(

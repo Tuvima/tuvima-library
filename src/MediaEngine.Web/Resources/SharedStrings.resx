@@ -10283,6 +10283,21 @@
   <data name="LibraryActivity_Updating" xml:space="preserve">
     <value>Updating your library</value>
   </data>
+  <data name="LibraryActivity_AllTypes" xml:space="preserve">
+    <value>All types</value>
+  </data>
+  <data name="LibraryActivity_Custom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="LibraryActivity_FilesWaiting" xml:space="preserve">
+    <value>{0} files are waiting</value>
+  </data>
+  <data name="LibraryActivity_OneFileWaiting" xml:space="preserve">
+    <value>1 file is waiting</value>
+  </data>
+  <data name="LibraryActivity_SomeFilesWaiting" xml:space="preserve">
+    <value>Some files are waiting</value>
+  </data>
   <data name="LibraryActivity_WhenAdded" xml:space="preserve">
     <value>When {0} was added</value>
   </data>
