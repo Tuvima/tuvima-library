@@ -647,6 +647,13 @@ public sealed class ListeningSettingsDto
     public bool SkipSilence { get; set; } = true;
     public bool RememberPerTitlePlaybackSpeed { get; set; } = true;
     public string OutputPreference { get; set; } = PlaybackPreferenceValues.Auto;
+
+    /// <summary>
+    /// Song table columns and widths this profile chose, kept on the profile so they follow the person across devices: the place
+    /// ("songs", "albums", "albumpage" or "playlist") to the table's own text, for example <c>show=genre;hide=plays;width=song:400</c>.
+    /// A place that is not listed uses its default columns.
+    /// </summary>
+    public Dictionary<string, string> SongTableColumns { get; set; } = [];
 }
 
 public sealed class ReadingSettingsDto
@@ -776,6 +783,10 @@ public sealed class SubtitleLanguageSettingsDto
 
 public static class PlaybackPreferenceValues
 {
+    /// <summary>The places a profile can keep song table columns for, the keys of <see cref="ListeningSettingsDto.SongTableColumns"/>.</summary>
+    public static readonly IReadOnlyList<string> SongTablePlaces = ["songs", "albums", "albumpage", "playlist"];
+    /// <summary>Longest song table columns text kept for one place.</summary>
+    public const int MaxSongTableColumnsLength = 400;
     public const string Auto = "Auto";
     public const string All = "All";
     public const string Mine = "Mine";
