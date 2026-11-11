@@ -278,6 +278,21 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
             cut.Find("[data-testid='backup-created']").TextContent));
     }
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void TheSetupRestoreAsksForAPinOnlyWhenTheBackupHoldsKeys(bool holdsKeys, bool expectsPinBox)
+    {
+        var cut = Render<SetupWelcomeStage>(parameters => parameters
+            .Add(component => component.ServerName, "Home")
+            .Add(component => component.ShowRestore, true)
+            .Add(component => component.Backup, new SetupBackupInspectionDto(
+                Guid.NewGuid(), "backup.zip", null, "3.0", "epoch", 10, 20, 3, 2, "Holds your settings.",
+                new BackupContentsDto(1, 31, 1, 1, 0, holdsKeys))));
+
+        Assert.Equal(expectsPinBox, cut.FindAll("[data-testid='setup-restore-keys-pin']").Count > 0);
+    }
+
     [Fact]
     public void TheFirstLookAtASetupUpload_SummarisesTheCounts_ThenSaysTheAppRestarts()
     {

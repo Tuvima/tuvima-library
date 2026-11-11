@@ -67,7 +67,7 @@
                                       HostNameDerived="@_hostDerived" HostNameDerivedChanged="@((bool value) => _hostDerived = value)"
                                       Busy="@_busy" Save="SaveWelcomeAsync"
                                       Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
-                                      UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
+                                      UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync" RestorePin="@_restorePin" RestorePinChanged="@((string? value) => _restorePin = value ?? string.Empty)"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "tools":
@@ -537,9 +537,10 @@
     }
     private void DismissIntro() => _introDismissed = true;
     private void RestoreFromIntro() { _introDismissed = true; _showRestore = true; }
-    private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; }
+    private string _restorePin = string.Empty;
+    private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; _restorePin = string.Empty; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
-    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error); else Snackbar.Add(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppSeverity.Info); }
+    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession, _restorePin.Length == 4 && _restorePin.All(char.IsAsciiDigit) ? _restorePin : null); _busy = false; if (result is null) Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error); else Snackbar.Add(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppSeverity.Info); }
     // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
     // proxy may be relaying. The Engine checks all of this again.
     private bool ThisComputerAvailable =>

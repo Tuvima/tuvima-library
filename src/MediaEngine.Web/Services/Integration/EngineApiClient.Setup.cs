@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
+using MediaEngine.Contracts.System;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -156,8 +157,8 @@ public sealed partial class EngineApiClient
         return await SetupSendAsync<SetupBackupInspectionDto>(HttpMethod.Post, "/setup/v1/restore/upload", content, setupSession, ct, keepRefusalSentence: true);
     }
 
-    public Task<SetupRestoreConfirmationDto?> ConfirmSetupRestoreAsync(Guid operationId, string setupSession, CancellationToken ct = default) =>
-        SetupSendAsync<SetupRestoreConfirmationDto>(HttpMethod.Post, $"/setup/v1/restore/{operationId:D}/confirm", JsonContent.Create(new { }), setupSession, ct);
+    public Task<SetupRestoreConfirmationDto?> ConfirmSetupRestoreAsync(Guid operationId, string setupSession, string? keysPin = null, CancellationToken ct = default) =>
+        SetupSendAsync<SetupRestoreConfirmationDto>(HttpMethod.Post, $"/setup/v1/restore/{operationId:D}/confirm", JsonContent.Create(new ConfirmSetupRestoreRequest(keysPin)), setupSession, ct);
 
     public Task<SetupReadinessDto?> GetSetupReadinessAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupReadinessDto>(HttpMethod.Get, "/setup/v1/readiness", null, setupSession, ct);
