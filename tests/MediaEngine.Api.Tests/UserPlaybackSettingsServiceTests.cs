@@ -476,6 +476,23 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateAsync_KeepsThePhoneSongsSortPerProfile_AndDropsItWhenUnreadable()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = new() { ["SongsSort"] = " Plays:Desc " };
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = (await _service.GetAsync(_profileId)).Listening;
+        var other = (await _service.GetAsync(_otherProfileId)).Listening;
+        Assert.Equal("plays:desc", saved.SongTableColumns["songssort"]);
+        Assert.Empty(other.SongTableColumns);
+
+        settings.Listening.SongTableColumns = new() { ["songssort"] = "<b>song</b>" };
+        await _service.UpdateAsync(_profileId, settings);
+        Assert.Empty((await _service.GetAsync(_profileId)).Listening.SongTableColumns);
+    }
+
+    [Fact]
     public async Task UpdateAsync_DropsSongTableColumnsTextThatIsTooLong()
     {
         var settings = await _service.GetAsync(_profileId);
