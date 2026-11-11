@@ -23,4 +23,10 @@ public interface IImageEnrichmentService
     /// </summary>
     Task<ImageEnrichmentResult> RefreshWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
         EnrichWorkImagesAsync(assetId, workQid, ct);
+
+    /// <summary>
+    /// Gives a TV episode its picture straight after it is identified: a frame from its own video at once, then the
+    /// provider's still. Does nothing for other kinds of item, and never waits on Wikidata.
+    /// </summary>
+    Task EnrichEpisodeStillsAsync(Guid assetId, CancellationToken ct = default) => Task.CompletedTask;
 }
