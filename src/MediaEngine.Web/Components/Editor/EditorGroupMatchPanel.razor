@@ -1,0 +1,388 @@
+@namespace MediaEngine.Web.Components.Editor
+@using System.Globalization
+@using System.Net.Http
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject ILogger<EditorGroupMatchPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The group Match (universal editor v5, D36): with several episodes or songs ticked, the person picks one show and season, or one release,
+   once. Every ticked item is lined up with the record that has its own number; the ones that do not fit are listed as "Check match", unticked,
+   and are left out unless the person ticks them. There is no table of every file. Apply stages the match, the move and the file move of each
+   ticked item in the pending list, exactly as a single Apply does; Save changes writes them. Nothing is written here. *@
+<section class="tl-bulk__group tl-groupmatch" aria-label="@L["Common_Match"].Value" data-testid="group-match">
+    <h3 class="tl-editor-details__heading">@L["EditorGroupMatchPanel_Heading", Rows.Count, Noun]</h3>
+
+    @if (_result is null)
+    {
+        @if (IsEpisodes)
+        {
+            <div class="tl-groupmatch__search">
+                <div class="tl-groupmatch__field">
+                    <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_showText" ValueChanged="@(value => _showText = value ?? string.Empty)" Immediate="true"
+                                  OnKeyDown="OnKey" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="group-match-show" />
+                </div>
+                <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_showText))" OnClick="SearchAsync" data-testid="group-match-search" />
+            </div>
+        }
+        else
+        {
+            <div class="tl-groupmatch__search">
+                <div class="tl-groupmatch__field">
+                    <AppTextField Label="@L["EditorMusicMatchFlow_Artist"].Value" Value="@_artist" ValueChanged="@(value => _artist = value ?? string.Empty)" Immediate="true"
+                                  OnKeyDown="OnKey" aria-label="@L["EditorMusicMatchFlow_Artist"].Value" data-testid="group-match-artist" />
+                </div>
+                <div class="tl-groupmatch__field">
+                    <AppTextField Label="@L["EditorMusicMatchFlow_Album"].Value" Value="@_album" ValueChanged="@(value => _album = value ?? string.Empty)" Immediate="true"
+                                  OnKeyDown="OnKey" aria-label="@L["EditorMusicMatchFlow_Album"].Value" data-testid="group-match-album" />
+                </div>
+                <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_album))" OnClick="SearchAsync" data-testid="group-match-search" />
+            </div>
+        }
+
+        @if (_busy)
+        {
+            <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="group-match-message">@_message</AppAlert>
+        }
+
+        @if (IsEpisodes)
+        {
+            @if (_show is null)
+            {
+                <div class="tl-match__results" role="list" aria-label="@L["EditorTvMatchFlow_Shows"].Value" data-testid="group-match-shows">
+                    @foreach (var show in _shows)
+                    {
+                        <div role="listitem">
+                            <AppRowButton Class="tl-match__row" OnClick="@(() => ChooseShowAsync(show))">
+                                <span class="tl-match__text">
+                                    <span class="tl-match__title"><span>@show.Name</span></span>
+                                    <span class="tl-match__meta">@show.Year</span>
+                                </span>
+                            </AppRowButton>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="tl-groupmatch__picked" data-testid="group-match-picked">
+                    <span class="tl-match__title"><span>@_show.Name</span></span>
+                    <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="ChangeShow" />
+                </div>
+                @if (_seasons.Count > 0)
+                {
+                    <AppSelect Value="@_season" ValueChanged="@(value => _season = value)" Options="@SeasonOptions" Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" data-testid="group-match-season" />
+                }
+            }
+        }
+        else
+        {
+            <div class="tl-match__results" role="list" aria-label="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" data-testid="group-match-releases">
+                @foreach (var release in _releases)
+                {
+                    var active = _release?.ReleaseId == release.ReleaseId;
+                    <div role="listitem">
+                        <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" aria-pressed="@(active ? "true" : "false")" OnClick="@(() => _release = release)">
+                            <span class="tl-match__text">
+                                <span class="tl-match__title"><span>@release.Title</span>@if (release.IsCurrent) { <span class="tl-groupmatch__tag">@L["EditorMusicMatchFlow_CurrentRelease"]</span> }@if (release.IsSuggested) { <span class="tl-groupmatch__tag">@L["EditorMusicMatchFlow_Suggested"]</span> }</span>
+                                <span class="tl-match__meta">@string.Join(" · ", new[] { release.Artist, release.Year, release.Format, release.TrackCount > 0 ? L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value : null }.Where(part => !string.IsNullOrWhiteSpace(part)))</span>
+                            </span>
+                        </AppRowButton>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="tl-groupmatch__actions">
+            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnDone" />
+            <AppButton Label="@L["EditorGroupMatchPanel_LineUp"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || !CanLineUp)"
+                       OnClick="LineUpAsync" data-testid="group-match-lineup" />
+        </div>
+    }
+    else
+    {
+        var misfits = _result.Lines.Where(line => !line.Fits).ToList();
+        <p data-testid="group-match-summary">@L["EditorGroupMatchPanel_Summary", _result.Lines.Count - misfits.Count, _result.Lines.Count, _result.TargetLabel]</p>
+        @if (misfits.Count > 0)
+        {
+            <div role="list" aria-label="@L["EditorGroupMatchPanel_CheckMatch"].Value" data-testid="group-match-misfits">
+                @foreach (var line in misfits)
+                {
+                    <div class="tl-groupmatch__misfit" role="listitem" data-testid="group-match-misfit">
+                        <AppCheckbox Value="@_ticked.Contains(line.EntityId)" ValueChanged="@(value => Tick(line, value))" Disabled="@(line.Candidate is null)"
+                                     Label="@line.Title" />
+                        <span class="tl-match__meta">@MisfitLine(line)</span>
+                        @if (line.Candidate is not null) { <AppChip Text="@L["EditorGroupMatchPanel_CheckMatch"].Value" Tone="AppUiTone.Warning" /> }
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="tl-groupmatch__actions">
+            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToPick" />
+            <AppButton Label="@L["EditorGroupMatchPanel_Apply", _ticked.Count].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(!CanChange || _ticked.Count == 0)" OnClick="ApplyAsync" data-testid="group-match-apply" />
+        </div>
+    }
+</section>
+
+@code {
+    private Guid _startedFor;
+    private bool _busy;
+    private string? _message;
+    private string _showText = string.Empty;
+    private string _artist = string.Empty;
+    private string _album = string.Empty;
+    private int? _contextSeason;
+    private IReadOnlyList<TvMatchBrowserShowDto> _shows = [];
+    private TvMatchBrowserShowDto? _show;
+    private IReadOnlyList<TvMatchBrowserSeasonDto> _seasons = [];
+    private string? _season;
+    private IReadOnlyList<EditorMusicReleaseDto> _releases = [];
+    private EditorMusicReleaseDto? _release;
+    private EditorGroupMatchDto? _result;
+    private readonly HashSet<Guid> _ticked = [];
+
+    /// <summary>The ticked episodes or songs.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
+
+    /// <summary>The page's media type, for rows that do not know their own.</summary>
+    [Parameter] public string? MediaType { get; set; }
+
+    /// <summary>The page's pending list: every staged change lands here.</summary>
+    [Parameter, EditorRequired] public PendingEditList Pending { get; set; } = default!;
+
+    /// <summary>False when the person may look but not change.</summary>
+    [Parameter] public bool CanChange { get; set; } = true;
+
+    /// <summary>Raised by Back and after Apply: the panel returns to the Edit view of the ticked items.</summary>
+    [Parameter] public EventCallback OnDone { get; set; }
+
+    private bool IsEpisodes => BulkEditRules.KindOf(Rows, MediaType) == BulkItemKind.Episode;
+
+    private string Noun => BulkEditRules.Noun(Rows, MediaType);
+
+    private bool CanLineUp => IsEpisodes ? _show is not null && _season is not null : _release is not null;
+
+    private IReadOnlyList<AppSelectOption> SeasonOptions =>
+    [
+        .. _seasons
+            .OrderBy(season => season.SeasonNumber == 0 ? 1 : 0)
+            .ThenBy(season => season.SeasonNumber)
+            .Select(season => new AppSelectOption(
+                season.SeasonNumber.ToString(CultureInfo.InvariantCulture),
+                season.SeasonNumber == 0 ? L["EditorTvMatchFlow_Specials"].Value : L["EditorTvMatchFlow_Season", season.SeasonNumber].Value)),
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var first = Rows.FirstOrDefault()?.Id ?? Guid.Empty;
+        if (first == Guid.Empty || first == _startedFor)
+        {
+            return;
+        }
+
+        _startedFor = first;
+        _result = null;
+        _show = null;
+        _release = null;
+        _shows = [];
+        _releases = [];
+        _ticked.Clear();
+        _message = null;
+        try
+        {
+            if (IsEpisodes)
+            {
+                var context = await Api.GetEditorMatchContextAsync(first);
+                _showText = context?.ParsedShow ?? string.Empty;
+                _contextSeason = context?.ParsedSeason;
+            }
+            else
+            {
+                var setup = await Api.GetEditorMatchSetupAsync(first);
+                _artist = setup?.Fields.FirstOrDefault(field => field.Key == "artist")?.Value ?? string.Empty;
+                _album = setup?.Fields.FirstOrDefault(field => field.Key == "album")?.Value ?? string.Empty;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The group match could not read what the file name says for {EntityId}", first);
+        }
+    }
+
+    private Task OnKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private async Task SearchAsync()
+    {
+        var first = Rows[0].Id;
+        _busy = true;
+        _message = null;
+        StateHasChanged();
+        try
+        {
+            if (IsEpisodes)
+            {
+                var response = await Api.SearchTvMatchBrowserShowsAsync(first, _showText.Trim());
+                _shows = response?.Shows ?? [];
+                _show = null;
+                _message = response is null ? L["EditorTvMatchFlow_DidNotAnswer"].Value : _shows.Count == 0 ? L["EditorTvMatchFlow_NothingCalled", _showText.Trim()].Value : null;
+            }
+            else
+            {
+                var response = await Api.GetEditorMusicReleasesAsync(first, _artist.Trim(), _album.Trim(), null);
+                _releases = response?.Releases ?? [];
+                _release = _releases.FirstOrDefault(release => release.IsSuggested) ?? _releases.FirstOrDefault(release => release.IsCurrent);
+                _message = response is null ? L["EditorMusicMatchFlow_DidNotAnswer"].Value : EditorMatchMessages.Text(L, response.MessageCode);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The group match could not search for {EntityId}", first);
+            _message = L["EditorTvMatchFlow_DidNotAnswer"].Value;
+        }
+
+        _busy = false;
+    }
+
+    private async Task ChooseShowAsync(TvMatchBrowserShowDto show)
+    {
+        _show = show;
+        _season = null;
+        _seasons = [];
+        _busy = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Api.GetTvMatchBrowserSeasonsAsync(Rows[0].Id, show.SeriesId);
+            _seasons = response?.Seasons ?? [];
+            var open = _contextSeason is { } wanted && _seasons.Any(season => season.SeasonNumber == wanted)
+                ? wanted
+                : _seasons.Where(season => season.SeasonNumber > 0).OrderBy(season => season.SeasonNumber).FirstOrDefault()?.SeasonNumber ?? _seasons.FirstOrDefault()?.SeasonNumber;
+            _season = open?.ToString(CultureInfo.InvariantCulture);
+            _message = response is null ? L["EditorTvMatchFlow_DidNotAnswer"].Value : null;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The group match could not list seasons for {EntityId}", Rows[0].Id);
+            _message = L["EditorTvMatchFlow_DidNotAnswer"].Value;
+        }
+
+        _busy = false;
+    }
+
+    private void ChangeShow()
+    {
+        _show = null;
+        _seasons = [];
+        _season = null;
+    }
+
+    private async Task LineUpAsync()
+    {
+        var request = new EditorGroupMatchRequestDto
+        {
+            Kind = IsEpisodes ? EditorGroupMatchKinds.Episodes : EditorGroupMatchKinds.Songs,
+            EntityIds = [.. Rows.Select(row => row.Id)],
+            SeriesId = _show?.SeriesId,
+            SeasonNumber = int.TryParse(_season, NumberStyles.Integer, CultureInfo.InvariantCulture, out var season) ? season : null,
+            ReleaseId = _release?.ReleaseId,
+        };
+        _busy = true;
+        _message = null;
+        StateHasChanged();
+        EditorGroupMatchDto? lined = null;
+        try
+        {
+            lined = await Api.LineUpEditorGroupMatchAsync(Rows[0].Id, request);
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The group match could not line {Count} items up", Rows.Count);
+        }
+
+        _busy = false;
+        if (lined is null || lined.Lines.Count == 0)
+        {
+            _message = EditorMatchMessages.Text(L, lined?.MessageCode) ?? L["EditorTvMatchFlow_DidNotAnswer"].Value;
+            return;
+        }
+
+        // Items that fit are ticked; the ones that do not stay out until the person ticks them.
+        _result = lined;
+        _ticked.Clear();
+        foreach (var line in lined.Lines.Where(line => line.Fits && line.Candidate is not null))
+        {
+            _ticked.Add(line.EntityId);
+        }
+    }
+
+    private void Tick(EditorGroupMatchLineDto line, bool on)
+    {
+        if (on)
+        {
+            _ticked.Add(line.EntityId);
+        }
+        else
+        {
+            _ticked.Remove(line.EntityId);
+        }
+    }
+
+    private void BackToPick()
+    {
+        _result = null;
+        _ticked.Clear();
+    }
+
+    private string MisfitLine(EditorGroupMatchLineDto line) =>
+        string.Join(" · ", new[] { NumberLabel(line.NumberText), line.TargetTitle, EditorMatchMessages.Text(L, line.NoteCode, line.NoteValue) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    // The Engine sends the bare number ("3", or "2·4" for disc 2 track 4); the words around it are the Dashboard's.
+    private string? NumberLabel(string? number) =>
+        string.IsNullOrWhiteSpace(number) ? null : IsEpisodes ? L["EditorGroupMatchPanel_EpisodeNumber", number].Value : L["EditorGroupMatchPanel_TrackNumber", number].Value;
+
+    // Each ticked item is staged the way a single Apply stages it: the match, then the move it brings, then the file move in a Managed folder.
+    private async Task ApplyAsync()
+    {
+        if (!CanChange || _result is null)
+        {
+            return;
+        }
+
+        // What kind of item each line is comes from the Engine's answer, so the Dashboard repeats none of its names.
+        var mediaType = _result.SubjectMediaType ?? string.Empty;
+        var scope = _result.SubjectScopeId ?? string.Empty;
+        var group = _result.SubjectTargetGroup ?? string.Empty;
+        foreach (var line in _result.Lines.Where(line => _ticked.Contains(line.EntityId) && line.Candidate is not null))
+        {
+            var candidate = line.Candidate!;
+            var subject = new EditorMatchSubject(line.EntityId, mediaType, scope, group, line.Title, null, null, null,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), []);
+            var request = EditorMatchRules.RequestFor(candidate, subject, group);
+            var facts = EditorMatchRules.FactsOf(candidate);
+            EditorMatchStaging.Unstage(Pending, EditSessionChangeKinds.MatchRemoval, line.EntityId);
+            Pending.SetTarget(
+                EditSessionChangeKinds.Identity,
+                line.EntityId,
+                EditSessionIdentityTarget.Serialize(request),
+                label: $"{facts.Title} ({facts.Provider})",
+                before: line.Title);
+            EditorMatchStaging.StageMove(Pending, line.EntityId, line.Placement);
+        }
+
+        _result = null;
+        _ticked.Clear();
+        await OnDone.InvokeAsync();
+    }
+}

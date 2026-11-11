@@ -1,0 +1,40 @@
+@namespace MediaEngine.Web.Components.Editor
+@inject IStringLocalizer<SharedStrings> L
+
+@* The lock beside a field's label (universal editor v5 D5), shared by the library editor's Details and the View editor's. Locked: an accent lock to
+   click, "Unlock to edit". Unlocked and not changed: an open lock to click, "Lock", which just locks it again. Changed (the person's own value): no
+   button; the words say it is kept, and Revert is the way back. None of these stages anything by itself. *@
+@if (Changed)
+{
+    <span class="tl-editor-field__lockstate" data-lock-state="yours">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
+        <span>@L["EditorDetailsPanel_YoursKept"]</span>
+    </span>
+}
+else
+{
+    var text = Locked ? L["EditorDetailsPanel_UnlockToEdit", FieldLabel].Value : L["EditorDetailsPanel_Lock", FieldLabel].Value;
+    <span class="tl-editor-field__lockstate" data-lock-state="@(Locked ? "locked" : "unlocked")">
+        <AppIconButton Icon="@(Locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
+                       Size="AppControlSize.Compact"
+                       Tone="AppUiTone.Primary"
+                       ButtonStyle="AppButtonStyle.Text"
+                       Class="tl-editor-field__lock-toggle"
+                       Tooltip="@text"
+                       AriaLabel="@text"
+                       OnClick="OnToggle" />
+        <span>@(Locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
+    </span>
+}
+
+@code {
+    /// <summary>The field's name, read out with the lock button.</summary>
+    [Parameter, EditorRequired] public string FieldLabel { get; set; } = string.Empty;
+
+    [Parameter] public bool Locked { get; set; }
+
+    /// <summary>The value is the person's own now (staged or saved): the lock gives way to "kept".</summary>
+    [Parameter] public bool Changed { get; set; }
+
+    [Parameter] public EventCallback OnToggle { get; set; }
+}

@@ -3,6 +3,7 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Paging;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
@@ -165,7 +166,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
         var before = navigation.Uri;
-        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
         var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
         var readsBefore = registered.ReviewReads;
@@ -196,7 +197,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         var registered = Register(() => Loaded(item));
         await Services.GetRequiredService<DeviceContextService>()
             .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
         var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
         cut.FindAll("tr.needs-review-table__row button").Single(button => button.TextContent.Trim() == "Fix").Click();
@@ -563,7 +564,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
         await Services.GetRequiredService<DeviceContextService>()
             .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
         var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
 

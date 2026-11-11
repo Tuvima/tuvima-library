@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;

@@ -1,0 +1,496 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Details tool (spec D3, D4, D5, WP5): the item's fields from the editor's own per-type field list. Typing only stages a change in the
+   pending list, which the page shows at once and Save changes writes later. Provider-filled fields start locked (v5 D5): dimmed, dashed,
+   an accent lock to click. Unlocking only lets the form take typing; a field becomes the person's own when they change it, then shows
+   Revert (see EditorFieldLocks). Their own fields (tags, sort title) never lock. Provider facts that cannot be edited keep the lock and
+   the provider's name. *@
+@if (Mode is { IsOn: true, Fields.Loading: true } && Session is { IsActive: true })
+{
+    @* Another item's fields are on their way (the person switched items): never show the item that was left. *@
+    <EditorPanelBusy />
+}
+else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session && mode.Fields.Loaded)
+{
+    var fields = mode.Fields;
+    var canEdit = mode.CanEdit && fields.CanEditFields;
+    var editable = canEdit ? Rows(fields).Where(IsEditable).ToList() : [];
+    var facts = Rows(fields).Where(row => !editable.Contains(row)).ToList();
+    <div class="tl-editor-details-layout">
+    <div class="tl-editor-details">
+        @if (fields.IsReadOnlySeries)
+        {
+            @* A Series is a canonical grouping (v5 D7, screen H): nothing on it can be changed, so say why and where to go instead. *@
+            <AppAlert Severity="AppSeverity.Info" Dense="true" Icon="@AppMaterialIcons.Outlined.Lock" data-series-note="true">@L["EditorSeries_ReadOnlyNotice"]</AppAlert>
+        }
+        else if (!canEdit)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["Common_YouCanLookAtThese"]</AppAlert>
+        }
+
+        @if (editable.Count > 0)
+        {
+            @if (canEdit && ResettableRows(fields, session, editable).Count > 0)
+            {
+                <div class="tl-editor-details__toolbar">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               OnClick="@(() => ResetAll(fields, session, editable))">@L["EditorDetailsPanel_ResetAllToProviderValues"]</AppButton>
+                </div>
+            }
+            <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
+                @foreach (var field in editable)
+                {
+                    @EditableRow(fields, session, field)
+                }
+            </section>
+        }
+
+        @if (canEdit && fields.ExplicitMark is { } explicitMark)
+        {
+            @ExplicitRow(fields, session, explicitMark)
+        }
+
+        @if (facts.Count > 0 && !canEdit)
+        {
+            <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
+                @if (!fields.IsReadOnlySeries)
+                {
+                    <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
+                }
+                @foreach (var field in facts)
+                {
+                    @FactRow(field)
+                }
+            </section>
+        }
+
+        @if (fields.IsReadOnlySeries && EditorSeriesRules.Members(fields) is { Count: > 0 } members)
+        {
+            @* The Series' members in order. Each opens that member's own editor in this same window (screen H). *@
+            var heading = L[EditorSeriesRules.MembersHeadingKey(fields)].Value;
+            <section class="tl-editor-details__group" aria-label="@heading" data-series-members="true">
+                <div class="tl-editor-field tl-editor-field--locked">
+                    <div class="tl-editor-field__label"><span>@heading</span></div>
+                    <ol class="tl-editor-details__members">
+                        @foreach (var member in members)
+                        {
+                            <li>
+                                @if (Flow is null)
+                                {
+                                    @member.Line
+                                }
+                                else
+                                {
+                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                               Disabled="@(Flow.Saving || Flow.Switching)"
+                                               OnClick="@(() => Flow.SwitchToAsync(member.Id, member.Title))">@member.Line</AppButton>
+                                }
+                            </li>
+                        }
+                    </ol>
+                </div>
+            </section>
+        }
+
+        @ChildContent
+    </div>
+    <EditorQuickFacts Fields="fields" />
+    </div>
+}
+
+@code {
+    private EditSessionState? _subscribed;
+    private EditingModeContext? _subscribedMode;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
+
+    /// <summary>The editor's flow: with it, a Series' members are buttons that open the member's own editor in this window.</summary>
+    [Parameter] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>Extra read-only content shown under the fields (the Universe's Series list).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private static string Canonical(MediaEditorDetailsFieldPresentation field) => field.CanonicalName ?? "provider's";
+
+    private RenderFragment EditableRow(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field) => __builder =>
+    {
+        var entityId = fields.EntityId;
+        var key = StageKey(field);
+        var staged = session.Pending.TryGetField(entityId, key, out var stagedValue);
+        var isReset = staged && string.IsNullOrWhiteSpace(stagedValue);
+        var state = StateOf(fields, session, field);
+        // A locked field shows the value it has now and cannot be typed in; unlocking only lets the form take typing.
+        // Sent back to the provider (Revert): the field shows the provider's value again, not the saved one it is about to lose.
+        var shown = staged && !isReset ? stagedValue ?? string.Empty : isReset ? field.ProviderValue ?? string.Empty : Baseline(field);
+        var isTags = IsTags(field);
+        <div class="@FieldClass(field, state)" data-field-key="@field.Key" data-locked="@(state.Locked ? "true" : "false")" data-changed="@(state.Changed ? "true" : "false")">
+            <div class="tl-editor-field__label">
+                <span>@field.Label</span>
+                <span class="tl-editor-field__tools">
+                    @if (state.Changed && !isReset)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Primary"
+                                   Size="AppControlSize.Compact"
+                                   StartIcon="@AppMaterialIcons.Outlined.Replay"
+                                   Class="tl-editor-field__reset"
+                                   aria-label="@RevertText(field, state)"
+                                   OnClick="@(() => Revert(fields, session, field, state))">@L["EditorDetailsPanel_Revert"]</AppButton>
+                    }
+                    @if (!state.Own)
+                    {
+                        @LockState(fields, session, field, state)
+                    }
+                </span>
+            </div>
+            @if (state.Locked && field.IsChips)
+            {
+                <div class="tl-editor-field__chips" role="group" aria-label="@field.Label">
+                    @foreach (var chip in Chips(shown))
+                    {
+                        <AppChip Text="@chip" />
+                    }
+                </div>
+            }
+            else if (field.IsChips)
+            {
+                <MediaEditorTagEditor Label="@field.Label"
+                                      HideLabel="true"
+                                      AddLabel="@(isTags ? "Add tag" : "Add genre")"
+                                      HelpText="@(isTags ? "Tags are private library organization and are not replaced by provider refreshes." : "Genres you set replace the provider's genres on this item only.")"
+                                      Value="@shown"
+                                      ValueChanged="@(value => Stage(fields, session, field, value))"
+                                      Suggestions="@(isTags ? fields.TagSuggestions : fields.GenreSuggestions)" />
+            }
+            else if (string.Equals(field.InputKind, "choice", StringComparison.OrdinalIgnoreCase))
+            {
+                <AppSelect T="string" Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
+                           Options="@ChoiceOptions(field)" Disabled="@state.Locked" AriaLabel="@field.Label" />
+            }
+            else if (string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
+            {
+                <AppTextarea Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
+                             Lines="@LinesFor(shown)" ReadOnly="@state.Locked" aria-label="@field.Label" />
+                <small class="tl-editor-field__count">@Count(shown)</small>
+            }
+            else
+            {
+                <AppTextField Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
+                              InputType="@InputTypeOf(field)" ReadOnly="@state.Locked" aria-label="@field.Label" />
+            }
+            @if (isReset)
+            {
+                <span class="tl-editor-field__note">Goes back to the @Canonical(field) value when you save.
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               OnClick="@(() => Undo(fields, session, field))">Undo</AppButton></span>
+            }
+        </div>
+    };
+
+    // The lock beside the label (universal editor v5 D5): the shared EditorFieldLock draws it. Nothing here stages anything by itself.
+    private RenderFragment LockState(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state) => __builder =>
+    {
+        <EditorFieldLock FieldLabel="@field.Label" Locked="@state.Locked" Changed="@state.Changed" OnToggle="@(() => ToggleLock(fields, session, field, state))" />
+    };
+
+    // Where one editable field stands. Changed: the value differs from the provider's (staged, or already saved as the person's own), so
+    // it is theirs and every provider refresh keeps it. Locked: the form lock only, the field still follows the provider until it is
+    // changed. Own: tags, sort title and the like hold nothing a provider fills, so they never lock.
+    private readonly record struct FieldState(bool Changed, bool Locked, bool Own, bool StagedOnly);
+
+    private FieldState StateOf(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field)
+    {
+        var staged = session.Pending.TryGetField(fields.EntityId, StageKey(field), out var stagedValue);
+        var isReset = staged && string.IsNullOrWhiteSpace(stagedValue);
+        var stagedChange = staged && !isReset && !string.Equals(stagedValue?.Trim(), Baseline(field).Trim(), StringComparison.Ordinal);
+        var changed = !isReset && (stagedChange || field.CanRevert);
+        var own = field.IsOwnField || IsTags(field);
+        var locked = !own && !changed && !fields.IsUnlocked(StageKey(field));
+        return new FieldState(changed, locked, own, staged && !isReset && !field.CanRevert);
+    }
+
+    private static string FieldClass(MediaEditorDetailsFieldPresentation field, FieldState state) =>
+        string.Join(' ', new[]
+        {
+            "tl-editor-field",
+            IsWide(field) ? "tl-editor-field--wide" : null,
+            state.Locked ? "tl-editor-field--form-locked" : null,
+            state.Changed ? "tl-editor-field--changed" : null,
+        }.Where(part => part is not null));
+
+    private static string RevertText(MediaEditorDetailsFieldPresentation field, FieldState state) =>
+        state.StagedOnly ? $"Put back the saved {field.Label.ToLowerInvariant()}" : $"Reset to {field.CanonicalName ?? "provider"} value";
+
+    // Revert goes back to the provider's value and the field locks again. A change that is only staged (nothing saved yet) goes back to
+    // the saved value instead.
+    private void Revert(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state)
+    {
+        if (state.StagedOnly)
+        {
+            Undo(fields, session, field);
+        }
+        else
+        {
+            Reset(fields, session, field);
+        }
+
+        fields.Relock(StageKey(field));
+    }
+
+    // Unlocking lets the form take typing and locking puts it back. Neither stages a change: a field nobody changed stays the provider's.
+    // A changed field has no lock to click (Revert is its way back), and a person's own field never had one.
+    private void ToggleLock(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true } || state.Own || state.Changed)
+        {
+            return;
+        }
+
+        if (state.Locked)
+        {
+            fields.Unlock(StageKey(field));
+        }
+        else
+        {
+            fields.Relock(StageKey(field));
+        }
+    }
+
+    private static IEnumerable<string> Chips(string value) =>
+        value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+    // Only a video or a series of videos has the mark (the Engine says so). It is staged like a field and saved with Save changes.
+    private RenderFragment ExplicitRow(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved) => __builder =>
+    {
+        var on = session.Pending.TryGetField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey, out var staged)
+            ? string.Equals(staged, "true", StringComparison.OrdinalIgnoreCase)
+            : saved.IsExplicit;
+        <section class="tl-editor-details__group tl-editor-explicit" aria-label="@L["EditorDetailsPanel_ExplicitMark"].Value" data-field-key="explicit">
+            <AppTooltip Text="@L["EditorDetailsPanel_ExplicitInfo"].Value">
+                <AppSwitchRow Label="@L["EditorDetailsPanel_Explicit"].Value"
+                              Description="@L["EditorDetailsPanel_ExplicitInfo"].Value"
+                              Value="@on"
+                              ValueChanged="@((bool value) => StageExplicit(fields, session, saved, value))" />
+            </AppTooltip>
+        </section>
+    };
+
+    private void StageExplicit(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved, bool value)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true })
+        {
+            return;
+        }
+
+        // Back to what is saved takes the staged change out, so Save never counts a no-op.
+        if (value == saved.IsExplicit)
+        {
+            session.Pending.ClearField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey);
+        }
+        else
+        {
+            session.Pending.SetField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey, value ? "true" : "false",
+                before: EditReviewRows.ExplicitText(saved.IsExplicit));
+        }
+    }
+
+    private RenderFragment FactRow(MediaEditorDetailsFieldPresentation field) => __builder =>
+    {
+        var why = WhyLocked(field);
+        <div class="tl-editor-field tl-editor-field--locked" data-field-key="@field.Key">
+            <div class="tl-editor-field__label">
+                <span>@field.Label</span>
+                <AppTooltip Text="@why">
+                    <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{field.Label} is locked. {why}")">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
+                        <small>@SourceName(field)</small>
+                    </span>
+                </AppTooltip>
+            </div>
+            <div class="tl-editor-field__value">@(string.IsNullOrWhiteSpace(field.DisplayValue ?? field.Value) ? "Not set" : field.DisplayValue ?? field.Value)</div>
+        </div>
+    };
+
+    // Every field the item presents, once each, with the empty Tags row when tags can be added (the same rows the editor lists).
+    private static IReadOnlyList<MediaEditorDetailsFieldPresentation> Rows(ItemFieldEditSession fields)
+    {
+        var rows = fields.AllFields().ToList();
+        if (fields.EmptyTagsField is { } emptyTags && rows.All(row => !string.Equals(row.Key, emptyTags.Key, StringComparison.OrdinalIgnoreCase)))
+        {
+            rows.Add(emptyTags);
+        }
+
+        return rows;
+    }
+
+    private static bool IsEditable(MediaEditorDetailsFieldPresentation field) =>
+        field.CanOverride && !string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase);
+
+    private static string StageKey(MediaEditorDetailsFieldPresentation field) =>
+        string.IsNullOrWhiteSpace(field.OverrideKey) ? field.Key : field.OverrideKey;
+
+    private static IReadOnlyList<AppSelectOption> ChoiceOptions(MediaEditorDetailsFieldPresentation field) =>
+        (field.Options ?? []).Select(option => new AppSelectOption(option.Value, option.Label)).ToList();
+
+    private static string Baseline(MediaEditorDetailsFieldPresentation field) => field.RawValue ?? field.Value ?? string.Empty;
+
+    private static bool IsTags(MediaEditorDetailsFieldPresentation field) =>
+        MediaEditorTagRules.IsLibraryTagsKey(field.OverrideKey) || MediaEditorTagRules.IsLibraryTagsKey(field.Key);
+
+    private static AppInputType InputTypeOf(MediaEditorDetailsFieldPresentation field) => field.InputKind?.ToLowerInvariant() switch
+    {
+        "date" => AppInputType.Date,
+        "number" or "rating" => AppInputType.Number,
+        _ => AppInputType.Text,
+    };
+
+    // Title, description and chip lists take the whole row; short single-line facts share it two to a row (spec D3).
+    private static bool IsWide(MediaEditorDetailsFieldPresentation field) =>
+        field.IsChips
+        || string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(field.Label, "Title", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(field.Key, "title", StringComparison.OrdinalIgnoreCase)
+        || (Baseline(field).Length > 36 && !string.Equals(field.InputKind, "date", StringComparison.OrdinalIgnoreCase));
+
+    private void ResetAll(ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> editable)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true })
+        {
+            return;
+        }
+
+        foreach (var field in ResettableRows(fields, session, editable))
+        {
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty, before: BeforeText(field));
+            fields.Relock(StageKey(field));
+        }
+    }
+
+    // "Reset all" is for overrides that are saved in the library: a field with nothing saved has nothing to reset, and one already sent
+    // back to the provider's value (staged, waiting for Save) is not offered again.
+    private static IReadOnlyList<MediaEditorDetailsFieldPresentation> ResettableRows(
+        ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> editable) =>
+        editable
+            .Where(row => row.CanRevert
+                && !(session.Pending.TryGetField(fields.EntityId, StageKey(row), out var staged) && string.IsNullOrWhiteSpace(staged)))
+            .ToList();
+
+    // The box grows with the text, so a long synopsis never gets a scroll bar of its own inside the window's.
+    private static int LinesFor(string value) => Math.Clamp((value.Length / 90) + 2, 4, 14);
+
+    private static string Count(string value) => $"{value.Length:N0} character{(value.Length == 1 ? string.Empty : "s")}";
+
+    private static string SourceName(MediaEditorDetailsFieldPresentation field) =>
+        string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase)
+            ? $"From {field.SourceLabel ?? "its parent"}"
+            : !string.IsNullOrWhiteSpace(field.ProviderName)
+                ? ProviderCatalogueService.FormatProviderLabel(field.ProviderName)
+                : field.SourceLabel ?? "Provider";
+
+    private static string WhyLocked(MediaEditorDetailsFieldPresentation field) =>
+        string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase)
+            ? $"Inherited from {field.SourceLabel ?? "its parent"}. Change it there."
+            : $"Set by {SourceName(field)}. Provider facts cannot be edited here.";
+
+    // Typing stages the change. Typing the value the item already has takes the staged change back out, so Save never counts a no-op.
+    private void Stage(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, string? typed)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true })
+        {
+            return;
+        }
+
+        // The typed text is staged as it is (a trailing space is part of typing); only the comparison ignores the edges.
+        var value = typed ?? string.Empty;
+        if (IsTags(field))
+        {
+            value = MediaEditorTagRules.NormalizeLibraryTags(value, out var tagError);
+            if (tagError is not null)
+            {
+                return;
+            }
+        }
+
+        var key = StageKey(field);
+        if (string.Equals(value.Trim(), Baseline(field).Trim(), StringComparison.Ordinal))
+        {
+            session.Pending.ClearField(fields.EntityId, key);
+        }
+        else
+        {
+            session.Pending.SetField(fields.EntityId, key, value, before: BeforeText(field));
+        }
+    }
+
+    private void Reset(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field)
+    {
+        if (session.IsActive && Mode is { CanEdit: true })
+        {
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty, before: BeforeText(field));
+        }
+    }
+
+    // What the field holds before this change, for Review's Before column.
+    private static string BeforeText(MediaEditorDetailsFieldPresentation field) =>
+        string.IsNullOrWhiteSpace(field.DisplayValue ?? field.Value) ? EditReviewRows.NotSet : (field.DisplayValue ?? field.Value)!.Trim();
+
+    private static void Undo(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field) =>
+        session.Pending.ClearField(fields.EntityId, StageKey(field));
+
+    protected override void OnParametersSet()
+    {
+        // The fields loading or being replaced (the person switched items) redraws the panel on its own, whatever page hosts it.
+        if (!ReferenceEquals(_subscribedMode, Mode))
+        {
+            if (_subscribedMode is not null)
+            {
+                _subscribedMode.Changed -= OnChanged;
+            }
+
+            _subscribedMode = Mode;
+            if (_subscribedMode is not null)
+            {
+                _subscribedMode.Changed += OnChanged;
+            }
+        }
+
+        if (ReferenceEquals(_subscribed, Session))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+        }
+
+        _subscribed = Session;
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed += OnChanged;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+        }
+
+        if (_subscribedMode is not null)
+        {
+            _subscribedMode.Changed -= OnChanged;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+}

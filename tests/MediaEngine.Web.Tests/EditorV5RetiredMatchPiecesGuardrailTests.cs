@@ -44,7 +44,7 @@ public sealed partial class EditorV5RetiredMatchPiecesGuardrailTests
     [Fact]
     public void TheMatchTabStillHasItsSearchAndItsResults()
     {
-        var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details");
+        var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Editor");
         foreach (var name in new[] { "EditorMatchPanel", "EditorMatchResults" })
         {
             Assert.True(File.Exists(Path.Combine(details, name + ".razor")), name + " is the v5 Match tab and must stay.");

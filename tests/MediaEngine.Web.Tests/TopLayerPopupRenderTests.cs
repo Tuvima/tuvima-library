@@ -1,5 +1,5 @@
 using Bunit;
-using MediaEngine.Web.Components.MediaEditor;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Navigation;
 using MediaEngine.Web.Components.Shared;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,9 +51,9 @@ public sealed class TopLayerPopupRenderTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("Components/Details/EditorHeaderNav.razor")]
-    [InlineData("Components/Details/EditorUniverseRail.razor")]
-    [InlineData("Components/Details/ViewEditHeaderNav.razor")]
+    [InlineData("Components/Editor/EditorHeaderNav.razor")]
+    [InlineData("Components/Editor/EditorUniverseRail.razor")]
+    [InlineData("Components/Editor/ViewEditHeaderNav.razor")]
     [InlineData("Components/Collections/CollectionRuleValuePicker.razor")]
     public void RailsAndRulePicker_DrawTheirListsThroughTheSharedPopover_WithoutAScrim(string relative)
     {

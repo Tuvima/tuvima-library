@@ -1,0 +1,66 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The left list of the supporting-files browser (universal editor v5 screen E, note 3): the places files belong to, with counts, then the groups
+   the title has, then the switch to the Folders and files view. It mirrors the toolbar's filters; picking a row sets the same filter. It fills the
+   shared browser frame's sidebar slot (D32) with the frame's own rows. *@
+@if (State.View == EditorBrowserView.Files)
+{
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Where"].Value">
+        @foreach (var option in PlaceOptions)
+        {
+            <AppBrowserSideItem Label="@option.Label" Detail="@option.FileCount.ToString()" Selected="@(State.Where == option.Key)" CheckWhenSelected="true"
+                                data-where="@option.Key" OnClick="@(() => State.SetWhereAsync(option.Key))" />
+        }
+    </AppBrowserSideSection>
+
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Groups"].Value" RuleAbove="true">
+        <AppBrowserSideItem Label="@L["EditorBrowser_AllGroups"].Value" Selected="@(State.Group == SupportingFileListDefaults.GroupAll)"
+                            data-group="all" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupAll))" />
+        @foreach (var group in State.List?.Groups ?? [])
+        {
+            <AppBrowserSideItem Label="@group.Name" Detail="@group.FileCount.ToString()" Selected="@(State.Group == group.Id)"
+                                data-group="@group.Id" OnClick="@(() => State.SetGroupAsync(group.Id))" />
+        }
+        <AppBrowserSideItem Label="@L["EditorBrowser_Ungrouped"].Value" Detail="@((State.List?.UngroupedCount ?? 0).ToString())"
+                            Selected="@(State.Group == SupportingFileListDefaults.GroupUngrouped)"
+                            data-group="ungrouped" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupUngrouped))" />
+    </AppBrowserSideSection>
+
+    @if (!ReadOnly)
+    {
+        <AppBrowserSideSection RuleAbove="true">
+            <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                                Link="true" data-view-switch="folders" OnClick="State.ShowFoldersAsync" />
+        </AppBrowserSideSection>
+    }
+}
+else
+{
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Browse"].Value">
+        <AppBrowserSideItem Label="@L["EditorBrowser_SupportingFiles"].Value" Icon="@AppMaterialIcons.Outlined.Collections" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                            data-view-switch="files" OnClick="State.ShowFilesAsync" />
+        <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" Selected="true" />
+    </AppBrowserSideSection>
+}
+
+@code {
+    [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>The read-only browser has no Folders and files view, so no switch to it.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    // The title's own level and the seasons, sections and albums with files; single episodes and lessons are in the toolbar's dropdown only.
+    private IEnumerable<SupportingFileWhereOptionDto> PlaceOptions =>
+        (State.List?.WhereOptions ?? []).Where(option => option.Level is "all" or "root" or "season" or "folder");
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

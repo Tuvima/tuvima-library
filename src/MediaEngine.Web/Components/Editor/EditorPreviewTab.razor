@@ -1,0 +1,65 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject ILogger<EditorPreviewTab> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Preview tab of a supporting file (universal editor v5 WP7, screen D): the same viewer the Extras cards open, drawn inside the editor
+   window. A PDF or text file reads in the browser's own reader, a picture folder is a gallery with a full-size view, a clip plays in a plain
+   player, and a file the browser cannot show (an EPUB, an archive) says so and offers Download. The file's name and facts sit above it. Nothing
+   here is edited or saved. The bar's Download shows only for a file the viewer reads in place; one the browser cannot show (an EPUB) already carries its own Download in the viewer, so there is one control, never two. *@
+@if (Fields?.SupportingFile is { } file)
+{
+    <div class="tl-editor-preview" data-state="@State" data-kind="@(_view?.Kind)">
+        <div class="tl-editor-preview__bar">
+            <span class="tl-editor-preview__name" data-overflow-tooltip="@file.File.FileName">@file.File.FileName</span>
+            @if (_view is { Kind: DetailExtraCardKinds.Document } && _view.Items.FirstOrDefault() is { IsMissing: false } item && ExtraViewerContent.IsReadableInBrowser(item))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Href="@FileHref(item.Id)"
+                           StartIcon="@AppMaterialIcons.Outlined.Download" download="@file.File.FileName" data-preview-download="true">@L["Models_Download"]</AppButton>
+            }
+        </div>
+        <ExtraViewerContent View="_view" Loading="_loading" Compact="true" />
+    </div>
+}
+
+@code {
+    private ExtraViewDto? _view;
+    private bool _loading = true;
+    private string? _loadedId;
+
+    [Parameter, EditorRequired] public ItemFieldEditSession? Fields { get; set; }
+
+    private string State => _loading ? "loading" : _view is null ? "unavailable" : "ready";
+
+    private static string FileHref(string id) => $"/engine-extra/{Uri.EscapeDataString(id)}/file";
+
+    // The viewer reads the same Extra the supporting file is: its id is the file's id. It is read again only when another file is opened.
+    protected override async Task OnParametersSetAsync()
+    {
+        var id = Fields?.SupportingFile?.File.Id;
+        if (id is null || string.Equals(_loadedId, id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _loadedId = id;
+        _loading = true;
+        try
+        {
+            _view = await Api.GetExtraAsync(id);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Could not load the preview of the supporting file {FileId}", id);
+            _view = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

@@ -1,0 +1,72 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
+
+@* Adding a character, place, faction or other thing to a Universe by hand (universal editor v4, WP11). It only asks for a name and an optional
+   description; nothing is created here. The answer is staged in the editor's list of changes and is added when Save changes is pressed. *@
+<AppDialogShell Title="@($"Add {Singular.ToLowerInvariant()}")" Subtitle="@Subtitle" Size="Small" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <AppTextField Label="@L["EditorUniverseAdd_Name"].Value"
+                      Value="@_name"
+                      ValueChanged="OnNameChanged"
+                      MaxLength="200"
+                      AutoFocus="true"
+                      Error="@(_error is not null)"
+                      ErrorText="@_error" />
+        <AppTextarea Label="@L["EditorUniverseAdd_DescriptionOptional"].Value"
+                     Value="@_description"
+                     ValueChanged="@(value => _description = value ?? string.Empty)"
+                     Lines="4" />
+        <small>@L["EditorUniverseAdd_Note"]</small>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@($"Add {Singular.ToLowerInvariant()}")"
+                   ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Disabled="@(string.IsNullOrWhiteSpace(_name))"
+                   OnClick="Complete" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private string? _error;
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The kind being added, in the singular ("Faction").</summary>
+    [Parameter] public string Singular { get; set; } = "Item";
+
+    /// <summary>The names the kind already holds (provider, added and staged), so the same name is not added twice.</summary>
+    [Parameter] public IReadOnlyCollection<string> ExistingNames { get; set; } = [];
+
+    private string Subtitle => "It is added to this Universe when you save your changes.";
+
+    private void OnNameChanged(string? value)
+    {
+        _name = value ?? string.Empty;
+        _error = null;
+    }
+
+    private void Complete()
+    {
+        var name = _name.Trim();
+        if (name.Length == 0)
+        {
+            return;
+        }
+
+        if (ExistingNames.Any(existing => string.Equals(existing, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            _error = $"There is already a {Singular.ToLowerInvariant()} with this name.";
+            return;
+        }
+
+        Dialog.Close(AppDialogResult.Ok(new UniverseAddRequest(name, string.IsNullOrWhiteSpace(_description) ? null : _description.Trim())));
+    }
+
+    /// <summary>What the dialog answers: the name, and the description when one was typed.</summary>
+    public sealed record UniverseAddRequest(string Name, string? Description);
+}

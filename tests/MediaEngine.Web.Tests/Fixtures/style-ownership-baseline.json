@@ -271,15 +271,15 @@
       "important": 1,
       "deep": 18
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorPanel.razor.css": {
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorSurface.razor.css": {
       "important": 5,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorTagEditor.razor.css": {
       "important": 0,
       "deep": 3
     },
@@ -1165,15 +1165,15 @@
       "important": 1,
       "deep": 18
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorPanel.razor.css": {
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorSurface.razor.css": {
       "important": 5,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorTagEditor.razor.css": {
       "important": 0,
       "deep": 3
     },
@@ -1841,11 +1841,11 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor.css": {
       "important": 0,
       "deep": 6
     },
-    "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorItemHeader.razor.css": {
       "important": 0,
       "deep": 5
     },
@@ -1853,31 +1853,31 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorMatchPanel.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserDialog.razor.css": {
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserSidebar.razor.css": {
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserTable.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserFolders.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/ViewEditHeaderNav.razor.css": {
       "important": 0,
       "deep": 13
     },
-    "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/ViewEditHeader.razor.css": {
       "important": 0,
       "deep": 1
     }
@@ -4398,7 +4398,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor.css",
       "important": 0,
       "deep": 6,
       "selectors": [
@@ -4412,7 +4412,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorItemHeader.razor.css",
       "important": 0,
       "deep": 5,
       "selectors": [
@@ -4436,7 +4436,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorMatchPanel.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4446,7 +4446,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserDialog.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4457,7 +4457,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserSidebar.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4468,7 +4468,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserTable.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4478,7 +4478,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserFolders.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4488,7 +4488,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/ViewEditHeaderNav.razor.css",
       "important": 0,
       "deep": 13,
       "selectors": [
@@ -4500,7 +4500,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/ViewEditHeader.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [

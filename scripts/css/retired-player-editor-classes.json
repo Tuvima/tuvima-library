@@ -255,7 +255,7 @@
   "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": [
     "listen-context-sidebar__lyrics"
   ],
-  "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": [
+  "src/MediaEngine.Web/Components/Editor/MediaEditorPanel.razor.css": [
     "sme-match-info-panel"
   ],
   "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": [

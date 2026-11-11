@@ -104,6 +104,7 @@ public sealed partial class EditorV5RetiredSurfacesGuardrailTests
         var folders = new[]
         {
             Path.Combine(web, "Components", "Details"),
+            Path.Combine(web, "Components", "Editor"),
             Path.Combine(web, "Services", "Editing"),
         };
 

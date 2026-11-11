@@ -3,6 +3,7 @@ using Bunit;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -249,7 +250,7 @@ public sealed class ViewEditorV5FrameTests : AsyncBunitContext
             root = Path.GetDirectoryName(root);
         }
 
-        var details = Path.Combine(root!, "src", "MediaEngine.Web", "Components", "Details");
+        var details = Path.Combine(root!, "src", "MediaEngine.Web", "Components", "Editor");
         foreach (var path in Directory.EnumerateFiles(details, "View*.razor").Where(path => Path.GetFileName(path).StartsWith("ViewEdit", StringComparison.Ordinal) || Path.GetFileName(path).StartsWith("ViewGallery", StringComparison.Ordinal)))
         {
             var source = File.ReadAllText(path);

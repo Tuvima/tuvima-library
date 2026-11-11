@@ -17,9 +17,9 @@ public sealed partial class EditorV5HeaderGuardrailTests
 
     private static readonly string[] HeaderSources =
     [
-        "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor",
-        "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor",
-        "src/MediaEngine.Web/Components/Details/EditorWhereLine.razor",
+        "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor",
+        "src/MediaEngine.Web/Components/Editor/EditorItemHeader.razor",
+        "src/MediaEngine.Web/Components/Editor/EditorWhereLine.razor",
         "src/MediaEngine.Web/Services/Editing/EditorHeaderView.cs",
         "src/MediaEngine.Web/Services/Editing/EditorFooterRules.cs",
         "src/MediaEngine.Web/Services/Editing/EditorHeaderHooks.cs",
@@ -53,8 +53,8 @@ public sealed partial class EditorV5HeaderGuardrailTests
         foreach (var relative in new[]
         {
             "src/MediaEngine.Web/Services/Editing/EditorHeaderView.cs",
-            "src/MediaEngine.Web/Components/Details/EditorPanelHost.razor",
-            "src/MediaEngine.Web/Components/Details/EditorWindowChrome.razor",
+            "src/MediaEngine.Web/Components/Editor/EditorPanelHost.razor",
+            "src/MediaEngine.Web/Components/Editor/EditorWindowChrome.razor",
         })
         {
             var source = File.ReadAllText(Path.Combine(RepoRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
@@ -78,8 +78,8 @@ public sealed partial class EditorV5HeaderGuardrailTests
     [Fact]
     public void TheHeaderReadsItsThresholdsFromTheEngineConfig_AndTheGradientFromThePaletteConfig()
     {
-        var nav = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "EditorHeaderNav.razor"));
-        var header = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "EditorItemHeader.razor"));
+        var nav = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Editor", "EditorHeaderNav.razor"));
+        var header = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Editor", "EditorItemHeader.razor"));
 
         Assert.Contains("GetEditorNavLevelAsync", nav, StringComparison.Ordinal);
         Assert.Contains("PaletteProvider.Current.EditorHeader", header, StringComparison.Ordinal);
@@ -90,7 +90,7 @@ public sealed partial class EditorV5HeaderGuardrailTests
     {
         // The editor window is at most 1280px wide, so a container query that switches below 1279px is true at every size and the layout never
         // widens. The editor's own style sheets use the 1180px screen breakpoint, which is where the window becomes full screen.
-        var offenders = Directory.EnumerateFiles(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details"), "Editor*.css", SearchOption.AllDirectories)
+        var offenders = Directory.EnumerateFiles(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Editor"), "Editor*.css", SearchOption.AllDirectories)
             .Where(path => ContainerQuery().IsMatch(File.ReadAllText(path)))
             .Select(path => Path.GetRelativePath(RepoRoot, path))
             .ToList();
