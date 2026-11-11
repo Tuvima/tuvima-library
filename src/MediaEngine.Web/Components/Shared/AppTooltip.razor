@@ -1,9 +1,8 @@
 @namespace MediaEngine.Web.Components.Shared
-@using Microsoft.JSInterop
-@implements IAsyncDisposable
-@inject IJSRuntime JS
 
-<span @ref="_root" class="@($"playback-tooltip-owner {Class}".Trim())" data-playback-tooltip="@Text" data-playback-tooltip-placement="@Placement.ToString().ToLowerInvariant()" data-playback-tooltip-suppressed="@(Suppressed ? "true" : "false")" @attributes="AdditionalAttributes">
+@* Markup only. The one tooltip controller in wwwroot/js/playback-tooltip.js listens on the whole document and reads these data
+   attributes, so a tooltip costs no script import, no attach call and no listener of its own. *@
+<span class="@($"playback-tooltip-owner {Class}".Trim())" data-playback-tooltip="@Text" data-playback-tooltip-placement="@Placement.ToString().ToLowerInvariant()" data-playback-tooltip-suppressed="@(Suppressed ? "true" : "false")" @attributes="AdditionalAttributes">
     @ChildContent
 </span>
 
@@ -15,25 +14,4 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool Suppressed { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
-    private ElementReference _root;
-    private IJSObjectReference? _module;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-        try
-        {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-tooltip.js");
-            if (_module is not null) await _module.InvokeVoidAsync("attach", _root);
-        }
-        catch (InvalidOperationException) { }
-        catch (JSDisconnectedException) { }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_module is null) return;
-        try { await _module.InvokeVoidAsync("detach", _root); await _module.DisposeAsync(); }
-        catch (JSDisconnectedException) { }
-    }
 }
