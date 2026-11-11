@@ -1875,6 +1875,7 @@ window.listenPlayback = (function () {
             if (streamUrl && element.dataset.playbackSource !== streamUrl) {
                 ensureAudioSource(element, streamUrl);
             }
+            if (element._tuvimaSourceReady) await element._tuvimaSourceReady;
 
             if (typeof volume === 'number') {
                 element.volume = Math.max(0, Math.min(1, volume));
@@ -1973,39 +1974,74 @@ window.listenPlayback = (function () {
         element._tuvimaCaptionTimer = setTimeout(poll, 2000);
     }
 
+    // hls.js needs Media Source Extensions. Where the browser has none, the address goes straight to the element
+    // (as it did when hls.js reported itself unsupported) and the 620 KB file is never downloaded.
+    function browserMayUseHlsJs() {
+        return !!(window.MediaSource || window.ManagedMediaSource || window.WebKitMediaSource);
+    }
+
+    function setNativeSource(element, streamUrl) {
+        if (element.getAttribute('src') !== streamUrl) {
+            element.setAttribute('src', streamUrl);
+            element.load();
+            if (/\.m3u8(?:[?#]|$)/i.test(streamUrl)) discoverPreparedCaptions(element, streamUrl);
+        }
+    }
+
+    // Loads hls.js once, on first use, then attaches it. The element's source marker was set before the wait, so a
+    // newer source (or a release) that changed it while the file loaded wins and this one stops quietly.
+    async function attachHlsWhenLoaded(element, streamUrl) {
+        try {
+            await window.tuvimaLazy.loadHls();
+        } catch (error) {
+            console.error('Video player library failed to load.', error);
+            if (element.dataset.playbackSource !== streamUrl) return;
+            element.dataset.playbackError = 'Video player failed to load';
+            element.dispatchEvent(new Event('error'));
+            return;
+        }
+        if (element.dataset.playbackSource !== streamUrl || element._tuvimaHls) return;
+        if (!window.Hls.isSupported()) {
+            setNativeSource(element, streamUrl);
+            return;
+        }
+        const hls = new Hls({ startPosition: 0, enableWorker: true });
+        element._tuvimaHls = hls;
+        hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data.fatal) {
+                element.dataset.playbackError = data.details || 'Video stream failed';
+                element.dispatchEvent(new Event('error'));
+            }
+        });
+        hls.loadSource(streamUrl);
+        hls.attachMedia(element);
+        discoverPreparedCaptions(element, streamUrl);
+    }
+
     function ensureAudioSource(element, streamUrl) {
-        if (!element || !streamUrl) return;
+        if (!element || !streamUrl) return Promise.resolve();
 
         try {
-            if (element.dataset.playbackSource === streamUrl) return;
+            if (element.dataset.playbackSource === streamUrl) return element._tuvimaSourceReady || Promise.resolve();
             clearPreparedCaptions(element);
             if (element._tuvimaHls) {
                 element._tuvimaHls.destroy();
                 element._tuvimaHls = null;
             }
             element.dataset.playbackSource = streamUrl;
-            if (/\.m3u8(?:[?#]|$)/i.test(streamUrl) && window.Hls?.isSupported()) {
-                const hls = new Hls({ startPosition: 0, enableWorker: true });
-                element._tuvimaHls = hls;
-                hls.on(Hls.Events.ERROR, (_, data) => {
-                    if (data.fatal) {
-                        element.dataset.playbackError = data.details || 'Video stream failed';
-                        element.dispatchEvent(new Event('error'));
-                    }
+            if (/\.m3u8(?:[?#]|$)/i.test(streamUrl) && browserMayUseHlsJs()) {
+                // Playback starts wait on this: the player is attached only once hls.js has loaded.
+                const ready = attachHlsWhenLoaded(element, streamUrl).finally(() => {
+                    if (element._tuvimaSourceReady === ready) element._tuvimaSourceReady = null;
                 });
-                hls.loadSource(streamUrl);
-                hls.attachMedia(element);
-                discoverPreparedCaptions(element, streamUrl);
-                return;
+                element._tuvimaSourceReady = ready;
+                return ready;
             }
-            if (element.getAttribute('src') !== streamUrl) {
-                element.setAttribute('src', streamUrl);
-                element.load();
-                if (/\.m3u8(?:[?#]|$)/i.test(streamUrl)) discoverPreparedCaptions(element, streamUrl);
-            }
+            setNativeSource(element, streamUrl);
         } catch (error) {
             console.debug("Audio source sync was rejected.", error);
         }
+        return Promise.resolve();
     }
 
     function numberFromDataset(value, fallback) {

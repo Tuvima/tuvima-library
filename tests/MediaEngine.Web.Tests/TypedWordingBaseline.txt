@@ -1,6 +1,5 @@
 # Typed-in wording that still has to move into SharedStrings.resx (file|count). Counts may only go down; delete a line when it reaches 0.
 # What is left: sentences built around a plural or date format (need plural keys), a few lists that are static fields, and one script tag the scanner mistakes for words.
-src/MediaEngine.Web/Components/App.razor|1
 src/MediaEngine.Web/Components/Companion/CompanionScreen.razor|1
 src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor|1
 src/MediaEngine.Web/Components/Details/MediaMembershipDialog.razor|1

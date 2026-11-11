@@ -270,7 +270,8 @@ export async function initialize(container, dotnet, options) {
   const state = { map: null, dotnet, mode, markers: [], overviewLabels: [], hotspots: (options.hotspots ?? []).map(normalizedHotspot), locationMarker: null, resizeObserver: null, detailedStyle: false, fallbackApplied: false, journeyEnabled: options.journeyEnabled === true };
   states.set(container, state);
   try {
-    const styleSelection = await preferredStyle();
+    // The MapLibre stylesheet loads only when a map mounts; wait for it so the map never draws unstyled.
+    const [styleSelection] = await Promise.all([preferredStyle(), window.tuvimaLazy.loadMapLibreStyles()]);
     state.detailedStyle = styleSelection.detailed;
     state.fallbackApplied = !styleSelection.detailed;
     const requestedZoom = Number(options.zoom ?? 11);
