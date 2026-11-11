@@ -1596,7 +1596,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     public void ListenPlayer_RemainsInPersistentBottomHostOnListenRoutes()
     {
         var listenPageSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
-        var hostSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor"));
+        var hostSource = LocalizedSource.ReadComponent(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor"));
         var hostCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor.css"));
 
         Assert.DoesNotContain("<ListenNowPlayingPanel", listenPageSource, StringComparison.Ordinal);

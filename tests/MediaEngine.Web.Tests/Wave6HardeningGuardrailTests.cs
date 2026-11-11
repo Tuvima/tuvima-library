@@ -55,7 +55,7 @@ public sealed class Wave6HardeningGuardrailTests
         var appJs = Read("src/MediaEngine.Web/wwwroot/app.js");
         var playbackJs = Read("src/MediaEngine.Web/wwwroot/js/playback-core.js");
         var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor");
-        var nowPlaying = Read("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
+        var nowPlaying = LocalizedSource.ReadComponent(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor"));
 
         Assert.Contains("window.unregisterCtrlK", appJs);
         Assert.Contains("unregisterStateHandler", playbackJs);
@@ -81,7 +81,7 @@ public sealed class Wave6HardeningGuardrailTests
                 SearchOption.AllDirectories));
 
         var offenders = componentPaths
-            .Select(path => new { Path = path, Text = File.ReadAllText(path) })
+            .Select(path => new { Path = path, Text = LocalizedSource.ReadComponent(path) })
             .Where(file => file.Text.Contains("DotNetObjectReference", StringComparison.Ordinal)
                 && !DotNetDisposeRegex.IsMatch(file.Text))
             .Select(file => Path.GetRelativePath(RepoRoot, file.Path))

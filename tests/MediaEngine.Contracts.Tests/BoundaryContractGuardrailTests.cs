@@ -56,12 +56,12 @@ public sealed partial class BoundaryContractGuardrailTests
     }
 
     [Fact]
-    public void ListenBarRazorScannerRetainsTypedPlaybackStreamReaderInsideCodeBlock()
+    public void ListenBarScannerRetainsTypedPlaybackStreamReaderInTheBrowserClientCode()
     {
         var source = File.ReadAllText(Path.Combine(
             RepoRoot,
-            "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
-        var scrubbed = ScrubCommentsAndLiterals(MaskRazorMarkup(source));
+            "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.Browser.cs"));
+        var scrubbed = ScrubCommentsAndLiterals(source);
 
         Assert.Contains("listenPlayback.hasState", source, StringComparison.Ordinal);
         Assert.Contains("InvokeAsync<IJSStreamReference>", scrubbed, StringComparison.Ordinal);
