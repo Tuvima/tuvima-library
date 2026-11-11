@@ -278,9 +278,6 @@
     "src/MediaEngine.Web/Components/Shared/AppSearchFilterRow.razor": [
       "app-search-filter-row__search"
     ],
-    "src/MediaEngine.Web/Components/Shared/AppToastHost.razor": [
-      "app-toast__icon"
-    ],
     "src/MediaEngine.Web/Components/Shared/DeleteFromLibraryDialog.razor": [
       "delete-library__more"
     ],

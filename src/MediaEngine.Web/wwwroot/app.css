@@ -98,13 +98,8 @@ body {
 .tl-dialog,
 .tl-table-container,
 .tl-input-slot,
-.tl-select-input,
-.tl-snackbar {
+.tl-select-input {
     border-radius: var(--tl-radius-md);
-}
-
-.tl-snackbar-container {
-    z-index: var(--tl-z-toast) !important;
 }
 
 .tl-popover {
