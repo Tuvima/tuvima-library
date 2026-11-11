@@ -1,0 +1,21 @@
+@namespace MediaEngine.Web.Components.Player
+@inject IStringLocalizer<SharedStrings> L
+
+@* The rating card at the top-left of the video overlay (unified player v2 D25; issue 707): "Rated TV-MA" from the title's content rating, never the
+   audience score. It shows for the first seconds of playback and while paused, and a title with no content rating draws nothing. *@
+@if (Text is { } text)
+{
+    <div class="video-rating-card" data-rating-card data-paused="@(Playing ? "false" : "true")" aria-hidden="true">
+        <i></i><strong>@text</strong>
+    </div>
+}
+
+@code {
+    /// <summary>The content rating from the title's data (R, PG-13, TV-MA). The audience score is never passed here.</summary>
+    [Parameter] public string? ContentRating { get; set; }
+
+    /// <summary>True while the video plays (the card fades after its first seconds); false while paused (the card stays).</summary>
+    [Parameter] public bool Playing { get; set; }
+
+    private string? Text => string.IsNullOrWhiteSpace(ContentRating) ? null : L["VideoPlaybackHost_Rated", ContentRating.Trim()].Value;
+}

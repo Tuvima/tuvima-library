@@ -53,7 +53,7 @@ public sealed partial class EditorV4RetiredPiecesGuardrailTests
     [Fact]
     public void TheV4EditorPiecesThatReplacedThemStillExist()
     {
-        var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details");
+        var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Editor");
         foreach (var name in new[] { "EditorHeaderNav", "EditorUniverseRail", "EditorItemHeader", "EditorQuickFacts", "EditorArtworkTool", "EditorMatchPanel" })
         {
             Assert.True(File.Exists(Path.Combine(details, name + ".razor")), name + " is part of the editor and must stay.");
@@ -64,10 +64,10 @@ public sealed partial class EditorV4RetiredPiecesGuardrailTests
     [Fact]
     public void TheV5EditorDoesNotBringBackTheFamilyRailOrTheContentsAndFilesTabs()
     {
-        var details = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details");
+        var components = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components");
         foreach (var name in new[] { "EditorFamilyRail", "EditorContentsTab", "EditorFilesTab" })
         {
-            Assert.False(File.Exists(Path.Combine(details, name + ".razor")), name + " went with editor v5 and must not return.");
+            Assert.True(Directory.GetFiles(components, name + ".razor", SearchOption.AllDirectories).Length == 0, name + " went with editor v5 and must not return.");
         }
     }
 

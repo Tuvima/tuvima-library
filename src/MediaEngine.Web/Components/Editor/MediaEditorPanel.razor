@@ -1,0 +1,45 @@
+﻿@namespace MediaEngine.Web.Components.Editor
+
+<section class="@RootClass">
+    @if (!string.IsNullOrWhiteSpace(Title) || !string.IsNullOrWhiteSpace(Description) || Actions is not null)
+    {
+        <div class="sme-panel__header">
+            <div class="sme-panel__copy">
+                @if (!string.IsNullOrWhiteSpace(Title))
+                {
+                    <div class="sme-panel-title-row">
+                        <div class="sme-group-title">@Title</div>
+                        @if (!string.IsNullOrWhiteSpace(Description))
+                        {
+                            <AppTooltip Text="@Description">
+                                <span class="sme-field-info" aria-label="@($"{Title} details")">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Class="tl-u-font-size-14px" />
+                                </span>
+                            </AppTooltip>
+                        }
+                    </div>
+                }
+            </div>
+            @if (Actions is not null)
+            {
+                <div class="sme-panel__actions">
+                    @Actions
+                </div>
+            }
+        </div>
+    }
+    <div class="sme-panel__body">
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string RootClass =>
+        string.Join(" ", new[] { "sme-group", "sme-panel", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

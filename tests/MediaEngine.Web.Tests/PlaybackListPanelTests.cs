@@ -1,8 +1,8 @@
 using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Listen;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Components.Watch;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;

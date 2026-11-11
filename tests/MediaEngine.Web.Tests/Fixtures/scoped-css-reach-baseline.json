@@ -41,10 +41,6 @@
     "src/MediaEngine.Web/Components/Details/AudioItemTable.razor": [
       "tl-detail-track-row__play"
     ],
-    "src/MediaEngine.Web/Components/Details/BulkEditPanel.razor": [
-      "tl-bulk__cover",
-      "tl-bulk__face"
-    ],
     "src/MediaEngine.Web/Components/Details/DetailHeroSkeleton.razor": [
       "tl-detail-skeleton__artwork",
       "tl-detail-skeleton__button",
@@ -60,12 +56,16 @@
       "tl-detail-primary-module__find",
       "tl-detail-primary-module__sort"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorArtworkTool.razor": [
+    "src/MediaEngine.Web/Components/Editor/BulkEditPanel.razor": [
+      "tl-bulk__cover",
+      "tl-bulk__face"
+    ],
+    "src/MediaEngine.Web/Components/Editor/EditorArtworkTool.razor": [
       "is-on",
       "tl-art-picker__action",
       "tl-art-picker__prefer"
     ],
-    "src/MediaEngine.Web/Components/Details/EditorUniverseRail.razor": [
+    "src/MediaEngine.Web/Components/Editor/EditorUniverseRail.razor": [
       "is-current",
       "is-selected",
       "tl-urail__add",
@@ -190,6 +190,9 @@
     "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor": [
       "watch-player-state"
     ],
+    "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor": [
+      "video-playback-restore__button"
+    ],
     "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor": [
       "collection-rule-builder__add-condition",
       "collection-rule-builder__add-secondary",
@@ -305,9 +308,6 @@
     ],
     "src/MediaEngine.Web/Components/Vault/VaultImageViewer.razor": [
       "vault-viewer"
-    ],
-    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor": [
-      "video-playback-restore__button"
     ],
     "src/MediaEngine.Web/Shared/MainLayout.razor": [
       "layout-shell__actions",

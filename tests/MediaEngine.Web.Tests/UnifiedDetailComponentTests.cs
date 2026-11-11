@@ -1044,9 +1044,9 @@ public sealed class UnifiedDetailComponentTests
         var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
-        var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
-        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor");
-        var phonePlayer = fullPlayer + contextPanel + ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
+        var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor");
+        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Player/ChaptersPanel.razor");
+        var phonePlayer = fullPlayer + contextPanel + ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
         var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
         var playbackService = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs");
@@ -1054,14 +1054,14 @@ public sealed class UnifiedDetailComponentTests
         var detailStyles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var detailHeroStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var heroMetadata = ReadSource("src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor");
-        var playerBar = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
-        var playerStyles = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css");
-        var playbackSkipButton = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor");
-        var playbackSkipButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css");
-        var playbackPrimaryButton = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor");
-        var playbackPrimaryButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css");
-        var playbackSpeedView = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
-        var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerView.razor");
+        var playerBar = ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
+        var playerStyles = ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css");
+        var playbackSkipButton = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor");
+        var playbackSkipButtonStyles = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor.css");
+        var playbackPrimaryButton = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor");
+        var playbackPrimaryButtonStyles = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css");
+        var playbackSpeedView = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackSpeedView.razor");
+        var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Player/SleepTimerPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Player/SleepTimerView.razor");
         var playbackRangeSlider = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor");
         var playbackRangeSliderStyles = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css");
         var playerScript = ReadSource("src/MediaEngine.Web/wwwroot/js/playback-core.js");
@@ -1197,7 +1197,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ValueFormatter=\"PlaybackSpeedChoices.Format\"", playbackSpeedView);
         Assert.DoesNotContain("Quick presets", playbackSpeedView);
         Assert.DoesNotContain("ResetValue", playbackSpeedView);
-        var playbackSleepTimerChoices = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs");
+        var playbackSleepTimerChoices = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackSleepTimerChoices.cs");
         Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerChoices);
         Assert.Contains("Availability.CanEndCurrent", playbackSleepTimerControl);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", playbackSleepTimerControl);
@@ -1313,13 +1313,13 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void PhonePlayerUsesSharedFullPlayerAndAuthorizedTools()
     {
-        var host = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
+        var host = ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
         var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor");
-        var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor");
+        var speed = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackSpeedView.razor");
 
         // The phone's Now playing draws the catalog's transport and its one row of tools; the bar's own panels (Speed, Sleep timer, Chapters, Lyrics, Queue)
         // reach it through the shared fragments, so a tool opens the same sheet in both places (unified player v2 D26).
-        var full = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
+        var full = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor");
         Assert.Contains("<PlaybackFullPlayer", host);
         Assert.Contains("<PlaybackToolRow", full);
         Assert.Contains("<PlaybackPrimaryButton Size=\"phone\"", full);
@@ -1329,7 +1329,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("PlaybackVolumeControl", full);
         Assert.DoesNotContain("<PlaybackSleepTimerControl", full);
         Assert.Contains("<AppRangeSlider", speed);
-        Assert.Contains("Availability.CanEndCurrent", ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerView.razor"));
+        Assert.Contains("Availability.CanEndCurrent", ReadSource("src/MediaEngine.Web/Components/Player/SleepTimerView.razor"));
         Assert.Contains("<SleepTimerPanel", host);
         Assert.Contains("<BookmarksPanel", host);
         Assert.DoesNotContain("AudiobookBookmarkDialog", host);

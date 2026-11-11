@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 
 namespace MediaEngine.Web.Tests;

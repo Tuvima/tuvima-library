@@ -72,10 +72,10 @@ public sealed class BrowserFrameGuardrailTests
 
         Assert.Contains("<AppBrowserFrame", files["Components/Shared/ServerFolderPicker.razor"], StringComparison.Ordinal);
         Assert.Contains("<AppBrowserFolderRow", files["Components/Shared/ServerFolderPicker.razor"], StringComparison.Ordinal);
-        Assert.Contains("<AppBrowserFrame", files["Components/Details/EditorFileBrowserDialog.razor"], StringComparison.Ordinal);
-        Assert.Contains("<AppBrowserItemRow", files["Components/Details/EditorFileBrowserTable.razor"], StringComparison.Ordinal);
-        Assert.Contains("<AppBrowserFrame", files["Components/Details/EditorFileBrowserFolders.razor"], StringComparison.Ordinal);
-        Assert.Contains("<AppBrowserFolderRow", files["Components/Details/EditorFileBrowserFolders.razor"], StringComparison.Ordinal);
+        Assert.Contains("<AppBrowserFrame", files["Components/Editor/EditorFileBrowserDialog.razor"], StringComparison.Ordinal);
+        Assert.Contains("<AppBrowserItemRow", files["Components/Editor/EditorFileBrowserTable.razor"], StringComparison.Ordinal);
+        Assert.Contains("<AppBrowserFrame", files["Components/Editor/EditorFileBrowserFolders.razor"], StringComparison.Ordinal);
+        Assert.Contains("<AppBrowserFolderRow", files["Components/Editor/EditorFileBrowserFolders.razor"], StringComparison.Ordinal);
     }
 
     [Fact]

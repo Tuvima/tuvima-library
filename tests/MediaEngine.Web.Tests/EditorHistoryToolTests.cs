@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
@@ -73,11 +74,12 @@ public sealed class EditorHistoryToolTests : AsyncBunitContext
     public void TheOldAllInOneEditorShell_IsGone()
     {
         var root = RepoRoot();
-        var editor = Path.Combine(root, "src/MediaEngine.Web/Components/MediaEditor");
+        var editor = Path.Combine(root, "src/MediaEngine.Web/Components/Editor");
 
         Assert.Empty(Directory.GetFiles(editor, "SharedMediaEditorShell*"));
         Assert.False(Directory.Exists(Path.Combine(editor, "Sections")));
         Assert.False(File.Exists(Path.Combine(root, "src/MediaEngine.Web/Components/Details/EditingSectionSlot.razor")));
+        Assert.False(File.Exists(Path.Combine(root, "src/MediaEngine.Web/Components/Editor/EditingSectionSlot.razor")));
     }
 
     private static string RepoRoot()

@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Matching;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;

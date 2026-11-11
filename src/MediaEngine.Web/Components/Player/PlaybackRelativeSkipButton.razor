@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Player
+
+<span class="@RootClass">
+    <AppTooltip Text="@TooltipText">
+    <AppNativeButton Type="button"
+                     Class="@ButtonClass"
+                     Disabled="@Disabled"
+                     OnClick="@HandleClickAsync"
+                     AriaLabel="@AriaLabel"
+                     data-playback-seek-delta="@SeekDelta">
+        @if (IsBar)
+        {
+            @* Unified player v2 D6: the same 24 px stroke glyph as every other bar control, with the seconds written over it. *@
+            <svg class="playback-relative-skip__bar-glyph" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                @if (IsForward) { <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3l2.2 2.2" /><path d="M19.5 4v5h-5" /> }
+                else { <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.9" /><path d="M4.5 4v5h5" /> }
+            </svg>
+            <span class="playback-relative-skip__bar-number" aria-hidden="true">@NormalizedSeconds</span>
+        }
+        else
+        {
+        <svg class="playback-relative-skip__svg" width="56" height="56" viewBox="0 0 56 56" focusable="false" aria-hidden="true">
+            <g class="playback-relative-skip__glyph">
+                <path class="playback-relative-skip__arc" d="@ArcPath" />
+                <path class="playback-relative-skip__arrow" d="@ArrowPath" />
+            </g>
+            <text class="@NumberClass" x="28" y="29.4" text-anchor="middle" dominant-baseline="middle">@NormalizedSeconds</text>
+        </svg>
+        }
+    </AppNativeButton>
+    </AppTooltip>
+</span>
+
+@code {
+    [Parameter] public int Seconds { get; set; }
+    [Parameter] public string Direction { get; set; } = "forward";
+    [Parameter] public string Size { get; set; } = "standard";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private int NormalizedSeconds => Math.Clamp(Math.Abs(Seconds), 1, 999);
+    private bool IsForward => !string.Equals(Direction, "back", StringComparison.OrdinalIgnoreCase);
+    private string NormalizedDirection => IsForward ? "forward" : "back";
+    private string NormalizedSize => Size switch
+    {
+        "compact" => "compact",
+        "large" => "large",
+        "bar" => "bar",
+        _ => "standard",
+    };
+    private bool IsBar => NormalizedSize == "bar";
+
+    private string TooltipText => IsBar ? $"{(IsForward ? "Skip forward" : "Skip back")} {NormalizedSeconds} s" : AriaLabel;
+    private int SeekDelta => IsForward ? NormalizedSeconds : -NormalizedSeconds;
+    private string AriaLabel => IsForward
+        ? $"Skip forward {NormalizedSeconds} seconds"
+        : $"Skip back {NormalizedSeconds} seconds";
+    private string ArcPath => IsForward
+        ? "M47 29A19 19 0 1 1 28 9"
+        : "M9 29A19 19 0 1 0 28 9";
+    private string ArrowPath => IsForward
+        ? "M27 4.8L36.5 8.5L27 12.2Z"
+        : "M29 4.8L19.5 8.5L29 12.2Z";
+    private int DigitCount => NormalizedSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture).Length;
+    private string DigitClass => DigitCount switch
+    {
+        1 => "playback-relative-skip__number--one-digit",
+        3 => "playback-relative-skip__number--three-digit",
+        _ => "playback-relative-skip__number--two-digit",
+    };
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "playback-relative-skip",
+        $"playback-relative-skip--{NormalizedSize}",
+        $"playback-relative-skip--{NormalizedDirection}",
+        Disabled ? "is-disabled" : null,
+        Class,
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string ButtonClass => $"playback-relative-skip__button playback-relative-skip__button--{NormalizedDirection}";
+    private string NumberClass => $"playback-relative-skip__number {DigitClass}";
+    private Task HandleClickAsync(MouseEventArgs _) => OnClick.InvokeAsync();
+}

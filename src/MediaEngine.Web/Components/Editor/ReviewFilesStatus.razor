@@ -1,0 +1,42 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject ILogger<ReviewFilesStatus> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one write-back control in the editor (universal editor spec D15). The setting itself, "Save changes into the files", lives per
+   library in Settings; here it is only a small read-only line with a link to Settings. When the library does update its files, one
+   checkbox lets this save skip them this once. It is the same line for every item type and every way into the editor (a detail page,
+   a list's selection bar, Needs Review's fix), because they all save through Review changes. Nothing is drawn when the setting cannot
+   be read, so the dialog never claims something it does not know. *@
+@if (_setting.Text is { } text)
+{
+    <div class="review-changes__files-block">
+        <p class="review-changes__files" data-write-back="@(_setting.IsOn ? "on" : "off")">@L["ReviewFilesStatus_FilesWillBeUpdated"] <strong>@text</strong></p>
+        <AppLink Href="@FileWriteSetting.SettingsHref" Class="review-changes__files-link">@L["ReviewFilesStatus_ChangeInSettings"]</AppLink>
+    </div>
+    @if (_setting.CanOverride)
+    {
+        <AppCheckbox Value="@(Source.WriteIntoFiles != false)"
+                     ValueChanged="OnOverrideChanged"
+                     Label="@L["ReviewFilesStatus_UpdateTheFilesWhenThis"].Value"
+                     Disabled="@Disabled"
+                     Class="review-changes__files-override" />
+    }
+}
+
+@code {
+    private FileWriteSetting _setting = FileWriteSetting.Unknown;
+
+    /// <summary>The pending list's holder: its media types say which library applies, and it keeps this save's own answer.</summary>
+    [Parameter, EditorRequired] public IReviewSource Source { get; set; } = default!;
+
+    /// <summary>True while the dialog is checking or saving, so the answer cannot change under it.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    protected override async Task OnInitializedAsync() =>
+        _setting = await FileWriteSettingReader.ReadAsync(ApiClient, Logger, Source.FileWriteMediaTypes);
+
+    private void OnOverrideChanged(bool update) => Source.WriteIntoFiles = update ? null : false;
+}

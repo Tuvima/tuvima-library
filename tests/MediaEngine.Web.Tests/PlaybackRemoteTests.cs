@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
@@ -393,7 +394,7 @@ public sealed class PlaybackRemoteTests : AsyncBunitContext
         var remote = Arrange();
         var item = Item("Music");
         var snapshot = new ListenPlaybackSnapshot { ProfileId = Guid.NewGuid(), CurrentIndex = 0, Queue = [item] };
-        var cut = Render<MediaEngine.Web.Components.Listen.PlaybackFullPlayer>(p => p
+        var cut = Render<MediaEngine.Web.Components.Player.PlaybackFullPlayer>(p => p
             .Add(x => x.Snapshot, snapshot)
             .Add(x => x.Commands, new IdleSink())
             .Add(x => x.State, new PlaybackBarState(CanPrevious: true, CanNext: true)));

@@ -36,7 +36,7 @@ public sealed class ProfileEndpointRouteTests
     public void ReadersAndPlayers_SaveProgressMetadataForOverviewStats()
     {
         var watchSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor"));
-        var videoHostSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var videoHostSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
         var playerServiceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Playback/PlayerService.cs"));
         var readerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/BookReader.razor"));
 

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 

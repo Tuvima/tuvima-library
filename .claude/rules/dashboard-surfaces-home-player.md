@@ -4,7 +4,7 @@ paths:
   - "src/MediaEngine.Web/Components/Cinematic/**"
   - "src/MediaEngine.Web/Components/MediaHub/**"
   - "src/MediaEngine.Web/Components/MediaTiles/**"
-  - "src/MediaEngine.Web/Components/Watch/**"
+  - "src/MediaEngine.Web/Components/Player/**"
   - "src/MediaEngine.Web/Components/Listen/**"
   - "src/MediaEngine.Web/Components/Navigation/**"
   - "src/MediaEngine.Web/Components/Layout/**"

@@ -53,7 +53,7 @@ public sealed class EditorEntryPointGuardrailTests
     [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor")]
     [InlineData("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor")]
     [InlineData("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs")]
-    [InlineData("src/MediaEngine.Web/Components/Listen/PlaybackLyricsFooter.razor")]
+    [InlineData("src/MediaEngine.Web/Components/Player/PlaybackLyricsFooter.razor")]
     public void AListsEntryPoint_OpensThePopOverThroughTheLauncher_AndNeverSendsThePersonToAnItemsPageToEdit(string file)
     {
         var text = Read(file);

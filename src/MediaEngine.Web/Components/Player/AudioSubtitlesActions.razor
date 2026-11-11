@@ -1,0 +1,24 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
+
+@* The footer of Audio & subtitles (unified player v2 D12; mockup screen 3): Subtitle appearance on the left, Find subtitles… on the right, each a
+   20 px glyph and a 14 px label. On a phone sheet (mockup screen 15) they are two 52 px rows under a hairline. *@
+<div class="asa" data-layout="@(IsSheet ? "rows" : "bar")">
+    <AppNativeButton Type="button" Class="asa__action" data-asa-action="appearance" OnClick="OnAppearance">
+        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.SubtitleAppearance" />
+        <span>@L["AudioSubtitles_SubtitleAppearance"]</span>
+    </AppNativeButton>
+    @if (!IsSheet) { <span class="asa__spacer"></span> }
+    <AppNativeButton Type="button" Class="asa__action" data-asa-action="find" OnClick="OnFind">
+        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Search" />
+        <span>@L["AudioSubtitles_FindSubtitles"]</span>
+    </AppNativeButton>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnAppearance { get; set; }
+    [Parameter] public EventCallback OnFind { get; set; }
+
+    [CascadingParameter(Name = "PlaybackPanelSheet")] public bool IsSheet { get; set; }
+}

@@ -1,0 +1,39 @@
+@namespace MediaEngine.Web.Components.Player
+@using System.Linq
+@using Microsoft.AspNetCore.Components.Web
+
+<span class="playback-sheet-handle-button-shell">
+    <AppNativeButton Type="button"
+                     Class="@ButtonClass"
+                     OnClick="@HandleClickAsync"
+                     AriaLabel="@Label"
+                     Tooltip="@Label"
+                     @attributes="AdditionalAttributes">
+        <span class="playback-sheet-handle-button__bar"></span>
+    </AppNativeButton>
+</span>
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = "Close sheet";
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string ButtonClass => string.Join(" ", new[]
+    {
+        "playback-sheet-handle-button",
+        Class,
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private Task HandleClickAsync(MouseEventArgs _)
+    {
+        return OnClick.InvokeAsync();
+    }
+}

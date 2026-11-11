@@ -1,0 +1,234 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Editing N files" (universal editor v5 WP8, screen F): the Details of several supporting files edited together. Group, Role, Belongs to, Shown
+   alongside and Tags are shared fields: a value the files share shows as it is, a value they differ in says "Mixed · leave unchanged", and
+   leaving a field alone changes nothing. Title and Description are not offered for several files. Every change is staged, one per file, and
+   Review changes lists one line per change. Role is offered only when the files are of one kind, because the roles are a short list by kind. A
+   Belongs to change in a Managed folder shows the planned move in the amber footer and in Review; a Read-only folder never moves a file. *@
+<div class="tl-editor-details-layout tl-fbatch" data-testid="files-batch" data-file-count="@Rows.Count">
+    <div class="tl-editor-details">
+        <p class="tl-fbatch__note" data-hint="no-title">@L["EditorFilesBatch_NoTitle"]</p>
+
+        <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
+            <div class="tl-editor-field" data-field-key="group">
+                <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Group"]</span></div>
+                <AppAutocomplete TItem="string" Value="@(Group ?? string.Empty)" ValueChanged="@PickGroup"
+                                 SearchFunc="@FindGroups" ToStringFunc="@GroupText"
+                                 CoerceValue="true" ResetValueOnEmptyText="true" Disabled="@(!CanEdit)"
+                                 Placeholder="@(Group is null ? L["EditorFilesBatch_Mixed"].Value : L["EditorSupportingFile_NoGroup"].Value)"
+                                 aria-label="@L["EditorSupportingFile_Group"].Value">
+                    <ItemTemplate Context="item">
+                        @if (IsNoGroup(item))
+                        {
+                            <span data-group-none="true">@L["EditorSupportingFile_NoGroup"]</span>
+                        }
+                        else if (IsNewGroup(item))
+                        {
+                            <span data-group-create="true">@string.Format(L["EditorFilesBatch_GroupCreate"].Value, GroupText(item))</span>
+                        }
+                        else
+                        {
+                            <span>@item</span>
+                        }
+                    </ItemTemplate>
+                </AppAutocomplete>
+            </div>
+
+            <div class="tl-editor-field" data-field-key="role">
+                <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Role"]</span></div>
+                @if (State.FacetsForTicked is { } facets)
+                {
+                    <AppSelect T="string" Value="@Role" ValueChanged="@(value => State.StageRole(value))" Options="@RoleOptions(facets)"
+                               Placeholder="@L["EditorFilesBatch_Mixed"].Value" Disabled="@(!CanEdit)" AriaLabel="@L["EditorSupportingFile_Role"].Value" />
+                }
+                else
+                {
+                    <span class="tl-editor-field__note" data-hint="role">@L["EditorBrowser_RoleOneType"]</span>
+                }
+            </div>
+
+            <div class="tl-editor-field" data-field-key="scope">
+                <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_BelongsTo"]</span></div>
+                <AppAutocomplete TItem="string" Value="@(Scope ?? string.Empty)" ValueChanged="@PickScope" SearchFunc="@FindPlaces" ToStringFunc="@PlaceText"
+                                 Placeholder="@(Scope is null ? L["EditorFilesBatch_Mixed"].Value : L["EditorBrowser_Search"].Value)"
+                                 Disabled="@(!CanEdit || State.Places.Count == 0)" aria-label="@L["EditorSupportingFile_BelongsTo"].Value" />
+                @if (AllFollowFolder)
+                {
+                    <span class="tl-editor-field__note" data-hint="scope-source">@string.Format(L[Rows.Count == 2 ? "EditorFilesBatch_FromFolderBoth" : "EditorFilesBatch_FromFolderAll"].Value)</span>
+                }
+                @if (State.PreviewFailed)
+                {
+                    <span class="tl-editor-field__note" role="alert" data-hint="preview-failed">@L["EditorBrowser_PreviewFailed"]</span>
+                }
+                @if (MoveCount > 0)
+                {
+                    <span class="tl-editor-field__note" role="status" data-hint="move">@string.Format(L["EditorFilesBatch_WillMove"].Value, MoveCount)</span>
+                }
+            </div>
+
+            @if (ShowsAlongside)
+            {
+                <div class="tl-editor-field" data-field-key="alongside">
+                    <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_ShownAlongside"]</span></div>
+                    <AppSelect T="string" Value="@Alongside" ValueChanged="@(value => State.StageAlongside(value))" Options="@AlongsideOptions"
+                               Placeholder="@L["EditorFilesBatch_Mixed"].Value" Disabled="@(!CanEdit)" AriaLabel="@L["EditorSupportingFile_ShownAlongside"].Value" />
+                </div>
+            }
+
+            <div class="tl-editor-field tl-editor-field--wide" data-field-key="tags">
+                <div class="tl-editor-field__label"><span>@L["EditorBrowser_AddTags"]</span></div>
+                @if (CanEdit)
+                {
+                    <MediaEditorTagEditor Label="@L["EditorBrowser_AddTags"].Value" HideLabel="true" AddLabel="@L["Common_AddTag"].Value"
+                                          HelpText="@L["EditorFilesBatch_TagsHelp"].Value"
+                                          Value="@AddedTags" ValueChanged="@(value => State.StageAddedTags(Split(value)))" />
+                }
+            </div>
+        </section>
+    </div>
+
+    <EditorQuickFacts Model="@FactsModel" />
+</div>
+
+@code {
+    private const string FolderValue = SupportingFileBulkStaging.FolderScopeValue;
+
+    [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    private IReadOnlyList<SupportingFileRowDto> Rows => State.Ticked;
+
+    private string? Group => SupportingFileBulkStaging.Shared(Rows, row => SupportingFileBulkStaging.GroupOf(row, State.StagedOf(row)));
+
+    private string? Role => SupportingFileBulkStaging.Shared(Rows, row => SupportingFileBulkStaging.RoleOf(row, State.StagedOf(row)));
+
+    private string? Scope => SupportingFileBulkStaging.Shared(Rows, row => SupportingFileBulkStaging.ScopeOf(row, State.StagedOf(row)));
+
+    private string? Alongside => SupportingFileBulkStaging.Shared(Rows, row => SupportingFileBulkStaging.AlongsideOf(row, State.StagedOf(row)));
+
+    private int MoveCount => Rows.Count(row => State.StagedOf(row) is { HasMove: true });
+
+    // Hidden when the files belong to an episode, lesson or track (it would only repeat it), or belong to different places.
+    private bool ShowsAlongside => Scope is { } scope && SupportingFileStaging.ShowsAlongside(scope) && AlongsideChoices(scope).Count > 0;
+
+    private string AddedTags => string.Join("; ", Rows.SelectMany(row => State.StagedOf(row)?.AddTags ?? []).Distinct(StringComparer.OrdinalIgnoreCase));
+
+    // The files are where their folder puts them: no one placed them by hand, so the note says where they come from.
+    private bool AllFollowFolder => Rows.Count > 0 && Rows.All(row => row.ScopeSource == "folder" && State.StagedOf(row)?.Row(SupportingFileFields.Scope) is null);
+
+    private async Task PickScope(string? key)
+    {
+        if (CanEdit && !string.IsNullOrEmpty(key) && key != Scope)
+        {
+            await State.StageScopeAsync(key);
+        }
+    }
+
+    private Task<IEnumerable<string>> FindPlaces(string? text, CancellationToken ct)
+    {
+        var typed = (text ?? string.Empty).Trim();
+        var keys = new List<string> { FolderValue };
+        keys.AddRange(State.Places.Select(place => place.Key));
+        return Task.FromResult<IEnumerable<string>>(keys.Where(key => typed.Length == 0 || PlaceText(key).Contains(typed, StringComparison.OrdinalIgnoreCase)).ToList());
+    }
+
+    private string PlaceText(string? key) =>
+        key == FolderValue ? L["EditorSupportingFile_UseFolderLocation"].Value : State.Places.FirstOrDefault(place => place.Key == key)?.Label ?? key ?? string.Empty;
+
+    private IReadOnlyList<EditorSupportingFilePlaceDto> AlongsideChoices(string scope)
+    {
+        var items = State.Places.Where(place => place.Level is "episode" or "file" or "track").ToList();
+        return string.IsNullOrEmpty(scope) || scope == "root" ? items : [.. items.Where(place => string.Equals(place.ParentKey, scope, StringComparison.Ordinal))];
+    }
+
+    private IReadOnlyList<AppSelectOption> AlongsideOptions =>
+        [.. AlongsideChoices(Scope ?? string.Empty).Select(place => new AppSelectOption(place.Key, place.Label))];
+
+    private static IReadOnlyList<AppSelectOption> RoleOptions(EditorFileFacets facets) =>
+        [.. facets.Roles.Select(role => new AppSelectOption(role.Id, role.Label))];
+
+    private static IReadOnlyList<string> Split(string? value) =>
+        (value ?? string.Empty).Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private const string NewGroupPrefix = "\u0001new:";
+    private const string NoGroupItem = "\u0001none";
+
+    private static bool IsNewGroup(string item) => item.StartsWith(NewGroupPrefix, StringComparison.Ordinal);
+
+    private static bool IsNoGroup(string item) => string.Equals(item, NoGroupItem, StringComparison.Ordinal);
+
+    private static string GroupText(string? item) =>
+        item is null || IsNoGroup(item) ? string.Empty : IsNewGroup(item) ? item[NewGroupPrefix.Length..] : item;
+
+    // Staged only when a group is picked (a row, Enter or leaving the field). Clearing the text of a field that showed Mixed leaves every file as it
+    // was; clearing a shared group puts the files in no group.
+    private void PickGroup(string? value)
+    {
+        if (!CanEdit)
+        {
+            return;
+        }
+
+        var name = GroupText(value).Trim();
+        if (value is not null && IsNoGroup(value))
+        {
+            State.StageGroup(string.Empty);
+        }
+        else if (name.Length == 0)
+        {
+            if (Group is null)
+            {
+                State.UnstageGroup();
+            }
+            else if (Group.Length > 0)
+            {
+                State.StageGroup(string.Empty);
+            }
+        }
+        else if (!string.Equals(name, Group, StringComparison.Ordinal))
+        {
+            State.StageGroup(name);
+        }
+    }
+
+    // "No group" is its own row when the files have a group to take off; then the groups of this title that match, then a Create row.
+    private Task<IEnumerable<string>> FindGroups(string? text, CancellationToken ct)
+    {
+        var typed = (text ?? string.Empty).Trim();
+        var matches = new List<string>();
+        if (Rows.Any(row => SupportingFileBulkStaging.GroupOf(row, State.StagedOf(row)).Length > 0) && (typed.Length == 0 || string.Equals(typed, Group, StringComparison.OrdinalIgnoreCase)))
+        {
+            matches.Add(NoGroupItem);
+        }
+
+        matches.AddRange(State.GroupNames.Where(name => typed.Length == 0 || name.Contains(typed, StringComparison.OrdinalIgnoreCase)));
+        if (typed.Length > 0 && !State.GroupNames.Any(name => string.Equals(name, typed, StringComparison.OrdinalIgnoreCase)))
+        {
+            matches.Add(NewGroupPrefix + typed);
+        }
+
+        return Task.FromResult<IEnumerable<string>>(matches);
+    }
+
+    private QuickFactsModel FactsModel => new(
+        QuickFactsKind.SupportingFile,
+        [
+            new QuickFact("files", "InsertDriveFile", Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), EditorFileBrowserRules.FactsLine(Rows)),
+            new QuickFact("size", "Storage", EditorFileBrowserRules.SizeLine(L, Rows), L["EditorFilesBatch_TotalSize"].Value),
+        ],
+        []);
+
+    protected override async Task OnParametersSetAsync() => await State.EnsureFacetsAsync();
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

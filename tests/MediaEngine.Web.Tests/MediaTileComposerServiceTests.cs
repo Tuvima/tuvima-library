@@ -388,7 +388,6 @@ public sealed class MediaTileComposerServiceTests
         Assert.Equal(collectionId, mapped.WorkId);
         Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
-        Assert.Equal(MediaTileHoverLayout.BannerPopover, mapped.HoverLayout);
         Assert.Equal("/shows/expanse-cover-s.jpg", mapped.TileImageUrl);
         Assert.Equal("/episodes/still-m.jpg", mapped.HoverImageUrl);
     }
@@ -552,7 +551,6 @@ public sealed class MediaTileComposerServiceTests
         Assert.True(mapped.UseGroupTile);
         Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
-        Assert.Equal(MediaTileHoverLayout.BannerPopover, mapped.HoverLayout);
         Assert.Null(mapped.TileImageUrl);
         Assert.Equal(6, mapped.PreviewTotalCount);
         Assert.Equal(1951, mapped.GroupSummary?.EarliestYear);

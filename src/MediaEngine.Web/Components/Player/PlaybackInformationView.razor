@@ -1,0 +1,28 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Playback information view of Playback settings (unified player v2 D14): the file's video, audio and subtitle facts, then how it reaches this
+   screen. Read-only; each line is a label on the left and its value on the right (mockup .kv rows, 15 px). *@
+<div class="piv" data-playback-information>
+    @if (Rows.Count == 0)
+    {
+        <p class="piv__empty" role="status">@L["PlaybackInformation_None"]</p>
+    }
+    else
+    {
+        <dl class="piv__list">
+            @foreach (var row in Rows)
+            {
+                <div class="piv__row" data-info-row="@row.Key">
+                    <dt>@row.Label</dt>
+                    <dd>@row.Value</dd>
+                </div>
+            }
+        </dl>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<PlaybackInformationRow> Rows { get; set; } = [];
+}

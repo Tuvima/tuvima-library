@@ -248,14 +248,7 @@
     "tl-series-episode-edit",
     "tl-series-episode-title-link"
   ],
-  "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": [
-    "listen-player__menu-link",
-    "listen-player__utility-glyph"
-  ],
-  "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": [
-    "listen-context-sidebar__lyrics"
-  ],
-  "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": [
+  "src/MediaEngine.Web/Components/Editor/MediaEditorPanel.razor.css": [
     "sme-match-info-panel"
   ],
   "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": [
@@ -744,6 +737,22 @@
     "listen-track-toolbar__status",
     "tl-audio-detail"
   ],
+  "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css": [
+    "listen-player__menu-link",
+    "listen-player__utility-glyph"
+  ],
+  "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css": [
+    "listen-context-sidebar__lyrics"
+  ],
+  "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css": [
+    "playback-icon-button__badge",
+    "playback-icon-button__label",
+    "playback-icon-button__value"
+  ],
+  "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css": [
+    "listen-now-panel__sheet-list",
+    "listen-popup-sheet__list"
+  ],
   "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": [
     "app-card__content"
   ],
@@ -758,17 +767,8 @@
     "listen-player__music-actions",
     "listen-popup__actions"
   ],
-  "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": [
-    "playback-icon-button__badge",
-    "playback-icon-button__label",
-    "playback-icon-button__value"
-  ],
   "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": [
     "playback-sleep-timer__trigger-status"
-  ],
-  "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css": [
-    "listen-now-panel__sheet-list",
-    "listen-popup-sheet__list"
   ],
   "src/MediaEngine.Web/wwwroot/app.css": [
     "app-activity-feed",

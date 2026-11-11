@@ -3,6 +3,7 @@ paths:
   - "src/MediaEngine.Web/Components/Collections/**"
   - "src/MediaEngine.Web/Components/Universe/**"
   - "src/MediaEngine.Web/Components/Details/**"
+  - "src/MediaEngine.Web/Components/Editor/**"
   - "src/MediaEngine.Api/Services/Details/**"
 ---
 

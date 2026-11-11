@@ -187,7 +187,7 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
+    "src/MediaEngine.Web/Components/Player/ListenContextSidebar.razor.css": {
       "important": 0,
       "deep": 19
     },
@@ -195,7 +195,7 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": {
+    "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css": {
       "important": 0,
       "deep": 29
     },
@@ -207,7 +207,7 @@
       "important": 28,
       "deep": 23
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css": {
       "important": 0,
       "deep": 21
     },
@@ -215,15 +215,15 @@
       "important": 0,
       "deep": 9
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css": {
       "important": 0,
       "deep": 9
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackIdentityLink.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackIdentityLink.razor.css": {
       "important": 3,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css": {
       "important": 0,
       "deep": 8
     },
@@ -231,7 +231,7 @@
       "important": 0,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackPanelCard.razor.css": {
       "important": 0,
       "deep": 1
     },
@@ -271,15 +271,15 @@
       "important": 1,
       "deep": 18
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorPanel.razor.css": {
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorSurface.razor.css": {
       "important": 5,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorTagEditor.razor.css": {
       "important": 0,
       "deep": 3
     },
@@ -711,7 +711,7 @@
       "important": 0,
       "deep": 7
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css": {
       "important": 1,
       "deep": 31
     },
@@ -727,11 +727,11 @@
       "important": 0,
       "deep": 30
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css": {
       "important": 13,
       "deep": 13
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor.css": {
       "important": 3,
       "deep": 12
     },
@@ -739,7 +739,7 @@
       "important": 0,
       "deep": 8
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackSheetHandleButton.razor.css": {
       "important": 0,
       "deep": 4
     },
@@ -759,7 +759,7 @@
       "important": 4,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css": {
       "important": 1,
       "deep": 8
     },
@@ -767,7 +767,7 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackVideoChrome.razor.css": {
       "important": 0,
       "deep": 17
     },
@@ -851,7 +851,7 @@
       "important": 0,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
+    "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor.css": {
       "important": 0,
       "deep": 9
     },
@@ -1109,7 +1109,7 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": {
+    "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css": {
       "important": 0,
       "deep": 1
     },
@@ -1117,23 +1117,23 @@
       "important": 0,
       "deep": 21
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css": {
       "important": 0,
       "deep": 6
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css": {
       "important": 0,
       "deep": 9
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackIdentityLink.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackIdentityLink.razor.css": {
       "important": 3,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css": {
       "important": 0,
       "deep": 11
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackPanelCard.razor.css": {
       "important": 0,
       "deep": 1
     },
@@ -1165,15 +1165,15 @@
       "important": 1,
       "deep": 18
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorPanel.razor.css": {
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorSurface.razor.css": {
       "important": 5,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/MediaEditorTagEditor.razor.css": {
       "important": 0,
       "deep": 3
     },
@@ -1605,7 +1605,7 @@
       "important": 0,
       "deep": 8
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css": {
       "important": 1,
       "deep": 22
     },
@@ -1617,11 +1617,11 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css": {
       "important": 13,
       "deep": 13
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor.css": {
       "important": 3,
       "deep": 12
     },
@@ -1629,11 +1629,11 @@
       "important": 0,
       "deep": 8
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css": {
       "important": 0,
       "deep": 14
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackSheetHandleButton.razor.css": {
       "important": 0,
       "deep": 4
     },
@@ -1649,11 +1649,11 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackSettingsPanel.razor.css": {
       "important": 0,
       "deep": 14
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackSpeedPanel.razor.css": {
       "important": 0,
       "deep": 1
     },
@@ -1661,7 +1661,7 @@
       "important": 4,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css": {
       "important": 1,
       "deep": 8
     },
@@ -1669,7 +1669,7 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackVideoChrome.razor.css": {
       "important": 0,
       "deep": 17
     },
@@ -1721,7 +1721,7 @@
       "important": 0,
       "deep": 7
     },
-    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
+    "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor.css": {
       "important": 0,
       "deep": 12
     },
@@ -1761,91 +1761,91 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackItemMenu.razor.css": {
       "important": 0,
       "deep": 5
     },
-    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css": {
+    "src/MediaEngine.Web/Components/Player/AudioSubtitlesActions.razor.css": {
       "important": 0,
       "deep": 9
     },
-    "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/SubtitleAppearanceView.razor.css": {
       "important": 0,
       "deep": 13
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackLyricsAlternatives.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackLyricsAlternatives.razor.css": {
       "important": 0,
       "deep": 10
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackLyricsFooter.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackLyricsFooter.razor.css": {
       "important": 0,
       "deep": 5
     },
-    "src/MediaEngine.Web/Components/Listen/PlaybackLyricsMenu.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackLyricsMenu.razor.css": {
       "important": 0,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/Listen/QueuePanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/QueuePanel.razor.css": {
       "important": 0,
       "deep": 7
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackListTabs.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackListTabs.razor.css": {
       "important": 0,
       "deep": 4
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css": {
       "important": 0,
       "deep": 3
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackRowMenu.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackRowMenu.razor.css": {
       "important": 0,
       "deep": 5
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedFooter.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackSpeedFooter.razor.css": {
       "important": 0,
       "deep": 5
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackSpeedView.razor.css": {
       "important": 0,
       "deep": 6
     },
-    "src/MediaEngine.Web/Components/Shared/SleepTimerCustomView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/SleepTimerCustomView.razor.css": {
       "important": 0,
       "deep": 7
     },
-    "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/SleepTimerPanel.razor.css": {
       "important": 0,
       "deep": 11
     },
-    "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/SleepTimerView.razor.css": {
       "important": 0,
       "deep": 11
     },
-    "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Player/AudioSubtitlesPanel.razor.css": {
       "important": 0,
       "deep": 5
     },
-    "src/MediaEngine.Web/Components/Watch/SubtitleFindView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/SubtitleFindView.razor.css": {
       "important": 0,
       "deep": 9
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackToolRow.razor.css": {
       "important": 0,
       "deep": 7
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css": {
+    "src/MediaEngine.Web/Components/Player/PlaybackIdentity.razor.css": {
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor.css": {
       "important": 0,
       "deep": 6
     },
-    "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorItemHeader.razor.css": {
       "important": 0,
       "deep": 5
     },
@@ -1853,31 +1853,31 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorMatchPanel.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserDialog.razor.css": {
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserSidebar.razor.css": {
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserTable.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/EditorFileBrowserFolders.razor.css": {
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/ViewEditHeaderNav.razor.css": {
       "important": 0,
       "deep": 13
     },
-    "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css": {
+    "src/MediaEngine.Web/Components/Editor/ViewEditHeader.razor.css": {
       "important": 0,
       "deep": 1
     }
@@ -3868,9 +3868,9 @@
         ".playback-shell__text ::deep a",
         ".playback-shell__timeline ::deep .playback-seek-rail--dock"
       ],
-      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css",
       "deep": 15,
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css",
       "reason": "The persistent bar is now drawn by one shared shell for music, audiobooks, TV and movies; the dock rules that styled the audio bar's trigger buttons, glyphs, song actions and links moved there with the markup (the audio bar went from 29 to 14 deep rules).",
       "important": 0
     },
@@ -3878,15 +3878,15 @@
       "selectors": [
         ".playback-item-menu__row ::deep .playback-utility-glyph"
       ],
-      "source": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css",
       "deep": 1,
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackItemMenu.razor.css",
       "reason": "The item actions menu rows ask the shared glyph for the mockup's 24 px size; the identity zone's own text and action rules left the bar shell, which keeps two fewer deep rules than it was budgeted.",
       "important": 0
     },
     {
-      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -3895,8 +3895,8 @@
       "reason": "The Audio & subtitles choice rows draw their selected check glyph (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
     },
     {
-      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesActions.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -3906,8 +3906,8 @@
       "reason": "The Audio & subtitles footer actions size their leading glyphs (unified player v2 WP5, replacing the old settings-menu styling pages). The player icon button no longer needs its full deep budget, so the allowance moved here."
     },
     {
-      "source": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SubtitleAppearanceView.razor.css",
       "important": 0,
       "deep": 6,
       "selectors": [
@@ -3922,7 +3922,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackSettingsPanel.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -3932,7 +3932,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackSpeedPanel.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -3942,7 +3942,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsAlternatives.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackLyricsAlternatives.razor.css",
       "important": 0,
       "deep": 10,
       "selectors": [
@@ -3961,7 +3961,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsFooter.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackLyricsFooter.razor.css",
       "important": 0,
       "deep": 5,
       "selectors": [
@@ -3975,7 +3975,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyricsMenu.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackLyricsMenu.razor.css",
       "important": 0,
       "deep": 4,
       "selectors": [
@@ -3988,7 +3988,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Listen/QueuePanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/QueuePanel.razor.css",
       "important": 0,
       "deep": 7,
       "selectors": [
@@ -4004,7 +4004,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackItemMenu.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4014,8 +4014,8 @@
       "reason": "The Item actions menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackItemMenu.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4025,8 +4025,8 @@
       "reason": "The Item actions menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackListTabs.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackListTabs.razor.css",
       "important": 0,
       "deep": 4,
       "selectors": [
@@ -4038,8 +4038,8 @@
       "reason": "The shared list tabs style their tab buttons, which are App* buttons, through the tab strip root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackPanel.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css",
       "important": 0,
       "deep": 3,
       "selectors": [
@@ -4050,8 +4050,8 @@
       "reason": "The panel frame is the AppPopout the panel draws, so its frame rules go through the panel root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackRowMenu.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackRowMenu.razor.css",
       "important": 0,
       "deep": 5,
       "selectors": [
@@ -4064,8 +4064,8 @@
       "reason": "The row menu styles its rows, which are App* buttons, through the menu root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenContextSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackSettingsPanel.razor.css",
       "important": 0,
       "deep": 5,
       "selectors": [
@@ -4078,8 +4078,8 @@
       "reason": "The Playback settings footer styles its Reset button, an App* button, through its own footer wrapper. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedFooter.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackSpeedFooter.razor.css",
       "important": 0,
       "deep": 5,
       "selectors": [
@@ -4092,8 +4092,8 @@
       "reason": "The Speed footer styles its Reset button, an App* button, through the footer root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackSpeedView.razor.css",
       "important": 0,
       "deep": 6,
       "selectors": [
@@ -4107,8 +4107,8 @@
       "reason": "The Speed presets are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerCustomView.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SleepTimerCustomView.razor.css",
       "important": 0,
       "deep": 4,
       "selectors": [
@@ -4120,8 +4120,8 @@
       "reason": "The Custom duration field and Set timer button are App* controls, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerCustomView.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SleepTimerCustomView.razor.css",
       "important": 0,
       "deep": 3,
       "selectors": [
@@ -4132,8 +4132,8 @@
       "reason": "The Custom duration field and Set timer button are App* controls, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SleepTimerPanel.razor.css",
       "important": 0,
       "deep": 10,
       "selectors": [
@@ -4152,7 +4152,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SleepTimerPanel.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4162,7 +4162,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SleepTimerView.razor.css",
       "important": 0,
       "deep": 10,
       "selectors": [
@@ -4180,8 +4180,8 @@
       "reason": "The Sleep timer presets and rows are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SleepTimerView.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4190,8 +4190,8 @@
       "reason": "The Sleep timer presets and rows are App* buttons, so their rules go through the view root. (unified player v2 fix: scoped styles never reach a class passed to a child component.)"
     },
     {
-      "source": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesActions.razor.css",
       "important": 0,
       "deep": 4,
       "selectors": [
@@ -4204,7 +4204,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesActions.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesActions.razor.css",
       "important": 0,
       "deep": 3,
       "selectors": [
@@ -4216,7 +4216,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesPanel.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4226,7 +4226,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesPanel.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4237,7 +4237,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/AudioSubtitlesPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesPanel.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4248,7 +4248,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SubtitleAppearanceView.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4258,7 +4258,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SubtitleAppearanceView.razor.css",
       "important": 0,
       "deep": 6,
       "selectors": [
@@ -4273,7 +4273,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/SubtitleFindView.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/SubtitleFindView.razor.css",
       "important": 0,
       "deep": 9,
       "selectors": [
@@ -4291,7 +4291,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackSettingsPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackSettingsPanel.razor.css",
       "important": 0,
       "deep": 8,
       "selectors": [
@@ -4308,7 +4308,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css",
       "important": 0,
       "deep": 8,
       "selectors": [
@@ -4353,7 +4353,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackToolRow.razor.css",
       "important": 0,
       "deep": 7,
       "selectors": [
@@ -4365,7 +4365,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4375,7 +4375,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor.css",
       "important": 0,
       "deep": 3,
       "selectors": [
@@ -4387,7 +4387,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackIdentity.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4398,7 +4398,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorHeaderNav.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor.css",
       "important": 0,
       "deep": 6,
       "selectors": [
@@ -4412,7 +4412,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorItemHeader.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorItemHeader.razor.css",
       "important": 0,
       "deep": 5,
       "selectors": [
@@ -4436,7 +4436,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorMatchPanel.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4446,7 +4446,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserDialog.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserDialog.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4457,7 +4457,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserSidebar.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserSidebar.razor.css",
       "important": 0,
       "deep": 2,
       "selectors": [
@@ -4468,7 +4468,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserTable.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserTable.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4478,7 +4478,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/EditorFileBrowserFolders.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/EditorFileBrowserFolders.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [
@@ -4488,7 +4488,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeaderNav.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/ViewEditHeaderNav.razor.css",
       "important": 0,
       "deep": 13,
       "selectors": [
@@ -4500,7 +4500,7 @@
     },
     {
       "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
-      "destination": "src/MediaEngine.Web/Components/Details/ViewEditHeader.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Editor/ViewEditHeader.razor.css",
       "important": 0,
       "deep": 1,
       "selectors": [

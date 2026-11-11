@@ -1498,7 +1498,7 @@
     }
 }
 
-/* Final shared-select integration overrides the legacy native-select chrome
+/* Final shared-select integration overrides the native-select chrome
    above regardless of page-local cascade order. */
 ::deep .app-field.listen-filter-select,
 ::deep .app-field.audiobooks-select {

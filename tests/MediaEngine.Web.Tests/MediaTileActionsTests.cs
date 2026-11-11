@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.ProfileState;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.MediaTiles;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;

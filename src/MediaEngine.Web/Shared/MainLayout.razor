@@ -29,7 +29,7 @@
 @using MediaEngine.Web.Services.Vault
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Shared.Tools
-@using MediaEngine.Web.Components.Watch
+@using MediaEngine.Web.Components.Player
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
@@ -43,9 +43,9 @@
 <MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
 <AppPopoverHost />
 <AppDialogHost />
-<MediaEngine.Web.Components.Details.EditorPopover />
-<MediaEngine.Web.Components.Details.ViewEditorPopover />
-<MediaEngine.Web.Components.Details.ViewSavedRibbon />
+<MediaEngine.Web.Components.Editor.EditorPopover />
+<MediaEngine.Web.Components.Editor.ViewEditorPopover />
+<MediaEngine.Web.Components.Editor.ViewSavedRibbon />
 <NsfwLockWatcher ActiveProfileId="@_activeProfileId" IsKids="@_isKids" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))

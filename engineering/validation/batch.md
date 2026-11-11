@@ -1254,3 +1254,14 @@ Repeated hand-built windows, buttons, tabs and chips now use the shared parts. N
 | Delete confirm for playlists and sections | Frontend fixes 5 | Delete a playlist from Listen and a section from a section rail: one "Delete "name"?" window with Delete and Cancel replaces the old in-row confirm. Cancel, Escape and clicking outside delete nothing. | Awaiting |
 | Converted text buttons | Frontend fixes 5 | Listen "Clear" and "View series", song table "Show more", the music bar notice "Close", Places timeline "Reset", the detail page overview "Show more" and credits link, the series "More" toggle: shared button look, same place, same spacing above. | Awaiting |
 | Tabs and chips | Frontend fixes 5 | Shared contributions page: "My submissions / Review queue" use the shared tabs and arrow keys move between them. Settings, Profiles and a profile's page: the "You" and role badges use the shared chip. Episode strip: the "Same file as Episode N" chip, both the pressable and the quiet one. | Awaiting |
+
+## Frontend review fixes, thread 6: structure part 1 (cloud build 2026-11-11)
+
+Housekeeping: the editor and the players each moved into their own folder, and old leftovers were removed. Nothing should look or behave differently.
+
+| Item | PR | What to check | Status |
+|---|---|---|---|
+| Editor and Player folders | Frontend fixes 6 | A pure move. Open the editor on a film, an episode, a book, a photo and a gallery, and play music, an audiobook and a video (bar, full player, phone player, queue, lyrics, subtitles, sleep timer). Everything looks and behaves as before; the browser console shows no missing-style or missing-part error. | Awaiting |
+| Player panel body padding | Frontend fixes 6 | Open a player panel that has no heading (for example the speed or sleep timer panel): the padding around its content is as before. | Awaiting |
+| Old style leftovers removed | Frontend fixes 6 | Settings pages, provider cards and the save bar look as before (unused old styles for provider cards, chips and health marks were deleted). | Awaiting |
+| Audiobook from a restored queue | Frontend fixes 6 | Start an audiobook, reload the page so the queue is restored, and use the title link and the artwork in the player: they open the right book and show the right cover. | Awaiting |

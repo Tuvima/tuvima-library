@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Playback;
@@ -181,13 +182,13 @@ public sealed class PlaybackPrimitiveTests
     public void ListenSurfaces_UseSharedTransportControls()
     {
         var root = FindRepoRoot();
-        var bar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
-        var sidebar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor"));
-        var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor"));
-        var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor"));
-        var speedView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedView.razor"));
-        var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor"));
-        var sleepView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/SleepTimerView.razor"));
+        var bar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
+        var sidebar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor"));
+        var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor"));
+        var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackSpeedPanel.razor"));
+        var speedView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackSpeedView.razor"));
+        var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/SleepTimerPanel.razor"));
+        var sleepView = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/SleepTimerView.razor"));
         var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor"));
 
         Assert.Contains("<PlaybackShell", bar, StringComparison.Ordinal);
@@ -217,8 +218,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
         Assert.Contains("data-bookmark-delete-confirm", bookmark, StringComparison.Ordinal);
         Assert.Contains("OpenDockPanelAsync(\"history\")", bar, StringComparison.Ordinal);
-        var chaptersPanel = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanel.razor"));
-        var chaptersRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ChaptersPanelRow.razor"));
+        var chaptersPanel = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ChaptersPanel.razor"));
+        var chaptersRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ChaptersPanelRow.razor"));
         Assert.Contains("<ChaptersPanelRow @key=\"chapter.Index\"", chaptersPanel, StringComparison.Ordinal);
         Assert.Contains("<PlaybackListRow Variant=\"chapter\"", chaptersRow, StringComparison.Ordinal);
         Assert.Contains("PlaybackContextRow Variant=\"history\"", sidebar, StringComparison.Ordinal);
@@ -232,10 +233,10 @@ public sealed class PlaybackPrimitiveTests
     {
         var root = FindRepoRoot();
         // The collapsed bar is the shell's compact form: art and text as one button, then Play and Next or forward 30 s; no tool zone.
-        var shell = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor"));
+        var shell = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor"));
         Assert.Contains("@if (!Compact)", shell, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css")), StringComparison.Ordinal);
-        Assert.Contains("pointer-events:auto;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css")), StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css")), StringComparison.Ordinal);
+        Assert.Contains("pointer-events:auto;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css")), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -252,11 +253,11 @@ public sealed class PlaybackPrimitiveTests
         // Every transport and tool target of the dock is 44 px (one token), the phone's tool row never gives a tool less, and the phone's transport is 52 px (unified player v2 A12, D26).
         var tokens = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/tuvima.tokens.css"));
         Assert.Contains("--playback-control-target: 44px;", tokens);
-        var toolRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackToolRow.razor.css"));
+        var toolRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolRow.razor.css"));
         var slotRule = toolRow.Split(".playback-tool-row__slot {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("min-height: var(--playback-control-target);", slotRule);
         Assert.Contains("min-width: var(--playback-control-target);", slotRule);
-        var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css"));
+        var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css"));
         Assert.Contains("--playback-control-target:52px;", full);
     }
 
@@ -287,7 +288,7 @@ public sealed class PlaybackPrimitiveTests
         var contextRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor"));
         var contextRowStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css"));
         var activityMark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackActivityMark.razor"));
-        var toolSheet = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor"));
+        var toolSheet = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor"));
         var focusModule = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-tool-sheet.js"));
 
         Assert.Contains("aria-current=\"@(IsCurrent ? \"true\" : null)\"", contextRow, StringComparison.Ordinal);
@@ -309,29 +310,29 @@ public sealed class PlaybackPrimitiveTests
     public void DockedPlayers_UseCenteredLargeControlsAndCoverOnlyThumbnails()
     {
         var root = FindRepoRoot();
-        var listenBar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
-        var listenStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css"));
+        var listenBar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
+        var listenStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css"));
         var utilityGlyph = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor"));
         var utilityGlyphStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor.css"));
-        var videoHost = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var videoStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
+        var videoHost = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
+        var videoStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor.css"));
         var watchPlayer = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor"));
 
-        var shellStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css"));
+        var shellStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css"));
         Assert.Contains("<svg", utilityGlyph, StringComparison.Ordinal);
         Assert.Contains("width: var(--playback-glyph-size, 22px);", utilityGlyphStyles, StringComparison.Ordinal);
         Assert.Contains("height: var(--playback-glyph-size, 22px);", utilityGlyphStyles, StringComparison.Ordinal);
         Assert.Contains("Open Now Playing", listenBar, StringComparison.Ordinal);
         Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
         Assert.Contains("place-items: center;", shellStyles, StringComparison.Ordinal);
-        Assert.Contains("object-fit: contain;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css")), StringComparison.Ordinal);
+        Assert.Contains("object-fit: contain;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackIdentity.razor.css")), StringComparison.Ordinal);
         Assert.Contains("--playback-glyph-size:var(--tl-icon-size-md)", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-icon-size:24px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
+        Assert.Contains("--playback-primary-icon-size:24px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
         Assert.Contains("object-fit:contain", videoStyles, StringComparison.Ordinal);
         Assert.Contains("<TimelineContent>@DockTimeline</TimelineContent>", listenBar, StringComparison.Ordinal);
         Assert.DoesNotContain("listen-player__chapter-context", listenBar, StringComparison.Ordinal);
         Assert.Contains("PlaybackSeekRail", listenBar, StringComparison.Ordinal);
-        Assert.Contains("@TimelineContent", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
+        Assert.Contains("@TimelineContent", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
         Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
         Assert.Contains(".playback-seek-rail { display:flex; align-items:center; gap:10px; height:28px;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
@@ -348,8 +349,8 @@ public sealed class PlaybackPrimitiveTests
     {
         var root = FindRepoRoot();
         var globalStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
-        var styles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css"));
-        var shellStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css"));
+        var styles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css"));
+        var shellStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor.css"));
 
         Assert.DoesNotContain("min-height: 116px !important", globalStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellStyles, StringComparison.Ordinal);
@@ -366,14 +367,14 @@ public sealed class PlaybackPrimitiveTests
     {
         var root = FindRepoRoot();
         var tokens = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/tuvima.tokens.css"));
-        var toolSheet = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor"));
-        var toolSheetCss = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css"));
-        var listenBar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
-        var videoHost = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var toolSheet = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor"));
+        var toolSheetCss = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css"));
+        var listenBar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
+        var videoHost = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
         var playbackStyles = Directory
             .EnumerateFiles(Path.Combine(root, "src/MediaEngine.Web/Components"), "*Playback*.razor.css", SearchOption.AllDirectories)
             .Select(File.ReadAllText)
-            .Append(LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css")))
+            .Append(LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css")))
             .ToList();
 
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
@@ -390,9 +391,9 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("PanelKey=\"queue\"", listenBar, StringComparison.Ordinal);
         Assert.Contains("PanelKey=\"lyrics\"", listenBar, StringComparison.Ordinal);
         Assert.DoesNotContain("listen-player-panel-backdrop", listenBar, StringComparison.Ordinal);
-        Assert.Contains("PlaybackControlCatalog.BuildPhoneTools", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
+        Assert.Contains("PlaybackControlCatalog.BuildPhoneTools", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         // Unified player v2 D1: the transport is drawn once, by the shell, for every media.
-        var shell = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor"));
+        var shell = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor"));
         Assert.Contains("<PlaybackShell", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackRelativeSkipButton", shell, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPrimaryButton", shell, StringComparison.Ordinal);

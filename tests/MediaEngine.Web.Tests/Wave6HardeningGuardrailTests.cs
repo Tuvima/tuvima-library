@@ -34,7 +34,7 @@ public sealed class Wave6HardeningGuardrailTests
         Assert.Contains("L[\"TopBar_ServiceDegradedBanner\"]", layout);
         Assert.Contains("@L[\"Listen_NothingPlaying\"]", page);
         Assert.Contains("@L[\"NowPlayingPage_Title\"]", page);
-        Assert.Contains("Recent listening positions", LocalizedSource.Localize(Read("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor")));
+        Assert.Contains("Recent listening positions", LocalizedSource.Localize(Read("src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor")));
         Assert.DoesNotContain(">Nothing is playing right now.<", page, StringComparison.Ordinal);
         Assert.DoesNotContain(">Playing Next<", page, StringComparison.Ordinal);
     }
@@ -55,7 +55,7 @@ public sealed class Wave6HardeningGuardrailTests
         var appJs = Read("src/MediaEngine.Web/wwwroot/app.js");
         var playbackJs = Read("src/MediaEngine.Web/wwwroot/js/playback-core.js");
         var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor");
-        var nowPlaying = Read("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
+        var nowPlaying = Read("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
 
         Assert.Contains("window.unregisterCtrlK", appJs);
         Assert.Contains("unregisterStateHandler", playbackJs);

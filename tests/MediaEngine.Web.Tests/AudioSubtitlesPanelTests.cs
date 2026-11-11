@@ -1,7 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Components.Watch;
 using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
@@ -158,7 +158,7 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
         Assert.NotNull(subtitle.QuerySelector(".asv__check"));
         Assert.Single(cut.FindAll("[data-asv-column='audio'] .asv__check"));
         Assert.Single(cut.FindAll("[data-asv-column='subtitles'] .asv__check"));
-        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Watch/AudioSubtitlesChoicesView.razor.css"));
+        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css"));
         Assert.Contains("background: var(--playback-state-selected)", css, StringComparison.Ordinal);
     }
 
@@ -332,8 +332,8 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     public void TheVideoBar_HasNoSeparateSubtitleStyleButtonAndHostsOnlyTheAudioSubtitlesPanel()
     {
         var root = FindRepoRoot();
-        var host = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var catalog = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackControlCatalog.Bar.cs"));
+        var host = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
+        var catalog = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackControlCatalog.Bar.cs"));
 
         Assert.DoesNotContain("StylingOnly", host, StringComparison.Ordinal);
         Assert.DoesNotContain("subtitle-style", host, StringComparison.OrdinalIgnoreCase);

@@ -5,6 +5,7 @@ using AngleSharp.Dom;
 using Bunit;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.PersonalMedia;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -33,7 +34,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     private readonly Handler _handler = new();
     private readonly DeviceContextService _device;
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _ribbon;
+    private readonly IRenderedComponent<MediaEngine.Web.Components.Editor.ViewSavedRibbon> _ribbon;
 
     public ViewDocumentBulkUiTests()
     {
@@ -50,7 +51,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
         _dialogs = Render<AppDialogHost>();
-        _ribbon = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
+        _ribbon = Render<MediaEngine.Web.Components.Editor.ViewSavedRibbon>();
     }
 
     // Trash asks once first (spec view-section WP1): click the bar's Trash, then answer "Move to Trash" in the dialog.

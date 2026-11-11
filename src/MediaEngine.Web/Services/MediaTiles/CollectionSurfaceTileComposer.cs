@@ -80,7 +80,6 @@ public static class CollectionSurfaceTileComposer
             HoverArtworkShape = MediaTileShape.Portrait,
             Presentation = PresentationForMedia(mediaType),
             SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
             HoverImageUrl = StringHelpers.FirstNonBlank(group.BackgroundUrl, group.BannerUrl, primaryArtwork),
@@ -153,7 +152,6 @@ public static class CollectionSurfaceTileComposer
             HoverArtworkShape = MediaTileShape.Landscape,
             Presentation = MediaTilePresentation.Default,
             SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
             HoverImageUrl = primaryArtwork,
@@ -254,7 +252,6 @@ public static class CollectionSurfaceTileComposer
             HoverArtworkShape = surface.HoverArtworkShape,
             Presentation = MediaTilePresentation.Default,
             SurfaceKind = surface.SurfaceKind,
-            HoverLayout = surface.HoverLayout,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = surface.TileImageUrl,
             TileImageSrcSet = surface.TileImageSrcSet,
@@ -281,8 +278,6 @@ public static class CollectionSurfaceTileComposer
             IsCollection = true,
             UseGroupTile = true,
             GroupKind = GroupKindFor(collection),
-            HasCustomArtwork = !string.IsNullOrWhiteSpace(collection.CoverArtworkUrl),
-            GroupSource = GroupSourceFor(collection),
         };
     }
 
@@ -309,24 +304,6 @@ public static class CollectionSurfaceTileComposer
             _ => MediaTileGroupKind.Collection,
         };
     }
-
-    // The source line under a curated tile. Series, Universes and system collections fill themselves and draw none.
-    private static MediaTileGroupSourceViewModel? GroupSourceFor(CollectionManagementCatalogViewModel collection) =>
-        collection.FillKind switch
-        {
-            CollectionFillKinds.HandPicked or CollectionFillKinds.Rules
-                => new MediaTileGroupSourceViewModel(collection.FillKind),
-            CollectionFillKinds.Pack
-                => new MediaTileGroupSourceViewModel(collection.FillKind, SetName: collection.SetName),
-            CollectionFillKinds.Set
-                => new MediaTileGroupSourceViewModel(collection.FillKind, ChildCount: collection.ChildCollectionCount),
-            CollectionFillKinds.List
-                => new MediaTileGroupSourceViewModel(
-                    collection.FillKind,
-                    LastRefreshedAt: collection.ListSource?.LastRefreshedAt,
-                    UnmatchedCount: collection.ListSource?.UnmatchedCount ?? 0),
-            _ => null,
-        };
 
     private static IReadOnlyList<string> BuildContextLines(CollectionManagementCatalogViewModel collection)
     {

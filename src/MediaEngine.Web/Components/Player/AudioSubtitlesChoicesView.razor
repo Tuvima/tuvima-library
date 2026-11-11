@@ -1,0 +1,184 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+
+@* The body of Audio & subtitles (unified player v2 D12; mockup screen 3 and the phone sheet of screen 15). Desktop draws two columns in the wide panel:
+   Audio (language, then the format and channels; commentary and audio description named and listed last) and Subtitles (Off first, labels kept).
+   A chosen row has a check and the soft purple background. On a phone the same two lists become two tabs in one sheet. Choosing a row asks the
+   host to switch and carries the second the player is at, so the picture never restarts (A9). *@
+<div class="asv" data-audio-subtitles data-layout="@(IsSheet ? "tabs" : "columns")">
+    @if (IsSheet)
+    {
+        <div class="asv__tabs" role="tablist" aria-label="@L["AudioSubtitles_Title"].Value" @onkeydown="HandleTabKeyAsync">
+            <AppNativeButton @ref="_audioTab" Type="button" Class="@TabClass("audio")" role="tab" id="@TabId("audio")" aria-controls="@(_tab == "audio" ? PanelId("audio") : null)"
+                             aria-selected="@(_tab == "audio" ? "true" : "false")" tabindex="@(_tab == "audio" ? 0 : -1)" data-asv-tab="audio"
+                             OnClick="@(() => _tab = "audio")">@L["AudioSubtitles_Audio"]</AppNativeButton>
+            <AppNativeButton @ref="_subtitlesTab" Type="button" Class="@TabClass("subtitles")" role="tab" id="@TabId("subtitles")" aria-controls="@(_tab == "subtitles" ? PanelId("subtitles") : null)"
+                             aria-selected="@(_tab == "subtitles" ? "true" : "false")" tabindex="@(_tab == "subtitles" ? 0 : -1)" data-asv-tab="subtitles"
+                             OnClick="@(() => _tab = "subtitles")">@L["Common_Subtitles"]</AppNativeButton>
+        </div>
+    }
+    <div class="asv__columns">
+        @if (!IsSheet || _tab == "audio")
+        {
+            <section class="asv__column" data-asv-column="audio" id="@PanelId("audio")" role="@(IsSheet ? "tabpanel" : null)"
+                     aria-labelledby="@(IsSheet ? TabId("audio") : null)" aria-label="@(IsSheet ? null : L["AudioSubtitles_Audio"].Value)">
+                @if (!IsSheet) { <h3 class="asv__heading">@L["AudioSubtitles_Audio"]</h3> }
+                <div role="radiogroup" aria-label="@L["AudioSubtitles_Audio"].Value" @ref="_audioGroup">
+                    @foreach (var row in Audio)
+                    {
+                        var choice = row;
+                        var note = !choice.Selected && !choice.Switchable && Audio.Count > 1 ? L["AudioSubtitles_NotSwitchable"].Value : null;
+                        <AppNativeButton Type="button" Class="@RowClass(choice.Selected, choice.Switchable || choice.Selected)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
+                                         tabindex="@(choice.Index == AudioTabStop ? 0 : -1)" Disabled="@(!choice.Switchable)" data-asv-audio="@choice.Index" data-asv-purpose="@choice.Purpose.ToString().ToLowerInvariant()"
+                                         OnClick="@(() => ChooseAudioAsync(choice))">
+                            <span class="asv__label">@choice.Label</span>
+                            @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
+                            @* An unswitchable row keeps its facts; the note comes under them. *@
+                            @if (!string.IsNullOrWhiteSpace(choice.Detail))
+                            {
+                                <span class="asv__sub">@choice.Detail</span>
+                            }
+                            @if (note is not null)
+                            {
+                                <span class="asv__sub asv__sub--note">@note</span>
+                            }
+                        </AppNativeButton>
+                    }
+                    @if (Audio.Count == 0)
+                    {
+                        <p class="asv__empty">@L["VideoPlaybackHost_NoAudioInformationForThis"]</p>
+                    }
+                </div>
+            </section>
+        }
+        @if (!IsSheet || _tab == "subtitles")
+        {
+            <section class="asv__column" data-asv-column="subtitles" id="@PanelId("subtitles")" role="@(IsSheet ? "tabpanel" : null)"
+                     aria-labelledby="@(IsSheet ? TabId("subtitles") : null)" aria-label="@(IsSheet ? null : L["Common_Subtitles"].Value)">
+                @if (!IsSheet) { <h3 class="asv__heading">@L["Common_Subtitles"]</h3> }
+                <div role="radiogroup" aria-label="@L["Common_Subtitles"].Value" @ref="_subtitleGroup">
+                    @foreach (var row in Subtitles)
+                    {
+                        var choice = row;
+                        <AppNativeButton Type="button" Class="@RowClass(choice.Selected, true)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
+                                         tabindex="@(choice.Key == SubtitleTabStop ? 0 : -1)" data-asv-subtitle="@(choice.Key ?? "off")" OnClick="@(() => ChooseSubtitleAsync(choice))">
+                            <span class="asv__label">@choice.Label</span>
+                            @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
+                        </AppNativeButton>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Notice)) { <p class="asv__notice" role="status">@Notice</p> }
+</div>
+
+@code {
+    /// <summary>The Audio rows, already ordered (commentary and audio description last).</summary>
+    [Parameter] public IReadOnlyList<AudioChoice> Audio { get; set; } = [];
+
+    /// <summary>The Subtitles rows; the Off row comes first.</summary>
+    [Parameter] public IReadOnlyList<SubtitleChoice> Subtitles { get; set; } = [];
+
+    /// <summary>The second the video is at now; every switch request carries it so the host resumes there.</summary>
+    [Parameter] public double Position { get; set; }
+
+    [Parameter] public EventCallback<TrackSwitchRequest> OnSwitch { get; set; }
+
+    /// <summary>A line under the lists saying why a choice did not happen.</summary>
+    [Parameter] public string? Notice { get; set; }
+
+    /// <summary>True when the panel is drawn as a phone bottom sheet (set by PlaybackPanel).</summary>
+    [CascadingParameter(Name = "PlaybackPanelSheet")] public bool IsSheet { get; set; }
+
+    private string _tab = "subtitles";
+    private readonly string _id = $"asv-{Guid.NewGuid().ToString("N")[..8]}";
+    private AppNativeButton? _audioTab, _subtitlesTab;
+    private ElementReference _audioGroup, _subtitleGroup;
+    private IJSObjectReference? _roving;
+    private bool _disposed;
+
+    private string TabId(string tab) => $"{_id}-tab-{tab}";
+    private string PanelId(string tab) => $"{_id}-panel-{tab}";
+
+    // One Tab stop per list (D12 keyboard): the chosen row, or the first row that can be chosen; the arrow keys move between the rows
+    // (roving-focus.js) and Enter or Space chooses. Rows the app cannot switch to are disabled and never hold the stop.
+    private int? AudioTabStop =>
+        (Audio.FirstOrDefault(row => row.Selected && row.Switchable) ?? Audio.FirstOrDefault(row => row.Switchable))?.Index;
+
+    private string? SubtitleTabStop => Subtitles.Any(row => row.Selected) ? Subtitles.First(row => row.Selected).Key : Subtitles.FirstOrDefault()?.Key;
+
+    // Left and Right (and Home and End) move between the two tabs of the phone sheet, and the tab that gets focus is the one that shows.
+    private async Task HandleTabKeyAsync(KeyboardEventArgs args)
+    {
+        var next = args.Key switch
+        {
+            "ArrowLeft" or "ArrowRight" or "Home" or "End" => args.Key switch
+            {
+                "Home" => "audio",
+                "End" => "subtitles",
+                _ => _tab == "audio" ? "subtitles" : "audio",
+            },
+            _ => null,
+        };
+        if (next is null) return;
+        _tab = next;
+        var target = next == "audio" ? _audioTab : _subtitlesTab;
+        if (target is not null) await target.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+        try
+        {
+            _roving ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            // attach() ignores a list it already knows, so asking after every render also covers a list a tab switch has just drawn.
+            if (!IsSheet || _tab == "audio") await _roving.InvokeVoidAsync("attach", _audioGroup, "[role=radio]:not(:disabled)", new { vertical = true });
+            if (!IsSheet || _tab == "subtitles") await _roving.InvokeVoidAsync("attach", _subtitleGroup, "[role=radio]:not(:disabled)", new { vertical = true });
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering has no browser yet; the rows are ordinary buttons until the arrow keys attach.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the panel was drawing; there is nothing left to attach to.
+        }
+        catch (JSException)
+        {
+            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every row.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_roving is null) return;
+        try { await _roving.DisposeAsync(); }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
+
+    private string TabClass(string tab) => _tab == tab ? "asv__tab is-on" : "asv__tab";
+
+    private static string RowClass(bool selected, bool available) =>
+        $"asv__row{(selected ? " is-selected" : null)}{(available ? null : " is-unavailable")}";
+
+    private Task ChooseAudioAsync(AudioChoice choice) =>
+        choice.Selected || !choice.Switchable
+            ? Task.CompletedTask
+            : OnSwitch.InvokeAsync(new TrackSwitchRequest(TrackSwitchKind.Audio, Position, AudioIndex: choice.Index));
+
+    private Task ChooseSubtitleAsync(SubtitleChoice choice) =>
+        choice.Selected
+            ? Task.CompletedTask
+            : OnSwitch.InvokeAsync(new TrackSwitchRequest(TrackSwitchKind.Subtitles, Position, CaptionKey: choice.Key));
+}

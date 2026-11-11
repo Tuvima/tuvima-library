@@ -23,9 +23,9 @@ public sealed class ViewEditorGuardrailTests
     [Fact]
     public void EveryEditorWindowIsDrawnByTheOneSharedFrame()
     {
-        var chrome = Web("Components/Details/EditorWindowChrome.razor");
-        var library = Web("Components/Details/EditorPanelHost.razor");
-        var view = Web("Components/Details/ViewEditorPopover.razor");
+        var chrome = Web("Components/Editor/EditorWindowChrome.razor");
+        var library = Web("Components/Editor/EditorPanelHost.razor");
+        var view = Web("Components/Editor/ViewEditorPopover.razor");
 
         Assert.Contains("tl-editor-window__footer", chrome, StringComparison.Ordinal);
         Assert.Contains("<EditorWindowChrome", library, StringComparison.Ordinal);
@@ -91,8 +91,8 @@ public sealed class ViewEditorGuardrailTests
             Assert.DoesNotContain("IAppToastService", File.ReadAllText(path), StringComparison.Ordinal);
         }
 
-        Assert.Contains("Details.ViewSavedRibbon", Web("Shared/MainLayout.razor"), StringComparison.Ordinal);
-        Assert.Contains("Details.ViewEditorPopover", Web("Shared/MainLayout.razor"), StringComparison.Ordinal);
+        Assert.Contains("Editor.ViewSavedRibbon", Web("Shared/MainLayout.razor"), StringComparison.Ordinal);
+        Assert.Contains("Editor.ViewEditorPopover", Web("Shared/MainLayout.razor"), StringComparison.Ordinal);
     }
 
     [Fact]

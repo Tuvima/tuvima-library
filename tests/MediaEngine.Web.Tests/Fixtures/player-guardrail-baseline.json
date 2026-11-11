@@ -2,7 +2,7 @@
   "reason": "Older player code written before this guardrail existed. Fix each entry when its file is next edited and delete it; nothing new may be added. Each entry carries its own reason.",
   "materialIcons": {},
   "literalColors": {
-    "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": {
+    "src/MediaEngine.Web/Components/Player/SubtitleAppearanceView.razor.css": {
       "reason": "data, not style: the sample picture behind the subtitle preview stands in for a video frame so the person can judge the subtitle colors they choose",
       "hits": [
         "background: rgb(36 59 102)",

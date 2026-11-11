@@ -72,7 +72,6 @@ public static class MediaPersonGroupTileComposer
             Shape = MediaTileShape.Landscape,
             Presentation = MediaTilePresentation.Default,
             SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
-            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
             HoverImageUrl = primaryArtwork,
