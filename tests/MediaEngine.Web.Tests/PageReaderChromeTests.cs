@@ -28,6 +28,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
 
     private readonly UserPlaybackSettingsDto _profile = UserPlaybackSettingsDto.CreateDefaults(ActiveId);
     private readonly List<UserPlaybackSettingsDto> _saved = [];
+    private readonly IEngineApiClient _api;
     private readonly DeviceContextService _device;
     private readonly BunitJSModuleInterop _module;
 
@@ -48,6 +49,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
                 return Task.FromResult<UserPlaybackSettingsDto?>((UserPlaybackSettingsDto)args[1]!);
             });
         });
+        _api = api;
         Services.AddSingleton(api);
         _device = new DeviceContextService(api);
         Services.AddSingleton(_device);
@@ -61,7 +63,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
 
     private Task UsePhoneAsync() => _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
 
-    private IRenderedComponent<PageReader> Open(string kind, bool rightToLeft = false, string? series = null, bool withOutline = false)
+    private IRenderedComponent<PageReader> Open(string kind, bool rightToLeft = false, string? series = null, bool withOutline = false, Guid? collectionId = null)
     {
         _module.Setup<PageReader.PageReaderOpenResult>("open", _ => true)
             .SetResult(new PageReader.PageReaderOpenResult { Ok = true, PageCount = 28, RightToLeft = rightToLeft });
@@ -75,13 +77,14 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
             .Add(page => page.AssetId, Asset)
             .Add(page => page.Kind, kind)
             .Add(page => page.Title, "Saga")
-            .Add(page => page.Series, series));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".pr-tools")));
+            .Add(page => page.Series, series)
+            .Add(page => page.ReturnCollectionId, collectionId));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".rf-tools")));
         return cut;
     }
 
     private static string[] ToolLabels(IRenderedComponent<PageReader> cut) =>
-        cut.FindAll(".pr-tools button").Select(button => button.GetAttribute("aria-label") ?? string.Empty).ToArray();
+        cut.FindAll(".rf-tools button").Select(button => button.GetAttribute("aria-label") ?? string.Empty).ToArray();
 
     private static string[] SegmentLabels(IRenderedComponent<PageReader> cut, string groupLabel) =>
         cut.Find($".app-segmented-control[aria-label='{groupLabel}']").QuerySelectorAll("button").Select(button => button.TextContent.Trim()).ToArray();
@@ -90,7 +93,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         cut.Find($".app-segmented-control[aria-label='{groupLabel}'] button.is-selected").TextContent.Trim();
 
     private static void OpenSettings(IRenderedComponent<PageReader> cut) =>
-        cut.Find(".pr-tools button[aria-label='Settings']").Click();
+        cut.Find(".rf-tools button[aria-label='Reading settings']").Click();
 
     private static object? Option(IRenderedComponent<PageReader> cut, IReadOnlyList<Bunit.JSRuntimeInvocation> invocations, string name)
     {
@@ -103,7 +106,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
     {
         var cut = Open("pdf", withOutline: true);
 
-        Assert.Equal(["Search in this file", "Contents", "Pages", "Bookmark this page", "Bookmarks", "Settings"], ToolLabels(cut));
+        Assert.Equal(["Search in this file", "Contents", "Pages", "Bookmark this page", "Bookmarks", "Reading settings", "Close"], ToolLabels(cut));
     }
 
     [Fact]
@@ -111,7 +114,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
     {
         var cut = Open("comic");
 
-        Assert.Equal(["Pages", "Bookmark this page", "Bookmarks", "Settings"], ToolLabels(cut));
+        Assert.Equal(["Pages", "Bookmark this page", "Bookmarks", "Reading settings", "Close"], ToolLabels(cut));
     }
 
     [Fact]
@@ -130,7 +133,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
 
         var cut = Open("pdf", withOutline: true);
 
-        Assert.Equal(["Bookmark this page", "More actions"], ToolLabels(cut));
+        Assert.Equal(["Bookmark this page", "More actions", "Close"], ToolLabels(cut));
         Assert.Empty(cut.FindAll("dialog"));
     }
 
@@ -140,17 +143,17 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         await UsePhoneAsync();
         var cut = Open("pdf", withOutline: true);
 
-        cut.Find(".pr-tools button[aria-label='More actions']").Click();
+        cut.Find(".rf-tools button[aria-label='More actions']").Click();
 
         var sheet = cut.Find("dialog");
         Assert.Contains("app-native-dialog--sheet", sheet.ClassName, StringComparison.Ordinal);
         Assert.Equal(
-            ["Search in this file", "Contents", "Pages", "Bookmarks", "Settings"],
+            ["Search in this file", "Contents", "Pages", "Bookmarks", "Reading settings"],
             sheet.QuerySelectorAll(".app-menu-item").Select(item => item.TextContent.Trim()).ToArray());
 
         sheet.QuerySelectorAll(".app-menu-item").Single(item => item.TextContent.Trim() == "Pages").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal("Pages", cut.Find(".br-panel-title").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Equal("Pages", cut.Find(".rf-panel-title").TextContent.Trim()));
         Assert.Empty(cut.FindAll("dialog"));
     }
 
@@ -160,10 +163,10 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         await UsePhoneAsync();
         var cut = Open("comic");
 
-        cut.Find(".pr-tools button[aria-label='More actions']").Click();
+        cut.Find(".rf-tools button[aria-label='More actions']").Click();
 
         Assert.Equal(
-            ["Pages", "Bookmarks", "Settings"],
+            ["Pages", "Bookmarks", "Reading settings"],
             cut.Find("dialog").QuerySelectorAll(".app-menu-item").Select(item => item.TextContent.Trim()).ToArray());
     }
 
@@ -173,7 +176,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         var cut = Open("comic");
 
         Assert.Equal("Page 1 of 28", cut.Find(".pr-count").TextContent.Trim());
-        var footer = cut.Find(".pr-bar--bottom");
+        var footer = cut.Find(".rf-bar--bottom");
         Assert.Equal(["pr-track", "pr-count"], footer.Children.Select(child => child.ClassList.First()).ToArray());
     }
 
@@ -203,8 +206,8 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         _profile.Reading.PageLayouts[PageReaderProfileSettings.LayoutKey(Asset)] = "two";
 
         var cut = Open("comic");
-        cut.Find(".pr-tools button[aria-label='More actions']").Click();
-        cut.Find("dialog").QuerySelectorAll(".app-menu-item").Single(item => item.TextContent.Trim() == "Settings").Click();
+        cut.Find(".rf-tools button[aria-label='More actions']").Click();
+        cut.Find("dialog").QuerySelectorAll(".app-menu-item").Single(item => item.TextContent.Trim() == "Reading settings").Click();
 
         Assert.Equal(["Auto", "One page", "Scrolling"], SegmentLabels(cut, "Layout"));
         Assert.Equal("One page", SelectedSegment(cut, "Layout"));
@@ -268,13 +271,13 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheSettingsPanel_IsTitledSettingsAndCarriesNoExtraHintLine()
+    public void TheSettingsPanel_IsTitledReadingSettingsAndCarriesNoExtraHintLine()
     {
         var cut = Open("comic");
         OpenSettings(cut);
 
-        Assert.Equal("Settings", cut.Find(".br-panel-title").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".br-panel-body .br-hint"));
+        Assert.Equal("Reading settings", cut.Find(".rf-panel-title").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".rf-panel-body .br-hint"));
         Assert.DoesNotContain("saved to your profile", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -284,7 +287,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         // The script answers once its last hit has been handed over, so the call stays open while the hits arrive.
         var search = _module.Setup<PageReader.PdfSearchOutcome>("searchText", _ => true);
         var cut = Open("pdf");
-        cut.Find(".pr-tools button[aria-label='Search in this file']").Click();
+        cut.Find(".rf-tools button[aria-label='Search in this file']").Click();
 
         Assert.Empty(cut.FindAll(".br-search button"));
 
@@ -301,16 +304,76 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheReadersPanelsAreFourHundredPixelsThroughTheSharedPanelToken_WithoutTouchingTheBookReader()
+    public void ThePanelIsTheFramesPanel_FourHundredPixelsThroughTheSharedPanelToken()
     {
         var cut = Open("comic");
         OpenSettings(cut);
-        var css = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/page-reader.css"));
-        var bookCss = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/book-reader.css"));
+        var frameCss = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/reader-frame.css"));
 
-        Assert.Contains("br-panel pr-panel", cut.Find(".br-panel").ClassName, StringComparison.Ordinal);
-        Assert.Matches(@"\.br-panel\.pr-panel \{ inline-size: min\(var\(--tl-popout-panel\), 100%\); \}", css);
-        Assert.DoesNotContain("pr-panel", bookCss, StringComparison.Ordinal);
+        Assert.Contains("rf-panel", cut.Find(".rf-panel").ClassName, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".br-panel"));
+        Assert.Matches(@"\.rf-panel \{[^}]*inline-size: min\(var\(--tl-popout-panel\), 100%\);", frameCss);
+    }
+
+    [Fact]
+    public void ThePageReaderStylesheet_HoldsNoBarTitleToolsPanelOrScrimRules()
+    {
+        var css = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/page-reader.css"));
+
+        foreach (var retired in new[] { ".pr-shell", ".pr-bar", ".pr-title", ".pr-tools", ".pr-ib", ".pr-live", ".pr-overlay", ".pr-spinner", ".pr-state", ".br-panel", ".br-scrim" })
+        {
+            Assert.DoesNotContain(retired, css, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ThePageReaderScript_FindsTheFramesShellBarsAndPanelBody()
+    {
+        var script = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/js/page-reader.js"));
+
+        Assert.Contains("\".rf-shell\"", script, StringComparison.Ordinal);
+        Assert.Contains("\".rf-bar--bottom", script, StringComparison.Ordinal);
+        Assert.Contains("\".rf-panel-body\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("pr-shell", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("pr-bar", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("br-panel", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CloseIsTheLastControlOnTheTopLine_AndThereIsNoBackArrow()
+    {
+        var cut = Open("comic");
+
+        Assert.Equal("Close", ToolLabels(cut).Last());
+        Assert.DoesNotContain("Back to Library", ToolLabels(cut));
+        Assert.Contains("rf-close", cut.FindAll(".rf-tools button").Last().ClassList);
+    }
+
+    [Fact]
+    public void Close_SavesThePageAndReturnsToWhereTheReaderWasOpenedFrom()
+    {
+        var collection = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        var cut = Open("comic", collectionId: collection);
+
+        cut.Find(".rf-tools button[aria-label='Close']").Click();
+
+        cut.WaitForAssertion(() => Assert.EndsWith($"/details/collection/{collection}", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri, StringComparison.Ordinal));
+        Assert.Contains(nameof(IEngineApiClient.SaveProgressAsync), ((EngineApiClientStub)(object)_api).Calls);
+    }
+
+    [Fact]
+    public void ThePageBackgroundChoice_SetsTheFramesColourVariablesThroughTheShell()
+    {
+        _profile.Reading.PageBackground = "light";
+
+        var cut = Open("comic");
+
+        var shell = cut.Find(".rf-shell");
+        Assert.Contains("pr-reader", shell.ClassList);
+        Assert.Equal("light", shell.GetAttribute("data-background"));
+        var css = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/page-reader.css"));
+        Assert.Matches(@"\.pr-reader\[data-background=""light""\] \{[^}]*--rf-page: #e9e6df;[^}]*--rf-text:", css);
+        Assert.Matches(@"\.pr-reader\[data-background=""dark""\] \{ --rf-page: var\(--tl-bg-root\); \}", css);
     }
 
     [Fact]

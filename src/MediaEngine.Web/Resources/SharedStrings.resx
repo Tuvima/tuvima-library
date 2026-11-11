@@ -12521,29 +12521,8 @@
   <data name="PlaybackIdentity_ItemActions" xml:space="preserve">
     <value>Item actions</value>
   </data>
-  <data name="PageReader_Reader" xml:space="preserve">
-    <value>Reader</value>
-  </data>
-  <data name="PageReader_BackToLibrary" xml:space="preserve">
-    <value>Back to Library</value>
-  </data>
-  <data name="PageReader_ReaderTools" xml:space="preserve">
-    <value>Reader tools</value>
-  </data>
-  <data name="PageReader_ReadingSettings" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="PageReader_Close" xml:space="preserve">
-    <value>Close</value>
-  </data>
   <data name="PageReader_Page" xml:space="preserve">
     <value>Page</value>
-  </data>
-  <data name="PageReader_Opening" xml:space="preserve">
-    <value>Opening</value>
-  </data>
-  <data name="PageReader_TryAgain" xml:space="preserve">
-    <value>Try again</value>
   </data>
   <data name="PageReader_Layout" xml:space="preserve">
     <value>Layout</value>
@@ -12557,14 +12536,8 @@
   <data name="PageReader_Background" xml:space="preserve">
     <value>Background</value>
   </data>
-  <data name="PageReader_Search" xml:space="preserve">
-    <value>Search</value>
-  </data>
   <data name="PageReader_SearchInFile" xml:space="preserve">
     <value>Search in this file</value>
-  </data>
-  <data name="PageReader_Contents" xml:space="preserve">
-    <value>Contents</value>
   </data>
   <data name="PageReader_SearchHint" xml:space="preserve">
     <value>Type at least two letters, then press Enter.</value>
@@ -12587,17 +12560,11 @@
   <data name="PageReader_OnPage" xml:space="preserve">
     <value>Page {0}</value>
   </data>
-  <data name="PageReader_ClosePanel" xml:space="preserve">
-    <value>Close {0}</value>
-  </data>
   <data name="PageReader_Bookmarks" xml:space="preserve">
     <value>Bookmarks</value>
   </data>
   <data name="PageReader_BookmarkThisPage" xml:space="preserve">
     <value>Bookmark this page</value>
-  </data>
-  <data name="PageReader_RemoveBookmark" xml:space="preserve">
-    <value>Remove the bookmark on this page</value>
   </data>
   <data name="PageReader_BookmarkAdded" xml:space="preserve">
     <value>Bookmarked page {0}.</value>
@@ -12637,9 +12604,6 @@
   </data>
   <data name="PageReader_KeepBookmark" xml:space="preserve">
     <value>Keep it</value>
-  </data>
-  <data name="PageReader_Pages" xml:space="preserve">
-    <value>Pages</value>
   </data>
   <data name="PageReader_NextIn" xml:space="preserve">
     <value>Next in {0}</value>
