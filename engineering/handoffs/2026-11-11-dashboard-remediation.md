@@ -85,6 +85,13 @@ Pages that need identified media (Home, Read, Watch, Listen, an item's page) sta
 - Left on purpose: `AppDrawer` (2 uses, no side-sheet position in the shared window), `AppIcon` (a different icon family), player menus and tabs (player chrome has its own panel), `EmptyTrashDialog` and `SignInDeletionConfirmation` (not plain confirms).
 - Follow-ups: a third copy of the PIN window in the profile picker; wrong `tablist` role on the browse mode switch, the discovery filter bar and the artwork role pickers; folder chips need an area tone (design decision); a count-bubble and a link-pill shape are missing from the shared parts.
 
+## Thread 6 result: structure part 1 (built 2026-11-11)
+
+- `Components/Editor/` holds the universal editor (97 files, from `Details/` and `MediaEditor/`); `Components/Player/` holds every player part (119 files, from `Shared/`, `Listen/` and `Watch/`, which is gone). Pure moves; the rules files' folder lists follow them.
+- Stayed in `Shared/` on purpose: `PlaybackSeekRail`, `PlaybackContextRow`, `PlaybackListRow`, `BookmarksPanel` (only `Shared/` may hold raw inputs), and parts other areas use.
+- "Legacy" notes closed: stale comments reworded, dead provider-card styles deleted, `playback-panel__body--padded`, `ItemImageUrl`, unused audiobook queue fallback and unused stage fields removed. Tile leftovers (`HoverLayout`, `HasCustomArtwork`, `GroupSource`) deleted.
+- Follow-ups: `UsesLegacyPersonImage` (a wire name; needs Contracts and Engine), `MediaTileHoverLayout` on the artwork resolver, unused rules in the old `app.css` layer (`.tl-table`, `.app-filter-bar`, `.app-media-card` and others; need a screen check), `PlaybackUtilityGlyphMap` should move to `Player/`.
+
 ## Local checks
 
 Appended to `engineering/validation/batch.md` as each thread merges.
