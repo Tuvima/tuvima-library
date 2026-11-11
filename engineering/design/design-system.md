@@ -277,7 +277,7 @@ Rules:
 4. Wording comes from the strings file, in plain words, with no code names.
 5. Screen readers hear the same thing: the saved line and alerts are live regions (`role="status"` for success, `role="alert"` for failure).
 
-The count of remaining toast calls is held by a test that only lets it go down, and it ends at 0, when the toast part itself is removed.
+The toast part has been removed from the Dashboard (the service, its host and its styles), and `LookRatchetGuardrailTests.ThereAreNoToasts` fails if any Web code mentions it again.
 
 ## Alignment
 
