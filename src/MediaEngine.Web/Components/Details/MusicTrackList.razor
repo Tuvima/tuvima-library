@@ -1,31 +1,69 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Listen
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
-<AudioItemTable Groups="Groups"
-                SourceTitle="@AlbumTitle"
-                AlbumId="@AlbumId" ArtistId="@ArtistId" ArtistName="@ArtistName"
-                AuthorName="@AuthorName" NarratorName="@NarratorName"
-                Synopsis="@Synopsis"
-                Authors="@Authors" Narrators="@Narrators" AudiobookId="@AudiobookId"
-                ArtworkUrl="@AlbumArtworkUrl"
-                IsAudiobook="IsAudiobook"
-                Compact="Compact"
-                CompactToolbarLeadingContent="ToolbarLeadingContent" />
+@* An audiobook keeps its own chapter list. An album's tracks are the one SongTable in its album-page place (spec
+   music-table-and-reader-frame WP4): this component stays the host that owns the tracks, what playing, queueing and favoriting
+   mean, the Show missing tracks switch and the ticks that feed the page's bulk bar. *@
+@if (IsAudiobook)
+{
+    <AudioItemTable Groups="Groups"
+                    SourceTitle="@AlbumTitle"
+                    AuthorName="@AuthorName" NarratorName="@NarratorName"
+                    Synopsis="@Synopsis"
+                    Authors="@Authors" Narrators="@Narrators" AudiobookId="@AudiobookId"
+                    ArtworkUrl="@AlbumArtworkUrl"
+                    CompactToolbarLeadingContent="ToolbarLeadingContent" />
+}
+else if (AllItems.Count > 0)
+{
+    <section class="tl-music-tracks" aria-label="@($"{AlbumTitle} tracks")">
+        <header class="tl-music-tracks__toolbar">
+            @if (ToolbarLeadingContent is not null)
+            {
+                <div class="tl-music-tracks__leading">@ToolbarLeadingContent</div>
+            }
+            <span class="tl-music-tracks__count">@TrackCountSummary</span>
+            <label class="tl-detail-track-toggle">
+                <AppNativeInput Type="checkbox" Checked="@_showMissing" OnChange="ToggleMissing" />
+                <span>@L["AudioItemTable_ShowMissingTracks"]</span>
+            </label>
+        </header>
+
+        <SongTable Place="SongTablePlace.AlbumPage"
+                   Rows="@_rows"
+                   AriaLabel="@($"{AlbumTitle} tracks")"
+                   ProfileId="@_profileId"
+                   CurrentRowId="@CurrentRowId"
+                   IsPlaying="@Playback.IsPlaying"
+                   FavoriteIds="@_favoriteRowIds"
+                   OnSortChanged="@OnSortChangedAsync"
+                   AlbumArtist="@ArtistName"
+                   ShowSelection="@SelectionShown"
+                   SelectedIds="@_selectedIds"
+                   SelectedIdsChanged="@OnSelectedIdsChangedAsync"
+                   CanEdit="@CanEditRows"
+                   CanDelete="@CanDeleteRows"
+                   Notice="@_notice"
+                   OnNoticeDismissed="@ClearNoticeAsync"
+                   OnPlay="@PlayAsync"
+                   OnPlayNext="@PlayNextAsync"
+                   OnQueue="@QueueAsync"
+                   OnToggleFavorite="@ToggleFavoriteAsync"
+                   OnEdit="@EditAsync"
+                   OnDelete="@DeleteRowAsync"
+                   OnDragOutStarted="@DragStartedCallback"
+                   OnDragOutEnded="@DragEndedCallback"
+                   EmptyContent="@EmptyContent">
+            <BulkContent Context="selected">
+                <BulkSelectionBar />
+            </BulkContent>
+        </SongTable>
+    </section>
+}
 
 @code {
-    [Parameter] public IReadOnlyList<MediaGroupingViewModel> Groups { get; set; } = [];
-    [Parameter] public string AlbumTitle { get; set; } = "Album";
-    [Parameter] public string? AlbumId { get; set; }
-    [Parameter] public string? ArtistId { get; set; }
-    [Parameter] public string? ArtistName { get; set; }
-    [Parameter] public string? AuthorName { get; set; }
-    [Parameter] public string? NarratorName { get; set; }
-    [Parameter] public string? Synopsis { get; set; }
-    [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Authors { get; set; } = [];
-    [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Narrators { get; set; } = [];
-    [Parameter] public string? AudiobookId { get; set; }
-    [Parameter] public string? AlbumArtworkUrl { get; set; }
-    [Parameter] public bool IsAudiobook { get; set; }
-    [Parameter] public bool Compact { get; set; }
-    [Parameter] public RenderFragment? ToolbarLeadingContent { get; set; }
+    private RenderFragment EmptyContent => @<div class="tl-detail-track-empty">@L["AudioItemTable_NoMatchTheCurrentView", "tracks"]</div>;
 }

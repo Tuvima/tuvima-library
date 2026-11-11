@@ -501,7 +501,7 @@ public partial class SongTable
 
     // The # column: the track number on an album page, the place in the list everywhere else.
     private string PositionText(SongRow row) => Place == SongTablePlace.AlbumPage
-        ? row.Number?.ToString(CultureInfo.InvariantCulture) ?? string.Empty
+        ? row.IsUnnumbered ? "–" : row.Number?.ToString(CultureInfo.InvariantCulture) ?? string.Empty
         : _positions.TryGetValue(RowKey(row), out var position) ? position.ToString(CultureInfo.InvariantCulture) : string.Empty;
 
     private static string Dash(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;

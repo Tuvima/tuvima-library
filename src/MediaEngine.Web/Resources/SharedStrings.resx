@@ -932,6 +932,9 @@
   <data name="AudioItemTable_ShowMissingTracks" xml:space="preserve">
     <value>Show missing tracks</value>
   </data>
+  <data name="MusicTrackList_TracksOwned" xml:space="preserve">
+    <value>{0} of {1} tracks owned</value>
+  </data>
   <data name="Common_Title" xml:space="preserve">
     <value>Title</value>
   </data>
@@ -944,9 +947,6 @@
   <data name="AudioItemTable_NoMatchTheCurrentView" xml:space="preserve">
     <value>No {0} match the current view.</value>
   </data>
-  <data name="AudioItemTable_NoOwnedTracksMatchThe" xml:space="preserve">
-    <value>No owned tracks match the current view.</value>
-  </data>
   <data name="Common_Play" xml:space="preserve">
     <value>Play</value>
   </data>
@@ -955,9 +955,6 @@
   </data>
   <data name="Common_AddToQueue" xml:space="preserve">
     <value>Add to queue</value>
-  </data>
-  <data name="AudioItemTable_DragToQueueOrPlaylist" xml:space="preserve">
-    <value>Drag to queue or playlist</value>
   </data>
   <data name="AudiobookTracksContent_Audiobook" xml:space="preserve">
     <value>Audiobook</value>
