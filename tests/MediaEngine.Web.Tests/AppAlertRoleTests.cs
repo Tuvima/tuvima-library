@@ -34,7 +34,7 @@ public sealed class AppAlertRoleTests : LocalizedBunitContext
     [Theory]
     [InlineData("ListenPage_PlaylistOrderSaveFailed", "Components/Pages/ListenPage.razor.cs")]
     [InlineData("ListenPage_SongRemoveFailed", "Components/Pages/ListenPage.razor.cs")]
-    [InlineData("MediaBrowseShell_TheFavoriteCouldNotBe", "Components/Browse/MediaBrowseShell.razor")]
+    [InlineData("MediaBrowseShell_TheFavoriteCouldNotBe", "Components/Browse/MediaBrowseShell.Actions.cs")]
     public void TheWarningsThatSayAnActionFailed_AreMarkedUrgentWhereTheyAreRaised(string key, string file)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
