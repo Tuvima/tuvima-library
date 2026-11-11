@@ -605,6 +605,20 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(["movies-main"], _converted));
     }
 
+    // Asking to organise a folder with nothing in it is answered in place as plain information, not as a warning.
+    [Fact]
+    public async Task OrganiseFilesNowOnAnEmptyFolderSaysSoAsInformationNotAWarning()
+    {
+        _quick = new() { TotalFiles = 0, DuplicatePolicy = "keep_one" };
+        var cut = Open("Movies");
+
+        await OpenMenuItemAsync(cut, 0, "Organize files now");
+
+        cut.WaitForAssertion(() => Assert.Equal("There are no media files in this folder to organise.", Text(cut.Find("[data-folders-notice]"))));
+        Assert.Contains("tl-alert-info", cut.Find("[data-folders-notice]").ClassList);
+        Assert.Empty(_converted);
+    }
+
     // ── Merge into ───────────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]

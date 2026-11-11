@@ -65,7 +65,7 @@
 
                 @if (!string.IsNullOrWhiteSpace(_notice))
                 {
-                    <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
+                    <AppAlert Tone="@(_noticeIsInfo ? AppUiTone.Info : AppUiTone.Warning)" data-folders-notice>@_notice</AppAlert>
                 }
 
                 @if (ImportStatus.Configured)
@@ -150,7 +150,7 @@
                 @* The type's name is already the selected entry in the list on the left, so the pane starts with the folders. *@
                 @if (!string.IsNullOrWhiteSpace(_notice))
                 {
-                    <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
+                    <AppAlert Tone="@(_noticeIsInfo ? AppUiTone.Info : AppUiTone.Warning)" data-folders-notice>@_notice</AppAlert>
                 }
 
                 @if (ShowNamedLibraries)
@@ -215,7 +215,15 @@
     private LibrariesConfigurationDto? _configuration;
     private string _baseline = string.Empty;
     private string? _loadError;
-    private string? _notice;
+    private string? _noticeText;
+    private bool _noticeIsInfo;
+
+    // Every notice is a warning unless the follow-up said it is plain information ("no media files to organise"); setting the text resets that.
+    private string? _notice
+    {
+        get => _noticeText;
+        set { _noticeText = value; _noticeIsInfo = false; }
+    }
     private string? _changedSourceId;
     private bool _loading = true;
     private bool _saving;
@@ -399,7 +407,12 @@
     // A follow-up that queued a job reloads the folders and starts watching the job; anything it has to say stays on screen.
     private async Task AfterFollowUpAsync(FolderFollowUp followUp)
     {
-        if (followUp.Notice is not null) _notice = followUp.Notice;
+        if (followUp.Notice is not null)
+        {
+            _notice = followUp.Notice;
+            _noticeIsInfo = followUp.NoticeIsInfo;
+        }
+
         if (!followUp.Started) return;
         await ReloadConfigurationAsync();
         await RefreshJobsAsync();

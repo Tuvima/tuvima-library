@@ -28,7 +28,7 @@ public sealed class LibraryFolderAddFeedbackTests : AsyncBunitContext
     }
 
     private LibraryFolderAddService Service() =>
-        new(Services.GetRequiredService<IEngineApiClient>(), Services.GetRequiredService<IAppDialogService>());
+        new(Services.GetRequiredService<IEngineApiClient>(), Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<Microsoft.Extensions.Localization.IStringLocalizer<MediaEngine.Web.Resources.SharedStrings>>());
 
     private static readonly LibrarySourceDto Source = new() { Id = "movies-main", Path = "E:\\Movies" };
 
@@ -41,6 +41,8 @@ public sealed class LibraryFolderAddFeedbackTests : AsyncBunitContext
 
         Assert.False(followUp.Started);
         Assert.Equal("There are no media files in this folder to organise.", followUp.Notice);
+        // Nothing went wrong, so the panel draws it as information and not as a warning.
+        Assert.True(followUp.NoticeIsInfo);
         Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 

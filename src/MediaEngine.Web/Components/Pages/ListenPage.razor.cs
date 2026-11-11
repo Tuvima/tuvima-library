@@ -463,8 +463,17 @@ public partial class ListenPage
         new("All Playlists", PlaylistsRoute, AppMaterialIcons.Outlined.QueueMusic),
     ];
 
+    private string? _noticeSection;
+
     protected override async Task OnParametersSetAsync()
     {
+        // A notice belongs to the section it was raised in: moving to another Listen section starts clean.
+        if (!string.Equals(_noticeSection, Section, StringComparison.OrdinalIgnoreCase))
+        {
+            _noticeSection = Section;
+            _notice = null;
+        }
+
         ApplyAudiobookQueryState();
         await LoadAsync();
     }
