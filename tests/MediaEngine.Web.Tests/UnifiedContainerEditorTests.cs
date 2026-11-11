@@ -6,7 +6,7 @@ public sealed class UnifiedContainerEditorTests
     public void CollectionAndPlaylistCreation_UseOneEditorWithoutTheWizard()
     {
         var root = FindRepoRoot();
-        var editor = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var editor = LocalizedSource.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
         var launcher = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "CollectionEditorLauncherService.cs"));
         var models = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "CollectionEditorModels.cs"));
 
@@ -15,7 +15,7 @@ public sealed class UnifiedContainerEditorTests
         Assert.Contains("ContainerEditorKind", models, StringComparison.Ordinal);
         Assert.Contains("(\"membership\", \"Contents\"", editor, StringComparison.Ordinal);
         Assert.Contains("(\"companions\", \"Companions\"", editor, StringComparison.Ordinal);
-        Assert.Contains("Ownership and visibility", editor, StringComparison.Ordinal);
+        Assert.Contains("Who can see it", editor, StringComparison.Ordinal);
         Assert.Contains("Primary area", editor, StringComparison.Ordinal);
         Assert.Contains("membershipMode:", editor, StringComparison.Ordinal);
         Assert.DoesNotContain("Create Smart Playlist", editor, StringComparison.Ordinal);

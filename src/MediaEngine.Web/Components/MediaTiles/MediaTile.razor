@@ -24,7 +24,8 @@ else if (!_removed)
 {
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(IsGroup ? "is-group" : string.Empty)} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)}")'
+<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(IsGroup ? "is-group" : string.Empty)} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)} {(IsJustSaved ? "tl-just-changed" : string.Empty)}")'
+         data-new="@(IsJustSaved ? "true" : null)"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
     <div class="media-tile-frame">
@@ -172,6 +173,15 @@ else if (!_removed)
 @code {
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
     [Parameter] public bool EagerArtwork { get; set; }
+
+    /// <summary>
+    /// The collections the person just saved, cascaded by the Collections page. A tile for one of them glows (the same glow as a
+    /// changed row) as the confirmation, in place of a toast. Null everywhere else.
+    /// </summary>
+    [CascadingParameter(Name = "JustSavedCollectionIds")] public IReadOnlySet<Guid>? JustSavedCollectionIds { get; set; }
+
+    private bool IsJustSaved => JustSavedCollectionIds is { Count: > 0 } saved
+        && (Item.CollectionId is { } collectionId && saved.Contains(collectionId));
     /// <summary>Draws the cover's "..." menu; off for places where a cover is only a picture.</summary>
     [Parameter] public bool ShowActions { get; set; } = true;
     /// <summary>The episode lists of a show or season keep the episode number and title under each still; no other tile has text under it.</summary>

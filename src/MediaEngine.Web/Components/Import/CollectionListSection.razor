@@ -6,7 +6,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
-@inject IAppToastService Toast
 @inject IStringLocalizer<SharedStrings> L
 
 @* The "From a list" part of a list collection's Contents tab (Collections and lists spec D5, D6, 4h): where the list came from, how
@@ -18,8 +17,14 @@
         <div class="list-section" data-list-section>
             <div class="list-section__owned">
                 <strong data-list-section-owned>@L["ListStep_YouOwn", source.OwnedCount, source.EntryCount]</strong>
-                <span>@(source.LastRefreshedAt is { } at ? $"Last checked {at.LocalDateTime:d MMM yyyy}." : "Not checked yet.")</span>
+                <span>@(source.LastRefreshedAt is { } at ? L["ListSection_LastChecked", at.LocalDateTime.ToString("d MMM yyyy")].Value : L["ListSection_NotCheckedYet"].Value)</span>
             </div>
+
+            @if (_status is { } status)
+            {
+                @* What a check, an update or a failed save came to, told here in the section (no toast). *@
+                <AppAlert Tone="@_statusTone" Dense="true" data-list-section-status>@status</AppAlert>
+            }
 
             @if (source.NeedsSignIn)
             {
@@ -80,6 +85,14 @@
     private CollectionListSourceDto? _source;
     private bool _busy;
     private bool _updating;
+    private string? _status;
+    private AppUiTone _statusTone = AppUiTone.Info;
+
+    private void Say(string text, AppUiTone tone)
+    {
+        _status = text;
+        _statusTone = tone;
+    }
 
     [Parameter, EditorRequired] public Guid CollectionId { get; set; }
 
@@ -111,6 +124,7 @@
             return;
 
         _busy = true;
+        _status = null;
         try
         {
             var ok = await Api.UpdateCollectionListSettingsAsync(CollectionId, new ListSourceSettingsRequest
@@ -122,7 +136,7 @@
             });
             if (!ok)
             {
-                Toast.Add(Api.LastError ?? "The list settings could not be saved.", AppSeverity.Error);
+                Say(Api.LastError ?? L["ListSection_SettingsNotSaved"].Value, AppUiTone.Error);
                 return;
             }
 
@@ -138,20 +152,21 @@
     private async Task MatchAgainAsync()
     {
         _busy = true;
+        _status = null;
         try
         {
             var result = await Api.RefreshCollectionListAsync(CollectionId, new ListRefreshRequest { ProfileId = ProfileId });
             if (result is null)
             {
-                Toast.Add(Api.LastError ?? "The list could not be checked.", AppSeverity.Error);
+                Say(Api.LastError ?? L["ListSection_NotChecked"].Value, AppUiTone.Error);
                 return;
             }
 
-            Toast.Add(
+            Say(
                 result.WillTryAgain
                     ? L["ListSection_WillTryAgain", _source?.SourceLabel ?? string.Empty].Value
-                    : $"Checked the list: you own {result.Matched}, {result.Unmatched} still unmatched.",
-                result.WillTryAgain ? AppSeverity.Warning : AppSeverity.Success);
+                    : L["ListSection_Checked", result.Matched, result.Unmatched].Value,
+                result.WillTryAgain ? AppUiTone.Warning : AppUiTone.Success);
             await LoadAsync();
             await OnContentsChanged.InvokeAsync();
         }
@@ -164,6 +179,7 @@
     private async Task UpdateFromFileAsync(ImportRecognition recognition)
     {
         _busy = true;
+        _status = null;
         try
         {
             var result = await Api.RefreshCollectionListAsync(CollectionId, new ListRefreshRequest
@@ -175,11 +191,11 @@
             });
             if (result is null)
             {
-                Toast.Add(Api.LastError ?? "The newer file could not be used.", AppSeverity.Error);
+                Say(Api.LastError ?? L["ListSection_NewerFileNotUsed"].Value, AppUiTone.Error);
                 return;
             }
 
-            Toast.Add($"Updated from the newer file: {result.Added} added, {result.Removed} left the list.", AppSeverity.Success);
+            Say(L["ListSection_Updated", result.Added, result.Removed].Value, AppUiTone.Success);
             _updating = false;
             await LoadAsync();
             await OnContentsChanged.InvokeAsync();
@@ -205,11 +221,12 @@
             return;
 
         _busy = true;
+        _status = null;
         try
         {
             if (!await Api.FixCollectionListEntryAsync(CollectionId, entryId, request))
             {
-                Toast.Add(Api.LastError ?? "That could not be saved.", AppSeverity.Error);
+                Say(Api.LastError ?? L["ListSection_FixNotSaved"].Value, AppUiTone.Error);
                 return;
             }
 
