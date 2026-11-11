@@ -50,7 +50,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `MediaTiles/` | `MediaTile` (single titles and group posters), `MediaSquareTile`, `MediaTileGrid`, `MediaTileShelf` |
 | `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu` (incl. Needs Review link), `LibrarySwitcherSheet`, and the phone shell (`PhoneNavigationMenu`, `PhoneSectionChips`, `PhoneDownloadsAction`) — see *Phone navigation* in `docs/product/presentation-rules.md` |
 | `Pages/` | All routed pages — see the table below |
-| `Player/` | Every player part, audio and video: the shared shell and chrome (`PlaybackShell`, `PlaybackPanel`, `PlaybackControlCatalog*.cs`, speed, sleep timer, item and row menus, volume, tool sheet), the Listen bar and full player (`ListenNowPlayingBar`, `PlaybackFullPlayer`, `PlaybackContextPanel`, lyrics, `QueuePanel`, chapters), and the video host with its subtitle, audio, Up Next, Episodes and bookmark parts (`VideoPlaybackHost`, `AudioSubtitles*`, `Subtitle*`, `EpisodesPanel`, `OwnedEpisodeQueuePlanner`). `Pages/WatchPlayerPage`, the readers, Settings playback pages and `Services/Playback/` stay where they are |
+| `Player/` | Every player part, audio and video: the shared shell and chrome (`PlaybackShell`, `PlaybackPanel`, `PlaybackControlCatalog*.cs`, speed, sleep timer, item and row menus, volume, tool sheet), the Listen bar and full player (`ListenNowPlayingBar`, whose code sits in partial classes beside its markup: `.razor.cs` core and lifecycle, `.View`, `.Panels`, `.Browser`, `.Audio`, `.SleepTimer`, `.Transport`, `.NowPlaying`, `.Bookmarks`; `PlaybackFullPlayer`, `PlaybackContextPanel`, lyrics, `QueuePanel`, chapters), and the video host with its subtitle, audio, Up Next, Episodes and bookmark parts (`VideoPlaybackHost`, `AudioSubtitles*`, `Subtitle*`, `EpisodesPanel`, `OwnedEpisodeQueuePlanner`). `Pages/WatchPlayerPage`, the readers, Settings playback pages and `Services/Playback/` stay where they are |
 | `Profiles/` | Profile editor/avatar/sign-in sheets with their `ProfileEditingWorkflow` / `ProfileSignInWorkflow`, `ProfileManageRules` |
 | `Rules/` | Shared rule builder for Collections and View |
 | `Search/` | `UniversalSearchOverlay`, results |
@@ -120,7 +120,7 @@ No address forwards anywhere (Look v3 D17): an old, retired or misspelled addres
 | Full routable page | `Components/Pages/` |
 | Settings section | `Components/Settings/<Name>Tab.razor` + register in `SettingsNav` |
 | Reader-player component | `Components/Pages/BookReader.razor` (book access stays in `wwwroot/js/book-reader.js`), `EpubReader.razor` (the `/read` route page only) or `Components/Player/Playback*` |
-| Listen bar and transport | `Components/Player/ListenNowPlayingBar.razor`, `Components/Player/PlaybackShell.razor`, `Components/Player/PlaybackControlCatalog*.cs` |
+| Listen bar and transport | `Components/Player/ListenNowPlayingBar.razor` (markup) and `ListenNowPlayingBar.*.cs` (code), `Components/Player/PlaybackShell.razor`, `Components/Player/PlaybackControlCatalog*.cs` |
 | Playback session controller or primitives | `Services/Playback/` |
 | Route-building helper | `Services/Navigation/` |
 | Editor launcher or state | `Services/Editing/` |

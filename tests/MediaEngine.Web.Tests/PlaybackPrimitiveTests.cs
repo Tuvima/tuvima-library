@@ -182,7 +182,7 @@ public sealed class PlaybackPrimitiveTests
     public void ListenSurfaces_UseSharedTransportControls()
     {
         var root = FindRepoRoot();
-        var bar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
+        var bar = LocalizedSource.ReadComponent(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var sidebar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor"));
         var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor"));
         var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackSpeedPanel.razor"));
@@ -310,7 +310,7 @@ public sealed class PlaybackPrimitiveTests
     public void DockedPlayers_UseCenteredLargeControlsAndCoverOnlyThumbnails()
     {
         var root = FindRepoRoot();
-        var listenBar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
+        var listenBar = LocalizedSource.ReadComponent(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var listenStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css"));
         var utilityGlyph = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor"));
         var utilityGlyphStyles = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor.css"));
@@ -369,7 +369,7 @@ public sealed class PlaybackPrimitiveTests
         var tokens = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/tuvima.tokens.css"));
         var toolSheet = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor"));
         var toolSheetCss = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css"));
-        var listenBar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
+        var listenBar = LocalizedSource.ReadComponent(Path.Combine(root, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var videoHost = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
         var playbackStyles = Directory
             .EnumerateFiles(Path.Combine(root, "src/MediaEngine.Web/Components"), "*Playback*.razor.css", SearchOption.AllDirectories)

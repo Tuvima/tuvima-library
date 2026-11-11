@@ -1046,7 +1046,7 @@ public sealed class UnifiedDetailComponentTests
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
         var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor");
         var contextPanel = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Player/ChaptersPanel.razor");
-        var phonePlayer = fullPlayer + contextPanel + ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
+        var phonePlayer = fullPlayer + contextPanel + LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
         var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
         var playbackService = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs");
@@ -1054,7 +1054,7 @@ public sealed class UnifiedDetailComponentTests
         var detailStyles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var detailHeroStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var heroMetadata = ReadSource("src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor");
-        var playerBar = ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
+        var playerBar = LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var playerStyles = ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css");
         var playbackSkipButton = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor");
         var playbackSkipButtonStyles = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor.css");
@@ -1313,7 +1313,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void PhonePlayerUsesSharedFullPlayerAndAuthorizedTools()
     {
-        var host = ReadSource("src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor");
+        var host = LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var bookmark = ReadSource("src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor");
         var speed = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackSpeedView.razor");
 
