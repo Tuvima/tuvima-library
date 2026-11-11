@@ -28,6 +28,8 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
     private readonly List<ListRefreshResultDto?> _refreshAnswers = [];
     private ListImportPreviewDto _list = new();
     private IReadOnlyList<CollectionPackCreatedDto> _packsCreated = [];
+    private IReadOnlyList<CollectionPackSkippedDto> _packsSkipped = [];
+    private readonly Queue<Guid?> _createAnswers = [];
     private bool _updateOk = true;
     private Guid _createdId = Guid.NewGuid();
     private int _previewItems = 7;
@@ -45,7 +47,8 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         Services.AddSingleton<ICollectionPersonalMediaClient>(new NoPersonalMedia());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.CreateCollectionAndReturnIdAsync), _ => Task.FromResult<Guid?>(_createdId));
+            stub.SetHandler(nameof(IEngineApiClient.CreateCollectionAndReturnIdAsync), _ => Task.FromResult<Guid?>(_createAnswers.Count > 0 ? _createAnswers.Dequeue() : _createdId));
+            stub.SetHandler(nameof(IEngineApiClient.ImportCollectionListAsync), _ => Task.FromResult<ListImportResultDto?>(new ListImportResultDto(_createdId, 10, 8, 2)));
             stub.SetHandler(nameof(IEngineApiClient.UpdateCollectionAsync), _ => Task.FromResult(_updateOk));
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ => Task.FromResult(new List<CollectionItemDto>()));
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionPacksAsync), _ => Task.FromResult<IReadOnlyList<CollectionPackSummaryDto>>(
@@ -53,7 +56,7 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
                 new() { Id = "decades", Name = "Decades", WouldCreateCount = 2, CreatesSet = true },
             ]));
             stub.SetHandler(nameof(IEngineApiClient.CreateCollectionPacksAsync), _ => Task.FromResult<CollectionPackCreateResponse?>(
-                new CollectionPackCreateResponse { Collections = _packsCreated.ToList() }));
+                new CollectionPackCreateResponse { Collections = _packsCreated.ToList(), Skipped = _packsSkipped.ToList() }));
             stub.SetHandler(nameof(IEngineApiClient.PreviewCollectionRulesAsync), _ => Task.FromResult<CollectionPreviewResult?>(new CollectionPreviewResult
             {
                 Count = _previewItems,
@@ -182,6 +185,112 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         editor.WaitForAssertion(() => Assert.Contains("Nothing new was created.", editor.Find("[data-editor-notice]").TextContent));
         Assert.Empty(Toasts);
         Assert.Empty(closed);
+    }
+
+    [Fact]
+    public async Task APackSaveThatSkippedSomePacks_StaysOpenOnOneSummary_UntilDoneClosesItWithTheMadeIdsKept()
+    {
+        var made = Guid.NewGuid();
+        _packsCreated = [new CollectionPackCreatedDto { Id = made, Name = "1990s" }];
+        _packsSkipped = [new CollectionPackSkippedDto { Name = "2000s", Reason = "Not enough titles." }];
+        var closed = new List<bool>();
+        var request = new CollectionEditorLaunchRequest { InitialOwnerKind = "Library", InitialAudience = "Everyone" };
+        var editor = RenderEditor(request, closed.Add);
+
+        await editor.InvokeAsync(() => editor.FindAll(".app-choice-card").First(card => card.TextContent.Contains("Start from a pack", StringComparison.Ordinal)).Click());
+        await Next(editor);
+        editor.WaitForAssertion(() => Assert.Single(editor.FindAll("[data-pack='decades'] input")));
+        await editor.InvokeAsync(() => editor.Find("[data-pack='decades'] input").Change(true));
+        await Next(editor);
+        await Next(editor);
+
+        editor.WaitForAssertion(() => Assert.Single(editor.FindAll("[data-save-summary]")));
+        var summary = editor.Find("[data-save-summary]");
+        Assert.Contains("1 made; 1 not:", summary.TextContent);
+        Assert.Contains("2000s: Not enough titles.", summary.TextContent);
+        Assert.Equal("status", summary.GetAttribute("role"));
+        Assert.Empty(closed);
+        Assert.Empty(Toasts);
+
+        await editor.InvokeAsync(() => editor.Find("[data-save-summary-done]").Click());
+
+        editor.WaitForAssertion(() => Assert.Equal([true], closed));
+        Assert.Equal([made], request.SavedCollectionIds);
+    }
+
+    [Fact]
+    public async Task AListSaveWhereALaterShelfFails_StaysOpenOnOneSummary_UntilDoneClosesItWithTheMadeIdsKept()
+    {
+        var made = Guid.NewGuid();
+        _createAnswers.Enqueue(made);
+        _createAnswers.Enqueue(null);
+        _list = SampleList() with { Shelves = [new ListImportShelfDto("Action", 5, 4), new ListImportShelfDto("Drama", 5, 4)] };
+        var recognition = new ImportRecognition("top.csv", null, "a", new ImportPreviewDto { Kind = ImportKinds.CollectionList, KindLabel = "Collection list", Recognised = true, List = _list });
+        var closed = new List<bool>();
+        var request = new CollectionEditorLaunchRequest
+        {
+            InitialOwnerKind = "Library",
+            InitialAudience = "Everyone",
+            InitialWay = "FromList",
+            InitialImport = recognition,
+            InitialTitle = "Top",
+        };
+        var editor = RenderEditor(request, closed.Add);
+
+        editor.WaitForAssertion(() => Assert.NotEmpty(editor.FindAll("[data-list-shelves] input")));
+        foreach (var index in new[] { 0, 1 })
+        {
+            await editor.InvokeAsync(() => editor.FindAll("[data-list-shelves] input")[index].Change(true));
+        }
+
+        await Next(editor);
+        await Next(editor);
+
+        editor.WaitForAssertion(() => Assert.Single(editor.FindAll("[data-save-summary]")));
+        Assert.Contains("1 made; 1 not:", editor.Find("[data-save-summary]").TextContent);
+        Assert.Empty(closed);
+        Assert.Empty(Toasts);
+
+        await editor.InvokeAsync(() => editor.Find("[data-save-summary-done]").Click());
+
+        editor.WaitForAssertion(() => Assert.Equal([true], closed));
+        Assert.Equal([made], request.SavedCollectionIds);
+    }
+
+    [Theory]
+    [InlineData(0, false, null)]
+    [InlineData(1, true, "Collection saved.")]
+    [InlineData(3, true, "3 collections saved.")]
+    public void TheSavedNote_IsOneQuietStatusLine_OnlyWhenSomethingWasSaved(int count, bool shown, string? text)
+    {
+        var cut = Render<CollectionSavedNote>(parameters => parameters.Add(note => note.Count, count));
+
+        Assert.Equal(shown ? 1 : 0, cut.FindAll("[data-collection-saved]").Count);
+        if (shown)
+        {
+            Assert.Equal("status", cut.Find("[data-collection-saved]").GetAttribute("role"));
+            Assert.Contains(text!, cut.Find("[data-collection-saved]").TextContent);
+        }
+
+        Assert.Empty(Toasts);
+    }
+
+    [Fact]
+    public void EveryPageThatOpensTheEditor_ReadsWhatWasSaved_AndTellsIt()
+    {
+        var root = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components");
+        foreach (var file in new[]
+        {
+            Path.Combine("Pages", "WatchPage.razor"),
+            Path.Combine("Pages", "ReadPage.razor"),
+            Path.Combine("Pages", "ListenBrowsePage.razor"),
+            Path.Combine("Pages", "ListenPage.razor.cs"),
+            Path.Combine("Settings", "Overview", "OverviewImportPage.razor"),
+        })
+        {
+            var text = File.ReadAllText(Path.Combine(root, file));
+            Assert.Contains("SavedCollectionIds", text, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

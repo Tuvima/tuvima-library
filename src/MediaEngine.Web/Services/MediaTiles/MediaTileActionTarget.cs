@@ -72,13 +72,20 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
         };
     }
 
-    // A Series, curated collection or Universe: My List for the curated kinds, Edit through the editor's own answer, never Delete.
+    // A Series, curated collection or Universe: My List for the curated kinds, Edit through the editor's own answer, never Delete (a Universe tile gets neither My List nor Edit).
     private static MediaTileActionTarget? ForGroup(MediaTileViewModel item)
     {
         var id = item.CollectionId ?? item.Id;
         if (id == Guid.Empty)
         {
             return null;
+        }
+
+        // A Universe is not a Collection: it has no My List entry, and its Edit is the Universe page's own (an administrator unlock and the
+        // Universe's Wikidata id, not a collection id), which a tile cannot open. So its tile offers neither rather than a wrong one.
+        if (item.GroupKind == MediaTileGroupKind.Universe)
+        {
+            return new(id, item.Title, ProfileEntityKind.Collection, DetailEntityType.Universe, "Books", null, CanSave: false, CanEdit: false, CanDelete: false);
         }
 
         var isSeries = item.GroupKind == MediaTileGroupKind.Series

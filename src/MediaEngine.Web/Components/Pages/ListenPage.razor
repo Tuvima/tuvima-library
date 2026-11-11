@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Browse
+@using MediaEngine.Web.Components.Collections
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Components.Listen
@@ -169,6 +170,8 @@ else
                                           ActiveMode="@ActiveListenMode" />
                 </div>
             }
+
+            <CollectionSavedNote Count="@_savedCollectionCount" />
 
             @if (IsMusicBrowseNavigationVisible)
             {

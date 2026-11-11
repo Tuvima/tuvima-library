@@ -1290,6 +1290,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     // Active and queued work per media type: an operation takes the type of the Work (or of the file's Work) it points at, an identity
     // job its own type. An operation that points at nothing yet has no type and belongs to no area.
+    // Finished rows are filtered inside each inner SELECT so they never reach the type lookup or the union.
     private async Task<IReadOnlyList<CurrentOperationTypeFacts>> ReadCurrentOperationFactsByTypeAsync(CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
@@ -1307,12 +1308,15 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                        CASE WHEN status IN ('pending','queued') AND updated_at >= @staleBefore THEN 1 ELSE 0 END AS IsQueued
                 FROM media_operations
                 WHERE {VaultSql.NotVaultEntity("media_operations.entity_id")}
+                  AND (status IN ('leased','running','processing','active')
+                       OR (status IN ('pending','queued') AND updated_at >= @staleBefore))
                 UNION ALL
                 SELECT identity_jobs.media_type AS MediaType,
                        CASE WHEN state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') THEN 1 ELSE 0 END AS IsActive,
                        CASE WHEN state IN ('Queued','RetailMatched','QidResolved') THEN 1 ELSE 0 END AS IsQueued
                 FROM identity_jobs
                 WHERE {VaultSql.NotVaultEntity("identity_jobs.entity_id")}
+                  AND state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching','Queued','RetailMatched','QidResolved')
             )
             WHERE MediaType IS NOT NULL
             GROUP BY MediaType;

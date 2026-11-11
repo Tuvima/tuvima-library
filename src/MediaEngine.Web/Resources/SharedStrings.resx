@@ -13175,6 +13175,27 @@
   <data name="CollectionFlow_NothingOwnedOnShelves" xml:space="preserve">
     <value>Nothing from {0} is in your library, so no collection was made for it.</value>
   </data>
+  <data name="CollectionFlow_SaveSummaryHeadline" xml:space="preserve">
+    <value>{0} made; {1} not:</value>
+  </data>
+  <data name="CollectionFlow_SaveSummaryHeadlineArtwork" xml:space="preserve">
+    <value>{0} made, but something needs a look:</value>
+  </data>
+  <data name="CollectionFlow_SaveSummaryArtwork" xml:space="preserve">
+    <value>{0}: the {1} artwork could not be uploaded.</value>
+  </data>
+  <data name="CollectionSaved_One" xml:space="preserve">
+    <value>Collection saved.</value>
+  </data>
+  <data name="ViewFoldersTab_ModeManaged" xml:space="preserve">
+    <value>New Managed folder</value>
+  </data>
+  <data name="ViewFoldersTab_ModeLinked" xml:space="preserve">
+    <value>Existing folder (Read-only)</value>
+  </data>
+  <data name="CollectionSaved_Many" xml:space="preserve">
+    <value>{0} collections saved.</value>
+  </data>
   <data name="CollectionFlow_PacksNotCreated" xml:space="preserve">
     <value>The packs could not be created.</value>
   </data>

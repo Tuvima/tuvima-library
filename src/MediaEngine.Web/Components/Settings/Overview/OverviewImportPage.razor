@@ -2,6 +2,7 @@
 @using System.Text
 @using MediaEngine.Contracts.Collections
 @using MediaEngine.Contracts.Import
+@using MediaEngine.Web.Components.Collections
 @using MediaEngine.Web.Components.Import
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
@@ -33,6 +34,7 @@
             }
         </Actions>
     </ImportPanel>
+    <CollectionSavedNote Count="@_savedCollectionCount" />
     @if (_packMessage is not null)
     {
         <AppAlert Tone="@(_packAdded ? AppUiTone.Success : AppUiTone.Warning)" Dense="true" data-import-pack-result>@_packMessage</AppAlert>
@@ -91,12 +93,19 @@
     private async Task MakeCollectionAsync(ImportRecognition recognition)
     {
         var profile = await Orchestrator.GetActiveProfileAsync();
-        await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
+        _savedCollectionCount = 0;
+        var request = new CollectionEditorLaunchRequest
         {
             ActiveProfileId = profile?.Id,
             InitialWay = "FromList",
             InitialImport = recognition,
             InitialTitle = string.Empty,
-        });
+        };
+        await CollectionEditorLauncher.OpenAsync(request);
+
+        // What the editor saved is told by one quiet line; there is no toast.
+        _savedCollectionCount = request.SavedCollectionIds.Count;
     }
+
+    private int _savedCollectionCount;
 }

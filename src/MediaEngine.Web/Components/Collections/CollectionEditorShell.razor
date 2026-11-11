@@ -1221,11 +1221,15 @@
 
         var created = new List<Guid>();
         var skipped = new List<string>();
+        var artworkProblems = new List<string>();
+        string? failure = null;
+        var shelfCount = 0;
         try
         {
             var shelves = _listDraft.Shelves.Count == 0
                 ? new List<string?> { null }
                 : _listDraft.Shelves.OrderBy(shelf => shelf, StringComparer.OrdinalIgnoreCase).Select(shelf => (string?)shelf).ToList();
+            shelfCount = shelves.Count;
             var seasonFrom = _seasonal ? SeasonText(_seasonFromMonth, _seasonFromDay) : null;
             var seasonTo = _seasonal ? SeasonText(_seasonToMonth, _seasonToDay) : null;
             var sortField = _randomOrder ? "random" : string.IsNullOrWhiteSpace(_sortField) ? null : _sortField;
@@ -1243,7 +1247,7 @@
                 });
                 if (preview is null)
                 {
-                    ShowNotice(ApiClient.LastError ?? L["CollectionFlow_ListReadAgainFailed"].Value, AppUiTone.Error);
+                    failure = ApiClient.LastError ?? L["CollectionFlow_ListReadAgainFailed"].Value;
                     break;
                 }
 
@@ -1279,7 +1283,7 @@
                     showOn: _showOn.ToList());
                 if (collectionId is not { } id)
                 {
-                    ShowNotice(string.IsNullOrWhiteSpace(ApiClient.LastError) ? L["CollectionFlow_SaveFailed"].Value : ApiClient.LastError, AppUiTone.Error);
+                    failure = string.IsNullOrWhiteSpace(ApiClient.LastError) ? L["CollectionFlow_SaveFailed"].Value : ApiClient.LastError;
                     break;
                 }
 
@@ -1299,32 +1303,53 @@
                 {
                     var reason = ApiClient.LastError;
                     await ApiClient.DeleteCollectionAsync(id, Request.ActiveProfileId);
-                    ShowNotice(string.IsNullOrWhiteSpace(reason) ? L["CollectionFlow_ListNotAttached"].Value : reason, AppUiTone.Error);
+                    failure = string.IsNullOrWhiteSpace(reason) ? L["CollectionFlow_ListNotAttached"].Value : reason;
                     break;
                 }
 
                 created.Add(id);
                 RememberSaved(id);
+                var failedSlots = new List<string>();
                 foreach (var (slot, file) in _artworkFiles)
                 {
                     await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
                     if (!await ApiClient.UploadCollectionArtworkAsync(id, slot, stream, file.Name, Request.ActiveProfileId))
+                    {
                         Logger.LogWarning("A list collection was made but its {Slot} artwork could not be uploaded", slot);
+                        failedSlots.Add(slot);
+                    }
                 }
+
+                if (failedSlots.Count > 0)
+                    artworkProblems.Add(L["CollectionFlow_SaveSummaryArtwork", name, string.Join(", ", failedSlots)].Value);
             }
 
             if (skipped.Count > 0)
-            {
-                // A shelf with nothing Library owns makes no collection; the glowing tiles on the Collections page show what was made.
                 Logger.LogInformation("No collection was made for {Shelves}: nothing on it is in the library", string.Join(", ", skipped));
-                if (created.Count == 0)
+
+            // Nothing was made: stay on the last step with the reason in place so the person can fix it and try again.
+            if (created.Count == 0)
+            {
+                if (failure is not null)
+                    ShowNotice(failure, AppUiTone.Error);
+                else if (skipped.Count > 0)
                     ShowNotice(L["CollectionFlow_NothingOwnedOnShelves", string.Join(", ", skipped)].Value, AppUiTone.Warning);
+                return;
             }
 
-            // Nothing was made: stay on the last step so the person can fix it and try again. If some were made before a
-            // failure the editor closes, so a retry cannot make them twice; the note above says what did not happen.
-            if (created.Count == 0)
+            // Something was made but something was not (a shelf failed, a shelf owned nothing, or a picture would not upload):
+            // the editor stays open on one summary, so nothing is lost in a log. Done then closes it and the made tiles glow.
+            var reasons = new List<string>();
+            if (failure is not null)
+                reasons.Add(failure);
+            if (skipped.Count > 0)
+                reasons.Add(L["CollectionFlow_NothingOwnedOnShelves", string.Join(", ", skipped)].Value);
+            reasons.AddRange(artworkProblems);
+            if (reasons.Count > 0)
+            {
+                ShowSaveSummary(created.Count, failure is null && skipped.Count == 0 ? 0 : shelfCount - created.Count, reasons);
                 return;
+            }
 
             _hasUnsavedChanges = false;
             await CloseEditorAsync(applied: true);
@@ -1332,7 +1357,11 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "A list collection could not be saved");
-            ShowNotice(L["CollectionFlow_SaveFailedWithReason", ex.Message].Value, AppUiTone.Error);
+            var reason = L["CollectionFlow_SaveFailedWithReason", ex.Message].Value;
+            if (created.Count > 0)
+                ShowSaveSummary(created.Count, Math.Max(shelfCount - created.Count, 1), [reason]);
+            else
+                ShowNotice(reason, AppUiTone.Error);
         }
         finally
         {
@@ -1687,9 +1716,15 @@
                 return;
             }
 
-            // Each collection the pack made glows on the Collections page; there is no toast.
-            foreach (var skipped in response.Skipped.Take(3))
+            foreach (var skipped in response.Skipped)
                 Logger.LogInformation("The pack {Pack} made no collection: {Reason}", skipped.Name, skipped.Reason);
+
+            // Some packs made nothing: the editor stays open on one summary naming each. Done closes it and the made tiles glow.
+            if (response.Skipped.Count > 0)
+            {
+                ShowSaveSummary(made, response.Skipped.Count, response.Skipped.Select(skipped => $"{skipped.Name}: {skipped.Reason}").ToList());
+                return;
+            }
 
             _hasUnsavedChanges = false;
             await CloseEditorAsync(applied: true);
@@ -1721,6 +1756,28 @@
         _nameMissing = false;
     }
 
+    // A save that made something but not everything ends here: one summary alert in place with a Done button. The editor
+    // stays open until Done, so the person reads what did not happen; Done closes it and the made tiles glow.
+    private int _summaryMade;
+    private int _summaryNotMade;
+    private List<string>? _summaryReasons;
+
+    private bool SummaryShown => _summaryReasons is not null;
+
+    private void ShowSaveSummary(int made, int notMade, IReadOnlyList<string> reasons)
+    {
+        _summaryMade = made;
+        _summaryNotMade = notMade;
+        _summaryReasons = reasons.ToList();
+        _hasUnsavedChanges = false;
+    }
+
+    private async Task DismissSaveSummaryAsync()
+    {
+        _summaryReasons = null;
+        await CloseEditorAsync(applied: true);
+    }
+
     private void RememberSaved(Guid collectionId)
     {
         if (!Request.SavedCollectionIds.Contains(collectionId))
@@ -1728,6 +1785,19 @@
     }
 
     private RenderFragment RenderNotice() => @<text>
+        @if (_summaryReasons is { } summaryReasons)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" data-editor-notice data-save-summary>
+                <div>@(_summaryNotMade > 0 ? L["CollectionFlow_SaveSummaryHeadline", _summaryMade, _summaryNotMade].Value : L["CollectionFlow_SaveSummaryHeadlineArtwork", _summaryMade].Value)</div>
+                <ul>
+                    @foreach (var reason in summaryReasons)
+                    {
+                        <li>@reason</li>
+                    }
+                </ul>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="DismissSaveSummaryAsync" data-save-summary-done>@L["Common_Done"]</AppButton>
+            </AppAlert>
+        }
         @if (_noticeText is { } notice)
         {
             <AppAlert Tone="@_noticeTone" Dense="true" data-editor-notice>@notice</AppAlert>
@@ -1941,16 +2011,16 @@
                 else
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
-                               OnClick="Back" Disabled="@_saving">@L["CollectionFlow_Back"]</AppButton>
+                               OnClick="Back" Disabled="@(_saving || SummaryShown)">@L["CollectionFlow_Back"]</AppButton>
                 }
                 @if (_step < 3)
                 {
-                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="NextAsync" Disabled="@(_saving || NextBlocked)">@L["CollectionFlow_Next"]</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="NextAsync" Disabled="@(_saving || SummaryShown || NextBlocked)">@L["CollectionFlow_Next"]</AppButton>
                 }
                 else
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Save"
-                               OnClick="SaveCollection" Disabled="@(_saving || IsEmptyCuratedCollection)">
+                               OnClick="SaveCollection" Disabled="@(_saving || SummaryShown || IsEmptyCuratedCollection)">
                         @if (_saving)
                         {
                             <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />

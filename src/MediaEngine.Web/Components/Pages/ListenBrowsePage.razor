@@ -47,6 +47,7 @@
                OnNavigationCreateDrop="StageDraggedSongsForPlaylistAsync"
                OnNavigationCreateCanceled="CancelPlaylistCreateAsync"
                OnNavigationCreate="CreatePlaylistAsync"
+               SavedCollectionCount="@_savedCollectionCount"
                OnNavigationSmartCreate="OpenSmartPlaylistAsync"
                OnNavigationItemRename="RenamePlaylistAsync"
                OnNavigationItemDelete="DeletePlaylistAsync"
@@ -368,11 +369,16 @@
     {
         if (target is not SmartPlaylistCreateTarget || _activeProfileId is null)
             return;
-        var changed = await CollectionEditorLauncher.OpenAsync(
-            CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId));
-        if (changed)
+        // What the editor saved is told by one quiet line; there is no toast.
+        _savedCollectionCount = 0;
+        var request = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
+        var changed = await CollectionEditorLauncher.OpenAsync(request);
+        _savedCollectionCount = request.SavedCollectionIds.Count;
+        if (changed || _savedCollectionCount > 0)
             await ReloadPlaylistsAsync();
     }
+
+    private int _savedCollectionCount;
 
     private async Task<bool> RenamePlaylistAsync(MediaSectionNavigationRenameEvent renameEvent)
     {

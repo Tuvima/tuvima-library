@@ -50,7 +50,7 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(Configuration.StorageLocations));
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "E:\\Pictures" }));
         }));
-        Services.AddScoped<DashboardSessionAccessor>();
+        Services.AddScoped(_ => TestSessions.For(kids: false, administrator: true));
         Services.AddScoped<DeviceContextService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
@@ -109,6 +109,19 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
     public async Task AddAManagedFolderIsNotOfferedOnAPhoneApp()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
+
+        var cut = RenderNotice();
+
+        Assert.Empty(cut.FindAll("[data-add-managed]"));
+        Assert.NotEmpty(cut.FindAll(".view-uploads-notice__line"));
+    }
+
+    [Fact]
+    public void AddAManagedFolderIsNotOfferedToSomeoneWhoIsNotAnAdministrator()
+    {
+        var session = Services.GetRequiredService<DashboardSessionAccessor>();
+        var nonAdministrator = TestSessions.For(kids: false, administrator: false);
+        session.Set("token", TestSessions.Account, TestSessions.Profile, Guid.NewGuid(), nonAdministrator.Authority);
 
         var cut = RenderNotice();
 
