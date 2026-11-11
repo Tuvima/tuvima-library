@@ -85,7 +85,7 @@ public sealed class PlayerBookmarkGuardrailTests
             Assert.False(banned.IsMatch(value), $"{name} says \"{value}\".");
         }
 
-        Assert.DoesNotContain("Global", (string?)strings.Root!.Elements("data").Single(data => (string?)data.Attribute("name") == "Common_Everyone").Element("value"));
+        Assert.DoesNotContain("Global", (string?)strings.Root!.Elements("data").Single(data => (string?)data.Attribute("name") == "ReaderFrame_BookmarksEveryone").Element("value"));
     }
 
     [Fact]

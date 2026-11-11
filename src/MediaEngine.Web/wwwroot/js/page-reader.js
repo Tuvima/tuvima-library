@@ -42,7 +42,7 @@ export function saveSettings(partial) {
  */
 export async function open(host, baseUrl, options, dotnet) {
     dispose();
-    const shell = host.closest(".pr-shell") || host;
+    const shell = host.closest(".rf-shell") || host;
     state = {
         host,
         shell,
@@ -735,7 +735,7 @@ export function showChrome(hold) {
     clearTimeout(state.chromeTimer);
     if (!hold && !state.paused) {
         state.chromeTimer = setTimeout(() => {
-            if (state && !state.paused && !state.shell.querySelector(".pr-bar:hover")) {
+            if (state && !state.paused && !state.shell.querySelector(".rf-bar:hover")) {
                 state.shell.dataset.chrome = "hidden";
             }
         }, CHROME_HIDE_MS);
@@ -772,12 +772,12 @@ function wireInput() {
     on(state.shell, "pointerleave", hidePeek);
     // While focus is in the top line or slider they stay; when focus leaves, the usual fade resumes.
     on(state.shell, "focusin", event => {
-        if (event.target?.closest?.(".pr-bar")) {
+        if (event.target?.closest?.(".rf-bar")) {
             showChrome(true);
         }
     });
     on(state.shell, "focusout", event => {
-        if (event.target?.closest?.(".pr-bar") && !event.relatedTarget?.closest?.(".pr-bar")) {
+        if (event.target?.closest?.(".rf-bar") && !event.relatedTarget?.closest?.(".rf-bar")) {
             showChrome();
         }
     });
@@ -886,7 +886,7 @@ export function mountPageGrid(host, marked) {
                 drawThumb(entry.target.querySelector(".pr-th-pic"), Number(entry.target.dataset.page));
             }
         }
-    }, { root: host.closest(".br-panel-body") || null, rootMargin: "200px" });
+    }, { root: host.closest(".rf-panel-body") || null, rootMargin: "200px" });
 
     const first = state.current;
     for (const page of state.pages) {
@@ -970,9 +970,9 @@ function onKeyDown(event) {
 
     const target = event.target;
     // Inside the top line or slider the arrow keys move between the tools instead of turning the page (TV remote).
-    const bar = target?.closest ? target.closest(".pr-bar") : null;
+    const bar = target?.closest ? target.closest(".rf-bar") : null;
     if (bar) {
-        const where = bar.classList.contains("pr-bar--bottom") ? "slider" : "top";
+        const where = bar.classList.contains("rf-bar--bottom") ? "slider" : "top";
         if (moveInBar(barKeyAction(event.key, where), bar)) {
             event.preventDefault();
         }
@@ -1015,9 +1015,9 @@ function barTools(bar) {
 }
 
 function focusFirstTool() {
-    const tools = barTools(state.shell.querySelector(".pr-bar--top"));
-    // The first tool after Back and the title is the reader's own (Search, Contents, Bookmark ...); Back is the fallback.
-    (tools[1] ?? tools[0])?.focus();
+    const tools = barTools(state.shell.querySelector(".rf-bar--top"));
+    // The title is not a control, so the first one on the line is the reader's first tool (Search, Contents, Pages or Bookmark).
+    tools[0]?.focus();
 }
 
 function moveInBar(action, bar) {
@@ -1026,7 +1026,7 @@ function moveInBar(action, bar) {
     }
 
     if (action === "to-slider") {
-        state.shell.querySelector(".pr-bar--bottom input[type=range]")?.focus();
+        state.shell.querySelector(".rf-bar--bottom input[type=range]")?.focus();
         return true;
     }
 

@@ -1,0 +1,120 @@
+@namespace MediaEngine.Web.Components.Reader
+
+@implements IDisposable
+
+@* The one reader frame (spec music-table-and-reader-frame D12-D19): the viewer shell, the stage the reader draws into, the top line (title,
+   then the tools in one fixed order, then Close at the far right), the bottom line, the auto-hide, the side panel with its dim, the phone
+   "..." sheet and the live region. BookReader and PageReader keep their own logic and fill the slots. Colours come from three variables
+   (--rf-page, --rf-text, --rf-accent) that a reader sets on the shell through Class. *@
+
+<link href="css/reader-frame.css" rel="stylesheet" />
+
+<AppViewer Class="@ShellClass" Role="" Surface="AppViewerSurface.Page" data-state="@StateName" data-chrome="@(ChromeHidden ? "hidden" : "shown")" @attributes="AdditionalAttributes">
+
+    @* The reader mounts its page or book view in here. *@
+    <div class="rf-stage">@Stage</div>
+
+    <header class="rf-bar rf-bar--top" aria-label="@BarLabel" aria-hidden="@BarHidden">
+        <div class="rf-title">
+            <span class="rf-title-text">@Title</span>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <span class="rf-title-sub">@Subtitle</span>
+            }
+        </div>
+        <div class="rf-tools" role="toolbar" aria-label="@L["ReaderFrame_ReaderTools"].Value">
+            @if (IsReady)
+            {
+                @foreach (var tool in LineTools)
+                {
+                    @if (tool == ReaderTool.BookmarkThisPage)
+                    {
+                        <AppIconButton @key="tool" Icon="@IconFor(tool)" ButtonStyle="AppButtonStyle.Text" Class="@ToolClass(tool)" OnClick="OnBookmarkToggle"
+                                       Tooltip="@LabelFor(tool)" AriaLabel="@LabelFor(tool)" aria-pressed="@(IsPageBookmarked ? "true" : "false")" />
+                    }
+                    else
+                    {
+                        <AppIconButton @key="tool" Icon="@IconFor(tool)" ButtonStyle="AppButtonStyle.Text" Class="@ToolClass(tool)" OnClick="@(() => OnToolClick.InvokeAsync(tool))"
+                                       Tooltip="@LabelFor(tool)" AriaLabel="@LabelFor(tool)" aria-expanded="@(OpenPanel == tool ? "true" : "false")" />
+                    }
+                }
+
+                @if (OnPhone && SheetTools.Any())
+                {
+                    @* On a phone the tools do not fit: one "..." holds them in a bottom sheet. Bookmark this page stays on the line. *@
+                    <AppRowMenu Class="rf-ib rf-more" Plain="true" Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Items="SheetItems" />
+                }
+            }
+            <AppIconButton Icon="@AppMaterialIcons.Filled.Close" ButtonStyle="AppButtonStyle.Text" Class="rf-ib rf-close" OnClick="OnClose"
+                           Tooltip="@L["ReaderFrame_Close"].Value" AriaLabel="@L["ReaderFrame_Close"].Value" />
+        </div>
+    </header>
+
+    <footer class="rf-bar rf-bar--bottom" aria-hidden="@BarHidden">
+        @if (IsReady)
+        {
+            @Bottom
+        }
+    </footer>
+
+    <div class="rf-live" role="status" aria-live="polite">@(IsReady ? LiveText : string.Empty)<span>@Announcement</span></div>
+
+    @if (State == ReaderFrameState.Loading)
+    {
+        <div class="rf-overlay">
+            @if (LoadingContent is not null)
+            {
+                @LoadingContent
+            }
+            else
+            {
+                <div class="rf-spinner" role="status" aria-label="@L["ReaderFrame_Opening"].Value"></div>
+            }
+        </div>
+    }
+    else if (State == ReaderFrameState.Error)
+    {
+        <div class="rf-overlay">
+            @if (ErrorContent is not null)
+            {
+                @ErrorContent
+            }
+            else
+            {
+                <div class="rf-state" role="alert">
+                    <p>@ErrorMessage</p>
+                    <div class="rf-state-actions">
+                        @if (CanRetry)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="OnRetry">@L["ReaderFrame_TryAgain"]</AppButton>
+                        }
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="OnClose">@L["ReaderFrame_Close"]</AppButton>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (HasPanel)
+    {
+        <div class="rf-scrim" role="presentation" @onclick="OnPanelClose"></div>
+        <AppPopout Class="rf-panel" Role="dialog" AriaLabel="@ResolvedPanelTitle" Modal="@OnPhone">
+            <div class="rf-panel-head">
+                <h2 class="rf-panel-title">@ResolvedPanelTitle</h2>
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Close" ButtonStyle="AppButtonStyle.Text" Class="rf-ib rf-panel-close" OnClick="OnPanelClose"
+                               Tooltip="@L["ReaderFrame_Close"].Value" AriaLabel="@L["ReaderFrame_ClosePanel", ResolvedPanelTitle].Value" />
+            </div>
+            <div class="rf-panel-body">
+                @if (PanelContent is not null && OpenPanel is { } openTool)
+                {
+                    @PanelContent(openTool)
+                }
+            </div>
+        </AppPopout>
+    }
+
+    @if (IsReady)
+    {
+        @Overlays
+    }
+</AppViewer>

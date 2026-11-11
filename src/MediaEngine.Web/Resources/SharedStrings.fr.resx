@@ -940,4 +940,64 @@
   <data name="SongsHeader_LetterIndex" xml:space="preserve">
     <value>Index des lettres</value>
   </data>
+  <data name="ReaderFrame_Reader" xml:space="preserve">
+    <value>Lecteur</value>
+  </data>
+  <data name="ReaderFrame_ReaderTools" xml:space="preserve">
+    <value>Outils de lecture</value>
+  </data>
+  <data name="ReaderFrame_Search" xml:space="preserve">
+    <value>Rechercher</value>
+  </data>
+  <data name="ReaderFrame_Contents" xml:space="preserve">
+    <value>Sommaire</value>
+  </data>
+  <data name="ReaderFrame_Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="ReaderFrame_BookmarkThisPage" xml:space="preserve">
+    <value>Ajouter un signet à cette page</value>
+  </data>
+  <data name="ReaderFrame_RemoveBookmark" xml:space="preserve">
+    <value>Retirer le signet</value>
+  </data>
+  <data name="ReaderFrame_Bookmarks" xml:space="preserve">
+    <value>Signets</value>
+  </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Les miens</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Tout le monde</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>Vous n’avez pas encore de signet. Utilisez « Ajouter un signet à cette page » pour en ajouter un.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Rien n’a encore été partagé avec tout le monde.</value>
+  </data>
+  <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
+    <value>Réglages de lecture</value>
+  </data>
+  <data name="ReaderFrame_Close" xml:space="preserve">
+    <value>Fermer</value>
+  </data>
+  <data name="ReaderFrame_ClosePanel" xml:space="preserve">
+    <value>Fermer {0}</value>
+  </data>
+  <data name="ReaderFrame_Opening" xml:space="preserve">
+    <value>Ouverture en cours</value>
+  </data>
+  <data name="ReaderFrame_TryAgain" xml:space="preserve">
+    <value>Réessayer</value>
+  </data>
+  <data name="BookReader_SearchInThisBook" xml:space="preserve">
+    <value>Rechercher dans ce livre</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Surlignages</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Signet supprimé.</value>
+  </data>
 </root>

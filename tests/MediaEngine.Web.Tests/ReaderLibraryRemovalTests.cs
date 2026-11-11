@@ -6,6 +6,7 @@ using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +32,7 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
         Services.AddScoped<DashboardSessionAccessor>();
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton(api);
+        Services.AddSingleton(new DeviceContextService(api));
         var profiles = new ActiveProfileSessionService(null!, api);
         Services.AddSingleton(profiles);
         _orchestrator = new UIOrchestratorService(api, new UniverseStateContainer(), profiles, new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance);
