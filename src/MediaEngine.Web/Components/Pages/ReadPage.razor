@@ -73,6 +73,7 @@
         if (profile is null)
         {
             _notice = L["Common_AnActiveProfileIsRequired"].Value;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 

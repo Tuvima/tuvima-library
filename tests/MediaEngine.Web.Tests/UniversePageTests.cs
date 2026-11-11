@@ -371,6 +371,25 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task WhenTheEditorCannotBeOpened_ThePageSaysSoInPlaceAtTheTopAndNoPopUpAppears()
+    {
+        await UseDeviceAsync("web", "desktop");
+        SignIn(administrator: true);
+        _access.Fails = true;
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".universe-hero__more")));
+        OpenEditFromMenu(cut);
+
+        cut.WaitForAssertion(() => Assert.Contains("unavailable", cut.Find("[data-universe-edit-notice]").TextContent, StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+
+        // Dismissing the alert takes it away.
+        cut.Find("[data-universe-edit-notice] button").Click();
+        Assert.Empty(cut.FindAll("[data-universe-edit-notice]"));
+    }
+
+    [Fact]
     public async Task ChoosingEdit_AfterTheUnlock_OpensTheSharedPopOver_WithDetailsPicturesMatchAndHistory()
     {
         var cut = await StartEditingAsync();
@@ -820,11 +839,18 @@ public sealed class UniversePageTests : AsyncBunitContext
     {
         public bool Unlocked { get; set; } = true;
 
+        public bool Fails { get; set; }
+
         public int Requests { get; private set; }
 
         public Task<bool> EnsureUnlockedAsync(CancellationToken ct = default)
         {
             Requests++;
+            if (Fails)
+            {
+                throw new InvalidOperationException("The unlock check failed.");
+            }
+
             return Task.FromResult(Unlocked);
         }
     }

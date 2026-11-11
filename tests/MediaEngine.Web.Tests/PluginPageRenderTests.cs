@@ -130,6 +130,53 @@ public sealed class PluginPageRenderTests : AsyncBunitContext
         Assert.Equal("Dune", _submitted!["title"]);
     }
 
+    private IRenderedComponent<PluginPage> RenderRequestForm()
+    {
+        _page = new PluginPageResponse
+        {
+            Title = "Request",
+            PageType = "form",
+            PhoneSupported = true,
+            SubmitLabel = "Send",
+            FormFields = [new PluginPageFormFieldDto { Key = "title", Label = "Title", Kind = "text", Required = true }],
+        };
+        var cut = RenderPage("request");
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("form.plugin-page__form").Count > 0, cut.Markup));
+        return cut;
+    }
+
+    [Fact]
+    public void FormPage_WhenTheSendWorks_SaysSavedInPlaceAndShowsNoAlert()
+    {
+        var cut = RenderRequestForm();
+
+        cut.Find("input").Input("Dune");
+        cut.Find("form").Submit();
+
+        cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-saved-note]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-plugin-save-failure]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public void FormPage_WhenTheSendFails_ShowsAnAlertAtTheTopOfTheFormUntilTheNextTry()
+    {
+        _submitResult = new PluginPageSubmitResponse { Saved = false };
+        var cut = RenderRequestForm();
+
+        cut.Find("input").Input("Dune");
+        cut.Find("form").Submit();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-plugin-save-failure]")));
+        Assert.Empty(cut.Find("[data-saved-note]").TextContent.Trim());
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+
+        _submitResult = new PluginPageSubmitResponse { Saved = true, RecordKey = "r" };
+        cut.Find("form").Submit();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-plugin-save-failure]")));
+    }
+
     [Fact]
     public void Menu_ForAPhone_HidesPageTypesThatDoNotSuitIt()
     {

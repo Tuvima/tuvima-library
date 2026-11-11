@@ -386,6 +386,8 @@
     {
         _notice = message;
         _noticeTone = tone;
+        // The lane calls these handlers as plain delegates, so the page is not told to draw again by itself.
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private async Task<bool> RenamePlaylistAsync(MediaSectionNavigationRenameEvent renameEvent)
