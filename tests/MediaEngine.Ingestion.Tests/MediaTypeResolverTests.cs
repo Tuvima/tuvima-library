@@ -135,6 +135,30 @@ public sealed class MediaTypeResolverTests
         Assert.True(resolution.Candidates[0].Confidence >= 0.95);
     }
 
+    [Theory]
+    [InlineData(MediaType.Movies)]
+    [InlineData(MediaType.TV)]
+    [InlineData(MediaType.Music)]
+    public async Task APdfNoTitleClaimedInAVideoOrMusicLibrary_GoesToReview_NeverGuessedIntoThatType(MediaType libraryType)
+    {
+        var root = TestRoot("stray-pdf-" + libraryType);
+        var options = Options(
+            watchDirectories: [root],
+            libraryFolders: [new LibraryFolderEntry { Sources = [Source(root)], MediaTypes = [libraryType] }]);
+        var resolver = CreateResolver(options);
+
+        var resolution = await resolver.ResolveAsync(
+            Path.Combine(root, "booklet.pdf"),
+            Result(MediaType.Books, [Candidate(MediaType.Books, 0.91)]),
+            0.5,
+            CancellationToken.None);
+
+        Assert.Equal(MediaType.Unknown, resolution.MediaType);
+        Assert.True(resolution.NeedsReview);
+        Assert.Equal(0.0, resolution.CategoryConfidencePrior);
+        Assert.DoesNotContain(resolution.Candidates, candidate => candidate.Type == libraryType);
+    }
+
     [Fact]
     public async Task SingleTypeBooksFolder_KeepsPdfBooksAsBooks()
     {
