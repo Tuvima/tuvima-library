@@ -1508,14 +1508,8 @@
   <data name="Common_Song" xml:space="preserve">
     <value>Song</value>
   </data>
-  <data name="Common_ArtistAndAlbum" xml:space="preserve">
-    <value>Artist and album</value>
-  </data>
   <data name="Common_Time" xml:space="preserve">
     <value>Time</value>
-  </data>
-  <data name="Common_ToggleFavorite" xml:space="preserve">
-    <value>Toggle favorite</value>
   </data>
   <data name="Common_PlaySong" xml:space="preserve">
     <value>Play song</value>
@@ -2144,9 +2138,6 @@
   <data name="ListenPage_ThisPlaylistIsEmpty" xml:space="preserve">
     <value>This playlist is empty.</value>
   </data>
-  <data name="ListenPage_QueueEditRemove" xml:space="preserve">
-    <value>Queue / Edit / Remove</value>
-  </data>
   <data name="Common_Length" xml:space="preserve">
     <value>Length</value>
   </data>
@@ -2233,12 +2224,6 @@
   </data>
   <data name="ListenPage_SearchSongsArtistsOrAlbums" xml:space="preserve">
     <value>Search songs, artists, or albums</value>
-  </data>
-  <data name="ListenPage_PlaylistDisplayOptions" xml:space="preserve">
-    <value>Playlist display options</value>
-  </data>
-  <data name="ListenPage_EditSong" xml:space="preserve">
-    <value>Edit song</value>
   </data>
   <data name="ListenPage_RemoveFromPlaylist" xml:space="preserve">
     <value>Remove from playlist</value>

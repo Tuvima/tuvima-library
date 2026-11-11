@@ -71,9 +71,6 @@
   <data name="DescriptionAttribution_ModifiedOrSummarizedForDisplay" xml:space="preserve">
     <value>Modified or summarised for display.</value>
   </data>
-  <data name="Common_ToggleFavorite" xml:space="preserve">
-    <value>Toggle favourite</value>
-  </data>
   <data name="ChronicleExplorer_LibraryHasNotFoundEnough" xml:space="preserve">
     <value>Library has not found enough real character, location, organisation, event, or relationship data for this Universe yet.</value>
   </data>

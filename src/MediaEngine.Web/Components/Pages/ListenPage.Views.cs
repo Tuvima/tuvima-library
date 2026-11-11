@@ -40,9 +40,6 @@ public partial class ListenPage
     private IReadOnlyList<WorkViewModel> ArtistTracks => ResolveArtistTracks();
     private IReadOnlyList<WorkViewModel> ActivePlaylistTracks => ResolveActivePlaylistTracks();
     private IReadOnlyList<ListenPlaylistTrackRow> ActivePlaylistTrackRows => ResolveActivePlaylistTrackRows();
-    private IReadOnlyList<PlaylistColumnDefinition> PlaylistColumns => BuildPlaylistColumns();
-    private string PlaylistGridTemplate => BuildPlaylistGridTemplate();
-    private string SongsGridTemplate => BuildSongsGridTemplate();
     private IReadOnlyList<ContentGroupViewModel> FilteredAlbumGroups => ApplyAlbumFilters();
     private IReadOnlyList<ContentGroupViewModel> FilteredArtistGroups => ApplyArtistFilters();
     private IReadOnlyList<MediaTileViewModel> ArtistPersonTiles => FilteredArtistGroups

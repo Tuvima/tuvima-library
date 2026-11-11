@@ -2925,7 +2925,6 @@ button.app-menu-item {
     :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
-    :root:root .listen-track-grid__favorite,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
     :root:root .tl-series-carousel__arrow,
@@ -3133,7 +3132,6 @@ html[data-form-factor="tablet"] .tl-detail-page {
     :root:root:root .view-tile__select-control,
     :root:root:root .view-date-group__select,
     :root:root:root .listen-button,
-    :root:root:root .listen-detail__edit,
     :root:root:root .app-overflow-menu__trigger--icon {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
@@ -3164,11 +3162,6 @@ html[data-form-factor="tablet"] .tl-detail-page {
         align-items: center;
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
-    }
-
-    /* Column resizing is a mouse affordance for the desktop form factor. */
-    :root:root:root .listen-column-resizer {
-        display: none;
     }
 }
 
@@ -3364,25 +3357,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
         box-sizing: border-box;
         padding-right: var(--tl-tap-target-min);
     }
-}
-
-/* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
-.listen-playlist-track-row__art-play {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: var(--tl-bg-overlay);
-    color: var(--tl-text-primary);
-    opacity: 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.listen-playlist-track-row__art:hover .listen-playlist-track-row__art-play,
-.listen-playlist-track-row__art:focus-within .listen-playlist-track-row__art-play {
-    opacity: 1;
 }
 
 /* Browse filter sheet (phones): the Filters button and the sheet's sticky Clear / Show footer. */

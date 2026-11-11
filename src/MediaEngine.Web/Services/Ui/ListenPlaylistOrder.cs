@@ -24,4 +24,12 @@ public static class ListenPlaylistOrder
         reordered.Insert(targetIndex, moved);
         return reordered;
     }
+
+    /// <summary>
+    /// Moves the entry at <paramref name="sourceIndex"/> so it ends in the place the entry at <paramref name="targetIndex"/> holds now
+    /// (the entries between shift by one). This is what the song table reports after a drag or Alt+Up and Alt+Down, and it gives the same
+    /// saved order as dropping the row on the target row. Returns <see langword="null"/> when nothing would move.
+    /// </summary>
+    public static List<T>? MoveOnto<T>(IReadOnlyList<T> items, int sourceIndex, int targetIndex)
+        => Move(items, sourceIndex, targetIndex - sourceIndex);
 }
