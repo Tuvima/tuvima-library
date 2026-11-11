@@ -1,0 +1,90 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IDisposable
+@inject IJSRuntime JS
+@inject ILogger<AppCopyButton> Logger
+@inject IStringLocalizer<SharedStrings> L
+@* The copy button (design system, Feedback after an action): pressing it copies the text, and the button's own label and icon say
+   "Copied" for a moment, then go back. A copy the browser refuses is handed to the host through CopyFailed (the host shows an alert
+   in place); nothing is drawn over the page. The hidden status line lets a screen reader hear the same thing. *@
+<AppButton Label="@(_copied ? CopiedText : Label)"
+           StartIcon="@(_copied ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.ContentCopy)"
+           Size="@Size"
+           Tone="@Tone"
+           ButtonStyle="@ButtonStyle"
+           Disabled="@Disabled"
+           Class="@Class"
+           UserAttributes="@UserAttributes"
+           OnClick="CopyAsync" />
+<span class="sr-only" role="status">@(_copied ? CopiedText : string.Empty)</span>
+
+@code {
+    /// <summary>The text put on the clipboard.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>The label before copying, for example "Copy code".</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>The label while it says copied; the shared "Copied" when left empty.</summary>
+    [Parameter] public string? CopiedLabel { get; set; }
+
+    /// <summary>How long the button says copied.</summary>
+    [Parameter] public TimeSpan CopiedFor { get; set; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>What was copied in words ("the code", "the link"), used in the sentence handed to <see cref="CopyFailed"/>.</summary>
+    [Parameter] public string What { get; set; } = "the text";
+
+    /// <summary>Raised with the plain sentence to show when the browser refused to copy.</summary>
+    [Parameter] public EventCallback<string> CopyFailed { get; set; }
+
+    [Parameter] public object? Size { get; set; } = AppControlSize.Normal;
+    [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Neutral;
+    [Parameter] public AppButtonStyle ButtonStyle { get; set; } = AppButtonStyle.Outlined;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public Dictionary<string, object>? UserAttributes { get; set; }
+
+    private CancellationTokenSource? _timer;
+    private bool _copied;
+
+    private string CopiedText => CopiedLabel ?? L["Common_Copied"].Value;
+
+    private async Task CopyAsync()
+    {
+        switch (await JS.TryCopyAsync(Text, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                await ShowCopiedAsync();
+                break;
+            case ClipboardCopyResult.Failed:
+                await CopyFailed.InvokeAsync(ClipboardInterop.FailedMessage(What));
+                break;
+        }
+    }
+
+    private async Task ShowCopiedAsync()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        var timer = _timer = new CancellationTokenSource();
+        _copied = true;
+        StateHasChanged();
+        try
+        {
+            await Task.Delay(CopiedFor, timer.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Pressed again or removed from the page: the newer press (or the end of the page) owns the label now.
+            return;
+        }
+        _copied = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        _timer = null;
+    }
+}

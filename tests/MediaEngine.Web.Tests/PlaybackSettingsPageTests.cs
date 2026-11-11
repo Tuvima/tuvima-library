@@ -9,6 +9,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -150,6 +151,9 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("The spoiler setting could not be saved.", cut.Markup));
         Assert.Equal("true", cut.FindAll("[data-spoiler-level] .app-segmented-control__item")[0].GetAttribute("aria-pressed"));
+        // Told once, in place, as an alert; never again as a pop-up notice.
+        Assert.Single(cut.FindAll(".tl-alert-error"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -415,6 +419,21 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Playback settings could not be saved.", cut.Markup));
         Assert.Contains(_logs.Entries, entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException);
+        Assert.Single(cut.FindAll(".tl-alert-error"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public void Save_WhenItWorks_ShowsNoAlertAndNoNotice_BecauseTheSwitchAlreadyShowsTheNewChoice()
+    {
+        var cut = Render<PlaybackSettingsPage>();
+        cut.WaitForAssertion(() => Assert.Contains("Resume where you left off", cut.Markup));
+
+        cut.Find("input[aria-label='Resume where you left off']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.False(_saved.Last().General.ResumePlayback));
+        Assert.Empty(cut.FindAll(".tl-alert-error"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

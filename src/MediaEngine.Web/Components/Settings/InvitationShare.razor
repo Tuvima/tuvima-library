@@ -1,9 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Services.Ui
-@inject IJSRuntime JS
-@inject IAppToastService Toast
 @inject NavigationManager Navigation
-@inject ILogger<InvitationShare> Logger
 @inject IStringLocalizer<SharedStrings> L
 
 <AppAlert Severity="AppSeverity.Success" Class="access-invitation">
@@ -11,12 +8,16 @@
     <span>@L["InvitationShare_ShareTheCodeTheLink"]</span>
     <span>@L["InvitationShare_InvitationCode"]</span>
     <code>@FormattedCode</code>
-    <AppButton Label="@L["InvitationShare_CopyCode"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(FormattedCode, "Code copied.", "the code"))" />
+    <AppCopyButton Label="@L["InvitationShare_CopyCode"].Value" Text="@FormattedCode" What="the code" Size="AppControlSize.Compact" CopyFailed="ShowCopyFailure" />
     <span>@L["InvitationShare_Link"]</span>
     <code>@_link</code>
-    <AppButton Label="@L["InvitationShare_CopyLink"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(_link, "Link copied.", "the link"))" />
+    <AppCopyButton Label="@L["InvitationShare_CopyLink"].Value" Text="@_link" What="the link" Size="AppControlSize.Compact" CopyFailed="ShowCopyFailure" />
     <div class="invitation-qr">@((MarkupString)_qr)</div>
     <small>Expires @ExpiresAt.ToLocalTime().ToString("g")</small>
+    @if (_copyFailure is not null)
+    {
+        <small role="alert" data-copy-failure>@_copyFailure</small>
+    }
 </AppAlert>
 
 @code {
@@ -38,16 +39,8 @@
         _qr = QrCodeSvg.Render(_link);
     }
 
-    private async Task CopyAsync(string text, string message, string what)
-    {
-        switch (await JS.TryCopyAsync(text, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Toast.Add(message, AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Toast.Add(ClipboardInterop.FailedMessage(what), AppSeverity.Warning);
-                break;
-        }
-    }
+    private string? _copyFailure;
+
+    // A copy the browser refused is told here, beside the buttons, for as long as the invitation is shown.
+    private void ShowCopyFailure(string message) => _copyFailure = message;
 }

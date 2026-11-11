@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <section class="network-settings" data-network-section="@ActiveSection">
@@ -18,6 +17,11 @@
     }
     else
     {
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-network-failure>@_failure</AppAlert>
+        }
+        <AppSavedNote @ref="_savedNote" />
         @switch (ActiveSection)
         {
             case "home":
@@ -56,6 +60,8 @@
     private NetworkSettingsDto? _settings;
     private NetworkRuntimeStatusDto? _status;
     private bool _loading = true;
+    private string? _failure;
+    private AppSavedNote? _savedNote;
 
     private string ActiveSection => Subsection.ToLowerInvariant() switch
     {
@@ -84,14 +90,15 @@
     {
         if (_settings is null)
             return;
+        _failure = null;
         var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
         if (saved is null)
         {
-            Snackbar.Add(L["NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe"].Value;
             return;
         }
         _settings = saved;
-        Snackbar.Add(L["NetworkRemoteAccessSettings_NetworkSettingsSaved"].Value, AppSeverity.Success);
+        _savedNote?.Show();
         await ReportRemoteAccessAsync();
         await RefreshStatusAsync();
     }

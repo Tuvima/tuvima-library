@@ -123,7 +123,7 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddBack_CallsTheEngine_RemovesThatRow_AndTellsThePerson()
+    public void AddBack_CallsTheEngine_AndTheRowLeavingIsTheOnlyConfirmation()
     {
         var dune = File("Dune.mkv", "Movies", DateTimeOffset.UtcNow.AddHours(-2));
         var arrival = File("Arrival.mkv", "Movies", DateTimeOffset.UtcNow.AddHours(-1));
@@ -136,7 +136,9 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(["Arrival.mkv"], cut.FindAll("tbody tr td:first-child").Select(cell => cell.TextContent.Trim())));
         Assert.Equal([dune.Id], _addedBack);
-        Assert.Contains(toast.Toasts, item => item.Message == "Added back. Library will scan it again." && item.Severity == AppSeverity.Success);
+        Assert.Empty(toast.Toasts);
+        Assert.Empty(cut.FindAll("[data-excluded-note]"));
+        Assert.Empty(cut.FindAll("[data-excluded-failure]"));
     }
 
     [Fact]
@@ -163,7 +165,8 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
         cut.Find("tbody tr button").Click();
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".excluded-files")));
-        Assert.Contains(toast.Toasts, item => item.Message == "The file is no longer on disk.");
+        Assert.Equal("The file is no longer on disk.", cut.Find("[data-excluded-note]").TextContent.Trim());
+        Assert.Empty(toast.Toasts);
     }
 
     [Fact]
@@ -177,7 +180,8 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
 
         cut.Find("tbody tr button").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains(toast.Toasts, item => item.Severity == AppSeverity.Error));
+        cut.WaitForAssertion(() => Assert.Contains("Dune.mkv could not be added back", cut.Find("[data-excluded-failure]").TextContent));
+        Assert.Empty(toast.Toasts);
         Assert.Single(cut.FindAll("tbody tr"));
         Assert.False(cut.Find("tbody tr button").HasAttribute("disabled"));
     }

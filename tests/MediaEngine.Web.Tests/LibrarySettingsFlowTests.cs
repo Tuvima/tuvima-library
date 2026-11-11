@@ -81,6 +81,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private int _unmatchedAffected = 3;
     // The folders Keep going was chosen for; the Engine drops the first check line once it has accepted that.
     private readonly List<string> _keptGoing = [];
+    private bool _keepGoingFails;
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
@@ -142,6 +143,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.KeepGoingAsync), args =>
             {
                 _keptGoing.Add((string)args![0]!);
+                if (_keepGoingFails)
+                {
+                    return Task.FromResult(false);
+                }
+
                 foreach (var source in _configuration.Libraries.SelectMany(library => library.Sources).Where(source => source.Id == (string)args[0]!))
                 {
                     source.FirstCheck = null;
@@ -1102,17 +1108,33 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void KeepGoingCallsTheEngineForThatFolder_SaysSoInAToast_AndDropsThePausedLine()
+    public void KeepGoingCallsTheEngineForThatFolder_GlowsThatFolderRow_AndDropsThePausedLine()
     {
         _configuration.Libraries[0].Sources[1].FirstCheck = FirstCheck("paused");
-        var toasts = Render<AppToastHost>();
         var cut = Open("Movies");
 
         cut.FindAll("[data-first-check=paused] button").Single(button => Text(button) == "Keep going").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["movies-plex"], _keptGoing));
-        toasts.WaitForAssertion(() => Assert.Contains("Carrying on with", toasts.Markup));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-first-check]")));
+        // The folder's own row glows once; nothing is shown over the page.
+        var glowing = Assert.Single(cut.FindAll(".folder-table__row.tl-just-changed"));
+        Assert.Contains("Plex", glowing.TextContent);
+    }
+
+    [Fact]
+    public void KeepGoingThatTheEngineRefuses_SaysSoInPlace_KeepsThePausedLine_AndGlowsNothing()
+    {
+        _keepGoingFails = true;
+        _configuration.Libraries[0].Sources[1].FirstCheck = FirstCheck("paused");
+        var cut = Open("Movies");
+
+        cut.FindAll("[data-first-check=paused] button").Single(button => Text(button) == "Keep going").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("could not be done", cut.Markup, StringComparison.OrdinalIgnoreCase));
+        Assert.Single(cut.FindAll("[data-first-check=paused]"));
+        Assert.Empty(cut.FindAll(".folder-table__row.tl-just-changed"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

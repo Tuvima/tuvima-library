@@ -1,0 +1,100 @@
+using Bunit;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
+
+namespace MediaEngine.Web.Tests;
+
+/// <summary>The quiet Saved line and the glow helper (design system, Feedback after an action).</summary>
+public sealed class AppSavedNoteTests : LocalizedBunitContext
+{
+    [Fact]
+    public void SavedNote_IsALiveRegionThatSaysNothingUntilShown()
+    {
+        var cut = Render<AppSavedNote>();
+
+        Assert.Equal("status", cut.Find("[data-saved-note]").GetAttribute("role"));
+        Assert.Empty(cut.FindAll(".app-saved-note__line"));
+    }
+
+    [Fact]
+    public void SavedNote_WhenVisibleTurnsTrue_ShowsTheSharedSavedWordWithACheck()
+    {
+        var cut = Render<AppSavedNote>(p => p.Add(n => n.Visible, true).Add(n => n.Delay, TimeSpan.FromSeconds(30)));
+
+        var line = cut.Find(".app-saved-note__line");
+        Assert.Contains("Saved", line.TextContent);
+        Assert.NotEmpty(line.QuerySelectorAll("svg"));
+    }
+
+    [Fact]
+    public void SavedNote_WithText_ShowsThatTextInsteadOfSaved()
+    {
+        var cut = Render<AppSavedNote>(p => p.Add(n => n.Visible, true).Add(n => n.Text, "Saved 3 collections").Add(n => n.Delay, TimeSpan.FromSeconds(30)));
+
+        Assert.Contains("Saved 3 collections", cut.Find(".app-saved-note__line").TextContent);
+    }
+
+    [Fact]
+    public void SavedNote_HidesItselfAfterTheDelay()
+    {
+        var cut = Render<AppSavedNote>(p => p.Add(n => n.Visible, true).Add(n => n.Delay, TimeSpan.FromMilliseconds(60)));
+        Assert.Single(cut.FindAll(".app-saved-note__line"));
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-saved-note__line")));
+        Assert.Equal("status", cut.Find("[data-saved-note]").GetAttribute("role"));
+    }
+
+    [Fact]
+    public void SavedNote_ShowCalledAgain_KeepsTheLineUpForAFullNewDelay()
+    {
+        var cut = Render<AppSavedNote>(p => p.Add(n => n.Delay, TimeSpan.FromMilliseconds(400)));
+
+        cut.InvokeAsync(() => cut.Instance.Show());
+        Assert.Single(cut.FindAll(".app-saved-note__line"));
+        Thread.Sleep(250);
+        cut.InvokeAsync(() => cut.Instance.Show());
+        Thread.Sleep(250);
+
+        Assert.Single(cut.FindAll(".app-saved-note__line"));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-saved-note__line")));
+    }
+
+    [Fact]
+    public void SavedNote_KeepsUnmatchedAttributesOnItsSlot()
+    {
+        var cut = Render<AppSavedNote>(p => p.AddUnmatched("data-probe", "yes"));
+
+        Assert.Equal("yes", cut.Find("[data-saved-note]").GetAttribute("data-probe"));
+    }
+
+    [Fact]
+    public void JustChanged_GlowsOnlyTheMarkedId_AndMovesWhenAnotherIsMarked()
+    {
+        var glow = new JustChanged();
+        Assert.Null(glow.Class("a"));
+
+        glow.Mark("a");
+        Assert.Equal("tl-just-changed", glow.Class("a"));
+        Assert.Null(glow.Class("b"));
+
+        glow.Mark("b");
+        Assert.Null(glow.Class("a"));
+        Assert.Equal("tl-just-changed", glow.Class("b"));
+
+        glow.Clear();
+        Assert.Null(glow.Class("b"));
+    }
+
+    [Fact]
+    public void JustChanged_MarkingTheSameIdAgain_ChangesItsVersionSoTheGlowPlaysAgain()
+    {
+        var glow = new JustChanged();
+        glow.Mark("a");
+        var first = glow.Version("a");
+
+        glow.Mark("a");
+
+        Assert.NotEqual(first, glow.Version("a"));
+        Assert.Equal(0, glow.Version("other"));
+    }
+}

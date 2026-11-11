@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* Streaming > Limits and Quality. The limits are saved with the network settings, the same stored values the
@@ -20,6 +19,11 @@
     }
     else
     {
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-streaming-failure>@_failure</AppAlert>
+        }
+        <AppSavedNote @ref="_savedNote" />
         <StreamingLimitsPanel Settings="@_settings" Status="@_status"
                               SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
     }
@@ -29,6 +33,8 @@
     private NetworkSettingsDto? _settings;
     private NetworkRuntimeStatusDto? _status;
     private bool _loading = true;
+    private string? _failure;
+    private AppSavedNote? _savedNote;
 
     protected override async Task OnInitializedAsync()
     {
@@ -44,14 +50,15 @@
     {
         if (_settings is null)
             return;
+        _failure = null;
         var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
         if (saved is null)
         {
-            Snackbar.Add(L["StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe"].Value;
             return;
         }
         _settings = saved;
-        Snackbar.Add(L["StreamingLimitsSettingsTab_StreamingSettingsSaved"].Value, AppSeverity.Success);
+        _savedNote?.Show();
         await RefreshStatusAsync();
     }
 

@@ -1,7 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
@@ -32,7 +31,7 @@
                 {
                     var rule = _rules.Rules[index];
                     var position = index;
-                    <li class="view-rules__row" @key="rule.Id">
+                    <li class="view-rules__row @_glow.Class(rule.Id.ToString())" @key="rule.Id">
                         <div class="view-rules__text">
                             <strong>@rule.Name</strong>
                             @if (rule.Scope == ViewDocumentRuleScopes.Shared)
@@ -64,6 +63,10 @@
                 <AppButton Label="@L["DocumentRulesSettings_AddRule"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="@(() => EditAsync(null))" />
                 <AppButton Label="@L["DocumentRulesSettings_ApplyRulesToExistingDocuments"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(_busy || _rules.Rules.Count == 0)" OnClick="ApplyAsync" />
             </div>
+            @if (_applyNote is not null)
+            {
+                <p class="view-documents-filters__hint" role="status" data-rules-apply-note>@_applyNote</p>
+            }
         }
     }
 
@@ -84,6 +87,8 @@
     private ViewDocumentCatalogueDto? _catalogue;
     private bool _loading = true, _busy;
     private string? _error;
+    private string? _applyNote;
+    private readonly JustChanged _glow = new();
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -132,10 +137,11 @@
                 { component => component.Catalogue, _catalogue },
             },
             new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
-        if (await dialog.Result is { Canceled: false })
+        if (await dialog.Result is { Canceled: false } answer)
         {
-            Snackbar.Add(L["DocumentRulesSettings_RuleSaved"].Value, AppSeverity.Success);
+            // The saved rule's row glows once the list is read again.
             await LoadAsync();
+            if (answer.Data is ViewDocumentRuleDto saved) _glow.Mark(saved.Id.ToString());
         }
     }
 
@@ -162,14 +168,19 @@
 
         _busy = true;
         _error = null;
+        _applyNote = null;
         try
         {
             var result = await ApiClient.ApplyViewDocumentRulesAsync();
             if (result.Success)
             {
-                Snackbar.Add(result.Value!.Queued == 0
-                    ? "Nothing to apply the rules to yet."
-                    : $"Applying your rules to {result.Value.Queued} {(result.Value.Queued == 1 ? "document" : "documents")} in the background.", AppSeverity.Success);
+                // Nothing else reports this queueing, so it is told here, under the buttons, until the next apply.
+                _applyNote = result.Value!.Queued switch
+                {
+                    0 => L["DocumentRulesSettings_NothingToApplyTheRules"].Value,
+                    1 => L["DocumentRulesSettings_ApplyingToOneDocument"].Value,
+                    var count => L["DocumentRulesSettings_ApplyingToDocuments", count].Value,
+                };
             }
             else
             {

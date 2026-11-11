@@ -7844,23 +7844,14 @@
   <data name="AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust" xml:space="preserve">
     <value>TLS and external ports must be between 1 and 65535.</value>
   </data>
-  <data name="AdvancedNetworkSettingsPanel_RouterMappingReconciliationCompleted" xml:space="preserve">
-    <value>Router mapping reconciliation completed.</value>
-  </data>
   <data name="AdvancedNetworkSettingsPanel_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be reset.</value>
-  </data>
-  <data name="AdvancedNetworkSettingsPanel_NetworkSettingsResetRemoteAccess" xml:space="preserve">
-    <value>Network settings reset. Remote access is off.</value>
   </data>
   <data name="BackupDestinationsSection_TheBackupSettingsCouldNot" xml:space="preserve">
     <value>The backup settings could not be saved.</value>
   </data>
   <data name="BackupDestinationsSection_TheDestinationWasNotAdded" xml:space="preserve">
     <value>The destination was not added. Check the details, then try again.</value>
-  </data>
-  <data name="BackupDestinationsSection_DestinationAddedUseTestTo" xml:space="preserve">
-    <value>Destination added. Use Test to check it.</value>
   </data>
   <data name="BackupDestinationsSection_TheDestinationCouldNotBe" xml:space="preserve">
     <value>The destination could not be removed.</value>
@@ -7870,9 +7861,6 @@
   </data>
   <data name="BackupRecoveryPanel_TheBackupCouldNotBe" xml:space="preserve">
     <value>The backup could not be created.</value>
-  </data>
-  <data name="BackupRecoveryPanel_RecoveryPointCreated" xml:space="preserve">
-    <value>Recovery point created.</value>
   </data>
   <data name="BackupRecoveryPanel_TheBackupCouldNotBe2" xml:space="preserve">
     <value>The backup could not be downloaded.</value>
@@ -7892,14 +7880,8 @@
   <data name="ConfirmItsYouDialog_ThePasskeyWasnTUsed" xml:space="preserve">
     <value>The passkey wasn't used. Try again or use your password.</value>
   </data>
-  <data name="DocumentRulesSettings_RuleSaved" xml:space="preserve">
-    <value>Rule saved.</value>
-  </data>
   <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
     <value>Optimized copy settings could not be saved.</value>
-  </data>
-  <data name="EncodeSettingsTab_PlaybackDeliverySettingsSaved" xml:space="preserve">
-    <value>Playback delivery settings saved.</value>
   </data>
   <data name="HomeSettingsPage_YourHomeSettingsCouldNot" xml:space="preserve">
     <value>Your Home settings could not be saved. Nothing was changed.</value>
@@ -7976,23 +7958,14 @@
   <data name="ManagedApplicationWebhooks_TheWebhookCouldNotBe2" xml:space="preserve">
     <value>The webhook could not be deleted. Try again.</value>
   </data>
-  <data name="ManualPortForwardingDialog_PortForwardingRuleCopied" xml:space="preserve">
-    <value>Port-forwarding rule copied.</value>
-  </data>
   <data name="MetadataSettingsPage_StartTheEngineAndRetry" xml:space="preserve">
     <value>Start the Engine and retry. No sample provider state is being shown.</value>
-  </data>
-  <data name="NeedsReviewPageContent_KeptAsAnUnmatchedFilm" xml:space="preserve">
-    <value>Kept as an unmatched film. Its file details are unchanged.</value>
   </data>
   <data name="NeedsReviewPageContent_ReviewItemCouldNotBe" xml:space="preserve">
     <value>Review item could not be dismissed.</value>
   </data>
   <data name="NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be saved.</value>
-  </data>
-  <data name="NetworkRemoteAccessSettings_NetworkSettingsSaved" xml:space="preserve">
-    <value>Network settings saved.</value>
   </data>
   <data name="NotificationsPanel_TheMessagesCouldNotBe" xml:space="preserve">
     <value>The messages could not be marked read.</value>
@@ -8054,15 +8027,6 @@
   <data name="ReadingSettingsPage_ReadingSettingsCouldNotBe2" xml:space="preserve">
     <value>Reading settings could not be saved.</value>
   </data>
-  <data name="SecuritySettingsPage_PasskeyAdded" xml:space="preserve">
-    <value>Passkey added.</value>
-  </data>
-  <data name="SecuritySettingsPage_PasskeyRemoved" xml:space="preserve">
-    <value>Passkey removed.</value>
-  </data>
-  <data name="SecuritySettingsPage_LinkedAccountDisconnected" xml:space="preserve">
-    <value>Linked account disconnected.</value>
-  </data>
   <data name="SecuritySettingsPage_EnterAValidEmailAddress" xml:space="preserve">
     <value>Enter a valid email address.</value>
   </data>
@@ -8087,32 +8051,17 @@
   <data name="SecurityTab_AuthenticationSettingsCouldNotBe" xml:space="preserve">
     <value>Authentication settings could not be saved.</value>
   </data>
-  <data name="SecurityTab_AuthenticationSettingsSavedRestartThe" xml:space="preserve">
-    <value>Authentication settings saved. Restart the Engine and Dashboard to apply provider changes.</value>
-  </data>
   <data name="SecurityTab_EnterAStableProviderId" xml:space="preserve">
     <value>Enter a stable provider id.</value>
-  </data>
-  <data name="SecurityTab_ProviderSavedRestartTheEngine" xml:space="preserve">
-    <value>Provider saved. Restart the Engine and Dashboard before using the new provider configuration.</value>
   </data>
   <data name="SecurityTab_ProviderCouldNotBeDeleted" xml:space="preserve">
     <value>Provider could not be deleted.</value>
   </data>
-  <data name="SecurityTab_ProviderDeletedRestartTheEngine" xml:space="preserve">
-    <value>Provider deleted. Restart the Engine and Dashboard to apply the change.</value>
-  </data>
   <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
     <value>Test email could not be sent.</value>
   </data>
-  <data name="StreamingLimitsPanel_BandwidthTestingNeedsATrusted" xml:space="preserve">
-    <value>Bandwidth testing needs a trusted external measurement target.</value>
-  </data>
   <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
     <value>Streaming settings could not be saved.</value>
-  </data>
-  <data name="StreamingLimitsSettingsTab_StreamingSettingsSaved" xml:space="preserve">
-    <value>Streaming settings saved.</value>
   </data>
   <data name="SetupCodeStage_TuvimaAdminSetupCode" xml:space="preserve">
     <value>tuvima-admin setup code</value>
@@ -13336,5 +13285,29 @@
   </data>
   <data name="CollectionFlow_ItemsStaged" xml:space="preserve">
     <value>{0} item(s) staged for this collection.</value>
+  </data>
+  <data name="BackupDestinationsSection_SomeCopiesNeedAttention" xml:space="preserve">
+    <value>Backup finished, but some copies need attention.</value>
+  </data>
+  <data name="DocumentRulesSettings_NothingToApplyTheRules" xml:space="preserve">
+    <value>Nothing to apply the rules to yet.</value>
+  </data>
+  <data name="DocumentRulesSettings_ApplyingToOneDocument" xml:space="preserve">
+    <value>Applying your rules to 1 document in the background.</value>
+  </data>
+  <data name="DocumentRulesSettings_ApplyingToDocuments" xml:space="preserve">
+    <value>Applying your rules to {0} documents in the background.</value>
+  </data>
+  <data name="OfflineDownloadsTab_CouldNotCancelTheEncodeJob" xml:space="preserve">
+    <value>Could not cancel the encode job.</value>
+  </data>
+  <data name="Common_Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="LogExportPanel_TheLogExportCouldNotBe" xml:space="preserve">
+    <value>The log export could not be created.</value>
+  </data>
+  <data name="PairedDevicesSection_ThatChangeCouldNotBeSaved" xml:space="preserve">
+    <value>That change could not be saved.</value>
   </data>
 </root>

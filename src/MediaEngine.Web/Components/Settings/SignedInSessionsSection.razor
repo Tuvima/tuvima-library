@@ -6,7 +6,6 @@
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
 @inject ConfirmedActionRunner Confirmed
-@inject IAppToastService Snackbar
 @inject ILogger<SignedInSessionsSection> Logger
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
@@ -15,6 +14,10 @@
    person. Either way each browser has its own Sign out. *@
 <SettingsSectionPanel Title="@L["SignedInSessionsSection_SignedInBrowsers"].Value"
                       Description="@(ManagesOthers ? "Where people are signed in right now. Sign one out to end that sign-in at once." : "Where you are signed in right now. Sign one out to end that sign-in at once.")">
+    @if (_failure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-sessions-failure>@_failure</AppAlert>
+    }
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Compact" />
@@ -136,6 +139,7 @@
     private bool _loadFailed;
     private bool _locked;
     private bool _signingOut;
+    private string? _failure;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -224,6 +228,7 @@
         }
 
         _signingOut = true;
+        _failure = null;
         try
         {
             var result = await Confirmed.RunAsync(() => ManagesOthers
@@ -232,7 +237,7 @@
             _pending = null;
             if (result.Succeeded)
             {
-                Snackbar.Add($"{SecuritySessionDisplayFormatter.Format(pending.Session).DeviceName} was signed out.", AppSeverity.Success);
+                // The session leaves the list once it is read again.
                 await LoadAsync();
             }
             else if (result.Failure == DashboardAccessMutationFailure.Forbidden && !_justUnlocked)
@@ -241,7 +246,7 @@
             }
             else
             {
-                Snackbar.Add(FailureText(result.Failure), AppSeverity.Error);
+                _failure = FailureText(result.Failure);
                 await LoadAsync();
             }
         }

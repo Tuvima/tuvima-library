@@ -289,19 +289,21 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         OpenMenuAndClick(cut, "Dismiss from review");
 
-        cut.WaitForAssertion(() => Assert.Single(Toasts));
-        var toast = Toasts[0];
-        Assert.Contains("could not be dismissed", toast.Message);
+        // The reason is an alert at the top of the list (a refusal is a warning, an unexpected error an error), never a toast.
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-review-failure]")));
+        var alert = cut.Find("[data-review-failure]");
+        Assert.Contains("could not be dismissed", alert.TextContent);
         if (!throws)
         {
-            Assert.Equal(AppSeverity.Warning, toast.Severity);
-            Assert.Contains("It is still in Needs Review.", toast.Message);
+            Assert.Contains("tl-alert-warning", alert.ClassName);
+            Assert.Contains("It is still in Needs Review.", alert.TextContent);
         }
         else
         {
-            Assert.Equal(AppSeverity.Error, toast.Severity);
+            Assert.Contains("tl-alert-error", alert.ClassName);
         }
 
+        Assert.Empty(Toasts);
         Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count);
     }
 
@@ -318,10 +320,12 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         OpenMenuAndClick(cut, "Keep provider match");
 
-        cut.WaitForAssertion(() => Assert.Single(Toasts));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-review-failure]")));
+        var alert = cut.Find("[data-review-failure]");
         Assert.Equal([FirstId], registered.Kept);
-        Assert.Contains("could not keep the provider match", Toasts[0].Message);
-        Assert.Equal(throws ? AppSeverity.Error : AppSeverity.Warning, Toasts[0].Severity);
+        Assert.Contains("could not keep the provider match", alert.TextContent);
+        Assert.Contains(throws ? "tl-alert-error" : "tl-alert-warning", alert.ClassName);
+        Assert.Empty(Toasts);
         Assert.Single(cut.FindAll("tr.needs-review-table__row"));
     }
 

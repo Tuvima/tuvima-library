@@ -8,7 +8,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
-@inject IAppToastService Snackbar
 @inject LibraryFolderAddService AddService
 @inject NavigationManager Navigation
 @implements IDisposable
@@ -217,6 +216,7 @@
     private string _baseline = string.Empty;
     private string? _loadError;
     private string? _notice;
+    private string? _changedSourceId;
     private bool _loading = true;
     private bool _saving;
     private LibraryTypeOption _selected = ImportEntry;
@@ -451,7 +451,7 @@
             target.ConversionState = "none";
             target.ConversionOperationId = null;
         }
-        await SaveAsync(library, managed ? "Library will now manage this folder." : "This folder will be used as read-only.");
+        await SaveAsync(library, target.Id);
     }
 
     // Read-only to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
@@ -513,7 +513,7 @@
         var current = LibraryHolding(source);
         var target = current?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (current is null || target is null || _saving || !IsManaged(target)) return;
-        await SaveAsync(LibraryFolderAddService.WithDestination(current, target.Id), $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
+        await SaveAsync(LibraryFolderAddService.WithDestination(current, target.Id), target.Id);
     }
 
     private async Task LabelFolderAsync(LibrarySourceDto source)
@@ -528,7 +528,7 @@
         }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
         if (await dialog.Result is not { Canceled: false, Data: string label }) return;
         target.Label = label.Trim();
-        await SaveAsync(library, "Name saved.");
+        await SaveAsync(library, target.Id);
     }
 
     private async Task ChooseImportFolderAsync()
@@ -544,7 +544,7 @@
         };
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
-        await SaveImportFolderAsync(selected.Path, "Import folder saved.");
+        await SaveImportFolderAsync(selected.Path);
     }
 
     private async Task RemoveImportFolderAsync()
@@ -553,10 +553,10 @@
             "Remove the import folder?",
             "Library stops importing from it. Files in the folder stay on disk.",
             yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
-        if (confirmed == true) await SaveImportFolderAsync(null, "Import folder removed.");
+        if (confirmed == true) await SaveImportFolderAsync(null);
     }
 
-    private Task SaveImportFolderAsync(string? path, string message) => PutAsync(baseline =>
+    private Task SaveImportFolderAsync(string? path) => PutAsync(baseline =>
     {
         var locations = baseline.StorageLocations
             .Where(location => !string.Equals(location.Id, ImportLocationId, StringComparison.OrdinalIgnoreCase))
@@ -575,10 +575,10 @@
             PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
             FileHandling = baseline.FileHandling,
         };
-    }, message);
+    });
 
     // Saves a whole-configuration change (import folder, file handling) and adopts the Engine's answer.
-    private async Task PutAsync(Func<LibrariesConfigurationDto, UpdateLibrariesRequest> build, string message)
+    private async Task PutAsync(Func<LibrariesConfigurationDto, UpdateLibrariesRequest> build)
     {
         if (_configuration is null || _saving) return;
         _saving = true;
@@ -594,7 +594,6 @@
             }
             _configuration = saved;
             _baseline = JsonSerializer.Serialize(saved);
-            Snackbar.Add(message, AppSeverity.Success);
         }
         finally { _saving = false; }
         await Changed.InvokeAsync();
@@ -612,7 +611,7 @@
             yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
-        await SaveAsync(library, "Folder removed.");
+        await SaveAsync(library);
     }
 
     // Keep going on a paused folder (Library setup D35): identification resumes, files that do not match stay Unmatched and are tried again
@@ -630,7 +629,8 @@
                 return;
             }
 
-            Snackbar.Add($"Carrying on with {source.DisplayName()}. Files that don't match stay as they are and are tried again later.", AppSeverity.Success);
+            // The paused line leaves the folder's row once the rows are read again; the row is pointed at.
+            _changedSourceId = source.Id;
             await ReloadConfigurationAsync();
             await Changed.InvokeAsync();
         }
@@ -645,9 +645,7 @@
         var target = library?.Sources.FirstOrDefault(item => item.Id == change.Source.Id);
         if (library is null || target is null || _saving || ReadOnly) return;
         target.ScanEnabled = change.Value;
-        await SaveAsync(library, change.Value
-            ? $"Scanning {target.DisplayName()} again."
-            : $"Scanning paused for {target.DisplayName()}. What is already in your library stays.");
+        await SaveAsync(library, target.Id);
     }
 
     // Override file handling for this folder: the small dialog answers, the folder's override is saved through the same folder save.
@@ -663,9 +661,7 @@
         }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
         if (await dialog.Result is not { Canceled: false, Data: FolderFileHandlingDialog.Answer answer }) return;
         target.FileHandlingOverride = answer.Override;
-        await SaveAsync(library, answer.Override is null
-            ? $"{target.DisplayName()} follows the library's file handling."
-            : $"File handling saved for {target.DisplayName()}.");
+        await SaveAsync(library, target.Id);
     }
 
     private async Task SetRecycleBinDaysAsync(LibraryFolderDto source, int days)
@@ -673,12 +669,11 @@
         var library = Clone(source);
         if (library is null || _saving) return;
         library.RecycleBinDays = Math.Clamp(days, 0, 3650);
-        await SaveAsync(library, library.RecycleBinDays == 0
-            ? "Deleted files stay in the recycle bin until it is emptied."
-            : $"Deleted files stay in the recycle bin for {library.RecycleBinDays} days.");
+        await SaveAsync(library);
     }
 
-    private async Task<bool> SaveAsync(LibraryFolderDto library, string message)
+    // The folder that was changed (when one was) is pointed at in the table through the grid's highlight; there is no notice over the page.
+    private async Task<bool> SaveAsync(LibraryFolderDto library, string? changedSourceId = null)
     {
         if (_configuration is null || _saving) return false;
         _saving = true;
@@ -693,7 +688,7 @@
             }
             _configuration = saved;
             _baseline = JsonSerializer.Serialize(saved);
-            Snackbar.Add(message, AppSeverity.Success);
+            if (changedSourceId is not null) _changedSourceId = changedSourceId;
         }
         finally { _saving = false; }
         await Changed.InvokeAsync();
@@ -740,11 +735,6 @@
         _jobs = latest;
         await InvokeAsync(StateHasChanged);
 
-        foreach (var job in justEnded)
-        {
-            AnnounceEnded(job);
-        }
-
         if (justEnded.Count > 0)
         {
             await ReloadConfigurationAsync();
@@ -752,26 +742,6 @@
         }
 
         if (latest.Values.Any(FolderJobFormat.IsOpen)) EnsurePolling();
-    }
-
-    private void AnnounceEnded(FolderJobStatusDto job)
-    {
-        var folder = _configuration?.Libraries.SelectMany(library => library.Sources).FirstOrDefault(item => item.Id == job.SourceId);
-        var name = folder?.DisplayName() ?? "the folder";
-        var text = job.State == "failed"
-            ? $"{(FolderJobFormat.IsMerge(job) ? "Merging" : "Organising")} {name} stopped. {job.Message}"
-            : $"{name}: {job.Message}";
-        Snackbar.Add(text, job.State == "failed" ? AppSeverity.Error : AppSeverity.Success, options =>
-        {
-            options.RequireInteraction = true;
-            if (!job.HasLog) return;
-            options.Action = "Download log";
-            options.OnClick = _ =>
-            {
-                Navigation.NavigateTo($"/engine-folder-log/{job.OperationId}", forceLoad: true);
-                return Task.CompletedTask;
-            };
-        });
     }
 
     private void EnsurePolling()
@@ -861,7 +831,7 @@
                                    PathIssues="@_pathIssues"
                                    PathsChecked="@_pathsChecked"
                                    Titles="@_titles"
-                                   HighlightSourceId="@HighlightSourceId"
+                                   HighlightSourceId="@(_changedSourceId ?? HighlightSourceId)"
                                    Jobs="@_jobs"
                                    OnJobControl="ControlJobAsync"
                                    OnSetDestination="SetDestinationAsync"
@@ -879,6 +849,7 @@
             else
             {
             <LibraryFolderTable Library="@library"
+                                ChangedSourceId="@_changedSourceId"
                                 TypeLabel="@Selected.Label"
                                 PluralLabel="@Selected.PluralLabel"
                                 ReadOnly="@ReadOnly"
@@ -952,7 +923,7 @@
         if (await dialog.Result is not { Canceled: false, Data: string name } || string.Equals(name, library.Name, StringComparison.Ordinal)) return;
         _notice = null;
         copy.Name = name;
-        await SaveAsync(copy, "Library renamed.");
+        await SaveAsync(copy);
     }
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null

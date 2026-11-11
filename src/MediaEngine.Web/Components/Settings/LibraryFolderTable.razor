@@ -167,6 +167,9 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnKeepGoing { get; set; }
     /// <summary>The latest folder job for each folder (by folder id): progress while it runs, how it went afterwards.</summary>
     [Parameter] public IReadOnlyDictionary<string, FolderJobStatusDto>? Jobs { get; set; }
+
+    /// <summary>The folder whose change just worked: its row glows once (design system, Feedback after an action).</summary>
+    [Parameter] public string? ChangedSourceId { get; set; }
     /// <summary>Raised when Pause, Resume or Cancel is chosen on a folder's job.</summary>
     [Parameter] public EventCallback<FolderJobControl> OnJobControl { get; set; }
     /// <summary>Raised from the row menu to organise the files already in a managed folder.</summary>
@@ -289,7 +292,7 @@
     }
 
     private string RowClass(LibrarySourceDto source) =>
-        $"folder-table__row{(IsExpanded(source) ? " is-expanded" : string.Empty)}{(IsNewMediaFolder(source) ? " is-marked" : string.Empty)}";
+        $"folder-table__row{(IsExpanded(source) ? " is-expanded" : string.Empty)}{(IsNewMediaFolder(source) ? " is-marked" : string.Empty)}{(!string.IsNullOrWhiteSpace(ChangedSourceId) && source.Id == ChangedSourceId ? " " + JustChanged.GlowClass : string.Empty)}";
 
     private string? IssueFor(LibrarySourceDto source) =>
         PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null;
