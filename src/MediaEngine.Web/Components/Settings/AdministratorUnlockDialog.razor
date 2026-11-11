@@ -7,19 +7,23 @@
    Gate (Gate="true"): opened through the dialog service by AdministratorSurfaceAccessService; the administrator gate inside checks the PIN itself. *@
 @if (Gate)
 {
-    <AppDialogShell Size="Small" OnClose="CancelGate">
-        <ChildContent>
-            <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
-                <AdministratorSurfaceGate Required="true">
-                    <p>@L["AdministratorUnlockDialog_YourAdministratorSettingsAreUnlocked"]</p>
-                    <AppButton Label="@L["AdministratorUnlockDialog_ContinueToEditor"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ContinueGate" />
-                </AdministratorSurfaceGate>
-            </div>
-        </ChildContent>
-        <FooterContent>
-            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelGate" />
-        </FooterContent>
-    </AppDialogShell>
+    @* Without a dialog to close, the gate draws nothing. *@
+    @if (DialogContext is not null)
+    {
+        <AppDialogShell Size="Small" OnClose="CancelGate">
+            <ChildContent>
+                <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
+                    <AdministratorSurfaceGate Required="true">
+                        <p>@L["AdministratorUnlockDialog_YourAdministratorSettingsAreUnlocked"]</p>
+                        <AppButton Label="@L["AdministratorUnlockDialog_ContinueToEditor"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ContinueGate" />
+                    </AdministratorSurfaceGate>
+                </div>
+            </ChildContent>
+            <FooterContent>
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelGate" />
+            </FooterContent>
+        </AppDialogShell>
+    }
 }
 else if (Open)
 {

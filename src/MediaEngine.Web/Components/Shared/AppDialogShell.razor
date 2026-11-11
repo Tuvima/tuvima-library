@@ -58,7 +58,8 @@ else
     // A window opened through the dialog service may be titled by its opener instead of the card.
     private string ResolvedTitle => !string.IsNullOrWhiteSpace(Title) ? Title : Context?.Title ?? string.Empty;
     private bool IsFramed => Framed || Context is not null || !Modal;
-    private bool CanClose => OnClose.HasDelegate || Framed;
+    // A service-opened window with no OnClose of its own keeps the close button its opener asked for (CloseButton), now drawn here because the frame's header is off.
+    private bool CanClose => OnClose.HasDelegate || Framed || Context?.Options.CloseButton == true;
     private string FrameClass => string.IsNullOrWhiteSpace(HostClass) ? "app-dialog-host" : $"app-dialog-host {HostClass}";
     private AppDialogOptions FrameOptionsResolved
     {
@@ -89,6 +90,7 @@ else
     private async Task CloseAsync()
     {
         if (OnClose.HasDelegate) { await OnClose.InvokeAsync(); return; }
+        if (Context is not null) { await Context.CancelAsync(); return; }
         if (!Framed) return;
         Visible = false;
         await VisibleChanged.InvokeAsync(false);
