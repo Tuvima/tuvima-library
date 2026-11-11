@@ -33,7 +33,7 @@ public sealed class VideoPlaybackSurfaceTests
     {
         var root = FindRepoRoot();
         var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var script = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
+        var script = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-core.js"));
 
         Assert.Contains(".Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))", razor, StringComparison.Ordinal);
         Assert.Contains("new SubtitleChoice(null, Off, !_captionTracks.Any(track => track.Selected))", razor, StringComparison.Ordinal);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 const source = fs.readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/app.js',import.meta.url),'utf8');
+const playbackSource = fs.readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/js/playback-core.js',import.meta.url),'utf8');
 const code = source.slice(source.indexOf('window.detailOrigin = (() => {'),source.indexOf('// Register before the first detail link'));
 function setup() {
     const frames = [], timers = [], store = new Map(), containers = [];
@@ -63,7 +64,7 @@ test('normal detail restoration preserves browsing position without a player int
 });
 test('modified queue keys never also change transport volume',()=>{
     let handler; const calls=[];
-    const block=source.slice(source.indexOf('    function registerPlayerShortcuts('),source.indexOf('    function audioEngineElement('));
+    const block=playbackSource.slice(playbackSource.indexOf('    function registerPlayerShortcuts('),playbackSource.indexOf('    function audioEngineElement('));
     const context={unregisterPlayerShortcuts:()=>{},isEditableShortcutTarget:()=>false,setShortcutHandler:()=>{},console};
     vm.runInNewContext(block,context);
     context.registerPlayerShortcuts({addEventListener:(_,fn)=>{handler=fn;}},{invokeMethodAsync:(...args)=>{calls.push(args);return Promise.resolve();}});

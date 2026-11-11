@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 
 const repositoryRoot = path.resolve(__dirname, '../../..');
-const source = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/wwwroot/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const source = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/wwwroot/js/playback-core.js'), 'utf8').replace(/\r\n/g, '\n');
 
 function extractFunction(name) {
     const start = source.indexOf(`function ${name}(`);

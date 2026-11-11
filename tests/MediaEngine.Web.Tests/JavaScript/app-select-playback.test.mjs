@@ -247,7 +247,7 @@ test("a replacement adapter leaves attributes changed by another owner untouched
 });
 
 test("picker keyboard navigation is not consumed by playback shortcuts", async () => {
-    const appJsPath = new URL("../../../src/MediaEngine.Web/wwwroot/app.js", import.meta.url);
+    const appJsPath = new URL("../../../src/MediaEngine.Web/wwwroot/js/playback-core.js", import.meta.url);
     const appJs = await readFile(appJsPath, "utf8");
     const start = appJs.indexOf("    function isEditableShortcutTarget(target) {");
     const end = appJs.indexOf("    function audioEngineElement() {", start);

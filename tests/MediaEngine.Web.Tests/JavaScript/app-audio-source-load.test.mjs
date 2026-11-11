@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 
 // hls.js loads on first use, so a playback start can wait several seconds for it. These tests drive that wait by hand and
 // check what a Pause, Close, release, second start, cast swap or failed load does to the start that is still waiting.
-const source = await readFile(new URL("../../../src/MediaEngine.Web/wwwroot/app.js", import.meta.url), "utf8");
+const source = await readFile(new URL("../../../src/MediaEngine.Web/wwwroot/js/playback-core.js", import.meta.url), "utf8");
 function block(start, end) {
     const a = source.indexOf(start), b = source.indexOf(end, a);
     assert.ok(a >= 0 && b > a, `block ${start}`);

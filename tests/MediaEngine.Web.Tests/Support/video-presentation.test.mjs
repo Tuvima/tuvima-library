@@ -51,7 +51,7 @@ function media() {
 }
 
 function captionRuntime() {
-    const source = readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/app.js', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/js/playback-core.js', import.meta.url), 'utf8');
     const inventory = source.slice(source.indexOf('    function readCaptionTrackChoices('), source.indexOf('    function currentCaptionBinding('));
     const selection = source.slice(source.indexOf('    function currentCaptionBinding('), source.indexOf('    function audioObserverFor('));
     const sandbox = {};

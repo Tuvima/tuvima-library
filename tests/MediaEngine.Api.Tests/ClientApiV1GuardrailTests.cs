@@ -42,7 +42,7 @@ public sealed class ClientApiV1GuardrailTests
     public void DashboardEdge_DoesNotExposeEngineCredentialsOrBrowserSpoofedDeviceIdentity()
     {
         var edge = Source("src/MediaEngine.Web/Endpoints/ClientApiEdgeEndpoints.cs");
-        var javascript = Source("src/MediaEngine.Web/wwwroot/app.js");
+        var javascript = Source("src/MediaEngine.Web/wwwroot/app.js") + Source("src/MediaEngine.Web/wwwroot/js/playback-core.js");
 
         Assert.Contains("ClientApiProxy", edge, StringComparison.Ordinal);
         Assert.Contains("/.well-known/tuvima", edge, StringComparison.Ordinal);
