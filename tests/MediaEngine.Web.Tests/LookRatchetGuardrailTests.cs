@@ -19,6 +19,7 @@ public sealed class LookRatchetGuardrailTests
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
     private const int OldAppVariableCeiling = 159;
     private const int DeadStyleClassCeiling = 0;
+    private const int ToastCallCeiling = 398;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
     {
@@ -56,6 +57,15 @@ public sealed class LookRatchetGuardrailTests
         var box = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Shared", "AppMessageBox.razor"));
         Assert.DoesNotContain("Regex", box);
         Assert.Contains("Destructive", box);
+    }
+
+    [Fact]
+    public void ToastCallsOnlyGoDown()
+    {
+        var count = WebFiles(".razor", ".cs")
+            .Where(f => !f.Relative.StartsWith("Services/Ui/AppToast"))
+            .Sum(f => Regex.Matches(f.Text, @"\b(?:Snackbar|Toasts?|toasts?|_toasts?|ToastService|_toastService)\.Add\(").Count);
+        Assert.True(count <= ToastCallCeiling, $"Toast calls rose to {count} (ceiling {ToastCallCeiling}). There are no pop-up notices: glow the changed row, show the quiet Saved line, or put an alert in place (design system, Feedback after an action).");
     }
 
     [Fact]

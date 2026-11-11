@@ -255,6 +255,29 @@ A tooltip exists only when (a) the control is icon-only, (b) the control is disa
 | Size | `--tl-tooltip-font-size` | `13px` | Tooltip text size |
 | Widest | `--tl-tooltip-max-width` | `280px` | Tooltip maximum width |
 
+## Feedback after an action
+
+There are no pop-up notices (toasts) anywhere in the Dashboard. What a person did is confirmed where they did it, so the eye never has to leave the thing that changed and nothing covers the page.
+
+| What happened | What the person sees | Part to use |
+|---|---|---|
+| A change they made worked, and the changed thing is on screen (a row, card or tile) | That row, card or tile glows once | `data-new` or the `tl-just-changed` class on the changed element |
+| A change worked and there is no single row to point at (a settings form, a switch) | A quiet "Saved" line beside the Save button or under the section heading, which fades by itself | `AppSavedNote` |
+| The control already shows the new state (a switch, a heart, a tick, a moved item) | Nothing more: the new state is the confirmation | none |
+| Something failed | An alert in place: inside the window at the top of its body, or at the top of the page section, with the reason and what to do | `AppAlert` |
+| Something finished in the background (a scan, an import, a move) | The Activity indicator and its panel, never a notice over the page | Activity |
+| Something was copied | The button's own label or icon changes to "Copied" for a moment | the button |
+
+Rules:
+
+1. Never two confirmations for one action.
+2. A failure is never shown only in a log; it is always visible where the action was taken, and it stays until the person acts or leaves.
+3. A window that saved with problems stays open on a summary of what worked and what did not, with Done.
+4. Wording comes from the strings file, in plain words, with no code names.
+5. Screen readers hear the same thing: the saved line and alerts are live regions (`role="status"` for success, `role="alert"` for failure).
+
+The count of remaining toast calls is held by a test that only lets it go down, and it ends at 0, when the toast part itself is removed.
+
 ## Alignment
 
 1. **Rows.** One flex line, label, helper and control vertically centered on one axis.
