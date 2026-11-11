@@ -162,39 +162,6 @@
     font: inherit;
 }
 
-.listen-rail__delete-confirm {
-    grid-column: 2;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 25px 25px;
-    align-items: center;
-    gap: 4px;
-    min-width: 0;
-    padding: 4px 2px;
-    font-size: var(--tl-font-size-xs);
-}
-
-.listen-rail__delete-confirm > span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.listen-rail__delete-confirm ::deep button {
-    display: grid;
-    width: 25px;
-    height: 25px;
-    place-items: center;
-    padding: 0;
-    color: white;
-    border: 0;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.listen-rail__delete-confirm ::deep .is-confirm { background: var(--tl-status-success); }
-.listen-rail__delete-confirm ::deep .is-cancel { background: var(--tl-status-danger); }
-.listen-rail__delete-confirm ::deep .tl-icon-root { font-size: var(--tl-icon-size-xs); }
-
 .listen-rail__drag,
 .listen-rail__more,
 .listen-rail__add {
@@ -988,8 +955,7 @@
 
 .audiobooks-filters ::deep .audiobooks-filter,
 ::deep .audiobooks-select,
-.audiobooks-active-filter,
-::deep .audiobooks-series-card__action {
+.audiobooks-active-filter {
     min-height: 56px;
     border: 1px solid rgba(120, 139, 171, 0.26);
     border-radius: 9px;
@@ -1037,16 +1003,6 @@
     gap: 10px;
     min-height: 38px;
     padding: 0 8px 0 14px;
-}
-
-.audiobooks-active-filter ::deep button {
-    min-height: 28px;
-    border: 0;
-    border-radius: 6px;
-    padding: 0 10px;
-    background: rgba(124, 92, 255, 0.22);
-    color: var(--tl-text-on-accent);
-    font-weight: 600;
 }
 
 .audiobooks-section {
@@ -1364,15 +1320,6 @@
     line-height: 1.45;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
-}
-
-::deep .audiobooks-series-card__action{
-    width: fit-content;
-    min-height: 36px;
-    padding: 0 16px;
-    border-color: rgba(147, 119, 255, 0.56);
-    background: rgba(124, 92, 255, 0.13);
-    color: var(--tl-accent-primary-hover);
 }
 
 @media (max-width: 1180px) {

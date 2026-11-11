@@ -64,26 +64,6 @@
 
 :where(.tl-detail-page) .tl-overview-section__more {
     margin-top: 0.5rem;
-    min-height: 2rem;
-    padding: 0.2rem 0;
-    border: 0;
-    background: transparent;
-    color: var(--tl-accent-primary, #a78bfa);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-:where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-overview-section__credits-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 64%, #fff);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
 }
 
 :where(.tl-detail-page) .tl-overview-credit-rows {

@@ -5,6 +5,7 @@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="@ShellCssClass">
@@ -188,15 +189,7 @@
                                                     }
                                                 </div>
                                                 <div class="media-section-shell__managed-main">
-                                                    @if (_deleteRoute == child.Route)
-                                                    {
-                                                        <div class="media-section-shell__delete-confirm" role="group" aria-label="@($"Confirm deletion of {child.Label}")">
-                                                            <span>@L["Common_Delete2", child.Label]</span>
-                                                            <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {child.Label}")" OnClick="@(_ => ConfirmDeleteAsync(child))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
-                                                            <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {child.Label}")" OnClick="@(_ => CancelDelete())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
-                                                        </div>
-                                                    }
-                                                    else if (_renameRoute == child.Route)
+                                                    @if (_renameRoute == child.Route)
                                                     {
                                                         <div class="media-section-shell__rename-row">
                                                             <AppNativeInput @ref="_renameInput"
@@ -302,15 +295,7 @@
                                 }
                             </div>
                             <div class="media-section-shell__managed-main">
-                                @if (_deleteRoute == item.Route)
-                                {
-                                    <div class="media-section-shell__delete-confirm" role="group" aria-label="@($"Confirm deletion of {item.Label}")">
-                                        <span>@L["Common_Delete2", item.Label]</span>
-                                        <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {item.Label}")" OnClick="@(_ => ConfirmDeleteAsync(item))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
-                                        <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {item.Label}")" OnClick="@(_ => CancelDelete())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
-                                    </div>
-                                }
-                                else if (_renameRoute == item.Route)
+                                @if (_renameRoute == item.Route)
                                 {
                                     <div class="media-section-shell__rename-row">
                                         <AppNativeInput @ref="_renameInput"
@@ -459,7 +444,6 @@
     private string _createName = string.Empty;
     private string? _renameRoute;
     private string _renameName = string.Empty;
-    private string? _deleteRoute;
     private string? _swipedRoute;
     private MediaSectionNavigationItem? _reorderingItem;
     private string? _pointerRoute;
@@ -926,7 +910,6 @@
         _creatingGroupLabel = group.Label;
         _creatingOptions = group.CreateOptions;
         _createName = string.Empty;
-        _deleteRoute = null;
         _renameRoute = null;
         _focusCreateInput = true;
     }
@@ -1006,7 +989,6 @@
         "media-section-shell__managed-row",
         _swipedRoute == item.Route ? "is-swiped" : null,
         _reorderingItem?.Route == item.Route ? "is-reordering" : null,
-        _deleteRoute == item.Route ? "is-confirming-delete" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private void NavigateManagedItem(MediaSectionNavigationItem item)
@@ -1023,7 +1005,6 @@
     private void BeginRename(MediaSectionNavigationItem item)
     {
         _swipedRoute = null;
-        _deleteRoute = null;
         _renameRoute = item.Route;
         _renameName = item.Label;
         _focusRenameInput = true;
@@ -1056,25 +1037,32 @@
             _renameRoute = null;
     }
 
-    private void BeginDelete(MediaSectionNavigationItem item)
+    // Delete is instant after one "are you sure" (the shared confirm), then the host does the delete.
+    private async Task BeginDelete(MediaSectionNavigationItem item)
     {
         _swipedRoute = null;
         _renameRoute = null;
-        _deleteRoute = item.Route;
-    }
-
-    private void CancelDelete() => _deleteRoute = null;
-
-    private async Task ConfirmDeleteAsync(MediaSectionNavigationItem item)
-    {
         if (item.Management is null || OnNavigationItemDelete is null)
             return;
 
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            L["Common_Delete2", item.Label].Value,
+            string.Empty,
+            yesText: L["Common_Delete"].Value,
+            cancelText: L["Search_Cancel"].Value,
+            options: AppDialogOptions.DestructiveConfirm);
+        if (confirmed != true)
+            return;
+
         _managing = true;
-        var succeeded = await OnNavigationItemDelete(new(item, item.Management));
-        _managing = false;
-        if (succeeded)
-            _deleteRoute = null;
+        try
+        {
+            await OnNavigationItemDelete(new(item, item.Management));
+        }
+        finally
+        {
+            _managing = false;
+        }
     }
 
     private void BeginReorder(MediaSectionNavigationItem item) => _reorderingItem = item;

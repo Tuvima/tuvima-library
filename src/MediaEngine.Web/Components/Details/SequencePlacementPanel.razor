@@ -405,12 +405,13 @@ else
                 <p id="series-description-copy" class="@SeriesDescriptionClass" @ref="_seriesDescriptionElement">@Placement.ContainerDescription</p>
                 @if (HasExpandableSeriesDescription)
                 {
-                    <AppNativeButton Type="button"
-                                     Class="tl-series-information__toggle"
-                                     AdditionalAttributes="SeriesDescriptionToggleAttributes"
-                                     OnClick="ToggleSeriesDescription">
-                        @(_seriesDescriptionExpanded ? "Less" : "More")
-                    </AppNativeButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               Tone="AppUiTone.Primary"
+                               Size="AppControlSize.Compact"
+                               Class="tl-series-information__toggle"
+                               @attributes="SeriesDescriptionToggleAttributes"
+                               Label="@(_seriesDescriptionExpanded ? "Less" : "More")"
+                               OnClick="ToggleSeriesDescription" />
                 }
             </section>
         }

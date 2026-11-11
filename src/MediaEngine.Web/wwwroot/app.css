@@ -1836,16 +1836,6 @@ input.app-control.tl-input-slot,
     justify-content: flex-end;
 }
 
-/* Phone song cards load in pages; the button is a full-width 44px target. */
-.listen-song-table-cards__more-button {
-    width: 100%;
-    min-height: var(--tl-tap-target-min, 44px);
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--tl-radius-sm);
-    background: transparent;
-    color: var(--tl-text-primary);
-}
-
 /* The playlist rail's "more" button is hover-revealed with a mouse and always visible on touch. */
 @media (hover: none), (pointer: coarse) {
     :root:root .listen-rail__more {
@@ -2978,7 +2968,6 @@ button.app-menu-item {
     :root:root .listen-track-grid__favorite,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
-    :root:root .listen-song-table-cards__more-button,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
     :root:root .sme-close,
@@ -3202,8 +3191,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
 
     :root:root:root .view-atlas__types button,
     :root:root:root .view-atlas__filters-button,
-    :root:root:root .places-timeline__controls button,
-    :root:root:root .places-timeline__reset {
+    :root:root:root .places-timeline__controls button {
         min-height: var(--tl-tap-target-min);
     }
 

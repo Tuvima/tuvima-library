@@ -68,9 +68,7 @@
     @if (phoneTracks.Count > _phoneVisibleCount)
     {
         <div class="listen-song-table-cards__more">
-            <AppNativeButton Type="button" Class="listen-song-table-cards__more-button" OnClick="ShowMorePhoneTracks">
-                @L["ListenSongTable_ShowMoreSongsLeft", phoneTracks.Count - _phoneVisibleCount]
-            </AppNativeButton>
+            <AppButton FullWidth="true" Label="@L["ListenSongTable_ShowMoreSongsLeft", phoneTracks.Count - _phoneVisibleCount].Value" OnClick="ShowMorePhoneTracks" />
         </div>
     }
 }

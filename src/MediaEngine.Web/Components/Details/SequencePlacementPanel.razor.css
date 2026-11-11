@@ -772,21 +772,6 @@
 
 :where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-information__toggle {
     margin-top: 0.55rem;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: #87a9ff;
-    font: inherit;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-information__toggle:hover,
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-information__toggle:focus-visible {
-    color: #b7c9ff;
-    text-decoration: underline;
-    text-underline-offset: 0.18em;
 }
 
 .tl-detail-page__primary-content .tl-series-placement:not(.tl-series-placement--compact) {

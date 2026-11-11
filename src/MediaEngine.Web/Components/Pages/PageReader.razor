@@ -33,9 +33,7 @@
     <div class="pr-host" @ref="_host"></div>
 
     <header class="pr-bar pr-bar--top" aria-label="@(string.IsNullOrWhiteSpace(_title) ? L["PageReader_Reader"].Value : _title)">
-        <AppNativeButton Class="pr-ib" OnClick="ExitReader" Tooltip="@L["PageReader_BackToLibrary"].Value" AriaLabel="@L["PageReader_BackToLibrary"].Value">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppIconSize.Control20" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Filled.ArrowBack" ButtonStyle="AppButtonStyle.Text" OnClick="ExitReader" Tooltip="@L["PageReader_BackToLibrary"].Value" AriaLabel="@L["PageReader_BackToLibrary"].Value" />
         <div class="pr-title">
             <b>@_title</b>
             @if (!string.IsNullOrWhiteSpace(_subtitle))
@@ -50,33 +48,21 @@
                 {
                     @if (_kind == "pdf")
                     {
-                        <AppNativeButton Class="@($"pr-ib {(_panel == "search" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                        </AppNativeButton>
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "search" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value" />
                         @if (_outline.Count > 0)
                         {
-                            <AppNativeButton Class="@($"pr-ib {(_panel == "contents" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["PageReader_Contents"].Value" AriaLabel="@L["PageReader_Contents"].Value">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppIconSize.Control20" />
-                            </AppNativeButton>
+                            <AppIconButton Icon="@AppMaterialIcons.Filled.Toc" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "contents" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["PageReader_Contents"].Value" AriaLabel="@L["PageReader_Contents"].Value" />
                         }
                     }
-                    <AppNativeButton Class="@($"pr-ib {(_panel == "pages" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("pages"))" Tooltip="@L["PageReader_Pages"].Value" AriaLabel="@L["PageReader_Pages"].Value">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" Size="AppIconSize.Control20" />
-                    </AppNativeButton>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.GridView" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "pages" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("pages"))" Tooltip="@L["PageReader_Pages"].Value" AriaLabel="@L["PageReader_Pages"].Value" />
                 }
-                <AppNativeButton Class="@($"pr-ib {(MyBookmarkOnPage is not null ? "pr-ib--on" : "")}")" OnClick="ToggleBookmarkAsync"
+                <AppIconButton Icon="@(MyBookmarkOnPage is null ? AppMaterialIcons.Outlined.BookmarkBorder : AppMaterialIcons.Filled.Bookmark)" ButtonStyle="AppButtonStyle.Text" Class="@(MyBookmarkOnPage is not null ? "pr-ib--on" : null)" OnClick="ToggleBookmarkAsync"
                                  Tooltip="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)"
-                                 AriaLabel="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)" aria-pressed="@(MyBookmarkOnPage is not null ? "true" : "false")">
-                    <AppMaterialIcon Icon="@(MyBookmarkOnPage is null ? AppMaterialIcons.Outlined.BookmarkBorder : AppMaterialIcons.Filled.Bookmark)" Size="AppIconSize.Control20" />
-                </AppNativeButton>
+                                 AriaLabel="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)" aria-pressed="@(MyBookmarkOnPage is not null ? "true" : "false")" />
                 @if (!OnPhone)
                 {
-                    <AppNativeButton Class="@($"pr-ib {(_panel == "bookmarks" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("bookmarks"))" Tooltip="@L["PageReader_Bookmarks"].Value" AriaLabel="@L["PageReader_Bookmarks"].Value">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bookmarks" Size="AppIconSize.Control20" />
-                    </AppNativeButton>
-                    <AppNativeButton Class="@($"pr-ib {(_panel == "settings" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
-                    </AppNativeButton>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Bookmarks" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "bookmarks" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("bookmarks"))" Tooltip="@L["PageReader_Bookmarks"].Value" AriaLabel="@L["PageReader_Bookmarks"].Value" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Tune" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "settings" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value" />
                 }
                 else
                 {
@@ -115,9 +101,7 @@
         <AppPopout Class="br-panel pr-panel" Role="dialog" AriaLabel="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
-                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["PageReader_Close"].Value" AriaLabel="@L["PageReader_ClosePanel", PanelTitle].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppIconSize.Control20" />
-                </AppNativeButton>
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Close" ButtonStyle="AppButtonStyle.Text" OnClick="ClosePanelAsync" Tooltip="@L["PageReader_Close"].Value" AriaLabel="@L["PageReader_ClosePanel", PanelTitle].Value" />
             </div>
             <div class="br-panel-body">
                 @if (_panel == "pages")
@@ -153,9 +137,7 @@
                                     </AppNativeButton>
                                     @if (mark.IsYours && !mark.IsGlobal)
                                     {
-                                        <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["PageReader_DeleteBookmark"].Value" AriaLabel="@L["PageReader_DeleteBookmark"].Value">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppIconSize.Control20" />
-                                        </AppNativeButton>
+                                        <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["PageReader_DeleteBookmark"].Value" AriaLabel="@L["PageReader_DeleteBookmark"].Value" />
                                     }
                                 </li>
                             }

@@ -35,9 +35,7 @@
     <div class="br-stage" @ref="_host"></div>
 
     <header class="br-bar br-bar--top @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
-        <AppNativeButton Class="br-icon-btn" OnClick="ExitReader" Tooltip="@L["BookReader_BackToLibrary"].Value" AriaLabel="@L["BookReader_BackToLibrary"].Value">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppIconSize.Control20" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Filled.ArrowBack" ButtonStyle="AppButtonStyle.Text" OnClick="ExitReader" Tooltip="@L["BookReader_BackToLibrary"].Value" AriaLabel="@L["BookReader_BackToLibrary"].Value" />
         <div class="br-title">
             <div class="br-title-book">@_title</div>
             @if (!string.IsNullOrWhiteSpace(_author))
@@ -48,21 +46,11 @@
         @if (_state == "ready")
         {
             <div class="br-actions" role="toolbar" aria-label="@L["BookReader_ReaderTools"].Value">
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "search" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                </AppNativeButton>
-                <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppIconSize.Control20" />
-                </AppNativeButton>
-                <AppNativeButton Class="br-icon-btn" OnClick="AddBookmarkAsync" Tooltip="@L["BookReader_BookmarkThisPage"].Value" AriaLabel="@L["BookReader_BookmarkThisPage"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkAdd" Size="AppIconSize.Control20" />
-                </AppNativeButton>
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "saved" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("saved"))" Tooltip="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppIconSize.Control20" />
-                </AppNativeButton>
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
-                </AppNativeButton>
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "search" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Toc" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Filled.BookmarkAdd" ButtonStyle="AppButtonStyle.Text" OnClick="AddBookmarkAsync" Tooltip="@L["BookReader_BookmarkThisPage"].Value" AriaLabel="@L["BookReader_BookmarkThisPage"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Bookmark" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "saved" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("saved"))" Tooltip="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Tune" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "settings" ? "br-icon-btn--on" : null)" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value" />
             </div>
         }
     </header>
@@ -80,9 +68,7 @@
                 <AppNativeButton Class="br-swatch" Css="@SwatchCss(color)" OnClick="@(() => CreateHighlightAsync(color, false))"
                                  Tooltip="@($"Highlight in {ColorName(color)}")" AriaLabel="@($"Highlight in {ColorName(color)}")" />
             }
-            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Tooltip="@L["BookReader_HighlightAndAddANote"].Value" AriaLabel="@L["BookReader_HighlightAndAddANote"].Value">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Size="AppIconSize.Control20" />
-            </AppNativeButton>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.EditNote" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Tooltip="@L["BookReader_HighlightAndAddANote"].Value" AriaLabel="@L["BookReader_HighlightAndAddANote"].Value" />
         </AppCssElement>
     }
 
@@ -113,9 +99,7 @@
         <AppPopout Class="br-panel" Role="dialog" AriaLabel="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
-                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["Common_Close"].Value" AriaLabel="@($"Close {PanelTitle}")">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppIconSize.Control20" />
-                </AppNativeButton>
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Close" ButtonStyle="AppButtonStyle.Text" OnClick="ClosePanelAsync" Tooltip="@L["Common_Close"].Value" AriaLabel="@($"Close {PanelTitle}")" />
             </div>
             <div class="br-panel-body">
                 @if (_panel == "contents")
@@ -144,9 +128,7 @@
                     <div class="br-search">
                         <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value"
                                         Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
-                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Tooltip="@L["Nav_Search"].Value" AriaLabel="@L["Nav_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                        </AppNativeButton>
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" OnClick="RunSearchAsync" Tooltip="@L["Nav_Search"].Value" AriaLabel="@L["Nav_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)" />
                     </div>
                     @if (_searching)
                     {
@@ -207,9 +189,7 @@
                                         </AppNativeButton>
                                         @if (CanChange(mark))
                                         {
-                                            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value">
-                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppIconSize.Control20" />
-                                            </AppNativeButton>
+                                            <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value" />
                                         }
                                     </li>
                                 }

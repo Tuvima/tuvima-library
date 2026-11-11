@@ -323,36 +323,6 @@
 .media-section-shell__swipe-actions ::deep .is-rename { background: var(--tl-bg-surface-elevated); }
 .media-section-shell__swipe-actions ::deep .is-delete { background: var(--tl-status-danger); }
 
-.media-section-shell__delete-confirm {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 34px 34px;
-    align-items: center;
-    gap: 4px;
-    min-height: 38px;
-    padding: 3px 5px 3px 10px;
-    color: var(--tl-text-danger);
-    border: 1px solid var(--tl-status-danger-border);
-    border-radius: inherit;
-    background: var(--tl-status-danger-soft);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
-}
-
-.media-section-shell__delete-confirm ::deep button {
-    display: grid;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    place-items: center;
-    border: 0;
-    border-radius: 7px;
-    color: var(--tl-text-on-accent);
-}
-
-.media-section-shell__delete-confirm ::deep .is-confirm { background: var(--tl-status-success); }
-.media-section-shell__delete-confirm ::deep .is-cancel { background: var(--tl-status-danger); }
-
 .media-section-shell__rename-row {
     grid-column: 1 / -1;
     min-width: 0;

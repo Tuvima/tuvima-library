@@ -53,7 +53,7 @@
     @* A favorite, a setting or a drop that did not work: said here, beside the restore line, until the next try or the close button. *@
     <div class="listen-player__restore-status" role="alert" data-listen-player-notice>
         <span>@_barNotice</span>
-        <AppNativeButton Type="button" OnClick="DismissBarNotice" AriaLabel="@L["Common_DismissNotification"].Value">@L["Common_Close"]</AppNativeButton>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Label="@L["Common_Close"].Value" OnClick="DismissBarNotice" aria-label="@L["Common_DismissNotification"].Value" />
     </div>
 }
 
