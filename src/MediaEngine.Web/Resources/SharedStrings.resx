@@ -1751,12 +1751,6 @@
   <data name="BookReader_NothingInThisBookMatches" xml:space="preserve">
     <value>Nothing in this book matches “{0}”.</value>
   </data>
-  <data name="BookReader_BookmarkThisPage" xml:space="preserve">
-    <value>Bookmark this page</value>
-  </data>
-  <data name="BookReader_NoBookmarksYet" xml:space="preserve">
-    <value>No bookmarks yet.</value>
-  </data>
   <data name="BookReader_NoHighlightsYetSelectSome" xml:space="preserve">
     <value>No highlights yet. Select some text in the book to make one.</value>
   </data>
@@ -1784,26 +1778,8 @@
   <data name="Common_TryAgain" xml:space="preserve">
     <value>Try again</value>
   </data>
-  <data name="BookReader_ReturnToLibrary" xml:space="preserve">
-    <value>Return to Library</value>
-  </data>
-  <data name="BookReader_BackToLibrary" xml:space="preserve">
-    <value>Back to library</value>
-  </data>
-  <data name="BookReader_ReaderTools" xml:space="preserve">
-    <value>Reader tools</value>
-  </data>
   <data name="BookReader_SearchInThisBook" xml:space="preserve">
     <value>Search in this book</value>
-  </data>
-  <data name="BookReader_Contents" xml:space="preserve">
-    <value>Contents</value>
-  </data>
-  <data name="BookReader_BookmarksAndHighlights" xml:space="preserve">
-    <value>Bookmarks and highlights</value>
-  </data>
-  <data name="BookReader_ReadingSettings" xml:space="preserve">
-    <value>Reading settings</value>
   </data>
   <data name="BookReader_HighlightTheSelectedText" xml:space="preserve">
     <value>Highlight the selected text</value>
@@ -1823,9 +1799,6 @@
   <data name="BookReader_AddANote" xml:space="preserve">
     <value>Add a note</value>
   </data>
-  <data name="BookReader_SavedPlaces" xml:space="preserve">
-    <value>Saved places</value>
-  </data>
   <data name="Common_DeleteBookmark" xml:space="preserve">
     <value>Delete bookmark</value>
   </data>
@@ -1834,6 +1807,12 @@
   </data>
   <data name="BookReader_OpeningBook" xml:space="preserve">
     <value>Opening book</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Highlights</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Bookmark removed.</value>
   </data>
   <data name="ChronicleExplorer_ChronicleExplorer" xml:space="preserve">
     <value>Chronicle Explorer - {0}</value>
@@ -6931,9 +6910,6 @@
   </data>
   <data name="AppTimelineNavigator_JumpToPeriod" xml:space="preserve">
     <value>Jump to period</value>
-  </data>
-  <data name="Common_Everyone" xml:space="preserve">
-    <value>· Everyone</value>
   </data>
   <data name="Glossary_Bookmarks" xml:space="preserve">
     <value>Bookmarks</value>

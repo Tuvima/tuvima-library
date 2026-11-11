@@ -904,4 +904,13 @@
   <data name="ReaderFrame_TryAgain" xml:space="preserve">
     <value>Réessayer</value>
   </data>
+  <data name="BookReader_SearchInThisBook" xml:space="preserve">
+    <value>Rechercher dans ce livre</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Surlignages</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Signet supprimé.</value>
+  </data>
 </root>

@@ -904,4 +904,13 @@
   <data name="ReaderFrame_TryAgain" xml:space="preserve">
     <value>Intentar de nuevo</value>
   </data>
+  <data name="BookReader_SearchInThisBook" xml:space="preserve">
+    <value>Buscar en este libro</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Subrayados</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Marcador eliminado.</value>
+  </data>
 </root>
