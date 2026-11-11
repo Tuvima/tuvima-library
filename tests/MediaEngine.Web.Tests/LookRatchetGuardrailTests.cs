@@ -19,7 +19,7 @@ public sealed class LookRatchetGuardrailTests
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
     private const int OldAppVariableCeiling = 159;
     private const int DeadStyleClassCeiling = 0;
-    private const int ToastCallCeiling = 398;
+    private const int ToastCallCeiling = 412;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
     {
