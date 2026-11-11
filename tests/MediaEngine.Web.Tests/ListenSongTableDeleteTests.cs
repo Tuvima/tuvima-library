@@ -103,6 +103,13 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 
     private IReadOnlyList<string> Toasts => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
 
+    // The line the table says in place (an alert above the list) when a delete is refused or leaves a file on disk.
+    private static string Notice(IRenderedComponent<ListenSongTable> cut)
+    {
+        cut.Render();
+        return cut.Find("[data-listen-song-notice]").TextContent.Trim();
+    }
+
     private static IReadOnlyList<AngleSharp.Dom.IElement> Checkboxes(IRenderedComponent<ListenSongTable> cut) =>
         cut.FindAll(".listen-song-table__select input[type='checkbox']");
 
@@ -380,7 +387,8 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(songs[0]));
 
-        Assert.Equal(EditorDeviceRule.Message, Assert.Single(Toasts));
+        Assert.Equal(EditorDeviceRule.Message, Notice(cut));
+        Assert.Empty(Toasts);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Empty(_previewRequests);
     }
@@ -395,7 +403,8 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(songs[0]));
 
-        Assert.Equal("You need administrator access to delete items.", Assert.Single(Toasts));
+        Assert.Equal("You need administrator access to delete items.", Notice(cut));
+        Assert.Empty(Toasts);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Empty(_previewRequests);
     }

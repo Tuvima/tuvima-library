@@ -11,7 +11,6 @@
 @inject IAppDialogService Dialogs
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
-@inject IAppToastService Snackbar
 @inject IEngineApiClient ApiClient
 @inject EditorHost Editor
 @inject IJSRuntime JS
@@ -460,7 +459,7 @@ else
     {
         if (_openingEditor || !_canEditUniverse || _editing.IsOn) return;
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
-        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
+        if (EditorDeviceRule.TryRefuse(DeviceContext)) { ShowEditNotice(EditorDeviceRule.Message, isError: false); return; }
         _editNotice = null;
         _openingEditor = true;
         try

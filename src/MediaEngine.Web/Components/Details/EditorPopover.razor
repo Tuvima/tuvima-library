@@ -8,7 +8,6 @@
 @implements IDisposable
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
-@inject IAppToastService Toasts
 @inject DeviceContextService Device
 @inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
@@ -40,6 +39,9 @@
                          FilesBatch="@Editor.FileBatch.IsOpen"
                          ChangeSuffix="@(Editor.FileBatch.IsOpen ? string.Format(L["EditorFilesBatch_FilesCount"].Value, Editor.FileBatch.Rows.Count) : null)"
                          ShowHistory="@(binding?.ShowHistory == true)"
+                         ActionNotice="@_actionNotice"
+                         ActionNoticeIsError="_actionNoticeIsError"
+                         ActionNoticeDismissed="@(() => _actionNotice = null)"
                          ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
                          FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
@@ -183,7 +185,7 @@
         try
         {
             var rows = Editor.FileBatch.Rows.ToList();
-            await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, Toasts, L);
+            Show(await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, L));
         }
         finally
         {
@@ -212,6 +214,16 @@
 
     private bool _deleting;
 
+    // What the last Delete had to say (a refusal, a failure, a file that stayed on disk): shown at the top of the window until dismissed or the next try.
+    private string? _actionNotice;
+    private bool _actionNoticeIsError;
+
+    private void Show(EditorDeleteResult result)
+    {
+        _actionNotice = result.Notice;
+        _actionNoticeIsError = result.NoticeIsError;
+    }
+
     private bool CanDeleteFile => EditorSupportingFileFlow.CanDelete(Editor, Device, Services.GetService<DashboardSessionAccessor>());
 
     // Delete from a supporting file's footer: asks once, naming the file and what happens to it on disk, then happens at once.
@@ -225,7 +237,7 @@
         _deleting = true;
         try
         {
-            await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+            Show(await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -246,7 +258,7 @@
         _deleting = true;
         try
         {
-            await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+            Show(await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -268,7 +280,7 @@
         _deleting = true;
         try
         {
-            await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+            Show(await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
         }
         finally
         {
@@ -401,7 +413,16 @@
         Editor.HeaderHooks.OpenFolders = null;
     }
 
-    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        if (!Editor.IsOpen)
+        {
+            // A notice belongs to the window it was shown in; the next opening starts clean.
+            _actionNotice = null;
+        }
+
+        StateHasChanged();
+    });
 
     // Open Universe (v4 D17): closes the editor, asking "Unsaved changes" first, then opens the Universe page. Staying leaves everything as it was.
     private async Task OpenUniverseAsync(EditorUniverseLink universe)

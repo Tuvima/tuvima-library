@@ -112,8 +112,6 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
 
     private const string AlongsideLabel = "Shown alongside · optional";
 
-    private IReadOnlyList<string> ToastLines => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
-
     // -- Opening a file -------------------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -630,16 +628,15 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
         Assert.True(EditorSupportingFileFlow.CanDelete(host, _device, _session));
 
         var deleting = dialogs.InvokeAsync(() => EditorSupportingFileFlow.DeleteAsync(
-            host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+            host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         dialogs.WaitForAssertion(() => Assert.Contains("Delete Workbook.pdf?", dialogs.Markup, StringComparison.Ordinal));
         Assert.Empty(_deletes);
         DialogButton(dialogs, "Delete").Click();
 
-        Assert.True(await deleting);
+        Assert.True((await deleting).Deleted);
         Assert.Equal([FileId.ToString("D")], Assert.Single(_deletes));
         Assert.True(host.Session.Pending.IsEmpty);
         Assert.Equal(TitleId, host.Session.ActiveItem!.EntityId);
-        Assert.Contains(ToastLines, line => line.Contains("Deleted Workbook.pdf", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -649,10 +646,10 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
         var dialogs = RenderDialogs();
 
         var deleting = dialogs.InvokeAsync(() => EditorSupportingFileFlow.DeleteAsync(
-            host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+            host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         DialogButton(dialogs, "Keep").Click();
 
-        Assert.False(await deleting);
+        Assert.False((await deleting).Deleted);
         Assert.Empty(_deletes);
         Assert.Equal(FileId, host.Session.ActiveItem!.EntityId);
     }

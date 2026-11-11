@@ -24,10 +24,9 @@ public static class CollectionMembershipFlow
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(items);
         var dialogs = services.GetRequiredService<IAppDialogService>();
-        var toasts = services.GetRequiredService<IAppToastService>();
         var device = services.GetRequiredService<DeviceContextService>();
         var orchestrator = services.GetRequiredService<UIOrchestratorService>();
-        if (items.Count == 0 || EditorDeviceRule.TryRefuse(device, toasts))
+        if (items.Count == 0 || EditorDeviceRule.TryRefuse(device))
         {
             return;
         }

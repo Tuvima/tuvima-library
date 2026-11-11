@@ -4,7 +4,6 @@
 @implements IDisposable
 @inject DeviceContextService Device
 @inject EditorHost Editor
-@inject IAppToastService Toasts
 @inject IAppDialogService Dialogs
 @inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
@@ -14,6 +13,11 @@
    pop-over's bulk panel (the selection says which one; the one editor host opens it over the page or list); the panel stages, and the
    one Save changes saves. Nothing renders on a device that may not edit, on a page the Engine does not let the person edit, or while no
    row is ticked. *@
+@if (_notice is not null)
+{
+    @* A refusal, or files a delete left on disk: it stays above the rows until the next try or the close button (nothing is drawn over the page). *@
+    <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-bulk-selection-notice="true">@_notice</AppAlert>
+}
 @if (Active is { Count: > 0 } selection && IsAvailable)
 {
     var rows = selection.Rows;
@@ -94,6 +98,11 @@
                            OnClick="ClearAsync" />
             </span>
         </div>
+        @if (selection.IsFull)
+        {
+            @* The list is full: the bar says so, since a row that cannot be ticked would otherwise just not react. *@
+            <p class="tl-batch__full" role="status" data-bulk-selection-full="true">@BulkEditSelection.FullNotice</p>
+        }
     </section>
 }
 
@@ -104,6 +113,7 @@
     private BulkEditSelection? _selection;
     private bool _deleting;
     private bool _deviceHooked;
+    private string? _notice;
 
     /// <summary>The detail page the bar sits on (its Engine edit permission); null for a list with no page behind it, which needs only a device that may edit.</summary>
     [CascadingParameter] public EditorBinding? Binding { get; set; }
@@ -148,10 +158,23 @@
 
     private async Task AddToCollectionAsync()
     {
-        if (Active is null || IsBusy || EditorDeviceRule.TryRefuse(Device, Toasts) || !CanAddToCollection(Active))
+        if (Active is null || IsBusy)
         {
             return;
         }
+
+        if (EditorDeviceRule.TryRefuse(Device))
+        {
+            _notice = EditorDeviceRule.Message;
+            return;
+        }
+
+        if (!CanAddToCollection(Active))
+        {
+            return;
+        }
+
+        _notice = null;
 
         await CollectionMembershipFlow.RunAsync(
             Services,
@@ -193,8 +216,14 @@
     // One panel at a time: pressing the open one again closes it. The device rule is checked here too; a hidden button is never the only protection.
     private void TogglePanel(BulkPanelKind kind)
     {
-        if (Active is null || EditorDeviceRule.TryRefuse(Device, Toasts))
+        if (Active is null)
         {
+            return;
+        }
+
+        if (EditorDeviceRule.TryRefuse(Device))
+        {
+            _notice = EditorDeviceRule.Message;
             return;
         }
 
@@ -238,20 +267,26 @@
             return;
         }
 
-        if (LibraryItemDeletionFlow.TryRefuse(Device, Services.GetService<DashboardSessionAccessor>(), Toasts)
-            || !BulkEditRules.AreDeletable(Active.Rows)
-            || Active.Count > BulkEditRules.MaxDeleteItems)
+        if (LibraryItemDeletionFlow.Refusal(Device, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        {
+            _notice = refusal;
+            return;
+        }
+
+        if (!BulkEditRules.AreDeletable(Active.Rows) || Active.Count > BulkEditRules.MaxDeleteItems)
         {
             return;
         }
 
+        _notice = null;
         _deleting = true;
         try
         {
             var ids = Active.Ids;
-            var outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Toasts, ids);
-            if (outcome != LibraryItemDeletionFlowOutcome.Canceled)
+            var result = await LibraryItemDeletionFlow.RunAsync(Dialogs, ids);
+            if (result.Outcome != LibraryItemDeletionFlowOutcome.Canceled)
             {
+                _notice = result.Notice;
                 Active.Clear();
                 if (Active.RefreshAsync is { } refresh)
                 {

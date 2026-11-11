@@ -14,7 +14,6 @@
 @inject ListenAudioDragService AudioDrag
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
-@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
 @implements IDisposable
@@ -22,6 +21,10 @@
 
 @if (Items.Count > 0)
 {
+    @if (_favoriteNotice is not null)
+    {
+        <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _favoriteNotice = null)" data-audio-favorite-notice="true">@_favoriteNotice</AppAlert>
+    }
     @if (DeviceContext.IsPhone)
     {
         <section class="@(IsAudiobook ? "tl-audio-item-cards tl-audio-item-cards--audiobook" : "tl-audio-item-cards")" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
@@ -640,6 +643,9 @@
         await Playback.AddQueueItemAsync(ToQueueItem(item));
     }
 
+    // Why a heart could not be saved; it stays above the table until the next try or the close button.
+    private string? _favoriteNotice;
+
     private async Task ToggleFavoriteAsync(MediaGroupingItemViewModel item)
     {
         if (!CanFavorite(item))
@@ -650,9 +656,10 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (profile is null)
         {
-            Snackbar.Add(L["Common_FavoritesRequireAnActiveProfile"].Value, AppSeverity.Warning);
+            _favoriteNotice = L["Common_FavoritesRequireAnActiveProfile"].Value;
             return;
         }
+        _favoriteNotice = null;
         var id = ItemId(item);
         // Favorite is saved-item membership; it never sets or clears Like or Dislike.
         var membership = await SavedItems.ToggleAsync(ProfileEntityKind.Song, id);

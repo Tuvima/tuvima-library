@@ -128,12 +128,14 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));
         _detailAnswer = Page(withEdit: true, disabled: true);
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));
+        // The reason the Engine gave is kept for the list to show in place.
+        Assert.Contains("Updating details", launcher.LastNotice, StringComparison.Ordinal);
         _detailAnswer = null;
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));
 
         Assert.False(host.IsOpen);
         Assert.Equal(3, _detailReads.Count);
-        Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message.Contains("Updating details", StringComparison.Ordinal));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

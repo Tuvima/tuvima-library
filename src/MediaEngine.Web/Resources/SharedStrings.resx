@@ -7562,23 +7562,14 @@
   <data name="ArtworkWorkspace_ArtworkMustBe10MB" xml:space="preserve">
     <value>Artwork must be 10 MB or smaller.</value>
   </data>
-  <data name="ArtworkWorkspace_ExistingArtworkLinkedWithoutCopying" xml:space="preserve">
-    <value>Existing artwork linked without copying the image.</value>
-  </data>
   <data name="ArtworkWorkspace_PreferredArtworkChangeStaged" xml:space="preserve">
     <value>Preferred artwork change staged.</value>
-  </data>
-  <data name="ArtworkWorkspace_PreferredArtworkUpdatedForThis" xml:space="preserve">
-    <value>Preferred artwork updated for this entity and role.</value>
   </data>
   <data name="ArtworkWorkspace_ArtworkRemovalStaged" xml:space="preserve">
     <value>Artwork removal staged.</value>
   </data>
   <data name="ArtworkWorkspace_ArtworkLinkCouldNotBe" xml:space="preserve">
     <value>Artwork link could not be removed.</value>
-  </data>
-  <data name="ArtworkWorkspace_ArtworkLinkRemovedTheImage" xml:space="preserve">
-    <value>Artwork link removed. The image remains in the library.</value>
   </data>
   <data name="MediaBrowseShell_CouldNotLoadThatYear" xml:space="preserve">
     <value>Could not load that year. Please try again.</value>
@@ -7661,9 +7652,6 @@
   <data name="Common_SavedButThePageCould" xml:space="preserve">
     <value>Saved, but the page could not refresh. Reload to see the change.</value>
   </data>
-  <data name="DetailPage_Copied" xml:space="preserve">
-    <value>Copied.</value>
-  </data>
   <data name="DetailPage_ThatCouldNotBeDone" xml:space="preserve">
     <value>That could not be done. Try again in a moment.</value>
   </data>
@@ -7690,9 +7678,6 @@
   </data>
   <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
     <value>File details could not be loaded.</value>
-  </data>
-  <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
-    <value>Listening status updated.</value>
   </data>
   <data name="ReviewChangesView_RemoveThisChange" xml:space="preserve">
     <value>Remove this change</value>
@@ -8135,9 +8120,6 @@
   <data name="ProviderOnboardingDialog_TheDashboardCouldNotReach" xml:space="preserve">
     <value>The Dashboard could not reach the Engine. Check that it is running and try again.</value>
   </data>
-  <data name="RecoveryCodesDisplay_RecoveryCodesCopied" xml:space="preserve">
-    <value>Recovery codes copied.</value>
-  </data>
   <data name="ServerFolderPicker_LibraryCouldNotReachThis" xml:space="preserve">
     <value>Library could not reach this server folder. Check that the location is online and try again.</value>
   </data>
@@ -8389,12 +8371,6 @@
   </data>
   <data name="DetailPage_RemoveSetCancel" xml:space="preserve">
     <value>Cancel</value>
-  </data>
-  <data name="DetailPage_RemoveSetDone" xml:space="preserve">
-    <value>Removed the set and {0} collections.</value>
-  </data>
-  <data name="DetailPage_ExportSetSaved" xml:space="preserve">
-    <value>Saved "{0}" as a pack file.</value>
   </data>
   <data name="DetailPage_ExportSetOmitted" xml:space="preserve">
     <value>Left out of the file: {0}.</value>
@@ -9295,12 +9271,6 @@
   </data>
   <data name="MediaTile_DeleteFolder" xml:space="preserve">
     <value>Delete folder…</value>
-  </data>
-  <data name="MediaTile_AddedToMyList" xml:space="preserve">
-    <value>Added to My List.</value>
-  </data>
-  <data name="MediaTile_RemovedFromMyList" xml:space="preserve">
-    <value>Removed from My List.</value>
   </data>
   <data name="EditorVideoSeries_Series" xml:space="preserve">
     <value>Series</value>
@@ -11924,12 +11894,6 @@
   <data name="EditorBrowser_DeleteOne" xml:space="preserve">
     <value>Delete {0}?</value>
   </data>
-  <data name="EditorBrowser_DeletedMany" xml:space="preserve">
-    <value>{0} files deleted.</value>
-  </data>
-  <data name="EditorBrowser_DeletedOne" xml:space="preserve">
-    <value>File deleted.</value>
-  </data>
   <data name="EditorBrowser_Edit" xml:space="preserve">
     <value>Edit</value>
   </data>
@@ -13384,5 +13348,50 @@
   </data>
   <data name="SetupPage_InstallerCouldNotStart" xml:space="preserve">
     <value>The {0} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.</value>
+  </data>
+  <data name="DetailPage_UnmatchedPartlyDone" xml:space="preserve">
+    <value>Done for {0} of {1} files; {2} could not be changed.</value>
+  </data>
+  <data name="DetailPage_RetryStarted" xml:space="preserve">
+    <value>Looking it up again now.</value>
+  </data>
+  <data name="DetailPage_LookUpAgainStarted" xml:space="preserve">
+    <value>Looking it up again.</value>
+  </data>
+  <data name="CollectionEditorShell_FailedToLoadLibraryItems" xml:space="preserve">
+    <value>Failed to load library items: {0}</value>
+  </data>
+  <data name="CollectionEditorShell_FailedToLoadSavedItems" xml:space="preserve">
+    <value>Failed to load saved items: {0}</value>
+  </data>
+  <data name="CollectionEditorShell_FailedToRemoveTheItem" xml:space="preserve">
+    <value>Failed to remove the item from this collection.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkStaged" xml:space="preserve">
+    <value>{0} artwork staged.</value>
+  </data>
+  <data name="ArtworkWorkspace_StagedVariants" xml:space="preserve">
+    <value>Staged {0} artwork variant(s).</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkCouldNotBeUploaded" xml:space="preserve">
+    <value>Artwork could not be uploaded.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkCouldNotBeAddedFromThatUrl" xml:space="preserve">
+    <value>Artwork could not be added from that URL.</value>
+  </data>
+  <data name="ArtworkWorkspace_ArtworkCouldNotBeLinked" xml:space="preserve">
+    <value>Artwork could not be linked.</value>
+  </data>
+  <data name="ArtworkWorkspace_PreferredArtworkCouldNotBeChanged" xml:space="preserve">
+    <value>Preferred artwork could not be changed.</value>
+  </data>
+  <data name="ArtworkWorkspace_ProviderArtworkRefreshFailed" xml:space="preserve">
+    <value>Provider artwork refresh failed.</value>
+  </data>
+  <data name="ArtworkWorkspace_ProviderArtworkAlreadyCurrent" xml:space="preserve">
+    <value>Provider artwork is already current.</value>
+  </data>
+  <data name="MainLayout_AddAPasswordFirst" xml:space="preserve">
+    <value>Add a password to your account first.</value>
   </data>
 </root>

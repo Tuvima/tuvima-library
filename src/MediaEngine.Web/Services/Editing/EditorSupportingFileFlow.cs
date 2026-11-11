@@ -26,7 +26,7 @@ public static class EditorSupportingFileFlow
             : "It will be removed from the Library, and the file is removed from its folder as your library's file settings say.";
     }
 
-    /// <summary>The toast after a delete: what went, and where the file stayed when it did.</summary>
+    /// <summary>The line after a delete: what went, and where the file stayed when it did.</summary>
     public static string Done(string fileName, SupportingFileDeleteResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -51,42 +51,44 @@ public static class EditorSupportingFileFlow
 
     /// <summary>
     /// Asks once, then deletes the supporting file being edited at once, without waiting for Save. False means nothing was deleted (the person
-    /// said no, this device or person may not delete, or the Engine refused). On success the editor has moved back to the title the file belonged to.
+    /// said no, this device or person may not delete, or the Engine refused; the notice says which). On success the editor has moved back to
+    /// the title the file belonged to, and the notice says so when the file stayed on disk.
     /// </summary>
-    public static async Task<bool> DeleteAsync(
+    public static async Task<EditorDeleteResult> DeleteAsync(
         EditorHost editor,
         IAppDialogService dialogs,
-        IAppToastService toasts,
         DeviceContextService? device,
         DashboardSessionAccessor? session)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(dialogs);
-        ArgumentNullException.ThrowIfNull(toasts);
-        if (editor.Mode.Fields.SupportingFile is not { } file || LibraryItemDeletionFlow.TryRefuse(device, session, toasts))
+        if (editor.Mode.Fields.SupportingFile is not { } file)
         {
-            return false;
+            return EditorDeleteResult.Nothing;
+        }
+
+        if (LibraryItemDeletionFlow.Refusal(device, session) is { } refusal)
+        {
+            return EditorDeleteResult.Failed(refusal);
         }
 
         using var deleting = editor.MarkDeleting();
         var answer = await AppConfirmDialog.ShowAsync(dialogs, Question(file), Body(file), "Delete", "Keep", primaryDestructive: true);
         if (answer != AppConfirmResult.Primary)
         {
-            return false;
+            return EditorDeleteResult.Nothing;
         }
 
         var result = await editor.DeleteSupportingFileAsync(file.TitleId, Guid.Parse(file.File.Id));
         if (result is not { Deleted: true })
         {
-            toasts.Add(
+            return EditorDeleteResult.Failed(
                 string.IsNullOrWhiteSpace(result?.Message)
                     ? $"{file.File.FileName} could not be deleted. Nothing was changed."
-                    : $"{file.File.FileName} could not be deleted. {result.Message}",
-                AppSeverity.Error);
-            return false;
+                    : $"{file.File.FileName} could not be deleted. {result.Message}");
         }
 
-        toasts.Add(Done(file.File.FileName, result), AppSeverity.Success);
-        return true;
+        // The file leaving the editor is the confirmation; only a file that stayed on disk is worth a line.
+        return new EditorDeleteResult(true, result.Disk == SupportingFileDiskOutcomes.Kept ? Done(file.File.FileName, result) : null);
     }
 }

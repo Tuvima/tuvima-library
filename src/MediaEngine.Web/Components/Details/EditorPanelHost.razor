@@ -50,6 +50,15 @@
                         OnDiscard="@(() => flow.LeaveAsync())"
                         OnSave="OpenReviewAsync">
         <Notice>
+            @if (!_reviewing && !string.IsNullOrWhiteSpace(ActionNotice))
+            {
+                @* What a Delete from the footer or the "..." had to say (a refusal, a failure, a file that stayed on disk): it stays until the next try or the close button. *@
+                <div class="tl-editor-window__notice" role="@(ActionNoticeIsError ? "alert" : "status")" data-editor-action-notice="true">
+                    <AppAlert Severity="@(ActionNoticeIsError ? AppSeverity.Error : AppSeverity.Warning)" Dense="true" ShowCloseIcon="true" CloseIconClicked="ActionNoticeDismissed">
+                        @ActionNotice
+                    </AppAlert>
+                </div>
+            }
             @if (!_reviewing && (flow.Failures.Count > 0 || !string.IsNullOrWhiteSpace(flow.Message)))
             {
                 @* A save that left changes behind, or an item that could not be opened: the reason stays above the tools until it is dealt with. *@
@@ -138,6 +147,14 @@
 
     /// <summary>True on pages whose items keep a change history (not the Universe pages): the rail then offers the History tool.</summary>
     [Parameter] public bool ShowHistory { get; set; }
+
+    /// <summary>What a Delete started from this window had to say; shown at the top of the window until dismissed or the next try.</summary>
+    [Parameter] public string? ActionNotice { get; set; }
+
+    /// <summary>True when <see cref="ActionNotice"/> is a failure rather than a warning.</summary>
+    [Parameter] public bool ActionNoticeIsError { get; set; }
+
+    [Parameter] public EventCallback ActionNoticeDismissed { get; set; }
 
     // The tabs come from the kind's own list (config/editor.json, read by the Engine) in the fixed order Details, Artwork, Match, History; the item's
     // own abilities decide whether a listed tab can really open.

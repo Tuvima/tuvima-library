@@ -51,7 +51,7 @@
 
     private async Task AddPackAsync(ImportRecognition recognition)
     {
-        if (_addingPack || EditorDeviceRule.TryRefuse(Device, null) || !CollectionAuthoringRule.CanCreate(Session))
+        if (_addingPack || EditorDeviceRule.TryRefuse(Device) || !CollectionAuthoringRule.CanCreate(Session))
         {
             return;
         }

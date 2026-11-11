@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Editing
 @implements IDisposable
-@inject IAppToastService Toasts
 @inject EditorHost Editor
 @inject DeviceContextService Device
 
@@ -85,10 +84,8 @@
         // The ticks belong to this page's editor binding, so the bar's Edit opens the pop-over for this page.
         Editor.Bind(Binding);
 
-        if (!Selection.Toggle(new BulkEditRow(ItemId, Title, Kind, ParentId, MediaType)))
-        {
-            Toasts.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
-        }
+        // A full selection is told by the bar above the rows (it shows the limit while the selection is full); the tick simply stays off.
+        Selection.Toggle(new BulkEditRow(ItemId, Title, Kind, ParentId, MediaType));
     }
 
     private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);

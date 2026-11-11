@@ -29,7 +29,6 @@
 @inject PlaybackSessionController Playback
 @inject ListenAudioDragService AudioDrag
 @inject NavigationManager Nav
-@inject IAppToastService Snackbar
 @inject ILogger<MediaBrowseShell> Logger
 @inject UniverseStateContainer StateContainer
 @inject IStringLocalizer<SharedStrings> L
@@ -37,6 +36,11 @@
 <BrowseShellStyles />
 
 <div class="@RootClass" @onclick="CloseFacetMenuOnBackgroundAsync">
+    @if (_notice is not null)
+    {
+        @* What the last action had to say (a refusal, a failure): it stays at the top of the list until the next action or the close button. *@
+        <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-browse-notice="true">@_notice</AppAlert>
+    }
     <div class="browse-shell__toolbar-anchor">
         <div class="browse-shell__toolbar-panel">
             @if (ShowHeaderRow)
@@ -453,15 +457,16 @@
         var period = _timelineIndex?.FirstOrDefault(p => p.Year == year);
         if (period is null) return;
         _loading = true;
+        ClearNotice();
         try
         {
             if (!await LoadDisplayCardsAsync(false, period.Offset))
-                Snackbar.Add(L["MediaBrowseShell_CouldNotLoadThatYear"].Value, AppSeverity.Error);
+                ShowNotice(L["MediaBrowseShell_CouldNotLoadThatYear"].Value, AppUiTone.Error);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not jump to timeline year {Year}", year);
-            Snackbar.Add(L["MediaBrowseShell_CouldNotLoadThatYear"].Value, AppSeverity.Error);
+            ShowNotice(L["MediaBrowseShell_CouldNotLoadThatYear"].Value, AppUiTone.Error);
         }
         finally { _loading = false; }
     }
@@ -1788,11 +1793,24 @@
         await NavigateAndReloadAsync(reloadData: true, replace: true);
     }
 
+    // What the last action had to say, shown at the top of the list until the next action or the close button.
+    private string? _notice;
+    private AppUiTone _noticeTone = AppUiTone.Warning;
+
+    private void ShowNotice(string text, AppUiTone tone)
+    {
+        _notice = text;
+        _noticeTone = tone;
+    }
+
+    private void ClearNotice() => _notice = null;
+
     private async Task ToggleFavoriteAsync(Guid workId)
     {
+        ClearNotice();
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppSeverity.Warning);
+            ShowNotice(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppUiTone.Warning);
             return;
         }
         var kind = IsMusicSongsGrouping ? ProfileEntityKind.Song : ProfileEntityKindForBrowse();
@@ -1800,16 +1818,11 @@
         var membership = await SavedItems.ToggleAsync(kind, workId);
         if (membership is null)
         {
-            Snackbar.Add(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppSeverity.Warning);
+            ShowNotice(L["MediaBrowseShell_TheFavoriteCouldNotBe"].Value, AppUiTone.Warning);
             return;
         }
 
-        var isSong = kind == ProfileEntityKind.Song;
-        Snackbar.Add(
-            membership.IsSaved
-                ? L[isSong ? "ViewPage_FavoriteAdded" : "MediaTile_AddedToMyList"].Value
-                : L[isSong ? "ViewPage_FavoriteRemoved" : "MediaTile_RemovedFromMyList"].Value,
-            AppSeverity.Success);
+        // The heart on the row or tile shows the new state once the list reloads; that is the confirmation.
         await LoadBrowseContentAsync();
     }
 
@@ -1849,21 +1862,21 @@
 
     private async Task QueueSongAsync(WorkViewModel track)
     {
+        // The queue in the player shows the song; that is the confirmation.
         await Playback.AddToQueueAsync(track);
-        Snackbar.Add($"{track.Title} added to the queue.", AppSeverity.Success);
     }
 
     private async Task PlayNextSongAsync(WorkViewModel track)
     {
+        // The queue in the player shows the song next; that is the confirmation.
         await Playback.InsertNextAsync(track);
-        Snackbar.Add($"{track.Title} will play next.", AppSeverity.Success);
     }
 
     private Task OpenSongAlbumAsync(WorkViewModel track)
     {
         if (track.RootWorkId is not Guid albumId || albumId == Guid.Empty)
         {
-            Snackbar.Add(L["MediaBrowseShell_ThisSongIsNotLinked"].Value, AppSeverity.Info);
+            ShowNotice(L["MediaBrowseShell_ThisSongIsNotLinked"].Value, AppUiTone.Info);
             return Task.CompletedTask;
         }
 
@@ -2037,10 +2050,15 @@
             return;
         }
 
+        ClearNotice();
         _awaitingSingleEdit = true;
         if (!await EditLauncher.OpenAsync(ListEditTarget.ForLibraryRow(entityId, item?.Title, item?.MediaType)))
         {
             _awaitingSingleEdit = false;
+            if (EditLauncher.LastNotice is { } why)
+            {
+                ShowNotice(why, AppUiTone.Warning);
+            }
         }
     }
 

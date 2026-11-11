@@ -194,7 +194,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task CopyOnTheNotice_PutsTheTypedTextOnTheClipboardAndSaysSo()
+    public async Task CopyOnTheNotice_PutsTheTypedTextOnTheClipboardAndTheButtonSaysCopied()
     {
         var cut = await StartEditingAsync();
         TypeTitle("Dune Messiah");
@@ -203,7 +203,8 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
 
         cut.Find(".tl-removed-notice__copy").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal(["Copied."], Toasts));
+        cut.WaitForAssertion(() => Assert.Equal("Copied", cut.Find(".tl-removed-notice__copy").TextContent.Trim()));
+        Assert.Empty(Toasts);
         var copy = Assert.Single(JSInterop.Invocations["navigator.clipboard.writeText"]);
         Assert.Equal("Dune Messiah", copy.Arguments[0]);
     }
@@ -219,7 +220,8 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
 
         cut.Find(".tl-removed-notice__copy").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal([ClipboardInterop.FailedMessage("the text")], Toasts));
+        cut.WaitForAssertion(() => Assert.Equal(ClipboardInterop.FailedMessage("the text"), cut.Find("[data-removed-notice-copy-failed]").TextContent.Trim()));
+        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -250,7 +252,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WhenThisPageStartedTheDelete_TheDialogsToastAndTheDismissStandWithNoNotice()
+    public async Task WhenThisPageStartedTheDelete_TheDialogAndTheDismissStandWithNoNoticeAndNoToast()
     {
         await UseDesktopAsync();
         SetAdministrator();
@@ -266,7 +268,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal([1], _steps));
         Assert.Equal([MovieId], Assert.Single(_deleteCalls).Ids);
-        Assert.Equal(["Deleted \"Dune: Part One\". 1 GB freed."], Toasts);
+        Assert.Empty(Toasts);
         Assert.Empty(cut.FindAll(".tl-removed-notice"));
     }
 

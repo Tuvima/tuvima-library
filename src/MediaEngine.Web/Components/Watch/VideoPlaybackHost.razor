@@ -1241,14 +1241,14 @@
     private async Task ChangeAutoplayNextEpisodeAsync(bool autoplay)
     {
         if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.SetAutoplayNextEpisodeAsync(autoplay, _lifetimeCancellation.Token)) return;
-        Services.GetService<IAppToastService>()?.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+        await ShowBookmarkNoticeAsync(L["PlaybackSettings_NotSaved"].Value);
     }
 
     // Playback settings (unified player v2 D14): a new skip length is saved on the profile and the bar's skip buttons take it at once.
     private async Task ChangeSkipLengthAsync(PlaybackSkipChange change)
     {
         if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.SetSkipLengthAsync(change, _lifetimeCancellation.Token)) return;
-        Services.GetService<IAppToastService>()?.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+        await ShowBookmarkNoticeAsync(L["PlaybackSettings_NotSaved"].Value);
     }
 
     // "Reset playback preferences": the skip lengths go back to the defaults and the picture plays at normal speed.
@@ -1256,7 +1256,7 @@
     {
         await Playback.SetPlaybackRateAsync(PlaybackSpeedChoices.Normal);
         if (Services.GetService<PlaybackSettingsActions>() is { } actions && await actions.ResetSkipLengthsAsync(_lifetimeCancellation.Token)) return;
-        Services.GetService<IAppToastService>()?.Add(L["PlaybackSettings_NotSaved"].Value, AppSeverity.Warning);
+        await ShowBookmarkNoticeAsync(L["PlaybackSettings_NotSaved"].Value);
     }
 
     private async Task ApplyPlaybackRateAsync(double value)

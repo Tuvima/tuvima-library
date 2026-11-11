@@ -15,6 +15,11 @@
    under the lyrics. *@
 <div class="playback-lyrics-footer" data-playback-lyrics-footer>
     <span class="playback-lyrics-footer__source" data-lyrics-source>@SourceText</span>
+    @if (_editNotice is not null)
+    {
+        @* Edit lyrics that is not available for this song: said here, in place, until the next try or the close button. *@
+        <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _editNotice = null)" data-lyrics-edit-notice="true">@_editNotice</AppAlert>
+    }
     <PlaybackLyricsFilePicker @ref="_picker" />
     <AppTooltip Text="@L["PlaybackLyrics_LyricsOptions"].Value" Suppressed="@_menuOpen">
         <AppNativeButton @ref="_more" Type="button" Class="playback-lyrics-footer__more" AriaLabel="@L["PlaybackLyrics_LyricsOptions"].Value"
@@ -144,9 +149,13 @@
         var item = snapshot.Queue[snapshot.CurrentIndex];
         var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
         var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
-        if (Services.GetService<ListEditLauncher>() is { } launcher)
-            await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics");
+        _editNotice = null;
+        if (Services.GetService<ListEditLauncher>() is { } launcher
+            && !await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics"))
+            _editNotice = launcher.LastNotice;
     }
+
+    private string? _editNotice;
 
     public void Dispose()
     {

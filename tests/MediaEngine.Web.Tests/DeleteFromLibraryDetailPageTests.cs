@@ -288,7 +288,9 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         await InvokeActionAsync(cut);
 
-        Assert.Equal(EditorDeviceRule.Message, Assert.Single(Toasts));
+        // The refusal is an alert on the page itself, never a toast.
+        Assert.Equal(EditorDeviceRule.Message, cut.Find("[data-detail-notice]").TextContent.Trim());
+        Assert.Empty(Toasts);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Equal(0, _previewCalls);
     }
@@ -303,7 +305,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         await InvokeActionAsync(cut);
 
-        Assert.Equal("You need administrator access to delete items.", Assert.Single(Toasts));
+        Assert.Equal("You need administrator access to delete items.", cut.Find("[data-detail-notice]").TextContent.Trim());
+        Assert.Empty(Toasts);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Equal(0, _previewCalls);
     }
@@ -328,7 +331,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     // -- Deleting and leaving ------------------------------------------------------------------
 
     [Fact]
-    public async Task Confirming_DeletesThePagesTitleShowsTheToastAndGoesBackToWhereThePersonCameFrom()
+    public async Task Confirming_DeletesThePagesTitleSaysNothingAndGoesBackToWhereThePersonCameFrom()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
@@ -345,7 +348,9 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var call = Assert.Single(_deleteCalls);
         Assert.Equal([MovieId], call.Ids);
         Assert.Equal("fp-1", call.Fingerprint);
-        Assert.Equal(["Deleted \"Dune: Part One\". 1 GB freed."], Toasts);
+        // Going back to the list is the confirmation: no toast, no notice.
+        Assert.Empty(Toasts);
+        Assert.Empty(cut.FindAll("[data-detail-notice]"));
         var back = Assert.Single(JSInterop.Invocations["detailOrigin.back"]);
         Assert.Equal("/watch", back.Arguments[0]);
     }
@@ -380,7 +385,13 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
 
-        cut.WaitForAssertion(() => Assert.Equal(["This item is no longer in your library."], Toasts));
+        // The page stays with the notice in its place (someone may have been typing); Close goes back.
+        cut.WaitForAssertion(() => Assert.Contains("no longer in your library", cut.Find(".tl-removed-notice").TextContent, StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(Toasts);
+        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "detailOrigin.back");
+
+        cut.Find(".tl-removed-notice__close").Click();
+
         var back = Assert.Single(JSInterop.Invocations["detailOrigin.back"]);
         Assert.Equal("/watch", back.Arguments[0]);
     }

@@ -1,5 +1,4 @@
 using MediaEngine.Web.Services.Theming;
-using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -9,8 +8,7 @@ namespace MediaEngine.Web.Services.Editing;
 /// </summary>
 public sealed class GalleryEditorLauncherService(
     ViewEditorHost host,
-    DeviceContextService? device = null,
-    IAppToastService? toasts = null)
+    DeviceContextService? device = null)
 {
     /// <summary>Opens the editor; true only when the user applied a change.</summary>
     public async Task<bool> OpenAsync(GalleryEditorLaunchRequest request) =>
@@ -19,7 +17,7 @@ public sealed class GalleryEditorLauncherService(
     public async Task<EditorLaunchResult> TryOpenAsync(GalleryEditorLaunchRequest request)
     {
         // Editing is desktop-only (fine, hover-capable pointer): the editor never opens anywhere else.
-        if (EditorDeviceRule.TryRefuse(device, toasts))
+        if (EditorDeviceRule.TryRefuse(device))
         {
             return EditorLaunchResult.NotAvailableOnThisDevice;
         }

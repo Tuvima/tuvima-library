@@ -52,7 +52,7 @@ public sealed class VaultImageViewTests : AsyncBunitContext
         Services.AddScoped<UIOrchestratorService>();
         Services.AddScoped(provider => new GalleryEditorLauncherService(
             new ViewEditorHost(null!, provider.GetRequiredService<DeviceContextService>(), new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance),
-            provider.GetRequiredService<DeviceContextService>(), provider.GetRequiredService<IAppToastService>()));
+            provider.GetRequiredService<DeviceContextService>()));
     }
 
     private NsfwModeState State => Services.GetRequiredService<NsfwModeState>();

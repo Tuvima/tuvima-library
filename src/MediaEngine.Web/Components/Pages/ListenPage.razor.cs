@@ -1731,7 +1731,11 @@ public partial class ListenPage
     private async Task EditTrackAsync(WorkViewModel work)
     {
         var row = new BulkEditRow(work.Id, DisplayTrackTitle(work), DetailEntityType.Work, work.CollectionId, "Music");
-        await EditLauncher.OpenRowAsync(row, DetailPresentationContext.Listen);
+        _notice = null;
+        if (!await EditLauncher.OpenRowAsync(row, DetailPresentationContext.Listen) && EditLauncher.LastNotice is { } why)
+        {
+            ShowNotice(why, AppUiTone.Warning);
+        }
     }
 
     private string? BuildAlbumRouteForTrack(WorkViewModel work)

@@ -114,8 +114,6 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         return RedButton(dialogs);
     }
 
-    private IReadOnlyList<string> ToastLines => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
-
     [Fact]
     public async Task DeletingTheEpisodeBeingEdited_AsksOnce_DeletesAtOnce_AndMovesToTheSeason()
     {
@@ -126,13 +124,14 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         host.Session.Pending.SetField(ShowId, "title", "Staged on the show");
         var dialogs = RenderDialogs();
 
-        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         var confirm = WaitForConfirm(dialogs);
         Assert.Single(_previewTitles);
         Assert.Empty(_titleDeletes);
         confirm.Click();
 
-        Assert.True(await deleting);
+        var result = await deleting;
+        Assert.True(result.Deleted);
         var (ids, fingerprint) = Assert.Single(_titleDeletes);
         Assert.Equal([EpisodeOne], ids);
         Assert.Equal("fp-titles", fingerprint);
@@ -140,7 +139,8 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         Assert.True(host.IsOpen);
         Assert.Equal(0, host.Session.Pending.CountForItem(EpisodeOne));
         Assert.Equal(1, host.Session.Pending.CountForItem(ShowId));
-        Assert.Contains(ToastLines, line => line.Contains("freed", StringComparison.OrdinalIgnoreCase));
+        // The item leaving the editor is the confirmation: a plain success has no line to show.
+        Assert.Null(result.Notice);
     }
 
     [Fact]
@@ -152,19 +152,19 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         var dialogs = RenderDialogs();
         Assert.False(host.IsDeleting);
 
-        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         var confirm = WaitForConfirm(dialogs);
         Assert.True(host.IsDeleting);
         confirm.Click();
 
-        Assert.True(await deleting);
+        Assert.True((await deleting).Deleted);
         Assert.False(host.IsDeleting);
 
-        var again = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var again = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         WaitForConfirm(dialogs);
         Assert.True(host.IsDeleting);
         dialogs.FindAll("footer button").First().Click();
-        Assert.False(await again);
+        Assert.False((await again).Deleted);
         Assert.False(host.IsDeleting);
     }
 
@@ -176,11 +176,11 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         var host = await OpenAsync(EpisodeOne, Show, Season, Episode);
         var dialogs = RenderDialogs();
 
-        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         WaitForConfirm(dialogs);
         dialogs.FindAll("footer button").First().Click();
 
-        Assert.False(await deleting);
+        Assert.False((await deleting).Deleted);
         Assert.Empty(_titleDeletes);
         Assert.Equal(EpisodeOne, host.Session.ActiveItem!.EntityId);
     }
@@ -193,11 +193,12 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         var host = await OpenAsync(EpisodeOne, Show, Season, Episode);
         var dialogs = RenderDialogs();
 
-        var deleted = await dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var deleted = await dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
 
-        Assert.False(deleted);
+        Assert.False(deleted.Deleted);
         Assert.Empty(_previewTitles);
-        Assert.Contains(LibraryItemDeletionText.Forbidden, ToastLines);
+        Assert.Equal(LibraryItemDeletionText.Forbidden, deleted.Notice);
+        Assert.True(deleted.NoticeIsError);
     }
 
     [Fact]
@@ -209,14 +210,14 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         var host = await OpenAsync(EpisodeOne, Show, Season, Episode);
         var dialogs = RenderDialogs();
 
-        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), _device, _session));
         WaitForConfirm(dialogs).Click();
 
         dialogs.WaitForAssertion(() => Assert.Contains("The folder is locked by another program.", dialogs.Markup));
         Assert.Equal(EpisodeOne, host.Session.ActiveItem!.EntityId);
         Assert.False(deleting.IsCompleted);
         dialogs.FindAll("footer button").First().Click();
-        Assert.False(await deleting);
+        Assert.False((await deleting).Deleted);
         Assert.Equal(EpisodeOne, host.Session.ActiveItem!.EntityId);
     }
 
