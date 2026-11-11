@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP8, U-WP3b, U-WP9 part 1, U-WP9 part 2, U-WP10 to U-WP14 built, awaiting Local checks; the rest is in the [2026-10-20 Universes handoff](../handoffs/2026-10-20-universe-remaining.md)) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP8, U-WP3b, U-WP9 part 1, U-WP9 part 2, U-WP10 to U-WP14 built, awaiting Local checks; the rest is in the [2026-10-20 Universes handoff](../handoffs/2026-10-20-universe-remaining.md)) · **Version:** 5 · **Last updated:** 2026-11-11 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -380,6 +380,28 @@ Before Claude Code starts the first packet, and again before each wave:
 ## Plain English summary
 
 Today a Universe is half a feature: there is a good explorer page that nobody can reach, a shelf that groups by label and can mix up The Expanse's lines, helper apps that only list Series, and a pile of Universe code that nothing calls. This plan makes a Universe a page you open from Collections: your Series in the right order (novels, TV and film kept apart), an "Also in this world" row for extras, and evidence-backed Cast, Adaptations and optionally Characters. Helper apps get the same simple version. One set of rules decides which source wins, and the unused code and wrong docs are cleaned out first. Beyond that, the Universe becomes the backbone of a companion: Layer 1 gives useful, reliable tools such as "this character also appears in your comics"; Layer 2 lets your phone follow what you're watching or reading, at episode or chapter level, spoiler-safe; Layer 3 (AI recaps, name spotting in subtitles) is an experiment we measure before promising. "Who is speaking" is not promised. I need your decisions on the fifteen questions above, mainly Q1, Q7, Q10 and Q11.
+
+## 10. Version 5 (2026-11-11): audiobooks borrow their book's identity
+
+Source: Shy's direction during the local check (issue 892, example: The Vital Abyss). This adds to the audiobook rule in section 7 (2026-10-20, option (a)); it does not rewrite it.
+
+**Decisions made**
+- **D28.** Wikidata is for finding the canonical links of a thing (its Work, Series, Universe), not for matching every item one to one. An audiobook never needs a Wikidata entry of its own. Where a retail audiobook is found, it links to the Wikidata entry of the real book. (Shy, 2026-11-11)
+- **D29.** Order of evidence for an audiobook's canonical link: (1) a Wikidata ID from its retail match or a bridge ID, (2) the Wikidata ID of an owned, confirmed book with the same title and author, (3) a search for the book (not the audiobook) on Wikidata, using the cleaned title, the author and the Series hint. Step 3 is the backup and stays inside the existing "constrained text search" limits (an author or Series hint is required).
+- **D30.** An audiobook that links to a book this way shares that book's Series, position and Universe, and never raises a Needs Review item just because it has no Wikidata entry of its own. An audiobook that finds none of the three still goes to Needs Review as today.
+- **D31.** A leading number in an audiobook's title or file name ("5.5 - The Vital Abyss", "03.5 - The Vital Abyss") is a position hint, not part of the title. It is cleaned off before any title comparison or search. When the file or folder number and the title tag disagree, the file or folder number wins as the position hint (the tag is often wrong). Only a hint: the book's Wikidata position wins once linked.
+- **D32.** A half match ("needs confirmation") from the retail provider is accepted when it agrees with an owned book of the same cleaned title and author, so it does not need review. A half match with no such book still needs review.
+
+**What the person sees**: an audiobook shows the same Series, position and Universe as its book; fewer audiobooks in Needs Review. Nothing new leaves the machine except the existing public Wikidata search.
+
+**Work packets**
+- **U-WP16 (Standard).** Clean a leading number off audiobook titles (and take it as a position hint) in the retail and Wikidata hint step and in the owned-book title comparison; the number prefix pattern lives in `config/`. Files: `RetailMatchWorker.OwnedBookFallback.cs`, `WorkRepository.cs` (`FindConfirmedSiblingQidAsync`), `WikidataBridgeWorker.JobResolution.cs` (`BuildLookupHints`). Done when: "5.5 - The Vital Abyss" by the same author as the owned book "The Vital Abyss" takes the book's Wikidata ID and Series (test with real temp SQLite).
+- **U-WP17 (Standard).** Backup search: for an audiobook with no ID from retail, bridge or owned book, search Wikidata as a book (book type list) with the cleaned title, author and Series hint, and use the book's Series and position. Files: `WikidataBridgeWorker.JobResolution.cs`, `config/wikidata_match.json`. Done when: an audiobook whose book is not in the Library still links to the book's Wikidata entry, and an audiobook with no match still reaches Needs Review.
+- **U-WP18 (Standard).** Accept a half retail match that agrees with an owned book (extend the existing check to count the cleaned title) and use the file or folder number as position hint. Files: `RetailMatchWorker.JobProcessing.cs`. Done when: the Vital Abyss case produces no "Retail match ambiguous" or "Wikidata bridge failed" item.
+
+**Local checks**: on the real Expanse audiobooks, The Vital Abyss shows The Expanse and position 3.5 like its book; no review item; other Expanse audiobooks unchanged. Appended to `engineering/validation/batch.md` by the build.
+
+**Risks**: a wrong book link would give an audiobook the wrong Series, so the backup search keeps the existing score thresholds and requires an author or Series hint; a person's Match-tab choice (a locked link) is never overridden.
 
 ## Gaps and drift (audit 2026-11-03)
 
