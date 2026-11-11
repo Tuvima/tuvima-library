@@ -49,11 +49,14 @@ public partial class ListenPage
     // already shown by the list, the rail or the player.
     private string? _notice;
     private AppUiTone _noticeTone = AppUiTone.Error;
+    private bool _noticeUrgent;
 
-    private void ShowNotice(string message, AppUiTone tone)
+    // urgent: a warning that says an action just failed is announced at once, like an error.
+    private void ShowNotice(string message, AppUiTone tone, bool urgent = false)
     {
         _notice = message;
         _noticeTone = tone;
+        _noticeUrgent = urgent;
     }
     [Inject] private ILogger<ListenPage> Logger { get; set; } = default!;
 
@@ -987,7 +990,7 @@ public partial class ListenPage
         }
         else
         {
-            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning);
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
         }
     }
 
@@ -2358,7 +2361,7 @@ public partial class ListenPage
 
         if (!saved)
         {
-            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning);
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
 
@@ -2381,7 +2384,7 @@ public partial class ListenPage
         var removed = await ApiClient.RemoveCollectionItemAsync(ActivePlaylistCollection.Id, itemId, _activeProfileId);
         if (!removed)
         {
-            ShowNotice(L["ListenPage_SongRemoveFailed"].Value, AppUiTone.Warning);
+            ShowNotice(L["ListenPage_SongRemoveFailed"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
 
