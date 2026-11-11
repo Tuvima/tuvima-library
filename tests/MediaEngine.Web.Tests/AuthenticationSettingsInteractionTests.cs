@@ -6,6 +6,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +22,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     private TaskCompletionSource _saveStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CancellationToken _saveToken;
     private bool _throwOnSave;
+    private bool _saveSucceeds;
 
     public AuthenticationSettingsInteractionTests()
     {
@@ -39,7 +41,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
                 _saveStarted.TrySetResult();
                 return _throwOnSave
                     ? Task.FromException<AuthSettingsDto?>(new InvalidOperationException("simulated failure"))
-                    : WaitForCancellationAsync(_saveToken);
+                    : _saveSucceeds ? Task.FromResult<AuthSettingsDto?>(_settings) : WaitForCancellationAsync(_saveToken);
             });
         }));
         Services.AddSingleton(_ => _registered);
@@ -170,7 +172,8 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         cut.WaitForElement(".security-settings__actions");
         var save = typeof(SecurityTab).GetMethod("SaveAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
-        await (Task)save.Invoke(cut.Instance, null)!;
+        await cut.InvokeAsync(() => (Task)save.Invoke(cut.Instance, null)!);
+        cut.Render();
 
         Assert.Equal(1, _saveCalls);
         Assert.False((bool)typeof(SecurityTab).GetField("_saving", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -178,6 +181,43 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         var button = cut.FindAll("button").Single(element =>
             element.TextContent.Contains("Save authentication settings", StringComparison.Ordinal));
         Assert.False(button.HasAttribute("disabled"));
+        // Told once, in place, at the top of the section; never as a pop-up notice.
+        Assert.Equal("alert", cut.Find("[data-security-failure]").GetAttribute("role"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public async Task SaveSuccess_ShowsTheQuietSavedLineBesideTheButton_AndNoNotice()
+    {
+        _saveSucceeds = true;
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement(".security-settings__actions");
+        var save = typeof(SecurityTab).GetMethod("SaveAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        Assert.Empty(cut.FindAll(".security-settings__actions .app-saved-note__line"));
+
+        await cut.InvokeAsync(() => (Task)save.Invoke(cut.Instance, null)!);
+        cut.Render();
+
+        var saved = cut.Find(".security-settings__actions [data-saved-note]");
+        Assert.Equal("status", saved.GetAttribute("role"));
+        Assert.Contains("Saved", saved.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-security-failure]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public async Task SaveWithAnInvalidLifetime_ShowsTheAlertAndNeverCallsTheEngine()
+    {
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement(".security-settings__actions");
+        cut.FindAll("input").Single(input => input.GetAttribute("value") == "336").Input("0");
+        var save = typeof(SecurityTab).GetMethod("SaveAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        await cut.InvokeAsync(() => (Task)save.Invoke(cut.Instance, null)!);
+        cut.Render();
+
+        Assert.Equal(0, _saveCalls);
+        Assert.NotEmpty(cut.Find("[data-security-failure]").TextContent.Trim());
     }
 
     private static async Task<AuthSettingsDto?> WaitForCancellationAsync(CancellationToken ct)

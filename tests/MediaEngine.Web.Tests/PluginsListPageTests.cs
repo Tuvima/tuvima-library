@@ -8,6 +8,7 @@ using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     private PluginActionResult _removeResult = PluginActionResult.Success;
     private object? _removed;
     private IReadOnlyList<string>? _savedLibraries;
+    private bool _librariesSaveFails;
     private int _pluginListReads;
     private int _taskListReads;
 
@@ -64,7 +66,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.SetPluginLibrariesAsync), args =>
             {
                 _savedLibraries = (IReadOnlyList<string>)args![1]!;
-                return Task.FromResult(true);
+                return Task.FromResult(!_librariesSaveFails);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetPluginSetupPageAsync), args =>
                 Task.FromResult<PluginSetupPageResponse?>(PageFor(_plugins.FirstOrDefault(plugin => plugin.Id == (string)args![0]!))));
@@ -249,6 +251,33 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         picker.QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Save").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["tv"], _savedLibraries));
+        // The side facts now show the new choice; nothing else announces it.
+        Assert.Empty(cut.FindAll("[data-plugin-failure]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public void Configure_WhenTheLibraryLimitCannotBeSaved_ShowsAnAlertInPlace_AndKeepsThePicker()
+    {
+        _librariesSaveFails = true;
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        _libraryLimit = new PluginLibraryLimitResponse
+        {
+            PluginId = "a",
+            Libraries = [new PluginLibraryChoiceDto { Id = "tv", Name = "TV" }],
+        };
+        var cut = RenderDetail("a", null);
+        cut.WaitForAssertion(() => Assert.Contains("All libraries", cut.Find("[data-testid=plugin-side-facts]").TextContent));
+        cut.FindAll("[data-testid=plugin-side-facts] button").First(button => button.TextContent.Trim() == "Change").Click();
+        var picker = cut.WaitForElement("[data-testid=plugin-library-picker]");
+        picker.QuerySelectorAll("input[type=checkbox]").First().Change(true);
+
+        picker.QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("[data-plugin-failure]").GetAttribute("role")));
+        Assert.NotEmpty(cut.Find("[data-plugin-failure]").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll("[data-testid=plugin-library-picker]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -295,6 +324,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Gamma needs this plugin.", cut.Markup));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
