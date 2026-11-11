@@ -11,9 +11,9 @@
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
-@* Edit (Libraries and folder picker D4, Libraries v3 D17 to D19, D27): one window for a library's folders (the library's own name is fixed by its kind and never edited), with the fixed footer (Cancel, Save changes). Nothing is saved until Save
-   changes, which first shows Review: the plain list of what will happen. Removing a folder never deletes files. Scan now, Move to Vault (administrators) and
-   Remove library (asks once) sit here too, so the table row needs only one Edit button. The Import folder uses the same window with its one folder. *@
+@* Edit (Libraries and folder picker D4, Libraries v3 D17 to D19, D27): one window for a library's folders (the library's own name is fixed by its kind and never edited), with the fixed footer. The folders are a table: Folder name (with two or more
+   folders), Path and How Library uses it. Nothing is saved until Save changes, which first shows Review: the plain list of what will happen. Removing a folder never deletes files. Scan now and Remove library (asks once) sit at the left of the footer,
+   Cancel and Save changes at the right; Move to Vault (administrators) is in a folder's menu, so the table row needs only one Edit button. The Import folder uses the same window with its one folder. *@
 <AppDialogShell Title="@Title" Subtitle="@Lead" Size="Large" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="lib-edit" data-step="@(_review ? "review" : "edit")">
@@ -28,78 +28,100 @@
             }
             else
             {
-                <div class="lib-edit__folders" role="list" aria-label="@L["LibraryEditDialog_Folders"].Value" data-folder-rows>
-                    @foreach (var source in KeptSources)
-                    {
-                        var issue = IssueFor(source.Path);
-                        <div class="lib-edit__folder" role="listitem" data-source="@source.Id">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-                            <span class="lib-edit__body">
+                @if (KeptSources.Count > 0 || _added.Count > 0)
+                {
+                    <AppTable Dense="true" aria-label="@L["LibraryEditDialog_Folders"].Value" data-folder-rows>
+                        <thead>
+                            <tr>
                                 @if (ShowFolderNames)
                                 {
-                                    @* With two or more folders each one's friendly name shows above its path, and can be edited here (Libraries v3 D18). *@
-                                    <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
-                                                  Value="@LabelOf(source)"
-                                                  ValueChanged="@((string? value) => _labels[source.Id] = value ?? string.Empty)"
-                                                  MaxLength="@FolderHandlingWords.MaxFolderNameLength"
-                                                  ReadOnly="@_saving"
-                                                  Error="@(LabelProblem(source) is not null)"
-                                                  ErrorText="@LabelProblem(source)" />
+                                    <th>@L["LibraryEditDialog_ColFolderName"]</th>
                                 }
-                                <span class="lib-edit__path" data-overflow-tooltip="@source.Path">@source.Path</span>
-                            </span>
-                            @if (!Import)
-                            {
-                                <span class="lib-edit__tag" data-handling="@(IsManaged(source) ? "managed" : "read-only")">@HandlingText(source)</span>
-                            }
-                            <span class="lib-edit__state" data-state="@(issue is null ? "online" : "offline")">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
-                            <AppRowMenu AriaLabel="@L["LibraryEditDialog_ActionsFor", source.Path].Value" Items="@FolderMenu(source)" />
-                        </div>
-                    }
-                    @foreach (var added in _added)
-                    {
-                        var info = AddedInfoOf(added);
-                        <div class="lib-edit__folder lib-edit__folder--new" role="listitem" data-added="@added.Path">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CreateNewFolder" />
-                            <span class="lib-edit__body">
-                                @if (ShowFolderNames && !string.IsNullOrWhiteSpace(info.Label))
+                                <th>@L["LibraryEditDialog_ColPath"]</th>
+                                @if (!Import)
                                 {
-                                    <strong class="lib-edit__label">@info.Label</strong>
+                                    <th>@L["LibraryEditDialog_ColHandling"]</th>
                                 }
-                                <span class="lib-edit__path" data-overflow-tooltip="@added.Path">@added.Path</span>
-                            </span>
-                            @if (!Import)
+                                <th class="lib-edit__actions"><span class="sr-only">@L["Common_Actions"]</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var source in KeptSources)
                             {
-                                <span class="lib-edit__tag" data-handling="@(info.Managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(info.Managed)</span>
+                                var issue = IssueFor(source.Path);
+                                <tr class="lib-edit__folder" data-source="@source.Id">
+                                    @if (ShowFolderNames)
+                                    {
+                                        @* With two or more folders each one's friendly name can be edited here (Libraries v3 D18). *@
+                                        <td>
+                                            <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
+                                                          HideLabel="true"
+                                                          Value="@LabelOf(source)"
+                                                          ValueChanged="@((string? value) => _labels[source.Id] = value ?? string.Empty)"
+                                                          MaxLength="@FolderHandlingWords.MaxFolderNameLength"
+                                                          ReadOnly="@_saving"
+                                                          Error="@(LabelProblem(source) is not null)"
+                                                          ErrorText="@LabelProblem(source)" />
+                                        </td>
+                                    }
+                                    <td>
+                                        <span class="lib-edit__pathcell">
+                                            <span class="lib-edit__path" data-overflow-tooltip="@source.Path">@source.Path</span>
+                                            @if (issue is not null)
+                                            {
+                                                @* An offline folder is marked beside its path, not in a column of its own. *@
+                                                <span class="lib-edit__state" data-state="offline">@issue</span>
+                                            }
+                                        </span>
+                                    </td>
+                                    @if (!Import)
+                                    {
+                                        <td><span class="lib-edit__tag" data-handling="@(IsManaged(source) ? "managed" : "read-only")">@HandlingText(source)</span></td>
+                                    }
+                                    <td class="lib-edit__actions">
+                                        <AppRowMenu AriaLabel="@L["LibraryEditDialog_ActionsFor", source.Path].Value" Items="@FolderMenu(source)" />
+                                    </td>
+                                </tr>
                             }
-                            <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", added.Path].Value" OnClick="@(() => _added.Remove(added))" />
-                        </div>
-                    }
-                    @if (KeptSources.Count == 0 && _added.Count == 0)
-                    {
-                        <p class="lib-edit__note">@(Import ? L["LibraryEditDialog_NoImportFolder"].Value : L["LibraryEditDialog_NoFolders"].Value)</p>
-                    }
-                </div>
+                            @foreach (var added in _added)
+                            {
+                                var info = AddedInfoOf(added);
+                                <tr class="lib-edit__folder lib-edit__folder--new" data-added="@added.Path">
+                                    @if (ShowFolderNames)
+                                    {
+                                        <td><strong class="lib-edit__label">@info.Label</strong></td>
+                                    }
+                                    <td>
+                                        <span class="lib-edit__pathcell">
+                                            <span class="lib-edit__path" data-overflow-tooltip="@added.Path">@added.Path</span>
+                                            <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
+                                        </span>
+                                    </td>
+                                    @if (!Import)
+                                    {
+                                        <td><span class="lib-edit__tag" data-handling="@(info.Managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(info.Managed)</span></td>
+                                    }
+                                    <td class="lib-edit__actions">
+                                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", added.Path].Value" OnClick="@(() => _added.Remove(added))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </AppTable>
+                }
+                else
+                {
+                    <p class="lib-edit__note">@(Import ? L["LibraryEditDialog_NoImportFolder"].Value : L["LibraryEditDialog_NoFolders"].Value)</p>
+                }
 
                 @if (!Import || (KeptSources.Count == 0 && _added.Count == 0))
                 {
                     <AppButton Label="@(Import ? L["LibrariesOverview_ChooseAFolder"].Value : L["LibraryEditDialog_AddFolder"].Value)" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="AddFolderAsync" />
                 }
 
-                @if (!Import)
+                @if (!Import && _scanNote is not null)
                 {
-                    <div class="lib-edit__more" data-more>
-                        @if (!IsVault && !Scope.Embedded)
-                        {
-                            <AppButton Label="@L["LibraryEditDialog_ScanNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || Library!.Sources.Count == 0)" OnClick="ScanNowAsync" />
-                        }
-                        <AppButton Label="@L["LibraryEditDialog_RemoveLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Delete" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_saving" OnClick="RemoveLibraryAsync" />
-                    </div>
-                    @if (_scanNote is not null)
-                    {
-                        <p class="lib-edit__note" role="status">@_scanNote</p>
-                    }
+                    <p class="lib-edit__note" role="status">@_scanNote</p>
                 }
             }
 
@@ -118,6 +140,17 @@
             }
             else
             {
+                @if (!Import)
+                {
+                    @* The quiet and the destructive action sit together at the far left (Look v3 footer order); Cancel and Save changes are the right-hand group. *@
+                    <span class="lib-edit__footer-start app-footer-start" data-footer-start>
+                        @if (!IsVault && !Scope.Embedded)
+                        {
+                            <AppButton Label="@L["LibraryEditDialog_ScanNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || Library!.Sources.Count == 0)" OnClick="ScanNowAsync" />
+                        }
+                        <AppButton Label="@L["LibraryEditDialog_RemoveLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Delete" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_saving" OnClick="RemoveLibraryAsync" />
+                    </span>
+                }
                 <AppButton Label="@L["LibraryEditDialog_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
                 <AppButton Label="@L["LibraryEditDialog_SaveChanges"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanReview)" OnClick="OpenReview" />
             }
@@ -273,21 +306,35 @@
         var kind = Import ? null : Kinds.Find(Library?.KindKey);
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
-            { component => component.Title, Import ? L["LibraryEditDialog_ChooseImport"].Value : L["LibraryEditDialog_ChooseYourFolder", kind?.Label ?? L["LibraryEditDialog_LibraryLower"].Value].Value },
-            { component => component.HelpText, Import
-                ? L["LibraryEditDialog_HelpImport"].Value
-                : L["LibraryEditDialog_HelpMore", Library?.Name ?? string.Empty].Value },
-            { component => component.ConfirmLabel, L["LibraryEditDialog_ChooseFolder"].Value },
             { component => component.SelectionMode, Import ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
             { component => component.MediaType, kind?.MediaTypes.FirstOrDefault() },
             { component => component.SetupSession, Scope.SetupSession },
             { component => component.InitialPath, start },
-            { component => component.ShowFolderName, !Import },
-            { component => component.OfferHandling, !Import && !IsVault },
-            { component => component.ManagedAllowed, kind is not null && LibraryKindLook.ManagedOffered(kind) },
-            { component => component.FolderNameChanged, EventCallback.Factory.Create<string>(this, value => _pickLabel = value) },
-            { component => component.OnHandlingChanged, EventCallback.Factory.Create<string>(this, value => _pickManaged = value == FolderHandlingWords.ManagedKey) },
         };
+        if (Import)
+        {
+            parameters.Add(component => component.Title, L["LibraryEditDialog_ChooseImport"].Value);
+            parameters.Add(component => component.HelpText, L["LibraryEditDialog_HelpImport"].Value);
+            parameters.Add(component => component.ConfirmLabel, L["LibraryEditDialog_ChooseFolder"].Value);
+        }
+        else
+        {
+            // The very window Add library's third step draws (Libraries v3 D21, L4): same heading, lead, chips fixed to this library's area and kind, friendly name
+            // first and the same buttons, all read from LibraryFolderStep so the two cannot drift apart.
+            parameters.Add(component => component.Title, LibraryFolderStep.Heading(L, kind));
+            parameters.Add(component => component.HelpText, LibraryFolderStep.Lead(L, kind));
+            parameters.Add(component => component.ConfirmLabel, L["Common_AddFolder"].Value);
+            parameters.Add(component => component.ShowFolderName, LibraryFolderStep.ShowFolderName);
+            parameters.Add(component => component.TopContent, LibraryFolderStep.Chips(
+                IsVault ? LibraryGroupCatalog.VaultKey : kind?.Area.ToLowerInvariant() ?? string.Empty,
+                IsVault ? L["Nav_Vault"].Value : Kinds.TryGetGroup(kind?.Area ?? string.Empty)?.Label,
+                kind));
+            parameters.Add(component => component.OfferHandling, !IsVault);
+            parameters.Add(component => component.ManagedAllowed, kind is not null && LibraryKindLook.ManagedOffered(kind));
+            parameters.Add(component => component.FolderNameChanged, EventCallback.Factory.Create<string>(this, value => _pickLabel = value));
+            parameters.Add(component => component.OnHandlingChanged, EventCallback.Factory.Create<string>(this, value => _pickManaged = value == FolderHandlingWords.ManagedKey));
+        }
+
         _pickLabel = null;
         _pickManaged = false;
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);

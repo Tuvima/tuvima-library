@@ -200,4 +200,10 @@
   <data name="PlaybackIdentity_FavoritesNeedProfile" xml:space="preserve">
     <value>Favourites need an active profile.</value>
   </data>
+  <data name="LibraryFolderTable_OrganiseFilesNow" xml:space="preserve">
+    <value>Organise files now</value>
+  </data>
+  <data name="FolderStep_ScanLineManaged" xml:space="preserve">
+    <value>Library scans this folder and its subfolders, and keeps it organised.</value>
+  </data>
 </root>

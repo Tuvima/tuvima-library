@@ -64,11 +64,11 @@ else
                     {
                         @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
                         <div class="server-folder-picker__name" data-folder-name>
-                            <AppTextField Label="Friendly name"
+                            <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
                                           Value="@_folderName"
                                           ValueChanged="FolderNameEdited"
                                           MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
-                            <span class="server-folder-picker__name-hint">Names this folder, not the library. It shows only when the library has more than one folder.</span>
+                            <span class="server-folder-picker__name-hint">@L["ServerFolderPicker_FriendlyNameHint"]</span>
                         </div>
                     }
                     @if (!string.IsNullOrWhiteSpace(TargetLabel) && TopContent is null)

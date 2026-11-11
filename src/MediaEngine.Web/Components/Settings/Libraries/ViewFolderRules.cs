@@ -8,7 +8,9 @@ namespace MediaEngine.Web.Components.Settings;
 /// <param name="Id">The folder's identity; only used to key the row.</param>
 /// <param name="Path">The folder's path as the Engine sees it.</param>
 /// <param name="Issue">Why it can't be reached (offline, no access); null when it is online or not yet checked.</param>
-public sealed record FolderListItem(string Id, string Path, string? Issue = null);
+/// <param name="Name">The folder's friendly name, shown above its path when the library has two or more folders; null for none.</param>
+/// <param name="Managed">True for a Managed folder, false for a Read-only one; null where the list does not say (View folders).</param>
+public sealed record FolderListItem(string Id, string Path, string? Issue = null, string? Name = null, bool? Managed = null);
 
 /// <summary>A View folder with who added it: a null owner is a Shared Library folder, otherwise it sits in that profile's personal space (its edits go through that profile).</summary>
 public sealed record ViewFolderEntry(ViewSourceAdminDto Source, Guid? OwnerProfileId);

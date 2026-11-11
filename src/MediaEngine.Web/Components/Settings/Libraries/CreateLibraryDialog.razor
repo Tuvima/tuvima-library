@@ -34,6 +34,7 @@
                         <LibraryTile Title="@group.Label"
                                      Icon="@group.Icon"
                                      AreaKey="@group.Key"
+                                     Description="@AreaLine(group.Key)"
                                      About="@AreaDescription(group.Key)"
                                      Examples="@AreaExamples(group)"
                                      Selected="@(!_vaultMode && group.Key == _area)"
@@ -78,9 +79,9 @@
                                          Examples="@kind.Examples"
                                          LibraryDoes="@kind.LibraryDoes"
                                          Note="@(availability.Reason ?? ExistingNote(kind))"
-                                         Badge="@(HasLibrary(kind) ? L["CreateLibrary_Added"].Value : null)"
+                                         Badge="@(HasLibrary(kind) ? L["CreateLibrary_AddFolderInstead"].Value : null)"
                                          Selected="@(kind.Key == _kindKey)"
-                                         Disabled="@(_saving || !availability.Enabled)"
+                                         Disabled="@(_saving || !CanPick(kind))"
                                          OnClick="@(() => ChooseKindAsync(kind))" />
                         }
                     </div>
@@ -104,7 +105,7 @@
                                         SelectionMode="@PickerMode"
                                         SetupSession="@SetupSession"
                                         InitialPath="@_pickerStart"
-                                        ShowFolderName="true"
+                                        ShowFolderName="LibraryFolderStep.ShowFolderName"
                                         FolderName="@_folderName"
                                         FolderNameChanged="FolderNameChanged"
                                         OfferHandling="@(!IsVaultChoice)"
@@ -112,14 +113,8 @@
                                         OnHandlingChanged="HandlingChanged"
                                         OnPathChanged="PathChosen">
                         <TopContent>
-                            @* Step line, then the area and kind (read only). The folder's friendly name comes first inside the folder window. *@
-                            <div class="create-library__chips" data-picker-chips>
-                                @if (!(_vaultMode && Simple))
-                                {
-                                    <span class="create-library__chip lib-area--@(_vaultMode ? "vault" : _area)">@(_vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label)</span>
-                                }
-                                <span class="create-library__chip">@(Kind is null ? string.Empty : LabelOf(Kind))</span>
-                            </div>
+                            @* Step line, then the area and kind (read only), the same chips Edit's Add folder shows. The folder's friendly name comes first inside the folder window. *@
+                            @LibraryFolderStep.Chips(_vaultMode ? LibraryGroupCatalog.VaultKey : _area, _vaultMode && Simple ? null : _vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label, Kind)
                         </TopContent>
                     </ServerFolderPicker>
                     <p class="create-library__line" data-scan-line>@ScanLine</p>
@@ -282,7 +277,7 @@
         1 => "Where does it belong?",
         2 => "What is it?",
         4 => _fit switch { FitHeadsUp => "Heads up", FitAlreadyUsed => "Already used", _ => "Looks right" },
-        _ => Kind is { } chosen && HasLibrary(chosen) ? $"Add a folder to {LibraryNameOf(chosen)}" : Kind is { } picked ? $"Where are your {LabelOf(picked)}?" : "Where is it?",
+        _ => LibraryFolderStep.Heading(L, Kind),
     };
 
     private string? Lead => _step switch
@@ -290,7 +285,17 @@
         1 => "Pick the area it belongs in. The library is named for what it is, so there is nothing to type.",
         2 => _vaultMode ? "Stored in the Vault, away from everyone without Vault access." : $"Pick the kind of {AreaNoun} you have.",
         4 => null,
-        _ => $"Pick the folder on the Library server that holds your {Plural}. Give it a friendly name if you like.",
+        _ => LibraryFolderStep.Lead(L, Kind),
+    };
+
+    // The second line under an area's name on its tile ("Movies, TV, videos"), from the strings file.
+    private string? AreaLine(string area) => area switch
+    {
+        "watch" => L["CreateLibrary_AreaLine_watch"].Value,
+        "listen" => L["CreateLibrary_AreaLine_listen"].Value,
+        "read" => L["CreateLibrary_AreaLine_read"].Value,
+        "view" => L["CreateLibrary_AreaLine_view"].Value,
+        _ => null,
     };
 
     private static string AreaDescription(string area) => area switch
@@ -311,28 +316,23 @@
     };
     private string FitText => _fitDetail ?? string.Empty;
 
-    // "Movies" reads "movies" in the middle of a sentence; "TV shows" and "YouTube" keep their capitals, and the "Other" kinds just say files.
-    private string Plural
-    {
-        get
-        {
-            if (Kind is not { } kind || kind.Key.StartsWith("other", StringComparison.Ordinal)) return "files";
-            var label = kind.PluralLabel;
-            var firstWord = label.Split(' ')[0];
-            return firstWord.Skip(1).Any(char.IsUpper) ? label : char.ToLowerInvariant(label[0]) + label[1..];
-        }
-    }
+    private string Plural => LibraryFolderStep.Plural(Kind);
 
     private string AreaNoun => _area switch { "watch" => "videos", "listen" => "audio", "read" => "reading", "view" => "photos and files", _ => "media" };
 
     // Library only ever reads a folder it is not told to manage, so the plain sentence says so; a managed folder is kept tidy as well.
+    // "Your files are never changed" is said once, in the folder window's footer, so it is not repeated here.
     private string ScanLine => Handling == AddFolderHandling.Managed
-        ? "Library scans this folder and its subfolders, and keeps it organised."
-        : "Library scans this folder and its subfolders. Your files are never changed.";
+        ? L["FolderStep_ScanLineManaged"].Value
+        : L["FolderStep_ScanLine"].Value;
 
     private LibraryTypeOption? Kind => _kindKey is null ? null : KindsOfArea.FirstOrDefault(kind => kind.Key == _kindKey);
 
     // One library per kind (Libraries v3 D17): a kind that already has a library takes the new folder as a second folder of it, so it stays pickable.
+    // A kind that already has a library is greyed with "Add a folder to it instead" (D23): its tile cannot be chosen, and the new folder goes to that library from its Edit window.
+    // A host that names the kind (StartKindKey, as a dropped file does) still reaches the folder step for it, so this is the tile rule only.
+    private bool CanPick(LibraryTypeOption kind) => AvailabilityOf(kind).Enabled && !HasLibrary(kind);
+
     private (bool Enabled, string? Reason) AvailabilityOf(LibraryTypeOption kind)
     {
         // Each content type has one Vault library beside its ordinary one; the Engine refuses a second in any case.
@@ -418,7 +418,7 @@
             ?? Areas.FirstOrDefault();
         _area = start?.Key ?? "watch";
         var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && AvailabilityOf(kind).Enabled);
-        _kindKey = (wanted ?? KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled))?.Key;
+        _kindKey = (wanted ?? KindsOfArea.FirstOrDefault(CanPick))?.Key;
         // A host that already knows the content type (Move to Vault, a dropped file) goes straight to the folder; one that knows the area goes to the type;
         // otherwise the person starts by choosing the area. Back walks the other way.
         _areaChosen = !string.IsNullOrWhiteSpace(StartAreaKey) || _vaultMode;
@@ -453,14 +453,14 @@
         if (string.Equals(area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase))
         {
             _vaultMode = VaultAllowed;
-            _kindKey = KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled)?.Key;
+            _kindKey = KindsOfArea.FirstOrDefault(CanPick)?.Key;
                 return Task.CompletedTask;
         }
 
         _vaultMode = false;
         _area = area;
         _error = null;
-        _kindKey = KindsOfArea.FirstOrDefault(kind => AvailabilityOf(kind).Enabled)?.Key;
+        _kindKey = KindsOfArea.FirstOrDefault(CanPick)?.Key;
         return Task.CompletedTask;
     }
 

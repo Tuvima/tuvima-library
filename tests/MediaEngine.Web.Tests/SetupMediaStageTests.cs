@@ -375,8 +375,18 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         }
 
         var create = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "CreateLibraryDialog.razor"));
-        Assert.Contains("ShowFolderName=\"true\"", create, StringComparison.Ordinal);
+        Assert.Contains("ShowFolderName=\"LibraryFolderStep.ShowFolderName\"", create, StringComparison.Ordinal);
         Assert.Contains("OfferHandling=", create, StringComparison.Ordinal);
+
+        // Add library's folder step and Edit's Add folder read their heading, lead, chips and friendly-name choice from the one LibraryFolderStep, so they cannot drift.
+        var edit = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibraryEditDialog.razor"));
+        foreach (var source in new[] { create, edit })
+        {
+            Assert.Contains("LibraryFolderStep.Heading(", source, StringComparison.Ordinal);
+            Assert.Contains("LibraryFolderStep.Lead(", source, StringComparison.Ordinal);
+            Assert.Contains("LibraryFolderStep.Chips(", source, StringComparison.Ordinal);
+            Assert.Contains("LibraryFolderStep.ShowFolderName", source, StringComparison.Ordinal);
+        }
         Assert.Contains("DialogOptions => ServerFolderPicker.DialogOptions", create, StringComparison.Ordinal);
     }
 
