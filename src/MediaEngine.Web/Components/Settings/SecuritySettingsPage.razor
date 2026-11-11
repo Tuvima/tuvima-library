@@ -390,6 +390,8 @@
     private string? _passkeysError;
     private string? _failure;
     private readonly JustChanged _glow = new();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
 
     private SecuritySheet _sheet;
     private static readonly AppDialogOptions SheetFrameOptions = new() { Size = AppWindowSize.Medium, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
@@ -484,6 +486,7 @@
     {
         _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
         Notices.Changed += OnNoticesChanged;
+        _glow.Changed += OnGlowCleared;
         if (_thisComputerOnly) await Notices.EnsureLoadedAsync(_lifetime.Token);
         await LoadAccountAsync();
         if (_account is null || _disposed) return;
@@ -705,6 +708,8 @@
     {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
         Notices.Changed -= OnNoticesChanged;
         _recoveryCodes = [];
         _lifetime.Cancel();

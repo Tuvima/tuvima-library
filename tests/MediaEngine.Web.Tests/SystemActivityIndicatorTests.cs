@@ -364,6 +364,22 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     }
 
     [Fact]
+    public void OpeningTheActivityPage_ClearsTheNeedsAttentionState()
+    {
+        FinishARun(failed: 1);
+        var activity = Services.GetRequiredService<ShellActivityState>();
+        var cut = Render<SystemActivityIndicator>(p => p.Add(i => i.CanOpenSystemActivity, true));
+        Assert.Contains("is-attention", cut.Find("button.system-activity-indicator").ClassList);
+
+        // The Activity page does this when it opens (LibraryActivityPage.OnInitializedAsync).
+        activity.AcknowledgeAttention();
+
+        cut.WaitForAssertion(() => Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList));
+        Assert.Contains("Shell.AcknowledgeAttention()", File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Settings", "LibraryActivity", "LibraryActivityPage.razor")));
+    }
+
+    [Fact]
     public void ALaterRunThatEndsCleanly_ClearsTheNeedsAttentionState()
     {
         FinishARun(failed: 1);

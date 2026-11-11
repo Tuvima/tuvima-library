@@ -71,25 +71,9 @@
 
     private const string ActivityRoute = "/settings/library-activity";
 
-    protected override void OnInitialized()
-    {
-        Activity.Changed += OnActivityChanged;
-        Nav.LocationChanged += OnLocationChanged;
-        AcknowledgeWhenOnActivity();
-    }
+    protected override void OnInitialized() => Activity.Changed += OnActivityChanged;
 
     private void OnActivityChanged() => _ = InvokeAsync(StateHasChanged);
-
-    // Opening Activity by any route (the indicator, the menu, a typed address) is seeing the outcome.
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => AcknowledgeWhenOnActivity();
-
-    private void AcknowledgeWhenOnActivity()
-    {
-        if (CanOpenSystemActivity && new Uri(Nav.Uri).AbsolutePath.StartsWith(ActivityRoute, StringComparison.OrdinalIgnoreCase))
-        {
-            Activity.AcknowledgeAttention();
-        }
-    }
 
     private Task HandleClick()
     {
@@ -101,9 +85,5 @@
         return Task.CompletedTask;
     }
 
-    public void Dispose()
-    {
-        Activity.Changed -= OnActivityChanged;
-        Nav.LocationChanged -= OnLocationChanged;
-    }
+    public void Dispose() => Activity.Changed -= OnActivityChanged;
 }
