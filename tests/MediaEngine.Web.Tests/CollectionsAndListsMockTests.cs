@@ -280,7 +280,7 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
         {
             // ListenPage keeps its code in partial files beside the markup, read here as one text.
             var text = file.EndsWith(".razor.cs", StringComparison.Ordinal)
-                ? SplitComponentSource.ReadAll(Path.Combine(root, file[..^3]))
+                ? LocalizedSource.ReadComponent(Path.Combine(root, file[..^3]))
                 : File.ReadAllText(Path.Combine(root, file));
             Assert.Contains("SavedCollectionIds", text, StringComparison.Ordinal);
         }

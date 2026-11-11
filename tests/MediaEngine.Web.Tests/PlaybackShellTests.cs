@@ -403,7 +403,7 @@ public sealed class PlaybackShellTests : AsyncBunitContext
     [Fact]
     public void StartingAnAudiobookFromTheDetailsWindowClosesTheWindowSoItCannotCoverTheBar()
     {
-        var source = LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
+        var source = LocalizedSource.ReadComponent(RepoPath("src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
         var start = source.IndexOf("await Playback.StartAudiobookAsync(", StringComparison.Ordinal);
 
         Assert.True(start > 0);

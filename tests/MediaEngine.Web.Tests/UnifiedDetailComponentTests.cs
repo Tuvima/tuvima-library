@@ -9,7 +9,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void GenericWorkContinueActionStartsOwnedAudiobookBeforeFollowingItsGenericRoute()
     {
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var actionHandler = detailPage[detailPage.IndexOf("private async Task HandleDetailActionAsync", StringComparison.Ordinal)..];
         var audiobookPlayback = actionHandler.IndexOf("IsAudiobook && !action.IsDisabled", StringComparison.Ordinal);
         var genericRoute = actionHandler.IndexOf("if (!string.IsNullOrWhiteSpace(action.Route))", StringComparison.Ordinal);
@@ -270,7 +270,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void DetailPage_WiresReadAndFavoriteHeroActions()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var source = ReadDetailPageSource();
 
         Assert.Contains("ResolveWorkToAssetAsync", source);
         Assert.Contains("Nav.NavigateTo($\"/read/{assetId.Value:D}\")", source);
@@ -284,7 +284,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void DetailPage_RendersExpectedSpecializedTabs()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var source = ReadDetailPageSource();
 
         Assert.DoesNotContain("EpisodesTab", source);
         Assert.DoesNotContain("FormatsTab", source);
@@ -313,7 +313,7 @@ public sealed class UnifiedDetailComponentTests
             "src/MediaEngine.Web/Services/Integration/EngineApiClient.cs",
         })
         {
-            var source = ReadSource(path);
+            var source = path.EndsWith("Details/DetailPage.razor", StringComparison.Ordinal) ? ReadDetailPageSource() : ReadSource(path);
             Assert.DoesNotContain("IsAdminView", source);
             Assert.DoesNotContain("IsAdminOnly", source);
             Assert.DoesNotContain("tl-registry-panel", source);
@@ -341,7 +341,7 @@ public sealed class UnifiedDetailComponentTests
     public void DetailPage_HasNoCharacterOrRelationshipPanelsAndCastKeepsRoleNames()
     {
         var root = FindRepoRoot();
-        var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var source = ReadDetailPageSource();
         var peopleTab = ReadSource("src/MediaEngine.Web/Components/Details/PeopleTab.razor");
         var card = ReadSource("src/MediaEngine.Web/Components/Details/PersonCreditCard.razor");
         var group = ReadSource("src/MediaEngine.Web/Components/Details/CreditGroupSection.razor");
@@ -429,7 +429,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void RelatedAndUniverseTabs_AreGoneFromTheDetailPage()
     {
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var navigation = ReadSource("src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs");
 
         Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/RelatedTab.razor")));
@@ -448,7 +448,7 @@ public sealed class UnifiedDetailComponentTests
         var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor");
         var menu = ReadSource("src/MediaEngine.Web/Components/Details/OverflowActionMenu.razor");
         var menuItems = ReadSource("src/MediaEngine.Web/Components/Details/ManageActionsMenu.razor");
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var appStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
 
         Assert.Contains("OverflowActions=\"Model.OverflowActions\"", hero);
@@ -491,7 +491,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void PeopleStrip_RemainsOutOfHeroAndSharedAvatarFallbackStaysAvailable()
     {
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var hero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
         var card = ReadSource("src/MediaEngine.Web/Components/Details/PersonCreditCard.razor");
         var avatar = ReadSource("src/MediaEngine.Web/Components/Details/PersonAvatar.razor");
@@ -547,7 +547,7 @@ public sealed class UnifiedDetailComponentTests
     public void DetailPageRequestsAskForTheWindowedSequence()
     {
         Assert.Contains("sequence: SequenceWindowQuery.Windowed", ReadSource("src/MediaEngine.Web/Components/Details/DetailRouteHost.razor"));
-        var page = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var page = ReadDetailPageSource();
         // The container pick, the refresh, and the refresh that keeps the chosen season.
         Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(page, "SequenceWindowQuery\\.Windowed").Count);
     }
@@ -921,7 +921,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void MusicAlbumDetailsUseTheSharedHeroAndBorderlessOverviewTracks()
     {
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var detailPageStyles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css");
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var albumOverview = ReadSource("src/MediaEngine.Web/Components/Details/MusicAlbumOverviewContent.razor");
@@ -1041,7 +1041,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void AudioDetailPagesUseTheBoundedSharedStageWithoutChangingHomeHeroDefault()
     {
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
         var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor");
@@ -1572,7 +1572,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void LandingAndDetailSurfaces_ShareDetailHeroContentWhileHomeOmitsLaneNavigation()
     {
-        var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var detailPage = ReadDetailPageSource();
         var detailHero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
         var detailHeroContent = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor");
         var detailTabs = ReadSource("src/MediaEngine.Web/Components/Details/DetailTabs.razor");
@@ -1642,7 +1642,10 @@ public sealed class UnifiedDetailComponentTests
 
     // ListenPage keeps its code in partial files beside the markup; the code text of all of them is what these checks pin.
     private static string ListenPageSource() =>
-        SplitComponentSource.ReadAll(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Pages/ListenPage.razor"));
+        LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Pages/ListenPage.razor"));
+
+    private static string ReadDetailPageSource() =>
+        LocalizedSource.ReadComponent(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
 
     private static string ReadSource(string relativePath)
     {

@@ -185,7 +185,7 @@ public sealed class CollectionsHubTests
         var pagesPath = Path.GetDirectoryName(
             GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/UnifiedDetailPage.razor"))!;
         var route = LocalizedSource.ReadAllText(Path.Combine(pagesPath, "UnifiedDetailPage.razor"));
-        var detail = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailPage.razor"));
+        var detail = LocalizedSource.ReadComponent(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailPage.razor"));
         var composer = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs"));
 
         Assert.False(File.Exists(Path.Combine(pagesPath, "CollectionDetail.razor")));
@@ -228,7 +228,7 @@ public sealed class CollectionsHubTests
     [Fact]
     public void CollectionEditor_UsesTypedTextareaForDescription()
     {
-        var source = SplitComponentSource.ReadAll(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
+        var source = LocalizedSource.ReadComponent(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
         var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css"));
 
         Assert.Contains("<AppTextarea Value=\"@_description\"", source, StringComparison.Ordinal);

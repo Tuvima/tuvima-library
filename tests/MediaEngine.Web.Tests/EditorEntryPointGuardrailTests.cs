@@ -57,7 +57,7 @@ public sealed class EditorEntryPointGuardrailTests
     public void AListsEntryPoint_OpensThePopOverThroughTheLauncher_AndNeverSendsThePersonToAnItemsPageToEdit(string file)
     {
         // A component with partial code files is read as one text (SplitComponentSource); the others are single files.
-        var text = SplitComponentSource.ReadAll(Path.Combine(Root, file));
+        var text = LocalizedSource.ReadComponent(Path.Combine(Root, file));
 
         Assert.Contains("ListEditLauncher", text, StringComparison.Ordinal);
         Assert.DoesNotContain("OfferEditResume", text, StringComparison.Ordinal);

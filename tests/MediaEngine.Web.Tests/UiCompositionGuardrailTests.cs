@@ -350,7 +350,7 @@ public sealed class UiCompositionGuardrailTests
     [Fact]
     public void SharedMediaEditorLauncher_RemainsCanonicalEditingPath()
     {
-        var detailPage = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
+        var detailPage = LocalizedSource.ReadComponent(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
         var reviewTab = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
 
         // A single item, person or series edits in the one pop-over (EditorHost) and Needs Review Fix opens it over the list on Match.
@@ -363,7 +363,7 @@ public sealed class UiCompositionGuardrailTests
     [Fact]
     public void InlineEditingSurfaces_RefreshOnlyAfterSuccessfulEditorResult()
     {
-        var detailPage = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
+        var detailPage = LocalizedSource.ReadComponent(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
 
         Assert.Matches(@"RefreshAfterEditSavedAsync\(\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);

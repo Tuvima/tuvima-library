@@ -1442,7 +1442,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void ListenPage_RouteParametersReloadListenStateWithRaceGuard()
     {
-        var source = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
+        var source = LocalizedSource.ReadComponent(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var markup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.css"));
 
@@ -1575,7 +1575,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void PlaylistCreation_StaysInPlaceAndOverflowMenusOwnIndependentState()
     {
-        var legacySource = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
+        var legacySource = LocalizedSource.ReadComponent(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var legacyMarkup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
         var browseSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenBrowsePage.razor"));
         var menuSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "AppOverflowMenu.razor"));
@@ -1647,7 +1647,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CollectionEditor_UsesSharedLargeEditorWorkspaceAndKeepsPlaylistArtworkPicker()
     {
-        var source = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var source = LocalizedSource.ReadComponent(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
         var ruleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
         var sharedRuleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
         var valuePicker = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleValuePicker.razor"));
@@ -1678,7 +1678,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CollectionEditor_SmartPlaylistMode_RendersSimplifiedMusicRuleControls()
     {
-        var source = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var source = LocalizedSource.ReadComponent(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
         var ruleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
         var sharedRuleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
 
