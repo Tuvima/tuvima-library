@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Settings
 @inject IStringLocalizer<SharedStrings> L
 
-<AppDialog Visible="@Visible"
+<AppDialogShell Framed="true" Visible="@Visible"
            VisibleChanged="@VisibleChanged"
            Title="@(Result?.Headline ?? "Testing connection")"
            Subtitle="@(Result?.Detail ?? "Library is checking each part of the connection.")"
@@ -39,7 +39,7 @@
             <AppButton Label="@L["Common_Close"].Value" OnClick="CloseAsync" />
         </div>
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     [Parameter] public bool Visible { get; set; }

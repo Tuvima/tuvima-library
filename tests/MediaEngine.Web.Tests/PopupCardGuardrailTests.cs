@@ -2,8 +2,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// One popup style (one-look spec D7, WP1b): a Razor file that draws a popup (<c>&lt;dialog&gt;</c>, <c>AppDialogFrame</c> or
-/// <c>role="dialog"</c>) must draw its card with the shared popup components (<c>AppDialogShell</c>, <c>AppDialog</c> or
-/// <c>AppDialog</c>). The listed files are the exceptions, each with the reason it is not a plain popup card.
+/// <c>role="dialog"</c>) must draw its card with the shared popup component (<c>AppDialogShell</c>). The listed files are the exceptions, each with the reason it is not a plain popup card.
 /// </summary>
 public sealed class PopupCardGuardrailTests
 {
@@ -13,6 +12,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Shared/AppDialogFrame.razor"] = "The shared native dialog element every popup sits in.",
         ["Components/Shared/AppViewer.razor"] = "The shared full-screen Viewer (Look v3 D14); draws the dialog element for the details overlay.",
         ["Components/Shared/AppDialogHost.razor"] = "Hosts the dialogs the service opens.",
+        ["Components/Shared/AppDialogShell.razor"] = "The shared window card itself; it draws the native frame around the card when a page opens it inline (Framed).",
         ["Components/Shared/AppRowMenu.razor"] = "The shared row menu; its phone sheet.",
         ["Components/Shared/AppOverflowMenu.razor"] = "The shared overflow menu; its phone sheet.",
         ["Components/Shared/AppDrawer.razor"] = "Side drawer, not a popup (drawers follow the table and menu rules).",
@@ -32,7 +32,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Layout/ReconnectModal.razor"] = "Connection-lost modal; keeps its special behaviour.",
     };
 
-    private static readonly string[] CardMarkers = ["<AppDialogShell", "<AppDialog "];
+    private static readonly string[] CardMarkers = ["<AppDialogShell"];
 
     [Fact]
     public void EveryPopupIsDrawnWithTheSharedCardOrIsListedAsAnException()
@@ -44,7 +44,7 @@ public sealed class PopupCardGuardrailTests
             .ToList();
 
         Assert.True(offenders.Count == 0,
-            "Draw this popup with AppDialogShell or AppDialog (one-look spec D7), or list it with a reason: " + string.Join(", ", offenders));
+            "Draw this popup with AppDialogShell (one-look spec D7), or list it with a reason: " + string.Join(", ", offenders));
     }
 
     [Fact]

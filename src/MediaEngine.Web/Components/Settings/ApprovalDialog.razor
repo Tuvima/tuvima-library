@@ -5,41 +5,43 @@
 
 @* The one confirmation every "switch this on" action shows (Developer tools spec D-C): what it can do, whether anything
    leaves this machine, then the choice. The words come from the Engine; this only lays them out. *@
-<AppDialog Tone="AppUiTone.Warning" Size="Small">
-<DialogContent>
-<div class="approval-dialog" data-testid="approval-dialog" data-approval-kind="@Preview.Kind">
-    <strong class="approval-dialog__title" data-testid="approval-title">@Preview.Title</strong>
-    <p class="approval-dialog__heading">@L["ApprovalDialog_ItCan"]</p>
-    @if (Preview.CanDo.Count == 0)
-    {
-        <p class="approval-dialog__nothing">@L["Common_NothingSpecial"]</p>
-    }
-    else
-    {
-        <ul class="approval-dialog__list" data-testid="approval-can-do">
-            @foreach (var line in Preview.CanDo)
-            {
-                <li>@line</li>
-            }
-        </ul>
-    }
-    <p class="approval-dialog__sends" data-testid="approval-sends-data"><strong>@L["ApprovalDialog_SendsDataOut"]</strong> @SendsDataText</p>
-    @if (Preview.Notes.Count > 0)
-    {
-        <ul class="approval-dialog__notes" data-testid="approval-notes">
-            @foreach (var note in Preview.Notes)
-            {
-                <li>@note</li>
-            }
-        </ul>
-    }
-</div>
-</DialogContent>
-<DialogActions>
+<AppDialogShell Tone="AppUiTone.Warning" Size="Small" OnClose="CancelAsync">
+<ChildContent>
+    <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
+    <div class="approval-dialog" data-testid="approval-dialog" data-approval-kind="@Preview.Kind">
+        <strong class="approval-dialog__title" data-testid="approval-title">@Preview.Title</strong>
+        <p class="approval-dialog__heading">@L["ApprovalDialog_ItCan"]</p>
+        @if (Preview.CanDo.Count == 0)
+        {
+            <p class="approval-dialog__nothing">@L["Common_NothingSpecial"]</p>
+        }
+        else
+        {
+            <ul class="approval-dialog__list" data-testid="approval-can-do">
+                @foreach (var line in Preview.CanDo)
+                {
+                    <li>@line</li>
+                }
+            </ul>
+        }
+        <p class="approval-dialog__sends" data-testid="approval-sends-data"><strong>@L["ApprovalDialog_SendsDataOut"]</strong> @SendsDataText</p>
+        @if (Preview.Notes.Count > 0)
+        {
+            <ul class="approval-dialog__notes" data-testid="approval-notes">
+                @foreach (var note in Preview.Notes)
+                {
+                    <li>@note</li>
+                }
+            </ul>
+        }
+    </div>
+    </div>
+</ChildContent>
+<FooterContent>
     <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelAsync" />
     <AppButton Label="@ConfirmLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ConfirmAsync" />
-</DialogActions>
-</AppDialog>
+</FooterContent>
+</AppDialogShell>
 
 @code {
     [CascadingParameter] public IAppDialogContext Dialog { get; set; } = default!;

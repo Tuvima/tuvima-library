@@ -66,9 +66,9 @@ public sealed class NativeOverlayLifecycleTests : AsyncBunitContext
     {
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
-            builder.OpenComponent<AppDialog>(0);
-            builder.AddAttribute(1, nameof(AppDialog.Options), new AppDialogOptions { CloseOnEscapeKey = false, MaxWidth = AppMaxWidth.Small });
-            builder.AddAttribute(2, nameof(AppDialog.ChildContent), (RenderFragment)(content => content.AddContent(0, "Picker")));
+            builder.OpenComponent<AppDialogShell>(0);
+            builder.AddAttribute(1, nameof(AppDialogShell.Title), "Picker");
+            builder.AddAttribute(2, nameof(AppDialogShell.ChildContent), (RenderFragment)(content => content.AddContent(0, "Picker")));
             builder.CloseComponent();
         }
     }

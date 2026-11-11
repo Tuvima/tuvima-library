@@ -3,10 +3,8 @@
 @inject IEngineApiClient ApiClient
 @inject IStringLocalizer<SharedStrings> L
 
-<AppDialog Class="artwork-picker-host" Options="@(new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, Position = AppDialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = false })">
-<DialogContent>
 <div class="artwork-picker-dialog">
-<AppDialogShell Title="@(FromProviders ? $"Choose {ProviderName} artwork" : "Choose artwork")" Subtitle="@TargetSummary" Size="Large" OnClose="Close">
+<AppDialogShell HostClass="artwork-picker-host" Title="@(FromProviders ? $"Choose {ProviderName} artwork" : "Choose artwork")" Subtitle="@TargetSummary" Size="Large" OnClose="Close">
     <ChildContent>
         @if (!string.IsNullOrWhiteSpace(_error)) { <p role="alert">@_error</p> }
         @if (FromProviders)
@@ -56,8 +54,6 @@
     </FooterContent>
 </AppDialogShell>
 </div>
-</DialogContent>
-</AppDialog>
 
 @code {
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;

@@ -47,6 +47,7 @@ public sealed class AdministratorSurfaceAccessService(
             var profileId = session.ActiveProfileId;
             var sessionId = session.SessionId;
             var dialog = await dialogs.ShowAsync<AdministratorUnlockDialog>("Unlock administrator settings",
+                new AppDialogParameters<AdministratorUnlockDialog> { { unlock => unlock.Gate, true } },
                 new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
             using var cancellation = ct.Register(() => dialog.Close());
             var result = await dialog.Result;

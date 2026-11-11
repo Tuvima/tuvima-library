@@ -88,7 +88,7 @@ public sealed class NetworkSettingsUiTests
     {
         var dialog = Read(@"src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor");
         var dialogStyles = Read(@"src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor.css");
-        var dialogHost = Read(@"src/MediaEngine.Web/Components/Shared/AppDialog.razor");
+        var dialogHost = Read(@"src/MediaEngine.Web/Components/Shared/AppDialogShell.razor");
         var shellStyles = Read(@"src/MediaEngine.Web/Components/Shared/AppDialogShell.razor.css");
         var appStyles = Read(@"src/MediaEngine.Web/wwwroot/app.css");
         var settingsStyles = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor.css");

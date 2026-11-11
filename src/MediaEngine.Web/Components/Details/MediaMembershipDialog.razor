@@ -8,27 +8,29 @@
 @* "Add to collection" / "Add to playlist" (Collections and lists spec 4a, D19). The list holds exactly the hand-picked collections or
    playlists the Engine says the signed-in person may edit: their own, and for an administrator everything they manage. The Engine
    checks every add again. "New collection with this title" hands back to the caller, which opens the New collection flow. *@
-<AppDialog>
-    <DialogContent>
-        @if (_loading) { <p>@L["MediaMembershipDialog_LoadingAvailableDestinations"]</p> }
-        else if (_options.Count == 0) { <p>No editable manual @(Playlist ? "playlists" : "collections") are available.</p> }
-        else { <AppSelect Value="@_selected" ValueChanged="@((string? value) => _selected = value)" Options="@_options" aria-label="@L["Common_Destination"].Value" /> }
-        @if (OfferNewCollection && !Playlist)
-        {
-            <AppButton ButtonStyle="AppButtonStyle.Text"
-                       StartIcon="@AppMaterialIcons.Filled.Add"
-                       Class="media-membership__new"
-                       OnClick="@(() => Dialog.Close(AppDialogResult.Ok(CollectionMembershipFlow.NewCollectionChoice)))">
-                @NewCollectionLabel
-            </AppButton>
-        }
-        @if (_error is not null) { <p role="alert">@_error</p> }
-    </DialogContent>
-    <DialogActions>
+<AppDialogShell Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
+            @if (_loading) { <p>@L["MediaMembershipDialog_LoadingAvailableDestinations"]</p> }
+            else if (_options.Count == 0) { <p>No editable manual @(Playlist ? "playlists" : "collections") are available.</p> }
+            else { <AppSelect Value="@_selected" ValueChanged="@((string? value) => _selected = value)" Options="@_options" aria-label="@L["Common_Destination"].Value" /> }
+            @if (OfferNewCollection && !Playlist)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text"
+                           StartIcon="@AppMaterialIcons.Filled.Add"
+                           Class="media-membership__new"
+                           OnClick="@(() => Dialog.Close(AppDialogResult.Ok(CollectionMembershipFlow.NewCollectionChoice)))">
+                    @NewCollectionLabel
+                </AppButton>
+            }
+            @if (_error is not null) { <p role="alert">@_error</p> }
+        </div>
+    </ChildContent>
+    <FooterContent>
         <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Cancel())">@L["Search_Cancel"]</AppButton>
         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _selected is null)" OnClick="SaveAsync">@L["Vibes_Add"]</AppButton>
-    </DialogActions>
-</AppDialog>
+    </FooterContent>
+</AppDialogShell>
 @code {
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public bool Playlist { get; set; }

@@ -9,11 +9,9 @@
 }
 else
 {
-    <AppDialog Class="sme-dialog">
-        <DialogContent>
-            @ChildContent
-        </DialogContent>
-    </AppDialog>
+    <AppDialogShell Bare="true" HostClass="sme-dialog">
+        @ChildContent
+    </AppDialogShell>
 }
 
 @code {

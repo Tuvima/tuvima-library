@@ -4,7 +4,7 @@
 @inject IEngineApiClient ApiClient
 @inject IStringLocalizer<SharedStrings> L
 
-<AppDialog Visible="@Visible"
+<AppDialogShell Framed="true" Visible="@Visible"
            VisibleChanged="@VisibleChanged"
            Title="@L["NetworkPortChangeDialog_ChangeServerPort"].Value"
            Subtitle="@L["NetworkPortChangeDialog_LibraryWillCheckTheNew"].Value"
@@ -29,7 +29,7 @@
                    Disabled="@_busy"
                    OnClick="ApplyAsync" />
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     [Parameter] public bool Visible { get; set; }

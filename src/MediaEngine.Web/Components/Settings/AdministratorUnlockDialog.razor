@@ -1,20 +1,81 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Ui
 @inject IStringLocalizer<SharedStrings> L
-
-<AppDialog>
-    <DialogContent>
-        <AdministratorSurfaceGate Required="true">
-            <p>@L["AdministratorUnlockDialog_YourAdministratorSettingsAreUnlocked"]</p>
-            <AppButton Label="@L["AdministratorUnlockDialog_ContinueToEditor"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
-        </AdministratorSurfaceGate>
-    </DialogContent>
-    <DialogActions>
-        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
-    </DialogActions>
-</AppDialog>
+@* The one administrator unlock window, in two modes that differ in behaviour and not only in look.
+   PIN pad (the default): a page asks for the household's administrator PIN when a change was refused until it is entered. It only
+   gathers the PIN; the page that opens it checks it with the Engine, and Open, Busy and Error come from that page.
+   Gate (Gate="true"): opened through the dialog service by AdministratorSurfaceAccessService; the administrator gate inside checks the PIN itself. *@
+@if (Gate)
+{
+    <AppDialogShell Size="Small" OnClose="CancelGate">
+        <ChildContent>
+            <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
+                <AdministratorSurfaceGate Required="true">
+                    <p>@L["AdministratorUnlockDialog_YourAdministratorSettingsAreUnlocked"]</p>
+                    <AppButton Label="@L["AdministratorUnlockDialog_ContinueToEditor"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ContinueGate" />
+                </AdministratorSurfaceGate>
+            </div>
+        </ChildContent>
+        <FooterContent>
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelGate" />
+        </FooterContent>
+    </AppDialogShell>
+}
+else if (Open)
+{
+    <AppDialogShell Framed="true" HostClass="admin-unlock" FrameOptions="PinFrameOptions" Title="@L["Common_EnterYourAdministratorPIN"].Value" Size="Small" Tone="AppUiTone.Info" OnClose="Cancel">
+        <ChildContent>
+            <div class="app-dialog-shell__pad">
+                <p class="admin-unlock__hint">@L["Common_ThisIsOnlyAskedFor"]</p>
+                <PinPad @bind-Value="_pin" Disabled="@Busy" MaxLength="12" OnSubmit="SubmitAsync" OnCancel="Cancel" />
+                @if (!string.IsNullOrWhiteSpace(Error))
+                {
+                    <p class="admin-unlock__error" role="alert">@Error</p>
+                }
+            </div>
+        </ChildContent>
+        <FooterContent>
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="Cancel" />
+            <AppButton Label="@(Busy ? "Checking…" : "Continue")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Busy || _pin.Length < 4)" OnClick="SubmitAsync" />
+        </FooterContent>
+    </AppDialogShell>
+}
 
 @code {
-    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = null!;
-    private void Continue() => DialogContext.Close(AppDialogResult.Ok(true));
-    private void Cancel() => DialogContext.Cancel();
+    // The old window ignored Escape outside the number pad (the pad cancels on its own Escape) and a press on the backdrop; the shared frame keeps both.
+    private static readonly AppDialogOptions PinFrameOptions = new() { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = false, BackdropClick = false, NoHeader = true };
+
+    [CascadingParameter] private IAppDialogContext? DialogContext { get; set; }
+
+    private string _pin = string.Empty;
+
+    /// <summary>True when the dialog service opened this window around the administrator gate; false (the default) for the PIN pad a page shows.</summary>
+    [Parameter] public bool Gate { get; set; }
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback<string> OnUnlock { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        if (_pin.Length < 4 || Busy)
+        {
+            return;
+        }
+
+        var pin = _pin;
+        _pin = string.Empty;
+        await OnUnlock.InvokeAsync(pin);
+    }
+
+    private async Task Cancel()
+    {
+        _pin = string.Empty;
+        await OnCancel.InvokeAsync();
+    }
+
+    private void ContinueGate() => DialogContext?.Close(AppDialogResult.Ok(true));
+
+    private void CancelGate() => DialogContext?.Cancel();
 }

@@ -148,7 +148,7 @@
     }
 </div>
 
-<AppDialog @bind-Visible="_restoreDialogOpen"
+<AppDialogShell Framed="true" @bind-Visible="_restoreDialogOpen"
            Title="@L["BackupRecoveryPanel_ScheduleRestore"].Value"
            Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Small"
@@ -186,7 +186,7 @@
                        OnClick="ConfirmRestoreAsync" />
         </AppActionBar>
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     private IReadOnlyList<BackupArchiveDto> _backups = [];

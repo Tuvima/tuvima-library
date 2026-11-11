@@ -62,6 +62,17 @@ public sealed class LookRatchetGuardrailTests
     private static readonly Regex ToastServiceOrHost = new(@"\bI?\w*Toast(Service|Host)\b", RegexOptions.CultureInvariant);
 
     [Fact]
+    public void TheOldAppDialogPartHasNotReturned()
+    {
+        // One window part: AppDialogShell (hosted with Framed when a page opens it inline). AppDialogFrame and AppDialogHost are its frame and host.
+        var offenders = WebFiles(".razor")
+            .Where(f => Regex.IsMatch(f.Text, @"<AppDialog[\s>]") || f.Relative.EndsWith("Shared/AppDialog.razor", StringComparison.Ordinal))
+            .Select(f => f.Relative)
+            .ToList();
+        Assert.True(offenders.Count == 0, $"The old AppDialog window part was retired. Use AppDialogShell (Framed=\"true\" for an inline window), but these files use or define AppDialog: {string.Join(", ", offenders)}.");
+    }
+
+    [Fact]
     public void ThereAreNoToasts()
     {
         var offenders = WebFiles(".razor", ".cs")

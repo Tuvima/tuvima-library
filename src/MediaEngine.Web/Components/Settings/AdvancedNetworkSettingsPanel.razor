@@ -109,7 +109,7 @@
                             CgnatSuspected="@(Status?.CgnatSuspected == true)"
                             TestAgain="TestRemoteAsync" />
 
-<AppDialog @bind-Visible="_resetDialogOpen"
+<AppDialogShell Framed="true" @bind-Visible="_resetDialogOpen"
            Title="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings2"].Value"
            Subtitle="@L["AdvancedNetworkSettingsPanel_ThisTurnsOffRemoteAccess"].Value"
            Icon="@AppMaterialIcons.Outlined.Restore"
@@ -125,7 +125,7 @@
         <AppButton Label="@L["Search_Cancel"].Value" OnClick="CloseReset" />
         <AppButton Label="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"].Value" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" OnClick="ResetAsync" />
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
