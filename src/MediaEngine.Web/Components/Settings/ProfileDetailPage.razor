@@ -307,7 +307,7 @@
                     OnDelete="DeleteAsync"
                     OnClose="CloseEditor" />
 
-<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+<AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
     private const string SettingsProfilesRoute = "/settings/profiles";

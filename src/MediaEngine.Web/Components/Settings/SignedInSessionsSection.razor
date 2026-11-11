@@ -100,7 +100,7 @@
     }
 </SettingsSectionPanel>
 
-<AppDialog Visible="@(_pending is not null)"
+<AppDialogShell Framed="true" Visible="@(_pending is not null)"
            VisibleChanged="@(_ => CancelSignOut())"
            Title="@L["Common_SignThisDeviceOut"].Value"
            Subtitle="@(_pending is null ? null : $"{PendingDeviceName} will be signed out and the person has to sign in again.")"
@@ -116,9 +116,9 @@
                        Disabled="@_signingOut" OnClick="ConfirmSignOutAsync" />
         </div>
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
-<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+<AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
     private const string NoEmail = "No email";

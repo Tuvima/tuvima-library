@@ -405,9 +405,9 @@
             <div class="design-system-preview__row">
                 <AppButton Label="Open sheet dialog" OnClick="@(() => _sheetOpen = true)" />
             </div>
-            <AppDialog Visible="_sheetOpen" Title="Sheet dialog" Options="@SheetDialogOptions" OnClose="@(() => _sheetOpen = false)">
+            <AppDialogShell Framed="true" Visible="_sheetOpen" Title="Sheet dialog" Size="Small" FrameOptions="@SheetDialogOptions" OnClose="@(() => _sheetOpen = false)">
                 <p>On a phone this slides up from the bottom edge, scrolls inside, and closes on a backdrop tap, Escape, or a swipe down on the grip. On tablets and desktops it stays a centred dialog.</p>
-            </AppDialog>
+            </AppDialogShell>
             <AppTable CardsOn="AppTableCardsMode.Phone" Hover="true">
                 <thead>
                     <tr>
@@ -495,7 +495,7 @@
             </div>
             @if (_windowOpen is { } windowSize)
             {
-                <AppDialog Visible="true" Title="@($"Window {WindowWidth(windowSize)}")" Subtitle="One anatomy at every size: title, one-line description, close, body, footer." Options="@(new AppDialogOptions { Size = windowSize, NoHeader = true, CloseOnEscapeKey = true, BackdropClick = true })"
+                <AppDialogShell Framed="true" Title="@($"Window {WindowWidth(windowSize)}")" Subtitle="One anatomy at every size: title, one-line description, close, body, footer." FrameOptions="@(new AppDialogOptions { Size = windowSize, NoHeader = true, CloseOnEscapeKey = true, BackdropClick = true })"
                            OnClose="@(() => _windowOpen = null)">
                     <ChildContent><p class="design-system-preview__window-body">The body scrolls inside the window. Under 600 px this same window slides up from the bottom as a Sheet.</p></ChildContent>
                     <FooterContent>
@@ -503,7 +503,7 @@
                         <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _windowOpen = null)" />
                         <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _windowOpen = null)" />
                     </FooterContent>
-                </AppDialog>
+                </AppDialogShell>
             }
             @if (_viewerOpen)
             {

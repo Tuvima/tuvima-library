@@ -70,7 +70,7 @@ public sealed partial class ComponentParameterGuardrailTests
         Assert.False(Accepts(typeof(AppSkeleton), attribute));
 
     [Fact]
-    public void CascadingValuesAreNotDirectParameters() => Assert.False(Accepts(typeof(AppDialog), "Context"));
+    public void CascadingValuesAreNotDirectParameters() => Assert.False(Accepts(typeof(AppDialogShell), "Context"));
 
     [Fact]
     public void AttributeNamesExcludeNestedRazorExpressionText()

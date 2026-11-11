@@ -49,13 +49,13 @@
 </PlaybackListPanel>
 @if (_historyConfirmation is not null)
 {
-    <AppDialog Visible="true" Title="@L["QueuePanel_ClearHistoryTitle"].Value" Size="Small" Tone="AppUiTone.Warning" OnClose="@(() => _historyConfirmation = null)">
-        <DialogContent><p>@L["QueuePanel_ClearHistoryBody"]</p></DialogContent>
-        <DialogActions>
+    <AppDialogShell Framed="true" Title="@L["QueuePanel_ClearHistoryTitle"].Value" Size="Small" Tone="AppUiTone.Warning" OnClose="@(() => _historyConfirmation = null)">
+        <ChildContent><div class="app-dialog-shell__pad app-dialog-shell__pad--flow"><p>@L["QueuePanel_ClearHistoryBody"]</p></div></ChildContent>
+        <FooterContent>
             <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => _historyConfirmation = null)">@L["Search_Cancel"]</AppButton>
             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="ConfirmClearHistoryAsync">@L["QueuePanel_ClearHistory"]</AppButton>
-        </DialogActions>
-    </AppDialog>
+        </FooterContent>
+    </AppDialogShell>
 }
 
 @code {

@@ -20,8 +20,8 @@ public sealed class Wave5AccessibilityGuardrailTests
     {
         var source = Read("src/MediaEngine.Web/Components/Shared/AppDialogShell.razor");
 
-        Assert.Contains("role=\"@(Modal && Context is null ? \"dialog\" : \"region\")\"", source);
-        Assert.Contains("aria-modal=\"@(Modal && Context is null ? \"true\" : null)\"", source);
+        Assert.Contains("role=\"@(Modal && !IsFramed ? \"dialog\" : \"region\")\"", source);
+        Assert.Contains("aria-modal=\"@(Modal && !IsFramed ? \"true\" : null)\"", source);
         Assert.Contains("aria-labelledby", source);
         Assert.Contains("aria-label=\"Close dialog\"", source);
     }
@@ -80,7 +80,7 @@ public sealed class Wave5AccessibilityGuardrailTests
 
         Assert.Contains("AppPageStateKind.Loading", sources["BackupRecoveryPanel.razor"]);
         Assert.Contains("AppPageStateKind.Error", sources["LibrariesTab.razor"]);
-        Assert.Contains("<AppDialog", sources["BackupRecoveryPanel.razor"]);
+        Assert.Contains("<AppDialogShell", sources["BackupRecoveryPanel.razor"]);
         Assert.DoesNotContain("InvokeAsync<bool>(\n            \"confirm\"", sources["BackupRecoveryPanel.razor"], StringComparison.Ordinal);
     }
 

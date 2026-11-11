@@ -217,7 +217,7 @@ Everything that floats over the page is one of four kinds, each one shared part.
 | Pop-out row | `--tl-popout-row` | `44px` | Row height in a pop-out |
 | Viewer close | `--tl-viewer-close` | `44px` | Close button target in a Viewer |
 
-- **Window** (`AppDialog`): centered, with a scrim. S for a confirmation or short form, M for a form or picker, L for a workspace. One anatomy: 20 / 600 title, an optional one-line description, a close X at 44 px top right, the body, and a footer.
+- **Window** (`AppDialogShell`; `Framed` when a page opens it inline): centered, with a scrim. S for a confirmation or short form, M for a form or picker, L for a workspace. One anatomy: 20 / 600 title, an optional one-line description, a close X at 44 px top right, the body, and a footer.
 - **Sheet:** the Window on phones. Every Window becomes a Sheet under 600 px: it slides from the bottom, has 16 px top corners and a handle, and keeps the same anatomy.
 - **Pop-out** (`AppPopover`): anchored to its control, no scrim, closes on an outside press or Escape. Menu (44 px rows) or Panel (tools such as the player's speed, audio, subtitles and queue, and the library folders pop-over), on the elevated surface. On phones a Pop-out becomes a Sheet.
 - **Viewer** (`AppViewer`): full screen, for the reader, photo and document viewers, search and the details overlay. It has its own close X at 44 px.

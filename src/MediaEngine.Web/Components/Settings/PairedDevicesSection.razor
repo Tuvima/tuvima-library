@@ -94,7 +94,7 @@
     }
 </SettingsSectionPanel>
 
-<AppDialog Visible="@(_pendingSignOut is not null)"
+<AppDialogShell Framed="true" Visible="@(_pendingSignOut is not null)"
            VisibleChanged="@(_ => CancelSignOut())"
            Title="@L["Common_SignThisDeviceOut"].Value"
            Subtitle="@(_pendingSignOut is null ? null : $"{_pendingSignOut.DeviceName} will be signed out and has to be paired again.")"
@@ -110,7 +110,7 @@
                        Disabled="@_signingOut" OnClick="ConfirmSignOutAsync" />
         </div>
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     /// <summary>What an administrator narrowed the page to; the Engine has already limited the list to what they may see.</summary>
