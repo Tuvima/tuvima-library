@@ -130,7 +130,9 @@ public partial class CollectionEditorShell
     private string TabClass(string tabId)
     {
         if (!IsTabSelected(tabId))
+        {
             return "app-selection-nav__item sme-section-nav__item";
+        }
 
         return string.Equals(tabId, "artwork", StringComparison.OrdinalIgnoreCase)
             ? "app-selection-nav__item sme-section-nav__item is-active is-group-open"
@@ -235,7 +237,9 @@ public partial class CollectionEditorShell
         }
 
         if (EditingCollection is null)
+        {
             return;
+        }
 
         _name = EditingCollection.Name;
         _description = EditingCollection.Description;
@@ -258,7 +262,9 @@ public partial class CollectionEditorShell
         _storedRuleDriven = _rulesEnabled;
 
         if (string.IsNullOrWhiteSpace(EditingCollection.RuleJson))
+        {
             return;
+        }
 
         try
         {
@@ -278,8 +284,11 @@ public partial class CollectionEditorShell
                         MatchMode = group.MatchMode,
                         Conditions = group.Conditions.Select(rule => new CollectionRulePredicateViewModel
                         {
-                            Field = rule.Field, Op = rule.Op, Value = rule.Value,
-                            DisplayValue = rule.DisplayValue, Values = rule.Values,
+                            Field = rule.Field,
+                            Op = rule.Op,
+                            Value = rule.Value,
+                            DisplayValue = rule.DisplayValue,
+                            Values = rule.Values,
                             DisplayValues = rule.DisplayValues,
                         }).ToList(),
                     }).ToList(),
@@ -288,7 +297,9 @@ public partial class CollectionEditorShell
                 _ruleDefinition = CollectionRuleSentence.FromWire(_ruleDefinition);
                 _advanced = !CollectionRuleSentence.IsPlain(_ruleDefinition);
                 if (!string.Equals(EditingCollection.Resolution, "materialized", StringComparison.OrdinalIgnoreCase))
+                {
                     _rulesEnabled = true;
+                }
             }
         }
         catch (Exception ex)
@@ -304,7 +315,10 @@ public partial class CollectionEditorShell
             .OrderBy(profile => profile.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (SupportsManualItems)
+        {
             await LoadManualItemsAsync();
+        }
+
         await LoadShowOnAsync();
     }
 
@@ -316,7 +330,11 @@ public partial class CollectionEditorShell
         }
 
         _activeTab = VisibleTabs[index].Id;
-        if (_activeTab == "artwork" && string.IsNullOrWhiteSpace(_activeArtworkSlot)) _activeArtworkSlot = "poster";
+        if (_activeTab == "artwork" && string.IsNullOrWhiteSpace(_activeArtworkSlot))
+        {
+            _activeArtworkSlot = "poster";
+        }
+
         return Task.CompletedTask;
     }
 
@@ -335,15 +353,22 @@ public partial class CollectionEditorShell
     private void SetActiveTab(string tabId)
     {
         if (VisibleTabs.Any(tab => string.Equals(tab.Id, tabId, StringComparison.OrdinalIgnoreCase)))
+        {
             _activeTab = tabId;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!Inline && DialogContext is not null)
+        {
             _dialogCloseGuard ??= DialogContext.RegisterCloseGuard(CanCloseAsync);
+        }
+
         if (firstRender && !IsCreateFlow && _rulesEnabled && _ruleDefinition.AllConditions.Any(IsCompleteRule))
+        {
             await RunPreview();
+        }
     }
 
     public void Dispose() => _dialogCloseGuard?.Dispose();

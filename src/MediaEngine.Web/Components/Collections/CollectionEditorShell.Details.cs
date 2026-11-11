@@ -42,9 +42,14 @@ public partial class CollectionEditorShell
     private Task OnShowOnChanged(string place, bool selected)
     {
         if (selected)
+        {
             _showOn.Add(place);
+        }
         else
+        {
             _showOn.Remove(place);
+        }
+
         MarkDirty();
         return Task.CompletedTask;
     }
@@ -52,9 +57,14 @@ public partial class CollectionEditorShell
     private Task SetAudienceProfileAsync(Guid profileId, bool selected)
     {
         if (selected)
+        {
             _selectedProfileIds.Add(profileId);
+        }
         else
+        {
             _selectedProfileIds.Remove(profileId);
+        }
+
         MarkDirty();
         return Task.CompletedTask;
     }

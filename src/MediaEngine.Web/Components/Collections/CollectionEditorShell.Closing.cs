@@ -7,7 +7,9 @@ public partial class CollectionEditorShell
     private async Task ConfirmNavigationWithUnsavedChanges(LocationChangingContext context)
     {
         if (_hasUnsavedChanges && !await ConfirmDiscardAsync())
+        {
             context.PreventNavigation();
+        }
     }
 
     // One dialog style for every confirmation (details overlay spec D17): closing it any other way keeps the person editing.
@@ -32,15 +34,26 @@ public partial class CollectionEditorShell
 
     private async Task Cancel()
     {
-        if (!await CanCloseAsync()) return;
+        if (!await CanCloseAsync())
+        {
+            return;
+        }
+
         await CloseEditorAsync(applied: _artworkChanged);
     }
 
     private async Task<bool> CanCloseAsync()
     {
-        if (_saving) return false;
-        if (_hasUnsavedChanges && !await ConfirmDiscardAsync())
+        if (_saving)
+        {
             return false;
+        }
+
+        if (_hasUnsavedChanges && !await ConfirmDiscardAsync())
+        {
+            return false;
+        }
+
         _hasUnsavedChanges = false;
         return true;
     }
@@ -58,8 +71,12 @@ public partial class CollectionEditorShell
         _dialogCloseGuard = null;
 
         if (applied)
+        {
             DialogContext?.Close(AppDialogResult.Ok(true));
+        }
         else
+        {
             DialogContext?.Cancel();
+        }
     }
 }

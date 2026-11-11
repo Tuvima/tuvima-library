@@ -56,7 +56,7 @@ public sealed class EditorEntryPointGuardrailTests
     [InlineData("src/MediaEngine.Web/Components/Player/PlaybackLyricsFooter.razor")]
     public void AListsEntryPoint_OpensThePopOverThroughTheLauncher_AndNeverSendsThePersonToAnItemsPageToEdit(string file)
     {
-        // A component with partial code files is read as one text (SplitComponentSource); the others are single files.
+        // A component with partial code files is read as one text (LocalizedSource.ReadComponent); the others are single files.
         var text = LocalizedSource.ReadComponent(Path.Combine(Root, file));
 
         Assert.Contains("ListEditLauncher", text, StringComparison.Ordinal);

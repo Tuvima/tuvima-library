@@ -176,7 +176,9 @@ public partial class CollectionEditorShell
                 {
                     await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
                     if (!await ApiClient.UploadCollectionArtworkAsync(savedCollectionId.Value, slot, stream, file.Name, Request.ActiveProfileId))
+                    {
                         artworkFailures.Add(slot);
+                    }
                 }
 
                 if (artworkFailures.Count > 0)
@@ -321,19 +323,28 @@ public partial class CollectionEditorShell
                 }
 
                 if (failedSlots.Count > 0)
+                {
                     artworkProblems.Add(L["CollectionFlow_SaveSummaryArtwork", name, string.Join(", ", failedSlots)].Value);
+                }
             }
 
             if (skipped.Count > 0)
+            {
                 Logger.LogInformation("No collection was made for {Shelves}: nothing on it is in the library", string.Join(", ", skipped));
+            }
 
             // Nothing was made: stay on the last step with the reason in place so the person can fix it and try again.
             if (created.Count == 0)
             {
                 if (failure is not null)
+                {
                     ShowNotice(failure, AppUiTone.Error);
+                }
                 else if (skipped.Count > 0)
+                {
                     ShowNotice(L["CollectionFlow_NothingOwnedOnShelves", string.Join(", ", skipped)].Value, AppUiTone.Warning);
+                }
+
                 return;
             }
 
@@ -341,9 +352,15 @@ public partial class CollectionEditorShell
             // the editor stays open on one summary, so nothing is lost in a log. Done then closes it and the made tiles glow.
             var reasons = new List<string>();
             if (failure is not null)
+            {
                 reasons.Add(failure);
+            }
+
             if (skipped.Count > 0)
+            {
                 reasons.Add(L["CollectionFlow_NothingOwnedOnShelves", string.Join(", ", skipped)].Value);
+            }
+
             reasons.AddRange(artworkProblems);
             if (reasons.Count > 0)
             {
@@ -359,9 +376,13 @@ public partial class CollectionEditorShell
             Logger.LogWarning(ex, "A list collection could not be saved");
             var reason = L["CollectionFlow_SaveFailedWithReason", ex.Message].Value;
             if (created.Count > 0)
+            {
                 ShowSaveSummary(created.Count, Math.Max(shelfCount - created.Count, 1), [reason]);
+            }
             else
+            {
                 ShowNotice(reason, AppUiTone.Error);
+            }
         }
         finally
         {
@@ -373,11 +394,15 @@ public partial class CollectionEditorShell
     private async Task DeleteCollectionAsync()
     {
         if (!CanDeleteCollection || EditingCollection is null)
+        {
             return;
+        }
 
         ClearNotice();
         if (!await ConfirmDeleteCollectionAsync(EditingCollection.Name))
+        {
             return;
+        }
 
         _saving = true;
         try

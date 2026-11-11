@@ -8,7 +8,9 @@ public partial class CollectionEditorShell
     private async Task SetMembershipModeAsync(bool rulesEnabled)
     {
         if (_rulesEnabled == rulesEnabled)
+        {
             return;
+        }
 
         _rulesEnabled = rulesEnabled;
         _previewResult = null;
@@ -17,7 +19,10 @@ public partial class CollectionEditorShell
         if (rulesEnabled)
         {
             if (_ruleDefinition.AllConditions.Any(IsCompleteRule))
+            {
                 await RunPreview();
+            }
+
             return;
         }
 
@@ -73,16 +78,24 @@ public partial class CollectionEditorShell
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(item.Creator))
+        {
             parts.Add(item.Creator);
+        }
+
         if (!string.IsNullOrWhiteSpace(item.Year))
+        {
             parts.Add(item.Year);
+        }
+
         return parts.Count == 0 ? "Matching item" : string.Join("  -  ", parts);
     }
 
     private static string FormatMatchSummary(CollectionPreviewResult preview)
     {
         if (preview.Count == 0)
+        {
             return "No items match these rules.";
+        }
 
         var normalized = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var (mediaType, count) in preview.MediaTypeCounts)
@@ -140,8 +153,12 @@ public partial class CollectionEditorShell
 
     private static readonly Dictionary<string, string> MediaTypeColors = new(StringComparer.Ordinal)
     {
-        ["movie"] = "var(--tl-media-movies)", ["TV show"] = "var(--tl-media-tv)", ["book"] = "var(--tl-media-books)",
-        ["audiobook"] = "var(--tl-media-audiobooks)", ["music item"] = "var(--tl-media-music)", ["comic"] = "var(--tl-media-comics)",
+        ["movie"] = "var(--tl-media-movies)",
+        ["TV show"] = "var(--tl-media-tv)",
+        ["book"] = "var(--tl-media-books)",
+        ["audiobook"] = "var(--tl-media-audiobooks)",
+        ["music item"] = "var(--tl-media-music)",
+        ["comic"] = "var(--tl-media-comics)",
     };
 
     private static IEnumerable<(string Label, int Count, string Color)> PreviewTypeCounts(CollectionPreviewResult preview)

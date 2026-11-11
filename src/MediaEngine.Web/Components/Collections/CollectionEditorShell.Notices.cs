@@ -43,6 +43,8 @@ public partial class CollectionEditorShell
     private void RememberSaved(Guid collectionId)
     {
         if (!Request.SavedCollectionIds.Contains(collectionId))
+        {
             Request.SavedCollectionIds.Add(collectionId);
+        }
     }
 }

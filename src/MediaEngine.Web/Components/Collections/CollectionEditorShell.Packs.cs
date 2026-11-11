@@ -33,7 +33,10 @@ public partial class CollectionEditorShell
         {
             _packs = await ApiClient.GetCollectionPacksAsync(PackMediaTypes);
             if (_packs.Count == 0 && !string.IsNullOrWhiteSpace(ApiClient.LastError))
+            {
                 _packsError = ApiClient.LastError;
+            }
+
             _selectedPacks.RemoveWhere(id => !_packs.Any(pack => pack.Id == id && pack.WouldCreateCount > 0));
         }
         finally
@@ -45,9 +48,14 @@ public partial class CollectionEditorShell
     private Task OnPackToggledAsync((string Id, bool Selected) change)
     {
         if (change.Selected)
+        {
             _selectedPacks.Add(change.Id);
+        }
         else
+        {
             _selectedPacks.Remove(change.Id);
+        }
+
         MarkDirty();
         return Task.CompletedTask;
     }
@@ -100,7 +108,9 @@ public partial class CollectionEditorShell
 
             var made = response.Collections.Count;
             foreach (var created in response.Collections)
+            {
                 RememberSaved(created.Id);
+            }
 
             if (made == 0)
             {
@@ -111,7 +121,9 @@ public partial class CollectionEditorShell
             }
 
             foreach (var skipped in response.Skipped)
+            {
                 Logger.LogInformation("The pack {Pack} made no collection: {Reason}", skipped.Name, skipped.Reason);
+            }
 
             // Some packs made nothing: the editor stays open on one summary naming each. Done closes it and the made tiles glow.
             if (response.Skipped.Count > 0)

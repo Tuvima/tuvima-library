@@ -17,7 +17,9 @@ public partial class CollectionEditorShell
     private async Task EnsureLibraryItemsLoadedAsync()
     {
         if (_lookupItems.Count > 0 || _loadingLibraryItems)
+        {
             return;
+        }
 
         _loadingLibraryItems = true;
         StateHasChanged();
@@ -75,7 +77,10 @@ public partial class CollectionEditorShell
             {
                 // Nothing is stored to load. A new collection starts empty (or with the titles it was opened with); a rule-driven one keeps what is staged.
                 if (EditingCollection is null && Request.InitialItems.Count == 0)
+                {
                     _manualItems = [];
+                }
+
                 return;
             }
 
@@ -108,7 +113,9 @@ public partial class CollectionEditorShell
     private async Task AddManualItemAsync(CollectionMediaLookupDto work)
     {
         if (SelectedWorkIds.Contains(work.WorkId))
+        {
             return;
+        }
 
         // Every action starts clean: a failure from the last try goes as soon as the person tries again.
         ClearNotice();
@@ -175,7 +182,9 @@ public partial class CollectionEditorShell
         var index = ordered.FindIndex(existing => existing.Id == item.Id && existing.WorkId == item.WorkId);
         var targetIndex = index + direction;
         if (index < 0 || targetIndex < 0 || targetIndex >= ordered.Count)
+        {
             return;
+        }
 
         (ordered[index], ordered[targetIndex]) = (ordered[targetIndex], ordered[index]);
 
@@ -210,13 +219,25 @@ public partial class CollectionEditorShell
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(work.ParentContext))
+        {
             parts.Add(work.ParentContext);
+        }
+
         if (!string.IsNullOrWhiteSpace(work.Creator))
+        {
             parts.Add(work.Creator);
+        }
+
         if (!string.IsNullOrWhiteSpace(work.MediaType))
+        {
             parts.Add(work.MediaType);
+        }
+
         if (!string.IsNullOrWhiteSpace(work.Year))
+        {
             parts.Add(work.Year);
+        }
+
         return parts.Count == 0 ? "Library item" : string.Join("  -  ", parts);
     }
 
@@ -224,9 +245,15 @@ public partial class CollectionEditorShell
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(item.Creator))
+        {
             parts.Add(item.Creator);
+        }
+
         if (!string.IsNullOrWhiteSpace(item.MediaType))
+        {
             parts.Add(item.MediaType);
+        }
+
         return parts.Count == 0 ? "Saved item" : string.Join("  -  ", parts);
     }
 
@@ -253,7 +280,10 @@ public partial class CollectionEditorShell
         {
             _isListCollection = isListCollection;
             if (isListCollection)
+            {
                 _way = FillWay.FromList;
+            }
+
             return InvokeAsync(StateHasChanged);
         }
 

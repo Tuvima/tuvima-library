@@ -72,7 +72,9 @@ public partial class CollectionEditorShell
     {
         var card = WayCards.First(candidate => candidate.Way == way);
         if (!card.Available)
+        {
             return;
+        }
 
         _way = way;
         var rules = way == FillWay.SetRules;
@@ -115,7 +117,9 @@ public partial class CollectionEditorShell
     {
         ClearNotice();
         if (_step > 1)
+        {
             _step--;
+        }
     }
 
     private Task OnMediaTypesChosenAsync(IReadOnlyList<string> types)
@@ -160,9 +164,15 @@ public partial class CollectionEditorShell
                 ? (_listDraft.Shelves.Count > 1 ? listPreview.SourceLabel.Replace(" export", string.Empty, StringComparison.Ordinal) : listPreview.SuggestedName)
                 : null;
         if (suggestion is null)
+        {
             return;
+        }
+
         if (string.IsNullOrWhiteSpace(_name) || _name == _suggestedName)
+        {
             _name = suggestion;
+        }
+
         _suggestedName = suggestion;
     }
 
@@ -175,7 +185,9 @@ public partial class CollectionEditorShell
         var rule = CollectionRuleSentence.IncludeGroup(_ruleDefinition).Conditions
             .FirstOrDefault(condition => condition.Op is "eq" or "in" && IsCompleteRule(condition));
         if (rule is null)
+        {
             return types.Count == 0 ? null : noun;
+        }
 
         var who = string.Join(" or ", rule.DisplayValues is { Length: > 0 } labels ? labels : rule.Values is { Length: > 0 } values ? values : [rule.DisplayValue ?? rule.Value ?? string.Empty]);
         return rule.Field switch

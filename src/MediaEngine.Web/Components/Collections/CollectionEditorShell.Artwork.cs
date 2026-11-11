@@ -46,7 +46,9 @@ public partial class CollectionEditorShell
     private async Task OnArtworkChosenAsync(IBrowserFile? file)
     {
         if (file is null)
+        {
             return;
+        }
 
         ClearNotice();
 
@@ -130,15 +132,20 @@ public partial class CollectionEditorShell
         .Take(4)
         .Select(item => new ArtworkStackItem
         {
-            Id = item.Item1.ToString("N"), WorkId = item.Item1, Title = item.Item2,
-            ImageUrl = item.Item3!, MediaType = item.Item4,
+            Id = item.Item1.ToString("N"),
+            WorkId = item.Item1,
+            Title = item.Item2,
+            ImageUrl = item.Item3!,
+            MediaType = item.Item4,
             Shape = item.Item4.Equals("Music", StringComparison.OrdinalIgnoreCase) ? ArtworkShape.Square : ArtworkShape.Portrait,
         }).ToList();
 
     private async Task RemoveArtworkAsync()
     {
         if (EditingCollection is null)
+        {
             return;
+        }
 
         ClearNotice();
         if (!await ApiClient.DeleteCollectionArtworkAsync(EditingCollection.Id, _activeArtworkSlot, Request.ActiveProfileId))
