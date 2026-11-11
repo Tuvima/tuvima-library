@@ -104,7 +104,7 @@ public sealed class CollectionEditorConfirmationTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task DeleteCollection_DeletesClosesAndSaysSoWhenTheAnswerIsDelete()
+    public async Task DeleteCollection_DeletesAndClosesWithoutAnyNoticeWhenTheAnswerIsDelete()
     {
         var host = Render<AppDialogHost>();
         var editor = RenderEditor();
@@ -116,7 +116,7 @@ public sealed class CollectionEditorConfirmationTests : AsyncBunitContext
         await UntilAsync(() => _closed.Count > 0, "The editor did not close.");
         Assert.Equal([true], _closed);
         Assert.Equal([CollectionId], _deleted);
-        Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Collection \"Weekend picks\" deleted.");
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -160,8 +160,10 @@ public sealed class CollectionEditorConfirmationTests : AsyncBunitContext
 
         Choose(host, "Delete");
 
-        await UntilAsync(() => Services.GetRequiredService<AppToastService>().Toasts.Any(toast => toast.Message == "The collection could not be deleted."),
+        await UntilAsync(() => editor.Markup.Contains("The collection could not be deleted.", StringComparison.Ordinal),
             "The refusal was not shown.");
+        Assert.Contains("data-editor-notice", editor.Markup);
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
         Assert.Empty(_closed);
     }
 

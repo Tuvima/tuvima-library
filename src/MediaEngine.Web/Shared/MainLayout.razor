@@ -18,7 +18,6 @@
 @inject NsfwModeState Nsfw
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Nav
-@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<MainLayout> Logger
 @inject IEngineApiClient EngineApi
@@ -49,7 +48,6 @@
 <MediaEngine.Web.Components.Details.ViewSavedRibbon />
 <AppToastHost />
 <NsfwLockWatcher ActiveProfileId="@_activeProfileId" IsKids="@_isKids" />
-<ActivityNotificationHost Enabled="@CanViewSystemActivity" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))
 {
@@ -199,6 +197,20 @@
                     @L["Common_Retry"]
                 </AppButton>
             }
+        </div>
+    }
+
+    @if (_layoutNotice is not null)
+    {
+        @* Something the whole shell has to say (playback stopped because its title was deleted, an action that needs a password): in place under the bar until closed. *@
+        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-layout-notice>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Info" Size="AppIconSize.Control20" />
+            <span>@_layoutNotice</span>
+            @if (_layoutNoticeNeedsPassword)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="OpenSecureAccount">@L["TopNavAccountMenu_SecureAccount"]</AppButton>
+            }
+            <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="CloseLayoutNotice">@L["Common_Close"]</AppButton>
         </div>
     }
 
@@ -878,9 +890,28 @@
         if (_disposed) return;
         if (await Playback.HandleLibraryItemsRemovedAsync(removed.WorkIds, removed.AssetIds))
         {
-            Toasts.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            ShowLayoutNotice(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, needsPassword: false);
         }
     });
+
+    // What the shell has to say in place; replaced by the next one, closed with its button.
+    private string? _layoutNotice;
+    private bool _layoutNoticeNeedsPassword;
+
+    private void ShowLayoutNotice(string text, bool needsPassword)
+    {
+        _layoutNotice = text;
+        _layoutNoticeNeedsPassword = needsPassword;
+        RequestRenderIfAlive();
+    }
+
+    private void CloseLayoutNotice() => _layoutNotice = null;
+
+    private void OpenSecureAccount()
+    {
+        _layoutNotice = null;
+        Nav.NavigateTo(SecureAccountPrompt.SecureAccountHref);
+    }
 
     private void OnNsfwChanged() => RequestRenderIfAlive();
 
@@ -996,11 +1027,7 @@
     private void OnSecureAccountRequired()
     {
         if (_disposed) return;
-        _ = InvokeAsync(() => Toasts.Add("Add a password to your account first.", AppSeverity.Warning, options =>
-        {
-            options.Action = "Secure account";
-            options.OnClick = _ => { Nav.NavigateTo(SecureAccountPrompt.SecureAccountHref); return Task.CompletedTask; };
-        }));
+        ShowLayoutNotice(L["MainLayout_AddAPasswordFirst"].Value, needsPassword: true);
     }
 
     private bool ShouldShowEngineStatusBanner =>

@@ -11,20 +11,17 @@ public sealed class CollectionEditorLauncherService
     private readonly IAppDialogService _dialogService;
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
     private readonly DeviceContextService? _device;
-    private readonly IAppToastService? _toasts;
     private readonly DashboardSessionAccessor? _session;
 
     public CollectionEditorLauncherService(
         IAppDialogService dialogService,
         AdministratorSurfaceAccessService? administratorAccess = null,
         DeviceContextService? device = null,
-        IAppToastService? toasts = null,
         DashboardSessionAccessor? session = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
         _device = device;
-        _toasts = toasts;
         _session = session;
     }
 
@@ -48,7 +45,7 @@ public sealed class CollectionEditorLauncherService
         ArgumentNullException.ThrowIfNull(request);
 
         // Editing is desktop-only (fine, hover-capable pointer): the editor shell never opens anywhere else.
-        if (EditorDeviceRule.TryRefuse(_device, _toasts))
+        if (EditorDeviceRule.TryRefuse(_device))
         {
             return EditorLaunchResult.NotAvailableOnThisDevice;
         }

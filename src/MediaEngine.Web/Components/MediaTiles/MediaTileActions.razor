@@ -24,6 +24,13 @@
 {
     <div class="media-tile-actions" data-media-tile-actions>
         <OverflowActionMenu Actions="MenuActions" ButtonClass="media-tile-action app-icon-button app-icon-button--plain" TriggerIcon="@AppMaterialIcons.Outlined.MoreVert" KeepOrder="true" OnActionSelected="SelectAsync" />
+        @if (_notice is not null)
+        {
+            @* Edit that is not available, or files a delete left on disk: said under the button, in place, until the close button. *@
+            <div class="media-tile-actions__notice" data-media-tile-notice>
+                <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="DismissNoticeAsync">@_notice</AppAlert>
+            </div>
+        }
     </div>
 }
 
@@ -33,6 +40,8 @@
     private bool _isSaved;
     private bool _busy;
     private SavedItemService? _saved;
+    private string? _notice;
+    private bool _removeWhenDismissed;
 
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
 
@@ -164,8 +173,8 @@
             var membership = await _saved.ToggleAsync(_target.SavedKind, _target.Id);
             if (membership is not null)
             {
+                // The menu row now reads Add to or Remove from My List; that is the confirmation.
                 _isSaved = membership.IsSaved;
-                Services.GetService<IAppToastService>()?.Add(_isSaved ? L["MediaTile_AddedToMyList"].Value : L["MediaTile_RemovedFromMyList"].Value, AppSeverity.Success);
             }
         }
         finally
@@ -222,9 +231,11 @@
 
                 break;
             case DetailActionKeys.Edit:
-                if (Services.GetService<ListEditLauncher>() is { } launcher)
+                _notice = null;
+                if (Services.GetService<ListEditLauncher>() is { } launcher
+                    && !await launcher.OpenAsync(_target.ToEditTarget()))
                 {
-                    await launcher.OpenAsync(_target.ToEditTarget());
+                    _notice = launcher.LastNotice;
                 }
 
                 break;
@@ -236,19 +247,56 @@
 
     private async Task DeleteAsync()
     {
-        var toasts = Services.GetService<IAppToastService>();
         var dialogs = Services.GetService<IAppDialogService>();
-        if (_target is null || toasts is null || dialogs is null
-            || LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), toasts))
+        if (_target is null || dialogs is null)
         {
             return;
         }
 
-        var deleted = _target.IsGroup
-            ? await LibraryItemDeletionFlow.RunGroupAsync(dialogs, toasts, new LibraryGroupTarget(_target.Id, _target.GroupKind!, _target.Title, [])) is not null
-            : await LibraryItemDeletionFlow.RunAsync(dialogs, toasts, [_target.Id], _target.Title) != LibraryItemDeletionFlowOutcome.Canceled;
-        if (deleted)
+        if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
+            _notice = refusal;
+            return;
+        }
+
+        _notice = null;
+        bool deleted;
+        string? notice;
+        if (_target.IsGroup)
+        {
+            var answer = await LibraryItemDeletionFlow.RunGroupAsync(dialogs, new LibraryGroupTarget(_target.Id, _target.GroupKind!, _target.Title, []));
+            deleted = answer is not null;
+            notice = LibraryItemDeletionFlow.NoticeFor(answer);
+        }
+        else
+        {
+            var result = await LibraryItemDeletionFlow.RunAsync(dialogs, [_target.Id], _target.Title);
+            deleted = result.Outcome != LibraryItemDeletionFlowOutcome.Canceled;
+            notice = result.Notice;
+        }
+
+        if (!deleted)
+        {
+            return;
+        }
+
+        if (notice is null)
+        {
+            await OnDeleted.InvokeAsync();
+            return;
+        }
+
+        // The title is gone but something needs saying (files left on disk): the cover stays with the line until it is closed.
+        _notice = notice;
+        _removeWhenDismissed = true;
+    }
+
+    private async Task DismissNoticeAsync()
+    {
+        _notice = null;
+        if (_removeWhenDismissed)
+        {
+            _removeWhenDismissed = false;
             await OnDeleted.InvokeAsync();
         }
     }

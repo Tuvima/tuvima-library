@@ -9,7 +9,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject IJSRuntime Js
-@inject IAppToastService Snackbar
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
 
@@ -262,6 +261,10 @@
                                            OnClick="ResetMissingPreferenceAsync" />
                         }
                     </div>
+                    @if (_preferenceNotice is not null)
+                    {
+                        <AppAlert Severity="@_preferenceNoticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _preferenceNotice = null)" data-missing-preference-notice="true">@_preferenceNotice</AppAlert>
+                    }
                 }
             </div>
     </footer>
@@ -347,6 +350,10 @@ else
                                        OnClick="ResetMissingPreferenceAsync" />
                     }
                 </div>
+                @if (_preferenceNotice is not null)
+                {
+                    <AppAlert Severity="@_preferenceNoticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _preferenceNotice = null)" data-missing-preference-notice="true">@_preferenceNotice</AppAlert>
+                }
             }
         </div>
         }
@@ -606,6 +613,10 @@ else
     private bool _configuredShowMissingDefault;
     private bool _hasMissingPreferenceOverride;
     private bool _savingMissingPreference;
+
+    // Why the "Show missing" choice could not be kept; it stays beside the toggle until the next try or the close button.
+    private string? _preferenceNotice;
+    private AppSeverity _preferenceNoticeSeverity = AppSeverity.Error;
         private Guid? _activeProfileId;
     private int _visibleMissingLimit;
     private MissingItemDisplayPolicy? _missingItemPolicy;
@@ -1209,6 +1220,7 @@ else
         if (_savingMissingPreference)
             return;
 
+        _preferenceNotice = null;
         var previous = _showMissing;
         _showMissing = value;
         _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
@@ -1222,7 +1234,8 @@ else
         {
             _showMissing = previous;
             ResetWindowToCurrentItem();
-            Snackbar.Add(L["SequencePlacementPanel_AnActiveProfileAndStable"].Value, AppSeverity.Warning);
+            _preferenceNotice = L["SequencePlacementPanel_AnActiveProfileAndStable"].Value;
+            _preferenceNoticeSeverity = AppSeverity.Warning;
             return;
         }
 
@@ -1238,7 +1251,8 @@ else
             {
                 _showMissing = previous;
                 ResetWindowToCurrentItem();
-                Snackbar.Add(L["SequencePlacementPanel_TheSeriesPreferenceCouldNot"].Value, AppSeverity.Error);
+                _preferenceNotice = L["SequencePlacementPanel_TheSeriesPreferenceCouldNot"].Value;
+                _preferenceNoticeSeverity = AppSeverity.Error;
                 return;
             }
 
@@ -1268,6 +1282,7 @@ else
             return;
         }
 
+        _preferenceNotice = null;
         _savingMissingPreference = true;
         try
         {
@@ -1277,7 +1292,8 @@ else
                 containerKey);
             if (reset is null)
             {
-                Snackbar.Add(L["SequencePlacementPanel_TheSeriesPreferenceCouldNot2"].Value, AppSeverity.Error);
+                _preferenceNotice = L["SequencePlacementPanel_TheSeriesPreferenceCouldNot2"].Value;
+                _preferenceNoticeSeverity = AppSeverity.Error;
                 return;
             }
 
@@ -1486,10 +1502,8 @@ else
         }
 
         EditorHostService.Bind(PageEditor!);
-        if (!BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV")))
-        {
-            Snackbar.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
-        }
+        // A full selection is told by the bar above the rows; the tick simply stays off.
+        BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV"));
     }
 
     private static Guid TickId(SequenceItemViewModel item)

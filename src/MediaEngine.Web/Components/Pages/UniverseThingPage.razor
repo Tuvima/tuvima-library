@@ -11,7 +11,6 @@
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject IAdministratorSurfaceAccessService AdministratorAccess
-@inject IAppToastService Snackbar
 @inject ILogger<UniverseThingPage> Logger
 @inject IStringLocalizer<SharedStrings> L
 
@@ -186,8 +185,10 @@
         }
 
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
-        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        if (EditorDeviceRule.TryRefuse(DeviceContext))
         {
+            _editNotice = EditorDeviceRule.Message;
+            _editNoticeIsError = false;
             return;
         }
 

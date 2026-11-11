@@ -4,7 +4,6 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
@@ -15,6 +14,12 @@
             <h2>@ActiveItem.DisplayTitle</h2>
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["ArtworkWorkspace_CloseArtworkWorkspace"].Value" AriaLabel="@L["ArtworkWorkspace_CloseArtworkWorkspace"].Value" OnClick="CloseAsync" />
         </header>
+    }
+
+    @if (_notice is not null)
+    {
+        @* A refusal, a failure or a staged change with nothing else to show it: it stays above the artwork until the next action or the close button. *@
+        <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="ClearNotice" data-artwork-notice="true">@_notice</AppAlert>
     }
 
     @if (_hierarchyItems.Count > 0)
@@ -291,12 +296,25 @@
         try { await _previewModule.InvokeVoidAsync("disconnect", _preview); await _previewModule.DisposeAsync(); }
         catch (JSDisconnectedException) { }
     }
-    private async Task UploadAsync(InputFileChangeEventArgs args) { if (_busy) return; var file = args.File; if (file.ContentType is not ("image/jpeg" or "image/png")) { Snackbar.Add(L["ArtworkWorkspace_ChooseAJPEGOrPNG"].Value, AppSeverity.Warning); return; } if (file.Size > MaximumUploadBytes) { Snackbar.Add(L["ArtworkWorkspace_ArtworkMustBe10MB"].Value, AppSeverity.Warning); return; } if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Upload, SnapshotTarget(), File: file)); Snackbar.Add($"{ActiveRole.Label} artwork staged.", AppSeverity.Info); return; } _busy = true; try { await using var stream = file.OpenReadStream(MaximumUploadBytes); var result = await ApiClient.UploadCanonicalArtworkAsync(ActiveItem.EntityType, ActiveItem.EntityId, _role, stream, file.Name, ActiveItem.DisplayTitle, ActiveItem.MediaType, ActiveItem.Year, _sourceAssetType); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be uploaded.", AppSeverity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); Snackbar.Add($"{ActiveRole.Label} artwork updated.", AppSeverity.Success); } finally { _busy = false; } }
-    private async Task AddUrlAsync() { if (DeferMutations && !PersistArtworkChangesImmediately) { var url = _url; _url = string.Empty; await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Url, SnapshotTarget(), Url: url)); Snackbar.Add($"{ActiveRole.Label} artwork staged.", AppSeverity.Info); return; } _busy = true; try { var result = await ApiClient.AddArtworkFromUrlAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkFromUrlRequest(_url, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be added from that URL.", AppSeverity.Error); return; } _changed = true; _url = string.Empty; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); Snackbar.Add($"{ActiveRole.Label} artwork added.", AppSeverity.Success); } finally { _busy = false; } }
+    private async Task UploadAsync(InputFileChangeEventArgs args) { if (_busy) return; ClearNotice(); var file = args.File; if (file.ContentType is not ("image/jpeg" or "image/png")) { ShowNotice(L["ArtworkWorkspace_ChooseAJPEGOrPNG"].Value, AppUiTone.Warning); return; } if (file.Size > MaximumUploadBytes) { ShowNotice(L["ArtworkWorkspace_ArtworkMustBe10MB"].Value, AppUiTone.Warning); return; } if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Upload, SnapshotTarget(), File: file)); ShowNotice(L["ArtworkWorkspace_ArtworkStaged", ActiveRole.Label].Value, AppUiTone.Info); return; } _busy = true; try { await using var stream = file.OpenReadStream(MaximumUploadBytes); var result = await ApiClient.UploadCanonicalArtworkAsync(ActiveItem.EntityType, ActiveItem.EntityId, _role, stream, file.Name, ActiveItem.DisplayTitle, ActiveItem.MediaType, ActiveItem.Year, _sourceAssetType); if (result is null) { ShowNotice(ApiClient.LastError ?? L["ArtworkWorkspace_ArtworkCouldNotBeUploaded"].Value, AppUiTone.Error); return; } _changed = true; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); } finally { _busy = false; } }
+    private async Task AddUrlAsync() { ClearNotice(); if (DeferMutations && !PersistArtworkChangesImmediately) { var url = _url; _url = string.Empty; await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Url, SnapshotTarget(), Url: url)); ShowNotice(L["ArtworkWorkspace_ArtworkStaged", ActiveRole.Label].Value, AppUiTone.Info); return; } _busy = true; try { var result = await ApiClient.AddArtworkFromUrlAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkFromUrlRequest(_url, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (result is null) { ShowNotice(ApiClient.LastError ?? L["ArtworkWorkspace_ArtworkCouldNotBeAddedFromThatUrl"].Value, AppUiTone.Error); return; } _changed = true; _url = string.Empty; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); } finally { _busy = false; } }
+    // What the last action had to say (a refusal, a failure, a staged change); shown above the artwork until the next action or the close button.
+    private string? _notice;
+    private AppUiTone _noticeTone = AppUiTone.Warning;
+
+    private void ShowNotice(string text, AppUiTone tone)
+    {
+        _notice = text;
+        _noticeTone = tone;
+    }
+
+    private void ClearNotice() => _notice = null;
+
     private Task OpenPickerAsync() => OpenArtworkPickerAsync(false);
     private Task OpenProviderPickerAsync() => OpenArtworkPickerAsync(true);
     private async Task OpenArtworkPickerAsync(bool fromProviders)
     {
+        ClearNotice();
         var target = SnapshotTarget();
         var query = new ArtworkAssetQuery(
             TargetEntityType: target.EntityType,
@@ -323,24 +341,24 @@
             {
                 foreach (var assetId in added)
                     await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Link, SnapshotTarget(), AssetId: assetId));
-                Snackbar.Add($"Staged {added.Count} artwork variant(s).", AppSeverity.Info);
+                ShowNotice(L["ArtworkWorkspace_StagedVariants", added.Count].Value, AppUiTone.Info);
                 return;
             }
             _changed = true;
             if (MatchesCurrentTarget(target))
                 await ReloadAsync(selectAssetId: added[0]);
             await OnChanged.InvokeAsync();
-            Snackbar.Add($"Added {added.Count} artwork variant(s).", AppSeverity.Success);
         }
     }
-    private async Task ChooseAssetAsync(ArtworkAssetDto asset) { _busy = true; try { var linked = await ApiClient.LinkArtworkAssetAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkLinkRequest(asset.Id, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (linked is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be linked.", AppSeverity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: asset.Id); await OnChanged.InvokeAsync(); Snackbar.Add(L["ArtworkWorkspace_ExistingArtworkLinkedWithoutCopying"].Value, AppSeverity.Success); } finally { _busy = false; } }
+    private async Task ChooseAssetAsync(ArtworkAssetDto asset) { ClearNotice(); _busy = true; try { var linked = await ApiClient.LinkArtworkAssetAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkLinkRequest(asset.Id, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (linked is null) { ShowNotice(ApiClient.LastError ?? L["ArtworkWorkspace_ArtworkCouldNotBeLinked"].Value, AppUiTone.Error); return; } _changed = true; await ReloadAsync(selectAssetId: asset.Id); await OnChanged.InvokeAsync(); } finally { _busy = false; } }
     private async Task SetPreferredAsync()
     {
         if (SelectedVariant is null || SelectedVariant.IsPreferred) return;
+        ClearNotice();
         if (DeferMutations && !PersistArtworkChangesImmediately)
         {
             await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Preferred, SnapshotTarget(), AssetId: SelectedVariant.ArtworkAssetId, Context: SelectedVariant.Context, SourceAssetType: SelectedVariant.SourceAssetType ?? _sourceAssetType));
-            Snackbar.Add(L["ArtworkWorkspace_PreferredArtworkChangeStaged"].Value, AppSeverity.Info);
+            ShowNotice(L["ArtworkWorkspace_PreferredArtworkChangeStaged"].Value, AppUiTone.Info);
             return;
         }
 
@@ -356,6 +374,7 @@
     private async Task PersistPreferredVariantAsync(ArtworkEntityVariantDto variant)
     {
         if (!AllowEdit || variant.IsPreferred || _busy) return;
+        ClearNotice();
 
         var target = SnapshotTarget();
         var assetId = variant.ArtworkAssetId;
@@ -369,7 +388,7 @@
                     EntityLabel: target.Label, MediaType: target.MediaType, Year: target.Year, SourceAssetType: sourceAssetType));
             if (linked is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "Preferred artwork could not be changed.", AppSeverity.Error);
+                ShowNotice(ApiClient.LastError ?? L["ArtworkWorkspace_PreferredArtworkCouldNotBeChanged"].Value, AppUiTone.Error);
                 return;
             }
 
@@ -377,12 +396,11 @@
             if (MatchesCurrentTarget(target))
                 await ReloadAsync(selectAssetId: assetId);
             await OnChanged.InvokeAsync();
-            Snackbar.Add(L["ArtworkWorkspace_PreferredArtworkUpdatedForThis"].Value, AppSeverity.Success);
         }
         finally { _busy = false; }
     }
-    private async Task RefreshProviderAsync() { var scope = ResolvedProviderRefreshScope; if (string.IsNullOrWhiteSpace(scope)) return; _busy = true; try { var result = await ApiClient.RefreshScopeProviderArtworkAsync(ProviderRefreshEntityId ?? ActiveItem.EntityId, scope); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Provider artwork refresh failed.", AppSeverity.Error); return; } await ReloadAsync(); _changed = _changed || result.DownloadedCount > 0; if (result.DownloadedCount > 0) await OnChanged.InvokeAsync(); Snackbar.Add(result.DownloadedCount > 0 ? $"Added {result.DownloadedCount} provider artwork image{(result.DownloadedCount == 1 ? string.Empty : "s")}." : "Provider artwork is already current.", result.DownloadedCount > 0 ? AppSeverity.Success : AppSeverity.Info); } finally { _busy = false; } }
-    private async Task RemoveAsync(Guid linkId) { if (_busy) return; if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Remove, SnapshotTarget(), LinkId: linkId)); Snackbar.Add(L["ArtworkWorkspace_ArtworkRemovalStaged"].Value, AppSeverity.Info); return; } _busy = true; try { if (!await ApiClient.RemoveArtworkLinkAsync(linkId)) { Snackbar.Add(L["ArtworkWorkspace_ArtworkLinkCouldNotBe"].Value, AppSeverity.Error); return; } _changed = true; await ReloadAsync(); await OnChanged.InvokeAsync(); Snackbar.Add(L["ArtworkWorkspace_ArtworkLinkRemovedTheImage"].Value, AppSeverity.Success); } finally { _busy = false; } }
+    private async Task RefreshProviderAsync() { var scope = ResolvedProviderRefreshScope; if (string.IsNullOrWhiteSpace(scope)) return; ClearNotice(); _busy = true; try { var result = await ApiClient.RefreshScopeProviderArtworkAsync(ProviderRefreshEntityId ?? ActiveItem.EntityId, scope); if (result is null) { ShowNotice(ApiClient.LastError ?? L["ArtworkWorkspace_ProviderArtworkRefreshFailed"].Value, AppUiTone.Error); return; } await ReloadAsync(); _changed = _changed || result.DownloadedCount > 0; if (result.DownloadedCount > 0) await OnChanged.InvokeAsync(); if (result.DownloadedCount == 0) ShowNotice(L["ArtworkWorkspace_ProviderArtworkAlreadyCurrent"].Value, AppUiTone.Info); } finally { _busy = false; } }
+    private async Task RemoveAsync(Guid linkId) { if (_busy) return; ClearNotice(); if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Remove, SnapshotTarget(), LinkId: linkId)); ShowNotice(L["ArtworkWorkspace_ArtworkRemovalStaged"].Value, AppUiTone.Info); return; } _busy = true; try { if (!await ApiClient.RemoveArtworkLinkAsync(linkId)) { ShowNotice(L["ArtworkWorkspace_ArtworkLinkCouldNotBe"].Value, AppUiTone.Error); return; } _changed = true; await ReloadAsync(); await OnChanged.InvokeAsync(); } finally { _busy = false; } }
 
     public async Task<(bool Saved, string? Error)> ApplyPendingChangesAsync()
     {

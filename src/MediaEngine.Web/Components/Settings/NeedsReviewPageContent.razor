@@ -12,7 +12,6 @@
 @inject EditorHost Editor
 @inject DeviceContextService Device
 @inject NavigationManager Nav
-@inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject DashboardSessionAccessor Session
 @inject IStringLocalizer<SharedStrings> L
@@ -571,6 +570,7 @@
         if (!await EditLauncher.OpenAsync(target, EditTool.Match))
         {
             _awaitingFix = false;
+            if (EditLauncher.LastNotice is { } why) Fail(why, AppUiTone.Warning);
         }
     }
 
@@ -635,12 +635,18 @@
     private async Task RemoveAsync(NeedsReviewRowDto row)
     {
         if (row.Unmatched is not { WorkId: { } workId } file) return;
-        if (LibraryItemDeletionFlow.TryRefuse(Device, Session, Snackbar)) return;
+        if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal) { Fail(refusal, AppUiTone.Warning); return; }
         _busy = true;
+        _actionError = null;
         try
         {
-            var outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Snackbar, [workId], file.FileName);
-            if (outcome != LibraryItemDeletionFlowOutcome.Canceled) await LoadAsync();
+            var result = await LibraryItemDeletionFlow.RunAsync(Dialogs, [workId], file.FileName);
+            if (result.Outcome != LibraryItemDeletionFlowOutcome.Canceled)
+            {
+                await LoadAsync();
+                // Files a delete left on disk are told after the list reloads (a reload clears the line above the list).
+                if (result.Notice is { } notice) Fail(notice, AppUiTone.Warning);
+            }
         }
         finally { _busy = false; }
     }

@@ -13,7 +13,6 @@
 @inject DashboardSessionAccessor Session
 @inject CollectionEditorLauncherService CollectionEditorLauncher
 @inject DeviceContextService DeviceContext
-@inject IAppToastService Snackbar
 @inject NavigationManager Nav
 @inject ILogger<CollectionsPage> Logger
 @implements IDisposable
@@ -45,6 +44,10 @@
 
     <CascadingValue Name="JustSavedCollectionIds" Value="_justSavedIds" IsFixed="false">
     <CollectionsSectionLayout>
+        @if (_createNotice is not null)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _createNotice = null)" data-collections-create-notice="true">@_createNotice</AppAlert>
+        }
         @if (_loading || !ActiveSectionReady)
         {
             <AppPageState Kind="AppPageStateKind.Loading"
@@ -371,6 +374,9 @@
     private bool ActiveSectionReady => _loadFailed
         || (_activeSection == CollectionsSectionConfiguration.People ? _peopleReady : _collectionsReady);
     private string? _loadError;
+
+    // Why New collection did nothing; it stays at the top of the section until the next try or the close button.
+    private string? _createNotice;
     private string? _loadedPeopleQueryKey;
 
     // Every adult profile makes its own collections (Collections and lists D19); a Kids profile does not. Library ownership and
@@ -1133,9 +1139,11 @@
     {
         if (_activeProfile is null || !CanCreateCollections)
         {
-            Snackbar.Add(L["CollectionsPage_KidsCannotCreate"].Value, AppSeverity.Warning);
+            _createNotice = L["CollectionsPage_KidsCannotCreate"].Value;
             return;
         }
+
+        _createNotice = null;
 
         var request = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Collections, _activeProfile.Id);
         var changed = await CollectionEditorLauncher.OpenAsync(request);
