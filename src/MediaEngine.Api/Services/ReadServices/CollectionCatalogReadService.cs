@@ -115,6 +115,9 @@ public sealed class CollectionCatalogReadService(
         var candidates = new List<CollectionManagementCatalogCandidate>();
         var today = Today;
         // Where each list collection came from (the source line on its tile). Read once for the whole page.
+        // Which works the profile can open, found once for the whole page. Asking per collection ran the same
+        // ownership walk hundreds of times, which made the catalog grow faster than the library (5.4 s at 4,000 works).
+        var ownedWorkIds = await LoadOwnedWorkIdsWithAncestorsAsync(ct).ConfigureAwait(false);
         var listSources = listRepo is null
             ? new Dictionary<Guid, CollectionListSource>()
             : (await listRepo.GetAllSourcesAsync(ct).ConfigureAwait(false)).ToDictionary(source => source.CollectionId);
@@ -145,7 +148,7 @@ public sealed class CollectionCatalogReadService(
                 sourceWorkIds = sourceWorkIds.Where(allowedMemberIds.Contains).ToList();
             }
 
-            var workIds = await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct).ConfigureAwait(false);
+            var workIds = await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct, ownedWorkIds).ConfigureAwait(false);
             if (allowedMemberIds is not null)
             {
                 // A series parent expands to every book or film below it; only the ones the profile may see stay.
@@ -587,6 +590,50 @@ public sealed class CollectionCatalogReadService(
         }
 
         return owned;
+    }
+
+    /// <summary>
+    /// Every work that is, or has below it, a visible, Ready, non-Vault owned file: the same answer
+    /// <see cref="GetOwnedSourceWorkIdsAsync"/> gives per id, for the whole library in two statements.
+    /// </summary>
+    private async Task<HashSet<Guid>> LoadOwnedWorkIdsWithAncestorsAsync(CancellationToken ct)
+    {
+        using var conn = db.CreateConnection();
+        var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        var ownedLeaves = (await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+            $"""
+            SELECT DISTINCT woa.work_id AS WorkId
+            FROM work_owned_assets woa
+            INNER JOIN works leaf_w ON leaf_w.id = woa.work_id
+            INNER JOIN media_assets ma ON ma.id = woa.asset_id
+            WHERE {visibleAssetPredicate}
+              AND {VaultSql.NotVaultAsset("ma.id")}
+              AND {WorkReadinessSql.ReadyWorkPredicate("leaf_w")};
+            """,
+            cancellationToken: ct)).ConfigureAwait(false)).Select(row => row.WorkId).ToList();
+        var parents = (await conn.QueryAsync<WorkParentRow>(new CommandDefinition(
+            """
+            -- readiness: parent links only; the owned leaves above are already Ready-gated
+            SELECT id AS WorkId, parent_work_id AS ParentId FROM works WHERE parent_work_id IS NOT NULL;
+            """,
+            cancellationToken: ct)).ConfigureAwait(false)).ToDictionary(row => row.WorkId, row => row.ParentId);
+
+        var owned = new HashSet<Guid>();
+        foreach (var leaf in ownedLeaves)
+        {
+            // Walk up until a work already marked: its ancestors are marked too.
+            for (Guid? current = leaf; current is { } id && owned.Add(id); current = parents.TryGetValue(id, out var parent) ? parent : null)
+            {
+            }
+        }
+
+        return owned;
+    }
+
+    private sealed class WorkParentRow
+    {
+        public Guid WorkId { get; init; }
+        public Guid? ParentId { get; init; }
     }
 
     /// <summary>The most ids sent to the data store in one statement, well under its parameter limit.</summary>
@@ -1462,7 +1509,8 @@ public sealed class CollectionCatalogReadService(
 
     private async Task<IReadOnlyList<Guid>> GetOwnedCollectionCatalogDisplayWorkIdsAsync(
         IEnumerable<Guid> sourceWorkIds,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlySet<Guid>? knownOwned = null)
     {
         var displayWorkIds = await GetCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct).ConfigureAwait(false);
         if (displayWorkIds.Count == 0)
@@ -1470,7 +1518,7 @@ public sealed class CollectionCatalogReadService(
             return [];
         }
 
-        var ownedIds = await GetOwnedSourceWorkIdsAsync(displayWorkIds, ct).ConfigureAwait(false);
+        IReadOnlySet<Guid> ownedIds = knownOwned ?? await GetOwnedSourceWorkIdsAsync(displayWorkIds, ct).ConfigureAwait(false);
         return displayWorkIds.Where(ownedIds.Contains).ToList();
     }
 
