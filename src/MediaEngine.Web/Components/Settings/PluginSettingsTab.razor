@@ -11,7 +11,6 @@
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
 @inject ApprovalFlow Approvals
@@ -37,6 +36,10 @@ else
         @if (!string.IsNullOrWhiteSpace(_error))
         {
             <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+        }
+        @if (!string.IsNullOrWhiteSpace(_actionFailure))
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionFailure = null; })" data-plugin-failure>@_actionFailure</AppAlert>
         }
         @* Nothing sits under the grid (Plugins and Integrations screens v3 D16): the list is tiles, and Configure opens the
            plugin's own page. *@
@@ -106,11 +109,22 @@ else
 
     private bool _uploadOpen;
 
+    // The uploaded plugin appears in the list and glows; the Engine's sentence is not repeated over the page.
     private async Task UploadedAsync(string message)
     {
-        Snackbar.Add(message, AppSeverity.Success);
+        var known = _plugins.Select(plugin => plugin.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         await ReloadAsync();
+        if (_plugins.FirstOrDefault(plugin => !known.Contains(plugin.Id)) is { } added)
+        {
+            _glow.Mark(added.Id);
+        }
     }
+
+    private string? _actionFailure;
+    private readonly JustChanged _glow = new();
+
+    // A failed switch, save or removal is told at the top of the page until the next attempt or until dismissed.
+    private void Fail(string message) => _actionFailure = message;
 
     private string? _search;
     private IReadOnlyCollection<string> _statusTicks = [];
@@ -346,7 +360,7 @@ else
                                     <div role="listitem"
                                          @key="plugin.Id"
                                          id="@CardElementId(plugin.Id)"
-                                         class="@(focused ? "settings-plugin-card-focus" : null)"
+                                         class="@(focused ? "settings-plugin-card-focus" : _glow.Class(plugin.Id))"
                                          data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
                                 }
                             </div>
@@ -483,7 +497,7 @@ else
             {
                 var status = StatusOf(plugin);
                 var focused = IsFocused(plugin);
-                <tr @key="plugin.Id" id="@CardElementId(plugin.Id)" data-plugin-row="@plugin.Id" class="@(focused ? "settings-plugin-card-focus" : null)" data-focused="@(focused ? "true" : null)">
+                <tr @key="plugin.Id" id="@CardElementId(plugin.Id)" data-plugin-row="@plugin.Id" class="@(focused ? "settings-plugin-card-focus" : _glow.Class(plugin.Id))" data-focused="@(focused ? "true" : null)">
                     <td>
                         <div class="settings-plugin-rows__name">
                             @TileLogo(plugin, 32)
@@ -742,7 +756,6 @@ else
     private async Task CheckHealthFromMenuAsync(PluginSummaryResponse plugin)
     {
         await CheckHealthAsync(plugin);
-        Snackbar.Add($"{plugin.Name}: health checked.", AppSeverity.Info);
     }
 
     // A plugin that cannot work here cannot be switched on; once it is on, switching off is always allowed.
@@ -974,9 +987,10 @@ else
 
     private async Task SaveLibrariesAsync(PluginSummaryResponse plugin)
     {
+        _actionFailure = null;
         if (!await ApiClient.SetPluginLibrariesAsync(plugin.Id, _pickedLibraries.ToList()))
         {
-            Snackbar.Add(L["PluginSettingsTab_TheLibrariesCouldNotBe"].Value, AppSeverity.Error);
+            Fail(L["PluginSettingsTab_TheLibrariesCouldNotBe"].Value);
             return;
         }
 
@@ -985,7 +999,7 @@ else
         if (refreshed is not null)
             _libraryLimits[plugin.Id] = refreshed;
 
-        Snackbar.Add(L["PluginPage_Saved"].Value, AppSeverity.Success);
+        _glow.Mark(plugin.Id);
     }
 
     // What the detail page shows beyond the plugin's own summary: what it needs, who needs it, where it works and what it did.
@@ -1331,11 +1345,12 @@ else
 
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
     {
+        _actionFailure = null;
         if (IsProvider(plugin))
         {
             if (!await ApiClient.UpdateProviderAsync(plugin.Id, enabled, _disposed.Token))
             {
-                Snackbar.Add(L["PluginSettingsTab_TheSourceCouldNotBe"].Value, AppSeverity.Error);
+                Fail(L["PluginSettingsTab_TheSourceCouldNotBe"].Value);
                 return;
             }
 
@@ -1360,7 +1375,7 @@ else
         if (!result.Succeeded)
         {
             // The Engine's plain-English reason (for example a Library version the plugin does not support) beats the generic text.
-            Snackbar.Add(string.IsNullOrWhiteSpace(result.Message) ? "Plugin state could not be saved." : result.Message, AppSeverity.Error);
+            Fail(string.IsNullOrWhiteSpace(result.Message) ? "Plugin state could not be saved." : result.Message);
             return;
         }
 
@@ -1371,7 +1386,6 @@ else
             StartHealthChecks([plugin]);
             await LoadLatestApprovalAsync(plugin.Id);
         }
-        Snackbar.Add($"{plugin.Name} {(enabled ? "enabled" : "disabled")}.", AppSeverity.Success);
     }
 
     // Removing says first what would have no source, and that what the plugin already saved stays.
@@ -1404,7 +1418,6 @@ else
             return;
         }
 
-        Snackbar.Add($"{plugin.Name} deleted.", AppSeverity.Success);
         _deletePluginId = null;
         _removalPreview = null;
         _removeProblem = null;

@@ -2,16 +2,19 @@
 @using MediaEngine.Contracts.Backups
 @using MediaEngine.Web.Services.Settings
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @if (_settings is not null)
 {
     <div class="backup-destinations" data-testid="backup-destinations">
         <AppSettingsGroup Heading="@L["BackupDestinationsSection_WhereBackupsGo"].Value">
+            @if (_failure is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-backup-failure>@_failure</AppAlert>
+            }
             @foreach (var destination in _settings.Destinations)
             {
-                <div class="backup-destinations__destination" data-testid="@($"destination-{destination.Id}")">
+                <div class="backup-destinations__destination @_glow.Class(destination.Id)" data-testid="@($"destination-{destination.Id}")">
                     <div class="backup-destinations__identity">
                         <strong>@destination.Name</strong>
                         @if (destination.Location.Length > 0)
@@ -31,6 +34,10 @@
                             <AppButton Label="@L["Common_Remove"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Warning" Disabled="@_busy" OnClick="@(() => RemoveAsync(destination.Id))" />
                         }
                     </div>
+                    @if (_testResults.TryGetValue(destination.Id, out var test))
+                    {
+                        <AppAlert Tone="@(test.Success ? AppUiTone.Success : AppUiTone.Error)" Dense="true" data-destination-test>@test.Message</AppAlert>
+                    }
                 </div>
             }
             @if (_adding)
@@ -70,6 +77,10 @@
                 <AppButton Label="@L["BackupDestinationsSection_AddADestination"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="StartAdding" />
             }
             <AppButton Label="@L["BackupDestinationsSection_BackUpNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" Loading="@_busy" OnClick="RunNowAsync" />
+            @if (_lastRun is { AllOk: false })
+            {
+                <AppAlert Tone="AppUiTone.Warning" Dense="true" data-backup-run-warning>@L["BackupDestinationsSection_SomeCopiesNeedAttention"]</AppAlert>
+            }
             @if (_lastRun is not null)
             {
                 <ul class="backup-destinations__outcomes" data-testid="run-outcomes">
@@ -98,6 +109,9 @@
     private BackupSettingsResponse? _settings;
     private BackupRunResponse? _lastRun;
     private bool _busy;
+    private string? _failure;
+    private readonly Dictionary<string, (string Message, bool Success)> _testResults = [];
+    private readonly JustChanged _glow = new();
 
 
     private static string KindLabel(string kind) => KindOptions.FirstOrDefault(option => option.Value == kind)?.Label ?? "This computer";
@@ -121,8 +135,9 @@
     private async Task SaveAsync(UpdateBackupSettingsRequest request)
     {
         _busy = true;
+        _failure = null;
         var saved = await ApiClient.UpdateBackupSettingsAsync(request);
-        if (saved is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value, AppSeverity.Error);
+        if (saved is null) _failure = L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value;
         else _settings = saved;
         _busy = false;
     }
@@ -144,17 +159,20 @@
     private async Task AddAsync()
     {
         _busy = true;
+        _failure = null;
         _new.ConfirmedHost = _confirmed ? NewHost : null;
+        var known = _settings!.Destinations.Select(item => item.Id).ToHashSet();
         var saved = await ApiClient.SaveBackupDestinationAsync(_new);
         if (saved is null)
         {
-            Snackbar.Add(L["BackupDestinationsSection_TheDestinationWasNotAdded"].Value, AppSeverity.Error);
+            _failure = L["BackupDestinationsSection_TheDestinationWasNotAdded"].Value;
         }
         else
         {
             _settings = saved;
             _adding = false;
-            Snackbar.Add(L["BackupDestinationsSection_DestinationAddedUseTestTo"].Value, AppSeverity.Success);
+            // The new destination is in the list now; it glows once.
+            if (saved.Destinations.FirstOrDefault(item => !known.Contains(item.Id)) is { } added) _glow.Mark(added.Id);
         }
         _busy = false;
     }
@@ -162,8 +180,9 @@
     private async Task RemoveAsync(string id)
     {
         _busy = true;
+        _failure = null;
         if (await ApiClient.RemoveBackupDestinationAsync(id)) _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
-        else Snackbar.Add(L["BackupDestinationsSection_TheDestinationCouldNotBe"].Value, AppSeverity.Error);
+        else _failure = L["BackupDestinationsSection_TheDestinationCouldNotBe"].Value;
         _busy = false;
     }
 
@@ -171,18 +190,19 @@
     {
         _busy = true;
         var result = await ApiClient.TestBackupDestinationAsync(id);
-        Snackbar.Add(result?.Message ?? "The destination could not be tested.", result?.Success == true ? AppSeverity.Success : AppSeverity.Error);
+        // The test's answer stays under the destination it was run for, until it is tested again.
+        _testResults[id] = (result?.Message ?? "The destination could not be tested.", result?.Success == true);
         _busy = false;
     }
 
     private async Task RunNowAsync()
     {
         _busy = true;
+        _failure = null;
         _lastRun = await ApiClient.RunBackupNowAsync();
-        if (_lastRun is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupCouldNotBe"].Value, AppSeverity.Error);
+        if (_lastRun is null) _failure = L["BackupDestinationsSection_TheBackupCouldNotBe"].Value;
         else
         {
-            Snackbar.Add(_lastRun.AllOk ? "Backup copied everywhere it should go." : "Backup finished, but some copies need attention.", _lastRun.AllOk ? AppSeverity.Success : AppSeverity.Warning);
             _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
         }
         _busy = false;

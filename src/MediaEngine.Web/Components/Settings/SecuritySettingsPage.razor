@@ -6,7 +6,6 @@
 @inject DashboardSessionAccessor Session
 @inject IReadOnlyList<RegisteredExternalAuthProvider> ExternalProviders
 @inject IJSRuntime JS
-@inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
 @inject ConfirmedActionRunner Confirmed
 @inject AuthenticationStateProvider AuthenticationState
@@ -35,6 +34,10 @@
     else
     {
         <div class="security-settings__content">
+            @if (_failure is not null && _sheet == SecuritySheet.None)
+            {
+                @FailureAlert
+            }
             @if (ShowAwayFromHomeNote)
             {
                 <p class="security-settings__note">@L["SecuritySettingsPage_YourAccountHasNoPassword"]</p>
@@ -84,6 +87,10 @@
                     <AppDialogShell Modal="false" Title="@SheetTitle" Size="Medium" OnClose="@(_busy ? default : EventCallback.Factory.Create(this, CloseSheet))">
                         <ChildContent>
                     <div class="app-dialog-shell__pad app-dialog-shell__pad--stretch">
+                    @if (_failure is not null)
+                    {
+                        @FailureAlert
+                    }
                     @switch (_sheet)
                     {
                         case SecuritySheet.Password:
@@ -112,6 +119,14 @@
 
 @code {
     private enum SecuritySheet { None, Password, Email, ExtraProtection, PhotoViews }
+
+    // A failed action is told here, in place, until the next attempt or until it is dismissed: inside the open window, else on the page.
+    private RenderFragment FailureAlert => __builder =>
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-security-failure>@_failure</AppAlert>
+    };
+
+    private void Fail(string message) => _failure = message;
 
     private RenderFragment PasswordSheetContent => __builder =>
     {
@@ -207,7 +222,7 @@
                 <div class="security-sheet__rows">
                     @foreach (var passkey in _passkeys)
                     {
-                        <div class="security-sheet__row" @key="passkey.CredentialId">
+                        <div class="security-sheet__row @_glow.Class(passkey.CredentialId)" @key="passkey.CredentialId">
                             <div><strong>@passkey.Name</strong><span>Added @FormatDate(passkey.CreatedAt)@BackupStatus(passkey)</span></div>
                             <AppButton Label="Remove" Size="AppControlSize.Compact" Tone="AppUiTone.Error"
                                        Disabled="@_busy" OnClick="@(() => RemovePasskeyAsync(passkey))" />
@@ -373,6 +388,8 @@
     private string? _sessionsError;
     private string? _loginsError;
     private string? _passkeysError;
+    private string? _failure;
+    private readonly JustChanged _glow = new();
 
     private SecuritySheet _sheet;
     private static readonly AppDialogOptions SheetFrameOptions = new() { Size = AppWindowSize.Medium, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
@@ -411,6 +428,7 @@
     private void OpenSheet(SecuritySheet sheet)
     {
         _sheet = sheet;
+        _failure = null;
     }
 
     // A click on the backdrop or Escape never throws away recovery codes that were just shown; the Done button does.
@@ -425,6 +443,7 @@
     {
         if (_busy) return;
         _sheet = SecuritySheet.None;
+        _failure = null;
         _newPassword = _confirmPassword = _securePassword = _secureConfirm = _secureEmail = string.Empty;
         _passwordChanged = false;
         _twoStepSetup = null;
@@ -521,6 +540,7 @@
     {
         if (!CanChangePassword || _disposed) return;
         _busy = _changingPassword = true;
+        _failure = null;
         _passwordChanged = false;
         try
         {
@@ -528,7 +548,7 @@
                 new ChangePasswordRequest { NewPassword = _newPassword }, _lifetime.Token), _lifetime.Token);
             if (!result.Succeeded)
             {
-                Snackbar.Add(NotChangedMessage(result, "The password could not be changed."), AppSeverity.Error);
+                Fail(NotChangedMessage(result, "The password could not be changed."));
                 return;
             }
             _newPassword = _confirmPassword = string.Empty;
@@ -543,23 +563,26 @@
     {
         if (_busy || _registeringPasskey || !Capabilities.CanRegisterPasskey || _disposed) return;
         _busy = _registeringPasskey = true;
+        _failure = null;
         try
         {
             var started = await Confirmed.RunAsync(() => Identity.GetPasskeyRegistrationOptionsResultAsync(_lifetime.Token), _lifetime.Token);
             if (started.Value is not { } options)
             {
-                Snackbar.Add(NotChangedMessage(started, "Passkeys are not available on this server."), AppSeverity.Error);
+                Fail(NotChangedMessage(started, "Passkeys are not available on this server."));
                 return;
             }
             var credentialJson = await JS.InvokeAsync<string>("tuvimaPasskeys.createCredential", _lifetime.Token, options.OptionsJson);
             var saved = await Identity.CompletePasskeyRegistrationResultAsync(
                 new CompletePasskeyRegistrationRequest(credentialJson, options.State, NextPasskeyName()), _lifetime.Token);
-            if (!saved.Succeeded) { Snackbar.Add(NotChangedMessage(saved, "The passkey could not be registered."), AppSeverity.Error); return; }
+            if (!saved.Succeeded) { Fail(NotChangedMessage(saved, "The passkey could not be registered.")); return; }
+            var knownBefore = _passkeys.Select(item => item.CredentialId).ToHashSet();
             await LoadPasskeysAsync();
             await RefreshAccountAsync();
-            Snackbar.Add(L["SecuritySettingsPage_PasskeyAdded"].Value, AppSeverity.Success);
+            // The new passkey's row glows; the list already shows it.
+            if (_passkeys.FirstOrDefault(item => !knownBefore.Contains(item.CredentialId)) is { } added) _glow.Mark(added.CredentialId);
         }
-        catch (JSException exception) { Snackbar.Add(exception.Message, AppSeverity.Error); }
+        catch (JSException exception) { Fail(exception.Message); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         finally { _busy = _registeringPasskey = false; }
     }
@@ -568,6 +591,7 @@
     {
         if (!await ConfirmAsync("Remove passkey?", $"Remove {passkey.Name} from your sign-in methods?", "Remove passkey", destructive: true)) return;
         _busy = true;
+        _failure = null;
         try
         {
             var result = await Confirmed.RunAsync(() => Identity.RemovePasskeyResultAsync(passkey.CredentialId, _lifetime.Token), _lifetime.Token);
@@ -575,10 +599,9 @@
             {
                 _passkeys.RemoveAll(item => item.CredentialId == passkey.CredentialId);
                 await RefreshAccountAsync();
-                Snackbar.Add(L["SecuritySettingsPage_PasskeyRemoved"].Value, AppSeverity.Success);
             }
-            else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
-                ? "Add another sign-in method before removing this passkey." : NotChangedMessage(result, "The passkey could not be removed."), AppSeverity.Error);
+            else Fail(result.Failure == DashboardAccessMutationFailure.Conflict
+                ? "Add another sign-in method before removing this passkey." : NotChangedMessage(result, "The passkey could not be removed."));
         }
         finally { _busy = false; }
     }
@@ -587,6 +610,7 @@
     {
         if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Library.", "Disconnect", destructive: true)) return;
         _busy = true;
+        _failure = null;
         try
         {
             var result = await Confirmed.RunAsync(() => Identity.UnlinkExternalLoginResultAsync(login.Id, _lifetime.Token), _lifetime.Token);
@@ -594,10 +618,9 @@
             {
                 _externalLogins.RemoveAll(item => item.Id == login.Id);
                 await RefreshAccountAsync();
-                Snackbar.Add(L["SecuritySettingsPage_LinkedAccountDisconnected"].Value, AppSeverity.Success);
             }
-            else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
-                ? "Add another sign-in method before disconnecting this account." : NotChangedMessage(result, "The linked account could not be disconnected."), AppSeverity.Error);
+            else Fail(result.Failure == DashboardAccessMutationFailure.Conflict
+                ? "Add another sign-in method before disconnecting this account." : NotChangedMessage(result, "The linked account could not be disconnected."));
         }
         finally { _busy = false; }
     }
@@ -606,16 +629,15 @@
     {
         if (!await ConfirmAsync("Sign out all other sessions?", "You will remain signed in on this device.", "Sign out other sessions")) return;
         _busy = true;
+        _failure = null;
         try
         {
             var result = await Confirmed.RunAsync(() => Identity.RevokeOtherSessionsAsync(Session.AccountId, Session.SessionId, _lifetime.Token), _lifetime.Token);
             if (result.Succeeded)
             {
                 _sessions.RemoveAll(session => !IsCurrent(session));
-                Snackbar.Add(result.Value!.RevokedCount == 1 ? "1 other session signed out."
-                    : $"{result.Value.RevokedCount} other sessions signed out.", AppSeverity.Success);
             }
-            else Snackbar.Add(NotChangedMessage(result, "Other sessions could not be signed out."), AppSeverity.Error);
+            else Fail(NotChangedMessage(result, "Other sessions could not be signed out."));
         }
         finally { _busy = false; }
     }
@@ -625,10 +647,11 @@
         if (_busy || _generatingRecoveryCodes || _disposed) return;
         if (!await ConfirmAsync("Generate new recovery codes?", "Every existing recovery code will stop working.", "Generate new codes")) return;
         _busy = _generatingRecoveryCodes = true;
+        _failure = null;
         try
         {
             var result = await Confirmed.RunAsync(() => Identity.RegenerateRecoveryCodesResultAsync(_lifetime.Token), _lifetime.Token);
-            if (result.Value is not { } codes) { Snackbar.Add(NotChangedMessage(result, "Recovery codes could not be generated."), AppSeverity.Error); return; }
+            if (result.Value is not { } codes) { Fail(NotChangedMessage(result, "Recovery codes could not be generated.")); return; }
             _recoveryCodes = codes.RecoveryCodes;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -640,10 +663,11 @@
     {
         if (_busy || _disposed) return;
         _busy = true;
+        _failure = null;
         try
         {
             var recent = await Confirmed.RunAsync(() => Identity.CheckRecentSignInAsync(_lifetime.Token), _lifetime.Token);
-            if (!recent.Succeeded) { Snackbar.Add(NotChangedMessage(recent, "The account could not be linked."), AppSeverity.Error); return; }
+            if (!recent.Succeeded) { Fail(NotChangedMessage(recent, "The account could not be linked.")); return; }
             Navigation.NavigateTo($"/account/security/external/{Uri.EscapeDataString(providerId)}", forceLoad: true);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }

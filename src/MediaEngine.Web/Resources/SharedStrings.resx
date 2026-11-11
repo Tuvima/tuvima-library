@@ -7859,9 +7859,6 @@
   <data name="BackupDestinationsSection_TheDestinationWasNotAdded" xml:space="preserve">
     <value>The destination was not added. Check the details, then try again.</value>
   </data>
-  <data name="BackupDestinationsSection_DestinationAddedUseTestTo" xml:space="preserve">
-    <value>Destination added. Use Test to check it.</value>
-  </data>
   <data name="BackupDestinationsSection_TheDestinationCouldNotBe" xml:space="preserve">
     <value>The destination could not be removed.</value>
   </data>
@@ -7870,9 +7867,6 @@
   </data>
   <data name="BackupRecoveryPanel_TheBackupCouldNotBe" xml:space="preserve">
     <value>The backup could not be created.</value>
-  </data>
-  <data name="BackupRecoveryPanel_RecoveryPointCreated" xml:space="preserve">
-    <value>Recovery point created.</value>
   </data>
   <data name="BackupRecoveryPanel_TheBackupCouldNotBe2" xml:space="preserve">
     <value>The backup could not be downloaded.</value>
@@ -13336,5 +13330,8 @@
   </data>
   <data name="CollectionFlow_ItemsStaged" xml:space="preserve">
     <value>{0} item(s) staged for this collection.</value>
+  </data>
+  <data name="BackupDestinationsSection_SomeCopiesNeedAttention" xml:space="preserve">
+    <value>Backup finished, but some copies need attention.</value>
   </data>
 </root>
