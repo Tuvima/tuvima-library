@@ -3,6 +3,7 @@
 <button type="button"
         class="@RootClass"
         aria-pressed="@(Pressed ? "true" : "false")"
+        aria-label="@AriaLabel"
         disabled="@Disabled"
         @onclick="OnClick">
     @ChildContent
@@ -15,6 +16,8 @@
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    /// <summary>The accessible name when it must say more than the visible words.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
 
     private string RootClass => string.Join(" ", new[] { "app-toggle-chip", Pressed ? "is-on" : null, Class }
         .Where(value => !string.IsNullOrWhiteSpace(value)));

@@ -6,21 +6,17 @@
 {
     @if (CanHighlight)
     {
-        <AppNativeButton Type="button"
-                         Class="same-file-chip same-file-chip--action"
-                         AriaLabel="@($"{Label}. Highlight the matching episode.")"
-                         aria-pressed="@(IsHighlighting ? "true" : "false")"
-                         OnClick="Activate">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppIconSize.Control20" />
-            <span class="same-file-chip__text">@Label</span>
-        </AppNativeButton>
+        <AppToggleChip Class="same-file-chip"
+                       AriaLabel="@($"{Label}. Highlight the matching episode.")"
+                       Pressed="IsHighlighting"
+                       OnClick="OnHighlight">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppIconSize.Inline16" />
+            <span>@Label</span>
+        </AppToggleChip>
     }
     else
     {
-        <span class="same-file-chip">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppIconSize.Control20" />
-            <span class="same-file-chip__text">@Label</span>
-        </span>
+        <AppChip Class="same-file-chip" Icon="@AppMaterialIcons.Outlined.Link" Text="@Label" />
     }
 }
 
@@ -29,8 +25,6 @@
     [Parameter] public bool CanHighlight { get; set; }
     [Parameter] public bool IsHighlighting { get; set; }
     [Parameter] public EventCallback OnHighlight { get; set; }
-
-    private Task Activate(MouseEventArgs _) => OnHighlight.InvokeAsync();
 
     private string Label
     {

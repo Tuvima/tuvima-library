@@ -34,10 +34,7 @@
         else if (_page is not null)
         {
             <div class="view-contributions-controls">
-                <div role="tablist" aria-label="@L["ViewContributionsPage_ContributionQueue"].Value">
-                    <AppNativeButton Type="button" role="tab" aria-selected="@(_mode == "mine")" Class="@ModeClass("mine")" OnClick="@(_ => ChangeModeAsync("mine"))">@L["ViewContributionsPage_MySubmissions"]</AppNativeButton>
-                    @if (_page.CanReview) { <AppNativeButton Type="button" role="tab" aria-selected="@(_mode == "review")" Class="@ModeClass("review")" OnClick="@(_ => ChangeModeAsync("review"))">@L["Nav_ReviewQueue"]</AppNativeButton> }
-                </div>
+                <AppCountTabs Tabs="@ModeTabs" Selected="@_mode" SelectedChanged="ChangeModeAsync" AriaLabel="@L["ViewContributionsPage_ContributionQueue"].Value" />
                 <AppSelect Native="true" Value="@_status" ValueChanged="StatusChangedAsync" aria-label="@L["ViewContributionsPage_ContributionStatus"].Value">
                     <option value="">@L["ViewContributionsPage_AllStatuses"]</option><option value="pending">@L["Ingestion_StatusPending"]</option><option value="accepted">@L["ViewContributionsPage_Accepted"]</option><option value="declined">@L["ViewContributionsPage_Declined"]</option><option value="cancelled">@L["ViewContributionsPage_Cancelled"]</option>
                 </AppSelect>
@@ -180,7 +177,9 @@
     }
     // Shown when a contribution holds items this profile cannot view (documents without the Documents permission).
     private const string HiddenItemsNote = "Includes items you cannot view";
-    private string ModeClass(string value) => _mode == value ? "is-selected" : string.Empty;
+    private IReadOnlyList<AppCountTab> ModeTabs => _page is { CanReview: true }
+        ? [new("mine", L["ViewContributionsPage_MySubmissions"].Value, null), new("review", L["Nav_ReviewQueue"].Value, null)]
+        : [new("mine", L["ViewContributionsPage_MySubmissions"].Value, null)];
     private static string Destination(ViewSharedContributionDto value) => value.DestinationKind == "folder" ? $"Shared folder · {value.DestinationLabel}" : "Shared Timeline";
     private static string StatusLabel(string value) => char.ToUpperInvariant(value[0]) + value[1..];
     private static AppUiTone StatusTone(string value) => value switch { "accepted" => AppUiTone.Success, "declined" or "cancelled" => AppUiTone.Neutral, _ => AppUiTone.Warning };

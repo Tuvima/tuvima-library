@@ -84,7 +84,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.Equal("/settings/security/devices", Row(cut, "devices").GetAttribute("href"));
         Assert.DoesNotContain("?profile=", cut.Markup);
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
-        Assert.Contains("You", cut.FindAll(".profile-detail__badge").Select(badge => badge.TextContent));
+        Assert.Contains("You", cut.FindAll(".profile-detail__badges .app-chip").Select(badge => badge.TextContent));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("Robin", cut.Find(".profile-detail__name").TextContent));
         Assert.Equal("Kids profile", cut.Find(".profile-detail__role").TextContent);
         Assert.Contains("Kids", Row(cut, "details").TextContent);
-        Assert.DoesNotContain(cut.FindAll(".profile-detail__badge"), badge => badge.TextContent == "You");
+        Assert.DoesNotContain(cut.FindAll(".profile-detail__badges .app-chip"), badge => badge.TextContent == "You");
 
         // Delete profile is on the Access & safety tab.
         var access = RenderFor(KidId, "access");
@@ -197,7 +197,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Household administrator", cut.Find(".profile-detail__role").TextContent));
         Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
-        Assert.Contains("Household administrator", cut.FindAll(".profile-detail__badge").Select(badge => badge.TextContent));
+        Assert.Contains("Household administrator", cut.FindAll(".profile-detail__badges .app-chip").Select(badge => badge.TextContent));
         Assert.DoesNotContain("?profile=", cut.Markup);
     }
 

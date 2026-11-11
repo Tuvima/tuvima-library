@@ -4199,23 +4199,9 @@ input[type="reset"],
     }
 }
 
-/* Same file chip (episodes stored in one combined file). Lives here because the chip is a shared component rendered inside the episode strip. */
-.same-file-chip {
-    display: inline-flex; align-items: center; gap: 0.35rem; box-sizing: border-box;
-    max-width: 100%; margin-top: 0.4rem; padding: 0.25rem 0.6rem;
-    border: 1px solid var(--tl-border-subtle, rgba(255,255,255,0.16)); border-radius: var(--tl-radius-pill);
-    background: var(--tl-bg-surface, rgba(255,255,255,0.06)); color: var(--tl-text-secondary, inherit);
-    font: inherit; font-size: var(--tl-font-size-xs); line-height: 1.25; text-align: left;
-}
-.same-file-chip__text { min-width: 0; overflow-wrap: anywhere; }
-.same-file-chip--action { min-height: 44px; cursor: pointer; }
-.same-file-chip--action:hover { background: var(--tl-bg-surface-hover, rgba(255,255,255,0.1)); color: var(--tl-text-primary, inherit); }
-.same-file-chip--action:focus-visible { outline: 2px solid var(--tl-focus-ring, var(--tl-accent-primary, #8852FC)); outline-offset: 2px; }
-.same-file-chip--action[aria-pressed="true"] { border-color: var(--tl-accent-primary-border, var(--tl-accent-primary, #8852FC)); color: var(--tl-text-primary, inherit); }
+/* Same file chip (episodes stored in one combined file): the shared chip and toggle chip; this only spaces it under the episode row. */
+.same-file-chip { margin-top: 0.4rem; }
 .sequence-episode-tile.is-same-file-highlight .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); outline-offset: 2px; }
-@media (max-width: 720px) {
-    .same-file-chip { font-size: var(--tl-font-size-secondary); }
-}
 
 /* Kids shell (profiles P6): a calmer, friendlier version of the app for Kids profiles. */
 .layout-kids {
@@ -4808,7 +4794,7 @@ button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
    --tl-focus-ring (tuvima.tokens.css) is the colour; width and offset (--tl-focus-ring-width, --tl-focus-ring-offset) are tokens beside it. The doubled :root raises specificity
    above older component rules that remove the outline, so every focusable control shows the same ring. Text fields keep
    their own field focus styling and are not listed. */
-:root:root :is(a[href], button, summary, [role="button"], [role="tab"], [role="link"], [role="menuitem"], tr[tabindex], [tabindex]:not([tabindex="-1"]), .tl-chip, .same-file-chip--action, .media-tile-link, .media-tile-media, .layout-shell__intent-dock-link):focus-visible:not(:disabled) {
+:root:root :is(a[href], button, summary, [role="button"], [role="tab"], [role="link"], [role="menuitem"], tr[tabindex], [tabindex]:not([tabindex="-1"]), .tl-chip, .media-tile-link, .media-tile-media, .layout-shell__intent-dock-link):focus-visible:not(:disabled) {
     outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
     outline-offset: var(--tl-focus-ring-offset);
 }
