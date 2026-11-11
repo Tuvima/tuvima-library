@@ -266,6 +266,8 @@ There are no pop-up notices (toasts) anywhere in the Dashboard. What a person di
 | The control already shows the new state (a switch, a heart, a tick, a moved item) | Nothing more: the new state is the confirmation | none |
 | Something failed | An alert in place: inside the window at the top of its body, or at the top of the page section, with the reason and what to do | `AppAlert` |
 | Something finished in the background (a scan, an import, a move) | The Activity indicator and its panel, never a notice over the page | Activity |
+| A watched, read or listened status was changed | A short line with **Undo** where the change was made, for about ten seconds | `AppUndoNote` |
+| Something in the background failed (a scan, an import) | The Activity indicator turns amber and reads "Needs attention" until Activity is opened or a later run finishes clean; only people who may open Activity see it | Activity indicator |
 | Something was copied | The button's own label or icon changes to "Copied" for a moment | `AppCopyButton` |
 | A quick action on photos, documents or galleries (favorite, add to a gallery, move) | The slim ribbon at the top of the View page says what happened, and an error shows in the same place | the View ribbon (`ViewRibbonVoice`) |
 

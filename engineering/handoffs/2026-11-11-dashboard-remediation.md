@@ -68,6 +68,14 @@ It works in part. A cloud session can assemble the app, start the Engine and Das
 
 Pages that need identified media (Home, Read, Watch, Listen, an item's page) stay empty, because the cloud machine's network rules block the metadata sources (Apple, MusicBrainz, TMDB, Wikidata), and the repository holds no recorded provider answers to replay. Two ways to close the gap, both for Shy to choose: allow those hosts in the cloud environment's network settings, or record one set of provider answers on the PC and commit it as test data for replay. Until then the batched Local check stays the proof for media pages.
 
+## Thread 2 result: one feedback rule, no toasts (built 2026-11-11)
+
+- Every toast call is gone and the toast part is deleted; `LookRatchetGuardrailTests.ThereAreNoToasts` keeps it out.
+- New shared parts: `AppSavedNote`, `JustChanged` (row glow, clears after 4 seconds), `AppCopyButton`, `AppUndoNote` (Undo in place after a status change), `AppAlert` `Urgent`, and a needs-attention state on the Activity indicator.
+- Two independent reviews; every must-fix fixed (lost Undo, delete warning on a closed editor, silent background failures, silent device refusals).
+- Left open: a delete that closes the editor when it was opened from a Listen row, a tile menu, the lyrics footer or a bulk edit has no place to show a "files left on disk" line (it is logged). `LibraryActivityMatchesMockupTests.ACoverOnTheDashboardsOwnOrigin...` failed once in a full-solution run and passes alone (timing; not caused by this work).
+- Local checks: `engineering/validation/batch.md`, section "thread 2".
+
 ## Local checks
 
 Appended to `engineering/validation/batch.md` as each thread merges.
