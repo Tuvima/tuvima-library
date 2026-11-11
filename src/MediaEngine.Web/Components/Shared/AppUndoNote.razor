@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
+@inject ILogger<AppUndoNote> Logger
 @* The in-place line after a change that can be taken back (design system, Feedback after an action: there are no pop-up notices). It says what
    happened and offers Undo. It goes away when Undo is pressed, when the host hands it a newer offer or none, or after Delay. A new offer
    (a different object) restarts the timer. If Undo itself fails, the reason replaces the line until the next offer or the close button. *@
@@ -70,6 +71,7 @@
         catch (Exception ex)
         {
             // Undo did not work: say why in the same place, and leave it until the next offer or the close button.
+            Logger.LogWarning(ex, "A change could not be taken back");
             _error = ex.Message;
             return;
         }
@@ -77,11 +79,11 @@
         await OnCleared.InvokeAsync();
     }
 
-    private void Clear()
+    private async Task Clear()
     {
         _error = null;
         _offer = null;
-        _ = OnCleared.InvokeAsync();
+        await OnCleared.InvokeAsync();
     }
 
     private async Task ClearAfterDelayAsync(CancellationToken token)

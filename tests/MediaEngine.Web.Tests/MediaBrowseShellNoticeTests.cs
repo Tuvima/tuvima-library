@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bunit;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.ProfileState;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Web.Components.Browse;
@@ -49,6 +50,14 @@ public sealed class MediaBrowseShellNoticeTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
             {
                 new(TestSessions.Profile, "Test User", "#C9922E", "Standard", DateTimeOffset.UtcNow),
+            }));
+
+            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<DetailPageViewModel?>(new DetailPageViewModel
+            {
+                Id = Movie.ToString("D"),
+                EntityType = DetailEntityType.Movie,
+                Title = "Dune",
+                OverflowActions = [new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" }],
             }));
 
             stub.SetHandler(nameof(IEngineApiClient.SaveItemAsync), args =>
@@ -104,6 +113,21 @@ public sealed class MediaBrowseShellNoticeTests : AsyncBunitContext
         await lane.Find("[data-browse-notice] .tl-alert-close").ClickAsync();
 
         Assert.Empty(lane.FindAll("[data-browse-notice]"));
+    }
+
+    [Fact]
+    public async Task ADeleteThatClosesTheEditorOpenedFromTheLane_ShowsItsLineInTheLanesAlert()
+    {
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(
+            new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var lane = RenderLane();
+
+        await lane.InvokeAsync(() => (Task)typeof(MediaBrowseShell)
+            .GetMethod("OpenItemEditorAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(lane.Instance, [Movie])!);
+        Assert.True(await Services.GetRequiredService<EditorHost>().HandNoticeToPageAsync("The files stayed on disk."));
+
+        lane.WaitForAssertion(() => Assert.Contains("The files stayed on disk.", lane.Find("[data-browse-notice]").TextContent, StringComparison.Ordinal));
     }
 
     private IRenderedComponent<MediaBrowseShell> RenderLane()

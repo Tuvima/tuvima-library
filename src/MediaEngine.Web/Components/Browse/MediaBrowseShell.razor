@@ -2055,7 +2055,14 @@
 
         ClearNotice();
         _awaitingSingleEdit = true;
-        if (!await EditLauncher.OpenAsync(ListEditTarget.ForLibraryRow(entityId, item?.Title, item?.MediaType)))
+        // A delete that closes the editor has its line (files left on disk, say) shown here, in the notice above the list.
+        if (!await EditLauncher.OpenAsync(
+                ListEditTarget.ForLibraryRow(entityId, item?.Title, item?.MediaType),
+                deletedNotice: notice => InvokeAsync(() =>
+                {
+                    ShowNotice(notice, AppUiTone.Warning);
+                    StateHasChanged();
+                })))
         {
             _awaitingSingleEdit = false;
             if (EditLauncher.LastNotice is { } why)

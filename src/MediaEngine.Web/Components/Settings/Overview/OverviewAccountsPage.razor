@@ -99,10 +99,19 @@
     // The account that was just linked or signed out glows once; its Linked badge is the rest of the confirmation.
     private readonly JustChanged _glow = new();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _glow.Changed += OnGlowCleared;
+        await LoadAsync();
+    }
 
     public void Dispose()
     {
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
         _disposed.Cancel();
         _disposed.Dispose();
     }

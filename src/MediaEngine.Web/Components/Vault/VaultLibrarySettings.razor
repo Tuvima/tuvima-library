@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Vault
+@implements IDisposable
 @using MediaEngine.Contracts.Vault
 @using MediaEngine.Web.Services.Integration
 @inject NsfwModeState Nsfw
@@ -61,8 +62,18 @@
     // The library whose settings were just saved glows once; nothing else says it worked.
     private readonly JustChanged _glow = new();
 
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        _glow.Changed += OnGlowCleared;
         await LoadAsync();
     }
 

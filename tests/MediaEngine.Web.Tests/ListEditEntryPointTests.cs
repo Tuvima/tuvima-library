@@ -167,6 +167,27 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ANoticeSink_IsWhereAClosingDeleteHandsItsLine_AndWithoutOneTheLineHasNowhereToGo()
+    {
+        await UseDevice("desktop");
+        var (launcher, host, _) = Parts();
+
+        Assert.True(await launcher.OpenAsync(Movie(), EditTool.Match));
+        Assert.False(await host.HandNoticeToPageAsync("Files stayed on disk."));
+        Assert.True(await host.RequestCloseAsync());
+
+        var handed = new List<string>();
+        Assert.True(await launcher.OpenAsync(Movie(), EditTool.Match, deletedNotice: notice =>
+        {
+            handed.Add(notice);
+            return Task.CompletedTask;
+        }));
+        Assert.True(await host.HandNoticeToPageAsync("Files stayed on disk."));
+
+        Assert.Equal(["Files stayed on disk."], handed);
+    }
+
+    [Fact]
     public async Task ClosingAfterACommittedChange_TellsTheListWhichItemsChanged()
     {
         await UseDevice("desktop");

@@ -12,7 +12,7 @@ public sealed class OperationsRecentlyAddedGuardrailTests
 
         Assert.Contains("GetNeedsReviewListAsync(", review, StringComparison.Ordinal);
         Assert.Contains("RefreshReviewCountAsync", review, StringComparison.Ordinal);
-        Assert.Contains("EditLauncher.OpenAsync(target, EditTool.Match)", review, StringComparison.Ordinal);
+        Assert.Contains("EditLauncher.OpenAsync(target, EditTool.Match,", review, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher", review, StringComparison.Ordinal);
         Assert.Contains("<AppOverflowMenu", review, StringComparison.Ordinal);
         Assert.Contains("data-testid=\"library-status-line\"", statusLine, StringComparison.Ordinal);

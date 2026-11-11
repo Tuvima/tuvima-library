@@ -73,12 +73,13 @@ public sealed class ListEditLauncher
     /// <summary>
     /// Opens the pop-over on <paramref name="target"/>. <paramref name="tool"/> null opens Match for an item that is not matched and Details
     /// otherwise; Fix and Identify pass <see cref="EditTool.Match"/>. False when the device or the Engine's answer refuses (the reason is
-    /// in <see cref="LastNotice"/>) or the Engine could not be reached.
+    /// in <see cref="LastNotice"/>) or the Engine could not be reached. <paramref name="deletedNotice"/> is the list's own place for a line about a
+    /// delete that closed the window (files left on disk, say); without it that line would have nowhere to go.
     /// </summary>
-    public async Task<bool> OpenAsync(ListEditTarget target, EditTool? tool = null)
+    public async Task<bool> OpenAsync(ListEditTarget target, EditTool? tool = null, Func<string, Task>? deletedNotice = null)
     {
         ArgumentNullException.ThrowIfNull(target);
-        var binding = await BindAsync(target);
+        var binding = await BindAsync(target, deletedNotice);
         if (binding is null)
         {
             return false;
@@ -168,7 +169,7 @@ public sealed class ListEditLauncher
     }
 
     // One small read before opening: the Engine's own answer whether this person may edit this item, and where its editable fields live.
-    private async Task<EditorBinding?> BindAsync(ListEditTarget target)
+    private async Task<EditorBinding?> BindAsync(ListEditTarget target, Func<string, Task>? deletedNotice = null)
     {
         LastNotice = null;
         if (target.EntityId == Guid.Empty)
@@ -214,6 +215,7 @@ public sealed class ListEditLauncher
             BulkMediaType = mediaType,
             IsUnmatched = page.OverflowActions.Any(action => DetailActionKeys.IsUnmatchedAction(action.Key)),
             Extras = page.Extras,
+            DeletedWithNotice = deletedNotice,
         };
         binding.Trail = () => [new EditTrailItem(target.EntityId, target.Title, "Item")];
         binding.MediaTypes = () => [mediaType];
