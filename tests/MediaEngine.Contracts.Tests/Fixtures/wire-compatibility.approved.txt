@@ -1461,7 +1461,7 @@
 
 [method] GetPlaybackSettingsAsync
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  response | shape=79babe6f0512fb45afde63d4fbb61c013468344f8c9f6e255daf45364562400a
+  response | shape=9149fcf2b2dc2a22088d717eb3947b5d08e7a25a20f7971f806de081b5bd8106
 
 [method] GetPlayerCapabilitiesAsync
   response | shape=7aea02079af2261f08b94140da6cd9824660332ddd6c3f41a98e3057ecc67ee5
@@ -3413,8 +3413,8 @@
 
 [method] UpdatePlaybackSettingsAsync
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input settings | default=required | shape=d85decb20371210d8195778a4643ea70d49616af142828d5cae84af8dc0acd07
-  response | shape=79babe6f0512fb45afde63d4fbb61c013468344f8c9f6e255daf45364562400a
+  input settings | default=required | shape=4987d43f7150cf3ab1560b8faf99db36963e801292a47a45da5eedad4ab12fe9
+  response | shape=9149fcf2b2dc2a22088d717eb3947b5d08e7a25a20f7971f806de081b5bd8106
 
 [method] UpdateProfileAsync
   input id | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -7555,28 +7555,6 @@ property=last_used_at | nullability=not-null | accessors=get,set | required=no |
 [shape] 46fc2f975e7fa8094b21aff6a41911a6a5e85577c45a840c05d260701e61db34
 direction=write | kind=scalar | wire=date-time-string
 
-[shape] 4718c8d856662167e69d32bb762080b349344be96d1e319cc9e4c5e43716eb4a
-direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=audiobookDefaultSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=skipBackSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=skipForwardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=resumeRewindSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookListenQualificationSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookHistoryLimit | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookResumeRegressionGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookNearStartGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookHistoryActiveSegmentGapSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookHistoryPositionJumpToleranceSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=audiobookScanRates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=20a4c16df86d3f87352445405052b333e3a3c8c5c9141670358b4aacd308dbf7
-property=sleepTimerOptionsMinutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=20a4c16df86d3f87352445405052b333e3a3c8c5c9141670358b4aacd308dbf7
-property=allowEndOfChapterSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=musicCrossfade | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=crossfadeSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=defaultSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=skipSilence | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=outputPreference | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-
 [shape] 472a5c9d929a7b2cf762934e25b1b17c359f744d88db484c04eb4c76a5cae40c
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
 property=assetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c053966c6e811a8ce84683726714ab2f84f40fd250c6cd58763ff6b03e191115
@@ -7762,6 +7740,18 @@ property=scopeProfileId | nullability=nullable | accessors=get,init | required=n
 property=search | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
 property=cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
 property=limit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+
+[shape] 4987d43f7150cf3ab1560b8faf99db36963e801292a47a45da5eedad4ab12fe9
+direction=write | kind=object | converter=default | number-handling=default | unmapped=Disallow | polymorphism=none
+property=profileId | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+property=general | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=f2df374dc72216cf5bf30be6d831200bb78e50af83dcd7cd116642daea4d718b
+property=watching | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=24dc04fe2022fa9da0b7cd530c98ef245cd4724c32ffcacacd328cc361a59d7a
+property=listening | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a56c9ea41c0964ad1e24ab03ec45b3f7d5ef56a669019acfad73efb3156c92f7
+property=reading | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ad5b9c79118498f80ee133cce33031da1b305d6b5d7eb16ba8993d5e96336316
+property=subtitles | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ad627847bc56f36ac9865b30d2b6bb7f87ba293ded3f0463300cf183bd6e042d
+property=contextSidebars | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=541ca0b4d3140ce9f692032760b51d0dc5b3e8b5526353e03df146d37a23759b
+property=updatedAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=46fc2f975e7fa8094b21aff6a41911a6a5e85577c45a840c05d260701e61db34
+sample={"profileId":"11111111-2222-3333-4444-555555555555","general":null,"watching":null,"listening":null,"reading":null,"subtitles":null,"contextSidebars":{},"updatedAt":"2025-01-02T03:04:05+00:00"}
 
 [shape] 498f331c4de02bd15ec355adab2ada17fc3c49627cc4fa553c99707b836be5a3
 direction=read | kind=array | item=2c3652ff0d2ba18403fbf6805b633af604727ffa3b8f410d1828b4a0b672bad6
@@ -10483,17 +10473,6 @@ property=last_error | nullability=nullable | accessors=get,set | required=no | o
 property=created_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=bfb02014cab267629422d48bd801077d2af62b9feba6fe8f4036f8c39b38d63f
 property=updated_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=bfb02014cab267629422d48bd801077d2af62b9feba6fe8f4036f8c39b38d63f
 
-[shape] 79babe6f0512fb45afde63d4fbb61c013468344f8c9f6e255daf45364562400a
-direction=read | kind=object | converter=default | number-handling=default | unmapped=Disallow | polymorphism=none
-property=profileId | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c053966c6e811a8ce84683726714ab2f84f40fd250c6cd58763ff6b03e191115
-property=general | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=3c28f0f9f1b9c0b29bdd9b8760b8ce4edea19999e69adc65f9e558b4aa883c4f
-property=watching | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b98551655631d9a4d8a15565ed71c758d47b1752da96c63f4bf534a715351f88
-property=listening | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=4718c8d856662167e69d32bb762080b349344be96d1e319cc9e4c5e43716eb4a
-property=reading | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=816b2567de759b79644df6b3e0e115ca30b8b7396adde7ce18258513e6dbb680
-property=subtitles | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=96503dc28fd2c98687b85f6fc1338db71d04c505eb6d688d51e55f9c57991b66
-property=contextSidebars | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=57c27e92523f86f77c40ce688977fcfa46a7b331fb15b43baf99e8733848ed44
-property=updatedAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=bfb02014cab267629422d48bd801077d2af62b9feba6fe8f4036f8c39b38d63f
-
 [shape] 7a080bf5ab6843c9ec1206007569bf6f7c7f4727dd657e0f8845cb409ccad672
 direction=read | kind=array | item=a94178d9ce01cbf0d2f292e135c0009eb38a419b6630e57ecaab962e30bff76e
 
@@ -11681,6 +11660,17 @@ property=validated_at | nullability=not-null | accessors=get,init | required=no 
 property=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=contents | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c2bcfda614af37049e2177d72ecec1cb6c0d0d07c01657b3279d859c27af2e4e
 
+[shape] 9149fcf2b2dc2a22088d717eb3947b5d08e7a25a20f7971f806de081b5bd8106
+direction=read | kind=object | converter=default | number-handling=default | unmapped=Disallow | polymorphism=none
+property=profileId | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c053966c6e811a8ce84683726714ab2f84f40fd250c6cd58763ff6b03e191115
+property=general | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=3c28f0f9f1b9c0b29bdd9b8760b8ce4edea19999e69adc65f9e558b4aa883c4f
+property=watching | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b98551655631d9a4d8a15565ed71c758d47b1752da96c63f4bf534a715351f88
+property=listening | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c9af5c845a3e1fd691614b31199f8cb929db46f07484be14679241169c0a0c8d
+property=reading | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=816b2567de759b79644df6b3e0e115ca30b8b7396adde7ce18258513e6dbb680
+property=subtitles | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=96503dc28fd2c98687b85f6fc1338db71d04c505eb6d688d51e55f9c57991b66
+property=contextSidebars | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=57c27e92523f86f77c40ce688977fcfa46a7b331fb15b43baf99e8733848ed44
+property=updatedAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=bfb02014cab267629422d48bd801077d2af62b9feba6fe8f4036f8c39b38d63f
+
 [shape] 916484665a6e5df5d5ba346c965ac2a3e4ea15b58bb87e979bf89eaf89c50209
 direction=write | kind=array | item=6ccb259b1a8386606f89227e8f3c89ce83c3e7adb2a06e30f5f4f8c4c07ea541
 
@@ -12792,6 +12782,30 @@ property=songs | nullability=nullable | accessors=get,set | required=no | order=
 
 [shape] a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
 direction=write | kind=scalar | wire=number
+
+[shape] a56c9ea41c0964ad1e24ab03ec45b3f7d5ef56a669019acfad73efb3156c92f7
+direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=audiobookDefaultSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=skipBackSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=skipForwardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=resumeRewindSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookListenQualificationSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookHistoryLimit | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookResumeRegressionGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookNearStartGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookHistoryActiveSegmentGapSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookHistoryPositionJumpToleranceSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=audiobookScanRates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b797028c30813721845b28b06b7e09028bd14fe66aaff1c69d752ac13d3381c8
+property=sleepTimerOptionsMinutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b797028c30813721845b28b06b7e09028bd14fe66aaff1c69d752ac13d3381c8
+property=allowEndOfChapterSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+property=musicCrossfade | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+property=crossfadeSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+property=defaultSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=skipSilence | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+property=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+property=outputPreference | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=songTableColumns | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=99ae927c090ec179f16f493f873395fbfacf564bb98fff01bdb377e7ef52a673
+sample={"audiobookDefaultSpeed":7,"skipBackSeconds":7,"skipForwardSeconds":7,"resumeRewindSeconds":7,"audiobookListenQualificationSeconds":7,"audiobookHistoryLimit":7,"audiobookResumeRegressionGuardSeconds":7,"audiobookNearStartGuardSeconds":7,"audiobookHistoryActiveSegmentGapSeconds":7,"audiobookHistoryPositionJumpToleranceSeconds":7,"audiobookScanRates":[],"sleepTimerOptionsMinutes":[],"allowEndOfChapterSleepTimer":true,"musicCrossfade":true,"crossfadeSeconds":7,"defaultSleepTimer":"sample","skipSilence":true,"rememberPerTitlePlaybackSpeed":true,"outputPreference":"sample","songTableColumns":{}}
 
 [shape] a5b5f8c13ddc067ea7a53cbdb3ef917d15b1119109fc7c4ae3934d0342edbc2a
 direction=write | kind=array | item=4f17c6937c56ed327d2d5f50f53cc21af9dcaa82e76e27e4a9fd5b1d920598c0
@@ -13910,29 +13924,6 @@ property=preferHeroBanners | nullability=not-null | accessors=get,set | required
 property=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 property=preferredVideoQuality | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
-[shape] b99486d2ae010ea20778d611a6d92b408fb457fe91f4851f3ac89eceebc59012
-direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=audiobookDefaultSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=skipBackSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=skipForwardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=resumeRewindSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookListenQualificationSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookHistoryLimit | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookResumeRegressionGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookNearStartGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookHistoryActiveSegmentGapSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookHistoryPositionJumpToleranceSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=audiobookScanRates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b797028c30813721845b28b06b7e09028bd14fe66aaff1c69d752ac13d3381c8
-property=sleepTimerOptionsMinutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b797028c30813721845b28b06b7e09028bd14fe66aaff1c69d752ac13d3381c8
-property=allowEndOfChapterSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
-property=musicCrossfade | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
-property=crossfadeSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
-property=defaultSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=skipSilence | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
-property=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
-property=outputPreference | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-sample={"audiobookDefaultSpeed":7,"skipBackSeconds":7,"skipForwardSeconds":7,"resumeRewindSeconds":7,"audiobookListenQualificationSeconds":7,"audiobookHistoryLimit":7,"audiobookResumeRegressionGuardSeconds":7,"audiobookNearStartGuardSeconds":7,"audiobookHistoryActiveSegmentGapSeconds":7,"audiobookHistoryPositionJumpToleranceSeconds":7,"audiobookScanRates":[],"sleepTimerOptionsMinutes":[],"allowEndOfChapterSleepTimer":true,"musicCrossfade":true,"crossfadeSeconds":7,"defaultSleepTimer":"sample","skipSilence":true,"rememberPerTitlePlaybackSpeed":true,"outputPreference":"sample"}
-
 [shape] b9f1e751fe677326dc66290a49d79c77d9ce7393351b86e51e6b87d96ae34ff7
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
 property=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
@@ -14728,6 +14719,29 @@ property=reason_code | nullability=nullable | accessors=get,init | required=no |
 
 [shape] c956f29a804552e2608fd23ee315adef8d7930048ef6d82dbec60aec255263d2
 direction=read | kind=array | item=4c65581a06eab01ba84a34797a2f06dfe3d02365bf064f0f7979d19a36bfbdc7
+
+[shape] c9af5c845a3e1fd691614b31199f8cb929db46f07484be14679241169c0a0c8d
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=audiobookDefaultSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=skipBackSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=skipForwardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=resumeRewindSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookListenQualificationSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookHistoryLimit | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookResumeRegressionGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookNearStartGuardSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookHistoryActiveSegmentGapSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookHistoryPositionJumpToleranceSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=audiobookScanRates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=20a4c16df86d3f87352445405052b333e3a3c8c5c9141670358b4aacd308dbf7
+property=sleepTimerOptionsMinutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=20a4c16df86d3f87352445405052b333e3a3c8c5c9141670358b4aacd308dbf7
+property=allowEndOfChapterSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=musicCrossfade | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=crossfadeSeconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=defaultSleepTimer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=skipSilence | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=outputPreference | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=songTableColumns | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=4397cbebf9e2de5070dd9e57a3271140cf9af180d57359b83109341c65a61955
 
 [shape] c9b5d318211835a1058abf1704233af113e92e09a669139a239a93edda78e232
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
@@ -15571,18 +15585,6 @@ property=role | nullability=not-null | accessors=get,set | required=no | order=0
 property=max_tokens | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
 property=schedule | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=resource_class | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-
-[shape] d85decb20371210d8195778a4643ea70d49616af142828d5cae84af8dc0acd07
-direction=write | kind=object | converter=default | number-handling=default | unmapped=Disallow | polymorphism=none
-property=profileId | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-property=general | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=f2df374dc72216cf5bf30be6d831200bb78e50af83dcd7cd116642daea4d718b
-property=watching | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=24dc04fe2022fa9da0b7cd530c98ef245cd4724c32ffcacacd328cc361a59d7a
-property=listening | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b99486d2ae010ea20778d611a6d92b408fb457fe91f4851f3ac89eceebc59012
-property=reading | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ad5b9c79118498f80ee133cce33031da1b305d6b5d7eb16ba8993d5e96336316
-property=subtitles | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ad627847bc56f36ac9865b30d2b6bb7f87ba293ded3f0463300cf183bd6e042d
-property=contextSidebars | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=541ca0b4d3140ce9f692032760b51d0dc5b3e8b5526353e03df146d37a23759b
-property=updatedAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=46fc2f975e7fa8094b21aff6a41911a6a5e85577c45a840c05d260701e61db34
-sample={"profileId":"11111111-2222-3333-4444-555555555555","general":null,"watching":null,"listening":null,"reading":null,"subtitles":null,"contextSidebars":{},"updatedAt":"2025-01-02T03:04:05+00:00"}
 
 [shape] d89c3eeb92ae2471a02bde0c49a81b8950044238606387716f6aa759ab24a198
 direction=read | kind=array | item=1a670dc884277d17002cf46d00b63c622ccf3ff40f410f7ed0645be63b4c32fb

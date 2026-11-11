@@ -8091,6 +8091,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListeningSettingsD
   SkipSilence: System.Boolean | nullability=not-null | accessors=get,set
   RememberPerTitlePlaybackSpeed: System.Boolean | nullability=not-null | accessors=get,set
   OutputPreference: System.String | nullability=not-null | accessors=get,set
+  SongTableColumns: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.NativePlaybackPreferencesDto
   AudioLanguage: System.String | nullability=not-null | accessors=get,init
