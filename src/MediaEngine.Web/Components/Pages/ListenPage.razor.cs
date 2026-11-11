@@ -3198,9 +3198,6 @@ public partial class ListenPage
                 : MediaTileShape.Landscape,
             Presentation = MediaTilePresentation.Default,
             SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            HoverLayout = string.IsNullOrWhiteSpace(backgroundMedium)
-                ? MediaTileHoverLayout.ArtOnlyPopover
-                : MediaTileHoverLayout.BannerPopover,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = small,
             TileImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),
@@ -3443,9 +3440,6 @@ public partial class ListenPage
                 : MediaTileShape.Square,
             Presentation = presentation,
             SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            HoverLayout = !string.IsNullOrWhiteSpace(backgroundMedium) || !string.IsNullOrWhiteSpace(bannerMedium)
-                ? MediaTileHoverLayout.BannerPopover
-                : MediaTileHoverLayout.ArtOnlyPopover,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = small,
             TileImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),

@@ -43,7 +43,6 @@ public static class SequenceEpisodeTileAdapter
             HoverImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),
             TileImageFitMode = MediaTileImageFitMode.Fill,
             HoverImageFitMode = MediaTileImageFitMode.Fill,
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
             TileTextMode = MediaTileTextMode.Caption,
             NavigationUrl = route,
             DetailsNavigationUrl = route,
