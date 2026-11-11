@@ -228,7 +228,7 @@ public sealed class CollectionsHubTests
     [Fact]
     public void CollectionEditor_UsesTypedTextareaForDescription()
     {
-        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
+        var source = SplitComponentSource.ReadAll(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
         var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css"));
 
         Assert.Contains("<AppTextarea Value=\"@_description\"", source, StringComparison.Ordinal);
