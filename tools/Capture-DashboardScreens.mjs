@@ -167,7 +167,7 @@ async function runSetup(page) {
 async function signInIfAsked(page) {
     // With a "name only" owner a new browser on this computer is let straight in or shown the profile picker.
     if (/\/(auth\/login|who)/.test(new URL(page.url()).pathname)) {
-        await clickIfPresent(page, new RegExp(ownerName), 8000);
+        await clickIfPresent(page, new RegExp(ownerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 8000);
         await page.waitForTimeout(3000);
     }
     if (/\/(auth\/login|who|setup)/.test(new URL(page.url()).pathname)) {
