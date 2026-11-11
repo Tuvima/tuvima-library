@@ -1,0 +1,90 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+@* The quiet "Saved" line (design system, Feedback after an action): beside a Save button or under a section heading when a change worked
+   and there is no single row to glow. The slot is always drawn (it is the live region and keeps its line height, so nothing shifts);
+   the line inside appears on Show() or when Visible turns true, fades by itself and is taken out again after Delay. *@
+<span class="app-saved-note" role="status" data-saved-note @attributes="AdditionalAttributes">
+    @if (_shown)
+    {
+        <span class="app-saved-note__line" @key="_shownCount" style="@FadeStyle">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppIconSize.Inline16" />
+            <span>@(Text ?? L["Common_Saved"].Value)</span>
+        </span>
+    }
+</span>
+
+@code {
+    /// <summary>Turning this true shows the line once; the parent can leave it true, the note hides itself.</summary>
+    [Parameter] public bool Visible { get; set; }
+
+    /// <summary>What to say; the shared "Saved" when left empty.</summary>
+    [Parameter] public string? Text { get; set; }
+
+    /// <summary>How long the line stays before it is removed (it fades over the same time).</summary>
+    [Parameter] public TimeSpan Delay { get; set; } = TimeSpan.FromSeconds(4);
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private CancellationTokenSource? _timer;
+    private bool _shown;
+    private bool _lastVisible;
+    private int _shownCount;
+
+    private string FadeStyle => $"--app-saved-note-duration: {(int)Delay.TotalMilliseconds}ms";
+
+    protected override void OnParametersSet()
+    {
+        if (Visible && !_lastVisible)
+        {
+            Begin();
+        }
+        _lastVisible = Visible;
+    }
+
+    /// <summary>Shows the line now (again, when it is already showing) and starts its timer.</summary>
+    public void Show()
+    {
+        Begin();
+        StateHasChanged();
+    }
+
+    private void Begin()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        _timer = new CancellationTokenSource();
+        _shown = true;
+        _shownCount++;
+        _ = HideAfterDelayAsync(_timer.Token);
+    }
+
+    private async Task HideAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(Delay, token);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer Show() or Dispose() replaced this timer; the line is theirs now.
+            return;
+        }
+        await InvokeAsync(() =>
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            _shown = false;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        _timer = null;
+    }
+}
