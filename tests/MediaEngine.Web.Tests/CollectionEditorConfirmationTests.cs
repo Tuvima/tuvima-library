@@ -116,7 +116,6 @@ public sealed class CollectionEditorConfirmationTests : AsyncBunitContext
         await UntilAsync(() => _closed.Count > 0, "The editor did not close.");
         Assert.Equal([true], _closed);
         Assert.Equal([CollectionId], _deleted);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -163,7 +162,6 @@ public sealed class CollectionEditorConfirmationTests : AsyncBunitContext
         await UntilAsync(() => editor.Markup.Contains("The collection could not be deleted.", StringComparison.Ordinal),
             "The refusal was not shown.");
         Assert.Contains("data-editor-notice", editor.Markup);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
         Assert.Empty(_closed);
     }
 

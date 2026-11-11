@@ -153,7 +153,6 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         Assert.Equal("true", cut.FindAll("[data-spoiler-level] .app-segmented-control__item")[0].GetAttribute("aria-pressed"));
         // Told once, in place, as an alert; never again as a pop-up notice.
         Assert.Single(cut.FindAll(".tl-alert-error"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -420,7 +419,6 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("Playback settings could not be saved.", cut.Markup));
         Assert.Contains(_logs.Entries, entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException);
         Assert.Single(cut.FindAll(".tl-alert-error"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -433,7 +431,6 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.False(_saved.Last().General.ResumePlayback));
         Assert.Empty(cut.FindAll(".tl-alert-error"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

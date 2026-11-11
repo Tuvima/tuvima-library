@@ -45,7 +45,6 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
         Assert.Equal(1, saves);
         Assert.Empty(cut.FindAll("[data-network-failure]"));
         Assert.Empty(cut.FindAll("[data-reset-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -63,7 +62,6 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
 
         Assert.Equal(0, saves);
         Assert.NotEmpty(cut.Find("[data-network-failure]").TextContent.Trim());
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
 
         // The next attempt with a good port clears the warning and saves.
         cut.FindAll("input[type='text'], input:not([type])")
@@ -88,7 +86,6 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("dialog [data-reset-failure]").GetAttribute("role")));
         Assert.Equal(1, _resets);
         Assert.Equal(0, replaced);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -104,7 +101,6 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Same(_resetReplacement, received));
         Assert.Empty(cut.FindAll("[data-reset-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     // The row's button opens the dialog; the dialog's own button (the last one with that label) does the reset.

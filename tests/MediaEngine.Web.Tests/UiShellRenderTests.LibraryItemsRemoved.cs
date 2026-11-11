@@ -17,7 +17,6 @@ public sealed partial class UiShellRenderTests
             ShellAuthority(true, ["settings.administration"], ["access.manage"]), AdultProfile("Shy"));
         var playback = Services.GetRequiredService<PlaybackSessionController>();
         var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
-        var toasts = Services.GetRequiredService<AppToastService>();
         var song = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Playing now", StreamUrl = "stream://now" };
         await cut.InvokeAsync(() => playback.PlayQueueItemAsync(song));
 
@@ -29,7 +28,6 @@ public sealed partial class UiShellRenderTests
         });
         Assert.True(playback.IsDismissed);
         Assert.Null(playback.CurrentItem);
-        Assert.Empty(toasts.Toasts);
 
         // The notice stays until it is closed.
         cut.Find("[data-layout-notice] button").Click();

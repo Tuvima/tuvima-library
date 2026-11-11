@@ -212,7 +212,6 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
         Assert.Contains("the-den-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
         // Saved is told by the quiet line under the name, never by a pop-up.
         cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
         Assert.Empty(cut.FindAll("[data-name-address-failure]"));
     }
 
@@ -227,7 +226,6 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
 
         Assert.Equal("The Library name could not be saved.", cut.Find("[data-name-address-failure]").TextContent.Trim());
         Assert.DoesNotContain("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

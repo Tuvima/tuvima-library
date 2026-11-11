@@ -306,7 +306,6 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").First(input => input.GetAttribute("aria-label") == "Vault mode").Change(true));
 
         Assert.Contains(NsfwModeSwitching.SetPinFirst, cut.Find("[data-vault-own-notice]").TextContent);
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -322,7 +321,6 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the menu").Change(true));
 
         Assert.Equal("The menu choice could not be saved.", cut.Find("[data-vault-own-notice]").TextContent.Trim());
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -340,7 +338,6 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-vault-access-saved]").TextContent));
         Assert.Empty(cut.FindAll("[data-vault-access-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

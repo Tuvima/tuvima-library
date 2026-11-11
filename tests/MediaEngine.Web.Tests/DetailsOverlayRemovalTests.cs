@@ -74,14 +74,12 @@ public sealed class DetailsOverlayRemovalTests : AsyncBunitContext
     public async Task WhenTheOpenTitleIsDeletedElsewhere_TheOverlayStaysOpenWithANoticeInsteadOfDismissing()
     {
         var cut = RenderInOpenOverlay();
-        var toasts = Services.GetRequiredService<AppToastService>();
 
         await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
 
         cut.WaitForAssertion(() => Assert.Equal("This item is no longer in your library", cut.Find(".tl-removed-notice__title").TextContent.Trim()));
         Assert.Empty(_steps);
         Assert.True(Services.GetRequiredService<DetailsOverlayState>().IsOpen);
-        Assert.Empty(toasts.Toasts);
         Assert.Empty(cut.FindAll(".tl-detail-stage"));
         Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "detailOrigin.back");
     }

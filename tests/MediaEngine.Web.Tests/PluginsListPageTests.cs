@@ -253,7 +253,6 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(["tv"], _savedLibraries));
         // The side facts now show the new choice; nothing else announces it.
         Assert.Empty(cut.FindAll("[data-plugin-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -277,7 +276,6 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("[data-plugin-failure]").GetAttribute("role")));
         Assert.NotEmpty(cut.Find("[data-plugin-failure]").TextContent.Trim());
         Assert.NotEmpty(cut.FindAll("[data-testid=plugin-library-picker]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -324,7 +322,6 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Gamma needs this plugin.", cut.Markup));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

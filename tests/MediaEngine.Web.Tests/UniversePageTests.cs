@@ -382,7 +382,6 @@ public sealed class UniversePageTests : AsyncBunitContext
         OpenEditFromMenu(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("unavailable", cut.Find("[data-universe-edit-notice]").TextContent, StringComparison.OrdinalIgnoreCase));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
 
         // Dismissing the alert takes it away.
         cut.Find("[data-universe-edit-notice] button").Click();

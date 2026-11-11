@@ -14,7 +14,6 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
     private readonly List<UpdateBackupSettingsRequest> _saved = [];
     private readonly List<SaveBackupDestinationRequest> _added = [];
     private readonly List<string> _removed = [];
-    private readonly AppToastService _toasts = new();
     private BackupSettingsResponse? _addAnswer;
     private bool _addFails;
     private bool _testPasses = true;
@@ -34,7 +33,6 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddSingleton<IAppToastService>(_toasts);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetBackupSettingsAsync), _ => Task.FromResult<BackupSettingsResponse?>(_settings));
@@ -131,7 +129,6 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("tl-just-changed", cut.Find("[data-testid='destination-spare']").ClassName));
         Assert.DoesNotContain("tl-just-changed", cut.Find("[data-testid='destination-webdav-1']").ClassName);
         Assert.Empty(cut.FindAll("[data-backup-failure]"));
-        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]
@@ -144,7 +141,6 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.Find("[data-backup-failure]").TextContent));
         Assert.Equal("alert", cut.Find("[data-backup-failure]").GetAttribute("role"));
-        Assert.Empty(_toasts.Toasts);
 
         _addFails = false;
         cut.FindAll("button").Single(button => button.TextContent.Contains("Add destination")).Click();
@@ -164,7 +160,6 @@ public sealed class BackupDestinationsSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains(tone, cut.Find("[data-testid='destination-webdav-1'] [data-destination-test]").ClassName));
         Assert.Empty(cut.FindAll("[data-testid='destination-folder'] [data-destination-test]"));
-        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]

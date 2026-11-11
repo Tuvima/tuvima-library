@@ -47,7 +47,6 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
         module.Setup<List<BookReaderTocItem>>("getToc").SetResult([]);
     }
 
-    private IReadOnlyList<string> Toasts => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
 
     private IEnumerable<Delegate> Listeners() =>
         (typeof(UIOrchestratorService).GetField(nameof(UIOrchestratorService.OnLibraryItemsRemoved), BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -63,7 +62,6 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
         await cut.InvokeAsync(() => _orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([Guid.NewGuid()], [AssetId])));
 
         cut.WaitForAssertion(() => Assert.Equal(manager.BaseUri, manager.Uri));
-        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -75,7 +73,6 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => _orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()])));
 
-        Assert.Empty(Toasts);
         Assert.EndsWith($"/read/{AssetId}", manager.Uri, StringComparison.Ordinal);
     }
 

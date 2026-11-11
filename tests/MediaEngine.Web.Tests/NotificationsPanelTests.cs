@@ -14,7 +14,6 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class NotificationsPanelTests : AsyncBunitContext
 {
-    private readonly AppToastService _toasts = new();
     private readonly List<UpdateNotificationSettingsRequest> _saved = [];
     private readonly List<string> _tested = [];
     private readonly List<string> _enabled = [];
@@ -29,7 +28,6 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddSingleton<IAppToastService>(_toasts);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetNotificationsAsync), _ => Task.FromResult<NotificationListResponse?>(_list));
@@ -137,7 +135,6 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(["email"], _tested));
         cut.WaitForAssertion(() => Assert.Contains("me@example.com", cut.Find("[data-channel='email'] [data-channel-test]").TextContent, StringComparison.Ordinal));
-        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]
@@ -151,7 +148,6 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("tl-alert-error", cut.Find("[data-channel='email'] [data-channel-test]").ClassName));
         Assert.Contains("The mail server refused the message.", cut.Find("[data-channel='email'] [data-channel-test]").TextContent);
-        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]
@@ -164,7 +160,6 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         cut.Find("[data-event='backup.failed']").QuerySelectorAll("input[type='checkbox']")[1].Change(true);
 
         cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("[data-notifications-failure]").GetAttribute("role")));
-        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]
@@ -177,7 +172,6 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(_saved));
         Assert.Empty(cut.FindAll("[data-notifications-failure]"));
-        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]

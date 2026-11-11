@@ -148,7 +148,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
     private static ReviewListAttempt Loaded(params ReviewItemViewModel[] items) => new([.. items], null);
 
-    private IReadOnlyList<AppToast> Toasts => Services.GetRequiredService<AppToastService>().Toasts;
 
     private static void OpenMenuAndClick(IRenderedComponent<NeedsReviewPageContent> cut, string label)
     {
@@ -303,7 +302,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             Assert.Contains("tl-alert-error", alert.ClassName);
         }
 
-        Assert.Empty(Toasts);
         Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count);
     }
 
@@ -325,7 +323,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Assert.Equal([FirstId], registered.Kept);
         Assert.Contains("could not keep the provider match", alert.TextContent);
         Assert.Contains(throws ? "tl-alert-error" : "tl-alert-warning", alert.ClassName);
-        Assert.Empty(Toasts);
         Assert.Single(cut.FindAll("tr.needs-review-table__row"));
     }
 
@@ -409,7 +406,6 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
         Assert.Single(registered.Dismissed);
-        Assert.Empty(Toasts);
     }
 
     [Fact]

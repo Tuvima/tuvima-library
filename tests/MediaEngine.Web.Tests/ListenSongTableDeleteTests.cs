@@ -101,7 +101,6 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
                 return Task.CompletedTask;
             }));
 
-    private IReadOnlyList<string> Toasts => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
 
     // The line the table says in place (an alert above the list) when a delete is refused or leaves a file on disk.
     private static string Notice(IRenderedComponent<ListenSongTable> cut)
@@ -388,7 +387,6 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(songs[0]));
 
         Assert.Equal(EditorDeviceRule.Message, Notice(cut));
-        Assert.Empty(Toasts);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Empty(_previewRequests);
     }
@@ -404,7 +402,6 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(songs[0]));
 
         Assert.Equal("You need administrator access to delete items.", Notice(cut));
-        Assert.Empty(Toasts);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Empty(_previewRequests);
     }

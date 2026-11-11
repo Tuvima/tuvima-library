@@ -19,7 +19,6 @@ public sealed class LookRatchetGuardrailTests
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
     private const int OldAppVariableCeiling = 159;
     private const int DeadStyleClassCeiling = 0;
-    private const int ToastCallCeiling = 300;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
     {
@@ -60,29 +59,13 @@ public sealed class LookRatchetGuardrailTests
     }
 
     [Fact]
-    public void ToastCallsOnlyGoDown()
+    public void ThereAreNoToasts()
     {
-        // Names a toast service goes by in code. The fixed list is the old count; every other field, property, parameter or local that
-        // holds an IAppToastService (or the concrete AppToastService) is found from its declaration, so renaming it does not hide its calls.
-        HashSet<string> names = ["Snackbar", "Toast", "Toasts", "toast", "toasts", "_toast", "_toasts", "ToastService", "_toastService"];
-        var files = WebFiles(".razor", ".cs").Where(f => !f.Relative.StartsWith("Services/Ui/AppToast")).ToList();
-        foreach (var file in files)
-        {
-            foreach (Match declared in Regex.Matches(file.Text, @"\b(?:I?AppToastService)\??\s+(?<name>[A-Za-z_]\w*)\b"))
-            {
-                names.Add(declared.Groups["name"].Value);
-            }
-            foreach (Match local in Regex.Matches(file.Text, @"\b(?<name>[A-Za-z_]\w*)\s*=[^;=]*<I?AppToastService>\(\)"))
-            {
-                names.Add(local.Groups["name"].Value);
-            }
-        }
-        names.ExceptWith(["in", "is", "as", "and", "or", "not", "to", "for", "the", "a", "an"]);
-
-        var byName = new Regex(@"\b(?:" + string.Join("|", names.Select(Regex.Escape)) + @")\??\.Add\(");
-        var byLookup = new Regex(@"<I?AppToastService>\(\)\??\.Add\(");
-        var count = files.Sum(f => byName.Matches(f.Text).Count + byLookup.Matches(f.Text).Count);
-        Assert.True(count <= ToastCallCeiling, $"Toast calls rose to {count} (ceiling {ToastCallCeiling}). There are no pop-up notices: glow the changed row, show the quiet Saved line, or put an alert in place (design system, Feedback after an action).");
+        var offenders = WebFiles(".razor", ".cs")
+            .Where(f => new[] { "IAppToastService", "AppToastService", "AppToastHost", "Snackbar" }.Any(word => f.Text.Contains(word, StringComparison.Ordinal)))
+            .Select(f => f.Relative)
+            .ToList();
+        Assert.True(offenders.Count == 0, $"The toast part has been removed and must not return, but these files mention it: {string.Join(", ", offenders)}. There are no pop-up notices: glow the changed row, show the quiet Saved line, or put an alert in place (design system, Feedback after an action).");
     }
 
     [Fact]

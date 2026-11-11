@@ -155,7 +155,6 @@ public sealed class PluginPageRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-saved-note]").TextContent, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll("[data-plugin-save-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -169,7 +168,6 @@ public sealed class PluginPageRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-plugin-save-failure]")));
         Assert.Empty(cut.Find("[data-saved-note]").TextContent.Trim());
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
 
         _submitResult = new PluginPageSubmitResponse { Saved = true, RecordKey = "r" };
         cut.Find("form").Submit();

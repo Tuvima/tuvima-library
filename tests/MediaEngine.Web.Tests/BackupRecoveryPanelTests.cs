@@ -279,7 +279,6 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
             cut.Find("[data-testid='backup-created']").TextContent));
         // That line is the one confirmation: no second notice, no failure.
         Assert.Empty(cut.FindAll("[data-backup-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -294,7 +293,6 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("alert", cut.Find("[data-backup-failure]").GetAttribute("role")));
         Assert.Contains("could not", cut.Find("[data-backup-failure]").TextContent, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(cut.FindAll("[data-testid='backup-created']"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -307,7 +305,6 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
         cut.FindAll("button").First(button => button.TextContent.Contains("Test restore", StringComparison.Ordinal)).Click();
 
         cut.WaitForAssertion(() => Assert.Contains("restore test failed", cut.Find("[data-backup-failure]").TextContent, StringComparison.OrdinalIgnoreCase));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
@@ -321,7 +318,6 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='restore-passed']")));
         Assert.Empty(cut.FindAll("[data-backup-failure]"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Theory]

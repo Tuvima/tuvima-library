@@ -1134,7 +1134,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("could not be done", cut.Markup, StringComparison.OrdinalIgnoreCase));
         Assert.Single(cut.FindAll("[data-first-check=paused]"));
         Assert.Empty(cut.FindAll(".folder-table__row.tl-just-changed"));
-        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]

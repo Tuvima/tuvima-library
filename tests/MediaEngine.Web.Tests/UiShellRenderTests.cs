@@ -494,8 +494,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
             builder.CloseComponent();
@@ -532,8 +530,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
@@ -573,7 +569,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         {
             builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
             builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
@@ -601,7 +596,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         {
             builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "overview");
             builder.CloseComponent();
@@ -642,7 +636,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         {
             builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "access");
             builder.AddAttribute(5, nameof(Settings.Subsection), "users");
@@ -701,8 +694,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.CloseComponent();
@@ -885,8 +876,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
             // The playback preferences are the Watching section of the profile's Preferences tab.
             builder.OpenComponent<MediaEngine.Web.Components.Settings.PlaybackSettingsPage>(3);
             builder.AddAttribute(4, nameof(MediaEngine.Web.Components.Settings.PlaybackSettingsPage.ProfileId), (Guid?)Guid.Parse("00000000-0000-0000-0000-000000000001"));
@@ -929,8 +918,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<PlaybackSettingsPage>(3);
             builder.CloseComponent();
@@ -1087,8 +1074,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.CloseComponent();
         });
@@ -1139,8 +1124,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.AddAttribute(4, nameof(CollectionsPage.Section), "shelves");
             builder.CloseComponent();
@@ -1167,8 +1150,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.AddAttribute(4, nameof(CollectionsPage.Section), "people");
@@ -1202,8 +1183,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.AddAttribute(4, nameof(CollectionsPage.Section), "people");
             builder.CloseComponent();
@@ -1235,8 +1214,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.AddAttribute(4, nameof(CollectionsPage.Section), "automatic");
@@ -2048,8 +2025,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         builder.OpenComponent<AppPopoverHost>(0);
         builder.CloseComponent();
         builder.OpenComponent<AppDialogHost>(1);
-        builder.CloseComponent();
-        builder.OpenComponent<AppToastHost>(2);
         builder.CloseComponent();
         builder.OpenComponent<ListenBrowsePage>(3);
         if (!string.IsNullOrWhiteSpace(tab))
