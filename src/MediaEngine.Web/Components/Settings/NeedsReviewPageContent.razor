@@ -566,8 +566,14 @@
     {
         if (FixTarget(row) is not { } entityId) return;
         _awaitingFix = true;
+        _actionError = null;
         var target = ListEditTarget.ForLibraryRow(entityId, TitleOf(row), row.Review?.MediaType);
-        if (!await EditLauncher.OpenAsync(target, EditTool.Match))
+        // A delete that closes the editor has its line shown in the list's own alert, which the next action clears.
+        if (!await EditLauncher.OpenAsync(target, EditTool.Match, notice => InvokeAsync(() =>
+            {
+                Fail(notice, AppUiTone.Warning);
+                StateHasChanged();
+            })))
         {
             _awaitingFix = false;
             if (EditLauncher.LastNotice is { } why) Fail(why, AppUiTone.Warning);

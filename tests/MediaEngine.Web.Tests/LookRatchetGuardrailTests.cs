@@ -58,11 +58,15 @@ public sealed class LookRatchetGuardrailTests
         Assert.Contains("Destructive", box);
     }
 
+    // Any renamed copy of the toast part (a service or a host, with or without the interface prefix) counts too.
+    private static readonly Regex ToastServiceOrHost = new(@"\bI?\w*Toast(Service|Host)\b", RegexOptions.CultureInvariant);
+
     [Fact]
     public void ThereAreNoToasts()
     {
         var offenders = WebFiles(".razor", ".cs")
-            .Where(f => new[] { "IAppToastService", "AppToastService", "AppToastHost", "Snackbar" }.Any(word => f.Text.Contains(word, StringComparison.Ordinal)))
+            .Where(f => new[] { "IAppToastService", "AppToastService", "AppToastHost", "Snackbar" }.Any(word => f.Text.Contains(word, StringComparison.Ordinal))
+                || ToastServiceOrHost.IsMatch(f.Text))
             .Select(f => f.Relative)
             .ToList();
         Assert.True(offenders.Count == 0, $"The toast part has been removed and must not return, but these files mention it: {string.Join(", ", offenders)}. There are no pop-up notices: glow the changed row, show the quiet Saved line, or put an alert in place (design system, Feedback after an action).");

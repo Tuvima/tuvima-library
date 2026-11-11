@@ -108,6 +108,25 @@ public sealed class UndoAfterStatusChangeTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task WhenThePageMovesToAnotherItem_TheUndoLineOfTheFirstItemIsGone()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-detail-undo]")));
+
+        var other = new DetailPageViewModel
+        {
+            Id = Guid.Parse("22222222-aaaa-bbbb-cccc-000000000009").ToString("D"),
+            EntityType = DetailEntityType.Movie,
+            Title = "Dune: Part Two",
+            Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
+        };
+        cut.Render(parameters => parameters.Add(page => page.Model, other));
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-detail-undo]")));
+    }
+
+    [Fact]
     public async Task TheStatusMenuOfASongRow_HandsTheUndoUpAfterAChange_AndUndoReachesTheEngine()
     {
         var offers = new List<UndoOffer>();

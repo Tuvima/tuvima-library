@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@implements IDisposable
 @using MediaEngine.Contracts.Backups
 @using MediaEngine.Web.Services.Settings
 @inject IEngineApiClient ApiClient
@@ -130,7 +131,20 @@
     private bool CanAdd => !string.IsNullOrWhiteSpace(_new.Name) && !string.IsNullOrWhiteSpace(_new.Location)
         && (!BackupDestinationKinds.IsWeb(_new.Kind) || (NewHost is not null && _confirmed));
 
-    protected override async Task OnInitializedAsync() => _settings = await ApiClient.GetBackupSettingsAsync();
+    // The glow clears itself a few seconds after it started; draw the row again without it.
+    private void OnGlowCleared() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        _glow.Changed -= OnGlowCleared;
+        _glow.Dispose();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _glow.Changed += OnGlowCleared;
+        _settings = await ApiClient.GetBackupSettingsAsync();
+    }
 
     private async Task SaveAsync(UpdateBackupSettingsRequest request)
     {

@@ -357,6 +357,7 @@ public sealed class EditorHost : IDisposable
     {
         if (_binding?.DeletedWithNotice is not { } show)
         {
+            _logger.LogWarning("A delete had a line to show ({HasBinding}) but the page behind has no place for it; the person will not see it", _binding is not null ? "page without a notice place" : "no page bound");
             return false;
         }
 

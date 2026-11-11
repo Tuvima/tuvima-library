@@ -77,7 +77,7 @@
                 </div>
             }
             @* What the "..." menu's Mark as watched or unwatched said, with Undo: in place above the bar, since the menu has closed. *@
-            <div class="video-playback-host__undo"><AppUndoNote Offer="_statusUndo" OnCleared="ClearStatusUndo" /></div>
+            <div class="video-playback-host__undo"><AppUndoNote Offer="StatusUndo" OnCleared="ClearStatusUndo" /></div>
             <PlaybackShell Media="@BarMedia" Surface="video" Phone="@IsPhoneVideo" Class="video-playback-host__bar" AriaLabel="@L["VideoPlaybackHost_VideoPlayback"].Value"
                            State="@BarState" Identity="@BarIdentity"
                            ArtworkSrc="@BarArtwork.Src" ArtworkSrcSet="@BarArtwork.SrcSet" ArtworkIsPoster="@BarArtwork.IsPoster"
@@ -181,8 +181,23 @@
 
 @code {
     private UndoOffer? _statusUndo;
-    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; return Task.CompletedTask; }
+    private Guid? _statusUndoWorkId;
+    private Task ShowStatusUndo(UndoOffer offer) { _statusUndo = offer; _statusUndoWorkId = Playback.CurrentItem?.WorkId; return Task.CompletedTask; }
     private Task ClearStatusUndo() { _statusUndo = null; return Task.CompletedTask; }
+
+    // The offer belongs to the item it was made on: when the playing item changes, it is gone.
+    private UndoOffer? StatusUndo
+    {
+        get
+        {
+            if (_statusUndo is not null && _statusUndoWorkId != Playback.CurrentItem?.WorkId)
+            {
+                _statusUndo = null;
+            }
+
+            return _statusUndo;
+        }
+    }
 
     private ElementReference _hostRef;
     private IJSObjectReference? _chromeModule, _presentationModule, _touchModule, _mediaSessionModule;

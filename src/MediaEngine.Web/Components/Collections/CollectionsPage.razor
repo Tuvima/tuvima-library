@@ -46,7 +46,7 @@
     <CollectionsSectionLayout>
         @if (_createNotice is not null)
         {
-            <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _createNotice = null)" data-collections-create-notice="true">@_createNotice</AppAlert>
+            <AppAlert Tone="_createNoticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _createNotice = null)" data-collections-create-notice="true">@_createNotice</AppAlert>
         }
         @if (_loading || !ActiveSectionReady)
         {
@@ -377,6 +377,7 @@
 
     // Why New collection did nothing; it stays at the top of the section until the next try or the close button.
     private string? _createNotice;
+    private AppUiTone _createNoticeTone = AppUiTone.Warning;
     private string? _loadedPeopleQueryKey;
 
     // Every adult profile makes its own collections (Collections and lists D19); a Kids profile does not. Library ownership and
@@ -1140,6 +1141,7 @@
         if (_activeProfile is null || !CanCreateCollections)
         {
             _createNotice = L["CollectionsPage_KidsCannotCreate"].Value;
+            _createNoticeTone = AppUiTone.Warning;
             return;
         }
 
@@ -1151,6 +1153,7 @@
         {
             // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
             _createNotice = EditorDeviceRule.Message;
+            _createNoticeTone = AppUiTone.Info;
             return;
         }
 
