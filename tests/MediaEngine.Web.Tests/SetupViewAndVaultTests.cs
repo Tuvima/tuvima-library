@@ -334,8 +334,56 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         var cut = RenderOffer();
 
         Assert.Equal("Turn on the Vault?", Text(cut.Find("h2")));
-        Assert.Contains("stays hidden until you turn it on", cut.Markup, StringComparison.Ordinal);
-        Assert.Equal(["Not now", "Set up the Vault"], cut.FindAll("[data-setup-vault] button").Select(Text).ToArray());
+        Assert.Contains("A private, PIN-locked space for anything you want to hide, including adult content.", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal(["Not now", "Turn on the Vault"], cut.FindAll("[data-setup-vault] footer .setup-stage__footer-actions button").Select(Text).ToArray());
+    }
+
+    [Fact]
+    public async Task TheVaultOfferSaysWhatItIsForAndWhatItUnlocks_WithTheLaterLine()
+    {
+        SignInAsAdministrator();
+        Assert.NotNull(await EligibleProfileAsync());
+        var cut = RenderOffer();
+
+        Assert.Equal("A private, PIN-locked space for anything you want to hide, including adult content.", Text(cut.Find("h2 + p")));
+        var panel = cut.Find("[data-vault-panel]");
+        Assert.Equal(["What the Vault is for", "What turning it on unlocks"], panel.QuerySelectorAll("h3").Select(Text).ToArray());
+        Assert.Contains("Adult content is enabled here and only here.", Text(panel), StringComparison.Ordinal);
+        Assert.Contains("Nothing adult appears anywhere else in Library", Text(panel), StringComparison.Ordinal);
+        Assert.Equal(
+            [
+                "Vault becomes a choice when you add a library, for videos and pictures you want hidden, adult content included.",
+                "Everything in the Vault is locked behind its own PIN.",
+                "It stays hidden from kids profiles, and from other profiles unless they have the PIN.",
+            ],
+            panel.QuerySelectorAll("li").Select(Text).ToArray());
+        Assert.Equal("You can turn it on later in Settings.", Text(cut.Find("[data-vault-later]")));
+        Assert.DoesNotContain("fifth", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TheVaultOfferHasBackOnTheLeftAndNotNowBesideTurnOnTheVaultOnTheRight()
+    {
+        SignInAsAdministrator();
+        Assert.NotNull(await EligibleProfileAsync());
+        var wentBack = 0;
+        var cut = Render<SetupVaultOffer>(parameters => parameters
+            .Add(x => x.ProfileId, _me)
+            .Add(x => x.AdministratorHasPin, _hasPin)
+            .Add(x => x.SetupSession, Session)
+            .Add(x => x.Back, EventCallback.Factory.Create(this, () => wentBack++))
+            .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn))));
+
+        var footer = cut.Find("[data-setup-vault] footer.setup-stage__footer");
+        Assert.Equal("Back", Text(footer.QuerySelector(":scope > .app-button")!));
+        Assert.Equal(["Not now", "Turn on the Vault"], footer.QuerySelectorAll(".setup-stage__footer-actions button").Select(Text).ToArray());
+        Assert.Contains("app-button--text", footer.QuerySelectorAll(".setup-stage__footer-actions button")[0].ClassName, StringComparison.Ordinal);
+        Assert.Contains("app-button--filled", footer.QuerySelectorAll(".setup-stage__footer-actions button")[1].ClassName, StringComparison.Ordinal);
+
+        footer.QuerySelector(":scope > .app-button")!.Click();
+
+        Assert.Equal(1, wentBack);
+        Assert.Empty(_vaultFinished);
     }
 
     [Fact]
@@ -384,7 +432,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     public async Task ThePinIsTypedTwiceAMismatchShowsOneAmberLineAndSkipAsksOnceMore()
     {
         var cut = RenderOffer();
-        await cut.ClickAsync(page => Button(page, "Set up the Vault"));
+        await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
         cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
         Assert.Contains("A PIN is strongly suggested", cut.Markup, StringComparison.Ordinal);
         Assert.True(Button(cut, "Turn on the Vault").HasAttribute("disabled"));
@@ -407,7 +455,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     public async Task SettingAPinTurnsTheVaultOnForThisAdministratorOnlyUnlocksItAndLeavesItOutOfTheMenu()
     {
         var cut = RenderOffer();
-        await cut.ClickAsync(page => Button(page, "Set up the Vault"));
+        await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
         cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
         cut.FindAll("input")[0].Input(RightPin);
         cut.FindAll("input")[1].Input(RightPin);
@@ -437,7 +485,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     public async Task SkippingThePinOpensTheVaultWithNoPinAfterOnePlainWarning()
     {
         var cut = RenderOffer();
-        await cut.ClickAsync(page => Button(page, "Set up the Vault"));
+        await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
         await cut.ClickAsync(page => Button(page, "Skip PIN"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-pin-skip-warning]")));
 
@@ -456,7 +504,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     {
         _hasPin = true;
         var cut = RenderOffer();
-        await cut.ClickAsync(page => Button(page, "Set up the Vault"));
+        await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
         cut.WaitForAssertion(() => Assert.Equal("Enter your PIN", Text(cut.Find("h2"))));
         cut.Find("input").Input(RightPin);
 

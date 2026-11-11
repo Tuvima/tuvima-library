@@ -66,7 +66,7 @@
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
                                       HostNameDerived="@_hostDerived" HostNameDerivedChanged="@((bool value) => _hostDerived = value)"
                                       Busy="@_busy" Save="SaveWelcomeAsync"
-                                      Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
+                                      Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" CancelRestore="CancelRestore"
                                       UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync" RestorePin="@_restorePin" RestorePinChanged="@((string? value) => _restorePin = value ?? string.Empty)"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -93,10 +93,10 @@
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "vault" when _vaultProfileId is { } vaultProfileId:
-                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" Finished="VaultFinishedAsync" />
+                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" Finished="VaultFinishedAsync" Back="GoBackAsync" />
                     break;
                 case "metadata":
-                    <SetupMetadataStage Catalogue="@_providerCatalogue" LibraryMediaTypes="@LibraryMediaTypes" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupMetadataStage Catalogue="@_providerCatalogue" Loaded="@_providersLoaded" SetupSession="@_setupSession" Busy="@_busy"
                                          Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
@@ -131,11 +131,6 @@
     private IReadOnlyList<string> _recoveryCodes = [];
     private IReadOnlyList<ProviderCatalogueDto> _providerCatalogue = [];
 
-    // The media types of the libraries that have at least one folder; the Metadata step lists the sources that fit them.
-    private IReadOnlyCollection<string> LibraryMediaTypes => _setupLibraries?.Libraries
-        .Where(library => library.Sources.Count > 0)
-        .SelectMany(library => library.MediaTypes)
-        .ToList() ?? [];
     // Kinds that wait for a metadata source: shown on All set only when a library of that kind exists and no source was connected during setup.
     private IReadOnlyList<string> HeldKinds
     {

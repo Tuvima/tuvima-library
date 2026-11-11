@@ -5,7 +5,7 @@
 
 @* "Here is what Library needs": every tool is listed with the same row Settings > Tools and requirements draws, ready or not. A tool that is not installed
    offers Install, which starts its download at once and carries on in the background. Nothing here blocks: Continue is always offered once the
-   server check has passed, and downloads carry on in the background through the rest of setup. Local AI is not part of setup (it is set up in Settings). *@
+   server check has passed, and downloads carry on in the background through the rest of setup. Local AI is not part of setup (it is set up in Settings), so it is a "Later" row. *@
 <div class="setup-stage-content">
     @if (!Busy && NeedsAttention)
     {
@@ -31,8 +31,15 @@
             {
                 <ToolRequirementRow Tool="@tool" Busy="@Busy" OnInstall="InstallTool" OnRunInstaller="RunInstaller" />
             }
+            @* Local AI is not part of setup; it gets a quiet "Later" row so the list is complete (first-run setup rework, Tools). *@
+            <div class="setup-tools__later" data-tool-id="local-ai" data-state="later">
+                <div>
+                    <strong>@L["SetupToolsStage_LocalAIName"]</strong>
+                    <span>@L["SetupToolsStage_LocalAIDetail"]</span>
+                </div>
+                <AppStatusBadge Text="@L["SetupToolsStage_LocalAILater"].Value" Tone="AppUiTone.Neutral" />
+            </div>
         </div>
-        <small>@L["SetupToolsStage_TheLocalAIEngineIs"]</small>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             <AppButton Label="@L["Common_CheckAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
             <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />

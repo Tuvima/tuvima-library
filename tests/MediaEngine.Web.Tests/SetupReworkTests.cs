@@ -77,5 +77,52 @@ public sealed class SetupReworkTests : AsyncBunitContext
         Assert.Contains("films, TV shows", held.Find("[data-testid=setup-no-source-warning]").TextContent, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void AllSetPutsTheNoSourceWarningAtTheTop_AboveTheRows()
+    {
+        var readiness = new SetupReadinessDto(true,
+        [
+            new SetupCapabilityDto("profile", "Administrator", "passed", true, "Ready.", null),
+            new SetupCapabilityDto("libraries", "Libraries", "passed", true, "2 libraries.", null),
+        ]);
+
+        var cut = Render<SetupReadinessStage>(parameters => parameters
+            .Add(p => p.Readiness, readiness)
+            .Add(p => p.HeldKinds, new[] { "films" }));
+
+        var warningAt = cut.Markup.IndexOf("data-testid=\"setup-no-source-warning\"", StringComparison.Ordinal);
+        var rowsAt = cut.Markup.IndexOf("data-testid=\"setup-summary\"", StringComparison.Ordinal);
+        Assert.True(warningAt >= 0 && rowsAt >= 0, "Both the warning and the rows are drawn.");
+        Assert.True(warningAt < rowsAt, "The warning must come before the rows.");
+    }
+
+    [Fact]
+    public void ToolsStageListsLocalAiAsALaterRow_NotAFootnote()
+    {
+        var tools = new ToolRequirementsDto(ToolInstallKinds.Source, DateTimeOffset.UnixEpoch, false, [Tool("ffmpeg", ToolRequirementStates.Ready)]);
+        var preflight = new SetupPreflightDto(true, false, string.Empty, "win-x64", "X64", "X64", [], tools);
+
+        var cut = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Preflight, preflight));
+
+        var later = cut.Find("[data-testid=setup-tools] [data-tool-id=local-ai]");
+        Assert.Equal("later", later.GetAttribute("data-state"));
+        Assert.Contains("Local AI", later.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Set up later in Settings, Local AI", later.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Later", later.QuerySelector(".app-status-badge")!.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("is set up in Settings, Local AI, after setup", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheIntroAnimationStyleHasNoHandTypedColors()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        var css = File.ReadAllText(Path.Combine(directory!.FullName, "src", "MediaEngine.Web", "Components", "Setup", "IntroAnimation.razor.css"));
+
+        Assert.DoesNotContain("#f2f8fc", css, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#ddd6fe", css, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("color: var(--tl-text-primary)", css, StringComparison.Ordinal);
+    }
+
     private static ToolRequirementDto Tool(string id, string state) => new(id, id, "tool", ToolRequirementLevels.Required, state, "Effect.", null, string.Empty, null, 0, false, false, false, null);
 }

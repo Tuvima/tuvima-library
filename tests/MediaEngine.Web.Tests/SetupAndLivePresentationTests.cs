@@ -119,13 +119,13 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     {
         var ready = Render<SetupReadinessStage>(parameters => parameters
             .Add(component => component.Readiness, new SetupReadinessDto(true, [new SetupCapabilityDto("profile", "Administrator", "passed", true, "Ready.", null)])));
-        Assert.Contains("You're all set", ready.Markup, StringComparison.Ordinal);
-        Assert.Contains("Library is ready to start finding your media.", ready.Markup, StringComparison.Ordinal);
+        Assert.Equal("All set", ready.Find("#setup-stage-title").TextContent.Trim());
+        Assert.Contains("Here is how setup went.", ready.Markup, StringComparison.Ordinal);
 
         var blocked = Render<SetupReadinessStage>(parameters => parameters
             .Add(component => component.Readiness, new SetupReadinessDto(false, [new SetupCapabilityDto("profile", "Administrator", "blocked", false, "Create the first administrator.", "/setup?step=profile")])));
         Assert.Contains("Almost there", blocked.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Library is ready to start finding your media.", blocked.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Here is how setup went.", blocked.Markup, StringComparison.Ordinal);
         Assert.Contains("A few things need attention before you open your library.", blocked.Markup, StringComparison.Ordinal);
     }
 

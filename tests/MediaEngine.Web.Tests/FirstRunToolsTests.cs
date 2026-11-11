@@ -264,7 +264,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SetupStep_NeverListsLocalAi_AndPointsToItsSettingsPage()
+    public void SetupStep_ListsLocalAiOnlyAsAQuietLaterRow_NeverAsAToolRow()
     {
         var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(
@@ -272,7 +272,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
                 Tool(ToolRequirementIds.AiRuntime, "Local AI engine", requirement: ToolRequirementLevels.Optional)))));
 
         Assert.Single(cut.FindAll("[data-testid=setup-tools] article"));
-        Assert.Contains("Settings, Local AI", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=setup-tools] [data-tool-id=ai_runtime]"));
+        Assert.Contains("Settings, Local AI", cut.Find("[data-testid=setup-tools] [data-tool-id=local-ai]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

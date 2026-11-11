@@ -1,0 +1,6 @@
+.setup-vault__panel { display: grid; gap: 6px; padding: 16px 18px; border: 1px solid var(--tl-border-subtle); border-radius: 12px; background: color-mix(in srgb, var(--tl-bg-surface-elevated) 74%, transparent); }
+.setup-vault__panel h3 { margin: 0; color: var(--tl-text-primary); font-size: var(--tl-font-size-md); }
+.setup-vault__panel h3:not(:first-child) { margin-top: 8px; }
+.setup-vault__panel p { margin: 0 0 4px; color: var(--tl-text-secondary); line-height: 1.55; }
+.setup-vault__panel ul { margin: 0; padding-left: 20px; color: var(--tl-text-secondary); line-height: 1.55; }
+.setup-vault__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }

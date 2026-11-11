@@ -28,17 +28,10 @@
         }
     </div>
 
+    @* "Restore a backup instead" lives on the intro, before Get started (Look v3 D15); this step has Continue only, as in the design. *@
     <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-        <Leading>
-            @if (!ShowRestore)
-            {
-                <AppButton Label="@L["SetupWelcomeStage_RestoreABackupInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenRestore" data-testid="setup-restore-open" />
-            }
-        </Leading>
-        <ChildContent>
         <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
-        </ChildContent>
     </SetupStageFooter>
 
     @if (ShowRestore)
@@ -96,7 +89,6 @@
     /// <summary>The Engine's one sentence when it refused the chosen file (an older layout, a damaged file); shown as it is.</summary>
     [Parameter] public string? BackupError { get; set; }
     [Parameter] public bool ShowRestore { get; set; }
-    [Parameter] public EventCallback OpenRestore { get; set; }
     [Parameter] public EventCallback CancelRestore { get; set; }
     [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
     [Parameter] public EventCallback ConfirmRestore { get; set; }
