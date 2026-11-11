@@ -268,7 +268,9 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         Assert.DoesNotContain("preview", _calls);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
-        Assert.Equal("Empty Trash on a computer.", Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
+        // The header itself already says Trash is emptied on a computer; nothing pops up or lands in the ribbon.
+        Assert.Contains("Empty Trash on a computer.", cut.Find(".view-trash-header__computer").TextContent, StringComparison.Ordinal);
+        Assert.Null(Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
         Assert.Empty(host.FindAll(".empty-trash"));
     }
 
@@ -286,7 +288,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Header_EmptyingShowsTheToastKeepsTheFailureNotesAndTellsThePageToReload()
+    public async Task Header_EmptyingWithLeftOversWarnsInPlaceKeepsTheFailureNotesAndTellsThePageToReload()
     {
         await UseAsync("desktop", touch: false);
         var stuck = Guid.NewGuid();
@@ -303,10 +305,33 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         await host.InvokeAsync(() => FooterButton(host, "Delete 128 items from disk").Click());
 
         cut.WaitForAssertion(() => Assert.Equal(1, changed));
-        var ribbon = Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>();
-        Assert.Equal("126 deleted, 1 couldn't be deleted and is still in Trash.", ribbon.Message);
+        cut.WaitForAssertion(() => Assert.Equal("126 deleted, 1 couldn't be deleted and is still in Trash.", cut.Find("[data-trash-left-over]").TextContent.Trim()));
+        Assert.Null(Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
         Assert.Equal("Couldn't delete: the file is in use.", Services.GetRequiredService<ViewWorkspaceService>().TrashFailureReason(stuck));
         cut.WaitForAssertion(() => Assert.Contains("2 items", Text(cut), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Header_EmptyingCleanlyShowsNoNoticeAndTheHeaderSaysTrashIsEmpty()
+    {
+        await UseAsync("desktop", touch: false);
+        _empty = () => Task.FromResult(ViewTrashOutcome<ViewTrashEmptyResultDto>.Ok(new ViewTrashEmptyResultDto(128, FourPointTwoGb, 0, [])));
+        var host = Render<AppDialogHost>();
+        var changed = 0;
+        var cut = RenderHeader(changed: () => changed++);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header button")));
+
+        await cut.InvokeAsync(() => cut.Find(".view-trash-header button").Click());
+        host.WaitForElement(".empty-trash__lead");
+        _summary = () => Task.FromResult(ViewTrashOutcome<ViewTrashSummaryDto>.Ok(Summary(0)));
+        await host.InvokeAsync(() => FooterButton(host, "Delete 128 items from disk").Click());
+
+        cut.WaitForAssertion(() => Assert.Equal(1, changed));
+        Assert.Empty(cut.FindAll("[data-trash-left-over]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+        Assert.Null(Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header__empty")));
     }
 
     [Fact]

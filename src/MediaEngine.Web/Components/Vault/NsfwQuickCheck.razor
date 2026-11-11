@@ -14,6 +14,10 @@
                       ValueChanged="ChangedAsync"
                       AriaLabel="@L["Common_VaultMode"].Value"
                       StopClickPropagation="true" />
+        @if (_notice is not null)
+        {
+            <AppAlert Tone="@(_noticeIsWarning ? AppUiTone.Warning : AppUiTone.Info)" Dense="true" data-nsfw-quick-check-notice>@_notice</AppAlert>
+        }
     </div>
 }
 
@@ -25,12 +29,22 @@
 
     private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
 
+    // Why Vault mode did not switch is told under the check, in the menu, until the next try.
+    private string? _notice;
+    private bool _noticeIsWarning;
+
     private async Task ChangedAsync(bool on)
     {
-        var inEffect = await Switching.SetAsync(on);
-        if (inEffect)
+        _notice = null;
+        var outcome = await Switching.TrySetAsync(on);
+        if (outcome.InEffect)
         {
             await OnChanged.InvokeAsync();
+        }
+        else if (outcome.Message is not null)
+        {
+            _notice = outcome.Message;
+            _noticeIsWarning = outcome.IsWarning;
         }
     }
 

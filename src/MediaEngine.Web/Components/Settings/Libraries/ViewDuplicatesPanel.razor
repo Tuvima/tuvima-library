@@ -1,7 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
-@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The duplicates report (Photo and video filing spec D16): exact copies already inside the Shared Library or this administrator's own library.
@@ -82,8 +81,8 @@
         await RunAsync(async () =>
         {
             _report = await ApiClient.ScanViewDuplicatesAsync();
+            // The report below is the answer: the groups found, or "No exact copies found".
             if (_report is null) _error = ApiClient.LastError ?? "The duplicates could not be looked for.";
-            else Snackbar.Add(_report.Groups.Count == 0 ? "No exact copies found." : $"{_report.Groups.Count:N0} groups of exact copies found.", AppSeverity.Info);
         });
     }
 
@@ -93,7 +92,7 @@
         {
             var result = await ApiClient.KeepOneViewDuplicateAsync(group.Id, copy.ItemId);
             if (result is null) { _error = ApiClient.LastError ?? "That could not be done."; return; }
-            Snackbar.Add(result.MovedToTrash == 1 ? "1 copy moved to Trash." : $"{result.MovedToTrash:N0} copies moved to Trash.", AppSeverity.Success);
+            // The group leaves the report once it is read again; that is the confirmation.
             await LoadAsync();
         });
     }

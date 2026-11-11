@@ -10,7 +10,6 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IAppDialogService Dialogs
-@inject IAppToastService Toasts
 @inject DeviceContextService Device
 @inject IServiceProvider Services
 @inject IEngineApiClient Api
@@ -33,6 +32,10 @@ else
         @* The drop target is whatever holds this component (the page's list or card); this hidden marker tells the browser which one. It adds
            no wrapper, so the page's own layout and last-child rules are untouched. *@
         <span hidden @ref="_zone" data-upload-anchor data-drop="@(_dropEnabled ? "true" : "false")"></span>
+        @if (_notice is not null)
+        {
+            <AppAlert Tone="@_noticeTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _notice = null; })" data-upload-notice>@_notice</AppAlert>
+        }
         @foreach (var warning in State.Warnings)
         {
             @* One amber box per drop: the large files, where to copy them instead, and the choice. Nothing was created, so nothing is sent until Upload anyway. *@
@@ -51,7 +54,7 @@ else
                         <code>@path</code>
                         @if (warning.Paths.Count > 1)
                         {
-                            <AppButton Label="@L["LibraryUploadZone_CopyPath"].Value" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {path}")" OnClick="@(() => CopyPathAsync(path))" />
+                            <AppCopyButton Label="@L["LibraryUploadZone_CopyPath"].Value" Text="@path" What="the path" CopyFailed="ShowCopyFailure" UserAttributes="@CopyLabel(path)" />
                         }
                     </p>
                 }
@@ -60,7 +63,7 @@ else
                     @if (warning.Paths.Count == 1)
                     {
                         var only = warning.Paths[0];
-                        <AppButton Label="@L["LibraryUploadZone_CopyPath"].Value" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {only}")" OnClick="@(() => CopyPathAsync(only))" />
+                        <AppCopyButton Label="@L["LibraryUploadZone_CopyPath"].Value" Text="@only" What="the path" CopyFailed="ShowCopyFailure" UserAttributes="@CopyLabel(only)" />
                     }
                     <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" aria-label="@L["LibraryUploadZone_CancelAddingTheLargeFiles"].Value" OnClick="@(() => CancelWarningAsync(warning))" />
                 </AppActionBar>
@@ -149,6 +152,8 @@ else
     private bool _attached;
     private bool _dropEnabled;
     private bool _disposed;
+    private string? _notice;
+    private AppUiTone _noticeTone = AppUiTone.Info;
     private IReadOnlyList<ProviderCatalogueDto>? _catalogue;
 
     private string? PageArea => Type?.Area ?? Group?.Key;
@@ -224,9 +229,10 @@ else
     private async Task ChooseFilesAsync()
     {
         if (!Enabled) return;
+        _notice = null;
         if (_module is null)
         {
-            Toasts.Add("Adding files is not ready yet. Try again in a moment.", AppSeverity.Info);
+            Tell(AppUiTone.Info, L["LibraryUploadZone_AddingFilesIsNotReady"].Value);
             return;
         }
 
@@ -238,7 +244,7 @@ else
         catch (Exception ex) when (ex is JSException or JSDisconnectedException)
         {
             Logger.LogWarning(ex, "The browser's file chooser could not be opened");
-            Toasts.Add("The file chooser could not be opened.", AppSeverity.Warning);
+            Tell(AppUiTone.Warning, L["LibraryUploadZone_TheFileChooserCouldNot"].Value);
         }
     }
 
@@ -249,6 +255,7 @@ else
         if (_disposed) return;
         await InvokeAsync(async () =>
         {
+            _notice = null;
             if (foldersSkipped > 0)
             {
                 State.Add(Notice($"folder-{Guid.NewGuid():N}", foldersSkipped == 1 ? "A folder" : $"{foldersSkipped} folders",
@@ -366,7 +373,7 @@ else
             if (section.WantsNewLibrary)
             {
                 foreach (var row in section.Rows) await ForgetAsync(row.Id);
-                Toasts.Add("A new library needs a folder first. Add one, then drop these files again.", AppSeverity.Info);
+                Tell(AppUiTone.Info, L["LibraryUploadZone_ANewLibraryNeedsA"].Value);
                 await OpenAddFolderAsync(section.SelectedKey);
                 continue;
             }
@@ -511,17 +518,17 @@ else
         }
     }
 
-    private async Task CopyPathAsync(string path)
+    // The copy buttons say "Copied" themselves; a copy the browser refused is told here, in place.
+    private void ShowCopyFailure(string message) => Tell(AppUiTone.Warning, message);
+
+    private static Dictionary<string, object> CopyLabel(string path) => new() { ["aria-label"] = $"Copy {path}" };
+
+    // What the drop or the chooser could not do is told at the top of the list until it is dismissed or the next attempt.
+    private void Tell(AppUiTone tone, string message)
     {
-        switch (await JS.TryCopyAsync(path, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Toasts.Add("Path copied.", AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Toasts.Add(ClipboardInterop.FailedMessage("the path"), AppSeverity.Warning);
-                break;
-        }
+        _noticeTone = tone;
+        _notice = message;
+        StateHasChanged();
     }
 
     private async Task ForgetAsync(string id)

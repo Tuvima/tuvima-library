@@ -155,6 +155,8 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         Assert.Contains("Added to the Import folder. It will be filed on the next run.", detail);
         Assert.Contains("Saved as song (1).mp3.", detail);
         Assert.Equal("done", cut.Find(".upload-row").GetAttribute("data-state"));
+        // The row's own line is the confirmation; no pop-up repeats it.
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     // 3. A film dropped on Listen: one dialog with Watch kind cards; the choice decides the kind. Several files share the one dialog.
@@ -391,6 +393,24 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         JSInterop.VerifyInvoke("navigator.clipboard.writeText");
         Assert.Equal("E:\\Import\\Movies", JSInterop.Invocations["navigator.clipboard.writeText"].Single().Arguments[0]);
         Assert.Equal(3, _module.Invocations["begin"].Count);
+        // The button's own label says Copied; nothing pops up and no alert is needed.
+        Assert.Contains(cut.FindAll("[data-upload-warning] button"), button => Text(button) == "Copied");
+        Assert.Empty(cut.FindAll("[data-upload-notice]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public async Task CopyingThePath_WhereTheBrowserHasNoClipboard_ShowsAnAlertInPlaceAndNoToast()
+    {
+        JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetException(new Microsoft.JSInterop.JSException("Cannot read properties of undefined (reading 'writeText')"));
+        var cut = RenderZone(Kind("movies"));
+        await Choose(cut, File("f1", "big-1.mkv", 60_000_000_000));
+        await Finish(cut, "f1", Large());
+
+        cut.Find("[data-upload-warning] button[aria-label^='Copy ']").Click();
+
+        Assert.Equal("Couldn't copy — select the path and copy it yourself.", Text(cut.Find("[data-upload-notice]")));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
     }
 
     [Fact]
