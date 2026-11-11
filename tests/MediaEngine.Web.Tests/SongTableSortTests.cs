@@ -17,20 +17,20 @@ public sealed class SongTableSortTests
         int? addedDay = null,
         bool owned = true,
         bool unnumbered = false) => new()
-    {
-        Id = id,
-        Source = SongRowSource.Work,
-        Title = title,
-        Artist = artist,
-        Album = album,
-        Genre = genre,
-        Number = number,
-        Plays = plays,
-        DurationSeconds = seconds,
-        DateAdded = addedDay is { } day ? new DateTimeOffset(2026, 1, day, 0, 0, 0, TimeSpan.Zero) : null,
-        IsOwned = owned,
-        IsUnnumbered = unnumbered,
-    };
+        {
+            Id = id,
+            Source = SongRowSource.Work,
+            Title = title,
+            Artist = artist,
+            Album = album,
+            Genre = genre,
+            Number = number,
+            Plays = plays,
+            DurationSeconds = seconds,
+            DateAdded = addedDay is { } day ? new DateTimeOffset(2026, 1, day, 0, 0, 0, TimeSpan.Zero) : null,
+            IsOwned = owned,
+            IsUnnumbered = unnumbered,
+        };
 
     private static string[] Ids(IEnumerable<SongRow> rows) => rows.Select(row => row.Id).ToArray();
 
