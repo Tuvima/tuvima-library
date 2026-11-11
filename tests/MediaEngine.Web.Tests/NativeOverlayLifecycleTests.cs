@@ -68,7 +68,8 @@ public sealed class NativeOverlayLifecycleTests : AsyncBunitContext
         {
             builder.OpenComponent<AppDialogShell>(0);
             builder.AddAttribute(1, nameof(AppDialogShell.Title), "Picker");
-            builder.AddAttribute(2, nameof(AppDialogShell.ChildContent), (RenderFragment)(content => content.AddContent(0, "Picker")));
+            builder.AddAttribute(2, nameof(AppDialogShell.FrameOptions), new AppDialogOptions { CloseOnEscapeKey = false, MaxWidth = AppMaxWidth.Small });
+            builder.AddAttribute(3, nameof(AppDialogShell.ChildContent), (RenderFragment)(content => content.AddContent(0, "Picker")));
             builder.CloseComponent();
         }
     }
