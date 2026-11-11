@@ -72,19 +72,19 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_DetailedRoutesDoNotRenderHero()
     {
-        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var source = BrowseShellSource.ReadAll();
         var normalized = source.ReplaceLineEndings("\n");
 
         Assert.DoesNotContain("<MediaBrowseHero", source, StringComparison.Ordinal);
         Assert.DoesNotContain("BrowseHeroViewModel? _hero", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetJourneyAsync(limit: 24)", source, StringComparison.Ordinal);
-        Assert.Contains("if (!_hasLoadedOnce)\n            StateHasChanged();", normalized, StringComparison.Ordinal);
+        Assert.Contains("if (!_hasLoadedOnce)\n        {\n            StateHasChanged();\n        }", normalized, StringComparison.Ordinal);
     }
 
     [Fact]
     public void BrowseShell_ReloadsWhenLayoutModeChanges()
     {
-        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var source = BrowseShellSource.ReadAll();
 
         Assert.Contains("LayoutToggleClass(LibraryLayoutMode.Card)", source, StringComparison.Ordinal);
         Assert.Contains("LayoutToggleClass(LibraryLayoutMode.List)", source, StringComparison.Ordinal);
@@ -95,7 +95,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void WatchAndReadDefaultTabsKeepExplicitBrowseRoutes()
     {
-        var browseShell = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var browseShell = BrowseShellSource.ReadAll();
         var watchPage = Read(@"src/MediaEngine.Web/Components/Pages/WatchPage.razor");
         var readPage = Read(@"src/MediaEngine.Web/Components/Pages/ReadPage.razor");
 
@@ -107,7 +107,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_UsesDisplayCardsForTvShowCardView()
     {
-        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var source = BrowseShellSource.ReadAll();
 
         Assert.Contains("IsTvShowsGrouping", source, StringComparison.Ordinal);
         Assert.Contains("IsTvShowsGrouping && !UseListLayout", source, StringComparison.Ordinal);
@@ -118,7 +118,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_NormalizesMediaTypeWhenFilteringContainerGroups()
     {
-        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var source = BrowseShellSource.ReadAll();
 
         Assert.Contains(".Where(group => MediaTypeMatches(group.PrimaryMediaType, mediaType))", source, StringComparison.Ordinal);
         Assert.Contains("NormalizeEditorMediaType(candidate)", source, StringComparison.Ordinal);
@@ -129,7 +129,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_BindsSortValueInsteadOfLiteralFieldName()
     {
-        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var source = BrowseShellSource.ReadAll();
 
         Assert.Contains("Value=\"@_sortBy\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Value=\"_sortBy\"", source, StringComparison.Ordinal);

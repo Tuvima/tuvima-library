@@ -147,7 +147,12 @@ public sealed class DisplayContractTests
     {
         var clientSource = ReadEngineApiClientSources("IEngineApiClient*.cs");
         var composerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/MediaTileComposerService.cs"));
-        var browseShellSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"));
+        var browseShellSource = string.Join(
+            "\n",
+            Directory.EnumerateFiles(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse"), "MediaBrowseShell*")
+                .Where(path => path.EndsWith(".razor", StringComparison.Ordinal) || path.EndsWith(".cs", StringComparison.Ordinal))
+                .Order(StringComparer.Ordinal)
+                .Select(File.ReadAllText));
 
         Assert.Contains("GetDisplayBrowseAsync", clientSource, StringComparison.Ordinal);
         Assert.Contains("GetDisplayBrowseAsync(lane: \"read\"", composerSource, StringComparison.Ordinal);

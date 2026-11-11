@@ -837,7 +837,7 @@ public sealed class UnifiedDetailComponentTests
         var outwardNavigationSources = string.Join(
             Environment.NewLine,
             ReadSource("src/MediaEngine.Web/Services/Navigation/MediaNavigation.cs"),
-            ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"),
+            BrowseShellSource.ReadAll(),
             ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs"),
             ReadSequenceMarkup(),
             ReadSource("src/MediaEngine.Api/Services/Display/DisplayCardBuilder.cs"),

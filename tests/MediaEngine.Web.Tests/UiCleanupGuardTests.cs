@@ -31,7 +31,7 @@ public sealed class UiCleanupGuardTests
     [Fact]
     public void BrowseShell_DelegatesQueryAndArtworkRules()
     {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var source = BrowseShellSource.ReadAll();
 
         Assert.Contains("BrowseQueryBuilder.Read", source, StringComparison.Ordinal);
         Assert.Contains("BrowseArtworkRules.ResolveWideArtwork", source, StringComparison.Ordinal);

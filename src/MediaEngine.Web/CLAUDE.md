@@ -36,7 +36,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | Subfolder | What lives here |
 |---|---|
 | `Artwork/` | Artwork browser, picker and workspace dialogs |
-| `Browse/` | `MediaBrowseShell`, `BrowseQueryBuilder`, `BrowseState`, `BrowseArtworkRules` — browse shell for Read / Watch / Listen subroutes |
+| `Browse/` | `MediaBrowseShell` (markup in the `.razor`; code in partials next to it: `.razor.cs` core state and lifecycle, `.State.cs` derived values and labels, `.Filters.cs` tab, grouping, layout and filter handlers, `.Loading.cs` browse loading and sorting, `.Mapping.cs` item and group-card mapping, `.Navigation.cs` addresses, `.Actions.cs` notice, favourites and songs, `.Selection.cs` bulk edit, row open and the edit launcher), `BrowseQueryBuilder`, `BrowseState`, `BrowseArtworkRules` — browse shell for Read / Watch / Listen subroutes |
 | `Cinematic/` | `CinematicHeroCarousel`, `CinematicHeroSurface`, `SurfaceNavigationBar` |
 | `Companion/` | `CompanionScreen` (title and place, the Up to here / Everything switch, Who's here, Where you've seen them, Previously), `CompanionPositionPicker` (episode or chapter by hand, or a chapter-number stepper), `CompanionDeviceList`, `CompanionNowPlayingCard` (Home's Now playing). Read-only: no editing, no drawer |
 | `Collections/` | `CollectionsPage`, section configuration/layout, `PeopleCatalogList`, `CollectionEditorShell` (only for creating collections, playlists and galleries and managing their items and rules; renaming and covers of an existing Series or curated collection happen in the shared bar) |

@@ -25,7 +25,7 @@ public sealed class NoRedirectsGuardrailTests
         ["Components/Pages/Settings.razor"] = "Access gate: a Kids profile or a page switched off for this device goes Home. An address that is not a Settings page shows the not-found page in place (no redirect).",
         ["Components/Pages/BookReader.razor"] = "Item removed: the open book left the library while it was open, so the reader leaves to Home (an action's result).",
         ["Components/Pages/SetupPage.razor"] = "Setup ended: full reload to Home or the sign-in page when first-run setup completes.",
-        ["Components/Browse/MediaBrowseShell.razor"] = "Own filter: the browse page rewriting its own filter, sort and display choices in its own address.",
+        ["Components/Browse/MediaBrowseShell.Filters.cs"] = "Own filter: the browse page rewriting its own filter, sort and display choices in its own address.",
         ["Components/Pages/SearchPage.razor"] = "Own filter: the search page rewriting its own query in its own address.",
         ["Components/Pages/ShelfGridPage.razor.cs"] = "Own filter: the View all grid rewriting its own sort and filter address (and dropping a choice the Engine refuses).",
         ["Components/Settings/NeedsReviewPageContent.razor"] = "Own filter: the Needs Review list rewriting its own filter address.",

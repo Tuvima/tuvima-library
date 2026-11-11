@@ -25,7 +25,7 @@ public sealed class LibraryAreaPagesGuardrailTests
     public void TheLanePage_HostsTheSharedBrowseShell_WhichOwnsContinueAndTheCardsListSwitch()
     {
         var lane = ReadSource("src/MediaEngine.Web/Components/Pages/MediaLanePage.razor");
-        var shell = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var shell = BrowseShellSource.ReadAll();
 
         Assert.Contains("<MediaBrowseShell", lane, StringComparison.Ordinal);
         Assert.Contains("<CompactContinueStrip", shell, StringComparison.Ordinal);
