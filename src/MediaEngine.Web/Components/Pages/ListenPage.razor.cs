@@ -44,6 +44,7 @@ public partial class ListenPage
     [Inject] private MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext { get; set; } = default!;
     [Inject] private CollectionEditorLauncherService CollectionEditorLauncher { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
+    [Inject] private IAppDialogService Dialogs { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     // A playlist or queue action that failed is told at the top of the page content and stays until dismissed or the next try; what worked is
     // already shown by the list, the rail or the player.
@@ -145,7 +146,6 @@ public partial class ListenPage
     private string _newPlaylistName = string.Empty;
     private Guid? _renamingPlaylistId;
     private string _renamePlaylistName = string.Empty;
-    private Guid? _deletingPlaylistId;
     private readonly HashSet<string> _playlistHiddenColumns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _playlistColumnWidths = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -877,7 +877,6 @@ public partial class ListenPage
 
     private void BeginPlaylistRename(ManagedCollectionViewModel playlist)
     {
-        _deletingPlaylistId = null;
         _renamingPlaylistId = playlist.Id;
         _renamePlaylistName = playlist.Name;
     }
@@ -915,10 +914,20 @@ public partial class ListenPage
         await LoadAsync();
     }
 
-    private void BeginPlaylistDelete(ManagedCollectionViewModel playlist)
+    // Delete is instant after one "are you sure" (the shared confirm).
+    private async Task BeginPlaylistDeleteAsync(ManagedCollectionViewModel playlist)
     {
         _renamingPlaylistId = null;
-        _deletingPlaylistId = playlist.Id;
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            L["Common_Delete2", playlist.Name].Value,
+            string.Empty,
+            yesText: L["Common_Delete"].Value,
+            cancelText: L["Search_Cancel"].Value,
+            options: AppDialogOptions.DestructiveConfirm);
+        if (confirmed == true)
+        {
+            await DeletePlaylistAsync(playlist);
+        }
     }
 
     private async Task DeletePlaylistAsync(ManagedCollectionViewModel playlist)
@@ -929,7 +938,6 @@ public partial class ListenPage
             ShowNotice(L["ListenPage_PlaylistDeleteFailed"].Value, AppUiTone.Error);
             return;
         }
-        _deletingPlaylistId = null;
         if (CollectionId == playlist.Id)
         {
             Nav.NavigateTo("/listen/playlists");

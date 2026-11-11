@@ -80,12 +80,13 @@
                 </div>
                 @if (CanCollapseOverview)
                 {
-                    <AppNativeButton Type="button"
-                                     Class="tl-overview-section__more"
-                                     aria-expanded="@(_overviewExpanded ? "true" : "false")"
-                                     OnClick="@(() => _overviewExpanded = !_overviewExpanded)">
-                        @(_overviewExpanded ? "Show less" : "Show more")
-                    </AppNativeButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               Tone="AppUiTone.Primary"
+                               Size="AppControlSize.Compact"
+                               Class="tl-overview-section__more"
+                               aria-expanded="@(_overviewExpanded ? "true" : "false")"
+                               Label="@(_overviewExpanded ? "Show less" : "Show more")"
+                               OnClick="@(() => _overviewExpanded = !_overviewExpanded)" />
                 }
                 <DescriptionAttribution Attribution="Model.DescriptionAttribution" Compact="true" />
             }
@@ -98,12 +99,12 @@
                     <span>@CreditPanelTitle</span>
                     @if (OverviewCreditRows.Count > 0 && HasCreditTab)
                     {
-                        <AppNativeButton Type="button"
-                                         Class="tl-overview-section__credits-link"
-                                         OnClick="@(() => OnTabRequested.InvokeAsync(CreditTabKey))">
-                            @L["OverviewTab_ViewFull", CreditPanelTitle.ToLowerInvariant()]
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
-                        </AppNativeButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Primary"
+                                   Size="AppControlSize.Compact"
+                                   EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                                   Label="@L["OverviewTab_ViewFull", CreditPanelTitle.ToLowerInvariant()].Value"
+                                   OnClick="@(() => OnTabRequested.InvokeAsync(CreditTabKey))" />
                     }
                 </header>
                 @if (DisplayedOverviewCreditGroups.Count == 0)

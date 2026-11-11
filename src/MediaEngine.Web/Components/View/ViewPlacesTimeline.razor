@@ -47,7 +47,7 @@
                 }
             </div>
             </div>
-            <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RestartAlt" />@L["Libraries_Reset"]</AppNativeButton>
+            <AppButton StartIcon="@AppMaterialIcons.Outlined.RestartAlt" Label="@L["Libraries_Reset"].Value" OnClick="@(() => OnReset.InvokeAsync())" />
         </div>
     </section>
 }
