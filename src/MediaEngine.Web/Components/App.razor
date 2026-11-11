@@ -15,7 +15,6 @@
     <meta name="apple-mobile-web-app-title" content="Library" />
     <base href="/" />
     <ResourcePreloader />
-    <link href="/vendor/maplibre/maplibre-gl.css" rel="stylesheet" />
     <!-- App styles -->
     <link rel="stylesheet" href="@Assets["native-utilities.css"]" />
     <link rel="stylesheet" href="@Assets["native-structure.css"]" />
@@ -31,12 +30,13 @@
     <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 </head>
 
-<body>
+<body data-hls-src="@Assets["vendor/hls/hls.min.js"]">
     @* Launch splash: the short intro animation, shown only while the Dashboard connects. launch-splash.js removes it the moment the app is ready, so it never delays anything. *@
     <div id="tl-launch-splash" class="tl-launch-splash" aria-hidden="true"><MediaEngine.Web.Components.Setup.IntroAnimation Compact="true" Tagline="One library. Every story." /></div>
     <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" ClientAddress="@Address" ClientSignInRefusal="@SignInRefusal" ClientForwarded="@Forwarded" />
     <ReconnectModal />
-    <script src="@Assets["vendor/hls/hls.min.js"]"></script>
+    @* The video library and the map styles load on demand through tuvima-lazy.js; the fingerprinted video library address travels in data-hls-src on the body. *@
+    <script src="js/tuvima-lazy.js"></script>
     <script src="@Assets["app.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/lazy-load.js"></script>
