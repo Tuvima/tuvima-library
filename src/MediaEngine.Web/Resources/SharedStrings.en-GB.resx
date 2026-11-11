@@ -209,4 +209,13 @@
   <data name="VaultImageViewer_TheFavouriteMarkCouldNot" xml:space="preserve">
     <value>The favourite mark could not be saved.</value>
   </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Add to Favourites</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favourites</value>
+  </data>
 </root>

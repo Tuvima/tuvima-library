@@ -1514,17 +1514,11 @@
   <data name="Common_Time" xml:space="preserve">
     <value>Time</value>
   </data>
-  <data name="ListenSongTable_ShowMoreSongsLeft" xml:space="preserve">
-    <value>Show more songs ({0} left)</value>
-  </data>
   <data name="Common_ToggleFavorite" xml:space="preserve">
     <value>Toggle favorite</value>
   </data>
   <data name="Common_PlaySong" xml:space="preserve">
     <value>Play song</value>
-  </data>
-  <data name="ListenSongTable_OpenAlbum" xml:space="preserve">
-    <value>Open album</value>
   </data>
   <data name="ListenSongTable_DeleteFromLibrary" xml:space="preserve">
     <value>Delete from library…</value>
@@ -13351,6 +13345,81 @@
   </data>
   <data name="ViewFoldersTab_TidyingNow" xml:space="preserve">
     <value>Tidying {0}. New files for this library wait until it finishes.</value>
+  </data>
+  <data name="SongTable_DateAdded" xml:space="preserve">
+    <value>Date added</value>
+  </data>
+  <data name="SongTable_Plays" xml:space="preserve">
+    <value>Plays</value>
+  </data>
+  <data name="SongTable_Genre" xml:space="preserve">
+    <value>Genre</value>
+  </data>
+  <data name="SongTable_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="SongTable_Owned" xml:space="preserve">
+    <value>Owned</value>
+  </data>
+  <data name="SongTable_Missing" xml:space="preserve">
+    <value>Missing</value>
+  </data>
+  <data name="SongTable_ResetColumns" xml:space="preserve">
+    <value>Reset columns</value>
+  </data>
+  <data name="SongTable_ResizeColumn" xml:space="preserve">
+    <value>Resize {0} column</value>
+  </data>
+  <data name="SongTable_SelectRow" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
+  <data name="SongTable_ActionsFor" xml:space="preserve">
+    <value>Actions for {0}</value>
+  </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Add to Favorites</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="SongTable_PlayTitle" xml:space="preserve">
+    <value>Play {0}</value>
+  </data>
+  <data name="SongTable_AddTitleToQueue" xml:space="preserve">
+    <value>Add {0} to queue</value>
+  </data>
+  <data name="SongTable_UpdatingDetails" xml:space="preserve">
+    <value>Updating details</value>
+  </data>
+  <data name="SongTable_MovedTo" xml:space="preserve">
+    <value>Moved {0} to position {1} of {2}.</value>
+  </data>
+  <data name="SongsHeader_Search" xml:space="preserve">
+    <value>Search Songs</value>
+  </data>
+  <data name="SongsHeader_SortAndFilter" xml:space="preserve">
+    <value>Sort and filter</value>
+  </data>
+  <data name="SongsHeader_SortAndFilterActive" xml:space="preserve">
+    <value>Sort and filter, {0} filters on</value>
+  </data>
+  <data name="SongsHeader_SortBy" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="SongsHeader_Ascending" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="SongsHeader_Descending" xml:space="preserve">
+    <value>Descending</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="SongsHeader_JumpToLetter" xml:space="preserve">
+    <value>Jump to {0}</value>
+  </data>
+  <data name="SongsHeader_LetterIndex" xml:space="preserve">
+    <value>Letter index</value>
   </data>
   <data name="ReaderFrame_Reader" xml:space="preserve">
     <value>Reader</value>

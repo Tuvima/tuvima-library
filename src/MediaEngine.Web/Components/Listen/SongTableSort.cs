@@ -87,6 +87,29 @@ public static class SongTableSort
         ];
     }
 
+    /// <summary>
+    /// True when the phone list groups under letter headings with an A to Z jump strip: Songs and Albums lists sorted by Song or Artist
+    /// (spec music-table-and-reader-frame D21). An album page and a playlist keep their own order.
+    /// </summary>
+    public static bool ShowsLetters(SongTablePlace place, SongSortState state)
+        => place is SongTablePlace.Songs or SongTablePlace.Albums && state.Column is SongColumn.Song or SongColumn.Artist;
+
+    /// <summary>
+    /// The heading letter a song sits under: its first letter, upper case with accents dropped (É is E), or # for a number, a symbol
+    /// or nothing.
+    /// </summary>
+    public static string LetterFor(string? text)
+    {
+        var trimmed = text?.TrimStart();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return "#";
+        }
+
+        var first = char.ToUpperInvariant(trimmed[..1].Normalize(System.Text.NormalizationForm.FormD)[0]);
+        return first is >= 'A' and <= 'Z' ? first.ToString() : "#";
+    }
+
     private static List<SongRow> SortRows(IEnumerable<SongRow> rows, SongSortState state, IReadOnlySet<string>? favoriteIds)
     {
         if (state.Column is not { } column)

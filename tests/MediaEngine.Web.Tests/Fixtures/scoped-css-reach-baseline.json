@@ -101,11 +101,6 @@
     "src/MediaEngine.Web/Components/Library/StatusPill.razor": [
       "media-status-badge--muted"
     ],
-    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor": [
-      "listen-song-table__art-play",
-      "listen-song-table__head",
-      "listen-song-table__play-only"
-    ],
     "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor": [
       "library-section-header__navigation"
     ],

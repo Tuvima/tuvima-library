@@ -1295,7 +1295,7 @@ public sealed class UnifiedDetailComponentTests
     {
         var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor");
         var styles = ReadDetailStyles();
-        var songTable = ReadSource("src/MediaEngine.Web/Components/Listen/ListenSongTable.razor");
+        var songTable = ReadSource("src/MediaEngine.Web/Components/Listen/SongTable.razor");
         var libraryTable = ReadSource("src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor");
 
         Assert.Contains("hero-icon-circle", actions);

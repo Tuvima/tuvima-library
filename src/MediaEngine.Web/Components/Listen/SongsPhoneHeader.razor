@@ -1,0 +1,94 @@
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
+
+@* The phone Songs page's header (spec music-table-and-reader-frame D21, mockup A6). With no column headers on a phone, search, Play and
+   Shuffle and one Sort and filter button sit here, as Apple Music does. The button opens a bottom sheet: Sort by (Title, Artist, Album,
+   Date added, Plays, Time, ascending or descending) and the filters the page already has (Favorites and genre). The page owns the
+   search text, the filters and the songs; the sort is remembered for the profile. *@
+<div class="songs-header">
+    <div class="songs-header__search-row">
+        <div class="songs-header__search">
+            <AppTextField T="string"
+                          Label="@L["SongsHeader_Search"].Value"
+                          HideLabel="true"
+                          Value="@_text"
+                          ValueChanged="@OnTyped"
+                          Placeholder="@L["SongsHeader_Search"].Value"
+                          Variant="AppVariant.Outlined"
+                          Adornment="AppAdornment.Start"
+                          AdornmentIcon="@AppMaterialIcons.Outlined.Search"
+                          Immediate="true"
+                          DebounceInterval="250"
+                          OnDebounceIntervalElapsed="OnSearchElapsed" />
+        </div>
+        <span class="songs-header__sort">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.FilterList"
+                           AriaLabel="@SortButtonLabel"
+                           Tooltip="@L["SongsHeader_SortAndFilter"].Value"
+                           aria-expanded="@(_open ? "true" : "false")"
+                           OnClick="OpenAsync" />
+            @if (ActiveFilterCount > 0)
+            {
+                <span class="songs-header__badge" aria-hidden="true">@ActiveFilterCount</span>
+            }
+        </span>
+    </div>
+    <div class="songs-header__actions">
+        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                   StartIcon="@AppMaterialIcons.Filled.PlayArrow"
+                   Label="@L["Common_Play"].Value"
+                   Disabled="@PlayDisabled"
+                   OnClick="@(() => OnPlay.InvokeAsync())" />
+        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                   StartIcon="@AppMaterialIcons.Filled.Shuffle"
+                   Label="@L["Common_Shuffle"].Value"
+                   Disabled="@PlayDisabled"
+                   OnClick="@(() => OnShuffle.InvokeAsync())" />
+    </div>
+</div>
+@if (_open)
+{
+    <AppDialogShell Framed="true" Visible="true" Title="@L["SongsHeader_SortAndFilter"].Value" Size="Small" FrameOptions="SheetOptions" OnClose="CloseAsync">
+        <ChildContent>
+            <div class="songs-header-sheet__body">
+                <div class="songs-header-sheet__section" role="group" aria-label="@L["SongsHeader_SortBy"].Value">
+                    <div class="app-menu-section-label" role="presentation">@L["SongsHeader_SortBy"]</div>
+                    @foreach (var column in SongSortPreferences.PhoneSortColumns)
+                    {
+                        var option = column;
+                        <AppChoiceRow Title="@ColumnLabel(option)" Selected="@(Sort?.Column == option)" OnClick="@(() => ChooseColumnAsync(option))" />
+                    }
+                    <AppSegmentedControl Options="DirectionOptions"
+                                         Value="@(Sort is { Descending: true } ? DescendingValue : AscendingValue)"
+                                         ValueChanged="ChooseDirectionAsync"
+                                         AriaLabel="@L["SongsHeader_SortBy"].Value" />
+                </div>
+                @if (FavoritesOnlyChanged.HasDelegate || Genres.Count > 0)
+                {
+                    <div class="songs-header-sheet__section" role="group" aria-label="@L["Common_Filters"].Value">
+                        <div class="app-menu-section-label" role="presentation">@L["Common_Filters"]</div>
+                        @if (FavoritesOnlyChanged.HasDelegate)
+                        {
+                            <AppCheckboxRow Label="@L["SongsHeader_Favorites"].Value" Value="@FavoritesOnly" ValueChanged="@FavoritesOnlyChanged" />
+                        }
+                        @if (Genres.Count > 0 && SelectedGenresChanged.HasDelegate)
+                        {
+                            <div class="app-menu-section-label" role="presentation">@L["Common_Genres"]</div>
+                            <div class="songs-header-sheet__genres">
+                                @foreach (var genre in Genres)
+                                {
+                                    var name = genre;
+                                    <AppCheckboxRow Label="@name" Value="@IsGenreSelected(name)" ValueChanged="@(on => ToggleGenreAsync(name, on))" />
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </ChildContent>
+        <FooterContent>
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Label="@L["Common_Done"].Value" OnClick="CloseAsync" />
+        </FooterContent>
+    </AppDialogShell>
+}

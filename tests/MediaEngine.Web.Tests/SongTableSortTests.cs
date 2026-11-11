@@ -242,4 +242,32 @@ public sealed class SongTableSortTests
 
         Assert.Equal(["u1", "t1", "t3", "t2", "u2"], Ids(sorted));
     }
+
+    [Theory]
+    [InlineData("Africa", "A")]
+    [InlineData("  zebra", "Z")]
+    [InlineData("Émilie", "E")]
+    [InlineData("Ångström", "A")]
+    [InlineData("99 Luftballons", "#")]
+    [InlineData("(Don't Fear) The Reaper", "#")]
+    [InlineData("日本語", "#")]
+    [InlineData("", "#")]
+    [InlineData(null, "#")]
+    public void AHeadingLetter_IsTheFirstLetterWithAccentsDropped_OrHashForAnythingElse(string? text, string expected)
+    {
+        Assert.Equal(expected, SongTableSort.LetterFor(text));
+    }
+
+    [Theory]
+    [InlineData(SongTablePlace.Songs, SongColumn.Song, true)]
+    [InlineData(SongTablePlace.Albums, SongColumn.Artist, true)]
+    [InlineData(SongTablePlace.Songs, SongColumn.DateAdded, false)]
+    [InlineData(SongTablePlace.Songs, SongColumn.Album, false)]
+    [InlineData(SongTablePlace.AlbumPage, SongColumn.Song, false)]
+    [InlineData(SongTablePlace.Playlist, SongColumn.Song, false)]
+    public void LettersShowOnlyOnTheSongListsSortedBySongOrArtist(SongTablePlace place, SongColumn column, bool shown)
+    {
+        Assert.Equal(shown, SongTableSort.ShowsLetters(place, new SongSortState(column, false)));
+        Assert.Equal(shown, SongTableSort.ShowsLetters(place, new SongSortState(column, true)));
+    }
 }

@@ -330,23 +330,24 @@ else
                             <h2>@Pluralize(AlbumTracks.Count, "track")</h2>
                         </div>
                     </div>
-                    <ListenSongTable Tracks="@AlbumTracks"
-                                     FavoriteIds="@_favoriteWorkIds"
-                                     SourceLabel="@_albumDetail.DisplayName"
-                                     AriaLabel="@($"{_albumDetail.DisplayName} songs")"
-                                     ShowArtwork="false"
-                                     ShowAlbum="false"
-                                     ShowGenre="false"
-                                     ShowDateAdded="false"
-                                     DefaultSortColumn="track"
-                                     DefaultSortDescending="false"
-                                     OnPlayRequested="PlayTracksAsync"
-                                     OnFavoriteToggled="ToggleFavoriteAsync"
-                                     OnQueueRequested="QueueTrackAsync"
-                                     OnPlayNextRequested="PlayNextTrackAsync"
-                                     OnTracksChanged="RefreshSongsAsync"
-                                     OnDragStarted="OnTrackDragStarted"
-                                     OnDragEnded="OnTrackDragEnded" />
+                    @* An album's own songs in track order; its cover is at the top of the page, so the rows carry none. *@
+                    <SongList Place="SongTablePlace.Albums"
+                              Tracks="@AlbumTracks"
+                              FavoriteIds="@_favoriteWorkIds"
+                              SourceLabel="@_albumDetail.DisplayName"
+                              AriaLabel="@($"{_albumDetail.DisplayName} songs")"
+                              ShowCovers="false"
+                              ProfileId="@_activeProfileId"
+                              Sort="@AlbumTrackOrder"
+                              CurrentWorkId="@Playback.CurrentItem?.WorkId"
+                              IsPlaying="@Playback.IsPlaying"
+                              OnPlayRequested="PlayTracksAsync"
+                              OnFavoriteToggled="ToggleFavoriteAsync"
+                              OnQueueRequested="QueueTrackAsync"
+                              OnPlayNextRequested="PlayNextTrackAsync"
+                              OnTracksChanged="RefreshSongsAsync"
+                              OnDragStarted="OnTrackDragStarted"
+                              OnDragEnded="OnTrackDragEnded" />
                 </section>
             }
             else if (IsArtistsSurface)
@@ -412,17 +413,21 @@ else
                     }
                     else
                     {
-                        <ListenSongTable Tracks="@FilteredSongs"
-                                         FavoriteIds="@_favoriteWorkIds"
-                                         SourceLabel="All Music"
-                                         AriaLabel="@L["Common_Songs"].Value"
-                                         OnPlayRequested="PlayTracksAsync"
-                                         OnFavoriteToggled="ToggleFavoriteAsync"
-                                         OnQueueRequested="QueueTrackAsync"
-                                         OnPlayNextRequested="PlayNextTrackAsync"
-                                         OnTracksChanged="RefreshSongsAsync"
-                                         OnDragStarted="OnTrackDragStarted"
-                                         OnDragEnded="OnTrackDragEnded" />
+                        <SongList Place="SongTablePlace.Songs"
+                                  Tracks="@FilteredSongs"
+                                  FavoriteIds="@_favoriteWorkIds"
+                                  SourceLabel="All Music"
+                                  AriaLabel="@L["Common_Songs"].Value"
+                                  ProfileId="@_activeProfileId"
+                                  CurrentWorkId="@Playback.CurrentItem?.WorkId"
+                                  IsPlaying="@Playback.IsPlaying"
+                                  OnPlayRequested="PlayTracksAsync"
+                                  OnFavoriteToggled="ToggleFavoriteAsync"
+                                  OnQueueRequested="QueueTrackAsync"
+                                  OnPlayNextRequested="PlayNextTrackAsync"
+                                  OnTracksChanged="RefreshSongsAsync"
+                                  OnDragStarted="OnTrackDragStarted"
+                                  OnDragEnded="OnTrackDragEnded" />
                     }
                 </section>
             }

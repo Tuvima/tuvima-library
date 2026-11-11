@@ -2925,7 +2925,6 @@ button.app-menu-item {
     :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
-    :root:root .listen-song-table__favorite-button,
     :root:root .listen-track-grid__favorite,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
@@ -3135,8 +3134,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
     :root:root:root .view-date-group__select,
     :root:root:root .listen-button,
     :root:root:root .listen-detail__edit,
-    :root:root:root .app-overflow-menu__trigger--icon,
-    :root:root:root .listen-song-table__sort-header {
+    :root:root:root .app-overflow-menu__trigger--icon {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -3168,14 +3166,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
         min-height: var(--tl-tap-target-min);
     }
 
-    :root:root:root .listen-song-table__meta a {
-        display: inline-flex;
-        align-items: center;
-        min-height: var(--tl-tap-target-min);
-    }
-
     /* Column resizing is a mouse affordance for the desktop form factor. */
-    :root:root:root .listen-song-table__resizer,
     :root:root:root .listen-column-resizer {
         display: none;
     }
