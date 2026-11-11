@@ -132,28 +132,15 @@
     }
 }
 
-.br-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    inline-size: 2.75rem;
-    block-size: 2.75rem;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--br-chrome-text);
-    cursor: pointer;
+/* The reader's icon buttons are the shared AppIconButton (Plain). The reader only gives them its round shape (the shared
+   --app-icon-button-radius hook) and, on its own bars, its chrome text colour through the text token the Plain button reads. */
+.br-shell {
+    --app-icon-button-radius: 50%;
 }
 
-.br-icon-btn:hover {
-    background: var(--br-chrome-border);
-}
-
-.br-icon-btn:focus-visible {
-    outline: 2px solid var(--br-focus);
-    outline-offset: 2px;
+.br-bar,
+.br-float--bar {
+    --tl-text-primary: var(--br-chrome-text);
 }
 
 .br-title {
@@ -219,13 +206,8 @@
     gap: 0.125rem;
 }
 
-.br-icon-btn--on {
+.app-icon-button.br-icon-btn--on {
     background: var(--br-chrome-border);
-}
-
-.br-icon-btn--small {
-    inline-size: 2.5rem;
-    block-size: 2.5rem;
 }
 
 /* ── Side panel (a bottom sheet on phones) ──────────────────────────────── */
@@ -265,10 +247,6 @@
     gap: 0.5rem;
     padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.5rem 1rem;
     border-bottom: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.12));
-}
-
-.br-panel-head .br-icon-btn {
-    color: var(--tl-text-primary, #f2f2f2);
 }
 
 .br-panel-title {
@@ -529,9 +507,8 @@
 /* ── Big screens and TVs: larger controls, clearly visible focus ────────── */
 
 @media (min-width: 1600px) {
-    .br-icon-btn {
-        inline-size: 3.5rem;
-        block-size: 3.5rem;
+    .br-shell .app-icon-button.app-control--normal {
+        --app-control-height: 3.5rem;
     }
 
     .br-panel {
@@ -541,10 +518,6 @@
 
     .br-title-book { font-size: var(--tl-font-size-dialog-title); }
     .br-bar--bottom { font-size: var(--tl-font-size-lg); }
-}
-
-.br-icon-btn:focus-visible {
-    outline-width: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

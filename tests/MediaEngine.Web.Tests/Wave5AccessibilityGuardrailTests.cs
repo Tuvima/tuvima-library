@@ -32,7 +32,7 @@ public sealed class Wave5AccessibilityGuardrailTests
         var reader = Read("src/MediaEngine.Web/Components/Pages/BookReader.razor");
         var folderBrowser = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
 
-        Assert.Contains("<AppNativeButton Class=\"br-icon-btn\" OnClick=\"ExitReader\"", reader);
+        Assert.Contains("<AppIconButton Icon=\"@AppMaterialIcons.Filled.ArrowBack\" ButtonStyle=\"AppButtonStyle.Text\" OnClick=\"ExitReader\"", reader);
         Assert.Contains("<AppNativeButton Class=\"br-row br-row--grow\"", reader);
         Assert.DoesNotContain("<div class=\"br-row\" @onclick", reader);
         // The folder list is the shared browser frame's grid with one keyboard model; a folder row is its own component (Editor v5 D32).
