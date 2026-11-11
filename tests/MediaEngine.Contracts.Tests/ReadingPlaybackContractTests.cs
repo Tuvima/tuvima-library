@@ -247,4 +247,11 @@ public sealed class ReadingPlaybackContractTests
         var roundTrip = JsonSerializer.Deserialize<ListeningSettingsDto>(json, MediaEngineJson.Web);
         Assert.Equal("show=genre;width=song:400", Assert.Single(roundTrip!.SongTableColumns).Value);
     }
+
+    [Fact]
+    public void SongTableKeys_AreTheFourPlacesPlusThePhoneSongsSort()
+    {
+        Assert.Equal(["songs", "albums", "albumpage", "playlist", "songssort"], PlaybackPreferenceValues.SongTableKeys);
+        Assert.Equal("songssort", PlaybackPreferenceValues.SongsSortKey);
+    }
 }

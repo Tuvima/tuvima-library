@@ -2,16 +2,12 @@ using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Logging;
-using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The sort the phone Songs header remembers per profile (spec music-table-and-reader-frame D21): its text form and the browser store.</summary>
+/// <summary>The sort the phone Songs header remembers per profile (spec music-table-and-reader-frame D21): its text form and the profile store.</summary>
 public sealed class SongSortPreferencesTests
 {
-    private static readonly Guid Ada = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid Bea = Guid.Parse("22222222-2222-2222-2222-222222222222");
-
     [Theory]
     [InlineData(SongColumn.Song, false, "song:asc")]
     [InlineData(SongColumn.Artist, true, "artist:desc")]
@@ -44,89 +40,48 @@ public sealed class SongSortPreferencesTests
     }
 
     [Fact]
-    public async Task TheStoreKeepsOneSortPerProfileAndForgetsOnNull()
+    public async Task TheStoreKeepsTheSortOnTheProfileUnderItsOwnKeyAndForgetsOnNull()
     {
-        var (store, storage, _) = Create();
+        var harness = new SongTableProfileHarness();
+        var store = new ProfileSongSortPreferenceStore(harness.Settings);
 
-        await store.SaveAsync(Ada, new SongSortState(SongColumn.Plays, true));
+        await store.SaveAsync(harness.Profile, new SongSortState(SongColumn.Plays, true));
 
-        Assert.Equal(new SongSortState(SongColumn.Plays, true), await store.LoadAsync(Ada));
-        Assert.Null(await store.LoadAsync(Bea));
-        Assert.Contains("tuvima.songSort.v1.11111111111111111111111111111111", storage.Values.Keys);
+        Assert.Equal(new SongSortState(SongColumn.Plays, true), await store.LoadAsync(harness.Profile));
+        Assert.Null(await store.LoadAsync(Guid.NewGuid()));
+        Assert.Equal("plays:desc", harness.Stored["songssort"]);
 
-        await store.SaveAsync(Ada, null);
+        await store.SaveAsync(harness.Profile, null);
 
-        Assert.Empty(storage.Values);
-        Assert.Null(await store.LoadAsync(Ada));
+        Assert.Empty(harness.Stored);
+        Assert.Null(await store.LoadAsync(harness.Profile));
     }
 
     [Fact]
-    public async Task BlockedStorageUsesTheDefaultAndLogsInsteadOfSwallowingTheFailure()
+    public async Task TheSortSitsBesideTheRememberedColumnsWithoutReplacingThem()
     {
-        var (store, _, log) = Create(blocked: true);
+        var harness = new SongTableProfileHarness();
+        harness.Stored["songs"] = "hide=plays";
+        var store = new ProfileSongSortPreferenceStore(harness.Settings);
 
-        var loaded = await store.LoadAsync(Ada);
-        await store.SaveAsync(Ada, new SongSortState(SongColumn.Song, false));
+        await store.SaveAsync(harness.Profile, new SongSortState(SongColumn.Song, false));
+
+        Assert.Equal("hide=plays", harness.Stored["songs"]);
+        Assert.Equal("song:asc", harness.Stored["songssort"]);
+    }
+
+    [Fact]
+    public async Task AnEngineThatCannotBeReachedUsesTheDefaultLogsAndKeepsTheSortForThisSession()
+    {
+        var harness = new SongTableProfileHarness { EngineDown = true };
+        var store = new ProfileSongSortPreferenceStore(harness.Settings);
+
+        var loaded = await store.LoadAsync(harness.Profile);
+        await store.SaveAsync(harness.Profile, new SongSortState(SongColumn.Song, false));
 
         Assert.Null(loaded);
-        Assert.Equal(2, log.Entries.Count(entry => entry.Level == LogLevel.Warning && entry.Exception is JSException));
-    }
-
-    private static (BrowserSongSortPreferenceStore Store, FakeStorage Storage, CapturingLoggerProvider Log) Create(bool blocked = false)
-    {
-        var storage = new FakeStorage { Blocked = blocked };
-        var log = new CapturingLoggerProvider();
-        var store = new BrowserSongSortPreferenceStore(storage, LoggerFactory.Create(builder => builder.AddProvider(log)).CreateLogger<BrowserSongSortPreferenceStore>());
-        return (store, storage, log);
-    }
-
-    /// <summary>A browser's local storage behind the module the store imports; "blocked" throws like a private window does.</summary>
-    private sealed class FakeStorage : IJSRuntime
-    {
-        public Dictionary<string, string> Values { get; } = [];
-
-        public bool Blocked { get; init; }
-
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
-
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
-        {
-            if (identifier == "import")
-            {
-                return ValueTask.FromResult((TValue)(object)new Module(this));
-            }
-
-            throw new InvalidOperationException($"Unexpected call {identifier}.");
-        }
-
-        private sealed class Module(FakeStorage owner) : IJSObjectReference
-        {
-            public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
-
-            public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
-            {
-                if (owner.Blocked)
-                {
-                    throw new JSException("The operation is insecure.");
-                }
-
-                var key = (string)args![0]!;
-                switch (identifier)
-                {
-                    case "load":
-                        return ValueTask.FromResult((TValue)(object?)(owner.Values.TryGetValue(key, out var text) ? text : null)!);
-                    case "save":
-                        owner.Values[key] = (string)args[1]!;
-                        return ValueTask.FromResult((TValue)(object)true);
-                    case "remove":
-                        owner.Values.Remove(key);
-                        return ValueTask.FromResult((TValue)(object)true);
-                    default:
-                        throw new InvalidOperationException($"Unexpected call {identifier}.");
-                }
-            }
-
-            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-        }
+        Assert.Equal(new SongSortState(SongColumn.Song, false), await store.LoadAsync(harness.Profile));
+        Assert.Empty(harness.Stored);
+        Assert.Equal(2, harness.Log.Entries.Count(entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException));
     }
 }

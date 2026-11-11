@@ -1,5 +1,4 @@
 using MediaEngine.Web.Components.Listen;
-using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Services.Playback;
 
@@ -14,68 +13,29 @@ public interface ISongTablePreferenceStore
 }
 
 /// <summary>
-/// Keeps the choice in this browser's local storage through <c>wwwroot/js/song-table-preferences.js</c>, one entry per profile and
-/// place, written and read with <see cref="SongTablePreferences"/>. It is a display preference, so nothing goes to the Engine. When
-/// storage is blocked the failure is logged and the defaults are used, so the table still works and simply forgets next time.
+/// Keeps the choice on the profile (<c>Listening.SongTableColumns</c>, one text per place, written and read with
+/// <see cref="SongTablePreferences"/>), so it follows the person to every device. Failures are logged by
+/// <see cref="SongTableProfileSettings"/> and the table keeps working with the defaults or the in-memory choice.
 /// </summary>
-public sealed class BrowserSongTablePreferenceStore(IJSRuntime js, ILogger<BrowserSongTablePreferenceStore> logger) : ISongTablePreferenceStore
+public sealed class ProfileSongTablePreferenceStore(SongTableProfileSettings settings) : ISongTablePreferenceStore
 {
-    private const string Script = "./js/song-table-preferences.js";
-
     public async ValueTask<SongTableChoice> LoadAsync(Guid profileId, SongTablePlace place)
     {
-        try
+        var key = SongTablePreferences.KeyFor(place);
+        var stored = new Dictionary<string, string>();
+        if (await settings.LoadAsync(profileId, key) is { } text && !string.IsNullOrWhiteSpace(text))
         {
-            await using var module = await js.InvokeAsync<IJSObjectReference>("import", Script);
-            var text = await module.InvokeAsync<string?>("load", StorageKey(profileId, place));
-            var stored = new Dictionary<string, string>();
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-                stored[SongTablePreferences.KeyFor(place)] = text;
-            }
+            stored[key] = text;
+        }
 
-            return SongTablePreferences.Read(stored, place);
-        }
-        catch (Exception exception) when (exception is JSException or InvalidOperationException)
-        {
-            logger.LogWarning(exception, "Could not read the song table columns for {Place}; using the defaults.", place);
-            return SongTableChoice.Default;
-        }
-        catch (JSDisconnectedException exception)
-        {
-            logger.LogDebug(exception, "The browser went away before the song table columns for {Place} could be read.", place);
-            return SongTableChoice.Default;
-        }
+        return SongTablePreferences.Read(stored, place);
     }
 
     public async ValueTask SaveAsync(Guid profileId, SongTablePlace place, SongTableChoice choice)
     {
-        try
-        {
-            var stored = new Dictionary<string, string>();
-            SongTablePreferences.Write(stored, place, choice);
-
-            await using var module = await js.InvokeAsync<IJSObjectReference>("import", Script);
-            if (stored.TryGetValue(SongTablePreferences.KeyFor(place), out var text))
-            {
-                await module.InvokeAsync<bool>("save", StorageKey(profileId, place), text);
-            }
-            else
-            {
-                await module.InvokeAsync<bool>("remove", StorageKey(profileId, place));
-            }
-        }
-        catch (Exception exception) when (exception is JSException or InvalidOperationException)
-        {
-            logger.LogWarning(exception, "Could not save the song table columns for {Place}.", place);
-        }
-        catch (JSDisconnectedException exception)
-        {
-            logger.LogDebug(exception, "The browser went away before the song table columns for {Place} could be saved.", place);
-        }
+        var stored = new Dictionary<string, string>();
+        SongTablePreferences.Write(stored, place, choice);
+        var key = SongTablePreferences.KeyFor(place);
+        await settings.SaveAsync(profileId, key, stored.TryGetValue(key, out var text) ? text : null);
     }
-
-    /// <summary>The local-storage key: one per profile and place, so two profiles on one browser never share columns.</summary>
-    internal static string StorageKey(Guid profileId, SongTablePlace place)
-        => $"tuvima.songTable.v1.{profileId:N}.{SongTablePreferences.KeyFor(place)}";
 }

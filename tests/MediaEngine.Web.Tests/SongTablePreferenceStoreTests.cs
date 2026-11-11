@@ -2,16 +2,12 @@ using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Logging;
-using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The browser store for the song table's remembered columns: one entry per profile and place, defaults on any failure, never silent.</summary>
+/// <summary>The profile store for the song table's remembered columns: one text per place on the profile, defaults on any failure, never silent.</summary>
 public sealed class SongTablePreferenceStoreTests
 {
-    private static readonly Guid Ada = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid Bea = Guid.Parse("22222222-2222-2222-2222-222222222222");
-
     private static SongTableChoice Chosen() => new()
     {
         Shown = new HashSet<SongColumn> { SongColumn.Genre },
@@ -19,126 +15,128 @@ public sealed class SongTablePreferenceStoreTests
         Widths = new Dictionary<SongColumn, int> { [SongColumn.Artist] = 220 },
     };
 
-    private static (BrowserSongTablePreferenceStore Store, FakeStorage Storage, CapturingLoggerProvider Log) Create(bool blocked = false)
+    private static (ProfileSongTablePreferenceStore Store, SongTableProfileHarness Harness) Create()
     {
-        var storage = new FakeStorage { Blocked = blocked };
-        var log = new CapturingLoggerProvider();
-        var store = new BrowserSongTablePreferenceStore(storage, LoggerFactory.Create(builder => builder.AddProvider(log)).CreateLogger<BrowserSongTablePreferenceStore>());
-        return (store, storage, log);
+        var harness = new SongTableProfileHarness();
+        return (new ProfileSongTablePreferenceStore(harness.Settings), harness);
+    }
+
+    [Theory]
+    [InlineData(SongTablePlace.Songs, "songs")]
+    [InlineData(SongTablePlace.Albums, "albums")]
+    [InlineData(SongTablePlace.AlbumPage, "albumpage")]
+    [InlineData(SongTablePlace.Playlist, "playlist")]
+    public void EachPlaceIsStoredUnderThePlainLowerCaseNameTheEngineAccepts(SongTablePlace place, string key)
+    {
+        Assert.Equal(key, SongTablePreferences.KeyFor(place));
+        Assert.Contains(key, MediaEngine.Contracts.Playback.PlaybackPreferenceValues.SongTablePlaces);
     }
 
     [Fact]
-    public async Task AChoiceRoundTripsPerProfileAndPlace()
+    public async Task AChoiceRoundTripsThroughTheProfileForItsPlaceOnly()
     {
-        var (store, _, _) = Create();
+        var (store, harness) = Create();
 
-        await store.SaveAsync(Ada, SongTablePlace.Songs, Chosen());
+        await store.SaveAsync(harness.Profile, SongTablePlace.Songs, Chosen());
 
-        var back = await store.LoadAsync(Ada, SongTablePlace.Songs);
+        var back = await store.LoadAsync(harness.Profile, SongTablePlace.Songs);
         Assert.Equal(Chosen().Shown, back.Shown);
         Assert.Equal(Chosen().Hidden, back.Hidden);
         Assert.Equal(220, back.Widths[SongColumn.Artist]);
-        Assert.True((await store.LoadAsync(Bea, SongTablePlace.Songs)).IsDefault);
-        Assert.True((await store.LoadAsync(Ada, SongTablePlace.Playlist)).IsDefault);
+        Assert.Equal(["songs"], harness.Stored.Keys);
+        Assert.True((await store.LoadAsync(harness.Profile, SongTablePlace.Playlist)).IsDefault);
     }
 
     [Fact]
-    public async Task ResetForgetsTheEntryAndNothingBlocksTheDefaults()
+    public async Task AChoiceIsReadBackFromTheEngineByAnotherDevice()
     {
-        var (store, storage, _) = Create();
-        await store.SaveAsync(Ada, SongTablePlace.Albums, Chosen());
-        Assert.Single(storage.Values);
+        var (store, harness) = Create();
+        await store.SaveAsync(harness.Profile, SongTablePlace.Albums, Chosen());
 
-        await store.SaveAsync(Ada, SongTablePlace.Albums, SongTableChoice.Default);
+        // A different browser has its own cache but the same profile on the Engine.
+        var otherDevice = new SongTableProfileHarness(harness.Profile);
+        foreach (var (key, value) in harness.Stored)
+        {
+            otherDevice.Stored[key] = value;
+        }
 
-        Assert.Empty(storage.Values);
-        Assert.True((await store.LoadAsync(Ada, SongTablePlace.Albums)).IsDefault);
+        var back = await new ProfileSongTablePreferenceStore(otherDevice.Settings).LoadAsync(harness.Profile, SongTablePlace.Albums);
+        Assert.Equal(Chosen().Hidden, back.Hidden);
     }
 
     [Fact]
-    public async Task EachPlaceAndProfileGetsItsOwnStorageKey()
+    public async Task AnotherProfilesChoiceIsNeverShown()
     {
-        var (store, storage, _) = Create();
+        var (store, harness) = Create();
+        await store.SaveAsync(harness.Profile, SongTablePlace.Songs, Chosen());
 
-        await store.SaveAsync(Ada, SongTablePlace.Songs, Chosen());
-        await store.SaveAsync(Bea, SongTablePlace.Songs, Chosen());
-        await store.SaveAsync(Ada, SongTablePlace.AlbumPage, Chosen());
+        Assert.True((await store.LoadAsync(Guid.NewGuid(), SongTablePlace.Songs)).IsDefault);
+    }
 
-        Assert.Equal(3, storage.Values.Count);
-        Assert.Contains("tuvima.songTable.v1.11111111111111111111111111111111.songTable.songs", storage.Values.Keys);
+    [Fact]
+    public async Task ResetForgetsTheEntryAndTheDefaultsApplyAgain()
+    {
+        var (store, harness) = Create();
+        await store.SaveAsync(harness.Profile, SongTablePlace.Albums, Chosen());
+        Assert.Single(harness.Stored);
+
+        await store.SaveAsync(harness.Profile, SongTablePlace.Albums, SongTableChoice.Default);
+
+        Assert.Empty(harness.Stored);
+        Assert.True((await store.LoadAsync(harness.Profile, SongTablePlace.Albums)).IsDefault);
+    }
+
+    [Fact]
+    public async Task SavingOnePlaceKeepsTheOtherPlacesAndTheSavedSort()
+    {
+        var (store, harness) = Create();
+        harness.Stored["songssort"] = "plays:desc";
+        await store.SaveAsync(harness.Profile, SongTablePlace.Songs, Chosen());
+
+        await store.SaveAsync(harness.Profile, SongTablePlace.Albums, Chosen());
+
+        Assert.Equal(["albums", "songs", "songssort"], harness.Stored.Keys.Order());
     }
 
     [Fact]
     public async Task AnUnreadableStoredValueFallsBackTowardTheDefaults()
     {
-        var (store, storage, _) = Create();
-        storage.Values[BrowserSongTablePreferenceStore_Key(Ada, SongTablePlace.Songs)] = "show=nothing;width=artist:wide;;=";
+        var (store, harness) = Create();
+        harness.Stored["songs"] = "show=nothing;width=artist:wide;;=";
 
-        Assert.True((await store.LoadAsync(Ada, SongTablePlace.Songs)).IsDefault);
+        Assert.True((await store.LoadAsync(harness.Profile, SongTablePlace.Songs)).IsDefault);
     }
 
     [Fact]
-    public async Task BlockedStorageUsesTheDefaultsAndLogsInsteadOfSwallowingTheFailure()
+    public async Task AnEngineThatCannotBeReachedUsesTheDefaultsLogsAndKeepsTheChoiceForThisSession()
     {
-        var (store, _, log) = Create(blocked: true);
+        var (store, harness) = Create();
+        harness.EngineDown = true;
 
-        var loaded = await store.LoadAsync(Ada, SongTablePlace.Songs);
-        await store.SaveAsync(Ada, SongTablePlace.Songs, Chosen());
+        var loaded = await store.LoadAsync(harness.Profile, SongTablePlace.Songs);
+        await store.SaveAsync(harness.Profile, SongTablePlace.Songs, Chosen());
+        var again = await store.LoadAsync(harness.Profile, SongTablePlace.Songs);
 
         Assert.True(loaded.IsDefault);
-        Assert.Equal(2, log.Entries.Count(entry => entry.Level == LogLevel.Warning && entry.Exception is JSException));
+        Assert.Equal(Chosen().Hidden, again.Hidden);
+        Assert.Empty(harness.Stored);
+        Assert.Equal(2, harness.Log.Entries.Count(entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException));
     }
 
-    private static string BrowserSongTablePreferenceStore_Key(Guid profile, SongTablePlace place) =>
-        $"tuvima.songTable.v1.{profile:N}.{SongTablePreferences.KeyFor(place)}";
-
-    /// <summary>A browser's local storage behind the module the store imports; "blocked" throws like a private window does.</summary>
-    private sealed class FakeStorage : IJSRuntime
+    [Fact]
+    public async Task ARememberedChoiceIsSentToTheEngineOnceItIsBackAndDoesNotLinger()
     {
-        public Dictionary<string, string> Values { get; } = [];
+        var (store, harness) = Create();
+        harness.EngineDown = true;
+        await store.SaveAsync(harness.Profile, SongTablePlace.Songs, Chosen());
+        harness.EngineDown = false;
 
-        public bool Blocked { get; init; }
+        await store.SaveAsync(harness.Profile, SongTablePlace.Songs, Chosen());
 
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
-
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
-        {
-            if (identifier == "import")
-            {
-                return ValueTask.FromResult((TValue)(object)new Module(this));
-            }
-
-            throw new InvalidOperationException($"Unexpected call {identifier}.");
-        }
-
-        private sealed class Module(FakeStorage owner) : IJSObjectReference
-        {
-            public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
-
-            public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
-            {
-                if (owner.Blocked)
-                {
-                    throw new JSException("The operation is insecure.");
-                }
-
-                var key = (string)args![0]!;
-                switch (identifier)
-                {
-                    case "load":
-                        return ValueTask.FromResult((TValue)(object?)(owner.Values.TryGetValue(key, out var text) ? text : null)!);
-                    case "save":
-                        owner.Values[key] = (string)args[1]!;
-                        return ValueTask.FromResult((TValue)(object)true);
-                    case "remove":
-                        owner.Values.Remove(key);
-                        return ValueTask.FromResult((TValue)(object)true);
-                    default:
-                        throw new InvalidOperationException($"Unexpected call {identifier}.");
-                }
-            }
-
-            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-        }
+        Assert.Equal(1, harness.Saves);
+        Assert.Equal(["songs"], harness.Stored.Keys);
+        harness.Stored.Clear();
+        harness.Accessor.Invalidate();
+        Assert.True((await store.LoadAsync(harness.Profile, SongTablePlace.Songs)).IsDefault);
     }
 }

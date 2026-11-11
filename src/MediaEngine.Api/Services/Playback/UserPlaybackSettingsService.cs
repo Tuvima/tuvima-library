@@ -486,8 +486,8 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         return clean;
     }
 
-    // Keeps the remembered song table columns for the four known places only, each a short text of the table's own plain characters,
-    // so a profile's settings cannot grow without bound or carry markup.
+    // Keeps the remembered song table columns for the four known places and the phone Songs sort only, each a short text of the
+    // table's own plain characters, so a profile's settings cannot grow without bound or carry markup.
     private static Dictionary<string, string> CleanSongTableColumns(Dictionary<string, string>? columns)
     {
         var clean = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -495,7 +495,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         {
             var place = (key ?? string.Empty).Trim().ToLowerInvariant();
             var text = (value ?? string.Empty).Trim().ToLowerInvariant();
-            if (!PlaybackPreferenceValues.SongTablePlaces.Contains(place, StringComparer.Ordinal)
+            if (!PlaybackPreferenceValues.SongTableKeys.Contains(place, StringComparer.Ordinal)
                 || text.Length is 0 or > PlaybackPreferenceValues.MaxSongTableColumnsLength
                 || !text.All(IsSongTableTextCharacter))
             {

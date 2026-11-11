@@ -10,10 +10,8 @@ namespace MediaEngine.Web.Services.Playback;
 /// </summary>
 public static class SongTablePreferences
 {
-    private const string KeyPrefix = "songTable.";
-
-    /// <summary>The name a place is stored under in the profile's map.</summary>
-    public static string KeyFor(SongTablePlace place) => KeyPrefix + place.ToString().ToLowerInvariant();
+    /// <summary>The name a place is stored under in the profile's map: the plain lower-case place name the Engine accepts.</summary>
+    public static string KeyFor(SongTablePlace place) => place.ToString().ToLowerInvariant();
 
     /// <summary>What the profile chose for a place; the defaults when nothing is stored or the stored text is not readable.</summary>
     public static SongTableChoice Read(IReadOnlyDictionary<string, string>? store, SongTablePlace place)
