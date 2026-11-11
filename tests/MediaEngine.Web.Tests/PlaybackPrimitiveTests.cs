@@ -168,7 +168,7 @@ public sealed class PlaybackPrimitiveTests
     [Fact]
     public void PlaybackJavaScript_UsesV2StorageKeysAndNoLegacyStateFallback()
     {
-        var script = LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/wwwroot/app.js"));
+        var script = LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/wwwroot/js/playback-core.js"));
 
         Assert.Contains("tuvima.playback.v2.state", script, StringComparison.Ordinal);
         Assert.Contains("tuvima.playback.v2.command", script, StringComparison.Ordinal);

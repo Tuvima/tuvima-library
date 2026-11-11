@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 
-const source = await readFile(new URL("../../../src/MediaEngine.Web/wwwroot/app.js", import.meta.url), "utf8");
+const source = await readFile(new URL("../../../src/MediaEngine.Web/wwwroot/js/playback-core.js", import.meta.url), "utf8");
 function block(start, end) {
     const a = source.indexOf(start), b = source.indexOf(end, a);
     assert.ok(a >= 0 && b > a);

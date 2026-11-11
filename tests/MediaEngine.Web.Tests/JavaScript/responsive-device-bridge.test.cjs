@@ -6,19 +6,20 @@ const { test } = require('node:test');
 
 const repositoryRoot = path.resolve(__dirname, '../../..');
 const appJs = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/wwwroot/app.js'), 'utf8').replace(/\r\n/g, '\n');
+const playbackJs = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/wwwroot/js/playback-core.js'), 'utf8').replace(/\r\n/g, '\n');
 const mainLayout = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/Shared/MainLayout.razor'), 'utf8').replace(/\r\n/g, '\n');
 const blockStart = appJs.indexOf('window.tuvimaResponsive = (function () {');
 const blockEnd = appJs.indexOf('\n/**\n * Returns responsive presentation density only.', blockStart);
 assert.ok(blockStart >= 0 && blockEnd > blockStart, 'responsive bridge block is present');
 const responsiveBridgeSource = appJs.slice(blockStart, blockEnd);
-const popupSyncStart = appJs.indexOf('window.tuvimaPopupStateSync = (function () {');
-const popupSyncEnd = appJs.indexOf('\n\nwindow.listenPlayback = (function () {', popupSyncStart);
+const popupSyncStart = playbackJs.indexOf('window.tuvimaPopupStateSync = (function () {');
+const popupSyncEnd = playbackJs.indexOf('\n\nwindow.listenPlayback = (function () {', popupSyncStart);
 assert.ok(popupSyncStart >= 0 && popupSyncEnd > popupSyncStart, 'popup snapshot handshake block is present');
-const popupSyncSource = appJs.slice(popupSyncStart, popupSyncEnd);
-const dockToolsStart = appJs.indexOf('window.playbackTools = window.playbackTools || {');
-const dockToolsEnd = appJs.indexOf('\n};\n\n// Scroll the existing episode rail', dockToolsStart) + 3;
+const popupSyncSource = playbackJs.slice(popupSyncStart, popupSyncEnd);
+const dockToolsStart = playbackJs.indexOf('window.playbackTools = window.playbackTools || {');
+const dockToolsEnd = playbackJs.indexOf('\n};\n', dockToolsStart) + 3;
 assert.ok(dockToolsStart >= 0 && dockToolsEnd > dockToolsStart, 'playback dock observer block is present');
-const dockToolsSource = appJs.slice(dockToolsStart, dockToolsEnd);
+const dockToolsSource = playbackJs.slice(dockToolsStart, dockToolsEnd);
 
 function createBrowser(initialWidth = 1024) {
     const windowListeners = new Map();
@@ -76,7 +77,7 @@ function createDockTools() {
     }
     const document = { documentElement: { style: { setProperty: (key, value) => styleValues.set(key, value) } } };
     const context = { window: { playbackTools: null }, document, HTMLElement: MockHTMLElement, ResizeObserver: MockResizeObserver };
-    vm.runInNewContext(dockToolsSource, context, { filename: 'app.js:playback-dock' });
+    vm.runInNewContext(dockToolsSource, context, { filename: 'playback-core.js:playback-dock' });
     return { tools: context.window.playbackTools, styleValues, resizeObservers, MockHTMLElement };
 }
 

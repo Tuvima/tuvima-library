@@ -38,6 +38,8 @@
     @* The video library and the map styles load on demand through tuvima-lazy.js; the fingerprinted video library address travels in data-hls-src on the body. *@
     <script src="@Assets["js/tuvima-lazy.js"]"></script>
     <script src="@Assets["app.js"]"></script>
+    @* Audio and video playback (window.listenPlayback, window.tuvimaPopupStateSync, window.playbackTools) lives in its own classic script, kept out of app.js; it loads right after it. *@
+    <script src="@Assets["js/playback-core.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/lazy-load.js"></script>
     <script src="js/cover-popup.js"></script>
