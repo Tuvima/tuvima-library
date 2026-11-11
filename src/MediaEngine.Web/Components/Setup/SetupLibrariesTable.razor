@@ -19,10 +19,6 @@
         <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
     }
     @{ var rows = Rows; }
-    @if (rows.Count > 0)
-    {
-        <LibraryAreaChips Areas="@Areas" Counts="@AreaCounts" Selected="@_area" SelectedChanged="@(key => { _area = key; return Task.CompletedTask; })" />
-    }
     @if (!ReadOnly && rows.Count > 0)
     {
         <div class="setup-libs__toolbar">
@@ -54,7 +50,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in rows.Where(row => _area is null || string.Equals(row.AreaKey, _area, StringComparison.OrdinalIgnoreCase)))
+                @foreach (var row in rows)
                 {
                     <tr @key="row.Key" data-library="@row.Key">
                         <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
@@ -98,12 +94,6 @@
     [Parameter] public EventCallback Changed { get; set; }
 
     private string? _error;
-    private string? _area;
-
-    private IReadOnlyList<LibraryGroup> Areas => Kinds.Visible(false);
-
-    private IReadOnlyDictionary<string, int> AreaCounts => Rows.GroupBy(row => row.AreaKey, StringComparer.OrdinalIgnoreCase)
-        .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
 
     // Edit: the same window as Settings, saving through the setup session (nothing is scanned or moved during setup).
     private async Task EditAsync(Row row)

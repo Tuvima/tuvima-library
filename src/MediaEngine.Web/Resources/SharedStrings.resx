@@ -6639,28 +6639,13 @@
     <value>Metadata language</value>
   </data>
   <data name="SetupMetadataStage_ConnectYourMetadataSources" xml:space="preserve">
-    <value>Connect your metadata sources</value>
+    <value>Where should Library look things up?</value>
   </data>
   <data name="SetupMetadataStage_ChooseWhereInformationAboutYour" xml:space="preserve">
     <value>Choose where information about your media comes from. Each source below says what it can supply.</value>
   </data>
   <data name="SetupMetadataStage_FindingMetadataSourcesForYour" xml:space="preserve">
     <value>Finding metadata sources for your library…</value>
-  </data>
-  <data name="SetupMetadataStage_ShowingTheSourcesThatFit" xml:space="preserve">
-    <value>Showing the sources that fit the libraries you added.</value>
-  </data>
-  <data name="SetupMetadataStage_ShowingEverySource" xml:space="preserve">
-    <value>Showing every source.</value>
-  </data>
-  <data name="SetupMetadataStage_ShowAllSources" xml:space="preserve">
-    <value>Show all sources</value>
-  </data>
-  <data name="SetupMetadataStage_OnlyTheOnesThatFit" xml:space="preserve">
-    <value>Only the ones that fit</value>
-  </data>
-  <data name="SetupMetadataStage_SourcesLayout" xml:space="preserve">
-    <value>Sources layout</value>
   </data>
   <data name="SetupProfileStage_WhoAreYouAndHow" xml:space="preserve">
     <value>Who are you, and how do you want to sign in?</value>
@@ -6740,9 +6725,6 @@
   <data name="SetupToolsStage_LibraryUsesAFewOutside" xml:space="preserve">
     <value>Library uses a few outside programs to read and prepare your media. Optional ones can be downloaded now or later.</value>
   </data>
-  <data name="SetupToolsStage_TheLocalAIEngineIs" xml:space="preserve">
-    <value>The local AI engine is set up in Settings, Local AI, after setup.</value>
-  </data>
   <data name="SetupToolsStage_CheckingYourTools" xml:space="preserve">
     <value>Checking your tools</value>
   </data>
@@ -6756,7 +6738,7 @@
     <value>Turn on the Vault?</value>
   </data>
   <data name="SetupVaultOffer_TheVaultIsAPrivate" xml:space="preserve">
-    <value>The Vault is a private place for libraries that only people you choose can open. It stays hidden until you turn it on.</value>
+    <value>A private, PIN-locked space for anything you want to hide, including adult content.</value>
   </data>
   <data name="SetupVaultOffer_EnterYourPIN" xml:space="preserve">
     <value>Enter your PIN</value>
@@ -6782,9 +6764,6 @@
   <data name="SetupVaultOffer_AddAFirstPrivateLibrary" xml:space="preserve">
     <value>Add a first private library now, or carry on. The Vault locks when setup finishes and stays out of the menu until you turn on Show Vault in the menu in Settings.</value>
   </data>
-  <data name="SetupVaultOffer_SetUpTheVault" xml:space="preserve">
-    <value>Set up the Vault</value>
-  </data>
   <data name="SetupVaultOffer_YourPIN" xml:space="preserve">
     <value>Your PIN</value>
   </data>
@@ -6804,7 +6783,7 @@
     <value>Skip anyway</value>
   </data>
   <data name="SetupWelcomeStage_WelcomeToYourLibrary" xml:space="preserve">
-    <value>Welcome to your library</value>
+    <value>Name your Library</value>
   </data>
   <data name="SetupWelcomeStage_ChooseYourLanguageThenGive" xml:space="preserve">
     <value>Choose your language, then give this server a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</value>
@@ -6844,9 +6823,6 @@
   </data>
   <data name="SetupWelcomeStage_RestoreAndRestart" xml:space="preserve">
     <value>Restore and restart</value>
-  </data>
-  <data name="SetupWelcomeStage_RestoreABackupInstead" xml:space="preserve">
-    <value>Restore a backup</value>
   </data>
   <data name="Common_DismissNotification" xml:space="preserve">
     <value>Dismiss notification</value>
@@ -12823,5 +12799,53 @@
   </data>
   <data name="LibraryScanCard_ViewActivity" xml:space="preserve">
     <value>View activity</value>
+  </data>
+  <data name="SetupVaultOffer_ForTitle" xml:space="preserve">
+    <value>What the Vault is for</value>
+  </data>
+  <data name="SetupVaultOffer_ForText" xml:space="preserve">
+    <value>Put anything in the Vault that you want to keep hidden: private videos, pictures and more. Adult content is enabled here and only here. Nothing adult appears anywhere else in Library, and it is off until you turn it on.</value>
+  </data>
+  <data name="SetupVaultOffer_UnlocksTitle" xml:space="preserve">
+    <value>What turning it on unlocks</value>
+  </data>
+  <data name="SetupVaultOffer_Unlocks1" xml:space="preserve">
+    <value>Vault becomes a choice when you add a library, for videos and pictures you want hidden, adult content included.</value>
+  </data>
+  <data name="SetupVaultOffer_Unlocks2" xml:space="preserve">
+    <value>Everything in the Vault is locked behind its own PIN.</value>
+  </data>
+  <data name="SetupVaultOffer_Unlocks3" xml:space="preserve">
+    <value>It stays hidden from kids profiles, and from other profiles unless they have the PIN.</value>
+  </data>
+  <data name="SetupVaultOffer_LaterInSettings" xml:space="preserve">
+    <value>You can turn it on later in Settings.</value>
+  </data>
+  <data name="SetupStepper_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="SetupToolsStage_LocalAIName" xml:space="preserve">
+    <value>Local AI</value>
+  </data>
+  <data name="SetupToolsStage_LocalAIDetail" xml:space="preserve">
+    <value>Set up later in Settings, Local AI</value>
+  </data>
+  <data name="SetupToolsStage_LocalAILater" xml:space="preserve">
+    <value>Later</value>
+  </data>
+  <data name="SetupMetadataStage_CouldNotLoadTitle" xml:space="preserve">
+    <value>Could not load the sources</value>
+  </data>
+  <data name="SetupMetadataStage_CouldNotLoadMessage" xml:space="preserve">
+    <value>Library could not get the list of metadata sources. Check that the Engine is running, then try again.</value>
+  </data>
+  <data name="SetupLibrariesStage_LoadingLibraries" xml:space="preserve">
+    <value>Loading your libraries</value>
+  </data>
+  <data name="SetupReadinessStage_AllSet" xml:space="preserve">
+    <value>All set</value>
+  </data>
+  <data name="SetupReadinessStage_HereIsHowSetupWent" xml:space="preserve">
+    <value>Here is how setup went.</value>
   </data>
 </root>

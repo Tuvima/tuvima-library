@@ -2,3 +2,17 @@
     display: grid;
     gap: 9px;
 }
+.setup-tools__later {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--tl-bg-surface-elevated) 74%, transparent);
+}
+
+.setup-tools__later > div { display: grid; min-width: 0; gap: 4px; }
+.setup-tools__later > div > strong { color: var(--tl-text-primary); font-weight: 600; }
+.setup-tools__later > div > span { color: var(--tl-text-muted); line-height: 1.45; }

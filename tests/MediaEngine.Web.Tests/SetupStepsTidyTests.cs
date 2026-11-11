@@ -77,13 +77,27 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
             .Add(p => p.Steps, Statuses("metadata"))
             .Add(p => p.CurrentStep, "done")
             .Add(p => p.WorkflowStep, "done"));
-        Assert.Single(skipped.FindAll("em"));
+        Assert.Equal("Later", Assert.Single(skipped.FindAll("em")).TextContent.Trim());
 
         var passed = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
             .Add(p => p.CurrentStep, "done")
             .Add(p => p.WorkflowStep, "done"));
         Assert.Empty(passed.FindAll("em"));
+    }
+
+    [Fact]
+    public void Stepper_ShowsOptionalOnTheVaultStep_AndNowhereElse()
+    {
+        var cut = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses())
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "vault")
+            .Add(p => p.WorkflowStep, "vault"));
+
+        var optional = Assert.Single(cut.FindAll("em"));
+        Assert.Equal("optional", optional.TextContent.Trim());
+        Assert.Contains("Vault", optional.ParentElement!.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -142,16 +156,25 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void FirstScreen_OffersRestoreAsASecondaryButtonBesideContinue()
+    public void FirstScreen_HasContinueOnly_BecauseRestoreLivesOnTheIntro()
     {
         var cut = Render<SetupWelcomeStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
 
         var footer = cut.Find("footer.setup-stage__footer");
-        var restore = footer.QuerySelector("[data-testid='setup-restore-open']");
-        Assert.NotNull(restore);
-        Assert.Contains("app-button--outlined", restore!.ClassName, StringComparison.Ordinal);
-        Assert.Contains("Restore a backup", restore.TextContent, StringComparison.Ordinal);
-        Assert.Contains("app-button--filled", footer.QuerySelector(".setup-stage__footer-actions .app-button")!.ClassName, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='setup-restore-open']"));
+        Assert.DoesNotContain("Restore a backup", footer.TextContent, StringComparison.Ordinal);
+        var buttons = footer.QuerySelectorAll(".app-button");
+        Assert.Single(buttons);
+        Assert.Contains("Continue", buttons[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("app-button--filled", buttons[0].ClassName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FirstScreen_IsHeadedNameYourLibrary()
+    {
+        var cut = Render<SetupWelcomeStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
+
+        Assert.Equal("Name your Library", cut.Find("#setup-stage-title").TextContent.Trim());
     }
 
     [Fact]
@@ -223,16 +246,45 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EnhanceStep_ShowsSkipForNow_UntilAKeyIsSaved()
+    public void MetadataStep_ShowsSkipForNowAndContinueTogether_ContinueWaitingForASavedKey()
     {
         var none = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: false)]));
-        Assert.Contains("Skip for now", none.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Set up later", none.Markup, StringComparison.Ordinal);
+        var noneButtons = none.FindAll("footer .app-button");
+        Assert.Equal(["Skip for now", "Continue"], noneButtons.Select(button => button.TextContent.Trim()).ToArray());
+        Assert.Contains("app-button--text", noneButtons[0].ClassName, StringComparison.Ordinal);
+        Assert.False(noneButtons[0].HasAttribute("disabled"));
+        Assert.Contains("app-button--filled", noneButtons[1].ClassName, StringComparison.Ordinal);
+        Assert.True(noneButtons[1].HasAttribute("disabled"));
 
         var saved = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: true)]));
-        Assert.DoesNotContain("Skip for now", saved.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Set up later", saved.Markup, StringComparison.Ordinal);
-        Assert.Contains("Continue", saved.Markup, StringComparison.Ordinal);
+        var savedButtons = saved.FindAll("footer .app-button");
+        Assert.Equal(["Skip for now", "Continue"], savedButtons.Select(button => button.TextContent.Trim()).ToArray());
+        Assert.False(savedButtons[1].HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void MetadataStep_SkipForNowAndContinueEachRaiseTheirOwnCallback()
+    {
+        var continued = 0;
+        var deferred = 0;
+        var cut = Render<SetupMetadataStage>(parameters => parameters
+            .Add(p => p.Catalogue, [Provider(configured: true)])
+            .Add(p => p.Continue, EventCallback.Factory.Create(this, () => continued++))
+            .Add(p => p.Defer, EventCallback.Factory.Create(this, () => deferred++)));
+
+        cut.FindAll("footer .app-button").Single(button => button.TextContent.Trim() == "Skip for now").Click();
+        cut.FindAll("footer .app-button").Single(button => button.TextContent.Trim() == "Continue").Click();
+
+        Assert.Equal(1, deferred);
+        Assert.Equal(1, continued);
+    }
+
+    [Fact]
+    public void MetadataStep_IsHeadedWhereShouldLibraryLookThingsUp()
+    {
+        var cut = Render<SetupMetadataStage>(parameters => parameters.Add(p => p.Catalogue, [Provider(configured: false)]));
+
+        Assert.Equal("Where should Library look things up?", cut.Find("#setup-stage-title").TextContent.Trim());
     }
 
     [Fact]
@@ -269,25 +321,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MetadataStep_ListsOnlySourcesThatFitTheLibrariesAdded_AndShowAllBringsTheRestBack()
-    {
-        var movies = new ProviderCatalogueDto { DisplayName = "Movie source", RequiresKey = false, MediaTypes = ["Movies"] };
-        var comics = new ProviderCatalogueDto { DisplayName = "Comic source", RequiresKey = false, MediaTypes = ["Comics"] };
-
-        var cut = Render<SetupMetadataStage>(parameters => parameters
-            .Add(p => p.Catalogue, [movies, comics])
-            .Add(p => p.LibraryMediaTypes, ["movies"]));
-
-        Assert.Contains("Movie source", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Comic source", cut.Markup, StringComparison.Ordinal);
-
-        cut.FindAll("button").Single(button => button.TextContent.Contains("Show all sources", StringComparison.Ordinal)).Click();
-
-        Assert.Contains("Comic source", cut.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void MetadataStep_ListsEverySourceWhenNoLibraryWasAdded()
+    public void MetadataStep_ListsEverySource_WithNoSourcesFilterAndNoLayoutSwitch()
     {
         var movies = new ProviderCatalogueDto { DisplayName = "Movie source", RequiresKey = false, MediaTypes = ["Movies"] };
         var comics = new ProviderCatalogueDto { DisplayName = "Comic source", RequiresKey = false, MediaTypes = ["Comics"] };
@@ -297,6 +331,57 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         Assert.Contains("Movie source", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Comic source", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Show all sources", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='setup-sources-list']"));
+        Assert.Empty(cut.FindAll(".app-layout-switch"));
+        Assert.Empty(cut.FindAll(".setup-sources-bar"));
+    }
+
+    [Fact]
+    public void MetadataStep_KeepsTheMetadataLanguageLine_BecauseNoOtherStepChoosesIt()
+    {
+        var locale = new SetupLocaleDto("en", "en", "US");
+        var cut = Render<SetupMetadataStage>(parameters => parameters
+            .Add(p => p.Catalogue, [Provider(configured: false)])
+            .Add(p => p.Locale, locale));
+        var welcome = Render<SetupWelcomeStage>(parameters => parameters
+            .Add(p => p.ServerName, "Home")
+            .Add(p => p.Locale, locale));
+
+        Assert.Contains("Metadata language", cut.Find(".setup-locale-form").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Metadata language", welcome.Find(".setup-locale-form").TextContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MetadataStep_ShowsTileSkeletonsWhileTheSourcesLoad()
+    {
+        var cut = Render<SetupMetadataStage>(parameters => parameters
+            .Add(p => p.Catalogue, [])
+            .Add(p => p.Loaded, false));
+
+        var skeleton = cut.Find("[data-testid='setup-sources-skeleton']");
+        Assert.Equal(6, skeleton.QuerySelectorAll(".app-skeleton").Length);
+        Assert.Empty(cut.FindAll("[data-testid='setup-sources-error']"));
+        Assert.Empty(cut.FindAll(".app-spinner"));
+    }
+
+    [Fact]
+    public async Task MetadataStep_ShowsAnErrorWithTryAgain_WhenTheSourcesCouldNotBeLoaded_AndTryAgainAsksAgain()
+    {
+        var asked = 0;
+        var cut = Render<SetupMetadataStage>(parameters => parameters
+            .Add(p => p.Catalogue, [])
+            .Add(p => p.Loaded, true)
+            .Add(p => p.RefreshRequested, EventCallback.Factory.Create(this, () => asked++)));
+
+        var error = cut.Find("[data-testid='setup-sources-error']");
+        Assert.NotNull(error.QuerySelector(".app-error-state"));
+        Assert.Empty(cut.FindAll("[data-testid='setup-sources-skeleton']"));
+        var tryAgain = cut.Find("[data-testid='setup-sources-try-again']");
+        Assert.Equal("Try again", tryAgain.TextContent.Trim());
+
+        await cut.InvokeAsync(() => tryAgain.Click());
+
+        Assert.Equal(1, asked);
     }
 
     [Fact]

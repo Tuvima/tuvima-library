@@ -10,7 +10,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): its own optional step after Libraries, offered once, after the libraries,
-   to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Set up the Vault asks for a PIN
+   to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Turn on the Vault asks for a PIN
    typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup, so the one Add library list on the Libraries step shows a Vault tab, and leaves it out of the main menu. It is one profile PIN, the same
    one that protects the profile (Videos D52). The caller locks the Vault again when setup finishes. *@
 <div class="setup-stage-content" data-setup-vault>
@@ -18,9 +18,21 @@
     {
         case Phase.Offer:
             <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_TurnOnTheVault"]</h2><p>@L["SetupVaultOffer_TheVaultIsAPrivate"]</p></div></div>
-            <SetupStageFooter>
+            @* What it is for and what it unlocks (first-run setup rework D6, D9): plainly, with adult content named once and the PIN. *@
+            <section class="setup-vault__panel" data-vault-panel>
+                <h3>@L["SetupVaultOffer_ForTitle"]</h3>
+                <p>@L["SetupVaultOffer_ForText"]</p>
+                <h3>@L["SetupVaultOffer_UnlocksTitle"]</h3>
+                <ul>
+                    <li>@L["SetupVaultOffer_Unlocks1"]</li>
+                    <li>@L["SetupVaultOffer_Unlocks2"]</li>
+                    <li>@L["SetupVaultOffer_Unlocks3"]</li>
+                </ul>
+            </section>
+            <p class="setup-vault__note" data-vault-later>@L["SetupVaultOffer_LaterInSettings"]</p>
+            <SetupStageFooter Back="Back">
                 <AppButton Label="@L["Common_NotNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
-                <AppButton Label="@L["SetupVaultOffer_SetUpTheVault"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="StartSetup" />
+                <AppButton Label="@L["SetupVaultOffer_TurnOnTheVault2"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="StartSetup" />
             </SetupStageFooter>
             break;
 
@@ -86,6 +98,9 @@
     /// <summary>Raised when the person is done with this part: Not now, or Continue once the Vault is on.</summary>
     /// <summary>Raised when the step is over; true when the Vault was turned on, false after Not now.</summary>
     [Parameter] public EventCallback<bool> Finished { get; set; }
+
+    /// <summary>Goes back to the step before; the offer's first screen shows Back only when the page gives one.</summary>
+    [Parameter] public EventCallback Back { get; set; }
 
     private Phase _phase = Phase.Offer;
     private bool _hasPin;

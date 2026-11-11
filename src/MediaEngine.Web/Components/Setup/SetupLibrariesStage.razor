@@ -19,7 +19,17 @@
         <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
         <div><AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" /></div>
     }
-    else if (_configuration is not null)
+    else if (_configuration is null)
+    {
+        @* Skeleton rows while the folders load (first-run setup rework, states table): the table is drawn only once there is something to draw. *@
+        <div class="setup-libs-skeleton" role="status" aria-label="@L["SetupLibrariesStage_LoadingLibraries"].Value" data-testid="setup-libraries-skeleton">
+            @for (var index = 0; index < 4; index++)
+            {
+                <AppSkeleton Width="100%" Height="3.25rem" />
+            }
+        </div>
+    }
+    else
     {
         <SetupLibrariesTable SetupSession="@SetupSession"
                              Configuration="@_configuration"

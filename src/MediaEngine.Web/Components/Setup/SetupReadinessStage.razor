@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@Subtitle</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? L["SetupReadinessStage_AllSet"].Value : "Almost there…")</h2><p>@Subtitle</p></div></div>
     @if (Readiness is null && Failed && !Busy)
     {
         @* A browser with no session cannot read the server's answer. One plain card, no spinner (first-run setup B20). *@
@@ -22,6 +22,12 @@
     }
     else
     {
+        @if (HeldKinds.Count > 0)
+        {
+            @* Shown here and only here (first-run setup rework D1): libraries said Pending all through setup, so this is the one place that says some of them
+               will wait for a source that can identify them. It sits at the top, above the rows, as in the design. *@
+            <AppAlert Tone="AppUiTone.Warning" data-testid="setup-no-source-warning">@L["SetupReadinessStage_NoSourceWarning", string.Join(", ", HeldKinds)]</AppAlert>
+        }
         @if (!Readiness.CanComplete)
         {
             <AppAlert Tone="AppUiTone.Warning">@L["Common_NeedsAttention"]</AppAlert>
@@ -45,12 +51,6 @@
         @if (DownloadRunning)
         {
             <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">@L["SetupReadinessStage_ADownloadIsStillRunning"]</AppAlert>
-        }
-        @if (HeldKinds.Count > 0)
-        {
-            @* Shown here and only here (first-run setup rework D1): libraries said Pending all through setup, so this is the one place that says some of them
-               will wait for a source that can identify them. *@
-            <AppAlert Tone="AppUiTone.Warning" data-testid="setup-no-source-warning">@L["SetupReadinessStage_NoSourceWarning", string.Join(", ", HeldKinds)]</AppAlert>
         }
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             <AppButton Label="@L["SetupReadinessStage_OpenMyLibrary"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
@@ -76,7 +76,7 @@
     private string Subtitle => Readiness is null
         ? "One moment while Library checks your setup."
         : Readiness.CanComplete
-            ? "Library is ready to start finding your media."
+            ? L["SetupReadinessStage_HereIsHowSetupWent"].Value
             : "A few things need attention before you open your library.";
 
     private bool DownloadRunning => Tools?.Tools.Any(tool => tool.State == ToolRequirementStates.Downloading) == true;

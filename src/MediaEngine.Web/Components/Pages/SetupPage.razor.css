@@ -53,21 +53,6 @@
 ::deep .setup-provider-group { display: grid; gap: 8px; margin-bottom: 18px; }
 ::deep .setup-provider-group h3 { margin: 0; font-size: var(--tl-font-size-md); color: var(--tl-text-muted); }
 @media (max-width: 600px) { ::deep .setup-provider-grid { grid-template-columns: 1fr; } }
-::deep .setup-sources-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
-::deep .setup-sources-bar__note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; color: var(--tl-text-muted); }
-/* One shared column structure for every row: logo, name and purpose, a fixed status column (badge left-aligned) and a fixed action column that stays reserved when a row has no button. */
-::deep .setup-source-row { display: grid; grid-template-columns: auto minmax(0, 1fr) 11rem 9rem; align-items: center; gap: 12px; min-height: 68px; border-bottom: 1px solid var(--tl-border-subtle); color: var(--tl-text-primary); }
-::deep .setup-source-row:last-child { border-bottom: 0; }
-::deep .setup-source-row strong, ::deep .setup-source-row small { display: block; }
-::deep .setup-source-row small { color: var(--tl-text-muted); }
-::deep .setup-source-row__status, ::deep .setup-source-row__action { display: flex; align-items: center; min-width: 0; }
-::deep .setup-source-row__action { justify-content: flex-end; }
-@media (max-width: 600px) {
-    ::deep .setup-source-row { grid-template-columns: auto minmax(0, 1fr); row-gap: 8px; padding-block: 8px; }
-    ::deep .setup-source-row__status { grid-column: 2; }
-    ::deep .setup-source-row__action { grid-column: 2; justify-content: flex-start; }
-}
-::deep .setup-builtins { display: grid; padding: 0 16px; border: 1px solid var(--tl-border-subtle); border-radius: 12px; }
 ::deep .setup-restore { display: grid; gap: 14px; }
 ::deep .setup-file-input { min-height: 48px; width: 100%; padding: 10px; border: 1px dashed var(--tl-border-strong); border-radius: 10px; color: var(--tl-text-primary); }
 @media (max-width: 1180px) {
