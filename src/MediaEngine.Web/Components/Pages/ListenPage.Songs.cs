@@ -181,9 +181,6 @@ public partial class ListenPage
         return durationSeconds > 0 ? (int)Math.Min(durationSeconds, int.MaxValue) : 0;
     }
 
-    private static string GetTrackDuration(WorkViewModel work)
-        => LibraryHelpers.FormatDuration(GetTrackDurationSeconds(work), fallback: "0:00");
-
     private static string DisplayTrackTitle(WorkViewModel work)
         => StringHelpers.FirstNonBlank(
                IsUntitled(work.Title) ? null : work.Title,

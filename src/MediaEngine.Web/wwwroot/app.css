@@ -3073,7 +3073,6 @@ button.app-menu-item {
 }
 
 /* Tablets: check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
@@ -3082,7 +3081,6 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
@@ -3092,7 +3090,6 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[ty
     opacity: 0;
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
@@ -3104,21 +3101,14 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle span::be
     vertical-align: -4px;
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
-}
-
-/* The queue button's size is forced in AudioItemTable's own styles, so tablets raise it through this value. */
-html[data-form-factor="tablet"] .tl-detail-page {
-    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 
 /* Page-scoped component rules (a class plus a scope attribute) tie with the :root:root selectors above and are
@@ -5571,67 +5561,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-source-link {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-/* Details page, phone pass: track lists fit the screen as two-line rows instead of a sideways-scrolling table. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio {
-    height: auto;
-    max-height: none;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__table {
-    width: 100%;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row {
-    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
-    grid-template-areas:
-        "ordinal title duration actions"
-        "ordinal status status actions";
-    align-items: center;
-    column-gap: 0.5rem;
-    min-height: 56px;
-    padding-inline: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal {
-    grid-area: ordinal;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal > span:not([class]) {
-    position: static;
-    font-size: var(--tl-font-size-xs);
-    line-height: 1;
-    opacity: 0.7;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__title {
-    grid-area: title;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__duration {
-    grid-area: duration;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__status {
-    grid-area: status;
-    justify-self: start;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row > .playback-tooltip-owner {
-    grid-area: actions;
-    justify-self: center;
-}
-
 /* Check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
@@ -5640,7 +5570,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
@@ -5650,7 +5579,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[typ
     opacity: 0;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
@@ -5662,21 +5590,14 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::bef
     vertical-align: -4px;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
-}
-
-/* The queue button's size is forced in AudioItemTable's own styles, so phones raise it through this value. */
-html[data-form-factor="phone"] .tl-detail-page {
-    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 
 /* Works, tracks and collection rails (person, universe, album): the same peek sizing as Home's shelves. */
