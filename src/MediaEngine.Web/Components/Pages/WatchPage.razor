@@ -11,7 +11,6 @@
 @inject DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
 @inject CollectionEditorLauncherService CollectionEditorLauncher
-@inject IAppToastService Snackbar
 @implements IDisposable
 @inject ILogger<WatchPage> Logger
 
@@ -39,6 +38,8 @@
                EmptyMessage="@L["WatchPage_AddVideoToYourLibrary"].Value"
                Retry="LoadLandingAsync"
                SavedCollectionCount="@_savedCollectionCount"
+               Notice="@_notice"
+               NoticeDismissed="@(() => { _notice = null; })"
                OnNavigationSmartCreate="OpenCollectionFlowAsync" />
 
 @code {
@@ -73,10 +74,11 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (profile is null)
         {
-            Snackbar.Add(L["Common_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
+            _notice = L["Common_AnActiveProfileIsRequired"].Value;
             return;
         }
 
+        _notice = null;
         // What the editor saved is told by one quiet line; there is no toast.
         _savedCollectionCount = 0;
         var request = CollectionEditorEntryPoints.For(flow.Area, profile.Id);
@@ -85,6 +87,7 @@
     }
 
     private int _savedCollectionCount;
+    private string? _notice;
 
     private string ActiveWatchMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
 

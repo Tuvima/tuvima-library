@@ -162,6 +162,11 @@ else
         </aside>
 
         <main class="listen-content">
+            @if (_notice is not null)
+            {
+                <AppAlert Tone="_noticeTone" ShowCloseIcon="true" CloseIconClicked="@(() => { _notice = null; })" data-listen-notice>@_notice</AppAlert>
+            }
+
             @if (!IsAudioDetailSurface)
             {
                 <div class="listen-lane-header">

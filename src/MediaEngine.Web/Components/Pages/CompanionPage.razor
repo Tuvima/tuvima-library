@@ -9,7 +9,6 @@
 @inject CompanionState Companion
 @inject DeviceContextService DeviceContext
 @inject IAppDialogService Dialogs
-@inject IAppToastService Snackbar
 @inject ILogger<CompanionPage> Logger
 @inject IStringLocalizer<SharedStrings> L
 
@@ -37,6 +36,11 @@
             <span class="companion-page__info" role="img" tabindex="0" aria-label="@($"How to use the Companion: {IntroHelp}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
         </AppTooltip>
     </p>
+
+    @if (_actionFailure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionFailure = null; })" data-companion-failure>@_actionFailure</AppAlert>
+    }
 
     @switch (_status)
     {
@@ -144,6 +148,7 @@
     private bool _showPicker;
     private bool _holding;
     private bool _spoilerBusy;
+    private string? _actionFailure; // a follow, place or spoiler change that failed; stays at the top of the page until dismissed or the next try
     private bool _followedStopped;
     private int _ticks;
     private Guid? _loadedFor;
@@ -350,10 +355,11 @@
 
     private async Task FollowAsync(CompanionLiveDeviceDto device)
     {
+        _actionFailure = null;
         var session = await Companion.FollowAsync(device.DeviceId, _lifetime.Token);
         if (session is null)
         {
-            Snackbar.Add(L["CompanionPage_CouldnTFollowThatDevice"].Value, AppSeverity.Error);
+            _actionFailure = L["CompanionPage_CouldnTFollowThatDevice"].Value;
             return;
         }
 
@@ -384,12 +390,13 @@
         }
 
         _holding = true;
+        _actionFailure = null;
         try
         {
             var session = await Companion.HoldAsync(choice.WorkId, choice.ChapterIndex, _lifetime.Token);
             if (session is null)
             {
-                Snackbar.Add(L["CompanionPage_CouldnTSetYourPlace"].Value, AppSeverity.Error);
+                _actionFailure = L["CompanionPage_CouldnTSetYourPlace"].Value;
                 return;
             }
 
@@ -413,12 +420,13 @@
         }
 
         _spoilerBusy = true;
+        _actionFailure = null;
         try
         {
             var saved = await Companion.SaveSpoilerLevelAsync(level, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add(L["Common_TheSpoilerSettingCouldNot"].Value, AppSeverity.Error);
+                _actionFailure = L["Common_TheSpoilerSettingCouldNot"].Value;
                 return;
             }
 

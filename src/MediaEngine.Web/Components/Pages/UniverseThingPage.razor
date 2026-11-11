@@ -20,6 +20,11 @@
 @* One character, faction, place, event, object, species or concept of a Universe as a page to read. Editing uses the same
    pop-over editor as every other page, for desktop administrators only; a deep link never opens it. *@
 <div class="universe-thing-page">
+    @if (_editNotice is not null)
+    {
+        <AppAlert Tone="@(_editNoticeIsError ? AppUiTone.Error : AppUiTone.Warning)" ShowCloseIcon="true" CloseIconClicked="@(() => { _editNotice = null; })" data-universe-edit-notice>@_editNotice</AppAlert>
+    }
+
     @switch (_status)
     {
         case UniverseThingLoadStatus.Unavailable when _thing is null:
@@ -66,6 +71,9 @@
     private string? _loadedKey;
     private bool _isAdministrator;
     private bool _openingEditor;
+    // A problem opening the editor or refreshing after a save; it stays at the top of the page until dismissed or the next try.
+    private string? _editNotice;
+    private bool _editNoticeIsError;
     private bool _disposed;
 
     private string PageTitleText => _thing?.Label is { Length: > 0 } label ? label : "Universe";
@@ -183,6 +191,7 @@
             return;
         }
 
+        _editNotice = null;
         _openingEditor = true;
         try
         {
@@ -201,7 +210,8 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not open the editor for Universe thing {ThingId}", ThingId);
-            Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error);
+            _editNotice = L["Common_UniverseEditingIsUnavailablePlease"].Value;
+            _editNoticeIsError = true;
         }
         finally
         {
@@ -224,7 +234,9 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The Universe thing page could not refresh after an edit for {ThingId}", ThingId);
-            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
+            _editNotice = L["Common_SavedButThePageCould"].Value;
+            _editNoticeIsError = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

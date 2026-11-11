@@ -13310,4 +13310,55 @@
   <data name="PairedDevicesSection_ThatChangeCouldNotBeSaved" xml:space="preserve">
     <value>That change could not be saved.</value>
   </data>
+  <data name="ShelfGridPage_SortNotRemembered" xml:space="preserve">
+    <value>Your sort could not be remembered. It still applies for now.</value>
+  </data>
+  <data name="ListenPage_PlaylistMyListFailed" xml:space="preserve">
+    <value>The Playlist could not be updated in My List.</value>
+  </data>
+  <data name="ListenPage_ProfileRequiredToCreatePlaylists" xml:space="preserve">
+    <value>An active profile is required to create playlists.</value>
+  </data>
+  <data name="ListenPage_PlaylistCreateFailed" xml:space="preserve">
+    <value>The Playlist could not be created.</value>
+  </data>
+  <data name="ListenPage_PlaylistRenameFailed" xml:space="preserve">
+    <value>The Playlist could not be renamed.</value>
+  </data>
+  <data name="ListenPage_PlaylistDeleteFailed" xml:space="preserve">
+    <value>The Playlist could not be deleted.</value>
+  </data>
+  <data name="ListenPage_PlaylistOrderSaveFailed" xml:space="preserve">
+    <value>Playlist order could not be saved.</value>
+  </data>
+  <data name="ListenPage_ArtistLoadFailed" xml:space="preserve">
+    <value>Could not load {0}: {1}</value>
+  </data>
+  <data name="ListenPage_SongsSavedListNotRefreshed" xml:space="preserve">
+    <value>The songs were saved, but the list could not be refreshed. Reload the page to see them.</value>
+  </data>
+  <data name="ListenPage_ProfileRequiredToSaveToPlaylists" xml:space="preserve">
+    <value>Choose an active profile before saving to playlists.</value>
+  </data>
+  <data name="ListenPage_AddSongsFailed" xml:space="preserve">
+    <value>Could not add songs to {0}.</value>
+  </data>
+  <data name="ListenPage_ChooseProfileBeforeCreatingPlaylists" xml:space="preserve">
+    <value>Choose an active profile before creating playlists.</value>
+  </data>
+  <data name="ListenPage_DroppedSongsPlaylistFailed" xml:space="preserve">
+    <value>Could not create a playlist for the dropped songs.</value>
+  </data>
+  <data name="ListenPage_PlaylistCreatedNotLoaded" xml:space="preserve">
+    <value>Playlist was created, but it could not be loaded yet.</value>
+  </data>
+  <data name="ListenPage_SongRemoveFailed" xml:space="preserve">
+    <value>Song could not be removed from the playlist.</value>
+  </data>
+  <data name="SetupPage_InstallerRunning" xml:space="preserve">
+    <value>The {0} installer is running. Finish it, then check again.</value>
+  </data>
+  <data name="SetupPage_InstallerCouldNotStart" xml:space="preserve">
+    <value>The {0} installer could not start from here. After setup, open Settings, System, Configuration and choose Run installer.</value>
+  </data>
 </root>

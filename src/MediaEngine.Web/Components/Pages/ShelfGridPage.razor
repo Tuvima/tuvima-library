@@ -5,7 +5,6 @@
 
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
-@inject IAppToastService Toasts
 @inject IJSRuntime JS
 @inject ILogger<ShelfGridPage> Logger
 @inject IStringLocalizer<SharedStrings> L
@@ -47,6 +46,11 @@
             }
             <p class="shelf-grid-page__count" role="status" aria-live="polite" data-shelf-grid-count>@CountText</p>
         </header>
+
+        @if (_sortNote is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" ShowCloseIcon="true" CloseIconClicked="@(() => { _sortNote = null; })" data-shelf-grid-sort-note>@_sortNote</AppAlert>
+        }
 
         @if (_page is { } controls)
         {

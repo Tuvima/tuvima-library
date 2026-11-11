@@ -50,6 +50,7 @@ public partial class ShelfGridPage
     private bool _hasMore;
     private bool _observeRequested;
     private bool _savingSort;
+    private string? _sortNote;
     private CancellationTokenSource? _cts;
 
     private ElementReference _sentinel;
@@ -284,12 +285,13 @@ public partial class ShelfGridPage
         }
 
         _savingSort = true;
+        _sortNote = null;
         try
         {
             if (_page?.RememberKey is { } rememberKey && !await ApiClient.SetDisplayGridSortAsync(rememberKey, sort))
             {
                 // The new sort still applies for this visit; only next time is affected.
-                Toasts.Add("Your sort could not be remembered. It still applies for now.", AppSeverity.Warning);
+                _sortNote = L["ShelfGridPage_SortNotRemembered"].Value;
             }
 
             Nav.NavigateTo(Nav.GetUriWithQueryParameter("sort", sort), replace: true);

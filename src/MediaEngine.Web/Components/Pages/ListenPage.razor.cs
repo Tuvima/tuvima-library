@@ -45,7 +45,16 @@ public partial class ListenPage
     [Inject] private CollectionEditorLauncherService CollectionEditorLauncher { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
-    [Inject] private IAppToastService Snackbar { get; set; } = default!;
+    // A playlist or queue action that failed is told at the top of the page content and stays until dismissed or the next try; what worked is
+    // already shown by the list, the rail or the player.
+    private string? _notice;
+    private AppUiTone _noticeTone = AppUiTone.Error;
+
+    private void ShowNotice(string message, AppUiTone tone)
+    {
+        _notice = message;
+        _noticeTone = tone;
+    }
     [Inject] private ILogger<ListenPage> Logger { get; set; } = default!;
 
     [Parameter] public string? Section { get; set; }
@@ -690,15 +699,15 @@ public partial class ListenPage
             return;
         }
 
+        _notice = null;
         var result = await SavedItems.ToggleAsync(ProfileEntityKind.Playlist, ActivePlaylistCollection.Id);
         if (result is null)
         {
-            Snackbar.Add("The Playlist could not be updated in My List.", AppSeverity.Error);
+            ShowNotice(L["ListenPage_PlaylistMyListFailed"].Value, AppUiTone.Error);
             return;
         }
 
         _activePlaylistSaved = result.IsSaved;
-        Snackbar.Add(result.IsSaved ? "Playlist added to My List." : "Playlist removed from My List.", AppSeverity.Success);
     }
 
     private bool IsCurrentLoad(int loadVersion)
@@ -826,9 +835,10 @@ public partial class ListenPage
             return;
         }
 
+        _notice = null;
         if (_activeProfileId is null)
         {
-            Snackbar.Add("An active profile is required to create playlists.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_ProfileRequiredToCreatePlaylists"].Value, AppUiTone.Warning);
             return;
         }
         var name = _newPlaylistName.Trim();
@@ -845,12 +855,11 @@ public partial class ListenPage
             _activeProfileId);
         if (createdId is null)
         {
-            Snackbar.Add("The Playlist could not be created.", AppSeverity.Error);
+            ShowNotice(L["ListenPage_PlaylistCreateFailed"].Value, AppUiTone.Error);
             return;
         }
         _creatingPlaylistInline = false;
         _newPlaylistName = string.Empty;
-        Snackbar.Add($"Created {name}.", AppSeverity.Success);
         await LoadAsync();
     }
 
@@ -873,6 +882,7 @@ public partial class ListenPage
             return;
         }
 
+        _notice = null;
         if (!await ApiClient.UpdateCollectionAsync(
                 playlist.Id,
                 _renamePlaylistName.Trim(),
@@ -886,7 +896,7 @@ public partial class ListenPage
                 null,
                 _activeProfileId))
         {
-            Snackbar.Add("The Playlist could not be renamed.", AppSeverity.Error);
+            ShowNotice(L["ListenPage_PlaylistRenameFailed"].Value, AppUiTone.Error);
             return;
         }
         _renamingPlaylistId = null;
@@ -901,13 +911,13 @@ public partial class ListenPage
 
     private async Task DeletePlaylistAsync(ManagedCollectionViewModel playlist)
     {
+        _notice = null;
         if (!await ApiClient.DeleteCollectionAsync(playlist.Id, _activeProfileId))
         {
-            Snackbar.Add("The Playlist could not be deleted.", AppSeverity.Error);
+            ShowNotice(L["ListenPage_PlaylistDeleteFailed"].Value, AppUiTone.Error);
             return;
         }
         _deletingPlaylistId = null;
-        Snackbar.Add($"Deleted {playlist.Name}.", AppSeverity.Success);
         if (CollectionId == playlist.Id)
         {
             Nav.NavigateTo("/listen/playlists");
@@ -920,10 +930,11 @@ public partial class ListenPage
     {
         if (_activeProfileId is null)
         {
-            Snackbar.Add("An active profile is required to create playlists.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_ProfileRequiredToCreatePlaylists"].Value, AppUiTone.Warning);
             return;
         }
 
+        _notice = null;
         var isSmart = string.Equals(kind, "Smart", StringComparison.OrdinalIgnoreCase);
         var entry = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
         // What the editor saved is told by one quiet line; there is no toast.
@@ -954,6 +965,7 @@ public partial class ListenPage
             return;
         }
 
+        _notice = null;
         var updatedConfig = ListenPlaylistOrderState.Write(_playlistNavigationConfig, _playlistOrder);
         var saved = await Orchestrator.UpdateProfileAsync(
             _activeProfile.Id,
@@ -964,11 +976,10 @@ public partial class ListenPage
         if (saved)
         {
             _playlistNavigationConfig = updatedConfig;
-            Snackbar.Add("Playlist order saved.", AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("Playlist order could not be saved.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning);
         }
     }
 
@@ -1343,7 +1354,7 @@ public partial class ListenPage
         {
             if (string.Equals(_selectedArtistName, artistName, StringComparison.OrdinalIgnoreCase))
             {
-                Snackbar.Add($"Could not load {artistName}: {ex.Message}", AppSeverity.Error);
+                ShowNotice(L["ListenPage_ArtistLoadFailed", artistName, ex.Message].Value, AppUiTone.Error);
             }
         }
         finally
@@ -1674,7 +1685,6 @@ public partial class ListenPage
     private async Task PlaySingleWorkAsync(WorkViewModel work, string sourceLabel)
     {
         await Playback.PlayWorkAsync(work, sourceLabel);
-        Snackbar.Add($"{work.Title} added to the queue", AppSeverity.Success);
     }
 
     private async Task PlayTracksAsync(IReadOnlyList<WorkViewModel> works, Guid? startWorkId, string? sourceLabel, bool shuffle = false)
@@ -1709,13 +1719,11 @@ public partial class ListenPage
     private async Task QueueTrackAsync(WorkViewModel work)
     {
         await Playback.AddToQueueAsync(work);
-        Snackbar.Add($"{work.Title} added to the queue", AppSeverity.Success);
     }
 
     private async Task PlayNextTrackAsync(WorkViewModel work)
     {
         await Playback.InsertNextAsync(work);
-        Snackbar.Add($"{work.Title} will play next", AppSeverity.Success);
     }
 
     // A song's Edit (the playlist's Edit button): the pop-over editor opens over this page with the song ticked and the Edit panel open
@@ -2063,7 +2071,6 @@ public partial class ListenPage
             }
         }
 
-        Snackbar.Add(next ? "Selected songs will play next." : "Selected songs added to the queue.", AppSeverity.Success);
         CloseTrackContextMenu();
     }
 
@@ -2096,7 +2103,7 @@ public partial class ListenPage
         }
         catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException)
         {
-            Snackbar.Add("The songs were saved, but the list could not be refreshed. Reload the page to see them.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_SongsSavedListNotRefreshed"].Value, AppUiTone.Warning);
         }
     }
 
@@ -2124,9 +2131,10 @@ public partial class ListenPage
 
     private async Task AddTracksToPlaylistAsync(IEnumerable<WorkViewModel> works, ManagedCollectionViewModel collection)
     {
+        _notice = null;
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add("Choose an active profile before saving to playlists.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_ProfileRequiredToSaveToPlaylists"].Value, AppUiTone.Warning);
             return;
         }
 
@@ -2141,19 +2149,19 @@ public partial class ListenPage
 
         if (added == 0)
         {
-            Snackbar.Add($"Could not add songs to {collection.Name}.", AppSeverity.Error);
+            ShowNotice(L["ListenPage_AddSongsFailed", collection.Name].Value, AppUiTone.Error);
             return;
         }
 
-        Snackbar.Add($"Added {added} song(s) to {collection.Name}.", AppSeverity.Success);
         await LoadAsync();
     }
 
     private async Task CreatePlaylistAndAddTracksAsync(IEnumerable<WorkViewModel> works)
     {
+        _notice = null;
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add("Choose an active profile before creating playlists.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_ChooseProfileBeforeCreatingPlaylists"].Value, AppUiTone.Warning);
             return;
         }
 
@@ -2171,7 +2179,7 @@ public partial class ListenPage
 
         if (!created)
         {
-            Snackbar.Add("Could not create a playlist for the dropped songs.", AppSeverity.Error);
+            ShowNotice(L["ListenPage_DroppedSongsPlaylistFailed"].Value, AppUiTone.Error);
             return;
         }
 
@@ -2179,7 +2187,7 @@ public partial class ListenPage
         var createdPlaylist = PlaylistCollections.OrderByDescending(collection => collection.CreatedAt).FirstOrDefault();
         if (createdPlaylist is null)
         {
-            Snackbar.Add("Playlist was created, but it could not be loaded yet.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_PlaylistCreatedNotLoaded"].Value, AppUiTone.Warning);
             return;
         }
 
@@ -2330,6 +2338,7 @@ public partial class ListenPage
             return;
         }
 
+        _notice = null;
         var saved = await ApiClient.ReorderCollectionItemsAsync(
             ActivePlaylistCollection.Id,
             orderedItems.Select(item => item.Id).ToList(),
@@ -2337,7 +2346,7 @@ public partial class ListenPage
 
         if (!saved)
         {
-            Snackbar.Add("Playlist order could not be saved.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning);
             return;
         }
 
@@ -2356,15 +2365,15 @@ public partial class ListenPage
             return;
         }
 
+        _notice = null;
         var removed = await ApiClient.RemoveCollectionItemAsync(ActivePlaylistCollection.Id, itemId, _activeProfileId);
         if (!removed)
         {
-            Snackbar.Add("Song could not be removed from the playlist.", AppSeverity.Warning);
+            ShowNotice(L["ListenPage_SongRemoveFailed"].Value, AppUiTone.Warning);
             return;
         }
 
         _playlistItems.RemoveAll(item => item.Id == itemId);
-        Snackbar.Add("Song removed from playlist.", AppSeverity.Success);
     }
 
     private IReadOnlyList<WorkViewModel> SortSongs(IEnumerable<WorkViewModel> works)
