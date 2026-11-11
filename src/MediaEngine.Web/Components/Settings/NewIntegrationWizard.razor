@@ -6,9 +6,6 @@
 @inject DashboardIdentityClient Identity
 @inject ApprovalFlow Approvals
 @inject IAppDialogService Dialogs
-@inject IJSRuntime JS
-@inject IAppToastService Toast
-@inject ILogger<NewIntegrationWizard> Logger
 @inject IStringLocalizer<SharedStrings> L
 
 @* The three-step page for connecting something new (spec WP5). Nothing is saved until Create on step 3; Cancel and Back keep or
@@ -36,13 +33,13 @@
             {
                 <span>@L["ApiKeys_Key"]</span>
                 <code>@_issuedKey</code>
-                <AppButton Label="@L["NewIntegrationWizard_CopyKey"].Value" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_issuedKey, "the key"))" />
+                <AppCopyButton Label="@L["NewIntegrationWizard_CopyKey"].Value" Text="@_issuedKey" What="the key" Size="AppControlSize.Compact" CopyFailed="ShowCopyFailure" />
             }
             @if (_signingSecret is not null)
             {
                 <span>@L["NewIntegrationWizard_SigningSecretForTheWebhook"]</span>
                 <code>@_signingSecret</code>
-                <AppButton Label="@L["NewIntegrationWizard_CopySecret"].Value" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_signingSecret, "the secret"))" />
+                <AppCopyButton Label="@L["NewIntegrationWizard_CopySecret"].Value" Text="@_signingSecret" What="the secret" Size="AppControlSize.Compact" CopyFailed="ShowCopyFailure" />
             }
         </AppAlert>
         <div class="integration-wizard__footer"><AppButton Label="@L["Common_Done"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => OnFinished.InvokeAsync(_created))" /></div>
@@ -417,18 +414,8 @@
         _ => now.AddDays(IntegrationHealthRules.SuggestedKeyLifetimeDays),
     };
 
-    private async Task CopyAsync(string text, string what)
-    {
-        switch (await JS.TryCopyAsync(text, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Toast.Add($"Copied {what}.", AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Toast.Add(ClipboardInterop.FailedMessage(what), AppSeverity.Warning);
-                break;
-        }
-    }
+    // A copy the browser refused is told in the wizard's error line, where the key or secret is shown.
+    private void ShowCopyFailure(string message) => _error = message;
 
     private static string TypeLabel(ApplicationTypeDto type) => type switch { ApplicationTypeDto.UserClient => "User Client", ApplicationTypeDto.ServerIntegration => "Server Integration", ApplicationTypeDto.Automation => "Automation", _ => "Other" };
 }

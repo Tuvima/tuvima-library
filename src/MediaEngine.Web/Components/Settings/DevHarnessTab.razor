@@ -4,7 +4,6 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
-@inject IAppToastService Snackbar
 
 <div class="tl-page dev-harness-page" data-temporary-page="development-tools">
     <header class="dev-harness-header">
@@ -375,13 +374,11 @@
     {
         _statusMessage = message;
         _showIngestionLink = showIngestionLink;
-        Snackbar.Add(message, AppSeverity.Success);
     }
 
     private void FailAction(string message)
     {
         _error = message;
-        Snackbar.Add(message, AppSeverity.Error);
     }
 
     private static string ExtractMessage(string body, string fallback) =>

@@ -3,11 +3,14 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject DashboardIdentityClient Identity
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <SettingsSectionPanel Title="@L["PairedDevicesSection_PairedDevices"].Value"
                       Description="@L["PairedDevicesSection_PhonesAndTVsPairedWith"].Value">
+    @if (_failure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-devices-failure>@_failure</AppAlert>
+    }
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Compact" />
@@ -124,6 +127,7 @@
     private bool _loading = true;
     private bool _loadFailed;
     private bool _signingOut;
+    private string? _failure;
 
     private List<ManagedClientDeviceDto> VisibleDevices => _devices.Where(Filter.Matches).ToList();
 
@@ -151,9 +155,10 @@
     private async Task SetBackupAsync(ManagedClientDeviceDto device, object? value)
     {
         Guid? profileId = Guid.TryParse(value?.ToString(), out var parsed) ? parsed : null;
+        _failure = null;
         var result = await Identity.SetManagedDeviceBackupProfileAsync(device.Id, profileId);
-        Snackbar.Add(result.Succeeded ? "Photo backup updated." : "That change could not be saved.",
-            result.Succeeded ? AppSeverity.Success : AppSeverity.Error);
+        // The selector shows the new choice once the list is read again; only a refusal is told.
+        if (!result.Succeeded) _failure = L["PairedDevicesSection_ThatChangeCouldNotBeSaved"].Value;
         await LoadDevicesAsync();
     }
 
@@ -167,16 +172,14 @@
             return;
 
         _signingOut = true;
+        _failure = null;
         try
         {
+            // The row leaves the list once it is read again; only a refusal is told.
             var result = await Identity.RevokeManagedDeviceAsync(device.Id);
-            if (result.Succeeded)
+            if (!result.Succeeded)
             {
-                Snackbar.Add($"{device.DeviceName} was signed out.", AppSeverity.Success);
-            }
-            else
-            {
-                Snackbar.Add(L["PairedDevicesSection_ThatDeviceCouldNotBe"].Value, AppSeverity.Error);
+                _failure = L["PairedDevicesSection_ThatDeviceCouldNotBe"].Value;
             }
         }
         finally

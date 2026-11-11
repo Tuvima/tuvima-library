@@ -5,11 +5,19 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient Client
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The files that stayed on disk when their title was deleted from this library. Scans skip them until they are added back, so
    the section is not drawn at all while there are none. Under 600px each row becomes a card (AppTable cards mode). *@
+@* The section leaves the page with its last row, so what an Add back answered is drawn outside it. *@
+@if (_failure is not null)
+{
+    <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-excluded-failure>@_failure</AppAlert>
+}
+@if (_note is not null)
+{
+    <AppAlert Tone="AppUiTone.Info" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _note = null; })" data-excluded-note>@_note</AppAlert>
+}
 @if (_files.Count > 0)
 {
     <section class="excluded-files" aria-labelledby="@_headingId">
@@ -61,6 +69,8 @@
     private readonly string _headingId = $"excluded-files-{Guid.NewGuid():N}";
     private IReadOnlyList<ExcludedFileDto> _files = [];
     private Guid? _busyId;
+    private string? _failure;
+    private string? _note;
     private string? _loadedFor;
 
     /// <summary>The library whose excluded files are shown; nothing is drawn without one.</summary>
@@ -96,18 +106,21 @@
         }
 
         _busyId = file.Id;
+        _failure = null;
+        _note = null;
         try
         {
             var result = await Client.AddBackExcludedFileAsync(file.Id);
             if (result is null)
             {
-                Snackbar.Add($"{file.FileName} could not be added back. Try again.", AppSeverity.Error);
+                _failure = $"{file.FileName} could not be added back. Try again.";
                 return;
             }
 
             // The exclusion is gone whether or not a scan could be queued, so the row goes either way.
             _files = _files.Where(candidate => candidate.Id != file.Id).ToList();
-            Snackbar.Add(result.Message, result.Queued ? AppSeverity.Success : AppSeverity.Info);
+            // The row leaving is the confirmation; the Engine's words are shown only when no scan could be queued.
+            if (!result.Queued) _note = result.Message;
         }
         finally
         {

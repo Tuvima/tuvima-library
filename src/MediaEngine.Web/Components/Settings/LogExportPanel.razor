@@ -6,7 +6,6 @@
 @using Microsoft.JSInterop
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
-@inject IAppToastService Toasts
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
@@ -68,6 +67,11 @@
             }
         </div>
 
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-export-failure>@_failure</AppAlert>
+        }
+
         <div class="log-export__actions">
             <AppButton Label="@L["Models_Download"].Value"
                        StartIcon="@AppMaterialIcons.Outlined.Download"
@@ -110,6 +114,7 @@
     private bool _previewing = true;
     private bool _previewFailed;
     private bool _downloading;
+    private string? _failure;
 
     protected override Task OnInitializedAsync() => RefreshPreviewAsync();
 
@@ -184,13 +189,14 @@
     private async Task DownloadAsync()
     {
         _downloading = true;
+        _failure = null;
         try
         {
             // The range is worked out again now, so the file covers up to the moment of the click.
             var file = await ApiClient.ExportLogsAsync(BuildRequest());
             if (file is null)
             {
-                Toasts.Add("The log export could not be created.", AppSeverity.Error);
+                _failure = L["LogExportPanel_TheLogExportCouldNotBe"].Value;
                 return;
             }
 

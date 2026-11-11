@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Playback > Advanced. The server-side switch for scrub previews (Unified player v2 D9a): the Engine makes a picture every
@@ -22,6 +21,10 @@
     }
     else
     {
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-scrub-failure>@_failure</AppAlert>
+        }
         <AppSwitchRow Label="@L["ScrubPreviewSettingsCard_GenerateScrubPreviews"].Value"
                       Description="@HelperText"
                       Value="@_status.Enabled"
@@ -34,6 +37,7 @@
     private ScrubPreviewStatusDto? _status;
     private bool _loading = true;
     private bool _busy;
+    private string? _failure;
 
     /// <summary>The line under the switch: what the previews cost on disk, and a plain note when none can be made yet.</summary>
     internal static string BuildHelperText(ScrubPreviewStatusDto status, IStringLocalizer<SharedStrings> text)
@@ -61,12 +65,13 @@
         }
 
         _busy = true;
+        _failure = null;
         try
         {
             var saved = await ApiClient.SetScrubPreviewsEnabledAsync(enabled);
             if (saved is null)
             {
-                Snackbar.Add(L["ScrubPreviewSettingsCard_CouldNotChange"].Value, AppSeverity.Error);
+                _failure = L["ScrubPreviewSettingsCard_CouldNotChange"].Value;
                 return;
             }
 

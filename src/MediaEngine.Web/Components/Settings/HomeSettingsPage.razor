@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* Home preferences: what the big banner at the top of Home may show. These only narrow what the Library picks from (the order
@@ -23,6 +22,10 @@ else if (_settings is null)
 else
 {
     <div class="settings-listening-page" data-home-section="hero">
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-home-failure>@_failure</AppAlert>
+        }
         <div class="listening-settings-grid">
             <SettingsSectionPanel Title="@L["HomeSettingsPage_TopBanner"].Value"
                                   Description="@L["HomeSettingsPage_TheLargePictureAtThe"].Value">
@@ -79,6 +82,7 @@ else
 
 @code {
     private DisplayHeroSettingsDto? _settings;
+    private string? _failure;
     private bool _loading = true;
 
     protected override Task OnInitializedAsync() => LoadAsync();
@@ -108,11 +112,12 @@ else
             return;
         }
 
+        _failure = null;
         _settings = settings with { Plugins = settings.Plugins.Select(p => p.PluginId == plugin.PluginId ? p with { Enabled = enabled } : p).ToList() };
         if (!await ApiClient.SetDisplayHeroPluginSlidesAsync(plugin.PluginId, enabled))
         {
             _settings = settings;
-            Snackbar.Add($"The {plugin.Name} setting could not be saved. Nothing was changed.", AppSeverity.Error);
+            _failure = $"The {plugin.Name} setting could not be saved. Nothing was changed.";
         }
     }
 
@@ -120,11 +125,12 @@ else
     private async Task SaveAsync(DisplayHeroSettingsDto next)
     {
         var previous = _settings;
+        _failure = null;
         _settings = next;
         if (!await ApiClient.SetDisplayHeroSettingsAsync(next))
         {
             _settings = previous;
-            Snackbar.Add(L["HomeSettingsPage_YourHomeSettingsCouldNot"].Value, AppSeverity.Error);
+            _failure = L["HomeSettingsPage_YourHomeSettingsCouldNot"].Value;
         }
     }
 }

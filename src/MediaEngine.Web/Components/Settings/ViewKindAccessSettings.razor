@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Profiles
 @using MediaEngine.Domain.PersonalMedia
 @inject IEngineApiClient ApiClient
-@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <AppSettingsGroup Heading="@($"Who can see {KindNoun}")" Helper="@($"Only the people turned on here can see {KindNoun} and the files behind them.")">
@@ -70,8 +69,6 @@
         _loading = false;
     }
 
-    private static string Sentence(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
-
     private bool IsOn(Guid profileId) => _policies.TryGetValue(profileId, out var policy) && Allows(policy, Kind);
 
     private static bool Allows(ViewProfilePolicyDto policy, string kind) => kind switch
@@ -110,7 +107,6 @@
             {
                 _error = null;
                 _policies[profile.Id] = saved;
-                Snackbar.Add(value ? $"{profile.DisplayName} can now see {KindNoun}." : $"{Sentence(KindNoun)} are hidden from {profile.DisplayName}.", AppSeverity.Success);
             }
         }
         finally

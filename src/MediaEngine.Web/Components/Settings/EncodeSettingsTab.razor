@@ -3,7 +3,6 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page encode-settings">
@@ -216,14 +215,23 @@
             ? string.IsNullOrWhiteSpace(version) ? "Available" : version
             : "Unavailable";
 
+    // Only one section is drawn at a time, so one Saved line and one failure alert serve both Save buttons.
     private RenderFragment SaveButton(string label) => @<div class="encode-settings__save-row">
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-encode-failure>@_failure</AppAlert>
+        }
         <AppButton Label="@(_saving ? "Saving..." : label)"
                    StartIcon="@AppMaterialIcons.Outlined.Save"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
                    Disabled="@_saving"
                    OnClick="@SaveAsync" />
+        <AppSavedNote @ref="_savedNote" />
     </div>;
+
+    private string? _failure;
+    private AppSavedNote? _savedNote;
 
     private async Task SaveAsync()
     {
@@ -231,19 +239,20 @@
             return;
 
         _saving = true;
+        _failure = null;
         ApplyForm(_settings);
         var saved = await ApiClient.SaveTranscodingSettingsAsync(_settings);
         _saving = false;
 
         if (saved is null)
         {
-            Snackbar.Add(L["EncodeSettingsTab_OptimizedCopySettingsCouldNot"].Value, AppSeverity.Error);
+            _failure = L["EncodeSettingsTab_OptimizedCopySettingsCouldNot"].Value;
             return;
         }
 
         _settings = saved;
         HydrateForm(_settings);
-        Snackbar.Add(L["EncodeSettingsTab_PlaybackDeliverySettingsSaved"].Value, AppSeverity.Success);
+        _savedNote?.Show();
     }
 
     private void HydrateForm(TranscodingSettings settings)

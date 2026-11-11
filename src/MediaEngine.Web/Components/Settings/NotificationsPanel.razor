@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Notifications
 @using MediaEngine.Web.Services.Settings
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page notifications-page" data-testid="notifications-page">
@@ -18,6 +17,10 @@
     }
     else
     {
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-notifications-failure>@_failure</AppAlert>
+        }
         <AppSettingsGroup Heading="@L["NotificationsPanel_Inbox"].Value" Helper="@L["NotificationsPanel_WhatTheLibraryHasTold"].Value">
             <div class="notifications-page__toolbar">
                 <span class="notifications-page__count" data-testid="notifications-unread">@UnreadLine</span>
@@ -64,6 +67,10 @@
                             }
                             <AppButton Label="@L["Common_SendTest"].Value" Size="AppControlSize.Compact" Disabled="@(_busy || !channel.IsConfigured)" OnClick="@(() => TestAsync(channel))" />
                         </div>
+                        @if (_testResults.TryGetValue(channel.Id, out var test))
+                        {
+                            <AppAlert Tone="@(test.Success ? AppUiTone.Success : AppUiTone.Error)" Dense="true" data-channel-test>@test.Message</AppAlert>
+                        }
                     </div>
                 }
             </div>
@@ -121,6 +128,8 @@
 @code {
     private bool _loading = true;
     private bool _busy;
+    private string? _failure;
+    private readonly Dictionary<string, (string Message, bool Success)> _testResults = [];
     private int _unread;
     private List<NotificationItemDto> _items = [];
     private NotificationSettingsResponse? _settings;
@@ -144,6 +153,7 @@
 
     private async Task MarkAllReadAsync()
     {
+        _failure = null;
         if (await ApiClient.MarkNotificationsReadAsync([]))
         {
             _items = [.. _items.Select(item => { item.IsRead = true; return item; })];
@@ -151,7 +161,7 @@
         }
         else
         {
-            Snackbar.Add(L["NotificationsPanel_TheMessagesCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["NotificationsPanel_TheMessagesCouldNotBe"].Value;
         }
     }
 
@@ -159,7 +169,8 @@
     {
         _busy = true;
         var result = await ApiClient.SendNotificationTestAsync(channel.Id);
-        Snackbar.Add(result?.Message ?? "The test could not be sent.", result?.Success == true ? AppSeverity.Success : AppSeverity.Error);
+        // The test's answer stays on the channel it was sent through, until it is sent again.
+        _testResults[channel.Id] = (result?.Message ?? "The test could not be sent.", result?.Success == true);
         await LoadAsync();
         _busy = false;
     }
@@ -167,9 +178,10 @@
     private async Task EnableAsync(NotificationChannelDto channel)
     {
         _busy = true;
+        _failure = null;
         if (!await ApiClient.EnableNotificationChannelAsync(channel.Id))
         {
-            Snackbar.Add(L["NotificationsPanel_TheChannelCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["NotificationsPanel_TheChannelCouldNotBe"].Value;
         }
 
         _settings = await ApiClient.GetNotificationSettingsAsync() ?? _settings;
@@ -206,10 +218,11 @@
     private async Task SaveAsync(UpdateNotificationSettingsRequest request)
     {
         _busy = true;
+        _failure = null;
         var saved = await ApiClient.UpdateNotificationSettingsAsync(request);
         if (saved is null)
         {
-            Snackbar.Add(L["NotificationsPanel_ThatChangeCouldNotBe"].Value, AppSeverity.Error);
+            _failure = L["NotificationsPanel_ThatChangeCouldNotBe"].Value;
         }
         else
         {

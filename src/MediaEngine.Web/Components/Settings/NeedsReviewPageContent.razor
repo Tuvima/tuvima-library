@@ -97,7 +97,7 @@
         {
             @if (_actionError is not null)
             {
-                <AppAlert Tone="AppUiTone.Warning" Dense="true">@_actionError</AppAlert>
+                <AppAlert Tone="_actionTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionError = null; })" data-review-failure>@_actionError</AppAlert>
             }
 
             <section class="review-pinned" aria-label="@L["NeedsReviewPageContent_ItemsThatNeedReview"].Value">
@@ -293,6 +293,7 @@
     private string? _search;
     private string? _error;
     private string? _actionError;
+    private AppUiTone _actionTone = AppUiTone.Warning;
     private bool _loading = true;
     private bool _busy;
     private bool _initialized;
@@ -602,8 +603,7 @@
     private async Task KeepAsFilmAsync(NeedsReviewRowDto row)
     {
         if (_reviewModels.GetValueOrDefault(row.Key) is not { } model) return;
-        await RunAsync(row, () => Orchestrator.DismissReviewAsync(model.Id), L["NeedsReviewPageContent_ReviewItemCouldNotBe"].Value,
-            success: L["NeedsReviewPageContent_KeptAsAnUnmatchedFilm"].Value);
+        await RunAsync(row, () => Orchestrator.DismissReviewAsync(model.Id), L["NeedsReviewPageContent_ReviewItemCouldNotBe"].Value);
     }
 
     private Task SkipUniverseAsync(NeedsReviewRowDto row, ReviewItemViewModel model) =>
@@ -612,20 +612,21 @@
     private async Task MoveToTvAsync(NeedsReviewRowDto row, ReviewItemViewModel model)
     {
         _busyKeys.Add(row.Key);
+        _actionError = null;
         try
         {
             var attempt = await Orchestrator.MoveReviewToTvAsync(model.Id);
-            if (attempt.Response is { } moved)
+            if (attempt.Response is not null)
             {
-                Snackbar.Add(MovieTvSuggestionReader.DescribeMove(moved), AppSeverity.Success);
+                // The row leaves the list; that is the confirmation.
                 await LeaveListAsync(row);
             }
             else
             {
-                Snackbar.Add($"'{TitleOf(row)}' could not be moved to TV: {attempt.Error ?? "the Engine did not accept the change"}.", AppSeverity.Error);
+                Fail($"'{TitleOf(row)}' could not be moved to TV: {attempt.Error ?? "the Engine did not accept the change"}.", AppUiTone.Error);
             }
         }
-        catch (Exception ex) { Snackbar.Add($"'{TitleOf(row)}' could not be moved to TV: {ex.Message}", AppSeverity.Error); }
+        catch (Exception ex) { Fail($"'{TitleOf(row)}' could not be moved to TV: {ex.Message}", AppUiTone.Error); }
         finally { _busyKeys.Remove(row.Key); }
     }
 
@@ -644,7 +645,14 @@
         finally { _busy = false; }
     }
 
-    private async Task RunAsync(NeedsReviewRowDto row, Func<Task<bool>> action, string failure, string? success = null, bool leavesList = true)
+    // A failed or refused action is told at the top of the list until the next attempt or until dismissed.
+    private void Fail(string message, AppUiTone tone)
+    {
+        _actionError = message;
+        _actionTone = tone;
+    }
+
+    private async Task RunAsync(NeedsReviewRowDto row, Func<Task<bool>> action, string failure, bool leavesList = true)
     {
         _busyKeys.Add(row.Key);
         _actionError = null;
@@ -652,17 +660,16 @@
         {
             if (await action())
             {
-                if (success is not null) Snackbar.Add(success, AppSeverity.Success);
                 if (leavesList) await LeaveListAsync(row);
                 else await LoadAsync();
             }
             else
             {
                 // The Engine refused: say so and keep the row, since nothing changed.
-                Snackbar.Add(failure, AppSeverity.Warning);
+                Fail(failure, AppUiTone.Warning);
             }
         }
-        catch (Exception ex) { Snackbar.Add($"{failure} ({ex.Message})", AppSeverity.Error); }
+        catch (Exception ex) { Fail($"{failure} ({ex.Message})", AppUiTone.Error); }
         finally { _busyKeys.Remove(row.Key); }
     }
 

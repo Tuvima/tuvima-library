@@ -7844,14 +7844,8 @@
   <data name="AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust" xml:space="preserve">
     <value>TLS and external ports must be between 1 and 65535.</value>
   </data>
-  <data name="AdvancedNetworkSettingsPanel_RouterMappingReconciliationCompleted" xml:space="preserve">
-    <value>Router mapping reconciliation completed.</value>
-  </data>
   <data name="AdvancedNetworkSettingsPanel_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be reset.</value>
-  </data>
-  <data name="AdvancedNetworkSettingsPanel_NetworkSettingsResetRemoteAccess" xml:space="preserve">
-    <value>Network settings reset. Remote access is off.</value>
   </data>
   <data name="BackupDestinationsSection_TheBackupSettingsCouldNot" xml:space="preserve">
     <value>The backup settings could not be saved.</value>
@@ -7886,14 +7880,8 @@
   <data name="ConfirmItsYouDialog_ThePasskeyWasnTUsed" xml:space="preserve">
     <value>The passkey wasn't used. Try again or use your password.</value>
   </data>
-  <data name="DocumentRulesSettings_RuleSaved" xml:space="preserve">
-    <value>Rule saved.</value>
-  </data>
   <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
     <value>Optimized copy settings could not be saved.</value>
-  </data>
-  <data name="EncodeSettingsTab_PlaybackDeliverySettingsSaved" xml:space="preserve">
-    <value>Playback delivery settings saved.</value>
   </data>
   <data name="HomeSettingsPage_YourHomeSettingsCouldNot" xml:space="preserve">
     <value>Your Home settings could not be saved. Nothing was changed.</value>
@@ -7970,23 +7958,14 @@
   <data name="ManagedApplicationWebhooks_TheWebhookCouldNotBe2" xml:space="preserve">
     <value>The webhook could not be deleted. Try again.</value>
   </data>
-  <data name="ManualPortForwardingDialog_PortForwardingRuleCopied" xml:space="preserve">
-    <value>Port-forwarding rule copied.</value>
-  </data>
   <data name="MetadataSettingsPage_StartTheEngineAndRetry" xml:space="preserve">
     <value>Start the Engine and retry. No sample provider state is being shown.</value>
-  </data>
-  <data name="NeedsReviewPageContent_KeptAsAnUnmatchedFilm" xml:space="preserve">
-    <value>Kept as an unmatched film. Its file details are unchanged.</value>
   </data>
   <data name="NeedsReviewPageContent_ReviewItemCouldNotBe" xml:space="preserve">
     <value>Review item could not be dismissed.</value>
   </data>
   <data name="NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be saved.</value>
-  </data>
-  <data name="NetworkRemoteAccessSettings_NetworkSettingsSaved" xml:space="preserve">
-    <value>Network settings saved.</value>
   </data>
   <data name="NotificationsPanel_TheMessagesCouldNotBe" xml:space="preserve">
     <value>The messages could not be marked read.</value>
@@ -8099,14 +8078,8 @@
   <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
     <value>Test email could not be sent.</value>
   </data>
-  <data name="StreamingLimitsPanel_BandwidthTestingNeedsATrusted" xml:space="preserve">
-    <value>Bandwidth testing needs a trusted external measurement target.</value>
-  </data>
   <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
     <value>Streaming settings could not be saved.</value>
-  </data>
-  <data name="StreamingLimitsSettingsTab_StreamingSettingsSaved" xml:space="preserve">
-    <value>Streaming settings saved.</value>
   </data>
   <data name="SetupCodeStage_TuvimaAdminSetupCode" xml:space="preserve">
     <value>tuvima-admin setup code</value>
@@ -13333,5 +13306,26 @@
   </data>
   <data name="BackupDestinationsSection_SomeCopiesNeedAttention" xml:space="preserve">
     <value>Backup finished, but some copies need attention.</value>
+  </data>
+  <data name="DocumentRulesSettings_NothingToApplyTheRules" xml:space="preserve">
+    <value>Nothing to apply the rules to yet.</value>
+  </data>
+  <data name="DocumentRulesSettings_ApplyingToOneDocument" xml:space="preserve">
+    <value>Applying your rules to 1 document in the background.</value>
+  </data>
+  <data name="DocumentRulesSettings_ApplyingToDocuments" xml:space="preserve">
+    <value>Applying your rules to {0} documents in the background.</value>
+  </data>
+  <data name="OfflineDownloadsTab_CouldNotCancelTheEncodeJob" xml:space="preserve">
+    <value>Could not cancel the encode job.</value>
+  </data>
+  <data name="Common_Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="LogExportPanel_TheLogExportCouldNotBe" xml:space="preserve">
+    <value>The log export could not be created.</value>
+  </data>
+  <data name="PairedDevicesSection_ThatChangeCouldNotBeSaved" xml:space="preserve">
+    <value>That change could not be saved.</value>
   </data>
 </root>
