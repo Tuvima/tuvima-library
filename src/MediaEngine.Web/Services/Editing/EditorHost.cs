@@ -1,4 +1,4 @@
-﻿using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Theming;

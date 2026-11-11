@@ -1,4 +1,4 @@
-﻿using MediaEngine.Contracts.Metadata;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
