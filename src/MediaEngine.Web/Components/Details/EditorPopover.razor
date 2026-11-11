@@ -206,7 +206,7 @@
         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
                    StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching)"
                    OnClick="@(CanDeleteFile ? DeleteFileAsync : CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)">
-            @EditorDeleteRules.FooterLabel
+            @L["EditorFooter_Delete"]
         </AppButton>
     };
 

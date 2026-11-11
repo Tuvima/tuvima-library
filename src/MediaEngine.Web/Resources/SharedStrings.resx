@@ -8874,10 +8874,31 @@
     <value>Looks right</value>
   </data>
   <data name="SetupMetadata_NeedKeyGroup" xml:space="preserve">
-    <value>Needs a key to connect</value>
+    <value>Needs a key</value>
   </data>
   <data name="SetupMetadata_NoKeyGroup" xml:space="preserve">
-    <value>Works without a key</value>
+    <value>Ready, no key needed</value>
+  </data>
+  <data name="SetupMetadata_KeySaved" xml:space="preserve">
+    <value>Key saved</value>
+  </data>
+  <data name="SetupMetadata_NeedsKey" xml:space="preserve">
+    <value>Needs a key</value>
+  </data>
+  <data name="SetupMetadata_NoKeyNeeded" xml:space="preserve">
+    <value>No key needed</value>
+  </data>
+  <data name="SetupMetadata_ReviewKey" xml:space="preserve">
+    <value>Review key</value>
+  </data>
+  <data name="SetupMetadata_Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="SetupMetadata_Improves" xml:space="preserve">
+    <value>Improves {0}.</value>
+  </data>
+  <data name="SetupMetadata_OptionalEnrichment" xml:space="preserve">
+    <value>Optional metadata enrichment.</value>
   </data>
   <data name="SetupReadinessStage_NoSourceWarning" xml:space="preserve">
     <value>Your {0} will wait to be identified until you connect a metadata source. You can do that any time in Settings, Plugins.</value>
@@ -9487,6 +9508,15 @@
   </data>
   <data name="EditorFooter_Discard" xml:space="preserve">
     <value>Discard</value>
+  </data>
+  <data name="EditorFooter_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="EditorFooter_Saving" xml:space="preserve">
+    <value>Saving…</value>
+  </data>
+  <data name="EditorFooter_Delete" xml:space="preserve">
+    <value>Delete</value>
   </data>
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>

@@ -165,13 +165,13 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Audiobook_WithoutChaptersTheSlotOfChaptersHoldsHistory()
+    public void Audiobook_WithoutChaptersTheRowHasNoChaptersSlotAndHistoryDoesNotStandInForIt()
     {
         var withChapters = RenderPlayer(BookSnapshot());
         var without = RenderPlayer(BookSnapshot(), new PlaybackBarState(CanPrevious: true, CanNext: true, HasChapters: false, CanBookmark: true));
 
         Assert.Equal(["Chapters", "Speed", "SleepTimer", "Bookmarks"], Tools(withChapters));
-        Assert.Equal(["History", "Speed", "SleepTimer", "Bookmarks"], Tools(without));
+        Assert.Equal(["Speed", "SleepTimer", "Bookmarks"], Tools(without));
     }
 
     [Fact]

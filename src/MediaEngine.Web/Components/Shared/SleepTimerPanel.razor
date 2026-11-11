@@ -12,7 +12,7 @@
    60 min, End of chapter (audiobooks with chapters only) and Custom duration... (a nested view). The fixed footer, only while a timer runs, holds
    "+5 minutes" and "Cancel timer". Every choice goes to the host as a selection (the session's one set-sleep-timer action); the timer itself lives in
    that session, so the bar, Now playing and a reload all show the same countdown. *@
-<PlaybackPanel @ref="_panel" Title="@L["SleepTimer_Title"].Value" TriggerLabel="@TriggerLabel" ToolId="@EffectiveToolId" Kind="ordinary" Surface="@Surface" ItemKey="@ItemKey"
+<PlaybackPanel @ref="_panel" Title="@L["SleepTimer_Title"].Value" TriggerLabel="@TriggerLabel" ToolId="@EffectiveToolId" Kind="sleep" Surface="@Surface" ItemKey="@ItemKey"
                TriggerClass="@TriggerClassValue" Disabled="@Disabled" Open="@Open" OpenChanged="HandleOpenChangedAsync"
                TitleAdornment="@MoonContent" Footer="@(IsRunning ? FooterContent : null)">
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Sleep" /></TriggerContent>

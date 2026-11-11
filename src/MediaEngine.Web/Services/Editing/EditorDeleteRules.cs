@@ -46,9 +46,6 @@ public static class EditorDeleteRules
         return group.Kind == LibraryGroupKinds.Season ? files.Count : files.TotalInRoot;
     }
 
-    /// <summary>The Delete button in the editor's footer (universal editor v5 D29): always the one word.</summary>
-    public const string FooterLabel = "Delete";
-
     /// <summary>The "..." entry for the item being edited: "Delete episode…", "Delete season…", "Delete show…".</summary>
     public static string MenuLabel(LibraryGroupTarget? group, string? scopeId) => group is not null
         ? group.Kind switch
