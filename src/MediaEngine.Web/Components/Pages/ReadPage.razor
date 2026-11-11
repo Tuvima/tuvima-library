@@ -81,7 +81,13 @@
         // What the editor saved is told by one quiet line; there is no toast.
         _savedCollectionCount = 0;
         var request = CollectionEditorEntryPoints.For(flow.Area, profile.Id);
-        await CollectionEditorLauncher.OpenAsync(request);
+        if (await CollectionEditorLauncher.TryOpenAsync(request) == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _notice = EditorDeviceRule.Message;
+            return;
+        }
+
         _savedCollectionCount = request.SavedCollectionIds.Count;
     }
 

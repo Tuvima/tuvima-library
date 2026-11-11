@@ -176,7 +176,7 @@
 
         _notice = null;
 
-        await CollectionMembershipFlow.RunAsync(
+        _notice = await CollectionMembershipFlow.RunAsync(
             Services,
             [.. Active.Rows.Select(row => new CollectionEditorSeedItem(row.Id, row.Title, row.MediaType))],
             BulkEditRules.AddToCollectionLabel(Active.Count),

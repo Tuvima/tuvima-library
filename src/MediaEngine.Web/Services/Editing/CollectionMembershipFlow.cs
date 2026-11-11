@@ -15,7 +15,10 @@ public static class CollectionMembershipFlow
     /// <summary>What the list dialog closes with when the person chose "New collection with this title".</summary>
     public const string NewCollectionChoice = "new-collection";
 
-    public static async Task RunAsync(
+    /// <summary>
+    /// Runs the flow. Returns the line the caller shows in place when the device cannot edit (<see cref="EditorDeviceRule.Message"/>), else null.
+    /// </summary>
+    public static async Task<string?> RunAsync(
         IServiceProvider services,
         IReadOnlyList<CollectionEditorSeedItem> items,
         string label,
@@ -25,10 +28,14 @@ public static class CollectionMembershipFlow
         ArgumentNullException.ThrowIfNull(items);
         var dialogs = services.GetRequiredService<IAppDialogService>();
         var device = services.GetRequiredService<DeviceContextService>();
-        var orchestrator = services.GetRequiredService<UIOrchestratorService>();
-        if (items.Count == 0 || EditorDeviceRule.TryRefuse(device))
+        if (items.Count == 0)
         {
-            return;
+            return null;
+        }
+
+        if (EditorDeviceRule.TryRefuse(device))
+        {
+            return EditorDeviceRule.Message;
         }
 
         var dialog = await dialogs.ShowAsync<MediaMembershipDialog>(label, new AppDialogParameters<MediaMembershipDialog>
@@ -40,7 +47,7 @@ public static class CollectionMembershipFlow
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: string choice } && choice == NewCollectionChoice)
         {
-            var profile = await orchestrator.GetActiveProfileAsync();
+            var profile = await services.GetRequiredService<UIOrchestratorService>().GetActiveProfileAsync();
             await services.GetRequiredService<CollectionEditorLauncherService>().OpenAsync(new CollectionEditorLaunchRequest
             {
                 ActiveProfileId = profile?.Id,
@@ -49,5 +56,7 @@ public static class CollectionMembershipFlow
                 InitialItems = items,
             });
         }
+
+        return null;
     }
 }

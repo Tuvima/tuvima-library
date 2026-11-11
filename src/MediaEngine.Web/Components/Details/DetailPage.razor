@@ -424,11 +424,14 @@ else if (Model is not null)
             return;
         }
 
-        await CollectionMembershipFlow.RunAsync(
-            Services,
-            [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
-            DetailMenuGrouping.AddToCollectionAction.Label,
-            Model.Title);
+        if (await CollectionMembershipFlow.RunAsync(
+                Services,
+                [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
+                DetailMenuGrouping.AddToCollectionAction.Label,
+                Model.Title) is { } refusal)
+        {
+            ShowNotice(refusal, AppUiTone.Info);
+        }
     }
 
     /// <summary>

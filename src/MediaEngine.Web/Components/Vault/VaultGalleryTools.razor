@@ -35,6 +35,10 @@
     @* What looking for new images found: the quiet line under the buttons, or an alert when the scan could not run. *@
     <AppSavedNote @ref="_scanNote" Text="@_scanText" data-vault-scan-result />
 }
+@if (_deviceNotice is not null)
+{
+    <AppAlert Tone="AppUiTone.Info" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _deviceNotice = null; })" data-vault-device-notice>@_deviceNotice</AppAlert>
+}
 @if (_scanFailure is not null)
 {
     <AppAlert Tone="AppUiTone.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _scanFailure = null; })" data-vault-scan-failure>@_scanFailure</AppAlert>
@@ -76,16 +80,39 @@
 
     private async Task NewAsync()
     {
-        if (await GalleryEditor.OpenAsync(new GalleryEditorLaunchRequest { Vault = true }))
+        _deviceNotice = null;
+        var launch = await GalleryEditor.TryOpenAsync(new GalleryEditorLaunchRequest { Vault = true });
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
+        if (launch == EditorLaunchResult.Applied)
         {
             await OnChanged.InvokeAsync();
         }
     }
 
+    private string? _deviceNotice;
+
     private async Task EditAsync()
     {
-        if (_gallery is { Editable: true } gallery
-            && await GalleryEditor.OpenAsync(new GalleryEditorLaunchRequest { Vault = true, EditingVaultGallery = gallery }))
+        if (_gallery is not { Editable: true } gallery)
+        {
+            return;
+        }
+
+        _deviceNotice = null;
+        var launch = await GalleryEditor.TryOpenAsync(new GalleryEditorLaunchRequest { Vault = true, EditingVaultGallery = gallery });
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
+        if (launch == EditorLaunchResult.Applied)
         {
             _loadedFor = null;
             await OnParametersSetAsync();

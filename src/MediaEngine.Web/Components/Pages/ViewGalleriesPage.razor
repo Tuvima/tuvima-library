@@ -20,6 +20,10 @@
             }
         </HeaderActions>
         <ChildContent>
+        @if (_deviceNotice is not null)
+        {
+            <AppAlert Tone="AppUiTone.Info" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _deviceNotice = null)" data-galleries-device-notice>@_deviceNotice</AppAlert>
+        }
         @if (_loading)
         {
             <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewGalleriesPage_LoadingGalleries"].Value" Message="@L["ViewGalleriesPage_OpeningYourGalleries"].Value" />
@@ -68,10 +72,22 @@
 
     private async Task OpenEditorAsync(string membershipMode)
     {
-        if (await GalleryEditorLauncher.OpenAsync(new GalleryEditorLaunchRequest { InitialMembershipMode = membershipMode }))
+        _deviceNotice = null;
+        var launch = await GalleryEditorLauncher.TryOpenAsync(new GalleryEditorLaunchRequest { InitialMembershipMode = membershipMode });
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.Message;
+            StateHasChanged();
+            return;
+        }
+
+        if (launch == EditorLaunchResult.Applied)
         {
             await Workspace.LoadGalleriesAsync(force: true);
             StateHasChanged();
         }
     }
+
+    private string? _deviceNotice;
 }

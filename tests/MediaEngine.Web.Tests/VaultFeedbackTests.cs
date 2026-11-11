@@ -141,6 +141,19 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
             .Add(x => x.OnChanged, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => _changed++)));
 
     [Fact]
+    public async Task NewGalleryOnADeviceThatCannotEdit_SaysSoInPlaceInsteadOfDoingNothing()
+    {
+        // The test device never reported a desktop pointer, so the launcher refuses; the refusal is told under the buttons.
+        var cut = RenderTools();
+
+        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => Text(button) == "New gallery").Click());
+
+        Assert.Equal(MediaEngine.Web.Services.Editing.EditorDeviceRule.Message, Text(cut.Find("[data-vault-device-notice]")));
+        cut.Find("[data-vault-device-notice] .tl-alert-close").Click();
+        Assert.Empty(cut.FindAll("[data-vault-device-notice]"));
+    }
+
+    [Fact]
     public async Task LookingForNewImages_SaysWhatWasFoundInAQuietLine_AndReadsTheListAgain()
     {
         _scan = VaultCall<VaultImageScanDto>.Ok(new VaultImageScanDto { ImagesAdded = 3 });

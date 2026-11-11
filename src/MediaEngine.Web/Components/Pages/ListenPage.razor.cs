@@ -948,7 +948,15 @@ public partial class ListenPage
             InitialMembershipMode = isSmart ? "Smart" : "Manual",
             InitialTitle = string.Empty,
         };
-        var changed = await CollectionEditorLauncher.OpenAsync(request);
+        var launch = await CollectionEditorLauncher.TryOpenAsync(request);
+        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
+        {
+            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+            return;
+        }
+
+        var changed = launch == EditorLaunchResult.Applied;
         _savedCollectionCount = request.SavedCollectionIds.Count;
 
         if (changed || _savedCollectionCount > 0)
