@@ -24,6 +24,14 @@ public sealed class SameFileChipTests : AsyncBunitContext
     }
 
     [Fact]
+    public void SiblingThatCannotBeHighlightedIsAQuietChipNotAButton()
+    {
+        var cut = Render<SameFileChip>(p => p.Add(c => c.Links, [Link("a", "2")]).Add(c => c.CanHighlight, false));
+        Assert.Empty(cut.FindAll("button"));
+        Assert.Contains("Same file as Episode 2", cut.Find(".app-chip.same-file-chip").TextContent);
+    }
+
+    [Fact]
     public void SeveralSiblingsAreListedInOrder()
     {
         var cut = Render<SameFileChip>(p => p.Add(c => c.Links, [Link("a", "2"), Link("b", "3")]).Add(c => c.CanHighlight, true));

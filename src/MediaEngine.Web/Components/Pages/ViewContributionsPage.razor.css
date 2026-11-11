@@ -5,8 +5,6 @@
 .view-contributions-header h1 { margin: .15rem 0; }
 .view-contributions-header p, .view-contribution-card small, .view-contribution-items small, .view-contribution-hidden-note { color: var(--tl-text-secondary); }
 .view-contributions-controls { justify-content: space-between; }
-.view-contributions-controls [role=tablist] { display: flex; gap: .5rem; }
-.view-contributions-controls .is-selected { border-color: var(--tl-accent-primary); color: var(--tl-accent-primary); }
 .view-contributions-list, .view-contribution-detail, .view-contribution-items, .view-contribution-events { display: grid; gap: .75rem; }
 .view-contribution-card { width: 100%; text-align: left; padding: 1rem; border: 1px solid var(--tl-border-subtle); border-radius: .75rem; }
 .view-contribution-card__identity { display: grid; flex: 1; }

@@ -90,23 +90,23 @@ else
                                         <span class="profiles-tab__badges">
                                             @if (person.Id == _active?.Id)
                                             {
-                                                <span class="profiles-tab__badge profiles-tab__badge--you">@L["Common_You"]</span>
+                                                <AppChip Text="@L["Common_You"].Value" Tone="AppUiTone.Primary" />
                                             }
                                             @if (Managed(person.Id)?.IsHouseholdAdmin == true)
                                             {
-                                                <span class="profiles-tab__badge" data-role="household-administrator">@L["Common_HouseholdAdministrator"]</span>
+                                                <AppChip Text="@L["Common_HouseholdAdministrator"].Value" data-role="household-administrator" />
                                             }
                                             @if (Managed(person.Id)?.IsServerAdmin == true)
                                             {
-                                                <span class="profiles-tab__badge" data-role="server-administrator">@L["Common_ServerAdministrator"]</span>
+                                                <AppChip Text="@L["Common_ServerAdministrator"].Value" data-role="server-administrator" />
                                             }
                                             @if (person.IsRestricted)
                                             {
-                                                <span class="profiles-tab__badge">@L["Common_Kids"]</span>
+                                                <AppChip Text="@L["Common_Kids"].Value" />
                                             }
                                             @if (person.HasPin)
                                             {
-                                                <span class="profiles-tab__badge">@L["Common_PIN"]</span>
+                                                <AppChip Text="@L["Common_PIN"].Value" />
                                             }
                                         </span>
                                         <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))" Label="@L["Common_Edit"].Value" />
