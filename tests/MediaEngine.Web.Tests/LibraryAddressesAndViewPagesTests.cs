@@ -407,6 +407,9 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         OpenTheAddForm(page);
         var owner = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Owner profile");
         await page.InvokeAsync(() => owner.Instance.ValueChanged.InvokeAsync(TestProfileId.ToString()));
+        // The form opens on Read-only (View folders spec D4a); a new Managed folder is picked on purpose.
+        var management = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Folder management");
+        await page.InvokeAsync(() => management.Instance.ValueChanged.InvokeAsync("managed"));
         var name = page.FindComponents<MediaEngine.Web.Components.Shared.AppTextField>().First(field => field.Instance.Label == "Folder name");
         await page.InvokeAsync(() => name.Instance.ValueChanged.InvokeAsync("Paperwork"));
 
@@ -550,7 +553,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ANewViewFolderIsManagedByDefault()
+    public void ANewViewFolderIsReadOnlyByDefault()
     {
         var page = Render<ViewKindPage>(parameters => parameters
             .Add(x => x.Configuration, _configuration)
@@ -559,7 +562,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         OpenTheAddForm(page);
 
         var mode = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Folder management");
-        Assert.Equal("managed", mode.Instance.Value);
+        Assert.Equal("linked", mode.Instance.Value);
     }
 
     // Library pages WP13, D24: the Show in Photos timeline switch is per source folder and is saved straight away.

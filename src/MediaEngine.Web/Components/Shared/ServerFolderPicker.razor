@@ -278,6 +278,8 @@ else
     [Parameter] public bool OfferHandling { get; set; }
     /// <summary>False when the kind's rules do not allow Library to manage the folder; the choice then offers only Read-only.</summary>
     [Parameter] public bool ManagedAllowed { get; set; } = true;
+    /// <summary>True when the choice opens on Managed instead of Read-only (a host that was asked for a Managed folder).</summary>
+    [Parameter] public bool InitialManaged { get; set; }
     /// <summary>Whether Managed on a folder that already holds files shows the "will move and rename files" warning (off where Managed means a new folder, as in View).</summary>
     [Parameter] public bool ShowManagedWarning { get; set; } = true;
     /// <summary>The handling the person chose: <see cref="FolderHandlingWords.ReadOnlyKey"/> or <see cref="FolderHandlingWords.ManagedKey"/>.</summary>
@@ -440,6 +442,7 @@ else
             _folderNameTouched = true;
         }
 
+        _handlingManaged = InitialManaged && OfferHandling && ManagedAllowed;
         return LoadAsync();
     }
 
