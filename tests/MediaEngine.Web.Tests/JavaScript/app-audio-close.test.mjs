@@ -33,6 +33,7 @@ function harness() {
         block("    function audioRequestVersionMatches(", "    function audioSourceMatches"),
         block("    function audioSourceMatches(", "    function readAudioPositionForSleepTimer"),
         block("    function captureAudiobookBookmarkPosition(", "    function readCurrentAudiobookPosition"),
+        block("    function raiseStartToken(", "    function ensureAudioSource("),
         `globalThis.api = { ${block("        pauseAudioForClose: function", "        captureAudiobookBookmarkPosition:")} };`
     ].join("\n"), context);
     return { audio, api: context.api, setStored(value) { stored = JSON.stringify(value); }, get cleared() { return cleared; } };

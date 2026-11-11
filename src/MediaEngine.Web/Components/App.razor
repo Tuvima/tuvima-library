@@ -36,12 +36,13 @@
     <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" ClientAddress="@Address" ClientSignInRefusal="@SignInRefusal" ClientForwarded="@Forwarded" />
     <ReconnectModal />
     @* The video library and the map styles load on demand through tuvima-lazy.js; the fingerprinted video library address travels in data-hls-src on the body. *@
-    <script src="js/tuvima-lazy.js"></script>
+    <script src="@Assets["js/tuvima-lazy.js"]"></script>
     <script src="@Assets["app.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/lazy-load.js"></script>
     <script src="js/cover-popup.js"></script>
-    <script type="module" src="js/app-overflow-tooltip.js"></script>
+    @* The module imports playback-tooltip.js; the ImportMap above points that import at its fingerprinted address too. *@
+    <script type="module" src="@Assets["js/app-overflow-tooltip.js"]"></script>
 </body>
 
 </html>

@@ -252,6 +252,65 @@ test('an owner around an enabled control stays out of the tab order', () => {
     assert.equal(owner.dataset.tooltipWrapperTarget, undefined);
 });
 
+test('a batch where Blazor adds a parent and then its children scans each subtree once', () => {
+    reset();
+    const outer = new Node('div'); body.append(outer);
+    const middle = new Node('div'); outer.append(middle);
+    const { owner } = makeOwner('Deep', { parent: middle });
+    const text = new Node('span'); text.nodeType = 3;
+    const scans = new Map();
+    for (const node of [outer, middle, text]) {
+        const original = node.querySelectorAll.bind(node);
+        node.querySelectorAll = selector => { scans.set(node, (scans.get(node) ?? 0) + 1); return original(selector); };
+    }
+    preparer().callback([{ addedNodes: [outer] }, { addedNodes: [middle] }, { addedNodes: [owner, text] }, { addedNodes: [outer] }]);
+    assert.equal(scans.get(outer), 1, 'the first added subtree is scanned');
+    assert.equal(scans.get(middle) ?? 0, 0, 'a node inside a scanned subtree is skipped');
+    assert.equal(scans.get(text) ?? 0, 0, 'a text node is never scanned');
+});
+
+test('a waiting tooltip is dropped by the page observer once its owner has left the page', () => {
+    reset();
+    const { owner } = makeOwner('Play');
+    fire('pointerenter', owner, { pointerType: 'mouse' });
+    assert.equal(timers.length, 1);
+    owner.remove();
+    preparer().callback([{ addedNodes: [], removedNodes: [owner] }]);
+    assert.equal(timers.length, 0, 'the waiting timer no longer holds the removed owner');
+    runDue();
+    assert.equal(tips().length, 0);
+});
+
+test('a nested owner that waits does not write its text into the tooltip showing for its parent', () => {
+    reset();
+    const { owner: parent, inner: parentButton } = makeOwner('Parent');
+    const { owner: child } = makeOwner('Child', { parent: parentButton });
+    fire('pointerenter', parent, { pointerType: 'mouse' }); runDue(150);
+    assert.equal(tips()[0].textContent, 'Parent');
+    fire('pointerenter', child, { pointerType: 'mouse' }); // the child is now waiting to show
+    const pageObserver = observers.filter(item => item.target === page).at(-1);
+    child.dataset.playbackTooltip = 'Child changed';
+    pageObserver.callback([{ type: 'attributes', attributeName: 'data-playback-tooltip', target: child }]);
+    assert.equal(tips()[0].textContent, 'Parent', 'the waiting child is not the shown owner');
+    parent.dataset.playbackTooltip = 'Parent changed';
+    pageObserver.callback([{ type: 'attributes', attributeName: 'data-playback-tooltip', target: parent }]);
+    assert.equal(tips()[0].textContent, 'Parent changed', 'the shown owner still refreshes its own text');
+});
+
+test('a nested owner removed while waiting leaves the parent tooltip showing and the parent in charge', () => {
+    reset();
+    const { owner: parent, inner: parentButton } = makeOwner('Parent');
+    const { owner: child } = makeOwner('Child', { parent: parentButton });
+    fire('pointerenter', parent, { pointerType: 'mouse' }); runDue(150);
+    fire('pointerenter', child, { pointerType: 'mouse' });
+    child.remove();
+    preparer().callback([{ addedNodes: [], removedNodes: [child] }]);
+    assert.equal(timers.filter(timer => timer.ms === 150).length, 0, 'the child timer is gone');
+    assert.equal(tips().length, 1, 'the parent tooltip stays');
+    fire('pointerleave', parent);
+    assert.equal(tips().length, 0, 'leaving the parent closes it');
+});
+
 test('a tooltip inside an open modal dialog is drawn inside that dialog', () => {
     reset();
     const dialog = new Node('dialog'); dialog.setAttribute('open', ''); dialog.focusVisible = true;

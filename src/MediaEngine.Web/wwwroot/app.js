@@ -1871,11 +1871,21 @@ window.listenPlayback = (function () {
         var volume = payload.volume ?? payload.Volume;
         var muted = payload.muted ?? payload.Muted;
 
+        // A later start, pause, release, close or source change raises the token while hls.js is still loading;
+        // this start then stands down instead of playing a source the page has already moved on from.
+        var startToken = raiseStartToken(element);
         try {
             if (streamUrl && element.dataset.playbackSource !== streamUrl) {
                 ensureAudioSource(element, streamUrl);
             }
-            if (element._tuvimaSourceReady) await element._tuvimaSourceReady;
+            if (element._tuvimaSourceReady) {
+                await element._tuvimaSourceReady;
+                if (element._tuvimaStartToken !== startToken || (streamUrl && element.dataset.playbackSource !== streamUrl)) {
+                    // AbortError is the superseded-start result the Dashboard already ignores.
+                    element.dataset.playbackStartFailure = "AbortError";
+                    return false;
+                }
+            }
 
             if (typeof volume === 'number') {
                 element.volume = Math.max(0, Math.min(1, volume));
@@ -1990,17 +2000,20 @@ window.listenPlayback = (function () {
 
     // Loads hls.js once, on first use, then attaches it. The element's source marker was set before the wait, so a
     // newer source (or a release) that changed it while the file loaded wins and this one stops quietly.
-    async function attachHlsWhenLoaded(element, streamUrl) {
+    async function attachHlsWhenLoaded(element, streamUrl, sourceEpoch) {
         try {
             await window.tuvimaLazy.loadHls();
         } catch (error) {
             console.error('Video player library failed to load.', error);
-            if (element.dataset.playbackSource !== streamUrl) return;
+            if (element.dataset.playbackSource !== streamUrl || (element._tuvimaSourceEpoch || 0) !== sourceEpoch) return;
+            // Drop the marker so the next start with this address tries the load again instead of playing with no source.
+            delete element.dataset.playbackSource;
             element.dataset.playbackError = 'Video player failed to load';
             element.dispatchEvent(new Event('error'));
             return;
         }
-        if (element.dataset.playbackSource !== streamUrl || element._tuvimaHls) return;
+        // A release, close or cast swap while the file loaded cancels this attach, even when the address is unchanged.
+        if (element.dataset.playbackSource !== streamUrl || (element._tuvimaSourceEpoch || 0) !== sourceEpoch || element._tuvimaHls) return;
         if (!window.Hls.isSupported()) {
             setNativeSource(element, streamUrl);
             return;
@@ -2018,6 +2031,25 @@ window.listenPlayback = (function () {
         discoverPreparedCaptions(element, streamUrl);
     }
 
+    // The start token is raised by every start, pause, release, close and source swap. The source epoch is raised only
+    // by the ones that throw the loading source away (release, close, cast swap), so two starts for one address share a load.
+    function raiseStartToken(element) {
+        element._tuvimaStartToken = (element._tuvimaStartToken || 0) + 1;
+        return element._tuvimaStartToken;
+    }
+
+    function invalidateAudioSource(element) {
+        if (!element) return;
+        raiseStartToken(element);
+        element._tuvimaSourceEpoch = (element._tuvimaSourceEpoch || 0) + 1;
+    }
+
+    // Release and close: also forget the address being loaded so nothing attaches or plays once the file arrives.
+    function cancelPendingAudioSource(element) {
+        invalidateAudioSource(element);
+        if (element._tuvimaSourceReady) delete element.dataset.playbackSource;
+    }
+
     function ensureAudioSource(element, streamUrl) {
         if (!element || !streamUrl) return Promise.resolve();
 
@@ -2031,7 +2063,7 @@ window.listenPlayback = (function () {
             element.dataset.playbackSource = streamUrl;
             if (/\.m3u8(?:[?#]|$)/i.test(streamUrl) && browserMayUseHlsJs()) {
                 // Playback starts wait on this: the player is attached only once hls.js has loaded.
-                const ready = attachHlsWhenLoaded(element, streamUrl).finally(() => {
+                const ready = attachHlsWhenLoaded(element, streamUrl, element._tuvimaSourceEpoch || 0).finally(() => {
                     if (element._tuvimaSourceReady === ready) element._tuvimaSourceReady = null;
                 });
                 element._tuvimaSourceReady = ready;
@@ -2320,6 +2352,7 @@ window.listenPlayback = (function () {
             var sourceMatches = closeAudioSourceMatches(audio, sourceUrl, requestVersion);
             var predecessorMatches = pendingSource && closeAudioSourceMatches(audio, predecessorSourceUrl, requestVersion);
             if (!sourceMatches && !predecessorMatches) return null;
+            raiseStartToken(audio);
             audio.pause();
             // The predecessor's position must never become the unresolved current work's resume point.
             return sourceMatches ? captureAudiobookBookmarkPosition(assetId, requestVersion, sourceUrl) : null;
@@ -2341,6 +2374,10 @@ window.listenPlayback = (function () {
             }
             var sourceMatches = closeAudioSourceMatches(audio, sourceUrl, requestVersion);
             var predecessorMatches = pendingSource && closeAudioSourceMatches(audio, predecessorSourceUrl, requestVersion);
+            // Closing while hls.js is still loading: no source exists yet, so cancel the pending attach and start here.
+            if (audio._tuvimaSourceReady && (pendingSource || samePlaybackUrl(audio.dataset.playbackSource, sourceUrl))) {
+                cancelPendingAudioSource(audio);
+            }
             if (audio.currentSrc || audio.getAttribute('src') || audio._tuvimaHls) {
                 if (!sourceMatches && !predecessorMatches) {
                     // Cancel the logical pending request without releasing an unverified physical source.
@@ -2619,6 +2656,7 @@ window.listenPlayback = (function () {
             }
         },
         ensureAudioSource: ensureAudioSource,
+        invalidateAudioSource: invalidateAudioSource,
         consumeImmediateToggleHandled: function () {
             var now = Date.now();
             if (immediateToggleConsumedAt && now - immediateToggleConsumedAt < playbackConfig.immediateActionConsumeMilliseconds) {
@@ -2654,12 +2692,14 @@ window.listenPlayback = (function () {
         startFailure: function (element) { return element?.dataset.playbackStartFailure || "PlaybackError"; },
         pauseAudio: function (element) {
             if (!element) return;
+            raiseStartToken(element);
             element.pause();
         },
         releaseMedia: function (element, expectedAssetId, expectedRequestVersion) {
             if (!element) return false;
             if (expectedAssetId && (audioAssetId(element)?.toLowerCase() !== String(expectedAssetId).toLowerCase()
                 || Number(element.dataset.playbackRequestVersion) !== Number(expectedRequestVersion))) return false;
+            cancelPendingAudioSource(element);
             element.pause();
             clearPreparedCaptions(element);
             element._tuvimaHls?.destroy();

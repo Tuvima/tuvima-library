@@ -197,10 +197,23 @@ function showFor(element, byMouse = false) {
 }
 
 // A change to the shown owner's text or suppression (a menu opened from its control) updates or closes the open tooltip.
+// Only the owner whose tooltip is showing counts: `owner` can already point at a nested owner that is still waiting to show.
 function refreshActive(changed) {
-    if (!active?.delegated || !owner || !(changed === owner || owner.contains?.(changed))) return;
-    if (owner.dataset.playbackTooltipSuppressed === 'true' || ownerTarget?.getAttribute('aria-expanded') === 'true') closeOwnerTip();
-    else if (ownerTip) ownerTip.textContent = owner.dataset.playbackTooltip || '';
+    if (!active?.delegated || !ownerTip) return;
+    const shown = active.root;
+    if (!shown || !(changed === shown || shown.contains?.(changed))) return;
+    if (shown.dataset.playbackTooltipSuppressed === 'true' || ownerTarget?.getAttribute('aria-expanded') === 'true') closeOwnerTip();
+    else ownerTip.textContent = shown.dataset.playbackTooltip || '';
+}
+
+// An owner still waiting to show (a hover or press timer) is dropped once Blazor removes it, so nothing keeps the removed element.
+// When a nested owner was waiting while its parent's tooltip shows, the parent's tooltip stays and the parent is the owner again.
+function dropDetachedPendingOwner() {
+    if (!owner || owner.isConnected !== false) return;
+    if (ownerTip && active?.hide === closeOwnerTip && active.root !== owner) {
+        clearTimeout(ownerTimer); ownerTimer = undefined;
+        owner = active.root;
+    } else closeOwnerTip();
 }
 
 // An owner whose content cannot take focus itself (an info icon, a status symbol, a disabled button) becomes focusable so a keyboard
@@ -260,7 +273,17 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     const root = document.documentElement;
     if (typeof MutationObserver === 'function' && root && typeof root.nodeType === 'number') {
         new MutationObserver(records => {
-            for (const record of records) for (const added of record.addedNodes ?? []) prepareWithin(added);
+            // Blazor inserts a parent and then its children, each as its own record: a node already inside a scanned subtree is not scanned again.
+            const scanned = new Set();
+            for (const record of records) for (const added of record.addedNodes ?? []) {
+                if (added?.nodeType !== 1) continue;
+                let covered = false;
+                for (const scannedRoot of scanned) if (scannedRoot.contains?.(added)) { covered = true; break; }
+                if (covered) continue;
+                scanned.add(added);
+                prepareWithin(added);
+            }
+            dropDetachedPendingOwner();
         }).observe(root, { childList: true, subtree: true });
     }
 }

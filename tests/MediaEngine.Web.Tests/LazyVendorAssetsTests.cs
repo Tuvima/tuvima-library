@@ -30,6 +30,20 @@ public sealed class LazyVendorAssetsTests
     }
 
     [Fact]
+    public void AppShell_FingerprintsTheLoaderAndTheTooltipModuleSoAnOldCachedCopyCannotLinger()
+    {
+        var shell = Read("Components", "App.razor");
+
+        Assert.Contains("<script src=\"@Assets[\"js/tuvima-lazy.js\"]\"></script>", shell, StringComparison.Ordinal);
+        Assert.Contains("<script type=\"module\" src=\"@Assets[\"js/app-overflow-tooltip.js\"]\"></script>", shell, StringComparison.Ordinal);
+        // The module's own import of playback-tooltip.js is rewritten to its fingerprinted address by the import map.
+        Assert.Contains("<ImportMap />", shell, StringComparison.Ordinal);
+        Assert.True(
+            shell.IndexOf("<ImportMap />", StringComparison.Ordinal) < shell.IndexOf("type=\"module\"", StringComparison.Ordinal),
+            "the import map must come before the first module script");
+    }
+
+    [Fact]
     public void AudioSourceSync_LoadsHlsThroughTheLoaderInsteadOfAssumingAGlobal()
     {
         var script = Read("wwwroot", "app.js");

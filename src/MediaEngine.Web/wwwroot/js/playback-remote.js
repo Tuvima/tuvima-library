@@ -145,6 +145,8 @@ export function swapSource(element, castUrl) {
     if (!plan) return false;
     // Keep the first record while a swap is already in force (a new track swaps again), so the page's own source is never forgotten.
     entry.swap = entry.swap ? { ...entry.swap, castUrl: plan.castUrl, position: 0 } : plan;
+    // An hls.js attach still waiting for its file would overwrite the cast link when it arrives; this cancels it.
+    globalThis.listenPlayback?.invalidateAudioSource?.(element);
     if (element._tuvimaHls) {
         element._tuvimaHls.destroy();
         element._tuvimaHls = null;
