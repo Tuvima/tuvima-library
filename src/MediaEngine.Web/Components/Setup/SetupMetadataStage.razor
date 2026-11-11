@@ -120,9 +120,9 @@
 
     private RenderFragment StatusBadge(ProviderCatalogueDto provider) => SourceState(provider) switch
     {
-        SourceStates.KeySaved => @<AppStatusBadge Text="Key saved" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
-        SourceStates.NeedsKey => @<AppStatusBadge Text="Needs a key" Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.Key" />,
-        _ => @<AppStatusBadge Text="No key needed" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
+        SourceStates.KeySaved => @<AppStatusBadge Text="@L["SetupMetadata_KeySaved"].Value" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
+        SourceStates.NeedsKey => @<AppStatusBadge Text="@L["SetupMetadata_NeedsKey"].Value" Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.Key" />,
+        _ => @<AppStatusBadge Text="@L["SetupMetadata_NoKeyNeeded"].Value" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
     };
 
     // No switch and no menu here: a source is either connected or it is not, and the rest is Settings.
@@ -161,11 +161,11 @@
 
     private bool AnythingConfigured => HasConfiguredKey(Catalogue);
 
-    private static string ProviderAction(ProviderCatalogueDto provider) => SourceState(provider) == SourceStates.KeySaved ? "Review key" : "Connect";
-    private static string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
+    private string ProviderAction(ProviderCatalogueDto provider) => SourceState(provider) == SourceStates.KeySaved ? L["SetupMetadata_ReviewKey"].Value : L["SetupMetadata_Connect"].Value;
+    private string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
         ?? (provider.Onboarding?.SupportedLanes.Count > 0
-            ? $"Improves {string.Join(", ", provider.Onboarding.SupportedLanes.Select(Friendly))}."
-            : "Optional metadata enrichment.");
+            ? string.Format(L["SetupMetadata_Improves"].Value, string.Join(", ", provider.Onboarding.SupportedLanes.Select(Friendly)))
+            : L["SetupMetadata_OptionalEnrichment"].Value);
 
     private static string Initials(string name) => string.Concat(name
         .Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries)

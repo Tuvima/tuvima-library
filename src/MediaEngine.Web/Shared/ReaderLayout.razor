@@ -1,10 +1,16 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 
 @namespace MediaEngine.Web.Shared
+@inject IJSRuntime JS
+@inject DeviceContextService DeviceContext
+@inject ILogger<ReaderLayout> Logger
 
 @* Minimal layout for the immersive EPUB reader — no TopBar, no LeftDock.
    Only first-party UI providers + the reader body.
-   Shared theme variables support first-party controls used in reader panels. *@
+   Shared theme variables support first-party controls used in reader panels.
+   The device context is started here the way MainLayout starts it, so a reload straight into the reader on a phone
+   shows the phone's tools instead of the desktop ones. *@
 
 <AppThemeProvider Reader="true" />
 <MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
@@ -13,3 +19,43 @@
 <AppToastHost />
 
 @Body
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The service lives for the whole circuit: when the reader is opened from another page it is already started.
+        if (!firstRender || DeviceContext.IsInitialised)
+        {
+            return;
+        }
+
+        try
+        {
+            var detected = await JS.InvokeAsync<DeviceContextSnapshot>("detectDeviceSnapshot", _lifetime.Token);
+            if (!_lifetime.IsCancellationRequested)
+            {
+                await DeviceContext.InitialiseAsync(detected);
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The reader was closed while the device was being read: nothing is waiting for the answer.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The browser went away; the circuit is ending.
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "The reader could not read the device it is on; it keeps the desktop tools");
+        }
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

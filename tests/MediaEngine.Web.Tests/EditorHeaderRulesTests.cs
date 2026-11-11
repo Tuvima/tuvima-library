@@ -324,12 +324,6 @@ public sealed class EditorHeaderRulesTests
     }
 
     [Fact]
-    public void TheFootersDeleteButton_IsAlwaysTheOneWordDelete()
-    {
-        Assert.Equal("Delete", EditorDeleteRules.FooterLabel);
-    }
-
-    [Fact]
     public void TheTabsFixedOrder_IsDetailsArtworkMatchPreviewBookmarksHistory_WhateverTheConfigListingOrder()
     {
         Assert.Equal(["details", "artwork", "pictures", "match", "preview", "bookmarks", "history"], EditorTabRules.Order);

@@ -41,6 +41,11 @@
     width: var(--playback-panel-speed-width);
 }
 
+/* Mockup screen 6: the Sleep timer panel is 380 px. */
+.playback-panel--sleep {
+    width: var(--playback-panel-sleep-width);
+}
+
 /* Mockup screens 8 to 10: Queue 440 x 440, Episodes 520 and Chapters 600 x 470. Each keeps its height as the list inside changes (tabs, seasons), so
    the panel never jumps; the viewport caps still apply. */
 .playback-panel--queue {
