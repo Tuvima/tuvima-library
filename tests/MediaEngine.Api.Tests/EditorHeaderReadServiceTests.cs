@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Ingestion.Contracts;
 
 namespace MediaEngine.Api.Tests;
 
@@ -428,6 +429,70 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         Assert.Equal("Dune Messiah", header.FolderButton!.FolderName);
         Assert.Equal(secondFolder, await _world.Header().GetItemFolderAsync(secondBook));
         Assert.Equal(firstFolder, await _world.Header().GetItemFolderAsync(firstBook));
+    }
+
+    [Fact]
+    public async Task ALooseVideoAtTheLibraryRoot_GetsTheFolderButton_ForTheLibraryFolder()
+    {
+        var video = _world.Work("Videos", "child", "Holiday clip");
+        _world.File(video, "clip.mp4", folder: _world.Library);
+        // The scanner finds no title folder for a file straight in the library's folder.
+        var scanner = new EditorHeaderTestWorld.ScannerSpy(null!) { PerFile = _ => null };
+        var folders = new LibraryRootResolver(_world.Library, MediaEngine.Domain.Enums.MediaType.Videos);
+        var service = new EditorHeaderReadService(
+            _world.Database,
+            new MediaEngine.Api.Services.ReadServices.MediaEditorNavigationReadService(_world.Database, null!, new MediaEngine.Api.Services.ReadServices.HierarchyAlignmentService(_world.Database, null!)),
+            _world.Extras,
+            scanner,
+            new MediaEngine.Api.Services.EditSession.EditorConfigurationProvider(() => null),
+            folders,
+            new ItemQuickFactsService(new MediaEngine.Storage.ItemQuickFactsRepository(_world.Database), folders),
+            new MediaEngine.Storage.MediaEditorWorkVersionReadRepository(_world.Database),
+            null,
+            null);
+
+        var header = await service.GetHeaderAsync(video, null);
+
+        Assert.Equal(Path.GetFileName(_world.Library), header!.FolderButton!.FolderName);
+        Assert.Equal(_world.Library, await service.GetItemFolderAsync(video));
+    }
+
+    [Fact]
+    public async Task ALooseBookAtTheLibraryRoot_GetsNoFolderButton()
+    {
+        var book = _world.Work("Books", "child", "Loose book");
+        _world.File(book, "loose.epub", folder: _world.Library);
+        var scanner = new EditorHeaderTestWorld.ScannerSpy(null!) { PerFile = _ => null };
+        var folders = new LibraryRootResolver(_world.Library, MediaEngine.Domain.Enums.MediaType.Books);
+        var service = new EditorHeaderReadService(
+            _world.Database,
+            new MediaEngine.Api.Services.ReadServices.MediaEditorNavigationReadService(_world.Database, null!, new MediaEngine.Api.Services.ReadServices.HierarchyAlignmentService(_world.Database, null!)),
+            _world.Extras,
+            scanner,
+            new MediaEngine.Api.Services.EditSession.EditorConfigurationProvider(() => null),
+            folders,
+            new ItemQuickFactsService(new MediaEngine.Storage.ItemQuickFactsRepository(_world.Database), folders),
+            new MediaEngine.Storage.MediaEditorWorkVersionReadRepository(_world.Database),
+            null,
+            null);
+
+        Assert.Null(await service.GetItemFolderAsync(book));
+    }
+
+    private sealed class LibraryRootResolver(string root, MediaEngine.Domain.Enums.MediaType type) : ILibraryFolderResolver
+    {
+        public MediaEngine.Ingestion.Models.LibraryFolderEntry? ResolveById(string libraryId) => null;
+
+        public MediaEngine.Ingestion.Models.LibraryFolderEntry? ResolveForPath(string absolutePath) => ResolveSourceForPath(absolutePath)?.Library;
+
+        public string? ResolveSourcePath(string absolutePath) => ResolveSourceForPath(absolutePath)?.Source.Path;
+
+        public MediaEngine.Ingestion.Models.ResolvedLibrarySource? ResolveSourceForPath(string absolutePath) =>
+            absolutePath.StartsWith(root, StringComparison.Ordinal)
+                ? new MediaEngine.Ingestion.Models.ResolvedLibrarySource(
+                    new MediaEngine.Ingestion.Models.LibraryFolderEntry { Id = "lib", MediaTypes = [type] },
+                    new MediaEngine.Ingestion.Models.LibrarySourceEntry { Id = "source", Path = root, AccessMode = LibrarySourceAccessModes.Writable })
+                : null;
     }
 
     [Fact]

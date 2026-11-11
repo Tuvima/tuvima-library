@@ -14,44 +14,6 @@ public enum EditorFamilyKind
     Series,
 }
 
-/// <summary>What a tree row stands for.</summary>
-public enum FamilyRowType
-{
-    /// <summary>An item the person can switch to.</summary>
-    Item,
-
-    /// <summary>A label above a group of items ("Files with no episode"); not selectable.</summary>
-    Heading,
-
-    /// <summary>A plain sentence under a parent ("No files yet"); not selectable.</summary>
-    Note,
-
-    /// <summary>The end of a long list: the next page is read when it scrolls into view, or when the person presses it.</summary>
-    More,
-
-    /// <summary>A grey placeholder while a parent's files are being read.</summary>
-    Skeleton,
-}
-
-/// <summary>One visible row of the family tree.</summary>
-/// <param name="EntityId">The item the row switches to (the parent for a <see cref="FamilyRowType.More"/> row).</param>
-/// <param name="Detail">The item's number in its parent ("3", "Disc 1 · 4"), shown ahead of the title.</param>
-/// <param name="Reason">Why the item is not matched, in plain words; null when it is matched.</param>
-/// <param name="Variant">"Also as audiobook" and the like, when one book or issue is owned in more than one form.</param>
-public sealed record FamilyRow(
-    FamilyRowType Type,
-    Guid EntityId,
-    string Title,
-    string Kind,
-    int Depth,
-    bool Matched,
-    string? Reason,
-    string? Detail,
-    string? ImageUrl,
-    bool IsParent,
-    bool Expanded,
-    string? Variant);
-
 /// <summary>The parts of the family the editor header draws on their own: the fixed tile (the show, album or series) and the dropdowns under the title.</summary>
 public enum EditorFamilyRailPart
 {
@@ -94,15 +56,6 @@ public sealed class EditorFamilyState
 
     /// <summary>True while the shape of the family is being read (the column shows row skeletons; the right side is usable at once).</summary>
     public bool Loading { get; private set; }
-
-    /// <summary>The column heading: "This show", "This album" or "This series".</summary>
-    public string Heading => Kind switch
-    {
-        EditorFamilyKind.Show => "This show",
-        EditorFamilyKind.Album => "This album",
-        EditorFamilyKind.Series => "This series",
-        _ => string.Empty,
-    };
 
     /// <summary>The column is drawn: a family exists, or it is still being read.</summary>
     public bool Visible => Kind != EditorFamilyKind.None || Loading;
@@ -284,27 +237,6 @@ public sealed class EditorFamilyState
         await EnsureAsync(entityId, open);
     }
 
-    /// <summary>The rows to draw, top to bottom.</summary>
-    public IReadOnlyList<FamilyRow> Rows()
-    {
-        var rows = new List<FamilyRow>();
-        if (Kind == EditorFamilyKind.None || !_nodes.TryGetValue(_rootId, out var root))
-        {
-            if (Loading)
-            {
-                for (var i = 0; i < 6; i++)
-                {
-                    rows.Add(Skeleton(i == 0 ? 0 : 1));
-                }
-            }
-
-            return rows;
-        }
-
-        AddRows(rows, root, 0);
-        return rows;
-    }
-
     /// <summary>
     /// Takes deleted items out of the tree at once (universal editor v4 D13): each id leaves its parent's list, a deleted parent takes
     /// everything under it, and a parent's count drops so "Show more" stays true. Nothing is read from the Engine; the next refresh agrees.
@@ -370,33 +302,8 @@ public sealed class EditorFamilyState
     /// <summary>Whether the tree says an item is matched: true or false for an item it lists, null for one it does not know.</summary>
     public bool? IsMatched(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Matched : null;
 
-    /// <summary>True when the tree lists the item as a parent (a season, an album, the show itself), whose own files can be opened.</summary>
-    public bool IsParentOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) && node.IsParent;
-
     /// <summary>The season, album or show an item sits under in the tree, or null when the tree does not know the item.</summary>
     public Guid? ParentOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.ParentId : null;
-
-    /// <summary>The name of an item in the tree, or null.</summary>
-    public string? NameOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Title : null;
-
-    /// <summary>Opens or closes a parent. Opening reads its first page of files.</summary>
-    public async Task ToggleAsync(Guid parentId)
-    {
-        if (!_nodes.TryGetValue(parentId, out var node) || !node.IsParent || parentId == _rootId)
-        {
-            return;
-        }
-
-        if (node.Expanded)
-        {
-            node.Expanded = false;
-            Changed?.Invoke();
-            return;
-        }
-
-        await OpenAsync(parentId);
-        Changed?.Invoke();
-    }
 
     /// <summary>Opens a parent if it is closed (no-op otherwise).</summary>
     public async Task OpenAsync(Guid parentId)
@@ -421,9 +328,9 @@ public sealed class EditorFamilyState
     /// Every matched file under a parent (a show's or a season's episodes), reading each page that is not read yet. Used by "Fetch all" in the
     /// Artwork tool; capped so a very long show cannot hold the editor up. Empty when the tree does not know the parent.
     /// </summary>
-    public async Task<IReadOnlyList<FamilyRow>> LeavesUnderAsync(Guid parentId, int max = 300)
+    public async Task<IReadOnlyList<Guid>> LeavesUnderAsync(Guid parentId, int max = 300)
     {
-        var found = new List<FamilyRow>();
+        var found = new List<Guid>();
         if (!_nodes.ContainsKey(parentId))
         {
             return found;
@@ -448,7 +355,7 @@ public sealed class EditorFamilyState
                 var leaf = _nodes[leafId];
                 if (leaf.Matched && found.Count < max)
                 {
-                    found.Add(new FamilyRow(FamilyRowType.Item, leaf.Id, leaf.Title, leaf.Kind, 0, true, null, leaf.Detail, leaf.ImageUrl, false, false, null));
+                    found.Add(leaf.Id);
                 }
             }
 
@@ -459,25 +366,6 @@ public sealed class EditorFamilyState
         }
 
         return found;
-    }
-
-    /// <summary>Reads the next page of files under a parent (the end of its list scrolled into view, or the person pressed "Show more").</summary>
-    public async Task LoadMoreAsync(Guid parentId)
-    {
-        if (_nodes.TryGetValue(parentId, out var node) && node.HasMore && !node.Loading)
-        {
-            await LoadPageAsync(node);
-        }
-    }
-
-    /// <summary>Tries a parent's files again after they could not be read.</summary>
-    public async Task RetryAsync(Guid parentId)
-    {
-        if (_nodes.TryGetValue(parentId, out var node) && node.Failed)
-        {
-            node.Failed = false;
-            await LoadPageAsync(node);
-        }
     }
 
     // The navigator's parents become tree nodes; the files under them arrive page by page.
@@ -511,11 +399,9 @@ public sealed class EditorFamilyState
                 Title = string.IsNullOrWhiteSpace(node.Title) ? node.Label : node.Title,
                 Detail = null,
                 Matched = !string.Equals(node.MatchState, "unmatched", StringComparison.OrdinalIgnoreCase),
-                Reason = node.MatchReason,
                 ImageUrl = string.IsNullOrWhiteSpace(node.ArtworkUrl) ? null : EngineImageProxyPath.ToBrowserUrl(node.ArtworkUrl, null),
                 IsParent = true,
                 Expanded = node.IsRoot,
-                Direct = navigator.MediaType == "TV" && node.IsRoot ? DirectLeaves.NoEpisode : DirectLeaves.Items,
             };
         }
 
@@ -586,18 +472,11 @@ public sealed class EditorFamilyState
         foreach (var file in page.Items)
         {
             var leaf = FileNode(file, node);
-            if (_nodes.TryGetValue(leaf.Id, out var existing) && !existing.IsParent)
-            {
-                existing.AddVariant(leaf.VariantOf(file));
-                continue;
-            }
-
             if (_nodes.ContainsKey(leaf.Id))
             {
                 continue;
             }
 
-            leaf.AddVariant(leaf.VariantOf(file));
             _nodes[leaf.Id] = leaf;
             node.Leaves.Add(leaf.Id);
         }
@@ -623,7 +502,6 @@ public sealed class EditorFamilyState
             Title = string.IsNullOrWhiteSpace(title) ? file.SourceFileName : title,
             Detail = NumberLabel(file),
             Matched = matched,
-            Reason = matched ? null : file.MatchReason ?? "Not matched yet.",
         };
     }
 
@@ -648,76 +526,14 @@ public sealed class EditorFamilyState
         }
     }
 
-    private void AddRows(List<FamilyRow> rows, Node node, int depth)
-    {
-        rows.Add(new FamilyRow(FamilyRowType.Item, node.Id, node.Title, node.Kind, depth, node.Matched, node.Reason, node.Detail,
-            node.ImageUrl, node.IsParent, node.Expanded, node.VariantText));
-        if (!node.IsParent || !node.Expanded)
-        {
-            return;
-        }
-
-        // Seasons (or the album's tracks) first; then the files that sit straight under the parent.
-        foreach (var parentId in node.Parents)
-        {
-            AddRows(rows, _nodes[parentId], depth + 1);
-        }
-
-        var headed = node.Direct == DirectLeaves.NoEpisode && node.Leaves.Count > 0;
-        if (headed)
-        {
-            rows.Add(new FamilyRow(FamilyRowType.Heading, node.Id, "Files with no episode", string.Empty, depth + 1, true, null, null, null, false, false, null));
-        }
-
-        var leafDepth = headed ? depth + 2 : depth + 1;
-        foreach (var leafId in node.Leaves)
-        {
-            var leaf = _nodes[leafId];
-            rows.Add(new FamilyRow(FamilyRowType.Item, leaf.Id, leaf.Title, leaf.Kind, leafDepth, leaf.Matched, leaf.Reason, leaf.Detail,
-                leaf.ImageUrl, false, false, leaf.VariantText));
-        }
-
-        if (node.Loading)
-        {
-            for (var i = 0; i < (node.PagesLoaded == 0 ? 3 : 1); i++)
-            {
-                rows.Add(Skeleton(depth + 1));
-            }
-        }
-        else if (node.Failed)
-        {
-            rows.Add(new FamilyRow(FamilyRowType.Note, node.Id, "These files could not be read.", "Retry", depth + 1, true, null, null, null, false, false, null));
-        }
-        else if (node.HasMore)
-        {
-            rows.Add(new FamilyRow(FamilyRowType.More, node.Id, $"Show more ({node.Total - node.Leaves.Count} left)", string.Empty, depth + 1, true, null, null, null, false, false, null));
-        }
-        else if (node.PagesLoaded > 0 && node.Leaves.Count == 0 && node.Parents.Count == 0 && node.Direct != DirectLeaves.NoEpisode)
-        {
-            rows.Add(new FamilyRow(FamilyRowType.Note, node.Id, "No files in your library.", string.Empty, depth + 1, true, null, null, null, false, false, null));
-        }
-    }
-
-    private static FamilyRow Skeleton(int depth) =>
-        new(FamilyRowType.Skeleton, Guid.Empty, string.Empty, string.Empty, depth, true, null, null, null, false, false, null);
-
-    private enum DirectLeaves
-    {
-        Items,
-        NoEpisode,
-    }
-
     private sealed class Node
     {
-        private readonly List<string> _variants = [];
-
         public Guid Id { get; init; }
         public Guid? ParentId { get; set; }
         public string Kind { get; init; } = "Item";
         public string Title { get; init; } = string.Empty;
         public string? Detail { get; set; }
         public bool Matched { get; init; } = true;
-        public string? Reason { get; init; }
         public string? ImageUrl { get; init; }
         public bool IsParent { get; init; }
         public bool Expanded { get; set; }
@@ -725,37 +541,9 @@ public sealed class EditorFamilyState
         public bool Failed { get; set; }
         public int PagesLoaded { get; set; }
         public int Total { get; set; }
-        public DirectLeaves Direct { get; init; }
         public List<Guid> Parents { get; } = [];
         public List<Guid> Leaves { get; } = [];
 
         public bool HasMore => IsParent && PagesLoaded > 0 && Leaves.Count < Total && !Failed;
-
-        public string? VariantText => _variants.Count > 1 ? "Also as " + string.Join(", ", _variants.Skip(1)) : null;
-
-        public string VariantOf(MediaEditorOwnedChildDto file)
-        {
-            var extension = Path.GetExtension(file.SourceFilePath ?? string.Empty).TrimStart('.').ToLowerInvariant();
-            if (extension is "m4b" or "mp3" or "m4a" or "aac" or "ogg" or "opus" or "flac")
-            {
-                return "audiobook";
-            }
-
-            return extension switch
-            {
-                "epub" or "mobi" or "azw3" => "ebook",
-                "pdf" => "PDF",
-                "cbz" or "cbr" => "comic file",
-                _ => string.IsNullOrWhiteSpace(file.EditionLabel) ? "another file" : file.EditionLabel.ToLowerInvariant(),
-            };
-        }
-
-        public void AddVariant(string variant)
-        {
-            if (!_variants.Contains(variant, StringComparer.OrdinalIgnoreCase))
-            {
-                _variants.Add(variant);
-            }
-        }
     }
 }

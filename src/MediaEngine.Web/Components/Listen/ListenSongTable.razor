@@ -288,6 +288,12 @@ else
     [Parameter] public Guid? CurrentWorkId { get; set; }
     [Parameter] public string DefaultSortColumn { get; set; } = "dateAdded";
     [Parameter] public bool DefaultSortDescending { get; set; } = true;
+
+    /// <summary>
+    /// A sort chosen outside the table (the browse header's sort menu). Each time it changes the table sorts that way; clicking a column
+    /// header afterwards still changes it. Null leaves the table to its own default and header clicks.
+    /// </summary>
+    [Parameter] public (string Column, bool Descending)? RequestedSort { get; set; }
     [Parameter] public Func<IReadOnlyList<WorkViewModel>, Guid?, string?, bool, Task>? OnPlayRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnFavoriteToggled { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnQueueRequested { get; set; }
@@ -325,6 +331,7 @@ else
     private double _resizeStartX;
     private int _resizeStartWidth;
     private string? _sortColumn;
+    private (string Column, bool Descending)? _appliedRequestedSort;
     private bool _sortDescending;
 
     // Delete from library (spec delete-from-library D13, D25): desktop administrators get a checkbox on each row and "Delete from library…" as the last, red item of the row's "..." menu (one-look spec WP6, F45).
@@ -350,6 +357,13 @@ else
         {
             _sortColumn = DefaultSortColumn;
             _sortDescending = DefaultSortDescending;
+        }
+
+        if (RequestedSort is { } requested && requested != _appliedRequestedSort)
+        {
+            _sortColumn = requested.Column;
+            _sortDescending = requested.Descending;
+            _appliedRequestedSort = requested;
         }
 
         if (_selected.Count > 0)

@@ -53,16 +53,6 @@ public interface ILibraryItemDeletionRepository
         CancellationToken ct = default);
 
     /// <summary>
-    /// In one transaction, removes one media file's records (the media asset and everything tied to it: progress, bookmarks, text tracks,
-    /// jobs, fingerprints, intake record) while its edition and Work stay. Used when one file of an item with several files is deleted;
-    /// the last file of an item goes through <see cref="DeleteWorksAsync"/> instead. Returns what was removed.
-    /// </summary>
-    Task<LibraryItemDeletionDataResult> DeleteAssetAsync(
-        Guid assetId,
-        bool keepPersonalState = false,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Drops progress kept for files in the Recycle bin (delete groups D21): rows kept before <paramref name="olderThan"/>, or all of
     /// them when null. Returns how many rows were dropped.
     /// </summary>

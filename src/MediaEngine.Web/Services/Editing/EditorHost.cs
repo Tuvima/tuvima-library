@@ -181,7 +181,7 @@ public sealed class EditorHost : IDisposable
         };
         FileBatch = new EditorFileBatch();
         Picker.EpisodeSource = async () => Session.ActiveItem is { } active
-            ? (await Family.LeavesUnderAsync(active.EntityId)).Select(row => row.EntityId).ToList()
+            ? (await Family.LeavesUnderAsync(active.EntityId)).ToList()
             : [];
 
         HeaderHooks.OpenSupportingFile = async fileId => await OpenSupportingFileAsync(fileId);

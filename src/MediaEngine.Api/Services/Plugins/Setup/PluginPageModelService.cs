@@ -107,6 +107,7 @@ public sealed class PluginPageModelService(
         var external = await ExternalValuesAsync(description, ct).ConfigureAwait(false);
         return PluginPageModelBuilder.Build(PluginPageModelInputs.FromManifest(registration, access, configured, external) with
         {
+            CredentialEndings = await EndingsAsync(manifest, configured, ct).ConfigureAwait(false),
             ActivityCap = activityLimits.Get(manifest.Id),
             File = await files.StateAsync(manifest.Id, ct).ConfigureAwait(false),
         });
@@ -125,9 +126,47 @@ public sealed class PluginPageModelService(
         var external = await ExternalValuesAsync(description, ct).ConfigureAwait(false);
         return PluginPageModelBuilder.Build(PluginPageModelInputs.FromSourceFile(config, sheet, ProviderListings.IsCore(config.Name), configured, external) with
         {
+            CredentialEndings = SourceEndings(config),
             ActivityCap = activityLimits.Get(config.Name),
             File = await files.StateAsync(config.Name, ct).ConfigureAwait(false),
         });
+    }
+
+    /// <summary>Keys shorter than this show no ending: four characters of a short key would give too much away.</summary>
+    private const int MinimumLengthForEnding = 12;
+
+    internal static string? EndingOf(string? key) =>
+        key is { } text && text.Trim().Length >= MinimumLengthForEnding ? text.Trim()[^4..] : null;
+
+    private async Task<IReadOnlyDictionary<string, string>> EndingsAsync(PluginManifest manifest, IReadOnlySet<string> configured, CancellationToken ct)
+    {
+        var endings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in configured)
+        {
+            try
+            {
+                if (EndingOf(await secrets.GetAsync(SecretOwner.Plugin(manifest.Id), name, ct).ConfigureAwait(false)) is { } ending)
+                {
+                    endings[name] = ending;
+                }
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException)
+            {
+                logger.LogWarning("The key {Credential} of plugin {PluginId} could not be read for its ending ({ErrorType})", PluginLogText.Safe(name), PluginLogText.Safe(manifest.Id), ex.GetType().Name);
+            }
+        }
+
+        return endings;
+    }
+
+    // A metadata source file keeps one key (or none); its credential is the first one its onboarding asks for.
+    private static IReadOnlyDictionary<string, string> SourceEndings(ProviderConfiguration config)
+    {
+        var name = config.Onboarding?.Credentials.FirstOrDefault()?.Key;
+        var key = !string.IsNullOrWhiteSpace(config.HttpClient?.ApiKeyOverride) ? config.HttpClient?.ApiKeyOverride : config.HttpClient?.ApiKey;
+        return name is not null && EndingOf(key) is { } ending
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [name] = ending }
+            : new Dictionary<string, string>();
     }
 
     private async Task<IReadOnlySet<string>> ConfiguredAsync(PluginManifest manifest, CancellationToken ct)

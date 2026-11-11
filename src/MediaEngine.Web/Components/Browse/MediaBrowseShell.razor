@@ -346,6 +346,7 @@
                              ShowPlays="true"
                              ShowDateAdded="true"
                              ShowEdit="false"
+                             RequestedSort="@BrowseQueryBuilder.SongTableSort(_sortBy)"
                              CurrentWorkId="@Playback.CurrentItem?.WorkId"
                              OnPlayRequested="PlaySongTracksAsync"
                              OnFavoriteToggled="ToggleSongFavoriteAsync"

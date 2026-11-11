@@ -4657,13 +4657,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileD
   Reason: System.String | nullability=nullable | accessors=get,init
   IsSidecar: System.Boolean | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileScopeDto
-  WorkId: System.Guid | nullability=not-null | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  FileName: System.String | nullability=not-null | accessors=get,init
-  ItemRemains: System.Boolean | nullability=not-null | accessors=get,init
-  RemainingFiles: System.Int32 | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto
   Kind: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -4693,7 +4686,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPrevi
   GoesToRecycleBin: System.Boolean | nullability=not-null | accessors=get,init
   Fingerprint: System.String | nullability=not-null | accessors=get,init
   Group: MediaEngine.Contracts.Items.LibraryItemDeletionGroupDto | nullability=nullable | accessors=get,init
-  FileScope: MediaEngine.Contracts.Items.LibraryItemDeletionFileScopeDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
@@ -4782,15 +4774,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   ArtworkSettledAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   UniverseSummary: MediaEngine.Contracts.Items.LibraryItemUniverseSummaryDto | nullability=nullable | accessors=get,init
   LookupState: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemFileDeletionPreviewRequest
-  WorkId: System.Guid | nullability=not-null | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemFileDeletionRequest
-  WorkId: System.Guid | nullability=not-null | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  Fingerprint: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemHistoryDto
   Id: System.String | nullability=not-null | accessors=get,init
@@ -9269,6 +9252,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupCredentia
   Scope: System.String | nullability=not-null | accessors=get,set
   SignInMethod: System.String | nullability=nullable | accessors=get,set
   Configured: System.Boolean? | nullability=nullable | accessors=get,set
+  KeyEnding: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupDestinationDto
   Host: System.String | nullability=not-null | accessors=get,set

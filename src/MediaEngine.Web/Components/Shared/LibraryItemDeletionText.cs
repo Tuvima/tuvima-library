@@ -45,30 +45,6 @@ public static class LibraryItemDeletionText
             : $"Delete \"{name}\" from your library?";
     }
 
-    /// <summary>The question for one file of an item (the editor's Files tab).</summary>
-    public static string FileHeading(string fileName) =>
-        string.IsNullOrWhiteSpace(fileName) ? "Delete this file?" : $"Delete \"{fileName}\"?";
-
-    /// <summary>What a one-file delete means for the item: it stays with its other files, or it was the last one and the item leaves the Library.</summary>
-    public static string FileScopeLine(LibraryItemDeletionFileScopeDto scope, IReadOnlyCollection<LibraryItemDeletionItemDto> items)
-    {
-        var name = items.FirstOrDefault()?.Title;
-        var named = string.IsNullOrWhiteSpace(name) ? null : $"\"{name}\"";
-        return scope.ItemRemains
-            ? $"{named ?? "This item"} stays in your Library with its {(scope.RemainingFiles == 1 ? "other file" : $"other {DisplayFormat.FormatCount(scope.RemainingFiles)} files")}."
-            : $"This is the only file of {named ?? "this item"}, so {(named is null ? "it" : "the item")} leaves your Library too.";
-    }
-
-    /// <summary>The toast after one file is deleted: which file, and how much space came back (left out when nothing did).</summary>
-    public static string FileSuccess(LibraryItemDeletionResultDto result, string fileName)
-    {
-        var message = result.FilesDeleted == 0 && result.BytesFreed == 0
-            ? $"Removed \"{fileName}\" from your Library."
-            : $"Deleted \"{fileName}\".";
-        var freed = DisplayFormat.FormatFileSize(result.BytesFreed);
-        return freed is null ? message : $"{message} {freed} freed.";
-    }
-
     /// <summary>The toast after a deletion: what went, and how much space came back (left out when nothing did).</summary>
     public static string Success(LibraryItemDeletionResultDto result, string? singleTitle, string noun)
     {

@@ -5,6 +5,7 @@ using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
@@ -985,6 +986,13 @@ public sealed class EditorHeaderReadService(
             {
                 return title.ItemFolder;
             }
+
+            // A loose video sitting straight in a library's folder has no title folder of its own. It still gets the folder button, which
+            // opens the library's folder, so it can be sorted into a series from there (editor v5 follow-up).
+            if (LooseVideoRootFolder(own.FilePath) is { } loose)
+            {
+                return loose;
+            }
         }
 
         string? shared = null;
@@ -1008,6 +1016,27 @@ public sealed class EditorHeaderReadService(
 
         return shared;
     }
+
+    // The library folder a video sits straight in; null for anything else (a file in a title's folder, a book, a song, a path no library owns).
+    private string? LooseVideoRootFolder(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return null;
+        }
+
+        var resolved = folders.ResolveSourceForPath(filePath);
+        if (resolved is null || !resolved.Library.MediaTypes.Any(IsVideoLibraryType))
+        {
+            return null;
+        }
+
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(resolved.Source.Path));
+        var directory = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? string.Empty);
+        return string.Equals(root, directory, StringComparison.OrdinalIgnoreCase) ? root : null;
+    }
+
+    private static bool IsVideoLibraryType(MediaType mediaType) => mediaType is MediaType.Movies or MediaType.TV or MediaType.Videos;
 
     // The folder below the title folder that holds this file ("Season 02"); null when the file sits in the title folder itself.
     private static string? FolderBelow(string itemFolder, string? filePath)

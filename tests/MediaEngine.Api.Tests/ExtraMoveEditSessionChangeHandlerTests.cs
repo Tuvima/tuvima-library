@@ -380,7 +380,6 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
             return Task.FromResult(new LibraryItemDeletionDataResult([], [], [], [], new HashSet<string>()));
         }
 
-        public Task<LibraryItemDeletionDataResult> DeleteAssetAsync(Guid assetId, bool keepPersonalState = false, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<LibraryItemDeletionRelatedFacts> GetRelatedFactsAsync(IReadOnlyList<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlySet<string>> FindPathsUsedOutsideRequestAsync(IReadOnlyList<Guid> workIds, IReadOnlyCollection<string> paths, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<int> DiscardKeptProgressAsync(DateTimeOffset? olderThan, CancellationToken ct = default) => throw new NotSupportedException();

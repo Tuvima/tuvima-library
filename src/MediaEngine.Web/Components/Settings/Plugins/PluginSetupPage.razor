@@ -338,9 +338,23 @@ else
         _ => "Not connected",
     };
 
+    // "Key ending 3f2a · last checked 4 minutes ago." Either part is left out when the Engine has nothing to say for it.
+    private string ConnectedDetail(string label, IReadOnlyList<PluginSetupCredentialDto> household)
+    {
+        var ending = household.Select(credential => credential.KeyEnding).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        var checkedText = string.IsNullOrWhiteSpace(LastChecked) ? null : LastChecked!.TrimEnd('.');
+        return (ending, checkedText) switch
+        {
+            ({ } e, { } c) => $"Key ending {e} · {char.ToLowerInvariant(c[0])}{c[1..]}.",
+            ({ } e, null) => $"Key ending {e}.",
+            (null, { } c) => c + ".",
+            _ => $"{label} is saved.",
+        };
+    }
+
     private string ConnectionDetail(ConnectionState state, string label, IReadOnlyList<PluginSetupCredentialDto> household) => state switch
     {
-        ConnectionState.Connected => (!string.IsNullOrWhiteSpace(LastChecked) ? LastChecked! : $"{label} is saved.") + " Keys are encrypted on this server.",
+        ConnectionState.Connected => ConnectedDetail(label, household) + " Keys are encrypted on this server.",
         ConnectionState.NeedsAttention => _testResult?.Summary is { Length: > 0 } reason ? reason : "The last test did not pass.",
         _ => household.FirstOrDefault(credential => !string.IsNullOrWhiteSpace(credential.Help))?.Help is { Length: > 0 } help ? help : $"Add {label} to switch this on.",
     };
