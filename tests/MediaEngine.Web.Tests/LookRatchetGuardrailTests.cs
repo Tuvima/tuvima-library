@@ -10,14 +10,14 @@ namespace MediaEngine.Web.Tests;
 public sealed class LookRatchetGuardrailTests
 {
     private const int RoundedEndCeiling = 0;
-    private const int NativeControlCeiling = 354;
-    private const int AdHocFontSizeCeiling = 131;
-    private const int HandTypedHexCeiling = 600;
-    private const int ForcedOverrideCeiling = 1293;
-    private const int HandTypedLayerCeiling = 307;
+    private const int NativeControlCeiling = 279;
+    private const int AdHocFontSizeCeiling = 69;
+    private const int HandTypedHexCeiling = 514;
+    private const int ForcedOverrideCeiling = 1082;
+    private const int HandTypedLayerCeiling = 272;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
-    private const int OldAppVariableCeiling = 159;
+    private const int OldAppVariableCeiling = 151;
     private const int DeadStyleClassCeiling = 0;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
