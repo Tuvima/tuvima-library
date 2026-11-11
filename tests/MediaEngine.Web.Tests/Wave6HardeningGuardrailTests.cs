@@ -53,13 +53,15 @@ public sealed class Wave6HardeningGuardrailTests
     public void JavaScriptInteropRegistrations_HavePairedCleanupForTouchedPaths()
     {
         var appJs = Read("src/MediaEngine.Web/wwwroot/app.js");
+        var playbackJs = Read("src/MediaEngine.Web/wwwroot/js/playback-core.js");
         var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor");
         var nowPlaying = Read("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
 
         Assert.Contains("window.unregisterCtrlK", appJs);
-        Assert.Contains("unregisterStateHandler", appJs);
-        Assert.Contains("unregisterCommandHandler", appJs);
+        Assert.Contains("unregisterStateHandler", playbackJs);
+        Assert.Contains("unregisterCommandHandler", playbackJs);
         Assert.DoesNotContain("unregisterPopupWindow", appJs);
+        Assert.DoesNotContain("unregisterPopupWindow", playbackJs);
         Assert.Contains("@implements IAsyncDisposable", layout);
         Assert.Contains("unregisterCtrlK", layout);
         Assert.Contains("@implements IAsyncDisposable", nowPlaying);

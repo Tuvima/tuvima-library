@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-// Loads the caption selection functions out of app.js, as video-presentation.test.mjs does, to check how the profile's
+// Loads the caption selection functions out of playback-core.js, as video-presentation.test.mjs does, to check how the profile's
 // "Show subtitles" default (data-playback-caption-default) is ordered against the title's preferred subtitle, the file's
 // default track and the viewer's own pick.
 function captionRuntime() {
-    const source = readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/app.js', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/js/playback-core.js', import.meta.url), 'utf8');
     const inventory = source.slice(source.indexOf('    function readCaptionTrackChoices('), source.indexOf('    function currentCaptionBinding('));
     const selection = source.slice(source.indexOf('    function currentCaptionBinding('), source.indexOf('    function audioObserverFor('));
     const sandbox = {};

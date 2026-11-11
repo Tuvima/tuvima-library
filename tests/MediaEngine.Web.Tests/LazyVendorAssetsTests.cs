@@ -46,7 +46,7 @@ public sealed class LazyVendorAssetsTests
     [Fact]
     public void AudioSourceSync_LoadsHlsThroughTheLoaderInsteadOfAssumingAGlobal()
     {
-        var script = Read("wwwroot", "app.js");
+        var script = Read("wwwroot", "js", "playback-core.js");
 
         Assert.Contains("window.tuvimaLazy.loadHls()", script, StringComparison.Ordinal);
         Assert.DoesNotContain("window.Hls?.isSupported()", script, StringComparison.Ordinal);

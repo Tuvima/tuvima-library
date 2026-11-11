@@ -109,7 +109,7 @@ test('subject changes replace the handler and disposal or resize removal release
 });
 
 test('the phone host captures Expand before focus enters the boundary and restores it after Collapse', async () => {
-    const source = await readFile(new URL('../../../src/MediaEngine.Web/wwwroot/app.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../../../src/MediaEngine.Web/wwwroot/js/playback-core.js', import.meta.url), 'utf8');
     const start = source.indexOf('    capturePlayerFocus: function'), end = source.indexOf('    observeDock: function', start);
     const context = { document, HTMLElement: Element };
     runInNewContext(`globalThis.api = { ${source.slice(start, end)} };`, context);

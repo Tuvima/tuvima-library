@@ -62,6 +62,12 @@ All eight packets built, reviewed and verified (CI-strength build, 0 warnings; f
 - Library Activity: "Review N" opens Needs Review unfiltered; the library page's Activity card is still whole-library.
 - A mixed curated collection still opens the editor as "Books" (no neutral kind exists; thread 7 with the collections editor).
 
+## Thread 4 result: cloud visual check trial (2026-11-11)
+
+It works in part. A cloud session can assemble the app, start the Engine and Dashboard on a small generated library, pass first-run setup in a browser and capture styled screenshots at 1024, 1280, 1440 and phone width in about five minutes (`tools/Capture-DashboardScreens.mjs`; the start commands are in its header). Settings, setup, Libraries, Activity and empty states can be checked this way today.
+
+Pages that need identified media (Home, Read, Watch, Listen, an item's page) stay empty, because the cloud machine's network rules block the metadata sources (Apple, MusicBrainz, TMDB, Wikidata), and the repository holds no recorded provider answers to replay. Two ways to close the gap, both for Shy to choose: allow those hosts in the cloud environment's network settings, or record one set of provider answers on the PC and commit it as test data for replay. Until then the batched Local check stays the proof for media pages.
+
 ## Local checks
 
 Appended to `engineering/validation/batch.md` as each thread merges.

@@ -1064,7 +1064,8 @@ public sealed class UnifiedDetailComponentTests
         var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerPanel.razor") + ReadSource("src/MediaEngine.Web/Components/Shared/SleepTimerView.razor");
         var playbackRangeSlider = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor");
         var playbackRangeSliderStyles = ReadSource("src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css");
-        var playerScript = ReadSource("src/MediaEngine.Web/wwwroot/app.js");
+        var playerScript = ReadSource("src/MediaEngine.Web/wwwroot/js/playback-core.js");
+        var appScript = ReadSource("src/MediaEngine.Web/wwwroot/app.js");
         Assert.Contains("DetailPresentationCapabilities.For", detailPage);
         Assert.Contains("private bool IsMusicAlbum", detailPage);
         Assert.Contains("private bool IsAudiobook", detailPage);
@@ -1277,8 +1278,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("openPopupFromImmediateAction", playerScript);
         Assert.Contains("AudiobookActionAttributes", detailPage);
         Assert.Contains("ActionAttributes=\"@(IsAudiobook ? AudiobookActionAttributes : null)\"", detailPage);
-        Assert.Contains("window.detailOrigin.initialize();", playerScript);
-        Assert.Contains("[data-detail-origin-scroll]", playerScript);
+        Assert.Contains("window.detailOrigin.initialize();", appScript);
+        Assert.Contains("[data-detail-origin-scroll]", appScript);
         Assert.Contains("registerAudioStateObserver: function", playerScript);
         Assert.Contains("FormatSeconds(item.DurationSeconds.Value, forceHours: false)", audioTable);
         Assert.DoesNotContain("FormatChapterTimeRange", audioTable);

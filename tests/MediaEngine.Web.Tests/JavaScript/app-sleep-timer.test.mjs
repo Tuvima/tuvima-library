@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 
-const appJsPath = new URL("../../../src/MediaEngine.Web/wwwroot/app.js", import.meta.url);
+const appJsPath = new URL("../../../src/MediaEngine.Web/wwwroot/js/playback-core.js", import.meta.url);
 const appJs = await readFile(appJsPath, "utf8");
 
 function extractFunction(name, nextMarker) {
