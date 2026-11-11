@@ -1,14 +1,70 @@
 @namespace MediaEngine.Web.Components.View
 @using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Settings
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient Api
+@inject IAppDialogService DialogService
+@inject DeviceContextService Device
+@inject LibraryKindsState LibraryKinds
 @inject IStringLocalizer<SharedStrings> L
 
-@* The page line that says why Add files and the drop zone are off (View folders spec D4c): uploads are filed into a Managed folder, and this kind has none yet. *@
+@* The page line that says why Add files and the drop zone are off (View folders spec D4c; mock H2, H3, H4): uploads are filed into a Managed folder, and this kind has
+   none yet. The button opens Add folder with Managed already chosen, for administrators on a computer or tablet only (the same rule as Settings > Libraries); the drop
+   zone stays on the page with a disabled look, so the person sees what is off. *@
 <div class="view-uploads-notice" role="status" data-uploads-off>
-    <span>@ViewFolderRules.UploadsNeedManagedLine(Noun)</span>
-    <AppButton Label="@L["ViewUploadsNotice_AddManaged"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" Href="@LibraryListing.OverviewAddress(LibraryTypeCatalog.ViewArea)" />
+    <span class="view-uploads-notice__line">@L["ViewUploadsNotice_Line"]</span>
+    @if (CanAddFolder)
+    {
+        <AppButton Label="@L["ViewUploadsNotice_AddManaged"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" Disabled="@_opening" OnClick="OpenAddFolderAsync" data-add-managed />
+    }
 </div>
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
+}
+<div class="view-uploads-drop" aria-disabled="true" data-drop-off>@L["ViewUploadsNotice_DropZoneOff", Noun]</div>
 
 @code {
+    /// <summary>The View kind the notice is for (photos, personal_videos or documents); Add folder opens on it.</summary>
+    [Parameter, EditorRequired] public string Kind { get; set; } = string.Empty;
     /// <summary>The kind's noun in a sentence ("photos and videos", "documents").</summary>
     [Parameter, EditorRequired] public string Noun { get; set; } = string.Empty;
+    /// <summary>Raised after a folder was added, so the page reads its folders again and turns uploads on when the new one is Managed.</summary>
+    [Parameter] public EventCallback OnFolderAdded { get; set; }
+
+    private bool _opening;
+    private string? _error;
+
+    // Adding a folder is not offered on a phone app or a television (Settings > Libraries reads the same device classes).
+    private bool CanAddFolder => !Device.IsMobile && !Device.IsTelevision;
+
+    private async Task OpenAddFolderAsync()
+    {
+        if (!CanAddFolder || _opening) return;
+        _opening = true;
+        _error = null;
+        try
+        {
+            await LibraryKinds.EnsureLoadedAsync();
+            var configuration = await Api.GetLibrariesAsync();
+            if (LibraryKinds.Catalog.FindViewKind(Kind) is not { } kind || configuration is null)
+            {
+                _error = L["ViewUploadsNotice_CouldNotOpen"].Value;
+                return;
+            }
+
+            var parameters = new AppDialogParameters<AddViewFolderDialog>
+            {
+                { component => component.Kind, kind },
+                { component => component.Configuration, configuration },
+                { component => component.InitialManaged, true },
+            };
+            var dialog = await DialogService.ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
+            if (await dialog.Result is { Canceled: false }) await OnFolderAdded.InvokeAsync();
+        }
+        finally
+        {
+            _opening = false;
+        }
+    }
 }

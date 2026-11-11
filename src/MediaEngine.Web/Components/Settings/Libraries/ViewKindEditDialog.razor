@@ -12,7 +12,7 @@
    dot, Read-only or Managed tag, skipped count, friendly name once there are two or more folders, icon-only Remove), Add folder (the same window as Add), and a fixed footer
    (Discard, Save changes). Nothing is saved until Save changes, which shows Review first. Removing a folder never deletes files. Setup edits the Shared Library's folders;
    Settings also reads each profile's own space, so Edit lists the same set the Folders count does. *@
-<AppDialogShell Title="@Title" Subtitle="@Lead" Size="Large" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="@Title" Subtitle="@Lead" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="lib-edit" data-step="@(_review ? "review" : "edit")" data-view-kind-edit="@Kind.Key">
             @if (_review)
@@ -32,7 +32,7 @@
             {
                 @if (NeedsManagedNote)
                 {
-                    <p class="lib-edit__note lib-edit__note--uploads" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(Noun)</p>
+                    <p class="lib-edit__note lib-edit__note--uploads" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(L, Noun)</p>
                 }
 
                 <div class="lib-edit__folders" role="list" aria-label="@L["LibraryEditDialog_Folders"].Value" data-folder-rows>
@@ -40,45 +40,48 @@
                     {
                         var source = entry.Source;
                         <div class="lib-edit__folder" role="listitem" data-source="@source.Id">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-                            <span class="lib-edit__body">
-                                @if (ShowFolderNames)
-                                {
-                                    <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
-                                                  Value="@NameOf(entry)"
-                                                  ValueChanged="@((string? value) => _names[source.Id] = value ?? string.Empty)"
-                                                  MaxLength="@FolderHandlingWords.MaxFolderNameLength"
-                                                  ReadOnly="@_saving"
-                                                  Error="@(NameProblem(entry) is not null)"
-                                                  ErrorText="@NameProblem(entry)" />
-                                }
+                            @* The top line (mock D1): status dot, the path, the Read-only or Managed tag and Remove; the friendly name sits below it. *@
+                            <div class="lib-edit__top" data-folder-top>
+                                <span class="lib-edit__dot" role="img" data-state="@(source.FolderOffline ? "offline" : "online")" aria-label="@(source.FolderOffline ? L["Common_FolderOffline"].Value : L["LibraryFoldersPopover_Online"].Value)"></span>
                                 <span class="lib-edit__path" data-overflow-tooltip="@ViewFolderRules.PathOf(source)">@ViewFolderRules.PathOf(source)</span>
-                                @if (source.SkippedFileCount > 0)
+                                @if (source.FolderOffline)
                                 {
-                                    <small class="lib-edit__note" data-skipped>@L["ViewKindEdit_Skipped", source.SkippedFileCount.ToString("N0"), Noun]</small>
+                                    <span class="lib-edit__state" data-state="offline">@L["Common_FolderOffline"]</span>
                                 }
-                            </span>
-                            <span class="lib-edit__tag" data-handling="@(ViewFolderRules.IsManaged(source) ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(ViewFolderRules.IsManaged(source))</span>
-                            <span class="lib-edit__state" data-state="@(source.FolderOffline ? "offline" : "online")">@(source.FolderOffline ? L["Common_FolderOffline"].Value : L["LibraryFoldersPopover_Online"].Value)</span>
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" Tooltip="@L["ViewKindEdit_RemoveFolder"].Value"
-                                           AriaLabel="@L["LibraryEditDialog_ActionsFor", ViewFolderRules.PathOf(source)].Value" Disabled="@_saving"
-                                           OnClick="@(() => Remove(entry))" data-remove="@source.Id" />
+                                <span class="lib-edit__tag" data-handling="@(ViewFolderRules.IsManaged(source) ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(ViewFolderRules.IsManaged(source))</span>
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" Tooltip="@L["ViewKindEdit_RemoveFolder"].Value"
+                                               AriaLabel="@L["LibraryEditDialog_ActionsFor", ViewFolderRules.PathOf(source)].Value" Disabled="@_saving"
+                                               OnClick="@(() => Remove(entry))" data-remove="@source.Id" />
+                            </div>
+                            @if (ShowFolderNames)
+                            {
+                                <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
+                                              Value="@NameOf(entry)"
+                                              ValueChanged="@((string? value) => _names[source.Id] = value ?? string.Empty)"
+                                              MaxLength="@FolderHandlingWords.MaxFolderNameLength"
+                                              ReadOnly="@_saving"
+                                              Error="@(NameProblem(entry) is not null)"
+                                              ErrorText="@NameProblem(entry)" />
+                            }
+                            @if (source.SkippedFileCount > 0)
+                            {
+                                <small class="lib-edit__note" data-skipped>@L["ViewKindEdit_Skipped", source.SkippedFileCount.ToString("N0"), Noun]</small>
+                            }
                         </div>
                     }
                     @foreach (var plan in _added)
                     {
                         <div class="lib-edit__folder lib-edit__folder--new" role="listitem" data-added="@(plan.Path ?? plan.Name)">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CreateNewFolder" />
-                            <span class="lib-edit__body">
-                                @if (ShowFolderNames)
-                                {
-                                    <strong class="lib-edit__label">@PlanName(plan)</strong>
-                                }
+                            <div class="lib-edit__top" data-folder-top>
                                 <span class="lib-edit__path" data-overflow-tooltip="@(plan.Path ?? PlanName(plan))">@(plan.Path ?? PlanName(plan))</span>
-                            </span>
-                            <span class="lib-edit__tag" data-handling="@(plan.Managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(plan.Managed)</span>
-                            <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", plan.Path ?? PlanName(plan)].Value" OnClick="@(() => _added.Remove(plan))" />
+                                <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
+                                <span class="lib-edit__tag" data-handling="@(plan.Managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(plan.Managed)</span>
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", plan.Path ?? PlanName(plan)].Value" OnClick="@(() => _added.Remove(plan))" />
+                            </div>
+                            @if (ShowFolderNames)
+                            {
+                                <strong class="lib-edit__label">@PlanName(plan)</strong>
+                            }
                         </div>
                     }
                     @if (Kept.Count == 0 && _added.Count == 0)
@@ -88,7 +91,6 @@
                 </div>
 
                 <AppButton Label="@L["LibraryEditDialog_AddFolder"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="AddFolderAsync" data-add-folder />
-                <p class="lib-edit__note">@L["ViewKindEdit_NeverDeletes"]</p>
             }
 
             @if (!string.IsNullOrWhiteSpace(_error))
@@ -106,6 +108,7 @@
             }
             else
             {
+                <span class="lib-edit__footer-line app-footer-start" data-footer-line>@L["ViewKindEdit_NeverDeletes"]</span>
                 <AppButton Label="@L["ViewKindEdit_Discard"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
                 <AppButton Label="@L["LibraryEditDialog_SaveChanges"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanReview)" OnClick="OpenReview" />
             }
@@ -122,7 +125,7 @@
     [Parameter] public string? SetupSession { get; set; }
 
     /// <summary>A centred window on a computer, a sheet on a phone (Look v3 D14).</summary>
-    public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.Large, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true, Sheet = AppDialogSheetMode.Phone };
+    public static AppDialogOptions DialogOptions { get; } = new() { Size = AppWindowSize.Medium, MaxWidth = AppMaxWidth.Medium, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true, Sheet = AppDialogSheetMode.Phone };
 
     // Friendly names edited here (source id to name), folders marked for removal, and folders collected by Add folder; nothing is sent until Save changes.
     private readonly Dictionary<Guid, string> _names = [];

@@ -1,6 +1,8 @@
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.PersonalMedia;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Integration;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -139,8 +141,5 @@ public static class ViewFolderRules
         kindKey == ViewContentKinds.Photos ? "photos and videos" : pluralLabel.Length == 0 ? pluralLabel : char.ToLowerInvariant(pluralLabel[0]) + pluralLabel[1..];
 
     /// <summary>"You can't upload photos and videos until you add a Managed folder."</summary>
-    public static string UploadsNeedManagedLine(string noun) => $"You can't upload {noun} until you add a Managed folder.";
-
-    /// <summary>The reason shown on a disabled Add files button and drop zone.</summary>
-    public const string UploadsNeedManagedTooltip = "Uploads need a Managed folder";
+    public static string UploadsNeedManagedLine(IStringLocalizer<SharedStrings> strings, string noun) => strings["ViewFolderRules_UploadsNeedManagedLine", noun].Value;
 }

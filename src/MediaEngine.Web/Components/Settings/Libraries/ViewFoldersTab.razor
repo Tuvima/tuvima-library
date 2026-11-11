@@ -37,7 +37,7 @@
         <div class="libraries-form-grid">
             <AppSelect Label="@L["ViewFoldersTab_OwnerProfile"].Value" Value="@_owner" ValueChanged="@((string? value) => _owner = value)" Options="@OwnerOptions" Disabled="@_busy" />
             <AppTextField Label="@(_mode == LinkedMode ? L["ViewFoldersTab_FolderNameOptional"].Value : L["Common_FolderName"].Value)" Value="@_name" ValueChanged="@((string? value) => _name = value ?? string.Empty)" ReadOnly="@_busy" />
-            <AppSelect Label="@L["ViewFoldersTab_FolderManagement"].Value" Value="@_mode" ValueChanged="@((string? value) => { _mode = value ?? ManagedMode; _path = null; })" Options="@ModeOptions" Disabled="@_busy" />
+            <AppSelect Label="@L["ViewFoldersTab_FolderManagement"].Value" Value="@_mode" ValueChanged="@((string? value) => { _mode = value ?? LinkedMode; _path = null; })" Options="@ModeOptions" Disabled="@_busy" />
             @if (_mode == LinkedMode)
             {
                 <AppButton Label="@L["ViewFoldersTab_ChooseExistingFolder"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="ChooseSourceAsync" />
@@ -100,7 +100,7 @@
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.CalendarMonth" AriaLabel="@($"Tidy {source.Name}")" Tooltip="@L["ViewFoldersTab_TidyThisFolderByDate"].Value" Disabled="@(ReadOnly || _busy)" OnClick="@(() => TidyAsync(source))" />
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Schedule" AriaLabel="@($"Tidy {source.Name} every night")" Tooltip="@L["ViewFoldersTab_TidyThisFolderEveryNight"].Value" Disabled="@(ReadOnly || _busy)" OnClick="@(() => ScheduleTidyAsync(source))" />
                         }
-                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload" || source.AcceptsPhotosAndVideos)" OnClick="@(() => DetachAsync(profile.Id, source))" />
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="@L["ViewFoldersTab_DetachFolderKeepFiles"].Value" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload" || source.AcceptsPhotosAndVideos)" OnClick="@(() => DetachAsync(profile.Id, source))" />
                     </div>
                 }
                 </div>
@@ -135,7 +135,7 @@
 
     private bool _busy, _timeline;
     private string? _owner, _path, _error;
-    private string _name = string.Empty, _mode = ManagedMode;
+    private string _name = string.Empty, _mode = LinkedMode;
 
     // Documents never join the Photos timeline.
     private bool ShowsTimeline => Kind != ViewContentKinds.Documents;
@@ -146,7 +146,7 @@
     private const string BackupNote = "Library's backups never include your photos, videos or documents, so a managed folder needs your own backup.";
     private string RootPath => Path.Combine(Configuration.StorageLocations.FirstOrDefault(x => x.Id == Configuration.ViewStorage.StorageLocationId)?.Path ?? "", Configuration.ViewStorage.RelativeRoot);
     private IReadOnlyList<AppSelectOption> OwnerOptions => Profiles.Select(p => new AppSelectOption(p.Id.ToString(), p.DisplayName)).ToList();
-    private static readonly IReadOnlyList<AppSelectOption> ModeOptions = [new(ManagedMode, "New managed folder (recommended)"), new(LinkedMode, "Existing folder — read-only")];
+    private static readonly IReadOnlyList<AppSelectOption> ModeOptions = [new(ManagedMode, "New Managed folder"), new(LinkedMode, "Existing folder — Read-only")];
 
     private async Task ChooseSourceAsync()
     {
@@ -214,7 +214,7 @@
             var updated = await ApiClient.UpdateViewProfileSourceAsync(owner, source.Id,
                 new UpdateViewSourceRequest(source.Name, source.Enabled, value));
             if (updated is null) _error = ApiClient.LastError ?? "Timeline setting could not be saved.";
-            else { _error = null; await SourcesChanged.InvokeAsync(); Snackbar.Add(value ? "Folder added to Photos timeline." : "Folder kept out of the Photos timeline.", AppSeverity.Success); }
+            else { _error = null; await SourcesChanged.InvokeAsync(); Snackbar.Add(value ? L["ViewFoldersTab_TimelineAdded"].Value : L["ViewFoldersTab_TimelineKeptOut"].Value, AppSeverity.Success); }
         }
         finally { _busy = false; }
     }

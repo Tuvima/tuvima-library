@@ -45,7 +45,7 @@
         </HeaderActions>
         <ChildContent>
             @if (CanDropFiles && !_uploadsOff) { <ViewDropTarget OnFiles="FilesDroppedAsync" /> }
-            @if (CanDropFiles && _uploadsOff) { <ViewUploadsNotice Noun="@ViewFolderRules.Noun(ViewContentKinds.Documents, "Documents")" /> }
+            @if (CanDropFiles && _uploadsOff) { <ViewUploadsNotice Kind="@ViewContentKinds.Documents" Noun="@ViewFolderRules.Noun(ViewContentKinds.Documents, "Documents")" OnFolderAdded="LoadFoldersAsync" /> }
             @if (_loading && !_policyKnown)
             {
                 <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewDocumentsPage_LoadingDocuments"].Value" Message="@L["ViewDocumentsPage_ReadingTheDocumentsYouCan"].Value" />
