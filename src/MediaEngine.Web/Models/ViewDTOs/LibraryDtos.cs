@@ -99,10 +99,6 @@ public sealed class LibraryItemViewModel
     public LibraryPipelineStage Stage2 => ComputeWikidataStage();
     public LibraryPipelineStage Stage3 => ComputeEnrichmentStage();
 
-    // Legacy compact views still use these combined stages.
-    public LibraryPipelineStage IdentifiedStage => ComputeIdentifiedStage();
-    public LibraryPipelineStage EnrichedStage => ComputeEnrichedStage();
-
     public int ConfidenceSegments => (int)Math.Round(Confidence * 5);
     public string? UniverseName { get; init; }
     public int? QuarantineDays { get; init; }
@@ -422,50 +418,6 @@ public sealed class LibraryItemViewModel
         }
 
         return new LibraryPipelineStage { State = LibraryStageState.Pending, Label = "Enrichment: Pending" };
-    }
-
-    private LibraryPipelineStage ComputeIdentifiedStage()
-    {
-        var retail = ComputeRetailStage();
-        var wikidata = ComputeWikidataStage();
-
-        if (retail.State == LibraryStageState.Failed || wikidata.State == LibraryStageState.Failed)
-        {
-            var failedLabel = retail.State == LibraryStageState.Failed ? retail.Label : wikidata.Label;
-            return new LibraryPipelineStage { State = LibraryStageState.Failed, Label = failedLabel };
-        }
-
-        if (wikidata.State == LibraryStageState.Completed)
-        {
-            return new LibraryPipelineStage { State = LibraryStageState.Completed, Label = wikidata.Label };
-        }
-
-        if (retail.State == LibraryStageState.Completed
-            && (wikidata.State == LibraryStageState.Pending || wikidata.State == LibraryStageState.Running))
-        {
-            return new LibraryPipelineStage { State = LibraryStageState.Running, Label = "Retail matched -> awaiting Wikidata" };
-        }
-
-        if (retail.State == LibraryStageState.Warning || wikidata.State == LibraryStageState.Warning)
-        {
-            var warnLabel = retail.State == LibraryStageState.Warning ? retail.Label : wikidata.Label;
-            return new LibraryPipelineStage { State = LibraryStageState.Warning, Label = warnLabel };
-        }
-
-        return new LibraryPipelineStage { State = LibraryStageState.Pending, Label = "Not yet identified" };
-    }
-
-    private LibraryPipelineStage ComputeEnrichedStage()
-    {
-        var enrichment = ComputeEnrichmentStage();
-        return enrichment.State switch
-        {
-            LibraryStageState.Completed => new LibraryPipelineStage { State = LibraryStageState.Completed, Label = enrichment.Label },
-            LibraryStageState.Running => new LibraryPipelineStage { State = LibraryStageState.Running, Label = "Enrichment in progress" },
-            LibraryStageState.Warning => new LibraryPipelineStage { State = LibraryStageState.Warning, Label = enrichment.Label },
-            LibraryStageState.Failed => new LibraryPipelineStage { State = LibraryStageState.Failed, Label = enrichment.Label },
-            _ => new LibraryPipelineStage { State = LibraryStageState.Pending, Label = "Enrichment pending" },
-        };
     }
 
     private bool HasValidWikidataQid() =>

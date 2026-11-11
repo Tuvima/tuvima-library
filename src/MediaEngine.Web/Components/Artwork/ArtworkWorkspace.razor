@@ -60,9 +60,9 @@
                         {
                             <img src="@MediaTileArtworkUrl.ForDrawnSize(inherited.ThumbnailUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(inherited.ThumbnailUrl, 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-role-card" />
                         }
-                        else if (!string.IsNullOrWhiteSpace(LegacyRoleUrlFor(role)))
+                        else if (!string.IsNullOrWhiteSpace(ItemImageUrlFor(role)))
                         {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(LegacyRoleUrlFor(role), 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(LegacyRoleUrlFor(role), 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-role-card" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(ItemImageUrlFor(role), 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ItemImageUrlFor(role), 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-role-card" />
                         }
                         else if (role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0)
                         {
@@ -111,9 +111,9 @@
                 {
                     <MediaArtworkGroupPreview Items="@PreviewItems" TotalCount="@ActiveItem.OwnedWorkCount" AriaLabel="@($"Automatic artwork for {ActiveItem.DisplayTitle}")" Layout="MediaArtworkGroupPreviewLayout.Adaptive" ShowOverflowCount="false" />
                 }
-                else if (!string.IsNullOrWhiteSpace(LegacyRoleUrl))
+                else if (!string.IsNullOrWhiteSpace(ItemImageUrl))
                 {
-                    <img src="@MediaTileArtworkUrl.ForDrawnSize(LegacyRoleUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(LegacyRoleUrl, 640)" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(ItemImageUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ItemImageUrl, 640)" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else
                 {
@@ -207,7 +207,7 @@
     private ArtworkRolePresentation ActiveRole => AvailableRoles.FirstOrDefault(role => MatchesRole(role, _role, _sourceAssetType)) ?? AvailableRoles.First();
     private IReadOnlyList<ArtworkEntityVariantDto> RoleVariants => VariantsFor(ActiveRole);
     private ArtworkEntityVariantDto? SelectedVariant => RoleVariants.FirstOrDefault(variant => variant.ArtworkAssetId == _selectedAssetId) ?? RoleVariants.FirstOrDefault(variant => variant.IsPreferred) ?? RoleVariants.FirstOrDefault();
-    private string? LegacyRoleUrl => LegacyRoleUrlFor(ActiveRole);
+    private string? ItemImageUrl => ItemImageUrlFor(ActiveRole);
     private static string SourceLabel(string? source) => string.IsNullOrWhiteSpace(source) ? "Library" : LibraryHelpers.FormatSourceName(source);
     private string Dimensions => (SelectedVariant ?? InheritedVariant(ActiveRole)) is { Width: not null, Height: not null } variant ? $"{variant.Width} × {variant.Height}" : "—";
     private string EmptyArtworkIcon => _role == "Portrait" && string.Equals(ActiveItem.GroupKind, "Character", StringComparison.OrdinalIgnoreCase)
@@ -499,6 +499,6 @@
             : VariantsFor(role).Count > 0
                 ? "Variants available, none preferred"
                 : role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0 ? "Automatic" : "No artwork";
-    private string? LegacyRoleUrlFor(ArtworkRolePresentation role) => role.Role switch { "Background" => ActiveItem.BackgroundImageUrl, "Logo" => ActiveItem.LogoImageUrl, _ => ActiveItem.ImageUrl };
+    private string? ItemImageUrlFor(ArtworkRolePresentation role) => role.Role switch { "Background" => ActiveItem.BackgroundImageUrl, "Logo" => ActiveItem.LogoImageUrl, _ => ActiveItem.ImageUrl };
     private IReadOnlyList<ArtworkStackItem> PreviewItems => ActiveItem.PreviewItems.Select(preview => new ArtworkStackItem { Id = preview.AssetId?.ToString("D") ?? preview.WorkId.ToString("D"), WorkId = preview.WorkId, AssetId = preview.AssetId, Title = preview.Title, ImageUrl = preview.ImageUrl, MediaType = preview.MediaType ?? ActiveItem.MediaType ?? string.Empty, Shape = preview.Shape.ToLowerInvariant() switch { "square" => ArtworkShape.Square, "wide" => ArtworkShape.Wide, _ => ArtworkShape.Portrait }, Position = preview.Position }).ToList();
 }

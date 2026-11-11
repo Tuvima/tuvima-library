@@ -57,7 +57,7 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         Assert.Contains("private async Task<TRes?> PostAsync<TReq, TRes>(", facade, StringComparison.Ordinal);
         Assert.Contains("private async Task<bool> PutAsync<TReq>(", facade, StringComparison.Ordinal);
         Assert.Contains("private async Task<bool> DeleteAsync(", facade, StringComparison.Ordinal);
-        Assert.Contains("\"Legacy LastError-only\" shape", facade, StringComparison.Ordinal);
+        Assert.Contains("\"LastError-only\" shape", facade, StringComparison.Ordinal);
         Assert.Contains("\"Manual GetAsync + explicit status check\" GET shape", facade, StringComparison.Ordinal);
         Assert.Contains("Methods with no failure-state bookkeeping at all", facade, StringComparison.Ordinal);
     }

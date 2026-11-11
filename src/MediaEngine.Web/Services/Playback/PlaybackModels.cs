@@ -606,8 +606,8 @@ public static class ListenPlaybackIdentityRoutes
 
     public static string? Audiobook(ListenQueueItem? item) => item is not null
         && MediaKindClassifier.IsAudiobook(item.MediaType)
-        && (item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId) != Guid.Empty
-            ? $"/details/audiobook/{(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId):D}?context=listen"
+        && (item.AudiobookWorkId ?? item.WorkId) != Guid.Empty
+            ? $"/details/audiobook/{(item.AudiobookWorkId ?? item.WorkId):D}?context=listen"
             : null;
 
     public static string? Playlist(ListenQueueItem? item) => item?.PlaylistId is { } id && id != Guid.Empty

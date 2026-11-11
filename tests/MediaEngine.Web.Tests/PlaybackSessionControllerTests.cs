@@ -2102,9 +2102,6 @@ public sealed class PlaybackSessionControllerTests
         Assert.Null(ListenPlaybackIdentityRoutes.Contributor(restored.CurrentItem.Authors[1]));
         Assert.Equal($"/details/person/{narratorId:D}", ListenPlaybackIdentityRoutes.Contributor(restored.CurrentItem.Narrators[0]));
         Assert.Null(ListenPlaybackIdentityRoutes.Audiobook(CreateAudiobookItem("audiobook by title", "stream://no-id") with { WorkId = Guid.Empty }));
-
-        var legacy = CreateAudiobookItem("Legacy chapter", "stream://legacy") with { WorkId = chapterId, AlbumWorkId = audiobookId };
-        Assert.Equal($"/details/audiobook/{audiobookId:D}?context=listen", ListenPlaybackIdentityRoutes.Audiobook(legacy));
     }
 
     private sealed class DelayedManifestHandler : HttpMessageHandler

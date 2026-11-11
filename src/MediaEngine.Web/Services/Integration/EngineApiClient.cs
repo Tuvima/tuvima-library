@@ -1140,7 +1140,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //                                                                         |   ClearFailure/RecordExceptionFailure
     //                                                                         |   pattern. As of wave 1, NO existing PUT
     //                                                                         |   method does — see "NOT covered" below.
-    //                                                                         |   Do not point a legacy-shape PUT method
+    //                                                                         |   Do not point a LastError-only PUT method
     //                                                                         |   at this helper without a deliberate,
     //                                                                         |   reviewed decision to add failure-state
     //                                                                         |   bookkeeping that did not exist before.
@@ -1161,7 +1161,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //
     // Envelope variants this file ALSO contains that these helpers deliberately do NOT cover — leave these
     // methods hand-written, do not force them onto the helpers above:
-    //   - "Legacy LastError-only" shape (the majority of PUT methods, e.g.
+    //   - "LastError-only" shape (the majority of PUT methods, e.g.
     //     SaveTranscodingSettingsAsync, UpdatePlaybackSettingsAsync, TestPathAsync): sets `LastError` directly
     //     via the property setter, never touches `_failureState.RecordHttpFailureAsync`/`ClearFailure`/
     //     `RecordExceptionFailure`, so `LastFailedEndpoint`/`LastFailureKind`/`LastStatusCode` are never
@@ -1189,7 +1189,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //     failure paths and never returns a bare null/false/default on error. Not helper-shaped; leave as-is.
     //   - Endpoints reading the emerging application/problem+json body for anything beyond title/detail
     //     (stage 5A is concurrently migrating error shapes): RecordHttpFailureAsync already tolerates both
-    //     ProblemDetails (title/detail/traceId) and legacy free-text bodies via
+    //     ProblemDetails (title/detail/traceId) and plain free-text bodies via
     //     EngineApiFailureState.ReadProblemSummaryAsync, which falls back to the raw string on any parse
     //     failure — the helpers below inherit that tolerance for free and require no extra parsing.
     // ------------------------------------------------------------------------------------------------
@@ -1328,9 +1328,9 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 
     /// <summary>
     /// PUT envelope matching the endpoint-label pattern (see the recipe note above: no current PUT method
-    /// actually uses this shape yet — every PUT today uses the "legacy LastError-only" variant instead).
+    /// actually uses this shape yet — every PUT today uses the "LastError-only" variant instead).
     /// Provided so wave 2 has it available for any PUT this pattern legitimately applies to, and so future
-    /// endpoints don't reinvent it. Do not point an existing legacy-shape PUT at this without a deliberate
+    /// endpoints don't reinvent it. Do not point an existing LastError-only PUT at this without a deliberate
     /// decision to add failure-state bookkeeping that was not there before.
     /// </summary>
     private async Task<bool> PutAsync<TReq>(

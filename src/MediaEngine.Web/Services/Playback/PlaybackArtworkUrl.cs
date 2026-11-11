@@ -2,7 +2,7 @@ using MediaEngine.Web.Services.MediaTiles;
 
 namespace MediaEngine.Web.Services.Playback;
 
-/// <summary>Bounded artwork shared by audio presentations, including restored legacy book queues.</summary>
+/// <summary>Bounded artwork shared by audio presentations, including restored book queues.</summary>
 public static class PlaybackArtworkUrl
 {
     /// <summary>The copy for a cover drawn at <paramref name="drawnPx"/> CSS pixels (same rule as <see cref="MediaTileArtworkUrl.ForDrawnSize"/>).</summary>
@@ -67,7 +67,7 @@ public static class PlaybackArtworkUrl
 
     public static string? ForItem(ListenQueueItem? item, string size = "m") => item is null ? null
         : item.PlaybackExperience == PlaybackExperience.Audiobook
-            ? AudiobookCover(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size)
+            ? AudiobookCover(item.AudiobookWorkId ?? item.WorkId, item.CoverUrl, size)
             : MusicCover(item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size);
 
     private static string? MusicCover(Guid? workId, string? coverUrl, string size)

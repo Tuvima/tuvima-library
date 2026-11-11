@@ -608,7 +608,7 @@
 }
 
 /* Detail-series presentation. This intentionally shares sequence state and
-   navigation logic with SequencePlacementPanel, but replaces its legacy
+   navigation logic with SequencePlacementPanel, but replaces its
    summary/sidebar composition with the target control row and cover rail. */
 
 .tl-detail-stage__navigation {
@@ -840,8 +840,6 @@
 /* The target keeps useful card proportions on shorter desktop windows. The
    structural surface scrolls with the page, so it no longer needs to collapse
    to thumbnail-size artwork merely to fit inside the hero. */
-
-/* Cascade lock for the unified target. Keep after every legacy density rule. */
 
 /* CINEMATIC_CONTRACT_EOF: keep these current-state declarations at EOF. */
 

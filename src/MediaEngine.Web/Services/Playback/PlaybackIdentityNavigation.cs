@@ -21,7 +21,7 @@ public static class PlaybackIdentityNavigation
         return kind switch
         {
             "album" when item.AlbumWorkId == id => ListenPlaybackIdentityRoutes.Album(item),
-            "audiobook" when (item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId) == id => ListenPlaybackIdentityRoutes.Audiobook(item),
+            "audiobook" when (item.AudiobookWorkId ?? item.WorkId) == id => ListenPlaybackIdentityRoutes.Audiobook(item),
             "artist" when item.ArtistPersonId == id => ListenPlaybackIdentityRoutes.Artist(item),
             "person" when item.Authors.Concat(item.Narrators).Any(person => person.PersonId == id) => $"/details/person/{id:D}",
             "playlist" when item.PlaylistId == id => ListenPlaybackIdentityRoutes.Playlist(item),
