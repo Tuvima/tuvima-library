@@ -592,7 +592,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        await OpenMenuItemAsync(cut, 0, "Organise files now");
+        await OpenMenuItemAsync(cut, 0, "Organize files now");
         dialogs.WaitForAssertion(() => Assert.Contains("Organise E:\\Library\\Movies now?", dialogs.Markup));
         Assert.Contains("This cannot be undone automatically", dialogs.Markup);
         dialogs.FindAll("button").Single(x => Text(x) == "Organise now").Click();
@@ -639,7 +639,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__menu-trigger")!.Click();
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x) == "Merge into…"));
         var labels = cut.FindAll("[role=menuitem]").Select(Text).ToList();
-        Assert.True(labels.IndexOf("Merge into…") == labels.IndexOf("Organise files now") + 1);
+        Assert.True(labels.IndexOf("Merge into…") == labels.IndexOf("Organize files now") + 1);
     }
 
     [Fact]

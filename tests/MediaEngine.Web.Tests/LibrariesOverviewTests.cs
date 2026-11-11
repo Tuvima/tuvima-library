@@ -76,6 +76,8 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetImportFolderWaitingAsync), _ => Task.FromResult<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), _ => Task.FromResult<IReadOnlyList<ExcludedFileDto>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration?.StorageLocations ?? []));
+            stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "E:\\Library\\Movies" }));
         }));
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DeviceContextService>();
@@ -195,8 +197,9 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.NotNull(title.QuerySelector(".libs__info .app-info-tip"));
         Assert.Null(title.QuerySelector(".libs__subtitle"));
         Assert.Null(cut.Find("tr[data-library=import]").QuerySelector(".libs__subtitle"));
-        // The other rows are unchanged: name above the content type.
-        Assert.Equal("Movies", Text(Row(cut, MoviesId).QuerySelector(".libs__subtitle")!));
+        // Names are fixed by the kind, so no row repeats the kind under its name ("Movies / Movies").
+        Assert.Null(Row(cut, MoviesId).QuerySelector(".libs__subtitle"));
+        Assert.Equal("Movies", Text(Row(cut, MoviesId).QuerySelector(".libs__title")!));
     }
 
     [Fact]
@@ -259,6 +262,136 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheLibrariesTableCallsItsThirdColumnContents()
+    {
+        var cut = OpenAndSettle();
+
+        var headers = cut.FindAll(".libs__table th").Select(Text).Where(text => text.Length > 0).ToArray();
+        Assert.Equal(["Name", "Area", "Contents", "Folders", "Status"], headers.Take(5).ToArray());
+        Assert.DoesNotContain("Folders and titles", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheFolderListShowsEachFoldersNameAboveItsPathAndASayingOfReadOnlyOrManaged()
+    {
+        _configuration!.Libraries[0].Sources[0].Label = "Family NAS";
+        _configuration.Libraries[0].Sources[1].Label = "4K shelf";
+        var cut = OpenAndSettle();
+
+        Row(cut, MoviesId).QuerySelector("[data-folder-count]")!.Click();
+
+        var items = cut.FindAll($"tr[data-library='{MoviesId}'] [data-folder-list] li");
+        Assert.Equal("Family NAS", Text(items[0].QuerySelector("[data-folder-name]")!));
+        Assert.Equal("E:\\Library\\Movies", Text(items[0].QuerySelector(".lib-folders__path")!));
+        Assert.Equal("Managed", Text(items[0].QuerySelector("[data-handling]")!));
+        Assert.Equal("4K shelf", Text(items[1].QuerySelector("[data-folder-name]")!));
+        Assert.Equal("Read-only", Text(items[1].QuerySelector("[data-handling]")!));
+        // The copy button and the online state are still there.
+        Assert.NotNull(items[0].QuerySelector("button[aria-label^='Copy']"));
+        Assert.Equal("online", items[0].GetAttribute("data-state"));
+    }
+
+    [Fact]
+    public void TheFolderListOfALibraryWithOneFolderShowsTheTagButNoName()
+    {
+        var cut = OpenAndSettle();
+
+        Row(cut, AudiobooksId).QuerySelector("[data-folder-count]")!.Click();
+
+        var item = cut.Find($"tr[data-library='{AudiobooksId}'] [data-folder-list] li");
+        Assert.Null(item.QuerySelector("[data-folder-name]"));
+        Assert.Equal("Read-only", Text(item.QuerySelector("[data-handling]")!));
+    }
+
+    [Fact]
+    public void TheEditWindowSaysTheNameIsFixedAndNeverOffersARename()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+
+        EditButton(cut, MoviesId).Click();
+
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        var lead = Text(host.Find(".app-dialog-shell__subtitle"));
+        Assert.Equal("The library's name is fixed. Folders below can have optional names so you can tell them apart.", lead);
+        Assert.DoesNotContain("Rename", host.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheEditWindowListsFoldersInATableWithFolderNamePathAndHowLibraryUsesIt()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+
+        EditButton(cut, MoviesId).Click();
+
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        var headers = host.FindAll("[data-folder-rows] th").Select(Text).Where(text => text.Length > 0 && text != "Actions").ToArray();
+        Assert.Equal(["Folder name", "Path", "How Library uses it"], headers);
+        var rows = host.FindAll("[data-folder-rows] tbody tr.lib-edit__folder");
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("Managed", Text(rows[0].QuerySelector("[data-handling]")!));
+        Assert.Equal("Read-only", Text(rows[1].QuerySelector("[data-handling]")!));
+        // There is no Online state column: a folder that is reachable says nothing.
+        Assert.Empty(host.FindAll("[data-folder-rows] [data-state=online]"));
+    }
+
+    [Fact]
+    public void TheEditWindowPutsScanNowAndRemoveLibraryAtTheLeftOfTheFooterNotInTheBody()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+
+        EditButton(cut, MoviesId).Click();
+
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        var start = host.Find(".app-dialog-shell__footer [data-footer-start]");
+        Assert.Equal(["Scan now", "Remove library"], start.QuerySelectorAll("button").Select(Text).ToArray());
+        Assert.DoesNotContain(host.FindAll(".lib-edit button"), button => Text(button) is "Scan now" or "Remove library");
+        var footerButtons = host.FindAll(".app-dialog-shell__footer button").Select(Text).ToArray();
+        Assert.Equal(["Scan now", "Remove library", "Cancel", "Save changes"], footerButtons);
+    }
+
+    [Fact]
+    public void AnOfflineFolderIsMarkedBesideItsPathInTheEditWindow()
+    {
+        _pathProbe = path => path.StartsWith("F:", StringComparison.Ordinal)
+            ? new PathTestResultDto { Exists = false }
+            : new PathTestResultDto { Exists = true, HasRead = true, HasWrite = true };
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+
+        EditButton(cut, MoviesId).Click();
+
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        var rows = host.FindAll("[data-folder-rows] tbody tr.lib-edit__folder");
+        Assert.Null(rows[0].QuerySelector("[data-state]"));
+        Assert.NotNull(rows[1].QuerySelector("td .lib-edit__state[data-state=offline]"));
+    }
+
+    [Fact]
+    public void AddFolderInEditOpensTheSameFolderWindowAsAddLibrarysThirdStep()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+        EditButton(cut, MoviesId).Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+
+        host.FindAll("button").Single(button => Text(button) == "Add folder").Click();
+
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".server-folder-picker")));
+        var title = host.FindAll(".app-dialog-shell__title").Last();
+        Assert.Equal("Where is it? · Movies", Text(title));
+        Assert.Equal(["Watch", "Movies"], host.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
+        Assert.NotNull(host.Find("[data-folder-name]"));
+        Assert.NotNull(host.Find("[data-folder-handling]"));
+        Assert.Single(host.FindAll("[data-picker-safety]"));
+        var buttons = host.FindAll(".server-folder-picker__footer button").Select(Text).ToArray();
+        Assert.DoesNotContain("Choose folder", buttons);
+        Assert.Contains("Add folder", buttons);
+    }
+
+    [Fact]
     public void RemovingAFolderInEditShowsReviewFirstAndLeavesTheFilesAlone()
     {
         var host = Render<AppDialogHost>();
@@ -286,7 +419,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var row = Row(cut, MoviesId);
         Assert.Equal("Movies", Text(row.QuerySelector(".libs__link")!));
-        Assert.Equal("Movies", Text(row.QuerySelector(".libs__subtitle")!));
+        Assert.Null(row.QuerySelector(".libs__subtitle"));
         var cells = row.QuerySelectorAll("td").Select(Text).ToArray();
         Assert.Contains("Watch", cells[1]);
         Assert.Equal("2 folders · 1,284 titles", cells[2]);

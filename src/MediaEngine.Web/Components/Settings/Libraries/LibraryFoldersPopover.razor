@@ -7,7 +7,7 @@
 @implements IDisposable
 
 @* "N folders" as a button (Libraries and folder picker D3): it opens a small list of the library's real paths, each with its online or offline state and a copy
-   button. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
+   button; with two or more folders each shows its friendly name above its path, and every folder says Read-only or Managed. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
 <span class="lib-folders" @onclick:stopPropagation="true">
     <span @ref="_anchor" class="lib-folders__anchor">
     <AppButton Label="@Label"
@@ -47,7 +47,17 @@
                 {
                     var issue = IssueFor(source);
                     <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
-                        <span class="lib-folders__path" data-overflow-tooltip="@source.Path">@source.Path</span>
+                        <span class="lib-folders__body">
+                            @if (ShowNames && !string.IsNullOrWhiteSpace(source.Name))
+                            {
+                                <strong class="lib-folders__name" data-folder-name>@source.Name</strong>
+                            }
+                            <span class="lib-folders__path" data-overflow-tooltip="@source.Path">@source.Path</span>
+                        </span>
+                        @if (source.Managed is { } managed)
+                        {
+                            <span class="lib-folders__tag" data-handling="@(managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(managed)</span>
+                        }
                         <span class="lib-folders__state">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.ContentCopy"
                                        Tooltip="@L["LibraryFoldersPopover_CopyPath"].Value"
@@ -86,7 +96,11 @@
         return Task.CompletedTask;
     }
 
-    private IReadOnlyList<FolderListItem> Rows => Items ?? [.. Sources.Select(source => new FolderListItem(source.Id, source.Path))];
+    private IReadOnlyList<FolderListItem> Rows => Items ?? [.. Sources.Select(source => new FolderListItem(
+        source.Id, source.Path, Name: source.DisplayName(), Managed: string.Equals(source.ManagementMode, "managed_by_tuvima", StringComparison.OrdinalIgnoreCase)))];
+
+    // A folder's name shows only once the library has two or more folders (Libraries v3 D18); with one the path and its handling tag are enough.
+    private bool ShowNames => Rows.Count >= 2;
 
     private string Label => Rows.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Rows.Count].Value;
     private string PanelLabel => L["LibraryFoldersPopover_FoldersOf", LibraryName].Value;

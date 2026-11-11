@@ -1,7 +1,12 @@
 .lib-folders { position: relative; display: inline-block; }
 .lib-folders__inner { padding: 8px; }
 .lib-folders__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
-.lib-folders__item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.lib-folders__item { display: flex; gap: 8px; align-items: center; }
+.lib-folders__body { display: grid; flex: 1 1 auto; min-width: 0; }
+.lib-folders__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Every folder says how Library uses it (Libraries v3 D19), in the same words and look as the Edit window. */
+.lib-folders__tag { padding: 2px 10px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); font-weight: 600; }
+.lib-folders__tag[data-handling="managed"] { color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
 .lib-folders__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-folders__state { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 .lib-folders__item[data-state="online"] .lib-folders__state { color: var(--tl-status-success); }

@@ -4343,8 +4343,8 @@
   <data name="Common_UseADesktopOrTablet" xml:space="preserve">
     <value>Use a desktop or tablet to change folders.</value>
   </data>
-  <data name="LibrariesOverview_FoldersAndTitles" xml:space="preserve">
-    <value>Folders and titles</value>
+  <data name="LibrariesOverview_Contents" xml:space="preserve">
+    <value>Contents</value>
   </data>
   <data name="LibrariesOverview_NoLibrariesMatch" xml:space="preserve">
     <value>No {0} libraries match.</value>
@@ -4935,7 +4935,7 @@
     <value>Not a place for new media</value>
   </data>
   <data name="LibraryFolderTable_OrganiseFilesNow" xml:space="preserve">
-    <value>Organise files now</value>
+    <value>Organize files now</value>
   </data>
   <data name="LibraryFolderTable_MergeInto" xml:space="preserve">
     <value>Merge into…</value>
@@ -10050,7 +10050,7 @@
     <value>The landing place for new files of any kind. Files are never changed until Library files them.</value>
   </data>
   <data name="LibraryEditDialog_Lead" xml:space="preserve">
-    <value>Rename it and choose which folders it uses. Nothing changes until you press Save changes.</value>
+    <value>The library's name is fixed. Folders below can have optional names so you can tell them apart.</value>
   </data>
   <data name="LibraryEditDialog_NameTooLong" xml:space="preserve">
     <value>Use {0} characters or fewer.</value>
@@ -10088,14 +10088,8 @@
   <data name="LibraryEditDialog_ChooseImport" xml:space="preserve">
     <value>Choose the Import folder</value>
   </data>
-  <data name="LibraryEditDialog_ChooseYourFolder" xml:space="preserve">
-    <value>Choose your {0} folder</value>
-  </data>
   <data name="LibraryEditDialog_HelpImport" xml:space="preserve">
     <value>Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders.</value>
-  </data>
-  <data name="LibraryEditDialog_HelpMore" xml:space="preserve">
-    <value>Choose the folder on the Library server that holds more of {0}.</value>
   </data>
   <data name="LibraryEditDialog_ChooseFolder" xml:space="preserve">
     <value>Choose folder</value>
@@ -10145,8 +10139,47 @@
   <data name="Common_Change" xml:space="preserve">
     <value>Change</value>
   </data>
-  <data name="CreateLibrary_Added" xml:space="preserve">
-    <value>Added</value>
+  <data name="CreateLibrary_AddFolderInstead" xml:space="preserve">
+    <value>Add a folder to it instead</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_watch" xml:space="preserve">
+    <value>Movies, TV, videos</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_listen" xml:space="preserve">
+    <value>Music, audiobooks</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_read" xml:space="preserve">
+    <value>Books, comics</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_view" xml:space="preserve">
+    <value>Photos, videos, documents</value>
+  </data>
+  <data name="FolderStep_Where" xml:space="preserve">
+    <value>Where is it?</value>
+  </data>
+  <data name="FolderStep_WhereKind" xml:space="preserve">
+    <value>Where is it? · {0}</value>
+  </data>
+  <data name="FolderStep_ScanLine" xml:space="preserve">
+    <value>Library scans this folder and its subfolders.</value>
+  </data>
+  <data name="FolderStep_ScanLineManaged" xml:space="preserve">
+    <value>Library scans this folder and its subfolders, and keeps it organized.</value>
+  </data>
+  <data name="FolderStep_Lead" xml:space="preserve">
+    <value>Pick the folder on the Library server that holds your {0}. Give it a friendly name if you like.</value>
+  </data>
+  <data name="ServerFolderPicker_FriendlyNameHint" xml:space="preserve">
+    <value>Names this folder, not the library.</value>
+  </data>
+  <data name="LibraryEditDialog_ColFolderName" xml:space="preserve">
+    <value>Folder name</value>
+  </data>
+  <data name="LibraryEditDialog_ColPath" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="LibraryEditDialog_ColHandling" xml:space="preserve">
+    <value>How Library uses it</value>
   </data>
   <data name="LibraryEditDialog_FriendlyName" xml:space="preserve">
     <value>Friendly name</value>
