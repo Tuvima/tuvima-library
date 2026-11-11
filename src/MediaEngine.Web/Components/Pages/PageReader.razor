@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Pages
 
+@using MediaEngine.Web.Components.Reader
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Navigation
@@ -19,62 +20,28 @@
 @implements IAsyncDisposable
 
 @* The page reader (PDF and comic reader spec D1): comics (CBZ, CBR, CB7) and PDFs, opened by the /read/{AssetId} route
-   (EpubReader.razor) for every title that is not an EPUB. This component owns the top line, the slider, the panels and the
-   words; wwwroot/js/page-reader.js owns the pages themselves. *@
+   (EpubReader.razor) for every title that is not an EPUB. It sits in the one reader frame (Components/Reader/ReaderFrame.razor:
+   spec music-table-and-reader-frame D12-D19), which draws the top line, the panel and the opening and "can't open" states. This
+   component fills the frame's slots and owns the slider, the panel contents and the words; wwwroot/js/page-reader.js owns the
+   pages themselves and the auto-hide (it sets data-chrome on the frame's shell). *@
 
 <PageTitle>@(string.IsNullOrWhiteSpace(_title) ? L["PageReader_Library"].Value : L["PageReader_TitleInLibrary", _title].Value)</PageTitle>
 
 <link href="css/book-reader.css" rel="stylesheet" />
 <link href="css/page-reader.css" rel="stylesheet" />
 
-<AppViewer Class="pr-shell" Role="" Surface="AppViewerSurface.Page" data-state="@_state">
+<ReaderFrame State="FrameState" Class="pr-reader" data-background="@_background" Title="@_title" Subtitle="@_subtitle" Tools="Tools"
+             SearchLabel="@L["PageReader_SearchInFile"].Value" OpenPanel="OpenTool" IsPageBookmarked="@(MyBookmarkOnPage is not null)"
+             LiveText="@CountText" Announcement="@_announcement" ErrorMessage="@_errorMessage" CanRetry="_canRetry"
+             OnClose="ExitReader" OnToolClick="OnToolClick" OnBookmarkToggle="ToggleBookmarkAsync" OnPanelClose="ClosePanelAsync" OnRetry="RetryAsync">
 
-    @* The script mounts the pages in here; Blazor never puts children in it. *@
-    <div class="pr-host" @ref="_host"></div>
+    <Stage>
+        @* The script mounts the pages in here; Blazor never puts children in it. *@
+        <div class="pr-host" @ref="_host"></div>
+    </Stage>
 
-    <header class="pr-bar pr-bar--top" aria-label="@(string.IsNullOrWhiteSpace(_title) ? L["PageReader_Reader"].Value : _title)">
-        <AppIconButton Icon="@AppMaterialIcons.Filled.ArrowBack" ButtonStyle="AppButtonStyle.Text" OnClick="ExitReader" Tooltip="@L["PageReader_BackToLibrary"].Value" AriaLabel="@L["PageReader_BackToLibrary"].Value" />
-        <div class="pr-title">
-            <b>@_title</b>
-            @if (!string.IsNullOrWhiteSpace(_subtitle))
-            {
-                <span>@_subtitle</span>
-            }
-        </div>
-        @if (_state == "ready")
-        {
-            <div class="pr-tools" role="toolbar" aria-label="@L["PageReader_ReaderTools"].Value">
-                @if (!OnPhone)
-                {
-                    @if (_kind == "pdf")
-                    {
-                        <AppIconButton Icon="@AppMaterialIcons.Filled.Search" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "search" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("search"))" aria-expanded="@(_panel == "search" ? "true" : "false")" Tooltip="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value" />
-                        @if (_outline.Count > 0)
-                        {
-                            <AppIconButton Icon="@AppMaterialIcons.Filled.Toc" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "contents" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("contents"))" aria-expanded="@(_panel == "contents" ? "true" : "false")" Tooltip="@L["PageReader_Contents"].Value" AriaLabel="@L["PageReader_Contents"].Value" />
-                        }
-                    }
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.GridView" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "pages" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("pages"))" aria-expanded="@(_panel == "pages" ? "true" : "false")" Tooltip="@L["PageReader_Pages"].Value" AriaLabel="@L["PageReader_Pages"].Value" />
-                }
-                <AppIconButton Icon="@(MyBookmarkOnPage is null ? AppMaterialIcons.Outlined.BookmarkBorder : AppMaterialIcons.Filled.Bookmark)" ButtonStyle="AppButtonStyle.Text" Class="@(MyBookmarkOnPage is not null ? "pr-ib--on" : null)" OnClick="ToggleBookmarkAsync"
-                                 Tooltip="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)"
-                                 AriaLabel="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)" aria-pressed="@(MyBookmarkOnPage is not null ? "true" : "false")" />
-                @if (!OnPhone)
-                {
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Bookmarks" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "bookmarks" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("bookmarks"))" aria-expanded="@(_panel == "bookmarks" ? "true" : "false")" Tooltip="@L["PageReader_Bookmarks"].Value" AriaLabel="@L["PageReader_Bookmarks"].Value" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Tune" ButtonStyle="AppButtonStyle.Text" Class="@(_panel == "settings" ? "pr-ib--on" : null)" OnClick="@(() => TogglePanel("settings"))" aria-expanded="@(_panel == "settings" ? "true" : "false")" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value" />
-                }
-                else
-                {
-                    @* On a phone the tools do not fit: one "..." holds them in a bottom sheet (spec, Phone [screen 7]). Bookmark this page stays on the line. *@
-                    <AppRowMenu Class="pr-ib pr-more" Plain="true" Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Items="ToolMenuItems" />
-                }
-            </div>
-        }
-    </header>
-
-    <footer class="pr-bar pr-bar--bottom">
-        @if (_state == "ready" && _pageCount > 0)
+    <Bottom>
+        @if (_pageCount > 0)
         {
             <div class="pr-track">
                 <AppRangeSlider Class="@($"pr-slider{(_rtl ? " pr-slider--rtl" : "")}")" Min="1" Max="@_pageCount" Step="1" Value="@_page" ShowTicks="false"
@@ -91,180 +58,148 @@
             </div>
             <span class="pr-count">@CountText</span>
         }
-    </footer>
+    </Bottom>
 
-    <div class="pr-live" role="status" aria-live="polite">@(_state == "ready" ? CountText : string.Empty)<span>@_announcement</span></div>
-
-    @if (_state == "ready" && _panel is not null)
-    {
-        <div class="br-scrim" role="presentation" @onclick="ClosePanelAsync"></div>
-        <AppPopout Class="br-panel pr-panel" Role="dialog" AriaLabel="@PanelTitle">
-            <div class="br-panel-head">
-                <h2 class="br-panel-title">@PanelTitle</h2>
-                <AppIconButton Icon="@AppMaterialIcons.Filled.Close" ButtonStyle="AppButtonStyle.Text" OnClick="ClosePanelAsync" Tooltip="@L["PageReader_Close"].Value" AriaLabel="@L["PageReader_ClosePanel", PanelTitle].Value" />
-            </div>
-            <div class="br-panel-body">
-                @if (_panel == "pages")
-                {
-                    <div class="pr-grid-host" @ref="_gridHost"></div>
-                }
-                else if (_panel == "bookmarks")
-                {
-                    <AppSegmentedControl Options="BookmarkTabOptions" Value="@_bookmarkTab" ValueChanged="SetBookmarkTabAsync" AriaLabel="@L["PageReader_Bookmarks"].Value" />
-                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="AddBookmarkAsync" StartIcon="@AppMaterialIcons.Filled.BookmarkAdd" Disabled="@(MyBookmarkOnPage is not null)">
-                        @L["PageReader_BookmarkThisPage"]
-                    </AppButton>
-                    @if (!string.IsNullOrEmpty(_bookmarkProblem))
+    <PanelContent Context="openTool">
+        @if (openTool == ReaderTool.Pages)
+        {
+            <div class="pr-grid-host" @ref="_gridHost"></div>
+        }
+        else if (openTool == ReaderTool.Bookmarks)
+        {
+            <AppSegmentedControl Options="BookmarkTabOptions" Value="@_bookmarkTab" ValueChanged="SetBookmarkTabAsync" AriaLabel="@L["PageReader_Bookmarks"].Value" />
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="AddBookmarkAsync" StartIcon="@AppMaterialIcons.Filled.BookmarkAdd" Disabled="@(MyBookmarkOnPage is not null)">
+                @L["PageReader_BookmarkThisPage"]
+            </AppButton>
+            @if (!string.IsNullOrEmpty(_bookmarkProblem))
+            {
+                <p class="br-empty" role="alert">@_bookmarkProblem</p>
+            }
+            @if (ShownBookmarks.Count == 0)
+            {
+                <p class="br-empty">@(_bookmarkTab == "everyone" ? L["PageReader_NoBookmarksEveryone"].Value : L["PageReader_NoBookmarksMine"].Value)</p>
+            }
+            else
+            {
+                <ul class="br-list">
+                    @foreach (var mark in ShownBookmarks)
                     {
-                        <p class="br-empty" role="alert">@_bookmarkProblem</p>
-                    }
-                    @if (ShownBookmarks.Count == 0)
-                    {
-                        <p class="br-empty">@(_bookmarkTab == "everyone" ? L["PageReader_NoBookmarksEveryone"].Value : L["PageReader_NoBookmarksMine"].Value)</p>
-                    }
-                    else
-                    {
-                        <ul class="br-list">
-                            @foreach (var mark in ShownBookmarks)
+                        <li class="br-item" @key="mark.Id">
+                            <AppNativeButton Class="br-row br-row--grow pr-bm-row" OnClick="@(() => OpenPageFromPanelAsync(mark.Page))">
+                                <span class="pr-bm-pic pr-page--loading" data-page="@mark.Page" aria-hidden="true"></span>
+                                <span class="pr-bm-text">
+                                    <span class="br-row-main">@L["PageReader_OnPage", mark.Page]</span>
+                                    <span class="br-row-sub">@BookmarkSub(mark)</span>
+                                </span>
+                            </AppNativeButton>
+                            @if (mark.IsYours && !mark.IsGlobal)
                             {
-                                <li class="br-item" @key="mark.Id">
-                                    <AppNativeButton Class="br-row br-row--grow pr-bm-row" OnClick="@(() => OpenPageFromPanelAsync(mark.Page))">
-                                        <span class="pr-bm-pic pr-page--loading" data-page="@mark.Page" aria-hidden="true"></span>
-                                        <span class="pr-bm-text">
-                                            <span class="br-row-main">@L["PageReader_OnPage", mark.Page]</span>
-                                            <span class="br-row-sub">@BookmarkSub(mark)</span>
-                                        </span>
-                                    </AppNativeButton>
-                                    @if (mark.IsYours && !mark.IsGlobal)
-                                    {
-                                        <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["PageReader_DeleteBookmark"].Value" AriaLabel="@L["PageReader_DeleteBookmark"].Value" />
-                                    }
-                                </li>
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => DeleteBookmarkAsync(mark))" Tooltip="@L["PageReader_DeleteBookmark"].Value" AriaLabel="@L["PageReader_DeleteBookmark"].Value" />
                             }
-                        </ul>
+                        </li>
                     }
-                }
-                else if (_panel == "contents")
+                </ul>
+            }
+        }
+        else if (openTool == ReaderTool.Contents)
+        {
+            <ul class="br-list">
+                @foreach (var item in _outline)
                 {
-                    <ul class="br-list">
-                        @foreach (var item in _outline)
-                        {
-                            <li>
-                                <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentOutline(item) ? "br-row--current" : "")}")"
-                                                 OnClick="@(() => OpenPageFromPanelAsync(item.Page))" AriaLabel="@item.Title">
-                                    @item.Title
-                                </AppNativeButton>
-                            </li>
-                        }
-                    </ul>
+                    <li>
+                        <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentOutline(item) ? "br-row--current" : "")}")"
+                                         OnClick="@(() => OpenPageFromPanelAsync(item.Page))" AriaLabel="@item.Title">
+                            @item.Title
+                        </AppNativeButton>
+                    </li>
                 }
-                else if (_panel == "search")
-                {
-                    <div class="br-search pr-search">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                        <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value"
-                                        Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
-                    </div>
-                    @if (_searching && _searchHits.Count == 0)
-                    {
-                        <p class="br-hint" role="status">@L["PageReader_Searching"]</p>
-                    }
-                    else if (!_searchStarted)
-                    {
-                        <p class="br-hint">@L["PageReader_SearchHint"]</p>
-                    }
-                    else if (_searchNoText)
-                    {
-                        <p class="br-empty" role="status">@L["PageReader_NoText"]</p>
-                    }
-                    else if (_searchHits.Count == 0)
-                    {
-                        <p class="br-empty" role="status">@L["PageReader_NothingMatches", _searchedFor]</p>
-                    }
-                    else
-                    {
-                        <p class="br-hint" role="status">@(_searchHits.Count >= SearchHitLimit ? L["PageReader_PlacesTruncated", _searchHits.Count].Value : L["PageReader_PlacesFound", _searchHits.Count].Value)</p>
-                        <ul class="br-list">
-                            @foreach (var hit in _searchHits)
-                            {
-                                <li>
-                                    <AppNativeButton Class="br-row" OnClick="@(() => OpenPageFromPanelAsync(hit.Page))">
-                                        <span class="br-row-main">@hit.Before<mark class="br-search-match">@hit.Match</mark>@hit.After</span>
-                                        <span class="br-row-sub">@L["PageReader_OnPage", hit.Page]</span>
-                                    </AppNativeButton>
-                                </li>
-                            }
-                        </ul>
-                    }
-                }
-                else
-                {
-                <div class="br-field">
-                    <div class="br-field-label">@L["PageReader_Layout"]</div>
-                    <AppSegmentedControl Options="LayoutOptions" Value="@LayoutValue" ValueChanged="SetLayoutAsync" AriaLabel="@L["PageReader_Layout"].Value" />
-                </div>
-                <div class="br-field">
-                    <div class="br-field-label">@L["PageReader_Fit"]</div>
-                    <AppSegmentedControl Options="FitOptions" Value="@_fit" ValueChanged="SetFitAsync" AriaLabel="@L["PageReader_Fit"].Value" />
-                </div>
-                @if (_kind == "comic")
-                {
-                    <div class="br-field">
-                        <div class="br-field-label">@L["PageReader_Direction"]</div>
-                        <AppSegmentedControl Options="DirectionOptions" Value="@(_rtl ? "rtl" : "ltr")" ValueChanged="SetDirectionAsync" AriaLabel="@L["PageReader_Direction"].Value" />
-                    </div>
-                }
-                <div class="br-field">
-                    <div class="br-field-label">@L["PageReader_Background"]</div>
-                    <AppSegmentedControl Options="BackgroundOptions" Value="@_background" ValueChanged="SetBackgroundAsync" AriaLabel="@L["PageReader_Background"].Value" />
-                </div>
-                <AppSwitchRow Label="@L["PageReader_ShowBookmarksOnBar"].Value" Value="@_showBookmarksOnBar" ValueChanged="SetShowBookmarksOnBarAsync" />
-                }
+            </ul>
+        }
+        else if (openTool == ReaderTool.Search)
+        {
+            <div class="br-search pr-search">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
+                <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value"
+                                Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
             </div>
-        </AppPopout>
-    }
+            @if (_searching && _searchHits.Count == 0)
+            {
+                <p class="br-hint" role="status">@L["PageReader_Searching"]</p>
+            }
+            else if (!_searchStarted)
+            {
+                <p class="br-hint">@L["PageReader_SearchHint"]</p>
+            }
+            else if (_searchNoText)
+            {
+                <p class="br-empty" role="status">@L["PageReader_NoText"]</p>
+            }
+            else if (_searchHits.Count == 0)
+            {
+                <p class="br-empty" role="status">@L["PageReader_NothingMatches", _searchedFor]</p>
+            }
+            else
+            {
+                <p class="br-hint" role="status">@(_searchHits.Count >= SearchHitLimit ? L["PageReader_PlacesTruncated", _searchHits.Count].Value : L["PageReader_PlacesFound", _searchHits.Count].Value)</p>
+                <ul class="br-list">
+                    @foreach (var hit in _searchHits)
+                    {
+                        <li>
+                            <AppNativeButton Class="br-row" OnClick="@(() => OpenPageFromPanelAsync(hit.Page))">
+                                <span class="br-row-main">@hit.Before<mark class="br-search-match">@hit.Match</mark>@hit.After</span>
+                                <span class="br-row-sub">@L["PageReader_OnPage", hit.Page]</span>
+                            </AppNativeButton>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+        else
+        {
+        <div class="br-field">
+            <div class="br-field-label">@L["PageReader_Layout"]</div>
+            <AppSegmentedControl Options="LayoutOptions" Value="@LayoutValue" ValueChanged="SetLayoutAsync" AriaLabel="@L["PageReader_Layout"].Value" />
+        </div>
+        <div class="br-field">
+            <div class="br-field-label">@L["PageReader_Fit"]</div>
+            <AppSegmentedControl Options="FitOptions" Value="@_fit" ValueChanged="SetFitAsync" AriaLabel="@L["PageReader_Fit"].Value" />
+        </div>
+        @if (_kind == "comic")
+        {
+            <div class="br-field">
+                <div class="br-field-label">@L["PageReader_Direction"]</div>
+                <AppSegmentedControl Options="DirectionOptions" Value="@(_rtl ? "rtl" : "ltr")" ValueChanged="SetDirectionAsync" AriaLabel="@L["PageReader_Direction"].Value" />
+            </div>
+        }
+        <div class="br-field">
+            <div class="br-field-label">@L["PageReader_Background"]</div>
+            <AppSegmentedControl Options="BackgroundOptions" Value="@_background" ValueChanged="SetBackgroundAsync" AriaLabel="@L["PageReader_Background"].Value" />
+        </div>
+        <AppSwitchRow Label="@L["PageReader_ShowBookmarksOnBar"].Value" Value="@_showBookmarksOnBar" ValueChanged="SetShowBookmarksOnBarAsync" />
+        }
+    </PanelContent>
 
-    @if (_state == "ready" && _endCard && _next is { } next)
-    {
-        <div class="pr-overlay pr-overlay--card">
-            <div class="pr-endcard" role="region" aria-label="@L["PageReader_NextIn", next.Series ?? _title].Value">
-                <div class="pr-endcard-pic">
-                    <img src="@MediaTileArtworkUrl.ForDrawnSize($"/engine-image/stream/entity/work/{next.WorkId:D}/cover", 130)" alt="" />
-                </div>
-                <div>
-                    <small>@L["PageReader_NextIn", next.Series ?? _title]</small>
-                    <h3>@(next.Title ?? next.Series)</h3>
-                    <div class="pr-endcard-actions">
-                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ReadNextAsync">@L["PageReader_ReadNext"]</AppButton>
-                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="BackToSeriesAsync">@L["PageReader_BackToSeries", next.Series ?? _title]</AppButton>
+    <Overlays>
+        @if (_state == "ready" && _endCard && _next is { } next)
+        {
+            <div class="pr-endcard-layer">
+                <div class="pr-endcard" role="region" aria-label="@L["PageReader_NextIn", next.Series ?? _title].Value">
+                    <div class="pr-endcard-pic">
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize($"/engine-image/stream/entity/work/{next.WorkId:D}/cover", 130)" alt="" />
+                    </div>
+                    <div>
+                        <small>@L["PageReader_NextIn", next.Series ?? _title]</small>
+                        <h3>@(next.Title ?? next.Series)</h3>
+                        <div class="pr-endcard-actions">
+                            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ReadNextAsync">@L["PageReader_ReadNext"]</AppButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="BackToSeriesAsync">@L["PageReader_BackToSeries", next.Series ?? _title]</AppButton>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    }
-
-    @if (_state == "loading")
-    {
-        <div class="pr-overlay">
-            <div class="pr-spinner" role="status" aria-label="@L["PageReader_Opening"].Value"></div>
-        </div>
-    }
-    else if (_state == "error")
-    {
-        <div class="pr-overlay">
-            <div class="pr-state" role="alert">
-                <p>@_errorMessage</p>
-                <div class="pr-state-actions">
-                    @if (_canRetry)
-                    {
-                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="RetryAsync">@L["PageReader_TryAgain"]</AppButton>
-                    }
-                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ExitReader">@L["PageReader_BackToLibrary"]</AppButton>
-                </div>
-            </div>
-        </div>
-    }
-</AppViewer>
+        }
+    </Overlays>
+</ReaderFrame>
 
 @code {
     // A phone has no Two pages choice; a saved "two" reads as one page there and the saved choice is left alone.
@@ -382,14 +317,37 @@
     private bool _searchNoText;
     private bool _focusSearch;
 
-    private string PanelTitle => _panel switch
+    // The frame names its tools; the panel string this reader keeps maps to them one for one.
+    private ReaderFrameState FrameState => _state switch
     {
-        "search" => L["PageReader_Search"].Value,
-        "contents" => L["PageReader_Contents"].Value,
-        "pages" => L["PageReader_Pages"].Value,
-        "bookmarks" => L["PageReader_Bookmarks"].Value,
-        _ => L["PageReader_ReadingSettings"].Value,
+        "ready" => ReaderFrameState.Ready,
+        "error" => ReaderFrameState.Error,
+        _ => ReaderFrameState.Loading,
     };
+
+    // A PDF has all six tools (Contents only when the file has an outline); a comic has no Search or Contents (spec D13).
+    private IReadOnlyCollection<ReaderTool> Tools => _kind == "pdf"
+        ? _outline.Count > 0 ? ReaderTools.All : ReaderTools.All.Where(tool => tool != ReaderTool.Contents).ToList()
+        : ReaderTools.Comic;
+
+    private ReaderTool? OpenTool => _panel switch
+    {
+        "search" => ReaderTool.Search,
+        "contents" => ReaderTool.Contents,
+        "pages" => ReaderTool.Pages,
+        "bookmarks" => ReaderTool.Bookmarks,
+        "settings" => ReaderTool.ReadingSettings,
+        _ => null,
+    };
+
+    private Task OnToolClick(ReaderTool tool) => TogglePanel(tool switch
+    {
+        ReaderTool.Search => "search",
+        ReaderTool.Contents => "contents",
+        ReaderTool.Pages => "pages",
+        ReaderTool.Bookmarks => "bookmarks",
+        _ => "settings",
+    });
 
     // Saved page (spec D12): the page is saved a few seconds after the last turn and when the reader closes.
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(5);
@@ -434,35 +392,6 @@
 
         StateHasChanged();
     });
-
-    // The tools the phone's "..." sheet holds, in the top line's order; the rows use the same words as the buttons' tooltips.
-    private IReadOnlyList<AppRowMenuItem> ToolMenuItems
-    {
-        get
-        {
-            var items = new List<AppRowMenuItem>();
-            if (_kind == "pdf")
-            {
-                items.Add(ToolItem(L["PageReader_SearchInFile"].Value, AppMaterialIcons.Filled.Search, "search"));
-                if (_outline.Count > 0)
-                {
-                    items.Add(ToolItem(L["PageReader_Contents"].Value, AppMaterialIcons.Filled.Toc, "contents"));
-                }
-            }
-
-            items.Add(ToolItem(L["PageReader_Pages"].Value, AppMaterialIcons.Outlined.GridView, "pages"));
-            items.Add(ToolItem(L["PageReader_Bookmarks"].Value, AppMaterialIcons.Outlined.Bookmarks, "bookmarks"));
-            items.Add(ToolItem(L["PageReader_ReadingSettings"].Value, AppMaterialIcons.Outlined.Tune, "settings"));
-            return items;
-        }
-    }
-
-    private AppRowMenuItem ToolItem(string label, string icon, string panel) => new()
-    {
-        Label = label,
-        Icon = icon,
-        OnClick = EventCallback.Factory.Create(this, () => TogglePanel(panel)),
-    };
 
     private async Task OpenAsync()
     {

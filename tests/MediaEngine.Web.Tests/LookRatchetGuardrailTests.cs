@@ -138,7 +138,6 @@ public sealed class LookRatchetGuardrailTests
     private static readonly Dictionary<string, string> NeverRenderedAllowlist = new(StringComparer.Ordinal)
     {
         ["DesignSystemPreview"] = "The proof page for the Look rules: a page with its own address that nothing links to by design (it is a page, so it is skipped below).",
-        ["ReaderFrame"] = "Built ahead of the readers (spec music-table-and-reader-frame WP7); PageReader (WP8) and BookReader (WP9) render it. Delete this line when WP8 merges.",
     };
 
     [Fact]

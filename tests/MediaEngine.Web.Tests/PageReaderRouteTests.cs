@@ -43,10 +43,19 @@ public sealed class PageReaderRouteTests
     public void PageReader_CarriesEveryStateTheSpecNames()
     {
         var page = Read("src/MediaEngine.Web/Components/Pages/PageReader.razor");
+        var frame = Read("src/MediaEngine.Web/Components/Reader/ReaderFrame.razor");
 
-        foreach (var key in new[] { "PageReader_CantReachEngine", "PageReader_CantOpenFile", "PageReader_Opening", "PageReader_TryAgain", "PageReader_BackToLibrary" })
+        // The page reader words what went wrong; the frame draws the opening spinner and the "can't open" card with Try again and Close.
+        foreach (var key in new[] { "PageReader_CantReachEngine", "PageReader_CantOpenFile" })
         {
             Assert.Contains(key, page, StringComparison.Ordinal);
         }
+
+        foreach (var key in new[] { "ReaderFrame_Opening", "ReaderFrame_TryAgain", "ReaderFrame_Close" })
+        {
+            Assert.Contains(key, frame, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("<ReaderFrame", page, StringComparison.Ordinal);
     }
 }
