@@ -136,6 +136,10 @@ public sealed class PluginSetupCredentialDto
     /// <summary>True when a household credential is set, false when it is not, null when it is each person's own.</summary>
     [JsonPropertyName("configured")]
     public bool? Configured { get; set; }
+
+    /// <summary>The last four characters of a saved household key, so the Connection row can say "key ending 3f2a"; null when none is saved, the key is short, or it is each person's own.</summary>
+    [JsonPropertyName("key_ending")]
+    public string? KeyEnding { get; set; }
 }
 
 public sealed class PluginSetupLinkDto

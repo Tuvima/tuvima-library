@@ -47,6 +47,9 @@ internal sealed record PluginPageModelInput
     /// <summary>Household credentials that are set.</summary>
     public IReadOnlySet<string> ConfiguredCredentials { get; init; } = new HashSet<string>();
 
+    /// <summary>The last four characters of each saved household key by credential name (only keys long enough that four characters give nothing away).</summary>
+    public IReadOnlyDictionary<string, string> CredentialEndings { get; init; } = new Dictionary<string, string>();
+
     /// <summary>Values held outside the plugin's saved settings, by setting key (a list of servers, say), read through <c>value_source</c>.</summary>
     public IReadOnlyDictionary<string, JsonElement> ExternalValues { get; init; } = new Dictionary<string, JsonElement>();
 
@@ -135,6 +138,7 @@ internal static class PluginPageModelBuilder
             Scope = credential.Scope,
             SignInMethod = credential.SignInMethod,
             Configured = credential.Scope == PluginSettingScopes.Household ? input.ConfiguredCredentials.Contains(credential.Name) : null,
+            KeyEnding = credential.Scope == PluginSettingScopes.Household && input.CredentialEndings.TryGetValue(credential.Name, out var ending) ? ending : null,
         }).ToList();
 
         var links = new List<PluginSetupLinkDto>();
