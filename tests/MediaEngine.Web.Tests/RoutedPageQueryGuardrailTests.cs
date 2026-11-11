@@ -51,8 +51,12 @@ public sealed partial class RoutedPageQueryGuardrailTests
                 continue;
             }
 
-            var codeBehind = path + ".cs";
-            yield return (relative, File.Exists(codeBehind) ? source + Environment.NewLine + File.ReadAllText(codeBehind) : source);
+            // A page's code may sit beside it in Name.razor.cs and Name.*.cs files; the rule covers all of them.
+            var stem = Path.GetFileNameWithoutExtension(path);
+            var codeFiles = Directory.EnumerateFiles(Path.GetDirectoryName(path)!, stem + ".*.cs")
+                .Order(StringComparer.Ordinal)
+                .Select(File.ReadAllText);
+            yield return (relative, string.Join(Environment.NewLine, new[] { source }.Concat(codeFiles)));
         }
     }
 

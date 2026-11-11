@@ -63,7 +63,7 @@ public sealed partial class DetailsOverlayGuardrailTests
     [Fact]
     public void TheShellsInsideRoutedPagesFollowTheRoutedAddressNotTheAddressBar()
     {
-        var browse = File.ReadAllText(Path.Combine(WebRoot, "Components", "Browse", "MediaBrowseShell.razor.cs"));
+        var browse = BrowseShellSource.ReadAll();
         var section = File.ReadAllText(Path.Combine(WebRoot, "Components", "MediaHub", "MediaSectionShell.razor"));
 
         Assert.Contains("_address!.Accept(e.Location)", browse, StringComparison.Ordinal);

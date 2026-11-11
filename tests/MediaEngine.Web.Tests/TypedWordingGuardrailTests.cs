@@ -37,10 +37,16 @@ public sealed partial class TypedWordingGuardrailTests
         var current = new SortedDictionary<string, List<(int Line, string Text)>>(StringComparer.Ordinal);
         foreach (var path in RazorFiles())
         {
-            var found = TypedWordingScanner.Find(File.ReadAllText(path));
+            // A component's code may sit beside it in Name.razor.cs and Name.*.cs files; wording typed there counts too.
+            var stem = Path.GetFileNameWithoutExtension(path);
+            var found = TypedWordingScanner.Find(File.ReadAllText(path))
+                .Concat(Directory.EnumerateFiles(Path.GetDirectoryName(path)!, stem + ".*.cs")
+                    .Order(StringComparer.Ordinal)
+                    .SelectMany(code => TypedWordingScanner.Find("@code {\n" + File.ReadAllText(code) + "\n}")))
+                .ToList();
             if (found.Count > 0)
             {
-                current[Relative(path)] = found.ToList();
+                current[Relative(path)] = found;
             }
         }
 

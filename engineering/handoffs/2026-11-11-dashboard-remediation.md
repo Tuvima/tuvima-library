@@ -100,6 +100,7 @@ Pages that need identified media (Home, Read, Watch, Listen, an item's page) sta
   - One music table (`ListenSongTable`, `AudioItemTable` and the playlist table in `ListenPage`). Needs a shared column, sort and resize part, a mock and a visual check.
   - One reader frame (`BookReader` and `PageReader`). `pdf-and-comic-reader` D1 asks for one look; it touches a Built spec and needs visual checks.
 - Follow-ups noticed while moving code (not fixed, to keep the moves pure): in the browse shell `ClearActiveGroupState` is empty, `DebounceMediaAddedReloadAsync` has an unused `count`, and `OnLibraryItemsRemoved` does not raise the pending count; possibly unused helpers in the music bar; typed English strings in the collections editor.
+- The independent review found four safety tests that only read `.razor` files and so stopped covering code moved into code files. They now read a component's code files too: the query-attribute ban on routed pages, the browse shell address check, the typed-wording counter and the "no storage code in components" check. The typed-wording counter now sees 23 typed words in the Listen page code (it could never see them before, the code was already in a code file); the baseline records 23 so it can only go down. Moving them into the string table is a follow-up.
 
 ## Local checks
 
