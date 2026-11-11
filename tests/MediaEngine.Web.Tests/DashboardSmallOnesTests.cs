@@ -206,11 +206,34 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
         Services.AddSingleton(device);
         Services.AddSingleton<DashboardSessionAccessor>();
         JSInterop.Setup<DeviceContextSnapshot>("detectDeviceSnapshot").SetResult(new DeviceContextSnapshot("mobile", "phone", true));
+        JSInterop.SetupVoid("tuvimaResponsive.registerDeviceClassObserver", _ => true).SetVoidResult();
 
         Render<ReaderLayout>(parameters => parameters.Add(layout => layout.Body, (RenderFragment)(builder => builder.AddContent(0, "reader"))));
 
         Assert.True(device.IsInitialised);
         Assert.True(device.IsPhone);
+    }
+
+    [Fact]
+    public async Task TheReaderLayout_RegistersTheBrowsersDeviceObserverAndUnregistersItWhenTheReaderCloses()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(new DeviceContextSnapshot("desktop", "desktop", false));
+        Services.AddSingleton(device);
+        Services.AddSingleton<DashboardSessionAccessor>();
+        JSInterop.SetupVoid("tuvimaResponsive.registerDeviceClassObserver", _ => true).SetVoidResult();
+        JSInterop.SetupVoid("tuvimaResponsive.unregisterDeviceClassObserver", _ => true).SetVoidResult();
+
+        var cut = Render<ReaderLayout>(parameters => parameters.Add(layout => layout.Body, (RenderFragment)(builder => builder.AddContent(0, "reader"))));
+
+        var registration = Assert.Single(JSInterop.Invocations, call => call.Identifier == "tuvimaResponsive.registerDeviceClassObserver");
+        var owner = Assert.IsType<string>(registration.Arguments[1]);
+        Assert.Equal(true, registration.Arguments[2]);
+
+        await cut.Instance.DisposeAsync();
+
+        var removal = Assert.Single(JSInterop.Invocations, call => call.Identifier == "tuvimaResponsive.unregisterDeviceClassObserver");
+        Assert.Equal(owner, removal.Arguments[0]);
     }
 
     [Fact]
@@ -221,6 +244,7 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
         Services.AddSingleton(device);
         Services.AddSingleton<DashboardSessionAccessor>();
         JSInterop.Setup<DeviceContextSnapshot>("detectDeviceSnapshot").SetResult(new DeviceContextSnapshot("mobile", "phone", true));
+        JSInterop.SetupVoid("tuvimaResponsive.registerDeviceClassObserver", _ => true).SetVoidResult();
 
         Render<ReaderLayout>(parameters => parameters.Add(layout => layout.Body, (RenderFragment)(builder => builder.AddContent(0, "reader"))));
 

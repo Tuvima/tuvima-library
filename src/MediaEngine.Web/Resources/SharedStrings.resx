@@ -13187,6 +13187,12 @@
   <data name="CollectionSaved_One" xml:space="preserve">
     <value>Collection saved.</value>
   </data>
+  <data name="ViewFoldersTab_ModeManaged" xml:space="preserve">
+    <value>New Managed folder</value>
+  </data>
+  <data name="ViewFoldersTab_ModeLinked" xml:space="preserve">
+    <value>Existing folder (Read-only)</value>
+  </data>
   <data name="CollectionSaved_Many" xml:space="preserve">
     <value>{0} collections saved.</value>
   </data>

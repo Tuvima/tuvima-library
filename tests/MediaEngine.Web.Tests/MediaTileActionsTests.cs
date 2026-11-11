@@ -312,7 +312,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ACuratedCollectionAndAUniverse_HoldMyListAndEdit_ButNeverDelete()
+    public async Task ACuratedCollection_HoldsMyListAndEdit_ButNeverDelete_AndAUniverseTileHoldsNeitherMyListNorEdit()
     {
         await UseDevice("desktop");
         SetAdministrator(true);
@@ -320,7 +320,13 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         var universe = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Dune", MediaKind = "Collection", IsCollection = true, UseGroupTile = true, GroupKind = MediaTileGroupKind.Universe, TileImageUrl = "/art/d.jpg", NavigationUrl = "/universe/Q1" };
 
         Assert.Equal(["Add to My List", "Edit"], MenuLabels(RenderTile(collection)));
-        Assert.Equal(["Add to My List", "Edit"], MenuLabels(RenderTile(universe)));
+        Assert.Empty(RenderTile(universe).FindAll("button[aria-label='More actions']"));
+
+        var target = MediaTileActionTarget.For(universe)!;
+        Assert.Equal(DetailEntityType.Universe, target.EntityType);
+        Assert.False(target.CanSave);
+        Assert.False(target.CanEdit);
+        Assert.False(target.CanDelete);
     }
 
     [Fact]

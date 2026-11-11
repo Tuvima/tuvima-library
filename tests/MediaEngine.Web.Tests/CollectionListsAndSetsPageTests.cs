@@ -155,6 +155,26 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-unmatched-badge]"));
     }
 
+    [Fact]
+    public void AnImportedListTile_StillFillsInItsGroupSource_WithWhenItWasRefreshedAndHowManyTitlesMatchedNothing()
+    {
+        var refreshed = new DateTimeOffset(2026, 10, 14, 9, 0, 0, TimeSpan.Zero);
+
+        var tile = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
+        {
+            Id = Guid.NewGuid(),
+            Name = "Top films",
+            CollectionType = "Custom",
+            FillKind = CollectionFillKinds.List,
+            ListSource = new CollectionCatalogListSourceDto { SourceLabel = "Letterboxd export", LastRefreshedAt = refreshed, EntryCount = 250, OwnedCount = 83, UnmatchedCount = 4 },
+        });
+
+        var source = Assert.IsType<MediaTileGroupSourceViewModel>(tile.GroupSource);
+        Assert.Equal(CollectionFillKinds.List, source.FillKind);
+        Assert.Equal(refreshed, source.LastRefreshedAt);
+        Assert.Equal(4, source.UnmatchedCount);
+    }
+
     [Theory]
     [InlineData(CollectionFillKinds.HandPicked)]
     [InlineData(CollectionFillKinds.Rules)]

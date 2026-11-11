@@ -5,6 +5,7 @@
 @inject IEngineApiClient Api
 @inject IAppDialogService DialogService
 @inject DeviceContextService Device
+@inject DashboardSessionAccessor Session
 @inject LibraryKindsState LibraryKinds
 @inject IStringLocalizer<SharedStrings> L
 
@@ -35,8 +36,9 @@
     private bool _opening;
     private string? _error;
 
-    // Adding a folder is not offered on a phone app or a television (Settings > Libraries reads the same device classes).
-    private bool CanAddFolder => !Device.IsMobile && !Device.IsTelevision;
+    // Adding a folder is not offered on a phone app or a television (Settings > Libraries reads the same device classes), and only an
+    // administrator gets it (the same check that gates Settings > Libraries, where Add folder lives).
+    private bool CanAddFolder => !Device.IsMobile && !Device.IsTelevision && Session.Authority?.EffectiveAdministrator == true;
 
     private async Task OpenAddFolderAsync()
     {

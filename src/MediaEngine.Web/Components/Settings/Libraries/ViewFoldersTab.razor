@@ -146,7 +146,7 @@
     private const string BackupNote = "Library's backups never include your photos, videos or documents, so a managed folder needs your own backup.";
     private string RootPath => Path.Combine(Configuration.StorageLocations.FirstOrDefault(x => x.Id == Configuration.ViewStorage.StorageLocationId)?.Path ?? "", Configuration.ViewStorage.RelativeRoot);
     private IReadOnlyList<AppSelectOption> OwnerOptions => Profiles.Select(p => new AppSelectOption(p.Id.ToString(), p.DisplayName)).ToList();
-    private static readonly IReadOnlyList<AppSelectOption> ModeOptions = [new(ManagedMode, "New Managed folder"), new(LinkedMode, "Existing folder — Read-only")];
+    private IReadOnlyList<AppSelectOption> ModeOptions => [new(ManagedMode, L["ViewFoldersTab_ModeManaged"].Value), new(LinkedMode, L["ViewFoldersTab_ModeLinked"].Value)];
 
     private async Task ChooseSourceAsync()
     {
