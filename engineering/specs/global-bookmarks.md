@@ -120,6 +120,7 @@ Everyone bookmarks for themselves. An admin can see everyone's bookmarks in the 
 
 **Decisions (Shy, 2026-11-11):**
 - **V5-D1. Mine is the default view**, replacing "Everyone by default" (player v2 D21).
+- **V5-D1a. The bookmarks button and the bar markers show only your own bookmarks** (Shy, 2026-11-11 23:45Z). Global rows appear only after you explicitly switch the panel to Global; they are never mixed into Mine, the count on the button, or the markers unless Global is chosen.
 - **V5-D2. "Global" returns as the name** of the set an administrator makes for everybody (it replaces "Everyone" / "Everyone's" in the player and editor).
 - **V5-D3. Global is movies and TV only** (films, episodes and the show-level overview). Books, comics, PDFs and audiobooks have no Global set: their bookmarks are personal. The Bookmarks tab in the editor is not offered for them, and Find/Import there creates personal bookmarks.
 - **V5-D4. Music has no bookmarks at all.** The Bookmarks tool leaves the music player and no bookmark entry point remains.
