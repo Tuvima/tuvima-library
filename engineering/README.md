@@ -122,7 +122,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: the remaining work (2026-11-10)](handoffs/2026-11-10-remaining-work.md) | Current: fix rounds A to K, housekeeping, then one Local check, then new features (PDF and comic reader first) |
-| [Handoff: Dashboard remediation after the frontend review (2026-11-11)](handoffs/2026-11-11-dashboard-remediation.md) | In progress (thread 1 of 7 built): mock-match fixes, one feedback rule, speed wins, unification, then restructuring the largest screens |
+| [Handoff: Dashboard remediation after the frontend review (2026-11-11)](handoffs/2026-11-11-dashboard-remediation.md) | Built, awaiting Local checks (all 7 threads): mock-match fixes, one feedback rule, speed wins, unification, Editor and Player folders, the five largest screens split. Left for Shy to decide: one editor for photos and media, one music table, one reader frame |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
 | [Handoff: docs hub local checks (2026-10-28)](handoffs/2026-10-28-docs-hub-local-checks.md) | Current: three checks (Help links, phone, light and dark) for the docs.tuvima.com move |
 | [Handoff: finish the Details overlay and Editing Mode spec (2026-10-21)](handoffs/2026-10-21-details-overlay-finish.md) | Superseded: WP8 dropped by Shy 2026-11-10 (the Details overlay is replaced by the universal editor) |

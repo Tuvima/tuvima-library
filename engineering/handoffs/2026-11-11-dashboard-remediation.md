@@ -92,6 +92,15 @@ Pages that need identified media (Home, Read, Watch, Listen, an item's page) sta
 - "Legacy" notes closed: stale comments reworded, dead provider-card styles deleted, `playback-panel__body--padded`, `ItemImageUrl`, unused audiobook queue fallback and unused stage fields removed. Tile leftovers (`HoverLayout`, `HasCustomArtwork`, `GroupSource`) deleted.
 - Follow-ups: `UsesLegacyPersonImage` (a wire name; needs Contracts and Engine), `MediaTileHoverLayout` on the artwork resolver, unused rules in the old `app.css` layer (`.tl-table`, `.app-filter-bar`, `.app-media-card` and others; need a screen check), `PlaybackUtilityGlyphMap` should move to `Player/`.
 
+## Thread 7 result: structure part 2 (built 2026-11-11)
+
+- Five screens split into a markup file plus `partial class` code files, as pure moves (no behaviour, markup, style or wording change; no child components): `Browse/MediaBrowseShell` (8 code files), `Player/ListenNowPlayingBar` (9), `Collections/CollectionEditorShell` (10; the markup file still holds about 1,050 lines of markup and render fragments), `Details/DetailPage` (8) and `Pages/ListenPage` (13). Source-text tests read a split component through `LocalizedSource.ReadComponent` (markup plus its code files) or `Support/BrowseShellSource`.
+- Not built, each needs a decision or a spec from Shy:
+  - Photo and document editor merged into the main editor. The window frame is already shared (`EditorWindowChrome`); merging the data layers contradicts the Built spec `photos-documents-editor` (Q1), so it needs a new spec.
+  - One music table (`ListenSongTable`, `AudioItemTable` and the playlist table in `ListenPage`). Needs a shared column, sort and resize part, a mock and a visual check.
+  - One reader frame (`BookReader` and `PageReader`). `pdf-and-comic-reader` D1 asks for one look; it touches a Built spec and needs visual checks.
+- Follow-ups noticed while moving code (not fixed, to keep the moves pure): in the browse shell `ClearActiveGroupState` is empty, `DebounceMediaAddedReloadAsync` has an unused `count`, and `OnLibraryItemsRemoved` does not raise the pending count; possibly unused helpers in the music bar; typed English strings in the collections editor.
+
 ## Local checks
 
 Appended to `engineering/validation/batch.md` as each thread merges.
