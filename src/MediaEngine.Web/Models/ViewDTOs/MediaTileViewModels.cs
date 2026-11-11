@@ -171,7 +171,7 @@ public sealed class MediaTileViewModel
     public int SortYear { get; init; }
     public DateTimeOffset SortTimestamp { get; init; }
     public bool IsCollection { get; init; }
-    public bool UseLandscapeGroupTile { get; init; }
+    public bool UseGroupTile { get; init; }
 
     /// <summary>The small corner word on a group tile: Collection, Series, Universe, List or Set.</summary>
     public MediaTileGroupKind GroupKind { get; init; }
@@ -188,10 +188,10 @@ public sealed class MediaTileViewModel
     /// <summary>True for a playlist, which draws as the square tile beside albums.</summary>
     public bool IsPlaylist { get; init; }
 
-    /// <summary>A group of titles (collection, Series, Universe, list, set) draws as the landscape tile with a cover stack.</summary>
-    public bool RenderAsLandscapeGroupTile =>
+    /// <summary>A group of titles (collection, Series, Universe, list, set) draws as a poster showing the group's cover and its count.</summary>
+    public bool RenderAsGroupTile =>
         !IsPlaylist
-        && (UseLandscapeGroupTile
+        && (UseGroupTile
             || Presentation is MediaTilePresentation.MovieSeries
                 or MediaTilePresentation.BookSeries
                 or MediaTilePresentation.ComicSeries
@@ -202,10 +202,7 @@ public sealed class MediaTileViewModel
                     or MediaTilePresentation.Artist)));
 
     /// <summary>A person (artist, author, director) drawn as a group tile uses the one round person tile instead.</summary>
-    public bool RenderAsPersonTile => Person is not null && RenderAsLandscapeGroupTile;
-
-    /// <summary>Group, person and playlist tiles share one family drawn by their own components, not the single-title tile.</summary>
-    public bool RenderAsFamilyTile => IsPlaylist || RenderAsLandscapeGroupTile;
+    public bool RenderAsPersonTile => Person is not null && RenderAsGroupTile;
 
     /// <summary>
     /// Stable render identity for a display card. Journey rows may share a work while

@@ -9,8 +9,7 @@
 /* Flex/grid virtualization is unreliable when card widths and artwork ratios vary.
    Browser-native render containment skips layout and paint for off-screen cards
    without changing the semantic DOM or the existing responsive geometry. */
-.media-tile-grid ::deep .media-tile,
-.media-tile-grid ::deep .media-group-tile {
+.media-tile-grid ::deep .media-tile {
     content-visibility: auto;
     contain-intrinsic-size: auto 360px;
 }

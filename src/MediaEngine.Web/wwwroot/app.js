@@ -920,7 +920,7 @@ window.getSwimlaneItems = function (el) {
     if (!el) return [];
 
     if (el.classList && el.classList.contains('media-tile-shelf-scroll')) {
-        return Array.prototype.filter.call(el.querySelectorAll('.media-tile, .media-group-tile, .recent-view-card'), function (item) {
+        return Array.prototype.filter.call(el.querySelectorAll('.media-tile, .recent-view-card'), function (item) {
             return item
                 && item.offsetWidth > 0
                 && item.closest('.media-tile-shelf-scroll') === el;
@@ -1141,7 +1141,7 @@ window.updateMediaTileShelfStableHeight = function (el) {
     paddingBottom = Number.isFinite(paddingBottom) ? paddingBottom : 0;
 
     var restingHeight = 0;
-    Array.prototype.forEach.call(el.querySelectorAll('.media-tile, .media-group-tile, .recent-view-card'), function (tile) {
+    Array.prototype.forEach.call(el.querySelectorAll('.media-tile, .recent-view-card'), function (tile) {
         if (tile.closest('.media-tile-shelf-scroll') !== el) return;
         // Include captions beneath artwork as well as fixed-size group tiles.
         var rect = tile.getBoundingClientRect();

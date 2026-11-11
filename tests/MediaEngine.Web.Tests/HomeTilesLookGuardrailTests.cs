@@ -27,7 +27,6 @@ public sealed class HomeTilesLookGuardrailTests
 
     [Theory]
     [InlineData("Components/MediaTiles/MediaTile.razor.css")]
-    [InlineData("Components/MediaTiles/MediaGroupTile.razor.css")]
     [InlineData("Components/Details/DetailPrimaryModule.razor.css")]
     [InlineData("Components/Shared/AppChoiceCard.razor.css")]
     public void LabelsOnTilesAndDetailPagesAreNotRoundEnded(string file)

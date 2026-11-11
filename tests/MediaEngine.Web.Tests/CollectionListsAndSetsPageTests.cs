@@ -134,7 +134,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
     // ── Tiles ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void AnImportedListTile_SaysList_AndCarriesItsRefreshAndTheUnmatchedBadge()
+    public void AnImportedListTile_IsAPosterThatSaysListToScreenReaders_AndDrawsNoSourceLineOrBadgeOverTheArt()
     {
         var refreshed = new DateTimeOffset(2026, 10, 14, 9, 0, 0, TimeSpan.Zero);
         var tile = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
@@ -146,38 +146,21 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
             ListSource = new CollectionCatalogListSourceDto { SourceLabel = "Letterboxd export", LastRefreshedAt = refreshed, EntryCount = 250, OwnedCount = 83, UnmatchedCount = 4 },
         });
 
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, tile));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
 
         Assert.Equal(MediaTileGroupKind.List, tile.GroupKind);
-        Assert.Equal("List", cut.Find(".media-group-tile__kind").TextContent.Trim());
-        Assert.Equal("From a list, refreshed 14 Oct", cut.Find("[data-group-source]").TextContent.Trim());
-        Assert.Equal("Couldn't match 4", cut.Find("[data-unmatched-badge]").TextContent.Trim());
-    }
-
-    [Fact]
-    public void AnImportedListWithNothingUnmatched_ShowsNoBadge_AndNoRefreshWordsBeforeItsFirstRefresh()
-    {
-        var tile = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
-        {
-            Id = Guid.NewGuid(),
-            Name = "Top films",
-            CollectionType = "Custom",
-            FillKind = CollectionFillKinds.List,
-            ListSource = new CollectionCatalogListSourceDto { SourceLabel = "Letterboxd export", EntryCount = 3, OwnedCount = 3 },
-        });
-
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, tile));
-
-        Assert.Equal("From a list", cut.Find("[data-group-source]").TextContent.Trim());
+        Assert.Equal(4, tile.GroupSource!.UnmatchedCount);
+        Assert.StartsWith("Top films, List", cut.Find("a.media-tile-link").GetAttribute("aria-label"), StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-group-source]"));
         Assert.Empty(cut.FindAll("[data-unmatched-badge]"));
     }
 
     [Theory]
-    [InlineData(CollectionFillKinds.HandPicked, "Hand-picked")]
-    [InlineData(CollectionFillKinds.Rules, "Rules")]
-    [InlineData(CollectionFillKinds.Pack, "Pack: Decades")]
-    [InlineData(CollectionFillKinds.Set, "Set of 7 collections")]
-    public void EveryCuratedTile_NamesHowItFillsUp(string fillKind, string expected)
+    [InlineData(CollectionFillKinds.HandPicked)]
+    [InlineData(CollectionFillKinds.Rules)]
+    [InlineData(CollectionFillKinds.Pack)]
+    [InlineData(CollectionFillKinds.Set)]
+    public void EveryCuratedTile_KeepsHowItFillsUpAsDataAndDrawsNoSourceLine(string fillKind)
     {
         var tile = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
         {
@@ -189,13 +172,14 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
             ChildCollectionCount = 7,
         });
 
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, tile));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
 
-        Assert.Equal(expected, cut.Find("[data-group-source]").TextContent.Trim());
+        Assert.Equal(fillKind, tile.GroupSource!.FillKind);
+        Assert.Empty(cut.FindAll("[data-group-source]"));
     }
 
     [Fact]
-    public void ASetTile_SaysSet_AndASeriesTileDrawsNoSourceLine()
+    public void ASetTile_SaysSetToScreenReaders_AndASeriesTileCarriesNoSource()
     {
         var set = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
         {
@@ -212,13 +196,10 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
             CollectionType = "Series",
         });
 
-        var setTile = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, set));
-        var seriesTile = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, series));
+        var setTile = Render<MediaTile>(parameters => parameters.Add(component => component.Item, set));
 
-        Assert.Equal("Set", setTile.Find(".media-group-tile__kind").TextContent.Trim());
-        Assert.Equal("Set of 1 collection", setTile.Find("[data-group-source]").TextContent.Trim());
+        Assert.StartsWith("Decades, Set", setTile.Find("a.media-tile-link").GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Null(series.GroupSource);
-        Assert.Empty(seriesTile.FindAll("[data-group-source]"));
     }
 
     [Fact]
@@ -266,9 +247,8 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
 
         var cut = RenderPage(SetPage());
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-set-children] .media-group-tile")));
-        Assert.Contains("1990s", cut.Find("[data-set-children] .media-group-tile__name").TextContent);
-        Assert.Equal("Pack: Decades", cut.Find("[data-set-children] [data-group-source]").TextContent.Trim());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-set-children] .media-tile.is-group")));
+        Assert.Contains("1990s", cut.Find("[data-set-children] a.media-tile-link").GetAttribute("aria-label"));
         Assert.DoesNotContain("Unrelated", cut.Markup, StringComparison.Ordinal);
     }
 
@@ -293,7 +273,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
         cut.WaitForState(() => cut.FindComponent<DetailHero>().Instance.ExtraActions is { Count: > 0 });
 
     private static void WaitForSetPage(IRenderedComponent<DetailPage> cut) =>
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-set-children] .media-group-tile")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-set-children] .media-tile.is-group")));
 
     private static IReadOnlyList<string> OpenLabels(IRenderedComponent<DetailPage> cut)
     {
@@ -327,7 +307,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
         WaitForSetPage(cut);
 
         // Nothing is left for the "..." to hold on a phone or tablet, so the page draws no menu at all.
-        Assert.Empty(cut.FindAll("button[aria-label='More actions']"));
+        Assert.Empty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']"));
         Assert.DoesNotContain("Remove set…", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Export as a pack file", cut.Markup, StringComparison.Ordinal);
     }

@@ -76,10 +76,10 @@ public static class CollectionSurfaceTileComposer
             MediaKind = "Shelf",
             AccentColor = AccentForMedia(mediaType),
             SecondaryAccentColor = "#111827",
-            Shape = MediaTileShape.Landscape,
-            HoverArtworkShape = MediaTileShape.Landscape,
+            Shape = MediaTileShape.Portrait,
+            HoverArtworkShape = MediaTileShape.Portrait,
             Presentation = PresentationForMedia(mediaType),
-            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
             HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
@@ -94,7 +94,7 @@ public static class CollectionSurfaceTileComposer
             SortYear = group.LatestYear ?? group.EarliestYear ?? 0,
             SortTimestamp = group.CreatedAt,
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             GroupKind = MediaTileGroupKind.Series,
         };
     }
@@ -165,7 +165,7 @@ public static class CollectionSurfaceTileComposer
             PreviewTotalCount = shelf.OwnedCount,
             SortYear = shelf.LatestYear ?? shelf.EarliestYear ?? 0,
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             GroupKind = MediaTileGroupKind.Collection,
             Person = new MediaTilePersonViewModel
             {
@@ -206,8 +206,7 @@ public static class CollectionSurfaceTileComposer
         var surface = MediaTileArtworkResolver.Resolve(
             MediaTileBucket.Other,
             MediaTilePresentation.Default,
-            [new MediaTileArtworkVariant(ArtworkRole.Cover, primarySmall, primaryMedium)],
-            preferLandscapeTile: true);
+            [new MediaTileArtworkVariant(ArtworkRole.Cover, primarySmall, primaryMedium)]);
         var heroArtwork = HeroBackground(collection);
         var heroMedium = MediaTileArtworkUrl.Sized(heroArtwork, "m");
         var paletteArtwork = PaletteArtwork(collection);
@@ -280,7 +279,7 @@ public static class CollectionSurfaceTileComposer
             SortYear = collection.LatestYear ?? collection.EarliestYear ?? 0,
             SortTimestamp = collection.ModifiedAt ?? collection.CreatedAt,
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             GroupKind = GroupKindFor(collection),
             HasCustomArtwork = !string.IsNullOrWhiteSpace(collection.CoverArtworkUrl),
             GroupSource = GroupSourceFor(collection),

@@ -6,7 +6,8 @@
 
 @* The square tile for a playlist, so playlists sit beside albums in Listen. A playlist's own cover (chosen
    artwork, or the Engine's 2x2 mosaic of album covers) fills the square; without one, the member covers are
-   laid out as a 2x2 mosaic. The name is on the art, the kind is the status label and the count the bottom label (One tile design). *@
+   laid out as a 2x2 mosaic. The name is on the art, the top-left slot is left for New (D10), the count is the bottom label and "..." sits
+   top right like every cover (D3). *@
 <article class="media-square-tile" aria-label="@Item.Title">
     <a class="media-square-tile__link"
        href="@Url"
@@ -37,7 +38,10 @@
                 </span>
             }
         <span class="media-square-tile__scrim" aria-hidden="true"></span>
-        <span class="media-square-tile__kind media-tile-label media-tile-label--status">@L["MediaSquareTile_Playlist"]</span>
+        @if (MediaTileLabels.Status(Item, L["MediaTile_GettingDetails"].Value) is { } status)
+        {
+            <span class="media-square-tile__status media-tile-label media-tile-label--status">@status</span>
+        }
         @if (MediaTileLabels.GroupCount(Item) is { } count)
         {
             <span class="media-square-tile__count media-tile-label media-tile-label--bottom">@count</span>
@@ -45,6 +49,7 @@
         <span class="media-square-tile__name">@Item.Title</span>
         </span>
     </a>
+    <MediaTileActions Item="@Item" />
 </article>
 
 @code {

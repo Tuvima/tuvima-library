@@ -92,7 +92,7 @@ public static class MediaPersonGroupTileComposer
             SortYear = latestYear ?? earliestYear ?? 0,
             SortTimestamp = sortTimestamp,
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
         };
     }
 

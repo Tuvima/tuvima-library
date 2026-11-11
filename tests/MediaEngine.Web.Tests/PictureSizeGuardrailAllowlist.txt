@@ -2,7 +2,6 @@
 # One per line: file under src/MediaEngine.Web|src expression exactly as in the markup|reason.
 # Prefer sizing the picture over adding a line here.
 # WP4b
-Components/MediaTiles/MediaGroupTile.razor|@Item.LogoUrl|Brand logo: logos have no size copies (the Engine serves them as stored).
 Components/MediaTiles/MediaTile.razor|@Item.LogoUrl|Title logo: logos have no size copies (the Engine serves them as stored).
 Components/MediaTiles/RecentMediaFeed.razor|@ViewAdapter.ThumbnailUrl(asset, profile)|Photo (View) thumbnail: photos keep their own sized copies and are out of this rule's scope.
 
