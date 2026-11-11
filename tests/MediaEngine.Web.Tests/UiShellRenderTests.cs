@@ -1647,7 +1647,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CollectionEditor_UsesSharedLargeEditorWorkspaceAndKeepsPlaylistArtworkPicker()
     {
-        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var source = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
         var ruleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
         var sharedRuleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
         var valuePicker = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleValuePicker.razor"));
@@ -1678,7 +1678,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CollectionEditor_SmartPlaylistMode_RendersSimplifiedMusicRuleControls()
     {
-        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var source = SplitComponentSource.ReadAll(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
         var ruleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
         var sharedRuleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
 
